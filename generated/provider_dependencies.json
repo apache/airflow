@@ -535,9 +535,7 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [
-      "common.compat"
-    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
