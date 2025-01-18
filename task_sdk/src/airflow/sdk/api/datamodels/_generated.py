@@ -29,6 +29,15 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class AssetAliasResponse(BaseModel):
+    """
+    Asset alias schema with fields that are needed for Runtime.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    group: Annotated[str, Field(title="Group")]
+
+
 class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.
@@ -185,6 +194,17 @@ class TaskInstance(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int, Field(title="Map Index")] = -1
     hostname: Annotated[str | None, Field(title="Hostname")] = None
+
+
+class AssetResponse(BaseModel):
+    """
+    Asset schema for responses with fields that are needed for Runtime.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    group: Annotated[str, Field(title="Group")]
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
 class DagRun(BaseModel):
