@@ -22,6 +22,7 @@ import { useRef } from "react";
 import { Select } from "src/components/ui";
 
 import type { FlexibleFormElementProps } from ".";
+import { useParamStore } from "../TriggerDag/useParamStore";
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
@@ -42,14 +43,24 @@ export const FieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
   });
   const contentRef = useRef<HTMLDivElement>(null);
 
+  const { paramsDict, setParamsDict } = useParamStore();
+  const handleChange = (value: Array<string>) => {
+    if (paramsDict[name] && paramsDict[name].value !== undefined) {
+      paramsDict[name].value = value;
+    }
+
+    setParamsDict(paramsDict);
+  };
+
   return (
     <Select.Root
       collection={selectOptions}
-      defaultValue={enumTypes.includes(typeof param.value) ? [String(param.value)] : undefined}
       id={`element_${name}`}
       name={`element_${name}`}
+      onValueChange={(event) => handleChange(event.value)}
       ref={contentRef}
       size="sm"
+      value={enumTypes.includes(typeof param.value) ? [String(param.value)] : undefined}
     >
       <Select.Trigger>
         <Select.ValueText placeholder="Select Value" />

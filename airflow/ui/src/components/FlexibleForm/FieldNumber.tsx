@@ -17,18 +17,31 @@
  * under the License.
  */
 import type { FlexibleFormElementProps } from ".";
+import { useParamStore } from "../TriggerDag/useParamStore";
 import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
 
-export const FieldNumber = ({ name, param }: FlexibleFormElementProps) => (
-  <NumberInputRoot
-    allowMouseWheel
-    defaultValue={String(param.value ?? "")}
-    id={`element_${name}`}
-    max={param.schema.maximum ?? undefined}
-    min={param.schema.minimum ?? undefined}
-    name={`element_${name}`}
-    size="sm"
-  >
-    <NumberInputField />
-  </NumberInputRoot>
-);
+export const FieldNumber = ({ name, param }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const handleChange = (value: string) => {
+    if (paramsDict[name] && paramsDict[name].value !== undefined) {
+      paramsDict[name].value = Number(value);
+    }
+
+    setParamsDict(paramsDict);
+  };
+
+  return (
+    <NumberInputRoot
+      allowMouseWheel
+      id={`element_${name}`}
+      max={param.schema.maximum ?? undefined}
+      min={param.schema.minimum ?? undefined}
+      name={`element_${name}`}
+      onValueChange={(event) => handleChange(event.value)}
+      size="sm"
+      value={String(param.value ?? "")}
+    >
+      <NumberInputField />
+    </NumberInputRoot>
+  );
+};

@@ -16,11 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DagParamsSpec, ParamSpec } from "src/queries/useDagParams";
-
-export type FlexibleFormProps = {
-  readonly params: DagParamsSpec;
-};
+import type { ParamSpec } from "src/queries/useDagParams";
 
 export type FlexibleFormElementProps = {
   readonly name: string;

@@ -17,13 +17,26 @@
  * under the License.
  */
 import type { FlexibleFormElementProps } from ".";
+import { useParamStore } from "../TriggerDag/useParamStore";
 import { Switch } from "../ui";
 
-export const FieldBool = ({ name, param }: FlexibleFormElementProps) => (
-  <Switch
-    colorPalette="blue"
-    defaultChecked={Boolean(param.value)}
-    id={`element_${name}`}
-    name={`element_${name}`}
-  />
-);
+export const FieldBool = ({ name, param }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const onCheck = (value: boolean) => {
+    if (paramsDict[name] && paramsDict[name].value !== undefined) {
+      paramsDict[name].value = value;
+    }
+
+    setParamsDict(paramsDict);
+  };
+
+  return (
+    <Switch
+      checked={Boolean(param.value)}
+      colorPalette="blue"
+      id={`element_${name}`}
+      name={`element_${name}`}
+      onCheckedChange={(event) => onCheck(event.checked)}
+    />
+  );
+};

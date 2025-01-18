@@ -17,9 +17,10 @@
  * under the License.
  */
 import { Select as ReactSelect } from "chakra-react-select";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { FlexibleFormElementProps } from ".";
+import { useParamStore } from "../TriggerDag/useParamStore";
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
@@ -38,6 +39,15 @@ export const FieldMultiSelect = ({ name, param }: FlexibleFormElementProps) => {
         }))
       : [],
   );
+
+  const { paramsDict, setParamsDict } = useParamStore();
+
+  useEffect(() => {
+    if (paramsDict[name] && paramsDict[name].value !== undefined) {
+      paramsDict[name].value = selectedOptions;
+    }
+    setParamsDict(paramsDict);
+  }, [selectedOptions, paramsDict, setParamsDict, name]);
 
   return (
     <ReactSelect

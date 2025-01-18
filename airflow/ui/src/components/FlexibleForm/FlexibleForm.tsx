@@ -18,11 +18,13 @@
  */
 import { Stack, StackSeparator } from "@chakra-ui/react";
 
-import { flexibleFormDefaultSection, type FlexibleFormProps } from ".";
+import { flexibleFormDefaultSection } from ".";
+import { useParamStore } from "../TriggerDag/useParamStore";
 import { Accordion, Alert } from "../ui";
 import { Row } from "./Row";
 
-export const FlexibleForm = ({ params }: FlexibleFormProps) => {
+export const FlexibleForm = () => {
+  const { paramsDict: params } = useParamStore();
   const processedSections = new Map();
 
   return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string")

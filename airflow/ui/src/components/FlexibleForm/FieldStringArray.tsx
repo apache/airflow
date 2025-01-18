@@ -19,15 +19,30 @@
 import { Textarea } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
+import { useParamStore } from "../TriggerDag/useParamStore";
 
-export const FieldStringArray = ({ name, param }: FlexibleFormElementProps) => (
-  <Textarea
-    defaultValue={
-      Array.isArray(param.value) ? (param.value as Array<string>).join("\n") : String(param.value ?? "")
+export const FieldStringArray = ({ name, param }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const handleChange = (value: string) => {
+    if (paramsDict[name] && paramsDict[name].value !== undefined) {
+      paramsDict[name].value = value;
     }
-    id={`element_${name}`}
-    name={`element_${name}`}
-    rows={6}
-    size="sm"
-  />
-);
+
+    setParamsDict(paramsDict);
+  };
+
+  return (
+    <Textarea
+      id={`element_${name}`}
+      name={`element_${name}`}
+      onChange={(event) => {
+        handleChange(event.target.value);
+      }}
+      rows={6}
+      size="sm"
+      value={
+        Array.isArray(param.value) ? (param.value as Array<string>).join("\n") : String(param.value ?? "")
+      }
+    />
+  );
+};

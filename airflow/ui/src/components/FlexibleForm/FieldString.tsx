@@ -19,27 +19,42 @@
 import { Input } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
+import { useParamStore } from "../TriggerDag/useParamStore";
 
-export const FieldString = ({ name, param }: FlexibleFormElementProps) => (
-  <>
-    <Input
-      defaultValue={String(param.value ?? "")}
-      id={`element_${name}`}
-      list={param.schema.examples ? `list_${name}` : undefined}
-      maxLength={param.schema.maxLength ?? undefined}
-      minLength={param.schema.minLength ?? undefined}
-      name={`element_${name}`}
-      placeholder={param.schema.examples ? "Start typing to see options." : undefined}
-      size="sm"
-    />
-    {param.schema.examples ? (
-      <datalist id={`list_${name}`}>
-        {param.schema.examples.map((example) => (
-          <option key={example} value={example}>
-            {example}
-          </option>
-        ))}
-      </datalist>
-    ) : undefined}
-  </>
-);
+export const FieldString = ({ name, param }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const handleChange = (value: string) => {
+    if (paramsDict[name] && paramsDict[name].value !== undefined) {
+      paramsDict[name].value = value;
+    }
+
+    setParamsDict(paramsDict);
+  };
+
+  return (
+    <>
+      <Input
+        id={`element_${name}`}
+        list={param.schema.examples ? `list_${name}` : undefined}
+        maxLength={param.schema.maxLength ?? undefined}
+        minLength={param.schema.minLength ?? undefined}
+        name={`element_${name}`}
+        onChange={(event) => {
+          handleChange(event.target.value);
+        }}
+        placeholder={param.schema.examples ? "Start typing to see options." : undefined}
+        size="sm"
+        value={String(param.value ?? "")}
+      />
+      {param.schema.examples ? (
+        <datalist id={`list_${name}`}>
+          {param.schema.examples.map((example) => (
+            <option key={example} value={example}>
+              {example}
+            </option>
+          ))}
+        </datalist>
+      ) : undefined}
+    </>
+  );
+};

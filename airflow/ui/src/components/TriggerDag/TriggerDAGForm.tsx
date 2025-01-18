@@ -29,8 +29,9 @@ import { useDagParams } from "src/queries/useDagParams";
 import { useTrigger } from "src/queries/useTrigger";
 
 import { ErrorAlert } from "../ErrorAlert";
-import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
+import { FlexibleForm } from "../FlexibleForm";
 import { Accordion } from "../ui";
+import { useParamStore } from "./useParamStore";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
@@ -48,14 +49,22 @@ export type DagRunTriggerParams = {
 
 const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
-  const { initialConf, paramsDict } = useDagParams(dagId, open);
+  const initialParamsDict = useDagParams(dagId, open);
   const {
     dateValidationError,
     error: errorTrigger,
     isPending,
     triggerDagRun,
   } = useTrigger({ onSuccessConfirm: onClose });
-  const conf = initialConf;
+  const { conf, paramsDict, setConf, setParamsDict } = useParamStore();
+
+  useEffect(() => {
+    setParamsDict({});
+  }, [open, setParamsDict]);
+
+  if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(paramsDict).length === 0) {
+    setParamsDict(initialParamsDict.paramsDict);
+  }
 
   const {
     control,
@@ -110,7 +119,13 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
       setErrors((prev) => ({ ...prev, conf: undefined }));
 
-      return JSON.stringify(parsedJson, undefined, 2);
+      const formattedJson = JSON.stringify(parsedJson, undefined, 2);
+
+      if (formattedJson !== conf) {
+        setConf(formattedJson); // Update only if the value is different
+      }
+
+      return formattedJson;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
 
@@ -131,15 +146,8 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
   return (
     <>
-      <Accordion.Root
-        collapsible
-        defaultValue={[flexibleFormDefaultSection]}
-        mb={4}
-        mt={4}
-        size="lg"
-        variant="enclosed"
-      >
-        <FlexibleForm params={paramsDict} />
+      <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="enclosed">
+        <FlexibleForm />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>
