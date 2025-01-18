@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-17T19:56:53.103669
+# This constraints file was automatically generated on 2025-01-18T19:55:43.073176
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -514,7 +514,7 @@ opsgenie-sdk==2.1.5
 oracledb==2.5.1
 ordered-set==4.1.0
 orderly-set==5.2.3
-orjson==3.10.14
+orjson==3.10.15
 oss2==2.19.1
 packaging==24.2
 pandas-gbq==0.26.1
@@ -639,7 +639,7 @@ s3fs==2024.12.0
 s3transfer==0.11.1
 scramp==1.4.5
 scrapbook==0.5.0
-semver==3.0.2
+semver==3.0.3
 sendgrid==6.11.0
 sentinels==1.0.0
 sentry-sdk==2.20.0
