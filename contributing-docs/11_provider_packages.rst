@@ -143,6 +143,7 @@ of Airflow).
 The old ``provider.yaml`` file is compliant with the schema that is available in
 `json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider.yaml.schema.json>`_.
 
+# TODO(potiuk) - rename when all providers are new-style
 The new ``provider.yaml`` file is compliant with the new schema that is available in
 `json-schema specification <https://github.com/apache/airflow/blob/main/airflow/new_provider.yaml.schema.json>`_.
 
