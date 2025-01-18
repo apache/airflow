@@ -35,7 +35,9 @@ TEST_DAG_FOLDER_INVALID_2 = "/root/airflow/tests/dags/"
 
 
 def get_corresponding_dag_file_count(dir: str, include_examples: bool = True) -> int:
-    return len(list_py_file_paths(directory=dir, include_examples=include_examples))
+    return len(list_py_file_paths(directory=dir)) + (
+        len(list_py_file_paths("/opt/airflow/airflow/example_dags")) if include_examples else 0
+    )
 
 
 class TestDagReportEndpoint:
