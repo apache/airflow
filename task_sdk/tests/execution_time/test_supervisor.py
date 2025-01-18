@@ -280,7 +280,7 @@ class TestWatchedSubprocess:
             run_id="c",
             try_number=1,
         )
-        bundle_info = BundleInfo.model_construct(name="my-bundle", version=None)
+        bundle_info = BundleInfo(name="my-bundle", version=None)
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             exit_code = supervise(
                 ti=ti,
@@ -323,7 +323,7 @@ class TestWatchedSubprocess:
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
         time_machine.move_to(instant, tick=False)
 
-        bundle_info = BundleInfo.model_construct(name="my-bundle", version=None)
+        bundle_info = BundleInfo(name="my-bundle", version=None)
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             exit_code = supervise(
                 ti=ti,
