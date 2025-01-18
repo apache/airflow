@@ -71,10 +71,6 @@ dependencies = [
 provider_info = "airflow.providers.edge.get_provider_info:get_provider_info"
 [project.entry-points."airflow.plugins"]
 edge_executor = "airflow.providers.edge.plugins.edge_executor_plugin:EdgeExecutorPlugin"
-[project.optional-dependencies]
-"common.compat" = [
-    "apache-airflow-providers-common-compat",
-]
 
 [tool.flit.module]
 name = "airflow.providers.edge"
