@@ -27,6 +27,127 @@
 Changelog
 ---------
 
+0.10.1pre0
+..........
+
+Misc
+~~~~
+
+* ``Re-add the feature to support pool slots in concurrency calculation for Airflow 3.``
+
+0.10.0pre0
+..........
+
+Feature
+~~~~~~~
+
+* ``Support Task execution interface (AIP-72) in Airflow 3. Experimental with ongoing development as AIP-72 is also under development.``
+
+0.9.7pre0
+.........
+
+Misc
+~~~~
+
+* ``Make API retries configurable via ENV. Connection loss is sustained for 5min by default.``
+* ``Align retry handling logic and tooling with Task SDK, via retryhttp.``
+
+0.9.6pre0
+.........
+
+Misc
+~~~~
+
+* ``Replace null value in log file chunk with question mark to fix exception by pushing log into DB.``
+
+0.9.5pre0
+.........
+
+Misc
+~~~~
+
+* ``Revert removal of Pydantic model support from PR 44552 to restore compatibility with Airflow 2.10.``
+
+0.9.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix to keep edge executor and edge job table in sync. Important in multi scheduler deployments.``
+
+0.9.3pre0
+.........
+
+Misc
+~~~~
+
+* ``Handle purging of restarting edge jobs.``
+
+0.9.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix check edge worker api call authentication with different base url. Authentication failed when Airflow is not installed in webserver root.``
+
+0.9.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Make edge executor DB access is multi instance save.``
+
+0.9.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Remove dependency to Internal API after migration to FastAPI.``
+
+0.8.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker job calls to FastAPI.``
+
+0.8.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker log calls to FastAPI.``
+
+0.8.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker registration and heartbeat to FastAPI.``
+
+0.7.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker state is sent as 0 to DB if offline or unknown.``
+
+0.7.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker supports concurrency slots feature so that jobs which need more concurrency blocking other jobs beeing executed on the same worker in parallel.``
+
 0.6.2pre0
 .........
 

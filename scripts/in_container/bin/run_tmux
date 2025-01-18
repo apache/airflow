@@ -59,10 +59,12 @@ tmux send-keys 'airflow scheduler' C-m
 tmux split-window -h
 tmux select-pane -t 2
 
-if [[ ${DEV_MODE=} == "true" ]]; then
-    tmux send-keys 'airflow fastapi-api -d' C-m
-else
-    tmux send-keys 'airflow fastapi-api' C-m
+if [[ ! ${USE_AIRFLOW_VERSION=} =~ ^2\..*  ]]; then
+    if [[ ${DEV_MODE=} == "true" ]]; then
+        tmux send-keys 'airflow fastapi-api -d' C-m
+    else
+        tmux send-keys 'airflow fastapi-api' C-m
+    fi
 fi
 
 tmux split-window -h
@@ -97,22 +99,17 @@ if [[ ${AIRFLOW__CORE__EXECUTOR} == "airflow.providers.edge.executors.edge_execu
     tmux send-keys 'unset POSTGRES_HOST_PORT' C-m
     tmux send-keys 'unset BACKEND' C-m
     tmux send-keys 'unset POSTGRES_VERSION' C-m
-    tmux send-keys 'unset DATABASE_ISOLATION' C-m
 
     # Ensure logs are smelling like Remote and are not visible to other components
     tmux send-keys 'export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs' C-m
 
-    tmux send-keys 'airflow edge worker --edge-hostname breeze' C-m
+    # Start Edge Worker and make a "breeze" hostname, let it pick only default queue
+    tmux send-keys 'airflow edge worker --edge-hostname breeze --queues default' C-m
 fi
 if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
     tmux select-pane -t 3
     tmux split-window -h
     tmux send-keys 'airflow dag-processor' C-m
-fi
-if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
-    tmux select-pane -t 0
-    tmux split-window -h
-    tmux send-keys 'airflow internal-api' C-m
 fi
 
 # Attach Session, on the Main window

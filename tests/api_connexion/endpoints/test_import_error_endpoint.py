@@ -29,9 +29,10 @@ from tests_common.test_utils.compat import ParseImportError
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 TEST_DAG_IDS = ["test_dag", "test_dag2"]
+BUNDLE_NAME = "dag_maker"
 
 
 @pytest.fixture(scope="module")
@@ -77,6 +78,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+            bundle_name=BUNDLE_NAME,
         )
         session.add(import_error)
         session.commit()
@@ -88,28 +90,30 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         response_data["import_error_id"] = 1
-        assert {
+        assert response_data == {
             "filename": "Lorem_ipsum.py",
+            "bundle_name": BUNDLE_NAME,
             "import_error_id": 1,
             "stack_trace": "Lorem ipsum",
             "timestamp": "2020-06-10T12:00:00+00:00",
-        } == response_data
+        }
 
     def test_response_404(self):
         response = self.client.get("/api/v1/importErrors/2", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The ImportError with import_error_id: `2` was not found",
             "status": 404,
             "title": "Import error not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         import_error = ParseImportError(
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+            bundle_name=BUNDLE_NAME,
         )
         session.add(import_error)
         session.commit()
@@ -132,6 +136,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
                 filename="Lorem_ipsum.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+                bundle_name=BUNDLE_NAME,
             )
             for _ in range(2)
         ]
@@ -143,23 +148,25 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         self._normalize_import_errors(response_data["import_errors"])
-        assert {
+        assert response_data == {
             "import_errors": [
                 {
                     "filename": "Lorem_ipsum.py",
+                    "bundle_name": BUNDLE_NAME,
                     "import_error_id": 1,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-10T12:00:00+00:00",
                 },
                 {
                     "filename": "Lorem_ipsum.py",
+                    "bundle_name": BUNDLE_NAME,
                     "import_error_id": 2,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-10T12:00:00+00:00",
                 },
             ],
             "total_entries": 2,
-        } == response_data
+        }
 
     def test_get_import_errors_order_by(self, session):
         import_error = [
@@ -167,6 +174,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
                 filename=f"Lorem_ipsum{i}.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC") + timedelta(days=-i),
+                bundle_name=BUNDLE_NAME,
             )
             for i in range(1, 3)
         ]
@@ -180,23 +188,25 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         self._normalize_import_errors(response_data["import_errors"])
-        assert {
+        assert response_data == {
             "import_errors": [
                 {
                     "filename": "Lorem_ipsum1.py",
+                    "bundle_name": BUNDLE_NAME,
                     "import_error_id": 1,  # id normalized with self._normalize_import_errors
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-09T12:00:00+00:00",
                 },
                 {
                     "filename": "Lorem_ipsum2.py",
+                    "bundle_name": BUNDLE_NAME,
                     "import_error_id": 2,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-08T12:00:00+00:00",
                 },
             ],
             "total_entries": 2,
-        } == response_data
+        }
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
         import_error = [
@@ -204,6 +214,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
                 filename="Lorem_ipsum.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+                bundle_name=BUNDLE_NAME,
             )
             for _ in range(2)
         ]
@@ -224,6 +235,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
                 filename="Lorem_ipsum.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+                bundle_name=BUNDLE_NAME,
             )
             for _ in range(2)
         ]
@@ -256,6 +268,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
                 filename=f"/tmp/file_{i}.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+                bundle_name=BUNDLE_NAME,
             )
             for i in range(1, 110)
         ]
@@ -274,6 +287,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
                 filename=f"/tmp/file_{i}.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+                bundle_name=BUNDLE_NAME,
             )
             for i in range(1, 110)
         ]
@@ -288,6 +302,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         import_errors = [
             ParseImportError(
                 filename=f"/tmp/file_{i}.py",
+                bundle_name=BUNDLE_NAME,
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
             )

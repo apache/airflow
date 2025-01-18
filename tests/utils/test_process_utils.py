@@ -40,8 +40,6 @@ from airflow.utils.process_utils import (
     set_new_process_group,
 )
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 class TestReapProcessGroup:
     @staticmethod
@@ -101,13 +99,12 @@ class TestReapProcessGroup:
                 pass
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestExecuteInSubProcess:
     def test_should_print_all_messages1(self, caplog):
         execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
         msgs = [record.getMessage() for record in caplog.records]
-        assert ["Executing cmd: bash -c 'echo CAT; echo KITTY;'", "Output:", "CAT", "KITTY"] == msgs
+        assert msgs == ["Executing cmd: bash -c 'echo CAT; echo KITTY;'", "Output:", "CAT", "KITTY"]
 
     def test_should_print_all_messages_from_cwd(self, caplog, tmp_path):
         execute_in_subprocess(["bash", "-c", "echo CAT; pwd; echo KITTY;"], cwd=str(tmp_path))
@@ -143,7 +140,6 @@ def my_sleep_subprocess_with_signals():
     sleep(100)
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestKillChildProcessesByPids:
     def test_should_kill_process(self):
@@ -183,30 +179,30 @@ class TestPatchEnviron:
         with mock.patch.dict("os.environ", {"TEST_NOT_EXISTS": "BEFORE", "TEST_EXISTS": "BEFORE"}):
             del os.environ["TEST_NOT_EXISTS"]
 
-            assert "BEFORE" == os.environ["TEST_EXISTS"]
+            assert os.environ["TEST_EXISTS"] == "BEFORE"
             assert "TEST_NOT_EXISTS" not in os.environ
 
             with process_utils.patch_environ({"TEST_NOT_EXISTS": "AFTER", "TEST_EXISTS": "AFTER"}):
-                assert "AFTER" == os.environ["TEST_NOT_EXISTS"]
-                assert "AFTER" == os.environ["TEST_EXISTS"]
+                assert os.environ["TEST_NOT_EXISTS"] == "AFTER"
+                assert os.environ["TEST_EXISTS"] == "AFTER"
 
-            assert "BEFORE" == os.environ["TEST_EXISTS"]
+            assert os.environ["TEST_EXISTS"] == "BEFORE"
             assert "TEST_NOT_EXISTS" not in os.environ
 
     def test_should_restore_state_when_exception(self):
         with mock.patch.dict("os.environ", {"TEST_NOT_EXISTS": "BEFORE", "TEST_EXISTS": "BEFORE"}):
             del os.environ["TEST_NOT_EXISTS"]
 
-            assert "BEFORE" == os.environ["TEST_EXISTS"]
+            assert os.environ["TEST_EXISTS"] == "BEFORE"
             assert "TEST_NOT_EXISTS" not in os.environ
 
             with suppress(AirflowException):
                 with process_utils.patch_environ({"TEST_NOT_EXISTS": "AFTER", "TEST_EXISTS": "AFTER"}):
-                    assert "AFTER" == os.environ["TEST_NOT_EXISTS"]
-                    assert "AFTER" == os.environ["TEST_EXISTS"]
+                    assert os.environ["TEST_NOT_EXISTS"] == "AFTER"
+                    assert os.environ["TEST_EXISTS"] == "AFTER"
                     raise AirflowException("Unknown exception")
 
-            assert "BEFORE" == os.environ["TEST_EXISTS"]
+            assert os.environ["TEST_EXISTS"] == "BEFORE"
             assert "TEST_NOT_EXISTS" not in os.environ
 
 

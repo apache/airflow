@@ -408,8 +408,7 @@ https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify
 The test procedure for contributors and members of the community who would like to test this RC is described in:
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-contributors
 
-
-Please note that the version number excludes the \`rcX\` string, so it's now
+Please note that the version number excludes the 'rcX' string, so it's now
 simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without modifying
 the artifact checksums when we actually release.
 
@@ -893,7 +892,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     # and finally open a PR
     ```
 
-The `--run-in-parallell` switch allows to speed up SBOM generation significantly, but it might take a lot
+The `--run-in-parallel` switch allows to speed up SBOM generation significantly, but it might take a lot
 of memory - if you are running into memory issues you can limit parallelism by setting `--parallelism N`
 where N is a number of parallel `cdxgen` servers that should be started.
 
@@ -924,7 +923,7 @@ Dear Airflow community,
 
 I'm happy to announce that Airflow ${VERSION} was just released.
 
-The released sources and packages can be downloaded via https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html
+The released sources and packages can be downloaded via https://airflow.apache.org/docs/apache-airflow/${VERSION}/installation/installing-from-sources.html
 
 Other installation methods are described in https://airflow.apache.org/docs/apache-airflow/stable/installation/
 
@@ -1010,9 +1009,10 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* Twitter: https://twitter.com/ApacheAirflow
-* Linkedin: https://www.linkedin.com/company/apache-airflow/
+* X: https://x.com/ApacheAirflow
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
 
 Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.

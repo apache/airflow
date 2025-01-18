@@ -74,7 +74,6 @@ flask_appbuilder_menu_links: list[Any] | None = None
 global_operator_extra_links: list[Any] | None = None
 operator_extra_links: list[Any] | None = None
 registered_operator_link_classes: dict[str, type] | None = None
-registered_ti_dep_classes: dict[str, type] | None = None
 timetable_classes: dict[str, type[Timetable]] | None = None
 hook_lineage_reader_classes: list[type[HookLineageReader]] | None = None
 priority_weight_strategy_classes: dict[str, type[PriorityWeightStrategy]] | None = None
@@ -95,7 +94,6 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "global_operator_extra_links",
     "operator_extra_links",
     "source",
-    "ti_deps",
     "timetables",
     "listeners",
     "priority_weight_strategies",
@@ -170,8 +168,6 @@ class AirflowPlugin:
     # These extra links will be available on the task page in form of
     # buttons.
     operator_extra_links: list[Any] = []
-
-    ti_deps: list[Any] = []
 
     # A list of timetable classes that can be used for DAG scheduling.
     timetables: list[type[Timetable]] = []
@@ -366,7 +362,7 @@ def ensure_plugins_loaded():
         log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
 
 
-def initialize_web_ui_plugins():
+def initialize_flask_plugins():
     """Collect extension points for WEB UI."""
     global plugins
     global flask_blueprints
@@ -425,27 +421,6 @@ def initialize_fastapi_plugins():
 
     for plugin in plugins:
         fastapi_apps.extend(plugin.fastapi_apps)
-
-
-def initialize_ti_deps_plugins():
-    """Create modules for loaded extension from custom task instance dependency rule plugins."""
-    global registered_ti_dep_classes
-    if registered_ti_dep_classes is not None:
-        return
-
-    ensure_plugins_loaded()
-
-    if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
-
-    log.debug("Initialize custom taskinstance deps plugins")
-
-    registered_ti_dep_classes = {}
-
-    for plugin in plugins:
-        registered_ti_dep_classes.update(
-            {qualname(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps}
-        )
 
 
 def initialize_extra_operators_links_plugins():
@@ -577,7 +552,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
     """
     ensure_plugins_loaded()
     integrate_macros_plugins()
-    initialize_web_ui_plugins()
+    initialize_flask_plugins()
     initialize_fastapi_plugins()
     initialize_extra_operators_links_plugins()
     if not attrs_to_dump:

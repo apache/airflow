@@ -30,7 +30,6 @@ import pytest
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
-from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun, DagRunNote
@@ -50,14 +49,14 @@ from airflow.utils.types import DagRunType
 
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 from tests_common.test_utils import db
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 if TYPE_CHECKING:
@@ -111,6 +110,11 @@ class TestDagRun:
             run_type = DagRunType.MANUAL
             data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
         dag_run = dag.create_dagrun(
+            run_id=dag.timetable.generate_run_id(
+                run_type=run_type,
+                logical_date=logical_date,
+                data_interval=data_interval,
+            ),
             run_type=run_type,
             logical_date=logical_date,
             data_interval=data_interval,
@@ -123,6 +127,8 @@ class TestDagRun:
         if task_states is not None:
             for task_id, task_state in task_states.items():
                 ti = dag_run.get_task_instance(task_id)
+                if TYPE_CHECKING:
+                    assert ti
                 ti.set_state(task_state, session)
             session.flush()
 
@@ -195,14 +201,14 @@ class TestDagRun:
 
         session.commit()
 
-        assert 1 == len(DagRun.find(dag_id=dag_id1, external_trigger=True))
-        assert 1 == len(DagRun.find(run_id=dag_id1))
-        assert 2 == len(DagRun.find(run_id=[dag_id1, dag_id2]))
-        assert 2 == len(DagRun.find(logical_date=[now, now]))
-        assert 2 == len(DagRun.find(logical_date=now))
-        assert 0 == len(DagRun.find(dag_id=dag_id1, external_trigger=False))
-        assert 0 == len(DagRun.find(dag_id=dag_id2, external_trigger=True))
-        assert 1 == len(DagRun.find(dag_id=dag_id2, external_trigger=False))
+        assert len(DagRun.find(dag_id=dag_id1, external_trigger=True)) == 1
+        assert len(DagRun.find(run_id=dag_id1)) == 1
+        assert len(DagRun.find(run_id=[dag_id1, dag_id2])) == 2
+        assert len(DagRun.find(logical_date=[now, now])) == 2
+        assert len(DagRun.find(logical_date=now)) == 2
+        assert len(DagRun.find(dag_id=dag_id1, external_trigger=False)) == 0
+        assert len(DagRun.find(dag_id=dag_id2, external_trigger=True)) == 0
+        assert len(DagRun.find(dag_id=dag_id2, external_trigger=False)) == 1
 
     def test_dagrun_find_duplicate(self, session):
         now = timezone.utcnow()
@@ -250,7 +256,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         dag_run.update_state()
-        assert DagRunState.SUCCESS == dag_run.state
+        assert dag_run.state == DagRunState.SUCCESS
 
     def test_dagrun_not_stuck_in_running_when_all_tasks_instances_are_removed(self, session):
         """
@@ -277,20 +283,13 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         dag_run.update_state()
-        assert DagRunState.SUCCESS == dag_run.state
+        assert dag_run.state == DagRunState.SUCCESS
 
-    def test_dagrun_success_conditions(self, session):
-        dag = DAG(
-            "test_dagrun_success_conditions",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-            default_args={"owner": "owner1"},
-        )
-
+    def test_dagrun_success_conditions(self, dag_maker, session):
         # A -> B
         # A -> C -> D
         # ordered: B, D, C, A or D, B, C, A or D, C, B, A
-        with dag:
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
             op1 = EmptyOperator(task_id="A")
             op2 = EmptyOperator(task_id="B")
             op3 = EmptyOperator(task_id="C")
@@ -298,18 +297,7 @@ class TestDagRun:
             op1.set_upstream([op2, op3])
             op3.set_upstream(op4)
 
-        dag.clear()
-
-        now = pendulum.now("UTC")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_success_conditions",
-            state=DagRunState.RUNNING,
-            logical_date=now,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=now),
-            start_date=now,
-            **triggered_by_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
 
         # op1 = root
         ti_op1 = dr.get_task_instance(task_id=op1.task_id)
@@ -321,41 +309,23 @@ class TestDagRun:
 
         # root is successful, but unfinished tasks
         dr.update_state()
-        assert DagRunState.RUNNING == dr.state
+        assert dr.state == DagRunState.RUNNING
 
         # one has failed, but root is successful
         ti_op2.set_state(state=TaskInstanceState.FAILED, session=session)
         ti_op3.set_state(state=TaskInstanceState.SUCCESS, session=session)
         ti_op4.set_state(state=TaskInstanceState.SUCCESS, session=session)
         dr.update_state()
-        assert DagRunState.SUCCESS == dr.state
+        assert dr.state == DagRunState.SUCCESS
 
-    def test_dagrun_deadlock(self, session):
-        dag = DAG(
-            "text_dagrun_deadlock",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-            default_args={"owner": "owner1"},
-        )
-
-        with dag:
+    def test_dagrun_deadlock(self, dag_maker, session):
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
             op1 = EmptyOperator(task_id="A")
             op2 = EmptyOperator(task_id="B")
             op2.trigger_rule = TriggerRule.ONE_FAILED
             op2.set_upstream(op1)
 
-        dag.clear()
-        now = pendulum.now("UTC")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_deadlock",
-            state=DagRunState.RUNNING,
-            logical_date=now,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=now),
-            start_date=now,
-            session=session,
-            **triggered_by_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
 
         ti_op1: TI = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti_op2: TI = dr.get_task_instance(task_id=op2.task_id, session=session)
@@ -370,56 +340,32 @@ class TestDagRun:
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
-    def test_dagrun_no_deadlock_with_restarting(self, session):
-        dag = DAG(
-            "test_dagrun_no_deadlock_with_restarting",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-        )
-        with dag:
+    def test_dagrun_no_deadlock_with_restarting(self, dag_maker, session):
+        with dag_maker(schedule=datetime.timedelta(days=1)):
             op1 = EmptyOperator(task_id="upstream_task")
             op2 = EmptyOperator(task_id="downstream_task")
             op2.set_upstream(op1)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_no_deadlock_with_shutdown",
-            state=DagRunState.RUNNING,
-            logical_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
-            start_date=DEFAULT_DATE,
-            **triggered_by_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
         upstream_ti = dr.get_task_instance(task_id="upstream_task")
         upstream_ti.set_state(TaskInstanceState.RESTARTING, session=session)
 
         dr.update_state()
         assert dr.state == DagRunState.RUNNING
 
-    def test_dagrun_no_deadlock_with_depends_on_past(self, session):
-        dag = DAG("test_dagrun_no_deadlock", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
-        with dag:
+    def test_dagrun_no_deadlock_with_depends_on_past(self, dag_maker, session):
+        with dag_maker(schedule=datetime.timedelta(days=1)):
             EmptyOperator(task_id="dop", depends_on_past=True)
             EmptyOperator(task_id="tc", max_active_tis_per_dag=1)
 
-        dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
+        dr = dag_maker.create_dagrun(
             run_id="test_dagrun_no_deadlock_1",
-            state=DagRunState.RUNNING,
-            logical_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             start_date=DEFAULT_DATE,
-            **triggered_by_kwargs,
         )
-        next_date = DEFAULT_DATE + datetime.timedelta(days=1)
-        dr2 = dag.create_dagrun(
+        dr2 = dag_maker.create_dagrun_after(
+            dr,
             run_id="test_dagrun_no_deadlock_2",
-            state=DagRunState.RUNNING,
-            logical_date=next_date,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=next_date),
-            start_date=next_date,
-            **triggered_by_kwargs,
+            start_date=DEFAULT_DATE + datetime.timedelta(days=1),
         )
         ti1_op1 = dr.get_task_instance(task_id="dop")
         dr2.get_task_instance(task_id="dop")
@@ -461,7 +407,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         _, callback = dag_run.update_state()
-        assert DagRunState.SUCCESS == dag_run.state
+        assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
@@ -489,7 +435,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         _, callback = dag_run.update_state()
-        assert DagRunState.FAILED == dag_run.state
+        assert dag_run.state == DagRunState.FAILED
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
@@ -515,10 +461,10 @@ class TestDagRun:
         task = dag_run.get_task_instances()[0]
 
         assert task.state == TaskInstanceState.SKIPPED
-        assert DagRunState.SUCCESS == dag_run.state
+        assert dag_run.state == DagRunState.SUCCESS
         mock_on_success.assert_called_once()
 
-    def test_dagrun_update_state_with_handle_callback_success(self, session):
+    def test_dagrun_update_state_with_handle_callback_success(self, testing_dag_bundle, session):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_success"
 
@@ -528,7 +474,7 @@ class TestDagRun:
             start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
         )
-        DAG.bulk_write_to_db(dags=[dag], processor_subdir="/tmp/test", session=session)
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
 
         dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_state_succeeded2", dag=dag)
@@ -545,7 +491,7 @@ class TestDagRun:
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
 
         _, callback = dag_run.update_state(execute_callbacks=False)
-        assert DagRunState.SUCCESS == dag_run.state
+        assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
         assert callback == DagCallbackRequest(
@@ -553,11 +499,10 @@ class TestDagRun:
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             run_id=dag_run.run_id,
             is_failure_callback=False,
-            processor_subdir="/tmp/test",
             msg="success",
         )
 
-    def test_dagrun_update_state_with_handle_callback_failure(self, session):
+    def test_dagrun_update_state_with_handle_callback_failure(self, testing_dag_bundle, session):
         def on_failure_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
 
@@ -567,7 +512,7 @@ class TestDagRun:
             start_date=datetime.datetime(2017, 1, 1),
             on_failure_callback=on_failure_callable,
         )
-        DAG.bulk_write_to_db(dags=[dag], processor_subdir="/tmp/test", session=session)
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
 
         dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_state_failed2", dag=dag)
@@ -584,7 +529,7 @@ class TestDagRun:
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
 
         _, callback = dag_run.update_state(execute_callbacks=False)
-        assert DagRunState.FAILED == dag_run.state
+        assert dag_run.state == DagRunState.FAILED
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
         assert callback == DagCallbackRequest(
@@ -592,30 +537,14 @@ class TestDagRun:
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             run_id=dag_run.run_id,
             is_failure_callback=True,
-            processor_subdir="/tmp/test",
             msg="task_failure",
         )
 
-    def test_dagrun_set_state_end_date(self, session):
-        dag = DAG(
-            "test_dagrun_set_state_end_date",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-            default_args={"owner": "owner1"},
-        )
+    def test_dagrun_set_state_end_date(self, dag_maker, session):
+        with dag_maker(schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE):
+            pass
 
-        dag.clear()
-
-        now = pendulum.now("UTC")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_set_state_end_date",
-            state=DagRunState.RUNNING,
-            logical_date=now,
-            data_interval=dag.timetable.infer_manual_data_interval(now),
-            start_date=now,
-            **triggered_by_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
 
         # Initial end_date should be NULL
         # DagRunState.SUCCESS and DagRunState.FAILED are all ending state and should set end_date
@@ -628,7 +557,7 @@ class TestDagRun:
         session.merge(dr)
         session.commit()
 
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_set_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
         assert dr_database.end_date is not None
         assert dr.end_date == dr_database.end_date
 
@@ -636,44 +565,26 @@ class TestDagRun:
         session.merge(dr)
         session.commit()
 
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_set_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
 
         assert dr_database.end_date is None
 
         dr.set_state(DagRunState.FAILED)
         session.merge(dr)
         session.commit()
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_set_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
 
         assert dr_database.end_date is not None
         assert dr.end_date == dr_database.end_date
 
-    def test_dagrun_update_state_end_date(self, session):
-        dag = DAG(
-            "test_dagrun_update_state_end_date",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-            default_args={"owner": "owner1"},
-        )
-
+    def test_dagrun_update_state_end_date(self, dag_maker, session):
         # A -> B
-        with dag:
+        with dag_maker(schedule=datetime.timedelta(days=1)):
             op1 = EmptyOperator(task_id="A")
             op2 = EmptyOperator(task_id="B")
             op1.set_upstream(op2)
 
-        dag.clear()
-
-        now = pendulum.now("UTC")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_update_state_end_date",
-            state=DagRunState.RUNNING,
-            logical_date=now,
-            data_interval=dag.timetable.infer_manual_data_interval(now),
-            start_date=now,
-            **triggered_by_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
 
         # Initial end_date should be NULL
         # DagRunState.SUCCESS and DagRunState.FAILED are all ending state and should set end_date
@@ -689,7 +600,7 @@ class TestDagRun:
 
         dr.update_state()
 
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_update_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
         assert dr_database.end_date is not None
         assert dr.end_date == dr_database.end_date
 
@@ -697,7 +608,7 @@ class TestDagRun:
         ti_op2.set_state(state=TaskInstanceState.RUNNING, session=session)
         dr.update_state()
 
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_update_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
 
         assert dr._state == DagRunState.RUNNING
         assert dr.end_date is None
@@ -707,7 +618,7 @@ class TestDagRun:
         ti_op2.set_state(state=TaskInstanceState.FAILED, session=session)
         dr.update_state()
 
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_update_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
 
         assert dr_database.end_date is not None
         assert dr.end_date == dr_database.end_date
@@ -761,7 +672,7 @@ class TestDagRun:
 
         dagrun = self.create_dag_run(dag, session=session)
         flaky_ti = dagrun.get_task_instances()[0]
-        assert "flaky_task" == flaky_ti.task_id
+        assert flaky_ti.task_id == "flaky_task"
         assert flaky_ti.state is None
 
         dagrun.dag = with_all_tasks_removed(dag)
@@ -782,7 +693,7 @@ class TestDagRun:
 
         dagrun = self.create_dag_run(dag, session=session)
         first_ti = dagrun.get_task_instances()[0]
-        assert "first_task" == first_ti.task_id
+        assert first_ti.task_id == "first_task"
         assert first_ti.state is None
 
         # Lets assume that the above TI was added into DB by webserver, but if scheduler
@@ -927,6 +838,11 @@ class TestDagRun:
         session.flush()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
+            run_id=dag.timetable.generate_run_id(
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+                data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
+            ),
             run_type=DagRunType.SCHEDULED,
             state=state,
             logical_date=DEFAULT_DATE,
@@ -1000,6 +916,11 @@ class TestDagRun:
             session.flush()
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
+                run_id=dag.timetable.generate_run_id(
+                    run_type=DagRunType.SCHEDULED,
+                    logical_date=dag.start_date,
+                    data_interval=dag.infer_automated_data_interval(dag.start_date),
+                ),
                 run_type=DagRunType.SCHEDULED,
                 state=DagRunState.SUCCESS,
                 logical_date=dag.start_date,
@@ -1067,12 +988,7 @@ class TestDagRun:
         with dag_maker(session=session) as dag:
             PythonOperator(task_id="t1", python_callable=lambda: print)
             PythonOperator(task_id="t2", python_callable=lambda: print)
-        dr = dag.create_dagrun(
-            state=DagRunState.FAILED,
-            triggered_by=DagRunTriggeredByType.TEST,
-            run_id="abc123",
-            session=session,
-        )
+        dr = dag_maker.create_dagrun(state=DagRunState.FAILED)
         for ti in dr.get_task_instances(session=session):
             ti.state = TaskInstanceState.FAILED
         session.commit()
@@ -2823,9 +2739,10 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
 def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
     with conf_vars({("scheduler", "allowed_run_id_pattern"): pattern}):
         with dag_maker():
-            ...
+            pass
+        run_type = DagRunType.from_run_id(run_id)
         if result:
-            dag_maker.create_dagrun(run_id=run_id)
+            dag_maker.create_dagrun(run_id=run_id, run_type=run_type)
         else:
-            with pytest.raises(AirflowException):
-                dag_maker.create_dagrun(run_id=run_id)
+            with pytest.raises(ValueError):
+                dag_maker.create_dagrun(run_id=run_id, run_type=run_type)

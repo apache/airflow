@@ -171,33 +171,22 @@ with DAG(
         region=REGION,
         repository_id=REPOSITORY_ID,
         workflow_invocation_id=(
-            "{{ task_instance.xcom_pull('create-workflow-invocation')['name'].split('/')[-1] }}"
+            "{{ task_instance.xcom_pull('create-workflow-invocation-async')['name'].split('/')[-1] }}"
         ),
         expected_statuses={WorkflowInvocation.State.SUCCEEDED},
     )
     # [END howto_operator_create_workflow_invocation_async]
 
     # [START howto_operator_create_workflow_invocation_action_async]
-    create_workflow_invocation_async_action = DataformCreateWorkflowInvocationOperator(
-        task_id="create-workflow-invocation-async-action",
-        project_id=PROJECT_ID,
-        region=REGION,
-        repository_id=REPOSITORY_ID,
-        asynchronous=True,
-        workflow_invocation={
-            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}"
-        },
-    )
-
     is_workflow_invocation_action_done = DataformWorkflowInvocationActionStateSensor(
         task_id="is-workflow-invocation-action-done",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
         workflow_invocation_id=(
-            "{{ task_instance.xcom_pull('create-workflow-invocation')['name'].split('/')[-1] }}"
+            "{{ task_instance.xcom_pull('create-workflow-invocation-async')['name'].split('/')[-1] }}"
         ),
-        target_name="YOUR_TARGET_HERE",
+        target_name="first_view",
         expected_statuses={WorkflowInvocationAction.State.SUCCEEDED},
         failure_statuses={
             WorkflowInvocationAction.State.SKIPPED,
@@ -340,26 +329,37 @@ with DAG(
     )
     (
         last_initialization_step
-        >> install_npm_packages
-        >> create_compilation_result
-        >> get_compilation_result
-        >> create_workflow_invocation
-        >> get_workflow_invocation
-        >> query_workflow_invocation_actions
-        >> create_workflow_invocation_async
-        >> is_workflow_invocation_done
-        >> create_workflow_invocation_async_action
-        >> is_workflow_invocation_action_done
-        >> create_workflow_invocation_for_cancel
-        >> cancel_workflow_invocation
         >> make_test_directory
         >> write_test_file
-        # TEST TEARDOWN
         >> remove_test_file
         >> remove_test_directory
         >> delete_dataset
-        >> delete_workspace
-        >> delete_repository
+    )
+    (
+        last_initialization_step
+        >> install_npm_packages
+        >> create_compilation_result
+        >> [
+            get_compilation_result,
+            create_workflow_invocation,
+            create_workflow_invocation_async,
+            create_workflow_invocation_for_cancel,
+        ]
+    )
+    (
+        create_workflow_invocation
+        >> [get_workflow_invocation, query_workflow_invocation_actions]
+        >> delete_dataset
+    )
+    (
+        create_workflow_invocation_async
+        >> [is_workflow_invocation_done, is_workflow_invocation_action_done]
+        >> delete_dataset
+    )
+    create_workflow_invocation_for_cancel >> cancel_workflow_invocation >> delete_dataset
+    (
+        # TEST TEARDOWN
+        delete_dataset >> delete_workspace >> delete_repository
     )
 
     # ### Everything below this line is not part of example ###

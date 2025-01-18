@@ -21,7 +21,7 @@
 
 {% block head_meta %}
   {{ super() }}
-  <meta name="login_submit_url" content="{{ url_for('SimpleAuthManagerAuthenticationViews.login_submit') }}">
+  <meta name="login_submit_url" content="{{ login_submit_url }}">
 {% endblock %}
 
 {% block messages %}

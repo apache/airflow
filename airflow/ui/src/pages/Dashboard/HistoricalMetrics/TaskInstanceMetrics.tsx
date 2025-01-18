@@ -19,8 +19,9 @@
 import { Box, Heading, HStack } from "@chakra-ui/react";
 import type { TaskInstanceStateCount } from "openapi-gen/requests/types.gen";
 
+import { MetricsBadge } from "src/components/MetricsBadge";
+
 import { MetricSection } from "./MetricSection";
-import { MetricsBadge } from "./MetricsBadge";
 
 type TaskInstanceMetricsProps = {
   readonly taskInstanceStates: TaskInstanceStateCount;
@@ -35,10 +36,7 @@ const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
   "skipped",
 ];
 
-export const TaskInstanceMetrics = ({
-  taskInstanceStates,
-  total,
-}: TaskInstanceMetricsProps) => (
+export const TaskInstanceMetrics = ({ taskInstanceStates, total }: TaskInstanceMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} mt={2} p={2}>
     <HStack mb={4}>
       <MetricsBadge backgroundColor="blue.solid" runs={total} />
@@ -46,12 +44,7 @@ export const TaskInstanceMetrics = ({
     </HStack>
 
     {TASK_STATES.map((state) => (
-      <MetricSection
-        key={state}
-        runs={taskInstanceStates[state]}
-        state={state}
-        total={total}
-      />
+      <MetricSection key={state} runs={taskInstanceStates[state]} state={state} total={total} />
     ))}
   </Box>
 );

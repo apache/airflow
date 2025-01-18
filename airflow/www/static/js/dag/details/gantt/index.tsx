@@ -144,20 +144,10 @@ const Gantt = ({
 
   // Reset state when the dagrun changes
   useEffect(() => {
-    if (startDate !== dagRun?.queuedAt && startDate !== dagRun?.startDate) {
-      setStartDate(dagRun?.queuedAt || dagRun?.startDate);
-    }
-    if (!endDate || endDate !== dagRun?.endDate) {
-      // @ts-ignore
-      setEndDate(dagRun?.endDate ?? moment().add(1, "s").toString());
-    }
-  }, [
-    dagRun?.queuedAt,
-    dagRun?.startDate,
-    dagRun?.endDate,
-    startDate,
-    endDate,
-  ]);
+    setStartDate(dagRun?.queuedAt || dagRun?.startDate);
+    // @ts-ignore
+    setEndDate(dagRun?.endDate ?? moment().add(1, "s").toString());
+  }, [dagRun?.queuedAt, dagRun?.startDate, dagRun?.endDate]);
 
   const numBars = Math.round(width / 100);
   const runDuration = getDuration(startDate, endDate);

@@ -42,13 +42,14 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
+from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
@@ -81,6 +82,7 @@ class TestSqlAlchemyUtils:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         run = dag.create_dagrun(
             run_id=iso_date,
+            run_type=DagRunType.MANUAL,
             state=State.NONE,
             logical_date=logical_date,
             start_date=start_date,
@@ -115,6 +117,7 @@ class TestSqlAlchemyUtils:
         with pytest.raises((ValueError, StatementError)):
             dag.create_dagrun(
                 run_id=start_date.isoformat,
+                run_type=DagRunType.MANUAL,
                 state=State.NONE,
                 logical_date=start_date,
                 start_date=start_date,

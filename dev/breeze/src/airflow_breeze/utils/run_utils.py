@@ -29,7 +29,6 @@ import stat
 import subprocess
 import sys
 from collections.abc import Mapping
-from functools import cache
 from pathlib import Path
 from typing import Union
 
@@ -37,6 +36,7 @@ from rich.markup import escape
 
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     UI_ASSET_COMPILE_LOCK,
@@ -67,7 +67,7 @@ def run_command(
     no_output_dump_on_exception: bool = False,
     env: Mapping[str, str] | None = None,
     cwd: Path | str | None = None,
-    input: str | None = None,
+    input: str | bytes | None = None,
     output: Output | None = None,
     output_outside_the_group: bool = False,
     verbose_override: bool | None = None,
@@ -91,7 +91,7 @@ def run_command(
     :param no_output_dump_on_exception: whether to suppress printing logs from output when command fails
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
-    :param input: input string to pass to stdin of the process
+    :param input: input string to pass to stdin of the process (bytes if text=False, str, otherwise)
     :param output: redirects stderr/stdout to Output if set to Output class.
     :param output_outside_the_group: if this is set to True, then output of the command will be done
         outside the "CI folded group" in CI - so that it is immediately visible without unfolding.
@@ -266,10 +266,10 @@ def assert_pre_commit_installed():
         need_to_reinstall_precommit = True
         get_console().print(f"\n[error]Error checking for pre-commit-installation: [/]\n{e}\n")
     if need_to_reinstall_precommit:
-        get_console().print("\n[info]Make sure to install pre-commit. For example by running\n\n")
-        get_console().print("uv tool install pre-commit\n")
+        get_console().print("[info]Make sure to install pre-commit. For example by running:\n")
+        get_console().print("   uv tool install pre-commit --with pre-commit-uv\n")
         get_console().print("Or if you prefer pipx:\n")
-        get_console().print("pipx install pre-commit")
+        get_console().print("   pipx install pre-commit")
         sys.exit(1)
 
 
@@ -387,7 +387,7 @@ def check_if_buildx_plugin_installed() -> bool:
     return False
 
 
-@cache
+@clearable_cache
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
     command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)

@@ -19,11 +19,11 @@ from __future__ import annotations
 from datetime import datetime
 
 
-def datetime_zulu_format(dt: datetime) -> str:
+def from_datetime_to_zulu(dt: datetime) -> str:
     """Format a datetime object to a string in Zulu time."""
     return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-def datetime_zulu_format_without_ms(dt: datetime) -> str:
+def from_datetime_to_zulu_without_ms(dt: datetime) -> str:
     """Format a datetime object to a string in Zulu time without milliseconds."""
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")

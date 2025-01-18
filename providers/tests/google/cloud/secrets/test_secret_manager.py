@@ -108,7 +108,7 @@ class TestCloudSecretManagerBackend:
         secrets_manager_backend = CloudSecretManagerBackend(connections_prefix=connections_prefix)
         secret_id = secrets_manager_backend.build_path(connections_prefix, CONN_ID, SEP)
         returned_uri = secrets_manager_backend.get_conn_value(conn_id=CONN_ID)
-        assert CONN_URI == returned_uri
+        assert returned_uri == CONN_URI
         mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
@@ -153,7 +153,7 @@ class TestCloudSecretManagerBackend:
         secrets_manager_backend = CloudSecretManagerBackend(variables_prefix=variables_prefix)
         secret_id = secrets_manager_backend.build_path(variables_prefix, VAR_KEY, SEP)
         returned_uri = secrets_manager_backend.get_variable(VAR_KEY)
-        assert VAR_VALUE == returned_uri
+        assert returned_uri == VAR_VALUE
         mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
 
     @pytest.mark.parametrize("config_prefix", ["airflow-config", "config", "airflow"])
@@ -171,7 +171,7 @@ class TestCloudSecretManagerBackend:
         secrets_manager_backend = CloudSecretManagerBackend(config_prefix=config_prefix)
         secret_id = secrets_manager_backend.build_path(config_prefix, CONFIG_KEY, SEP)
         returned_val = secrets_manager_backend.get_config(CONFIG_KEY)
-        assert CONFIG_VALUE == returned_val
+        assert returned_val == CONFIG_VALUE
         mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
 
     @pytest.mark.parametrize("variables_prefix", ["airflow-variables", "variables", "airflow"])
@@ -191,7 +191,7 @@ class TestCloudSecretManagerBackend:
         )
         secret_id = secrets_manager_backend.build_path(variables_prefix, VAR_KEY, SEP)
         returned_uri = secrets_manager_backend.get_variable(VAR_KEY)
-        assert VAR_VALUE == returned_uri
+        assert returned_uri == VAR_VALUE
         mock_client.secret_version_path.assert_called_once_with(OVERRIDDEN_PROJECT_ID, secret_id, "latest")
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")

@@ -70,7 +70,6 @@ class TestDayOfWeekSensor:
     def teardwon_method(self):
         self.clean_db()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
         "week_day", TEST_CASE_WEEKDAY_SENSOR_TRUE.values(), ids=TEST_CASE_WEEKDAY_SENSOR_TRUE.keys()
     )
@@ -81,7 +80,6 @@ class TestDayOfWeekSensor:
         op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
         assert op.week_day == week_day
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_weekday_sensor_false(self):
         op = DayOfWeekSensor(
             task_id="weekday_sensor_check_false",
@@ -119,7 +117,6 @@ class TestDayOfWeekSensor:
                 dag=self.dag,
             )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_weekday_sensor_timeout_with_set(self):
         op = DayOfWeekSensor(
             task_id="weekday_sensor_check_false",

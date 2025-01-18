@@ -31,8 +31,8 @@ A task defined or implemented by a operator is a unit of work in your data pipel
 The purpose of this guide is to define tasks involving interactions with a PostgreSQL database with
 the :class:`~airflow.providers.common.sql.operators.SQLExecuteQueryOperator`.
 
-.. warning::
-    Previously, PostgresOperator was used to perform this kind of operation. But at the moment PostgresOperator is deprecated and will be removed in future versions of the provider. Please consider to switch to SQLExecuteQueryOperator as soon as possible.
+.. note::
+    Previously, PostgresOperator was used to perform this kind of operation. After deprecation this has been removed. Please use SQLExecuteQueryOperator instead.
 
 Common Database Operations with SQLExecuteQueryOperator
 -------------------------------------------------------

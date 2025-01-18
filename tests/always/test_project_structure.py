@@ -281,7 +281,7 @@ class ExampleCoverageTest(ProjectStructureTest):
         are used in any of the example dags
         """
         classes = self.list_of_classes()
-        assert 0 != len(classes), "Failed to retrieve operators, override class_paths if needed"
+        assert len(classes) != 0, "Failed to retrieve operators, override class_paths if needed"
         classes = set(classes.keys())
         for example in self.example_paths():
             classes -= get_imports_from_file(example)
@@ -353,6 +353,15 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLTrainModelOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLCreateDatasetOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLImportDataOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLGetModelOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLListDatasetOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator",
         "airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator",
         "airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator",
@@ -367,6 +376,12 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.mlengine.MLEngineSetDefaultVersionOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptLanguageModelOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360CreateQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
@@ -374,6 +389,8 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     BASE_CLASSES = {
+        "airflow.providers.google.cloud.operators.alloy_db.AlloyDBBaseOperator",
+        "airflow.providers.google.cloud.operators.alloy_db.AlloyDBWriteBaseOperator",
         "airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator",
         "airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryToSqlBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator",
@@ -385,7 +402,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        "airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator",
         "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
         "airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator",
         "airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator",
@@ -394,11 +410,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.UpdateEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptLanguageModelOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator",
-        "airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator",
     }
 
     ASSETS_NOT_REQUIRED = {
@@ -526,9 +537,6 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "elasticsearch"
     CLASS_DIRS = {"hooks"}
     CLASS_SUFFIXES = ["Hook"]
-    DEPRECATED_CLASSES = {
-        "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
-    }
 
 
 class TestCncfProviderProjectStructure(ExampleCoverageTest):
@@ -566,4 +574,4 @@ class TestOperatorsHooks:
 
         invalid_files = [f for f in files if f.endswith(tuple(illegal_suffixes))]
 
-        assert [] == invalid_files
+        assert invalid_files == []

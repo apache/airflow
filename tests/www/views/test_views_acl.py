@@ -32,9 +32,9 @@ from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user_scope
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.permissions import _resource_name
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,
@@ -159,6 +159,7 @@ def _init_dagruns(acl_app, _reset_dagruns):
         **triggered_by_kwargs,
     )
     acl_app.dag_bag.get_dag("example_python_operator").create_dagrun(
+        run_id=DEFAULT_RUN_ID,
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         start_date=timezone.utcnow(),
@@ -293,9 +294,9 @@ def test_dag_autocomplete_success(client_all_dags):
             "dag_display_name": None,
         },
         {"name": "example_setup_teardown_taskflow", "type": "dag", "dag_display_name": None},
-        {"name": "test_mapped_taskflow", "type": "dag", "dag_display_name": None},
         {"name": "tutorial_taskflow_api", "type": "dag", "dag_display_name": None},
         {"name": "tutorial_taskflow_api_virtualenv", "type": "dag", "dag_display_name": None},
+        {"name": "tutorial_taskflow_templates", "type": "dag", "dag_display_name": None},
     ]
 
     assert resp.json == expected

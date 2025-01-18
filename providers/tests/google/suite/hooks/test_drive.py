@@ -121,7 +121,7 @@ class TestGoogleDriveHook:
             any_order=True,
         )
 
-        assert "ID_4" == result_value
+        assert result_value == "ID_4"
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_ensure_folders_exists_when_some_folders_exists(self, mock_get_conn):
@@ -180,7 +180,7 @@ class TestGoogleDriveHook:
             any_order=True,
         )
 
-        assert "ID_4" == result_value
+        assert result_value == "ID_4"
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")
     def test_ensure_folders_exists_when_all_folders_exists(self, mock_get_conn):
@@ -215,7 +215,7 @@ class TestGoogleDriveHook:
         )
 
         mock_get_conn.return_value.files.return_value.create.assert_not_called()
-        assert "ID_4" == result_value
+        assert result_value == "ID_4"
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_file_id")
     @mock.patch("airflow.providers.google.suite.hooks.drive.GoogleDriveHook.get_conn")

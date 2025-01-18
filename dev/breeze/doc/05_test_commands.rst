@@ -218,6 +218,29 @@ Here is the detailed set of options for the ``breeze testing providers-integrati
   :alt: Breeze testing providers-integration-tests
 
 
+Running Python API client tests
+...............................
+
+To run Python API client tests, you need to have airflow python client packaged in dist folder.
+To package the client, clone the airflow-python-client repository and run the following command:
+
+.. code-block:: bash
+
+   breeze release-management prepare-python-client --package-format both
+          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+
+.. code-block:: bash
+
+   breeze testing python-api-client-tests
+
+Here is the detailed set of options for the ``breeze testing python-api-client-tests`` command.
+
+.. image:: ./images/output_testing_python-api-client-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_python-api-client-tests.svg
+  :width: 100%
+  :alt: Breeze testing python-api-client-tests
+
+
 Running system tests
 ....................
 
@@ -315,7 +338,7 @@ Kubernetes environment can be set with the ``breeze k8s setup-env`` command.
 It will create appropriate virtualenv to run tests and download the right set of tools to run
 the tests: ``kind``, ``kubectl`` and ``helm`` in the right versions. You can re-run the command
 when you want to make sure the expected versions of the tools are installed properly in the
-virtualenv. The Virtualenv is available in ``.build/.k8s-env/bin`` subdirectory of your Airflow
+virtualenv. The Virtualenv is available in ``.build/k8s-env/bin`` subdirectory of your Airflow
 installation.
 
 .. image:: ./images/output_k8s_setup-env.svg
@@ -538,7 +561,7 @@ be created and airflow deployed to it before running the tests):
 
     (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
-    platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/.build/.k8s-env/bin/python
+    platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/.build/k8s-env/bin/python
     cachedir: .pytest_cache
     rootdir: /home/jarek/code/airflow, configfile: pytest.ini
     plugins: anyio-3.6.1
@@ -548,8 +571,8 @@ be created and airflow deployed to it before running the tests):
     test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
 
     ================================================== warnings summary ===================================================
-    .build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
-      /home/jarek/code/airflow/.build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
+    .build/k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
+      /home/jarek/code/airflow/.build/k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
 
         self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
 

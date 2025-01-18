@@ -68,7 +68,7 @@ class TestDrillHook:
 
     def test_get_uri(self):
         db_hook = self.db_hook()
-        assert "drill://host:8047/dfs?dialect_driver=drill+sadrill" == db_hook.get_uri()
+        assert db_hook.get_uri() == "drill://host:8047/dfs?dialect_driver=drill+sadrill"
 
     def test_get_first_record(self):
         statement = "SQL"

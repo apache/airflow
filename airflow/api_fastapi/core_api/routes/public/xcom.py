@@ -19,11 +19,10 @@ from __future__ import annotations
 import copy
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import HTTPException, Query, status
 from sqlalchemy import and_, select
-from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
@@ -54,7 +53,7 @@ def get_xcom_entry(
     task_id: str,
     dag_run_id: str,
     xcom_key: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     map_index: Annotated[int, Query(ge=-1)] = -1,
     deserialize: Annotated[bool, Query()] = False,
     stringify: Annotated[bool, Query()] = True,
@@ -110,7 +109,7 @@ def get_xcom_entries(
     task_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     xcom_key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> XComCollection:

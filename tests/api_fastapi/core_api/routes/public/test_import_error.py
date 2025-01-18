@@ -24,7 +24,7 @@ from airflow.models.errors import ParseImportError
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_import_errors
-from tests_common.test_utils.format_datetime import datetime_zulu_format_without_ms
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 pytestmark = pytest.mark.db_test
 
@@ -39,6 +39,7 @@ TIMESTAMP2 = datetime(2024, 6, 15, 5, 0, tzinfo=timezone.utc)
 TIMESTAMP3 = datetime(2024, 6, 15, 3, 0, tzinfo=timezone.utc)
 IMPORT_ERROR_NON_EXISTED_ID = 9999
 IMPORT_ERROR_NON_EXISTED_KEY = "non_existed_key"
+BUNDLE_NAME = "dag_maker"
 
 
 class TestImportErrorEndpoint:
@@ -56,16 +57,19 @@ class TestImportErrorEndpoint:
         """
         self._clear_db()
         import_error1 = ParseImportError(
+            bundle_name=BUNDLE_NAME,
             filename=FILENAME1,
             stacktrace=STACKTRACE1,
             timestamp=TIMESTAMP1,
         )
         import_error2 = ParseImportError(
+            bundle_name=BUNDLE_NAME,
             filename=FILENAME2,
             stacktrace=STACKTRACE2,
             timestamp=TIMESTAMP2,
         )
         import_error3 = ParseImportError(
+            bundle_name=BUNDLE_NAME,
             filename=FILENAME3,
             stacktrace=STACKTRACE3,
             timestamp=TIMESTAMP3,
@@ -90,6 +94,7 @@ class TestGetImportError(TestImportErrorEndpoint):
                     "timestamp": TIMESTAMP1,
                     "filename": FILENAME1,
                     "stack_trace": STACKTRACE1,
+                    "bundle_name": BUNDLE_NAME,
                 },
             ),
             (
@@ -100,6 +105,7 @@ class TestGetImportError(TestImportErrorEndpoint):
                     "timestamp": TIMESTAMP2,
                     "filename": FILENAME2,
                     "stack_trace": STACKTRACE2,
+                    "bundle_name": BUNDLE_NAME,
                 },
             ),
             (IMPORT_ERROR_NON_EXISTED_KEY, 404, {}),
@@ -116,9 +122,10 @@ class TestGetImportError(TestImportErrorEndpoint):
             return
         expected_json = {
             "import_error_id": import_error_id,
-            "timestamp": datetime_zulu_format_without_ms(expected_body["timestamp"]),
+            "timestamp": from_datetime_to_zulu_without_ms(expected_body["timestamp"]),
             "filename": expected_body["filename"],
             "stack_trace": expected_body["stack_trace"],
+            "bundle_name": BUNDLE_NAME,
         }
         assert response.json() == expected_json
 

@@ -20,8 +20,11 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import current_thread
+from time import sleep
 from unittest import mock
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import jaydebeapi
 import pytest
@@ -35,22 +38,33 @@ pytestmark = pytest.mark.db_test
 
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
+logger = logging.getLogger(__name__)
 
 
 def get_hook(
     hook_params=None,
     conn_params=None,
+    conn_type: str | None = None,
     login: str | None = "login",
     password: str | None = "password",
     host: str | None = "host",
     schema: str | None = "schema",
     port: int | None = 1234,
+    uri: str | None = None,
 ):
     hook_params = hook_params or {}
     conn_params = conn_params or {}
     connection = Connection(
         **{
-            **dict(login=login, password=password, host=host, schema=schema, port=port),
+            **dict(
+                conn_type=conn_type,
+                login=login,
+                password=password,
+                host=host,
+                schema=schema,
+                port=port,
+                uri=uri,
+            ),
             **conn_params,
         }
     )
@@ -215,6 +229,23 @@ class TestJdbcHook:
 
         assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema"
 
+    def test_sqlalchemy_url_with_sqlalchemy_scheme_and_query(self):
+        conn_params = dict(
+            extra=json.dumps(dict(sqlalchemy_scheme="mssql", sqlalchemy_query={"servicename": "test"}))
+        )
+        hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
+        hook = get_hook(conn_params=conn_params, hook_params=hook_params)
+
+        assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema?servicename=test"
+
+    def test_sqlalchemy_url_with_sqlalchemy_scheme_and_wrong_query_value(self):
+        conn_params = dict(extra=json.dumps(dict(sqlalchemy_scheme="mssql", sqlalchemy_query="wrong type")))
+        hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
+        hook = get_hook(conn_params=conn_params, hook_params=hook_params)
+
+        with pytest.raises(AirflowException):
+            hook.sqlalchemy_url
+
     def test_get_sqlalchemy_engine_verify_creator_is_being_used(self):
         jdbc_hook = get_hook(
             conn_params=dict(extra={"sqlalchemy_scheme": "sqlite"}),
@@ -229,3 +260,52 @@ class TestJdbcHook:
             jdbc_hook.get_conn = lambda: connection
             engine = jdbc_hook.get_sqlalchemy_engine()
             assert engine.connect().connection.connection == connection
+
+    def test_dialect_name(self):
+        jdbc_hook = get_hook(
+            conn_params=dict(extra={"sqlalchemy_scheme": "hana"}),
+            conn_type="jdbc",
+            login=None,
+            password=None,
+            host="localhost",
+            schema="sap",
+            port=30215,
+        )
+
+        assert jdbc_hook.dialect_name == "hana"
+
+    def test_get_conn_thread_safety(self):
+        mock_conn = MagicMock()
+        open_connections = 0
+
+        def connect_side_effect(*args, **kwargs):
+            nonlocal open_connections
+            open_connections += 1
+            logger.debug("Thread %s has %s open connections", current_thread().name, open_connections)
+
+            try:
+                if open_connections > 1:
+                    raise OSError("JVM is already started")
+            finally:
+                sleep(0.1)  # wait a bit before releasing the connection again
+                open_connections -= 1
+
+            return mock_conn
+
+        with patch.object(jaydebeapi, "connect", side_effect=connect_side_effect) as mock_connect:
+            jdbc_hook = get_hook()
+
+            def call_get_conn():
+                conn = jdbc_hook.get_conn()
+                assert conn is mock_conn
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = []
+
+                for _ in range(0, 10):
+                    futures.append(executor.submit(call_get_conn))
+
+                for future in as_completed(futures):
+                    future.result()  # This will raise OSError if get_conn isn't threadsafe
+
+            assert mock_connect.call_count == 10

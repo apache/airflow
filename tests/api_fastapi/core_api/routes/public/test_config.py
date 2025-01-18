@@ -24,6 +24,8 @@ import pytest
 
 from tests_common.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 HEADERS_NONE = None
 HEADERS_ANY = {"Accept": "*/*"}
 HEADERS_JSON = {"Accept": "application/json"}
@@ -265,9 +267,9 @@ class TestGetConfig(TestConfigEndpoint):
         query_params = {"section": section} if section else None
         if expected_status_code == 403:
             with conf_vars(AIRFLOW_CONFIG_DISABLE_EXPOSE_CONFIG):
-                response = test_client.get("/public/config/", headers=headers, params=query_params)
+                response = test_client.get("/public/config", headers=headers, params=query_params)
         else:
-            response = test_client.get("/public/config/", headers=headers, params=query_params)
+            response = test_client.get("/public/config", headers=headers, params=query_params)
         self._validate_response(headers, expected_response, expected_status_code, response)
 
     @pytest.mark.parametrize(
@@ -300,7 +302,7 @@ class TestGetConfig(TestConfigEndpoint):
         self, test_client, headers, expected_status_code, expected_response
     ):
         with conf_vars(AIRFLOW_CONFIG_NON_SENSITIVE_ONLY_CONFIG):
-            response = test_client.get("/public/config/", headers=headers)
+            response = test_client.get("/public/config", headers=headers)
         self._validate_response(headers, expected_response, expected_status_code, response)
 
 

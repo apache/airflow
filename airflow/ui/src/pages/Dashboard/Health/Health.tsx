@@ -37,11 +37,7 @@ export const Health = () => {
       </Flex>
       <ErrorAlert error={error} />
       <HStack alignItems="center" gap={2}>
-        <HealthTag
-          isLoading={isLoading}
-          status={data?.metadatabase.status}
-          title="MetaDatabase"
-        />
+        <HealthTag isLoading={isLoading} status={data?.metadatabase.status} title="MetaDatabase" />
         <HealthTag
           isLoading={isLoading}
           latestHeartbeat={data?.scheduler.latest_scheduler_heartbeat}
@@ -54,15 +50,14 @@ export const Health = () => {
           status={data?.triggerer.status}
           title="Triggerer"
         />
-        {/* TODO: Update this to match the API when we move the config check to the API level */}
-        {data?.dag_processor.status === undefined ? undefined : (
+        {data?.dag_processor ? (
           <HealthTag
             isLoading={isLoading}
             latestHeartbeat={data.dag_processor.latest_dag_processor_heartbeat}
             status={data.dag_processor.status}
             title="Dag Processor"
           />
-        )}
+        ) : undefined}
       </HStack>
     </Box>
   );

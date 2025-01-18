@@ -25,13 +25,16 @@ from typing import TYPE_CHECKING, Any
 
 import packaging.version
 from connexion import FlaskApi
+from fastapi import FastAPI
 from flask import Blueprint, g, url_for
+from flask_appbuilder.menu import MenuItem
 from packaging.version import Version
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
+from starlette.middleware.wsgi import WSGIMiddleware
 
 from airflow import __version__ as airflow_version
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConfigurationDetails,
@@ -56,8 +59,12 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
     USERS_COMMANDS,
 )
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
-from airflow.security import permissions
-from airflow.security.permissions import (
+from airflow.providers.fab.www.app import create_app
+from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
+from airflow.providers.fab.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+from airflow.providers.fab.www.security import permissions
+from airflow.providers.fab.www.security.permissions import (
+    ACTION_CAN_ACCESS_MENU,
     RESOURCE_AUDIT_LOG,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -85,17 +92,17 @@ from airflow.security.permissions import (
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.version import version
-from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import (
         CLICommand,
     )
     from airflow.providers.common.compat.assets import AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
-    from airflow.security.permissions import RESOURCE_ASSET
+    from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
+    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
 else:
     from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
@@ -138,6 +145,8 @@ class FabAuthManager(BaseAuthManager[User]):
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
 
+    appbuilder: AirflowAppBuilder | None = None
+
     def init(self) -> None:
         """Run operations when Airflow is initializing."""
         if self.appbuilder:
@@ -166,6 +175,28 @@ class FabAuthManager(BaseAuthManager[User]):
             commands.append(GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS))
         return commands
 
+    def get_fastapi_app(self) -> FastAPI | None:
+        flask_blueprint = self.get_api_endpoints()
+
+        if not flask_blueprint:
+            return None
+
+        flask_app = create_app()
+        flask_app.register_blueprint(flask_blueprint)
+
+        app = FastAPI(
+            title="FAB auth manager API",
+            description=(
+                "This is FAB auth manager API. This API is only available if the auth manager used in "
+                "the Airflow environment is FAB auth manager. "
+                "This API provides endpoints to manager users and permissions managed by the FAB auth "
+                "manager."
+            ),
+        )
+        app.mount("/", WSGIMiddleware(flask_app))
+
+        return app
+
     def get_api_endpoints(self) -> None | Blueprint:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
         with folder.joinpath("openapi", "v1.yaml").open() as f:
@@ -173,6 +204,7 @@ class FabAuthManager(BaseAuthManager[User]):
         return FlaskApi(
             specification=specification,
             resolver=_LazyResolver(),
+            # TODO: change to "/fab/v1" when legacy UI is gone
             base_path="/auth/fab/v1",
             options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
             strict_validation=True,
@@ -368,6 +400,32 @@ class FabAuthManager(BaseAuthManager[User]):
                     else:
                         resources.add(resource)
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
+
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+        """
+        Filter menu items based on user permissions.
+
+        :param menu_items: list of all menu items
+        """
+        items = filter(
+            lambda item: self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, item.name), menu_items
+        )
+        accessible_items = []
+        for menu_item in items:
+            menu_item_copy = MenuItem(
+                **{
+                    **menu_item.__dict__,
+                    "childs": [],
+                }
+            )
+            if menu_item.childs:
+                accessible_children = []
+                for child in menu_item.childs:
+                    if self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, child.name):
+                        accessible_children.append(child)
+                menu_item_copy.childs = accessible_children
+            accessible_items.append(menu_item_copy)
+        return accessible_items
 
     @cached_property
     def security_manager(self) -> FabAirflowSecurityManagerOverride:

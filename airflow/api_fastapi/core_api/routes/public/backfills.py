@@ -20,26 +20,33 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_async_session, get_session, paginated_select_async
+from airflow.api_fastapi.common.db.common import (
+    AsyncSessionDep,
+    SessionDep,
+    paginated_select_async,
+)
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.backfills import (
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
+    DryRunBackfillCollectionResponse,
+    DryRunBackfillResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
+from airflow.exceptions import DagNotFound
 from airflow.models import DagRun
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
     BackfillDagRun,
+    DagNoScheduleException,
     _create_backfill,
+    _do_dry_run,
 )
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -58,7 +65,7 @@ async def list_backfills(
         SortParam,
         Depends(SortParam(["id"], Backfill).dynamic_depends()),
     ],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    session: AsyncSessionDep,
 ) -> BackfillCollectionResponse:
     select_stmt, total_entries = await paginated_select_async(
         statement=select(Backfill).where(Backfill.dag_id == dag_id),
@@ -80,7 +87,7 @@ async def list_backfills(
 )
 def get_backfill(
     backfill_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> BackfillResponse:
     backfill = session.get(Backfill, backfill_id)
     if backfill:
@@ -97,7 +104,7 @@ def get_backfill(
         ]
     ),
 )
-def pause_backfill(backfill_id, session: Annotated[Session, Depends(get_session)]) -> BackfillResponse:
+def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -118,7 +125,7 @@ def pause_backfill(backfill_id, session: Annotated[Session, Depends(get_session)
         ]
     ),
 )
-def unpause_backfill(backfill_id, session: Annotated[Session, Depends(get_session)]) -> BackfillResponse:
+def unpause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -138,7 +145,7 @@ def unpause_backfill(backfill_id, session: Annotated[Session, Depends(get_sessio
         ]
     ),
 )
-def cancel_backfill(backfill_id, session: Annotated[Session, Depends(get_session)]) -> BackfillResponse:
+def cancel_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b: Backfill = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -203,4 +210,55 @@ def create_backfill(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
+        )
+    except DagNoScheduleException:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{backfill_request.dag_id} has no schedule",
+        )
+
+    except DagNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find dag {backfill_request.dag_id}",
+        )
+
+
+@backfills_router.post(
+    path="/dry_run",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
+)
+def create_backfill_dry_run(
+    body: BackfillPostBody,
+    session: SessionDep,
+) -> DryRunBackfillCollectionResponse:
+    from_date = timezone.coerce_datetime(body.from_date)
+    to_date = timezone.coerce_datetime(body.to_date)
+
+    try:
+        backfills_dry_run = _do_dry_run(
+            dag_id=body.dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            reverse=body.run_backwards,
+            reprocess_behavior=body.reprocess_behavior,
+            session=session,
+        )
+        backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
+
+        return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
+    except DagNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find dag {body.dag_id}",
+        )
+    except DagNoScheduleException:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{body.dag_id} has no schedule",
         )

@@ -24,7 +24,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.utils.email import send_email
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
 class EmailOperator(BaseOperator):

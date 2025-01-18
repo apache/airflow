@@ -29,7 +29,7 @@ from airflow.utils.session import provide_session
 from tests_common.test_utils.compat import ParseImportError
 from tests_common.test_utils.db import clear_db_import_errors
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestErrorSchemaBase:
@@ -53,12 +53,13 @@ class TestErrorSchema(TestErrorSchemaBase):
         session.commit()
         serialized_data = import_error_schema.dump(import_error)
         serialized_data["import_error_id"] = 1
-        assert {
+        assert serialized_data == {
             "filename": "lorem.py",
+            "bundle_name": None,
             "import_error_id": 1,
             "stack_trace": "Lorem Ipsum",
             "timestamp": "2020-06-10T12:02:44+00:00",
-        } == serialized_data
+        }
 
 
 class TestErrorCollectionSchema(TestErrorSchemaBase):
@@ -82,20 +83,22 @@ class TestErrorCollectionSchema(TestErrorSchemaBase):
         # To maintain consistency in the key sequence across the db in tests
         serialized_data["import_errors"][0]["import_error_id"] = 1
         serialized_data["import_errors"][1]["import_error_id"] = 2
-        assert {
+        assert serialized_data == {
             "import_errors": [
                 {
                     "filename": "Lorem_ipsum.py",
+                    "bundle_name": None,
                     "import_error_id": 1,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-10T12:02:44+00:00",
                 },
                 {
                     "filename": "Lorem_ipsum.py",
+                    "bundle_name": None,
                     "import_error_id": 2,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-10T12:02:44+00:00",
                 },
             ],
             "total_entries": 2,
-        } == serialized_data
+        }

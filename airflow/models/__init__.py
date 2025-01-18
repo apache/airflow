@@ -58,12 +58,13 @@ def import_all_models():
     import airflow.models.asset
     import airflow.models.backfill
     import airflow.models.dag_version
+    import airflow.models.dagbundle
     import airflow.models.dagwarning
+    import airflow.models.deadline
     import airflow.models.errors
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
-    import airflow.providers.fab.auth_manager.models
 
 
 def __getattr__(name):
@@ -82,6 +83,7 @@ def __getattr__(name):
 
 
 __lazy_imports = {
+    "Job": "airflow.jobs.job",
     "DAG": "airflow.models.dag",
     "ID_LEN": "airflow.models.base",
     "Base": "airflow.models.base",
@@ -112,6 +114,7 @@ __lazy_imports = {
 if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
+    from airflow.jobs.job import Job
     from airflow.models.base import ID_LEN, Base
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.baseoperatorlink import BaseOperatorLink
@@ -121,6 +124,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest
+    from airflow.models.deadline import Deadline
     from airflow.models.log import Log
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator

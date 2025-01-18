@@ -135,7 +135,7 @@ def test_expand_fail_empty():
 
 
 @pytest.mark.db_test
-def test_expand_fail_trigger_rule_always(dag_maker, session):
+def test_fail_task_generated_mapping_with_trigger_rule_always(dag_maker, session):
     @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
     def pipeline():
         @task
@@ -151,7 +151,8 @@ def test_expand_fail_trigger_rule_always(dag_maker, session):
             t1(param)
 
         with pytest.raises(
-            ValueError, match="Tasks in a mapped task group cannot have trigger_rule set to 'ALWAYS'"
+            ValueError,
+            match="Task-generated mapping within a mapped task group is not allowed with trigger rule 'always'",
         ):
             tg.expand(param=get_param())
 
@@ -332,3 +333,19 @@ def test_override_dag_default_args_nested_tg():
     assert test_task.retries == 1
     assert test_task.owner == "y"
     assert test_task.execution_timeout == timedelta(seconds=10)
+
+
+def test_task_group_display_name_used_as_label():
+    """Test that the group_display_name for TaskGroup is used as the label for display on the UI."""
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group(group_display_name="my_custom_name")
+        def tg():
+            pass
+
+        tg()
+
+    p = pipeline()
+
+    assert p.task_group_dict["tg"].label == "my_custom_name"

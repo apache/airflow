@@ -22,15 +22,15 @@
 # The dependencies can be automatically upgraded by running:
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
-    "GitPython==3.1.43",
-    "gitdb==4.0.11",
-    "hatchling==1.26.3",
+    "GitPython==3.1.44",
+    "gitdb==4.0.12",
+    "hatchling==1.27.0",
     "packaging==24.2",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
-    "smmap==5.0.1",
-    "tomli==2.1.0; python_version < '3.11'",
-    "trove-classifiers==2024.10.21.16",
+    "smmap==5.0.2",
+    "tomli==2.2.1; python_version < '3.11'",
+    "trove-classifiers==2025.1.15.22",
 ]
 build-backend = "hatchling.build"
 
@@ -152,7 +152,10 @@ Homepage = "https://airflow.apache.org/"
 "Release Notes" = "https://airflow.apache.org/docs/apache-airflow/stable/release_notes.html"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
 "Source Code" = "https://github.com/apache/airflow"
-Twitter = "https://twitter.com/ApacheAirflow"
+X = "https://x.com/ApacheAirflow"
+LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
+Mastodon = "https://fosstodon.org/@airflow"
+Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [tool.hatch.version]
@@ -191,6 +194,8 @@ artifacts = [
 ]
 
 ## black settings ##
+# Used to format code examples inside .rst doc files
+# Needed until https://github.com/astral-sh/ruff/issues/8237 is available.
 [tool.black]
 line-length = 110
 target-version = ['py39', 'py310', 'py311', 'py312']
@@ -242,6 +247,8 @@ extend-select = [
     "PGH004",  # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
+    "SIM300", # Checks for conditions that position a constant on the left-hand side of the comparison
+              # operator, rather than the right-hand side.
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "B007", # Checks for unused variables in the loop
@@ -327,6 +334,9 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TC001"]
 
+# Provider's get_provider_info.py files are generated and do not need "from __future__ import annotations"
+"providers/**/get_provider_info.py" = ["I002"]
+
 # Failing to detect types and functions used in `Annotated[...]` syntax as required at runtime.
 # Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
 "airflow/api_fastapi/*" = ["TC001", "TC002"]
@@ -365,6 +375,7 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 
 # Test compat imports banned imports to allow testing against older airflow versions
 "tests_common/test_utils/compat.py" = ["TID251", "F401"]
+"tests_common/pytest_plugin.py" = ["F811"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
@@ -554,6 +565,7 @@ mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
   "$MYPY_CONFIG_FILE_DIR/providers/src",
   "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
+  "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
 ]
 
 [[tool.mypy.overrides]]
@@ -587,10 +599,12 @@ module=[
 ]
 ignore_errors = true
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
+  # TODO(potiuk): remove me when all providers are moved to new structure
   "local-providers",
-  "apache-airflow-task-sdk"
+  "apache-airflow-task-sdk",
+  "apache-airflow-providers-airbyte",
 ]
 
 [tool.uv.sources]
@@ -598,6 +612,7 @@ dev-dependencies = [
 # *not* the workspace folder paths
 local-providers = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
+apache-airflow-providers-airbyte = {workspace = true}
 
 [tool.uv.workspace]
-members = ["providers", "task_sdk"]
+members = ["providers", "task_sdk", "providers/airbyte" ]

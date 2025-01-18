@@ -17,19 +17,31 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from time import sleep
 from typing import TYPE_CHECKING, Any, NoReturn
+
+from packaging.version import Version
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
+
+
+def _get_airflow_version():
+    from airflow import __version__ as airflow_version
+
+    return Version(Version(airflow_version).base_version)
 
 
 class TimeDeltaSensor(BaseSensorOperator):
@@ -50,8 +62,12 @@ class TimeDeltaSensor(BaseSensorOperator):
         self.delta = delta
 
     def poke(self, context: Context):
-        target_dttm = context["data_interval_end"]
-        target_dttm += self.delta
+        data_interval_end = context["data_interval_end"]
+
+        if not isinstance(data_interval_end, datetime):
+            raise ValueError("`data_interval_end` returned non-datetime object")
+
+        target_dttm: datetime = data_interval_end + self.delta
         self.log.info("Checking if the time (%s) has come", target_dttm)
         return timezone.utcnow() > target_dttm
 
@@ -76,8 +92,13 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
         self.end_from_trigger = end_from_trigger
 
     def execute(self, context: Context) -> bool | NoReturn:
-        target_dttm = context["data_interval_end"]
-        target_dttm += self.delta
+        data_interval_end = context["data_interval_end"]
+
+        if not isinstance(data_interval_end, datetime):
+            raise ValueError("`data_interval_end` returned non-datetime object")
+
+        target_dttm: datetime = data_interval_end + self.delta
+
         if timezone.utcnow() > target_dttm:
             # If the target datetime is in the past, return immediately
             return True
@@ -91,7 +112,18 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
                 raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
             raise
 
-        self.defer(trigger=trigger, method_name="execute_complete")
+        # todo: remove backcompat when min airflow version greater than 2.11
+        timeout: int | float | timedelta
+        if _get_airflow_version() >= Version("2.11.0"):
+            timeout = self.timeout
+        else:
+            timeout = timedelta(seconds=self.timeout)
+
+        self.defer(
+            trigger=trigger,
+            method_name="execute_complete",
+            timeout=timeout,
+        )
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """Handle the event when the trigger fires and return immediately."""

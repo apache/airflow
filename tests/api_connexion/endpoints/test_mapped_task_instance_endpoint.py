@@ -24,6 +24,7 @@ import urllib
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -37,7 +38,7 @@ from tests_common.test_utils.api_connexion_utils import assert_401, create_user,
 from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 from tests_common.test_utils.mock_operators import MockOperator
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -122,9 +123,10 @@ class TestMappedTaskInstanceEndpoint:
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)
                 session.add(ti)
 
+            DagBundlesManager().sync_bundles_to_db()
             self.app.dag_bag = DagBag(os.devnull, include_examples=False)
             self.app.dag_bag.dags = {dag_id: dag_maker.dag}
-            self.app.dag_bag.sync_to_db()
+            self.app.dag_bag.sync_to_db("dags-folder", None)
             session.flush()
 
             mapped.expand_mapped_task(dr.run_id, session=session)

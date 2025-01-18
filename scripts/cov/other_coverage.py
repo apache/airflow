@@ -71,7 +71,6 @@ other_tests = [
 """
 Other tests to potentially run against the source_file packages:
 
-    "tests/api_internal",
     "tests/auth",
     "tests/callbacks",
     "tests/charts",
@@ -92,7 +91,6 @@ Other tests to potentially run against the source_file packages:
     "tests/security",
     "tests/sensors",
     "tests/task",
-    "tests/template",
     "tests/testconfig",
     "tests/timetables",
 """

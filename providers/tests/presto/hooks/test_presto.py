@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.presto.hooks.presto import PrestoHook, generate_presto_client_info
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 def test_generate_airflow_presto_client_info_header():
@@ -292,5 +292,5 @@ class TestPrestoHook:
         )
 
     def test_serialize_cell(self):
-        assert "foo" == self.db_hook._serialize_cell("foo", None)
-        assert 1 == self.db_hook._serialize_cell(1, None)
+        assert self.db_hook._serialize_cell("foo", None) == "foo"
+        assert self.db_hook._serialize_cell(1, None) == 1

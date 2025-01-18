@@ -76,7 +76,6 @@ def test_scarf_analytics(
     mock_get.assert_called_once_with(expected_scarf_url, timeout=5.0)
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.parametrize(
     "version_info, expected_version",

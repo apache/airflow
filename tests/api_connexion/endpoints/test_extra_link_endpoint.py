@@ -22,6 +22,7 @@ from urllib.parse import quote_plus
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XCom
@@ -32,15 +33,16 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_connexion_utils import create_user, delete_user
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
+from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.mock_operators import CustomOperator
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -72,9 +74,10 @@ class TestGetExtraLinks:
 
         self.dag = self._create_dag()
 
+        DagBundlesManager().sync_bundles_to_db()
         self.app.dag_bag = DagBag(os.devnull, include_examples=False)
         self.app.dag_bag.dags = {self.dag.dag_id: self.dag}
-        self.app.dag_bag.sync_to_db()
+        self.app.dag_bag.sync_to_db("dags-folder", None)
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dag.create_dagrun(
@@ -128,13 +131,13 @@ class TestGetExtraLinks:
     def test_should_respond_404(self, url, expected_title, expected_detail):
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
 
-        assert 404 == response.status_code
-        assert {
+        assert response.status_code == 404
+        assert response.json == {
             "detail": expected_detail,
             "status": 404,
             "title": expected_title,
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
@@ -157,8 +160,8 @@ class TestGetExtraLinks:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
-        assert {"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"} == response.json
+        assert response.status_code == 200, response.data
+        assert response.json == {"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"}
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_missing_xcom(self):
@@ -167,8 +170,8 @@ class TestGetExtraLinks:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
-        assert {"Google Custom": None} == response.json
+        assert response.status_code == 200, response.data
+        assert response.json == {"Google Custom": None}
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links(self):
@@ -184,11 +187,11 @@ class TestGetExtraLinks:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
-        assert {
+        assert response.status_code == 200, response.data
+        assert response.json == {
             "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_1",
             "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_2",
-        } == response.json
+        }
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links_missing_xcom(self):
@@ -197,8 +200,8 @@ class TestGetExtraLinks:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
-        assert {"BigQuery Console #1": None, "BigQuery Console #2": None} == response.json
+        assert response.status_code == 200, response.data
+        assert response.json == {"BigQuery Console #1": None, "BigQuery Console #2": None}
 
     def test_should_respond_200_support_plugins(self):
         class GoogleLink(BaseOperatorLink):
@@ -232,12 +235,12 @@ class TestGetExtraLinks:
                 environ_overrides={"REMOTE_USER": "test"},
             )
 
-            assert 200 == response.status_code, response.data
-            assert {
+            assert response.status_code == 200, response.data
+            assert response.json == {
                 "Google Custom": None,
                 "Google": "https://www.google.com",
                 "S3": (
                     "https://s3.amazonaws.com/airflow-logs/"
                     "TEST_DAG_ID/TEST_SINGLE_LINK/2020-01-01T00%3A00%3A00%2B00%3A00"
                 ),
-            } == response.json
+            }

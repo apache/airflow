@@ -561,6 +561,7 @@ class AutoMLHook(GoogleBaseHook):
         model_version_description: str | None = None,
         window_stride_length: int | None = None,
         window_max_count: int | None = None,
+        holiday_regions: list[str] | None = None,
     ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Forecasting Training Job.
@@ -717,6 +718,10 @@ class AutoMLHook(GoogleBaseHook):
             ``window_stride_length`` rows will be used to generate a sliding window.
         :param window_max_count: Optional. Number of rows that should be used to generate input examples. If the
             total row count is larger than this number, the input data will be randomly sampled to hit the count.
+        :param holiday_regions: Optional. You can select one or more geographical
+            regions to enable holiday effect modeling. During training, Vertex AI
+            creates holiday categorical features within the model based on the date
+            from TIME_COLUMN and the specified geographical regions.
         """
         if column_transformations:
             warnings.warn(
@@ -774,6 +779,7 @@ class AutoMLHook(GoogleBaseHook):
             model_version_description=model_version_description,
             window_stride_length=window_stride_length,
             window_max_count=window_max_count,
+            holiday_regions=holiday_regions,
         )
         training_id = self.extract_training_id(self._job.resource_name)
         if model:

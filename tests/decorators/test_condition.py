@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import typing
 from typing import TYPE_CHECKING
 
 import pytest
@@ -26,12 +27,11 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 pytestmark = pytest.mark.db_test
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_skip_if(dag_maker, session):
     with dag_maker(session=session):
 
@@ -52,7 +52,6 @@ def test_skip_if(dag_maker, session):
     assert do_not_skip_ti.state == TaskInstanceState.SUCCESS
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_run_if(dag_maker, session):
     with dag_maker(session=session):
 
@@ -87,9 +86,10 @@ def test_run_if_with_non_task_error():
         def f(): ...
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_skip_if_with_other_pre_execute(dag_maker, session):
     def setup_conf(context: Context) -> None:
+        if typing.TYPE_CHECKING:
+            assert context["dag_run"].conf
         context["dag_run"].conf["some_key"] = "some_value"
 
     with dag_maker(session=session):
@@ -107,9 +107,10 @@ def test_skip_if_with_other_pre_execute(dag_maker, session):
     assert ti.state == TaskInstanceState.SKIPPED
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_run_if_with_other_pre_execute(dag_maker, session):
     def setup_conf(context: Context) -> None:
+        if typing.TYPE_CHECKING:
+            assert context["dag_run"].conf
         context["dag_run"].conf["some_key"] = "some_value"
 
     with dag_maker(session=session):

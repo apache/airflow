@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeVar, cast
 import attrs
 
 from airflow.models.param import ParamsDict
-from airflow.sdk.definitions.abstractoperator import (
+from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -48,9 +48,9 @@ from airflow.sdk.definitions.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
 )
-from airflow.sdk.definitions.decorators import fixup_decorator_warning_stack
-from airflow.sdk.definitions.node import validate_key
-from airflow.sdk.types import NOTSET, validate_instance_args
+from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
+from airflow.sdk.definitions._internal.node import validate_key
+from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_args
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -65,10 +65,14 @@ from airflow.utils.weight_rule import db_safe_priority
 T = TypeVar("T", bound=FunctionType)
 
 if TYPE_CHECKING:
+    import jinja2
+
     from airflow.models.xcom_arg import XComArg
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
+    from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
 
 # TODO: Task-SDK
@@ -140,7 +144,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
         @wraps(func)
         def apply_defaults(self: BaseOperator, *args: Any, **kwargs: Any) -> Any:
-            from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
+            from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
 
             if args:
                 raise TypeError("Use keyword arguments when initializing operators")
@@ -732,7 +736,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
                 f"Invalid arguments were:\n**kwargs: {kwargs}",
             )
-        validate_key(task_id)
+        validate_key(self.task_id)
 
         self.owner = owner
         self.email = email
@@ -974,7 +978,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __getstate__(self):
         state = dict(self.__dict__)
-        if self._log:
+        if "_log" in state:
             del state["_log"]
 
         return state
@@ -1173,7 +1177,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
         if not cls.__serialized_fields:
-            from airflow.sdk.definitions.contextmanager import DagContext
+            from airflow.sdk.definitions._internal.contextmanager import DagContext
 
             # make sure the following "fake" task is not added to current active
             # dag in context, otherwise, it will result in
@@ -1219,6 +1223,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         return cls.__serialized_fields
 
+    def prepare_for_execution(self) -> Self:
+        """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
+        other = copy.copy(self)
+        other._lock_for_execution = True
+        return other
+
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize; required by DAGNode."""
         from airflow.serialization.enums import DagAttributeTypes
@@ -1232,3 +1242,20 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
         # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        """
+        Template all attributes listed in *self.template_fields*.
+
+        This mutates the attributes in-place and is irreversible.
+
+        :param context: Context dict with values to apply on content.
+        :param jinja_env: Jinja's environment to use for rendering.
+        """
+        if not jinja_env:
+            jinja_env = self.get_template_env()
+        self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())

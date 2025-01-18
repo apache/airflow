@@ -33,10 +33,10 @@ from setproctitle import setproctitle
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskReturnCode
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.settings import CAN_FORK
 from airflow.stats import Stats
 from airflow.utils.configuration import tmp_configuration_copy
-from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import IS_WINDOWS, getuser
@@ -131,27 +131,14 @@ class StandardTaskRunner(LoggingMixin):
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
-            from airflow.api_internal.internal_api_call import InternalApiConfig
-            from airflow.configuration import conf
-
-            if conf.getboolean("core", "database_access_isolation", fallback=False):
-                InternalApiConfig.set_use_internal_api("Forked task runner")
             # Start a new process group
             set_new_process_group()
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
-            from airflow import settings
             from airflow.cli.cli_parser import get_parser
             from airflow.sentry import Sentry
-
-            if not InternalApiConfig.get_use_internal_api():
-                # Force a new SQLAlchemy session. We can't share open DB handles
-                # between process. The cli code will re-create this as part of its
-                # normal startup
-                settings.engine.pool.dispose()
-                settings.engine.dispose()
 
             parser = get_parser()
             # [1:] - remove "airflow" from the start of the command

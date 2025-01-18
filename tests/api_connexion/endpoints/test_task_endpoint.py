@@ -22,6 +22,7 @@ from datetime import datetime
 
 import pytest
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models import DagBag
 from airflow.models.dag import DAG
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
@@ -31,7 +32,7 @@ from airflow.operators.empty import EmptyOperator
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -80,13 +81,15 @@ class TestTaskEndpoint:
             task5 = EmptyOperator(task_id=self.unscheduled_task_id2, params={"is_unscheduled": True})
         task1 >> task2
         task4 >> task5
+
+        DagBundlesManager().sync_bundles_to_db()
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {
             dag.dag_id: dag,
             mapped_dag.dag_id: mapped_dag,
             unscheduled_dag.dag_id: unscheduled_dag,
         }
-        DagBag._sync_to_db(dag_bag.dags)
+        dag_bag.sync_to_db("dags-folder", None)
         configured_app.dag_bag = dag_bag  # type:ignore
 
     @staticmethod

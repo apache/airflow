@@ -48,7 +48,6 @@ from typing_extensions import overload
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.utils import yaml
-from airflow.utils.empty_set import _get_empty_set_for_configuration
 from airflow.utils.module_loading import import_string
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.weight_rule import WeightRule
@@ -187,7 +186,7 @@ class AirflowConfigParser(ConfigParser):
 
     This is a subclass of ConfigParser that supports defaults and deprecated options.
 
-    The defaults are stored in the ``_default_values ConfigParser. The configuration description keeps
+    The defaults are stored in the ``_default_values``. The configuration description keeps
     description of all the options available in Airflow (description follow config.yaml.schema).
 
     :param default_config: default configuration (in the form of ini file).
@@ -209,7 +208,7 @@ class AirflowConfigParser(ConfigParser):
         # interpolation placeholders. The _default_values config parser will interpolate them
         # properly when we call get() on it.
         self._default_values = create_default_config_parser(self.configuration_description)
-        self._pre_2_7_default_values = create_pre_2_7_defaults()
+        self._provider_config_fallback_default_values = create_provider_config_fallback_defaults()
         if default_config is not None:
             self._update_defaults_from_string(default_config)
         self._update_logging_deprecated_template_to_one_from_defaults()
@@ -292,9 +291,9 @@ class AirflowConfigParser(ConfigParser):
             return value.replace("%", "%%")
         return value
 
-    def get_default_pre_2_7_value(self, section: str, key: str, **kwargs) -> Any:
-        """Get pre 2.7 default config values."""
-        return self._pre_2_7_default_values.get(section, key, fallback=None, **kwargs)
+    def get_provider_config_fallback_defaults(self, section: str, key: str, **kwargs) -> Any:
+        """Get provider config fallback default values."""
+        return self._provider_config_fallback_default_values.get(section, key, fallback=None, **kwargs)
 
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}_cmd" pattern, the idea behind this
@@ -304,9 +303,7 @@ class AirflowConfigParser(ConfigParser):
     @functools.cached_property
     def sensitive_config_values(self) -> set[tuple[str, str]]:
         if self.configuration_description is None:
-            return (
-                _get_empty_set_for_configuration()
-            )  # we can't use set() here because set is defined below # ¯\_(ツ)_/¯
+            return set()
         flattened = {
             (s, k): item
             for s, s_c in self.configuration_description.items()
@@ -327,7 +324,9 @@ class AirflowConfigParser(ConfigParser):
     # A mapping of (new section, new option) -> (old section, old option, since_version).
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
-    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {}
+    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
+        ("dag_bundles", "refresh_interval"): ("scheduler", "dag_dir_list_interval", "3.0"),
+    }
 
     # A mapping of new section -> (old section, since_version).
     deprecated_sections: dict[str, tuple[str, str]] = {}
@@ -515,6 +514,8 @@ class AirflowConfigParser(ConfigParser):
         if example is not None and include_examples:
             if extra_spacing:
                 file.write("#\n")
+            example_lines = example.splitlines()
+            example = "\n# ".join(example_lines)
             file.write(f"# Example: {option} = {example}\n")
             needs_separation = True
         if include_sources and sources_dict:
@@ -553,6 +554,8 @@ class AirflowConfigParser(ConfigParser):
             file.write(f"# {option} = \n")
         else:
             if comment_out_everything:
+                value_lines = value.splitlines()
+                value = "\n# ".join(value_lines)
                 file.write(f"# {option} = {value}\n")
             else:
                 file.write(f"{option} = {value}\n")
@@ -989,9 +992,9 @@ class AirflowConfigParser(ConfigParser):
         if self.get_default_value(section, key) is not None or "fallback" in kwargs:
             return expand_env_var(self.get_default_value(section, key, **kwargs))
 
-        if self.get_default_pre_2_7_value(section, key) is not None:
+        if self.get_provider_config_fallback_defaults(section, key) is not None:
             # no expansion needed
-            return self.get_default_pre_2_7_value(section, key, **kwargs)
+            return self.get_provider_config_fallback_defaults(section, key, **kwargs)
 
         if not suppress_warnings:
             log.warning("section/key [%s/%s] not found in config", section, key)
@@ -1382,7 +1385,7 @@ class AirflowConfigParser(ConfigParser):
 
         # We check sequentially all those sources and the last one we saw it in will "win"
         configs: Iterable[tuple[str, ConfigParser]] = [
-            ("default-pre-2-7", self._pre_2_7_default_values),
+            ("provider-fallback-defaults", self._provider_config_fallback_default_values),
             ("default", self._default_values),
             ("airflow.cfg", self),
         ]
@@ -1505,12 +1508,7 @@ class AirflowConfigParser(ConfigParser):
                 opt = (opt, "env var")
 
             section = section.lower()
-            # if we lower key for kubernetes_environment_variables section,
-            # then we won't be able to set any Airflow environment
-            # variables. Airflow only parse environment variables starts
-            # with AIRFLOW_. Therefore, we need to make it a special case.
-            if section != "kubernetes_environment_variables":
-                key = key.lower()
+            key = key.lower()
             config_sources.setdefault(section, {}).update({key: opt})
 
     def _filter_by_source(
@@ -1906,17 +1904,27 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     return parser
 
 
-def create_pre_2_7_defaults() -> ConfigParser:
+def create_provider_config_fallback_defaults() -> ConfigParser:
     """
-    Create parser using the old defaults from Airflow < 2.7.0.
+    Create fallback defaults.
 
-    This is used in order to be able to fall-back to those defaults when old version of provider,
-    not supporting "config contribution" is installed with Airflow 2.7.0+. This "default"
-    configuration does not support variable expansion, those are pretty much hard-coded defaults '
-    we want to fall-back to in such case.
+    This parser contains provider defaults for Airflow configuration, containing fallback default values
+    that might be needed when provider classes are being imported - before provider's configuration
+    is loaded.
+
+    Unfortunately airflow currently performs a lot of stuff during importing and some of that might lead
+    to retrieving provider configuration before the defaults for the provider are loaded.
+
+    Those are only defaults, so if you have "real" values configured in your configuration (.cfg file or
+    environment variables) those will be used as usual.
+
+    NOTE!! Do NOT attempt to remove those default fallbacks thinking that they are unnecessary duplication,
+    at least not until we fix the way how airflow imports "do stuff". This is unlikely to succeed.
+
+    You've been warned!
     """
     config_parser = ConfigParser()
-    config_parser.read(_default_config_file_path("pre_2_7_defaults.cfg"))
+    config_parser.read(_default_config_file_path("provider_config_fallback_defaults.cfg"))
     return config_parser
 
 

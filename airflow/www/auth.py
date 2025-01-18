@@ -30,6 +30,7 @@ from flask_appbuilder.const import (
     PERMISSION_PREFIX,
 )
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
@@ -40,7 +41,6 @@ from airflow.auth.managers.models.resource_details import (
 )
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod

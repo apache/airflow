@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import contextlib
 import inspect
+import json
 import logging
+import os
+import pathlib
+import shutil
 import sys
 import time
-import warnings
 from collections import defaultdict
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Callable, Literal
@@ -31,23 +34,20 @@ from urllib.parse import quote, urlparse
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
 import pendulum
+from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
+from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -77,20 +77,6 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
         if elastic_search_config
         else {}
     )
-    # TODO: Remove in next major release (drop support for elasticsearch<8 parameters)
-    if (
-        elastic_search_config
-        and "retry_timeout" in elastic_search_config
-        and not kwargs_dict.get("retry_on_timeout")
-    ):
-        warnings.warn(
-            "retry_timeout is not supported with elasticsearch>=8. Please use `retry_on_timeout`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        retry_timeout = elastic_search_config.get("retry_timeout")
-        if retry_timeout is not None:
-            kwargs_dict["retry_on_timeout"] = retry_timeout
     return kwargs_dict
 
 
@@ -125,9 +111,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     """
     ElasticsearchTaskHandler is a python log handler that reads logs from Elasticsearch.
 
-    Note that Airflow does not handle the indexing of logs into Elasticsearch. Instead,
+    Note that Airflow by default does not handle the indexing of logs into Elasticsearch. Instead,
     Airflow flushes logs into local files. Additional software setup is required to index
     the logs into Elasticsearch, such as using Filebeat and Logstash.
+
+    Airflow can be configured to support directly writing logging to Elasticsearch. To enable this feature,
+    set `json_format` and `write_to_es` to `True`.
 
     To efficiently query and sort Elasticsearch results, this handler assumes each
     log message has a field `log_id` consists of ti primary keys:
@@ -155,6 +144,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         write_stdout: bool,
         json_format: bool,
         json_fields: str,
+        write_to_es: bool = False,
+        target_index: str = "airflow-logs",
         host_field: str = "host",
         offset_field: str = "offset",
         host: str = "http://localhost:9200",
@@ -162,8 +153,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         index_patterns: str = conf.get("elasticsearch", "index_patterns"),
         index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
-        *,
-        log_id_template: str | None = None,
         **kwargs,
     ):
         es_kwargs = es_kwargs or {}
@@ -175,14 +164,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
-        if USE_PER_RUN_LOG_ID and log_id_template is not None:
-            warnings.warn(
-                "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
 
-        self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark.strip()
@@ -194,6 +176,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.index_patterns = index_patterns
         self.index_patterns_callable = index_patterns_callable
         self.context_set = False
+        self.write_to_es = write_to_es
+        self.target_index = target_index
+        self.delete_local_copy = kwargs.get(
+            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
+        )
 
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
@@ -244,8 +231,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
-            else:
-                log_id_template = self.log_id_template
 
         if TYPE_CHECKING:
             assert ti.task
@@ -458,9 +443,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    date_key: self._clean_date(ti.logical_date)
-                    if AIRFLOW_V_3_0_PLUS
-                    else self._clean_date(ti.execution_date),
+                    date_key: (
+                        self._clean_date(ti.logical_date)
+                        if AIRFLOW_V_3_0_PLUS
+                        else self._clean_date(ti.execution_date)
+                    ),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },
@@ -509,6 +496,18 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.write_stdout:
             self.handler.close()
             sys.stdout = sys.__stdout__
+
+        if self.write_to_es and not self.write_stdout:
+            full_path = self.handler.baseFilename  # type: ignore[union-attr]
+            log_relative_path = pathlib.Path(full_path).relative_to(self.local_base).as_posix()
+            local_loc = os.path.join(self.local_base, log_relative_path)
+            if os.path.exists(local_loc):
+                # read log and remove old logs to get just the latest additions
+                log = pathlib.Path(local_loc).read_text()
+                log_lines = self._parse_raw_log(log)
+                success = self._write_to_es(log_lines)
+                if success and self.delete_local_copy:
+                    shutil.rmtree(os.path.dirname(local_loc))
 
         super().close()
 
@@ -628,6 +627,31 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # callback should get the Hit class if "from_es" is not defined
         callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
         return callback(hit)
+
+    def _parse_raw_log(self, log: str) -> list[dict[str, Any]]:
+        logs = log.split("\n")
+        parsed_logs = []
+        for line in logs:
+            # Make sure line is not empty
+            if line.strip():
+                parsed_logs.append(json.loads(line))
+
+        return parsed_logs
+
+    def _write_to_es(self, log_lines: list[dict[str, Any]]) -> bool:
+        """
+        Write the log to ElasticSearch; return `True` or fails silently and return `False`.
+
+        :param log_lines: the log_lines to write to the ElasticSearch.
+        """
+        # Prepare the bulk request for Elasticsearch
+        bulk_actions = [{"_index": self.target_index, "_source": log} for log in log_lines]
+        try:
+            _ = helpers.bulk(self.client, bulk_actions)
+            return True
+        except Exception as e:
+            self.log.exception("Unable to insert logs into Elasticsearch. Reason: %s", str(e))
+            return False
 
 
 def getattr_nested(obj, item, default):

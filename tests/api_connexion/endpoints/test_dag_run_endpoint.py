@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import urllib
 from datetime import timedelta
 from unittest import mock
@@ -24,6 +25,8 @@ import pytest
 import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.models import Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
@@ -36,15 +39,15 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import _check_last_log
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -88,8 +91,9 @@ class TestDagRunEndpoint:
         with create_session() as session:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
+        DagBundlesManager().sync_bundles_to_db()
         self.app.dag_bag.bag_dag(dag)
-        self.app.dag_bag.sync_to_db()
+        self.app.dag_bag.sync_to_db("dags-folder", None)
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
@@ -1237,12 +1241,12 @@ class TestPostDagRun(TestDagRunEndpoint):
             json={},
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert {
+        assert response.json == {
             "detail": "DAG with dag_id: 'TEST_DAG_ID' has import errors",
             "status": 400,
             "title": "DAG cannot be triggered",
             "type": EXCEPTIONS_LINK_MAP[400],
-        } == response.json
+        }
 
     def test_should_response_200_for_matching_logical_date(self):
         logical_date = "2020-11-10T08:25:56.939143+00:00"
@@ -1366,12 +1370,12 @@ class TestPostDagRun(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "DAG with dag_id: 'TEST_DAG_ID' not found",
             "status": 404,
             "title": "DAG not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     @pytest.mark.parametrize(
         "url, request_json, expected_response",
@@ -1521,6 +1525,60 @@ class TestPatchDagRunState(TestDagRunEndpoint):
 
         assert response.status_code == 200
         assert response.json == expected_response_json
+
+    @pytest.mark.parametrize("state", ["failed", "success", "queued"])
+    @pytest.mark.parametrize("run_type", [state.value for state in DagRunType])
+    def test_action_logging(self, state, run_type, dag_maker, session):
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = "TEST_DAG_RUN_ID"
+        with dag_maker(dag_id) as dag:
+            task = EmptyOperator(task_id="task_id", dag=dag)
+        self.app.dag_bag.bag_dag(dag)
+        dr = dag_maker.create_dagrun(run_id=dag_run_id, run_type=run_type)
+        ti = dr.get_task_instance(task_id="task_id")
+        ti.task = task
+        ti.state = State.RUNNING
+        session.merge(ti)
+        session.commit()
+
+        request_json = {"state": state}
+
+        self.client.patch(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        log = (
+            session.query(Log)
+            .filter(
+                Log.dag_id == dag_id,
+                Log.run_id == dag_run_id,
+                Log.event == "api.update_dag_run_state",
+            )
+            .order_by(Log.id.desc())
+            .first()
+        )
+        assert log.extra == json.dumps(request_json)
+
+        self.client.patch(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+            headers={"content-type": "application/json; charset=utf-8"},
+        )
+
+        log = (
+            session.query(Log)
+            .filter(
+                Log.dag_id == dag_id,
+                Log.run_id == dag_run_id,
+                Log.event == "api.update_dag_run_state",
+            )
+            .order_by(Log.id.desc())
+            .first()
+        )
+        assert log.extra == json.dumps(request_json)
 
     def test_schema_validation_error_raises(self, dag_maker, session):
         dag_id = "TEST_DAG_ID"
@@ -1738,7 +1796,7 @@ class TestClearDagRun(TestDagRunEndpoint):
 @pytest.mark.need_serialized_dag
 class TestGetDagRunAssetTriggerEvents(TestDagRunEndpoint):
     def test_should_respond_200(self, dag_maker, session):
-        asset1 = Asset(uri="ds1")
+        asset1 = Asset(uri="test://asset1", name="asset1")
 
         with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
             EmptyOperator(task_id="task", outlets=[asset1])

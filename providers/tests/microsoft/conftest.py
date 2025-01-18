@@ -34,7 +34,12 @@ from msgraph_core import APIVersion
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
-from airflow.utils.context import Context
+
+try:
+    from airflow.sdk.definitions.context import Context
+except ImportError:
+    # TODO: Remove once provider drops support for Airflow 2
+    from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -133,15 +138,15 @@ def mock_context(task) -> Context:
 
         def xcom_pull(
             self,
-            task_ids: Iterable[str] | str | None = None,
+            task_ids: str | Iterable[str] | None = None,
             dag_id: str | None = None,
             key: str = XCOM_RETURN_KEY,
             include_prior_dates: bool = False,
             session: Session = NEW_SESSION,
-            run_id: str | None = None,
             *,
-            map_indexes: Iterable[int] | int | None = None,
-            default: Any | None = None,
+            map_indexes: int | Iterable[int] | None = None,
+            default: Any = None,
+            run_id: str | None = None,
         ) -> Any:
             if map_indexes:
                 return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}_{map_indexes}")

@@ -266,7 +266,7 @@ class TestDependencyMixin:
 
             op_a >> [op_b >> op_c, op_d]
 
-        assert [] == op_b.upstream_list
+        assert op_b.upstream_list == []
         assert [op_a] == op_d.upstream_list
         assert {op_a, op_b} == set(op_c.upstream_list)
 
@@ -281,8 +281,8 @@ class TestDependencyMixin:
 
         assert str(e_info.value) == "'list' object has no attribute 'update_relative'"
 
-        assert [] == op_b.upstream_list
-        assert [] == op_c.upstream_list
+        assert op_b.upstream_list == []
+        assert op_c.upstream_list == []
         assert {op_b, op_c} == set(op_d.upstream_list)
 
     def test_set_downstream_inner_list(self, dag_maker):
@@ -294,8 +294,8 @@ class TestDependencyMixin:
 
             op_a >> [[op_b, op_c] >> op_d]
 
-        assert [] == op_b.upstream_list
-        assert [] == op_c.upstream_list
+        assert op_b.upstream_list == []
+        assert op_c.upstream_list == []
         assert {op_b, op_c, op_a} == set(op_d.upstream_list)
 
     def test_set_upstream_list_subarray(self, dag_maker):
@@ -311,9 +311,9 @@ class TestDependencyMixin:
 
         assert str(e_info.value) == "'list' object has no attribute 'update_relative'"
 
-        assert [] == op_b_1.upstream_list
-        assert [] == op_b_2.upstream_list
-        assert [] == op_d.upstream_list
+        assert op_b_1.upstream_list == []
+        assert op_b_2.upstream_list == []
+        assert op_d.upstream_list == []
         assert {op_b_1, op_b_2} == set(op_c.upstream_list)
 
     def test_set_downstream_list_subarray(self, dag_maker):
@@ -326,7 +326,7 @@ class TestDependencyMixin:
 
             op_a >> [[op_b_1, op_b_2] >> op_c, op_d]
 
-        assert [] == op_b_1.upstream_list
-        assert [] == op_b_2.upstream_list
+        assert op_b_1.upstream_list == []
+        assert op_b_2.upstream_list == []
         assert [op_a] == op_d.upstream_list
         assert {op_a, op_b_1, op_b_2} == set(op_c.upstream_list)

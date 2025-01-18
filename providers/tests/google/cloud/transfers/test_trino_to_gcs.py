@@ -17,8 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from airflow.models import Connection
+from airflow.providers.common.compat.openlineage.facet import (
+    OutputDataset,
+    SchemaDatasetFacetFields,
+)
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOperator
 
 TASK_ID = "test-trino-to-gcs"
@@ -64,9 +72,9 @@ class TestTrinoToGCSOperator:
     @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     def test_save_as_json(self, mock_gcs_hook, mock_trino_hook):
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert BUCKET == bucket
+            assert bucket == BUCKET
             assert FILENAME.format(0) == obj
-            assert "application/json" == mime_type
+            assert mime_type == "application/json"
             assert not gzip
             with open(tmp_filename, "rb") as file:
                 assert b"".join(NDJSON_LINES) == file.read()
@@ -118,8 +126,8 @@ class TestTrinoToGCSOperator:
         }
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert BUCKET == bucket
-            assert "application/json" == mime_type
+            assert bucket == BUCKET
+            assert mime_type == "application/json"
             assert not gzip
             with open(tmp_filename, "rb") as file:
                 assert expected_upload[obj] == file.read()
@@ -160,7 +168,7 @@ class TestTrinoToGCSOperator:
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, "rb") as file:
-                    assert SCHEMA_JSON == file.read()
+                    assert file.read() == SCHEMA_JSON
 
         mock_gcs_hook.return_value.upload.side_effect = _assert_upload
 
@@ -191,15 +199,15 @@ class TestTrinoToGCSOperator:
         op.execute(None)
 
         # once for the file and once for the schema
-        assert 2 == mock_gcs_hook.return_value.upload.call_count
+        assert mock_gcs_hook.return_value.upload.call_count == 2
 
     @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     @patch("airflow.providers.google.cloud.transfers.trino_to_gcs.TrinoHook")
     def test_save_as_csv(self, mock_trino_hook, mock_gcs_hook):
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert BUCKET == bucket
+            assert bucket == BUCKET
             assert FILENAME.format(0) == obj
-            assert "text/csv" == mime_type
+            assert mime_type == "text/csv"
             assert not gzip
             with open(tmp_filename, "rb") as file:
                 assert b"".join(CSV_LINES) == file.read()
@@ -252,8 +260,8 @@ class TestTrinoToGCSOperator:
         }
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert BUCKET == bucket
-            assert "text/csv" == mime_type
+            assert bucket == BUCKET
+            assert mime_type == "text/csv"
             assert not gzip
             with open(tmp_filename, "rb") as file:
                 assert expected_upload[obj] == file.read()
@@ -295,7 +303,7 @@ class TestTrinoToGCSOperator:
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, "rb") as file:
-                    assert SCHEMA_JSON == file.read()
+                    assert file.read() == SCHEMA_JSON
 
         mock_gcs_hook.return_value.upload.side_effect = _assert_upload
 
@@ -324,4 +332,63 @@ class TestTrinoToGCSOperator:
         op.execute(None)
 
         # once for the file and once for the schema
-        assert 2 == mock_gcs_hook.return_value.upload.call_count
+        assert mock_gcs_hook.return_value.upload.call_count == 2
+
+    @pytest.mark.parametrize(
+        "connection_port, default_port, expected_port",
+        [(None, 4321, 4321), (1234, None, 1234), (1234, 4321, 1234)],
+    )
+    def test_execute_openlineage_events(self, connection_port, default_port, expected_port):
+        class DBApiHookForTests(DbApiHook):
+            conn_name_attr = "sql_default"
+            get_conn = MagicMock(name="conn")
+            get_connection = MagicMock()
+
+            def get_openlineage_database_info(self, connection):
+                from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+                return DatabaseInfo(
+                    scheme="sqlscheme",
+                    authority=DbApiHook.get_openlineage_authority_part(connection, default_port=default_port),
+                )
+
+        dbapi_hook = DBApiHookForTests()
+
+        class TrinoToGCSOperatorForTest(TrinoToGCSOperator):
+            @property
+            def db_hook(self):
+                return dbapi_hook
+
+        sql = """SELECT a,b,c from my_db.my_table"""
+        op = TrinoToGCSOperatorForTest(task_id=TASK_ID, sql=sql, bucket="bucket", filename="dir/file{}.csv")
+        DB_SCHEMA_NAME = "PUBLIC"
+        rows = [
+            (DB_SCHEMA_NAME, "popular_orders_day_of_week", "order_day_of_week", 1, "varchar"),
+            (DB_SCHEMA_NAME, "popular_orders_day_of_week", "order_placed_on", 2, "timestamp"),
+            (DB_SCHEMA_NAME, "popular_orders_day_of_week", "orders_placed", 3, "int4"),
+        ]
+        dbapi_hook.get_connection.return_value = Connection(
+            conn_id="sql_default", conn_type="trino", host="host", port=connection_port
+        )
+        dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 1
+        assert lineage.inputs[0].namespace == f"sqlscheme://host:{expected_port}"
+        assert lineage.inputs[0].name == "PUBLIC.popular_orders_day_of_week"
+        assert len(lineage.inputs[0].facets) == 1
+        assert lineage.inputs[0].facets["schema"].fields == [
+            SchemaDatasetFacetFields(name="order_day_of_week", type="varchar"),
+            SchemaDatasetFacetFields(name="order_placed_on", type="timestamp"),
+            SchemaDatasetFacetFields(name="orders_placed", type="int4"),
+        ]
+        assert lineage.outputs == [
+            OutputDataset(
+                namespace="gs://bucket",
+                name="dir",
+            )
+        ]
+
+        assert len(lineage.job_facets) == 1
+        assert lineage.job_facets["sql"].query == sql
+        assert lineage.run_facets == {}

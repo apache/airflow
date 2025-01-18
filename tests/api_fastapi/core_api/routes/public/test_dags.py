@@ -127,7 +127,7 @@ class TestDagEndpoint:
         self._create_deactivated_paused_dag(session)
         self._create_dag_tags(session)
 
-        dag_maker.dagbag.sync_to_db()
+        dag_maker.sync_dagbag_to_db()
         dag_maker.dag_model.has_task_concurrency_limits = True
         session.merge(dag_maker.dag_model)
         session.commit()
@@ -387,120 +387,6 @@ class TestGetDag(TestDagEndpoint):
         assert res_json == expected
 
 
-class TestGetDagTags(TestDagEndpoint):
-    """Unit tests for Get DAG Tags."""
-
-    @pytest.mark.parametrize(
-        "query_params, expected_status_code, expected_dag_tags, expected_total_entries",
-        [
-            # test with offset, limit, and without any tag_name_pattern
-            (
-                {},
-                200,
-                [
-                    "example",
-                    "tag_1",
-                    "tag_2",
-                ],
-                3,
-            ),
-            (
-                {"offset": 1},
-                200,
-                [
-                    "tag_1",
-                    "tag_2",
-                ],
-                3,
-            ),
-            (
-                {"limit": 2},
-                200,
-                [
-                    "example",
-                    "tag_1",
-                ],
-                3,
-            ),
-            (
-                {"offset": 1, "limit": 2},
-                200,
-                [
-                    "tag_1",
-                    "tag_2",
-                ],
-                3,
-            ),
-            # test with tag_name_pattern
-            (
-                {"tag_name_pattern": "invalid"},
-                200,
-                [],
-                0,
-            ),
-            (
-                {"tag_name_pattern": "1"},
-                200,
-                ["tag_1"],
-                1,
-            ),
-            (
-                {"tag_name_pattern": "tag%"},
-                200,
-                ["tag_1", "tag_2"],
-                2,
-            ),
-            # test order_by
-            (
-                {"order_by": "-name"},
-                200,
-                ["tag_2", "tag_1", "example"],
-                3,
-            ),
-            # test all query params
-            (
-                {"tag_name_pattern": "t%", "order_by": "-name", "offset": 1, "limit": 1},
-                200,
-                ["tag_1"],
-                2,
-            ),
-            (
-                {"tag_name_pattern": "~", "offset": 1, "limit": 2},
-                200,
-                ["tag_1", "tag_2"],
-                3,
-            ),
-            # test invalid query params
-            (
-                {"order_by": "dag_id"},
-                400,
-                None,
-                None,
-            ),
-            (
-                {"order_by": "-dag_id"},
-                400,
-                None,
-                None,
-            ),
-        ],
-    )
-    def test_get_dag_tags(
-        self, test_client, query_params, expected_status_code, expected_dag_tags, expected_total_entries
-    ):
-        response = test_client.get("/public/dags/tags", params=query_params)
-        assert response.status_code == expected_status_code
-        if expected_status_code != 200:
-            return
-
-        res_json = response.json()
-        expected = {
-            "tags": expected_dag_tags,
-            "total_entries": expected_total_entries,
-        }
-        assert res_json == expected
-
-
 class TestDeleteDAG(TestDagEndpoint):
     """Unit tests for Delete DAG."""
 
@@ -523,7 +409,7 @@ class TestDeleteDAG(TestDagEndpoint):
             ti = dr.get_task_instances()[0]
             ti.set_state(TaskInstanceState.RUNNING)
 
-        dag_maker.dagbag.sync_to_db()
+        dag_maker.sync_dagbag_to_db()
 
     @pytest.mark.parametrize(
         "dag_id, dag_display_name, status_code_delete, status_code_details, has_running_dagruns, is_create_dag",

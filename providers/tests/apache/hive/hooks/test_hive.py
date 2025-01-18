@@ -42,7 +42,7 @@ from providers.tests.apache.hive import (
     MockSubProcess,
 )
 from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

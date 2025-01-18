@@ -24,7 +24,7 @@ import pytest
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestDagTISlotsAvailableDep:

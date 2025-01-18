@@ -40,11 +40,12 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from airflow.utils.types import DagRunType
 
 from tests.listeners import xcom_listener
 from tests.listeners.file_write_listener import FileWriteListener
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -172,9 +173,8 @@ class TestStandardTaskRunner:
         assert task_runner.return_code() is not None
         mock_read_task_utilization.assert_called()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
-    def test_notifies_about_start_and_stop(self, tmp_path):
+    def test_notifies_about_start_and_stop(self, tmp_path, session):
         path_listener_writer = tmp_path / "test_notifies_about_start_and_stop"
 
         lm = get_listener_manager()
@@ -186,14 +186,19 @@ class TestStandardTaskRunner:
         )
         dag = dagbag.dags.get("test_example_bash_operator")
         task = dag.get_task("runme_1")
+        current_time = timezone.utcnow()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             run_id="test",
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            logical_date=current_time,
+            data_interval=(current_time, current_time),
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
-            start_date=DEFAULT_DATE,
+            start_date=current_time,
+            session=session,
             **triggered_by_kwargs,
         )
+        session.commit()
         ti = TaskInstance(task=task, run_id="test")
         job = Job(dag_id=ti.dag_id)
         job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
@@ -216,7 +221,6 @@ class TestStandardTaskRunner:
             assert f.readline() == "on_task_instance_success\n"
             assert f.readline() == "before_stopping\n"
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     def test_notifies_about_fail(self, tmp_path):
         path_listener_writer = tmp_path / "test_notifies_about_fail"
@@ -230,12 +234,15 @@ class TestStandardTaskRunner:
         )
         dag = dagbag.dags.get("test_failing_bash_operator")
         task = dag.get_task("failing_task")
+        current_time = timezone.utcnow()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             run_id="test",
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            logical_date=current_time,
+            data_interval=(current_time, current_time),
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
-            start_date=DEFAULT_DATE,
+            start_date=current_time,
             **triggered_by_kwargs,
         )
         ti = TaskInstance(task=task, run_id="test")
@@ -260,7 +267,6 @@ class TestStandardTaskRunner:
             assert f.readline() == "on_task_instance_failed\n"
             assert f.readline() == "before_stopping\n"
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     def test_ol_does_not_block_xcoms(self, tmp_path):
         """
@@ -278,12 +284,15 @@ class TestStandardTaskRunner:
         )
         dag = dagbag.dags.get("test_dag_xcom_openlineage")
         task = dag.get_task("push_and_pull")
+        current_time = timezone.utcnow()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             run_id="test",
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            logical_date=current_time,
+            data_interval=(current_time, current_time),
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
-            start_date=DEFAULT_DATE,
+            start_date=current_time,
             **triggered_by_kwargs,
         )
 
@@ -391,7 +400,6 @@ class TestStandardTaskRunner:
         assert task_runner.return_code() == -9
         assert "running out of memory" in caplog.text
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     def test_on_kill(self):
         """
@@ -412,7 +420,9 @@ class TestStandardTaskRunner:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             run_id="test",
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             start_date=DEFAULT_DATE,
             **triggered_by_kwargs,
@@ -448,12 +458,11 @@ class TestStandardTaskRunner:
         logger.info("The file appeared")
 
         with path_on_kill_killed.open() as f:
-            assert "ON_KILL_TEST" == f.readline()
+            assert f.readline() == "ON_KILL_TEST"
 
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     def test_parsing_context(self):
         context_file = Path("/tmp/airflow_parsing_context")
@@ -468,7 +477,9 @@ class TestStandardTaskRunner:
 
         dag.create_dagrun(
             run_id="test",
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             start_date=DEFAULT_DATE,
             **triggered_by_kwargs,

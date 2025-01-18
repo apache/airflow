@@ -53,9 +53,9 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_executor import MockExecutor
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -128,7 +128,6 @@ class TestLocalTaskJob:
         check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
         assert all(check_result_2)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_localtaskjob_heartbeat(self, dag_maker, time_machine):
         session = settings.Session()
         with dag_maker("test_localtaskjob_heartbeat"):
@@ -185,7 +184,6 @@ class TestLocalTaskJob:
         ti = session.get(TaskInstance, (ti.id,))
         assert ti.last_heartbeat_at == DEFAULT_DATE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @mock.patch("subprocess.check_call")
     @mock.patch("airflow.jobs.local_task_job_runner.psutil")
     def test_localtaskjob_heartbeat_with_run_as_user(self, psutil_mock, _, dag_maker):
@@ -240,7 +238,6 @@ class TestLocalTaskJob:
         assert ti.pid != job1.task_runner.process.pid
         job_runner.heartbeat_callback()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @conf_vars({("core", "default_impersonation"): "testuser"})
     @mock.patch("subprocess.check_call")
     @mock.patch("airflow.jobs.local_task_job_runner.psutil")
@@ -297,7 +294,6 @@ class TestLocalTaskJob:
         job_runner.heartbeat_callback()
 
     @pytest.mark.flaky(reruns=5)
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_heartbeat_failed_fast(self):
         """
         Test that task heartbeat will sleep when it fails fast
@@ -314,6 +310,7 @@ class TestLocalTaskJob:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dr = dag.create_dagrun(
                 run_id="test_heartbeat_failed_fast_run",
+                run_type=DagRunType.MANUAL,
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 start_date=DEFAULT_DATE,
@@ -341,7 +338,6 @@ class TestLocalTaskJob:
                 delta = (time2 - time1).total_seconds()
                 assert abs(delta - job.heartrate) < 0.8
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @conf_vars({("core", "task_success_overtime"): "1"})
     def test_mark_success_no_kill(self, caplog, get_test_dag, session):
         """
@@ -352,6 +348,7 @@ class TestLocalTaskJob:
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
+            run_id="test",
             state=State.RUNNING,
             logical_date=DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
@@ -370,12 +367,11 @@ class TestLocalTaskJob:
         with timeout(30):
             run_job(job=job1, execute_callable=job_runner._execute)
         ti.refresh_from_db()
-        assert State.SUCCESS == ti.state
+        assert ti.state == State.SUCCESS
         assert (
             "State of this instance has been externally set to success. Terminating instance." in caplog.text
         )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_localtaskjob_double_trigger(self):
         dag = self.dagbag.dags.get("test_localtaskjob_double_trigger")
         task = dag.get_task("test_localtaskjob_double_trigger_task")
@@ -388,6 +384,7 @@ class TestLocalTaskJob:
         dag.clear()
         dr = dag.create_dagrun(
             run_id="test",
+            run_type=DagRunType.MANUAL,
             state=State.SUCCESS,
             logical_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
@@ -417,7 +414,6 @@ class TestLocalTaskJob:
 
         session.close()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch.object(StandardTaskRunner, "return_code")
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr", autospec=True)
     def test_local_task_return_code_metric(self, mock_stats_incr, mock_return_code, create_dummy_dag):
@@ -450,7 +446,6 @@ class TestLocalTaskJob:
             ]
         )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch.object(StandardTaskRunner, "return_code")
     def test_localtaskjob_maintain_heart_rate(self, mock_return_code, caplog, create_dummy_dag):
         dag, task = create_dummy_dag("test_localtaskjob_double_trigger")
@@ -483,7 +478,6 @@ class TestLocalTaskJob:
         assert time_end - time_start < job1.heartrate
         assert "Task exited with return code 0" in caplog.text
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_mark_failure_on_failure_callback(self, caplog, get_test_dag):
         """
         Test that ensures that mark_failure in the UI fails
@@ -494,6 +488,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -518,7 +513,6 @@ class TestLocalTaskJob:
             "State of this instance has been externally set to failed. Terminating instance."
         ) in caplog.text
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_dagrun_timeout_logged_in_task_logs(self, caplog, get_test_dag):
         """
         Test that ensures that if a running task is externally skipped (due to a dagrun timeout)
@@ -530,6 +524,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 start_date=DEFAULT_DATE,
                 logical_date=DEFAULT_DATE,
@@ -553,7 +548,6 @@ class TestLocalTaskJob:
         assert ti.state == State.SKIPPED
         assert "DagRun timed out after " in caplog.text
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_failure_callback_called_by_airflow_run_raw_process(self, monkeypatch, tmp_path, get_test_dag):
         """
         Ensure failure callback of a task is run by the airflow run --raw process
@@ -566,6 +560,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -591,7 +586,6 @@ class TestLocalTaskJob:
         assert m, "pid expected in output."
         assert os.getpid() != int(m.group(1))
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @conf_vars({("core", "task_success_overtime"): "5"})
     def test_mark_success_on_success_callback(self, caplog, get_test_dag):
         """
@@ -603,6 +597,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -623,7 +618,6 @@ class TestLocalTaskJob:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS, "Task instance was not marked as SUCCESS as expected"
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_success_listeners_executed(self, caplog, get_test_dag):
         """
         Test that ensures that when listeners are executed, the task is not killed before they finish
@@ -640,6 +634,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -663,7 +658,6 @@ class TestLocalTaskJob:
         )
         lm.clear()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @conf_vars({("core", "task_success_overtime"): "3"})
     def test_success_slow_listeners_executed_kill(self, caplog, get_test_dag):
         """
@@ -680,6 +674,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -702,7 +697,6 @@ class TestLocalTaskJob:
         )
         lm.clear()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @conf_vars({("core", "task_success_overtime"): "3"})
     def test_success_slow_task_not_killed_by_overtime_but_regular_timeout(self, caplog, get_test_dag):
         """
@@ -720,6 +714,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dr = dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -744,7 +739,6 @@ class TestLocalTaskJob:
         )
         lm.clear()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("signal_type", [signal.SIGTERM, signal.SIGKILL])
     def test_process_os_signal_calls_on_failure_callback(
         self, monkeypatch, tmp_path, get_test_dag, signal_type
@@ -764,6 +758,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with create_session() as session:
             dag.create_dagrun(
+                run_id="test",
                 state=State.RUNNING,
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
@@ -908,7 +903,6 @@ def test_number_of_queries_single_loop(mock_task_runner, dag_maker):
 class TestSigtermOnRunner:
     """Test receive SIGTERM on Task Runner."""
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize(
         "daemon", [pytest.param(True, id="daemon"), pytest.param(False, id="non-daemon")]
     )
@@ -1024,6 +1018,7 @@ class TestSigtermOnRunner:
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_run = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
             state=State.RUNNING,
             run_id=run_id,
             logical_date=logical_date,

@@ -28,7 +28,6 @@ from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -57,7 +56,12 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.utils.context import Context
+
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class TriggerDagRunLink(BaseOperatorLink):
@@ -199,14 +203,6 @@ class TriggerDagRunOperator(BaseOperator):
         self.logical_date = logical_date
 
     def execute(self, context: Context):
-        if InternalApiConfig.get_use_internal_api():
-            if self.reset_dag_run:
-                raise AirflowException("Parameter reset_dag_run=True is broken with Database Isolation Mode.")
-            if self.wait_for_completion:
-                raise AirflowException(
-                    "Parameter wait_for_completion=True is broken with Database Isolation Mode."
-                )
-
         if isinstance(self.logical_date, datetime.datetime):
             parsed_logical_date = self.logical_date
         elif isinstance(self.logical_date, str):

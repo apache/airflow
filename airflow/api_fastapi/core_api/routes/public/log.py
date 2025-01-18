@@ -18,15 +18,15 @@
 from __future__ import annotations
 
 import textwrap
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import HTTPException, Request, Response, status
 from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import PositiveInt
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
@@ -73,7 +73,7 @@ def get_log(
     try_number: PositiveInt,
     accept: HeaderAcceptJsonOrText,
     request: Request,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     full_content: bool = False,
     map_index: int = -1,
     token: str | None = None,

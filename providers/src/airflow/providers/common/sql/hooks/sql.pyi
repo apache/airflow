@@ -34,19 +34,33 @@ isort:skip_file
 from _typeshed import Incomplete as Incomplete
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.models import Connection as Connection
+from airflow.providers.common.sql.dialects.dialect import Dialect as Dialect
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
 from functools import cached_property as cached_property
 from pandas import DataFrame as DataFrame
 from sqlalchemy.engine import Inspector as Inspector, URL as URL
-from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
+from typing import (
+    Any,
+    Callable,
+    Generator,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Protocol,
+    Sequence,
+    TypeVar,
+    overload,
+)
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS: Incomplete
+WARNING_MESSAGE: str
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool): ...
 def fetch_all_handler(cursor) -> list[tuple] | None: ...
 def fetch_one_handler(cursor) -> list[tuple] | None: ...
+def resolve_dialects() -> MutableMapping[str, MutableMapping]: ...
 
 class ConnectorProtocol(Protocol):
     def connect(self, host: str, port: int, username: str, schema: str) -> Any: ...
@@ -79,6 +93,13 @@ class DbApiHook(BaseHook):
     def get_sqlalchemy_engine(self, engine_kwargs: Incomplete | None = None): ...
     @property
     def inspector(self) -> Inspector: ...
+    @cached_property
+    def dialect_name(self) -> str: ...
+    @cached_property
+    def dialect(self) -> Dialect: ...
+    @property
+    def reserved_words(self) -> set[str]: ...
+    def get_reserved_words(self, dialect_name: str) -> set[str]: ...
     def get_pandas_df(
         self, sql, parameters: list | tuple | Mapping[str, Any] | None = None, **kwargs
     ) -> DataFrame: ...

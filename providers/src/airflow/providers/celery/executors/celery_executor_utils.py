@@ -41,12 +41,11 @@ from setproctitle import setproctitle
 from sqlalchemy import select
 
 import airflow.settings as settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.stats import Stats
-from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -160,10 +159,6 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
     ret = 1
     try:
         from airflow.cli.cli_parser import get_parser
-
-        if not InternalApiConfig.get_use_internal_api():
-            settings.engine.pool.dispose()
-            settings.engine.dispose()
 
         parser = get_parser()
         # [1:] - remove "airflow" from the start of the command

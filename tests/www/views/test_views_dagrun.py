@@ -23,6 +23,7 @@ from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from airflow.utils.types import DagRunType
 from airflow.www.views import DagRunModelView
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
@@ -31,7 +32,7 @@ from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_user,
 )
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,
@@ -146,6 +147,7 @@ def running_dag_run(session):
         logical_date=logical_date,
         data_interval=(logical_date, logical_date),
         run_id="test_dag_runs_action",
+        run_type=DagRunType.MANUAL,
         session=session,
         **triggered_by_kwargs,
     )
@@ -169,6 +171,7 @@ def completed_dag_run_with_missing_task(session):
         logical_date=logical_date,
         data_interval=(logical_date, logical_date),
         run_id="test_dag_runs_action",
+        run_type=DagRunType.MANUAL,
         session=session,
         **triggered_by_kwargs,
     )
@@ -324,6 +327,7 @@ def dag_run_with_all_done_task(session):
         logical_date=logical_date,
         data_interval=(logical_date, logical_date),
         run_id="test_dagrun_failed",
+        run_type=DagRunType.MANUAL,
         session=session,
         **triggered_by_kwargs,
     )

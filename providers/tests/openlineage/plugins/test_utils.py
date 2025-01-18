@@ -28,7 +28,7 @@ from attrs import define
 from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
-from airflow.models import DAG as AIRFLOW_DAG, DagModel
+from airflow.models import DagModel
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
@@ -47,13 +47,12 @@ from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import (
-    AIRFLOW_V_2_9_PLUS,
-    AIRFLOW_V_2_10_PLUS,
-    AIRFLOW_V_3_0_PLUS,
     BashOperator,
 )
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -93,19 +92,29 @@ def test_get_airflow_debug_facet_logging_set_to_debug(mock_debug_mode, mock_get_
 
 
 @pytest.mark.db_test
-def test_get_dagrun_start_end():
+def test_get_dagrun_start_end(dag_maker):
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)
-    dag = AIRFLOW_DAG("test", start_date=start_date, end_date=end_date, schedule="@once")
-    AIRFLOW_DAG.bulk_write_to_db([dag])
+    with dag_maker("test", start_date=start_date, end_date=end_date, schedule="@once") as dag:
+        pass
+    dag_maker.sync_dagbag_to_db()
     dag_model = DagModel.get_dagmodel(dag.dag_id)
+
     run_id = str(uuid.uuid1())
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    data_interval = dag.get_next_data_interval(dag_model)
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun_kwargs = {
+            "logical_date": data_interval.start,
+            "triggered_by": DagRunTriggeredByType.TEST,
+        }
+    else:
+        dagrun_kwargs = {"execution_date": data_interval.start}
     dagrun = dag.create_dagrun(
         state=State.NONE,
         run_id=run_id,
-        data_interval=dag.get_next_data_interval(dag_model),
-        **triggered_by_kwargs,
+        run_type=DagRunType.MANUAL,
+        data_interval=data_interval,
+        **dagrun_kwargs,
     )
     assert dagrun.data_interval_start is not None
     start_date_tz = datetime.datetime(2022, 1, 1, tzinfo=timezone.utc)
@@ -334,10 +343,10 @@ def test_serialize_timetable():
     from airflow.timetables.simple import AssetTriggeredTimetable
 
     asset = AssetAny(
-        Asset("2"),
-        AssetAlias("example-alias"),
-        Asset("3"),
-        AssetAll(AssetAlias("this-should-not-be-seen"), Asset("4")),
+        Asset(name="2", uri="test://2", group="test-group"),
+        AssetAlias(name="example-alias", group="test-group"),
+        Asset(name="3", uri="test://3", group="test-group"),
+        AssetAll(AssetAlias("another"), Asset("4")),
     )
     dag = MagicMock()
     dag.timetable = AssetTriggeredTimetable(asset)
@@ -347,14 +356,40 @@ def test_serialize_timetable():
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET_ANY,
             "objects": [
-                {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "2", "uri": "2"},
-                {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
-                {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "3", "uri": "3"},
+                {
+                    "__type": DagAttributeTypes.ASSET,
+                    "extra": {},
+                    "uri": "test://2/",
+                    "name": "2",
+                    "group": "test-group",
+                },
+                {
+                    "__type": DagAttributeTypes.ASSET_ALIAS,
+                    "name": "example-alias",
+                    "group": "test-group",
+                },
+                {
+                    "__type": DagAttributeTypes.ASSET,
+                    "extra": {},
+                    "uri": "test://3/",
+                    "name": "3",
+                    "group": "test-group",
+                },
                 {
                     "__type": DagAttributeTypes.ASSET_ALL,
                     "objects": [
-                        {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
-                        {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "4", "uri": "4"},
+                        {
+                            "__type": DagAttributeTypes.ASSET_ALIAS,
+                            "name": "another",
+                            "group": "asset",
+                        },
+                        {
+                            "__type": DagAttributeTypes.ASSET,
+                            "extra": {},
+                            "uri": "4",
+                            "name": "4",
+                            "group": "asset",
+                        },
                     ],
                 },
             ],
@@ -401,31 +436,8 @@ def test_serialize_timetable_2_10():
     }
 
 
-@pytest.mark.skipif(
-    not AIRFLOW_V_2_9_PLUS or AIRFLOW_V_2_10_PLUS,
-    reason="This test checks serialization only in 2.9 conditions",
-)
+@pytest.mark.skipif(AIRFLOW_V_2_10_PLUS, reason="This test checks serialization only in 2.9 conditions")
 def test_serialize_timetable_2_9():
-    dag = MagicMock()
-    dag.timetable.serialize.return_value = {}
-    dag.dataset_triggers = [Asset("a"), Asset("b")]
-    dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
-        "dataset_condition": {
-            "__type": "dataset_all",
-            "objects": [
-                {"__type": "dataset", "extra": None, "uri": "a"},
-                {"__type": "dataset", "extra": None, "uri": "b"},
-            ],
-        }
-    }
-
-
-@pytest.mark.skipif(
-    AIRFLOW_V_2_9_PLUS,
-    reason="This test checks serialization only in 2.8 conditions",
-)
-def test_serialize_timetable_2_8():
     dag = MagicMock()
     dag.timetable.serialize.return_value = {}
     dag.dataset_triggers = [Asset("a"), Asset("b")]

@@ -21,6 +21,7 @@ from urllib.parse import quote_plus
 
 import pytest
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XCom
@@ -30,15 +31,16 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
+from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.mock_operators import CustomOperator
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestExtraLinks:
@@ -66,10 +68,11 @@ class TestExtraLinks:
 
         self.dag = self._create_dag()
 
+        DagBundlesManager().sync_bundles_to_db()
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {self.dag.dag_id: self.dag}
         test_client.app.state.dag_bag = dag_bag
-        dag_bag.sync_to_db()
+        dag_bag.sync_to_db("dags-folder", None)
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST}
 

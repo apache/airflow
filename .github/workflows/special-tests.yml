@@ -24,12 +24,12 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
-      test-groups:
-        description: "The json representing list of test test groups to run"
+      default-branch:
+        description: "The default branch for the repository"
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
+      test-groups:
+        description: "The json representing list of test test groups to run"
         required: true
         type: string
       core-test-types-list-as-string:
@@ -76,6 +76,12 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources or not (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv or not (true/false)"
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
   tests-min-sqlalchemy:
     name: "Min SQLAlchemy test"
@@ -91,7 +97,6 @@ jobs:
       test-scope: "DB"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -100,6 +105,7 @@ jobs:
       providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
 
   tests-boto:
     name: "Latest Boto test"
@@ -115,7 +121,6 @@ jobs:
       test-scope: "All"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -125,6 +130,7 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
 
   tests-pendulum-2:
     name: "Pendulum2 test"
@@ -140,7 +146,6 @@ jobs:
       test-scope: "All"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -150,31 +155,7 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
-
-  tests-in-progress-disabled:
-    name: "In progress disabled test"
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
-      enable-aip-44: "false"
-      test-name: "InProgressDisabled-Postgres"
-      test-scope: "All"
-      test-groups: ${{ inputs.test-groups }}
-      backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
-      python-versions: "['${{ inputs.default-python-version }}']"
-      backend-versions: "['${{ inputs.default-postgres-version }}']"
-      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
-      excludes: "[]"
-      core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
-      providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
-      include-success-outputs: ${{ inputs.include-success-outputs }}
-      run-coverage: ${{ inputs.run-coverage }}
-      debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
 
   tests-quarantined:
     name: "Quarantined test"
@@ -189,7 +170,6 @@ jobs:
       test-scope: "Quarantined"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -199,6 +179,7 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
 
   tests-arm-collection:
     name: "ARM Collection test"
@@ -213,7 +194,6 @@ jobs:
       test-scope: "ARM collection"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -223,7 +203,10 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}
+    if: ${{ inputs.default-branch == 'main' }}
 
+  # matrix.test-group comes from run-unit-tests.yml
   tests-system:
     name: "System test: ${{ matrix.test-group }}"
     uses: ./.github/workflows/run-unit-tests.yml
@@ -237,7 +220,6 @@ jobs:
       test-scope: "System"
       test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
@@ -247,3 +229,4 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+      use-uv: ${{ inputs.use-uv }}

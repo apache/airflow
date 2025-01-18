@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestGetHealthTest:
@@ -39,6 +39,6 @@ class TestGetHealthTest:
     def test_should_respond_200(self, mock_get_airflow_get_commit):
         response = self.client.get("/api/v1/version")
 
-        assert 200 == response.status_code
-        assert {"git_version": "GIT_COMMIT", "version": "MOCK_VERSION"} == response.json
+        assert response.status_code == 200
+        assert response.json == {"git_version": "GIT_COMMIT", "version": "MOCK_VERSION"}
         mock_get_airflow_get_commit.assert_called_once_with()

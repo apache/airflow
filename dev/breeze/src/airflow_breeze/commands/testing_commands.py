@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
+import signal
 import sys
 from datetime import datetime
 from time import sleep
@@ -29,7 +31,6 @@ from airflow_breeze.commands.common_options import (
     option_backend,
     option_clean_airflow_installation,
     option_core_integration,
-    option_database_isolation,
     option_db_reset,
     option_debug_resources,
     option_downgrade_pendulum,
@@ -40,7 +41,6 @@ from airflow_breeze.commands.common_options import (
     option_forward_credentials,
     option_github_repository,
     option_image_name,
-    option_image_tag_for_running,
     option_include_success_outputs,
     option_keep_env_variables,
     option_mount_sources,
@@ -100,6 +100,7 @@ from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
+DEFAULT_TOTAL_TEST_TIMEOUT = 6500  # 6500 seconds = 1h 48 minutes
 
 
 @click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
@@ -115,7 +116,6 @@ def group_for_testing():
     ),
 )
 @option_python
-@option_image_tag_for_running
 @option_image_name
 @click.option(
     "--skip-docker-compose-deletion",
@@ -130,7 +130,6 @@ def group_for_testing():
 def docker_compose_tests(
     python: str,
     image_name: str,
-    image_tag: str | None,
     skip_docker_compose_deletion: bool,
     github_repository: str,
     extra_pytest_args: tuple,
@@ -138,10 +137,8 @@ def docker_compose_tests(
     """Run docker-compose tests."""
     perform_environment_checks()
     if image_name is None:
-        build_params = BuildProdParams(
-            python=python, image_tag=image_tag, github_repository=github_repository
-        )
-        image_name = build_params.airflow_image_name_with_tag
+        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        image_name = build_params.airflow_image_name
     get_console().print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
@@ -529,6 +526,15 @@ option_force_sa_warnings = click.option(
     show_default=True,
     envvar="SQLALCHEMY_WARN_20",
 )
+option_total_test_timeout = click.option(
+    "--total-test-timeout",
+    help="Total test timeout in seconds. This is the maximum time parallel tests will run. If there is "
+    "an underlying pytest command that hangs, the process will be stop with system exit after "
+    "that time. This should give a chance to upload logs as artifacts on CI.",
+    default=DEFAULT_TOTAL_TEST_TIMEOUT,
+    type=int,
+    envvar="TOTAL_TEST_TIMEOUT",
+)
 
 
 @group_for_testing.command(
@@ -554,7 +560,6 @@ option_force_sa_warnings = click.option(
 @option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_include_success_outputs
 @option_install_airflow_with_constraints
 @option_keep_env_variables
@@ -574,6 +579,7 @@ option_force_sa_warnings = click.option(
 @option_skip_docker_compose_down
 @option_test_timeout
 @option_test_type_core_group
+@option_total_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
 @option_use_packages_from_dist
@@ -583,7 +589,6 @@ option_force_sa_warnings = click.option(
 def core_tests(**kwargs):
     _run_test_command(
         test_group=GroupOfTests.CORE,
-        database_isolation=False,
         integration=(),
         excluded_providers="",
         providers_skip_constraints=False,
@@ -605,7 +610,6 @@ def core_tests(**kwargs):
 @option_backend
 @option_collect_only
 @option_clean_airflow_installation
-@option_database_isolation
 @option_db_reset
 @option_debug_resources
 @option_downgrade_pendulum
@@ -618,7 +622,6 @@ def core_tests(**kwargs):
 @option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_include_success_outputs
 @option_install_airflow_with_constraints
 @option_keep_env_variables
@@ -641,6 +644,7 @@ def core_tests(**kwargs):
 @option_skip_providers
 @option_test_timeout
 @option_test_type_providers_group
+@option_total_test_timeout
 @option_upgrade_boto
 @option_use_airflow_version
 @option_use_packages_from_dist
@@ -660,19 +664,14 @@ def providers_tests(**kwargs):
     ),
 )
 @option_collect_only
-@option_debug_resources
 @option_dry_run
 @option_enable_coverage
 @option_force_sa_warnings
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_keep_env_variables
-@option_include_success_outputs
 @option_mount_sources
-@option_parallelism
 @option_python
-@option_skip_cleanup
 @option_skip_docker_compose_down
 @option_test_timeout
 @option_verbose
@@ -683,10 +682,11 @@ def task_sdk_tests(**kwargs):
         airflow_constraints_reference="constraints-main",
         backend="none",
         clean_airflow_installation=False,
-        database_isolation=False,
+        debug_resources=False,
         downgrade_pendulum=False,
         downgrade_sqlalchemy=False,
         db_reset=False,
+        include_success_outputs=False,
         integration=(),
         install_airflow_with_constraints=False,
         run_db_tests_only=False,
@@ -698,12 +698,15 @@ def task_sdk_tests(**kwargs):
         force_lowest_dependencies=False,
         no_db_cleanup=True,
         parallel_test_types="",
+        parallelism=0,
         package_format="wheel",
         providers_constraints_location="",
         providers_skip_constraints=False,
         remove_arm_packages=False,
+        skip_cleanup=False,
         skip_providers="",
         test_type=ALL_TEST_TYPE,
+        total_test_timeout=DEFAULT_TOTAL_TEST_TIMEOUT,
         upgrade_boto=False,
         use_airflow_version=None,
         use_packages_from_dist=False,
@@ -727,7 +730,6 @@ def task_sdk_tests(**kwargs):
 @option_force_sa_warnings
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_core_integration
 @option_keep_env_variables
 @option_mount_sources
@@ -748,7 +750,6 @@ def core_integration_tests(
     force_sa_warnings: bool,
     forward_credentials: bool,
     github_repository: str,
-    image_tag: str | None,
     keep_env_variables: bool,
     integration: tuple,
     mount_sources: str,
@@ -767,7 +768,6 @@ def core_integration_tests(
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
-        image_tag=image_tag,
         integration=integration,
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
@@ -811,7 +811,6 @@ def core_integration_tests(
 @option_force_sa_warnings
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_providers_integration
 @option_keep_env_variables
 @option_mount_sources
@@ -832,7 +831,6 @@ def integration_providers_tests(
     force_sa_warnings: bool,
     forward_credentials: bool,
     github_repository: str,
-    image_tag: str | None,
     integration: tuple,
     keep_env_variables: bool,
     mount_sources: str,
@@ -851,7 +849,6 @@ def integration_providers_tests(
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
-        image_tag=image_tag,
         integration=integration,
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
@@ -895,7 +892,6 @@ def integration_providers_tests(
 @option_force_sa_warnings
 @option_forward_credentials
 @option_github_repository
-@option_image_tag_for_running
 @option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
@@ -915,7 +911,6 @@ def system_tests(
     force_sa_warnings: bool,
     forward_credentials: bool,
     github_repository: str,
-    image_tag: str | None,
     keep_env_variables: bool,
     mount_sources: str,
     mysql_version: str,
@@ -933,7 +928,6 @@ def system_tests(
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
-        image_tag=image_tag,
         integration=(),
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
@@ -969,7 +963,6 @@ def system_tests(
         allow_extra_args=True,
     ),
 )
-@option_image_tag_for_running
 @option_mount_sources
 @option_github_repository
 @option_test_timeout
@@ -981,7 +974,6 @@ def system_tests(
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def helm_tests(
     extra_pytest_args: tuple,
-    image_tag: str | None,
     mount_sources: str,
     github_repository: str,
     test_timeout: int,
@@ -990,7 +982,6 @@ def helm_tests(
     use_xdist: bool,
 ):
     shell_params = ShellParams(
-        image_tag=image_tag,
         mount_sources=mount_sources,
         github_repository=github_repository,
         run_tests=True,
@@ -1022,6 +1013,110 @@ def helm_tests(
     sys.exit(result.returncode)
 
 
+@group_for_testing.command(
+    name="python-api-client-tests",
+    help="Run python api client tests.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_backend
+@option_collect_only
+@option_db_reset
+@option_no_db_cleanup
+@option_enable_coverage
+@option_force_sa_warnings
+@option_forward_credentials
+@option_github_repository
+@option_keep_env_variables
+@option_mysql_version
+@option_postgres_version
+@option_python
+@option_skip_docker_compose_down
+@option_test_timeout
+@option_dry_run
+@option_verbose
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def python_api_client_tests(
+    backend: str,
+    collect_only: bool,
+    db_reset: bool,
+    no_db_cleanup: bool,
+    enable_coverage: bool,
+    force_sa_warnings: bool,
+    forward_credentials: bool,
+    github_repository: str,
+    keep_env_variables: bool,
+    mysql_version: str,
+    postgres_version: str,
+    python: str,
+    skip_docker_compose_down: bool,
+    test_timeout: int,
+    extra_pytest_args: tuple,
+):
+    shell_params = ShellParams(
+        test_group=GroupOfTests.PYTHON_API_CLIENT,
+        backend=backend,
+        collect_only=collect_only,
+        enable_coverage=enable_coverage,
+        forward_credentials=forward_credentials,
+        forward_ports=False,
+        github_repository=github_repository,
+        integration=(),
+        keep_env_variables=keep_env_variables,
+        mysql_version=mysql_version,
+        postgres_version=postgres_version,
+        python=python,
+        test_type="python-api-client",
+        force_sa_warnings=force_sa_warnings,
+        run_tests=True,
+        db_reset=db_reset,
+        no_db_cleanup=no_db_cleanup,
+        install_airflow_python_client=True,
+        start_webserver_with_examples=True,
+    )
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+    perform_environment_checks()
+    returncode, _ = _run_test(
+        shell_params=shell_params,
+        extra_pytest_args=extra_pytest_args,
+        python_version=python,
+        output=None,
+        test_timeout=test_timeout,
+        output_outside_the_group=True,
+        skip_docker_compose_down=skip_docker_compose_down,
+    )
+    sys.exit(returncode)
+
+
+@contextlib.contextmanager
+def run_with_timeout(timeout: int):
+    def timeout_handler(signum, frame):
+        get_console().print("[error]Timeout reached. Killing the container(s)[/]")
+        list_of_containers = run_command(
+            ["docker", "ps", "-q"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        run_command(
+            ["docker", "kill", "--signal", "SIGQUIT"] + list_of_containers.stdout.splitlines(),
+            check=True,
+            capture_output=False,
+            text=True,
+        )
+
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(timeout)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+
+
 def _run_test_command(
     *,
     test_group: GroupOfTests,
@@ -1030,7 +1125,6 @@ def _run_test_command(
     collect_only: bool,
     clean_airflow_installation: bool,
     db_reset: bool,
-    database_isolation: bool,
     debug_resources: bool,
     downgrade_sqlalchemy: bool,
     downgrade_pendulum: bool,
@@ -1042,7 +1136,6 @@ def _run_test_command(
     forward_credentials: bool,
     force_lowest_dependencies: bool,
     github_repository: str,
-    image_tag: str | None,
     include_success_outputs: bool,
     install_airflow_with_constraints: bool,
     integration: tuple[str, ...],
@@ -1064,6 +1157,7 @@ def _run_test_command(
     skip_providers: str,
     test_timeout: int,
     test_type: str,
+    total_test_timeout: int,
     upgrade_boto: bool,
     use_airflow_version: str | None,
     use_packages_from_dist: bool,
@@ -1083,7 +1177,6 @@ def _run_test_command(
         backend=backend,
         collect_only=collect_only,
         clean_airflow_installation=clean_airflow_installation,
-        database_isolation=database_isolation,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
@@ -1093,7 +1186,6 @@ def _run_test_command(
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
-        image_tag=image_tag,
         integration=integration,
         install_airflow_with_constraints=install_airflow_with_constraints,
         keep_env_variables=keep_env_variables,
@@ -1136,16 +1228,17 @@ def _run_test_command(
                 f"Your test type = {test_type}\n"
             )
             sys.exit(1)
-        run_tests_in_parallel(
-            shell_params=shell_params,
-            extra_pytest_args=extra_pytest_args,
-            test_timeout=test_timeout,
-            include_success_outputs=include_success_outputs,
-            parallelism=parallelism,
-            skip_cleanup=skip_cleanup,
-            debug_resources=debug_resources,
-            skip_docker_compose_down=skip_docker_compose_down,
-        )
+        with run_with_timeout(total_test_timeout):
+            run_tests_in_parallel(
+                shell_params=shell_params,
+                extra_pytest_args=extra_pytest_args,
+                test_timeout=test_timeout,
+                include_success_outputs=include_success_outputs,
+                parallelism=parallelism,
+                skip_cleanup=skip_cleanup,
+                debug_resources=debug_resources,
+                skip_docker_compose_down=skip_docker_compose_down,
+            )
     else:
         if shell_params.test_type == ALL_TEST_TYPE:
             if any(["tests/" in arg and not arg.startswith("-") for arg in extra_pytest_args]):

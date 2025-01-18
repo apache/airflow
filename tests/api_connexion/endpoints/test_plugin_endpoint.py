@@ -24,7 +24,6 @@ from flask import Blueprint
 from flask_appbuilder import BaseView
 
 from airflow.plugins_manager import AirflowPlugin
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.base import Timetable
 from airflow.utils.module_loading import qualname
 
@@ -33,7 +32,7 @@ from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 def plugin_macro(): ...
@@ -64,13 +63,6 @@ appbuilder_menu_items = {
 }
 
 
-class CustomTIDep(BaseTIDep):
-    pass
-
-
-ti_dep = CustomTIDep()
-
-
 class CustomTimetable(Timetable):
     def infer_manual_data_interval(self, *, run_after):
         pass
@@ -97,7 +89,6 @@ class MockPlugin(AirflowPlugin):
     global_operator_extra_links = [MockOperatorLink()]
     operator_extra_links = [MockOperatorLink()]
     macros = [plugin_macro]
-    ti_deps = [ti_dep]
     timetables = [CustomTimetable]
     listeners = [pytest, MyCustomListener()]  # using pytest here because we need a module(just for test)
 
@@ -156,7 +147,6 @@ class TestGetPlugins(TestPluginsEndpoint):
                     "source": None,
                     "name": "test_plugin",
                     "timetables": [qualname(CustomTimetable)],
-                    "ti_deps": [str(ti_dep)],
                     "listeners": [
                         d.__name__ if inspect.ismodule(d) else qualname(d)
                         for d in [pytest, MyCustomListener()]

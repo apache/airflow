@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -26,17 +26,21 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import JobState, State
 
 from tests_common.test_utils.db import clear_db_jobs
-from tests_common.test_utils.format_datetime import datetime_zulu_format
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    TestCase = Literal[
+        "should_report_success_for_one_working_scheduler",
+        "should_report_success_for_one_working_scheduler_with_hostname",
+        "should_report_success_for_ha_schedulers",
+        "should_ignore_not_running_jobs",
+        "should_raise_exception_for_multiple_scheduler_on_one_host",
+    ]
 
 pytestmark = pytest.mark.db_test
 
-TESTCASE_TYPE = Literal[
-    "should_report_success_for_one_working_scheduler",
-    "should_report_success_for_one_working_scheduler_with_hostname",
-    "should_report_success_for_ha_schedulers",
-    "should_ignore_not_running_jobs",
-    "should_raise_exception_for_multiple_scheduler_on_one_host",
-]
 TESTCASE_ONE_SCHEDULER = "should_report_success_for_one_working_scheduler"
 TESTCASE_ONE_SCHEDULER_WITH_HOSTNAME = "should_report_success_for_one_working_scheduler_with_hostname"
 TESTCASE_HA_SCHEDULERS = "should_report_success_for_ha_schedulers"
@@ -107,7 +111,7 @@ class TestJobEndpoint:
         scheduler_job.heartbeat(heartbeat_callback=job_runner.heartbeat_callback)
 
     @provide_session
-    def setup(self, testcase: TESTCASE_TYPE, session=None) -> None:
+    def setup(self, testcase: TestCase, session=None) -> None:
         """
         Setup testcase at runtime based on the `testcase` provided by `pytest.mark.parametrize`.
         """
@@ -129,7 +133,7 @@ class TestGetJobs(TestJobEndpoint):
     @pytest.mark.parametrize(
         "testcase, query_params, expected_status_code, expected_total_entries",
         [
-            # original testcases refactor from tests/cli/commands/test_jobs_command.py
+            # original testcases refactor from tests/cli/commands/remote_commands/test_jobs_command.py
             (TESTCASE_ONE_SCHEDULER, {}, 200, 1),
             (TESTCASE_ONE_SCHEDULER_WITH_HOSTNAME, {"hostname": "HOSTNAME"}, 200, 1),
             (TESTCASE_HA_SCHEDULERS, {"limit": 100}, 200, 3),
@@ -155,9 +159,9 @@ class TestGetJobs(TestJobEndpoint):
                 "dag_id": None,
                 "state": "running",
                 "job_type": "SchedulerJob",
-                "start_date": datetime_zulu_format(self.scheduler_jobs[idx].start_date),
+                "start_date": from_datetime_to_zulu(self.scheduler_jobs[idx].start_date),
                 "end_date": None,
-                "latest_heartbeat": datetime_zulu_format(self.scheduler_jobs[idx].latest_heartbeat),
+                "latest_heartbeat": from_datetime_to_zulu(self.scheduler_jobs[idx].latest_heartbeat),
                 "executor_class": None,
                 "hostname": self.scheduler_jobs[idx].hostname,
                 "unixname": self.scheduler_jobs[idx].unixname,

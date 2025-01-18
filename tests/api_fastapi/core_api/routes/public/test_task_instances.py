@@ -26,6 +26,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagRun, TaskInstance
@@ -344,7 +345,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+            "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
             "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
@@ -444,7 +445,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
-                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+                "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
                 "rendered_map_index": None,
                 "trigger": None,
                 "triggerer_job": None,
@@ -522,9 +523,10 @@ class TestGetMappedTaskInstances:
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)
                 session.add(ti)
 
+            DagBundlesManager().sync_bundles_to_db()
             dagbag = DagBag(os.devnull, include_examples=False)
             dagbag.dags = {dag_id: dag_maker.dag}
-            dagbag.sync_to_db()
+            dagbag.sync_to_db("dags-folder", None)
             session.flush()
 
             mapped.expand_mapped_task(dr.run_id, session=session)
@@ -938,6 +940,30 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 2,
                 id="test executor filter ~",
             ),
+            pytest.param(
+                [
+                    {"_task_display_property_value": "task_name_1"},
+                    {"_task_display_property_value": "task_name_2"},
+                    {"_task_display_property_value": "task_not_match_name_3"},
+                ],
+                True,
+                ("/public/dags/~/dagRuns/~/taskInstances"),
+                {"task_display_name_pattern": "task_name"},
+                2,
+                id="test task_display_name_pattern filter",
+            ),
+            pytest.param(
+                [
+                    {"task_id": "task_match_id_1"},
+                    {"task_id": "task_match_id_2"},
+                    {"task_id": "task_match_id_3"},
+                ],
+                True,
+                ("/public/dags/~/dagRuns/~/taskInstances"),
+                {"task_id": "task_match_id_2"},
+                1,
+                id="test task_id filter",
+            ),
         ],
     )
     def test_should_respond_200(
@@ -949,6 +975,10 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
         )
         response = test_client.get(url, params=params)
+        if params == {"task_id_pattern": "task_match_id"}:
+            import pprint
+
+            pprint.pprint(response.json())
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti
         assert len(response.json()["task_instances"]) == expected_ti
@@ -1829,7 +1859,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{request_dag}/clearTaskInstances",
             json=payload,
@@ -1843,14 +1873,14 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         dag_id = "example_python_operator"
         payload = {"reset_dag_runs": True, "dry_run": False}
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
         )
         assert response.status_code == 200
 
-        # dag_id (3rd argument) is a different session object. Manually asserting that the dag_id
+        # dag (3rd argument) is a different session object. Manually asserting that the dag_id
         # is the same.
         mock_clearti.assert_called_once_with([], mock.ANY, mock.ANY, DagRunState.QUEUED)
         assert mock_clearti.call_args[0][2].dag_id == dag_id
@@ -1863,7 +1893,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert dagrun.state == "running"
 
         payload = {"dry_run": False, "reset_dag_runs": True, "task_ids": [""]}
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -1913,14 +1943,14 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=DagRunState.FAILED,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
         )
 
         failed_dag_runs = session.query(DagRun).filter(DagRun.state == "failed").count()
-        assert 200 == response.status_code
+        assert response.status_code == 200
         expected_response = [
             {
                 "dag_id": "example_python_operator",
@@ -1954,9 +1984,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         ]
         for task_instance in expected_response:
-            assert task_instance in response.json()["task_instances"]
-        assert 6 == response.json()["total_entries"]
-        assert 0 == failed_dag_runs, 0
+            assert task_instance in [
+                {key: ti[key] for key in task_instance.keys()} for ti in response.json()["task_instances"]
+            ]
+        assert response.json()["total_entries"] == 6
+        assert failed_dag_runs == 0
 
     def test_should_respond_200_with_dag_run_id(self, test_client, session):
         dag_id = "example_python_operator"
@@ -1998,21 +2030,47 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=State.FAILED,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
         )
-        assert 200 == response.status_code
+        assert response.status_code == 200
         expected_response = [
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
                 "task_id": "print_the_context",
+                "duration": mock.ANY,
+                "end_date": mock.ANY,
+                "executor": None,
+                "executor_config": "{}",
+                "hostname": "",
+                "id": mock.ANY,
+                "logical_date": "2020-01-01T00:00:00Z",
+                "map_index": -1,
+                "max_tries": 0,
+                "note": "placeholder-note",
+                "operator": "PythonOperator",
+                "pid": 100,
+                "pool": "default_pool",
+                "pool_slots": 1,
+                "priority_weight": 9,
+                "queue": "default_queue",
+                "queued_when": None,
+                "rendered_fields": {},
+                "rendered_map_index": None,
+                "start_date": "2020-01-02T00:00:00Z",
+                "state": "restarting",
+                "task_display_name": "print_the_context",
+                "trigger": None,
+                "triggerer_job": None,
+                "try_number": 0,
+                "unixname": mock.ANY,
             },
         ]
         assert response.json()["task_instances"] == expected_response
-        assert 1 == response.json()["total_entries"]
+        assert response.json()["total_entries"] == 1
 
     def test_should_respond_200_with_include_past(self, test_client, session):
         dag_id = "example_python_operator"
@@ -2054,12 +2112,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=State.FAILED,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
         )
-        assert 200 == response.status_code
+        assert response.status_code == 200
         expected_response = [
             {
                 "dag_id": "example_python_operator",
@@ -2093,8 +2151,10 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         ]
         for task_instance in expected_response:
-            assert task_instance in response.json()["task_instances"]
-        assert 6 == response.json()["total_entries"]
+            assert task_instance in [
+                {key: ti[key] for key in task_instance.keys()} for ti in response.json()["task_instances"]
+            ]
+        assert response.json()["total_entries"] == 6
 
     def test_should_respond_200_with_include_future(self, test_client, session):
         dag_id = "example_python_operator"
@@ -2136,13 +2196,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=State.FAILED,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         expected_response = [
             {
                 "dag_id": "example_python_operator",
@@ -2176,8 +2236,10 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         ]
         for task_instance in expected_response:
-            assert task_instance in response.json()["task_instances"]
-        assert 6 == response.json()["total_entries"]
+            assert task_instance in [
+                {key: ti[key] for key in task_instance.keys()} for ti in response.json()["task_instances"]
+            ]
+        assert response.json()["total_entries"] == 6
 
     def test_should_respond_404_for_nonexistent_dagrun_id(self, test_client, session):
         dag_id = "example_python_operator"
@@ -2208,7 +2270,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             json=payload,
         )
 
-        assert 404 == response.status_code
+        assert response.status_code == 404
         assert f"Dag Run id TEST_DAG_RUN_ID_100 not found in dag {dag_id}" in response.text
 
     @pytest.mark.parametrize(
@@ -2284,7 +2346,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             "/public/dags/example_python_operator/clearTaskInstances",
             json=payload,
@@ -2311,7 +2373,6 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         self.create_task_instances(
             session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
         )
-        print("here")
         response = test_client.get(
             "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
         )
@@ -3042,7 +3103,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "try_number": 0,
                 "unixname": getuser(),
                 "dag_run_id": self.RUN_ID,
-                "rendered_fields": {"op_args": [], "op_kwargs": {}, "templates_dict": None},
+                "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
                 "rendered_map_index": None,
                 "trigger": None,
                 "triggerer_job": None,
@@ -3061,3 +3122,21 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200, response.text
         assert response.json()["note"] == new_note_value
+
+    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    def test_should_raise_409_for_updating_same_task_instance_state(
+        self, mock_set_ti_state, test_client, session
+    ):
+        self.create_task_instances(session)
+
+        mock_set_ti_state.return_value = None
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "dry_run": False,
+                "new_state": "success",
+            },
+        )
+        assert response.status_code == 409
+        assert "Task id print_the_context is already in success state" in response.text

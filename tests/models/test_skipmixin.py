@@ -53,7 +53,6 @@ class TestSkipMixin:
     def teardown_method(self):
         self.clean_db()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.utils.timezone.utcnow")
     def test_skip(self, mock_now, dag_maker):
         session = settings.Session()
@@ -66,7 +65,7 @@ class TestSkipMixin:
             logical_date=now,
             state=State.FAILED,
         )
-        SkipMixin().skip(dag_run=dag_run, tasks=tasks)
+        SkipMixin().skip(dag_id=dag_run.dag_id, run_id=dag_run.run_id, tasks=tasks)
 
         session.query(TI).filter(
             TI.dag_id == "dag",
@@ -78,7 +77,7 @@ class TestSkipMixin:
 
     def test_skip_none_tasks(self):
         session = Mock()
-        SkipMixin().skip(dag_run=None, tasks=[])
+        SkipMixin().skip(dag_id="test_dag", run_id="test_run", tasks=[])
         assert not session.query.called
         assert not session.commit.called
 
@@ -119,7 +118,6 @@ class TestSkipMixin:
 
         assert executed_states == expected_states
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_mapped_tasks_skip_all_except(self, dag_maker):
         with dag_maker("dag_test_skip_all_except") as dag:
 

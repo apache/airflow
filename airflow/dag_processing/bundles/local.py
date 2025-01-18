@@ -19,25 +19,28 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from airflow import settings
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.exceptions import AirflowException
 
 
 class LocalDagBundle(BaseDagBundle):
     """
     Local DAG bundle - exposes a local directory as a DAG bundle.
 
-    :param local_folder: Local folder where the DAGs are stored
+    :param path: Local path where the DAGs are stored
     """
 
     supports_versioning = False
 
-    def __init__(self, *, local_folder: str, **kwargs) -> None:
+    def __init__(self, *, path: str | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
-        self._path = Path(local_folder)
+        if path is None:
+            path = settings.DAGS_FOLDER
 
-    def get_current_version(self) -> str:
-        raise AirflowException("Not versioned!")
+        self._path = Path(path)
+
+    def get_current_version(self) -> None:
+        return None
 
     def refresh(self) -> None:
         """Nothing to refresh - it's just a local directory."""

@@ -26,12 +26,20 @@ import pytest
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.api_core import page_iterator
 from google.auth.exceptions import RefreshError
-from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, DatasetReference, QueryJob, Table, TableReference
+from google.cloud.bigquery import (
+    DEFAULT_RETRY,
+    CopyJob,
+    DatasetReference,
+    QueryJob,
+    Table,
+    TableReference,
+)
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
 from google.cloud.bigquery.table import _EmptyRowIterator
 from google.cloud.exceptions import NotFound
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryAsyncHook,
     BigQueryHook,
@@ -43,6 +51,8 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     _validate_value,
     split_tablename,
 )
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 PROJECT_ID = "bq-project"
 CREDENTIALS = "bq-credentials"
@@ -1044,7 +1054,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
     def test_rowcount(self, mock_get_client):
         bq_cursor = self.hook.get_cursor()
         result = bq_cursor.rowcount
-        assert -1 == result
+        assert result == -1
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryCursor.next")
@@ -1061,7 +1071,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
     def test_fetchall(self, mock_fetchone, mock_get_client):
         bq_cursor = self.hook.get_cursor()
         result = bq_cursor.fetchall()
-        assert [1, 2, 3] == result
+        assert result == [1, 2, 3]
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryCursor.fetchone")
@@ -1070,15 +1080,15 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor = self.hook.get_cursor()
         mock_fetchone.side_effect = side_effect_values
         result = bq_cursor.fetchmany()
-        assert [1] == result
+        assert result == [1]
 
         mock_fetchone.side_effect = side_effect_values
         result = bq_cursor.fetchmany(2)
-        assert [1, 2] == result
+        assert result == [1, 2]
 
         mock_fetchone.side_effect = side_effect_values
         result = bq_cursor.fetchmany(5)
-        assert [1, 2, 3] == result
+        assert result == [1, 2, 3]
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_next_no_jobid(self, mock_get_client):
@@ -1093,9 +1103,9 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor.job_id = JOB_ID
         bq_cursor.buffer = [1, 2]
         result = bq_cursor.next()
-        assert 1 == result
+        assert result == 1
         result = bq_cursor.next()
-        assert 2 == result
+        assert result == 2
         bq_cursor.all_pages_loaded = True
         result = bq_cursor.next()
         assert result is None
@@ -1123,10 +1133,10 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor.location = LOCATION
 
         result = bq_cursor.next()
-        assert ["one", 1] == result
+        assert result == ["one", 1]
 
         result = bq_cursor.next()
-        assert ["two", 2] == result
+        assert result == ["two", 2]
 
         mock_get_query_results.assert_called_once_with(
             jobId=JOB_ID, location=LOCATION, pageToken=None, projectId="bq-project"
@@ -1828,3 +1838,108 @@ class TestBigQueryAsyncHookMethods:
         hook = BigQueryAsyncHook()
         result = hook.get_records(query_result, as_dict=True)
         assert result == [{"f0_": 22, "f1_": 3.14, "f2_": "PI"}]
+
+
+@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+@pytest.mark.db_test
+class TestHookLevelLineage(_BigQueryBaseTestClass):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_empty_table_collects_assets(self, mock_bq_client, hook_lineage_collector):
+        mock_bq_client.return_value.create_table.return_value = Table(TABLE_REFERENCE)
+
+        self.hook.create_empty_table(project_id="p", dataset_id="d", table_id="t")
+
+        assert len(hook_lineage_collector.collected_assets.inputs) == 0
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
+            uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/{TABLE_ID}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_update_table_collects_assets(self, mock_bq_client, hook_lineage_collector):
+        mock_bq_client.return_value.update_table.return_value = Table(TABLE_REFERENCE)
+
+        self.hook.update_table(table_resource={"tableReference": TABLE_REFERENCE_REPR})
+
+        assert len(hook_lineage_collector.collected_assets.inputs) == 0
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
+            uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/{TABLE_ID}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_run_table_upsert_collects_assets_when_creating(self, mock_bq_client, hook_lineage_collector):
+        mock_bq_client.return_value.create_table.return_value = Table(TABLE_REFERENCE)
+
+        self.hook.run_table_upsert(
+            table_resource={"tableReference": TABLE_REFERENCE_REPR}, dataset_id=DATASET_ID
+        )
+
+        assert len(hook_lineage_collector.collected_assets.inputs) == 0
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
+            uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/{TABLE_ID}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_run_table_upsert_collects_assets_when_updating(self, mock_bq_client, hook_lineage_collector):
+        mock_bq_client.return_value.update_table.return_value = Table(TABLE_REFERENCE)
+        mock_bq_client.return_value.list_tables.return_value = [Table(TABLE_REFERENCE)]
+
+        self.hook.run_table_upsert(
+            table_resource={"tableReference": TABLE_REFERENCE_REPR}, dataset_id=DATASET_ID
+        )
+
+        assert len(hook_lineage_collector.collected_assets.inputs) == 0
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
+            uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/{TABLE_ID}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_update_table_schema_collects_assets(self, mock_bq_client, hook_lineage_collector):
+        mock_bq_client.return_value.update_table.return_value = Table(TABLE_REFERENCE)
+        table = Table.from_api_repr(
+            {
+                "tableReference": TABLE_REFERENCE_REPR,
+                "schema": {
+                    "fields": [
+                        {"name": "field1", "type": "STRING", "description": "field1 description"},
+                        {"name": "field2", "type": "INTEGER"},
+                    ]
+                },
+            }
+        )
+        mock_bq_client.return_value.get_table.return_value = table
+
+        self.hook.update_table_schema(
+            dataset_id="d",
+            table_id="t",
+            schema_fields_updates=[{"name": "field1", "type": "STRING", "description": "other description"}],
+            include_policy_tags=False,
+        )
+
+        assert len(hook_lineage_collector.collected_assets.inputs) == 0
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
+            uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/{TABLE_ID}"
+        )
+
+    @pytest.mark.parametrize(
+        ("table_id", "project_id"),
+        (
+            (f"{DATASET_ID}.{TABLE_ID}", None),
+            (f"{DATASET_ID}.{TABLE_ID}", PROJECT_ID),
+            (f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}", None),
+            (f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}", "some_other_project"),
+        ),
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_delete_table_collects_assets(self, mock_bq_client, table_id, project_id, hook_lineage_collector):
+        self.hook.delete_table(table_id=table_id, project_id=project_id)
+
+        assert len(hook_lineage_collector.collected_assets.inputs) == 1
+        assert len(hook_lineage_collector.collected_assets.outputs) == 0
+        assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
+            uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/{TABLE_ID}"
+        )

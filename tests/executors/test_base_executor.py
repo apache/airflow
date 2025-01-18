@@ -26,7 +26,6 @@ import pendulum
 import pytest
 import time_machine
 
-from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
@@ -37,8 +36,6 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 def test_supports_sentry():
     assert not BaseExecutor.supports_sentry
@@ -46,10 +43,6 @@ def test_supports_sentry():
 
 def test_is_local_default_value():
     assert not BaseExecutor.is_local
-
-
-def test_is_single_threaded_default_value():
-    assert not BaseExecutor.is_single_threaded
 
 
 def test_is_production_default_value():
@@ -368,10 +361,9 @@ def test_debug_dump(caplog):
 
 
 def test_base_executor_cannot_send_callback():
-    cbr = CallbackRequest("some_file_path_for_callback")
     executor = BaseExecutor()
     with pytest.raises(ValueError):
-        executor.send_callback(cbr)
+        executor.send_callback(mock.Mock())
 
 
 def test_parser_and_formatter_class():

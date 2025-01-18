@@ -20,9 +20,11 @@ from __future__ import annotations
 import traceback
 import warnings
 from contextlib import contextmanager
+from threading import RLock
 from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
+import jpype
 from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
@@ -97,6 +99,7 @@ class JdbcHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self._driver_path = driver_path
         self._driver_class = driver_class
+        self.lock = RLock()
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
@@ -148,7 +151,10 @@ class JdbcHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.connection
+        sqlalchemy_query = conn.extra_dejson.get("sqlalchemy_query", {})
+        if not isinstance(sqlalchemy_query, dict):
+            raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
         sqlalchemy_scheme = conn.extra_dejson.get("sqlalchemy_scheme")
         if sqlalchemy_scheme is None:
             raise AirflowException(
@@ -161,6 +167,7 @@ class JdbcHook(DbApiHook):
             host=conn.host,
             port=conn.port,
             database=conn.schema,
+            query=sqlalchemy_query,
         )
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
@@ -177,18 +184,19 @@ class JdbcHook(DbApiHook):
         return super().get_sqlalchemy_engine(engine_kwargs)
 
     def get_conn(self) -> jaydebeapi.Connection:
-        conn: Connection = self.get_connection(self.get_conn_id())
+        conn: Connection = self.connection
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password
 
-        conn = jaydebeapi.connect(
-            jclassname=self.driver_class,
-            url=str(host),
-            driver_args=[str(login), str(psw)],
-            jars=self.driver_path.split(",") if self.driver_path else None,
-        )
-        return conn
+        with self.lock:
+            conn = jaydebeapi.connect(
+                jclassname=self.driver_class,
+                url=str(host),
+                driver_args=[str(login), str(psw)],
+                jars=self.driver_path.split(",") if self.driver_path else None,
+            )
+            return conn
 
     def set_autocommit(self, conn: jaydebeapi.Connection, autocommit: bool) -> None:
         """
@@ -197,7 +205,7 @@ class JdbcHook(DbApiHook):
         :param conn: The connection.
         :param autocommit: The connection's autocommit setting.
         """
-        with suppress_and_warn(jaydebeapi.Error):
+        with suppress_and_warn(jaydebeapi.Error, jpype.JException):
             conn.jconn.setAutoCommit(autocommit)
 
     def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
@@ -209,6 +217,6 @@ class JdbcHook(DbApiHook):
             to True on the connection. False if it is either not set, set to
             False, or the connection does not support auto-commit.
         """
-        with suppress_and_warn(jaydebeapi.Error):
+        with suppress_and_warn(jaydebeapi.Error, jpype.JException):
             return conn.jconn.getAutoCommit()
         return False

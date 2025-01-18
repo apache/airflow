@@ -20,9 +20,8 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from flask_appbuilder.menu import Menu
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
@@ -33,15 +32,21 @@ from airflow.auth.managers.models.resource_details import (
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
+    from flask_appbuilder.menu import MenuItem
+
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
     )
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class EmptyAuthManager(BaseAuthManager[BaseUser]):
+    appbuilder: AirflowAppBuilder | None = None
+
     def get_user(self) -> BaseUser:
         raise NotImplementedError()
 
@@ -111,10 +116,13 @@ class EmptyAuthManager(BaseAuthManager[BaseUser]):
     def get_url_logout(self) -> str:
         raise NotImplementedError()
 
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+        raise NotImplementedError()
+
 
 @pytest.fixture
 def auth_manager():
-    return EmptyAuthManager(None)
+    return EmptyAuthManager()
 
 
 class TestBaseAuthManager:
@@ -123,6 +131,9 @@ class TestBaseAuthManager:
 
     def test_get_api_endpoints_return_none(self, auth_manager):
         assert auth_manager.get_api_endpoints() is None
+
+    def test_get_fastapi_app_return_none(self, auth_manager):
+        assert auth_manager.get_fastapi_app() is None
 
     def test_get_user_name(self, auth_manager):
         user = Mock()
@@ -234,12 +245,6 @@ class TestBaseAuthManager:
         )
         assert result == expected
 
-    @patch("airflow.www.security_manager.AirflowSecurityManagerV2")
-    def test_security_manager_return_default_security_manager(
-        self, mock_airflow_security_manager, auth_manager
-    ):
-        assert auth_manager.security_manager == mock_airflow_security_manager()
-
     @pytest.mark.parametrize(
         "access_all, access_per_dag, dag_ids, expected",
         [
@@ -292,76 +297,3 @@ class TestBaseAuthManager:
         session.execute.return_value = dags
         result = auth_manager.get_permitted_dag_ids(user=user, session=session)
         assert result == expected
-
-    @patch.object(EmptyAuthManager, "security_manager")
-    def test_filter_permitted_menu_items(self, mock_security_manager, auth_manager):
-        mock_security_manager.has_access.side_effect = [True, False, True, True, False]
-
-        menu = Menu()
-        menu.add_link(
-            # These may not all be valid types, but it does let us check each attr is copied
-            name="item1",
-            href="h1",
-            icon="i1",
-            label="l1",
-            baseview="b1",
-            cond="c1",
-        )
-        menu.add_link("item2")
-        menu.add_link("item3")
-        menu.add_link("item3.1", category="item3")
-        menu.add_link("item3.2", category="item3")
-
-        result = auth_manager.filter_permitted_menu_items(menu.get_list())
-
-        assert len(result) == 2
-        assert result[0].name == "item1"
-        assert result[1].name == "item3"
-        assert len(result[1].childs) == 1
-        assert result[1].childs[0].name == "item3.1"
-        # check we've copied every attr
-        assert result[0].href == "h1"
-        assert result[0].icon == "i1"
-        assert result[0].label == "l1"
-        assert result[0].baseview == "b1"
-        assert result[0].cond == "c1"
-
-    @patch.object(EmptyAuthManager, "security_manager")
-    def test_filter_permitted_menu_items_twice(self, mock_security_manager, auth_manager):
-        mock_security_manager.has_access.side_effect = [
-            # 1st call
-            True,  # menu 1
-            False,  # menu 2
-            True,  # menu 3
-            True,  # Item 3.1
-            False,  # Item 3.2
-            # 2nd call
-            False,  # menu 1
-            True,  # menu 2
-            True,  # menu 3
-            False,  # Item 3.1
-            True,  # Item 3.2
-        ]
-
-        menu = Menu()
-        menu.add_link("item1")
-        menu.add_link("item2")
-        menu.add_link("item3")
-        menu.add_link("item3.1", category="item3")
-        menu.add_link("item3.2", category="item3")
-
-        result = auth_manager.filter_permitted_menu_items(menu.get_list())
-
-        assert len(result) == 2
-        assert result[0].name == "item1"
-        assert result[1].name == "item3"
-        assert len(result[1].childs) == 1
-        assert result[1].childs[0].name == "item3.1"
-
-        result = auth_manager.filter_permitted_menu_items(menu.get_list())
-
-        assert len(result) == 2
-        assert result[0].name == "item2"
-        assert result[1].name == "item3"
-        assert len(result[1].childs) == 1
-        assert result[1].childs[0].name == "item3.2"

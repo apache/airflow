@@ -17,10 +17,7 @@
  * under the License.
  */
 import { HStack, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
-import {
-  createListCollection,
-  type ListCollection,
-} from "@chakra-ui/react/collection";
+import { createListCollection, type ListCollection } from "@chakra-ui/react/collection";
 import dayjs from "dayjs";
 import { FiCalendar } from "react-icons/fi";
 
@@ -39,10 +36,9 @@ type Props = {
 const defaultTimeOptions = createListCollection({
   items: [
     { label: "Last 1 hour", value: "1" },
-    { label: "Last 8 hours", value: "8" },
     { label: "Last 12 hours", value: "12" },
     { label: "Last 24 hours", value: "24" },
-    { label: "Last week", value: "168" },
+    { label: "Past week", value: "168" },
   ],
 });
 
@@ -54,9 +50,7 @@ const TimeRangeSelector = ({
   startDate,
   timeOptions = defaultTimeOptions,
 }: Props) => {
-  const handleTimeChange = ({
-    value,
-  }: SelectValueChangeDetails<Array<string>>) => {
+  const handleTimeChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {
     const cnow = dayjs();
 
     setStartDate(cnow.subtract(Number(value[0]), "hour").toISOString());

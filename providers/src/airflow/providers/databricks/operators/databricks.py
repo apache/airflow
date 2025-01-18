@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
@@ -26,10 +27,8 @@ from functools import cached_property
 from logging import Logger
 from typing import TYPE_CHECKING, Any
 
-from deprecated import deprecated
-
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState, RunState
 from airflow.providers.databricks.operators.databricks_workflow import (
@@ -641,27 +640,6 @@ class DatabricksSubmitRunOperator(BaseOperator):
         _handle_deferrable_databricks_operator_completion(event, self.log)
 
 
-@deprecated(
-    reason=(
-        "`DatabricksSubmitRunDeferrableOperator` has been deprecated. "
-        "Please use `airflow.providers.databricks.operators.DatabricksSubmitRunOperator` "
-        "with `deferrable=True` instead."
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
-    """Deferrable version of ``DatabricksSubmitRunOperator``."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(deferrable=True, *args, **kwargs)
-
-    def execute(self, context):
-        hook = self._get_hook(caller="DatabricksSubmitRunDeferrableOperator")
-        json_normalised = normalise_json_content(self.json)
-        self.run_id = hook.submit_run(json_normalised)
-        _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
-
-
 class DatabricksRunNowOperator(BaseOperator):
     """
     Runs an existing Spark job run to Databricks using the api/2.1/jobs/run-now API endpoint.
@@ -953,13 +931,15 @@ class DatabricksRunNowOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event:
+            if event.get("run_state"):
+                run_state = RunState.from_json(event["run_state"])
+                if event.get("repair_run"):
+                    event["repair_run"] = event["repair_run"] and (
+                        not self.databricks_repair_reason_new_settings
+                        or is_repair_reason_match_exist(self, run_state)
+                    )
             _handle_deferrable_databricks_operator_completion(event, self.log)
-            run_state = RunState.from_json(event["run_state"])
-            should_repair = event["repair_run"] and (
-                not self.databricks_repair_reason_new_settings
-                or is_repair_reason_match_exist(self, run_state)
-            )
-            if should_repair:
+            if event.get("repair_run"):
                 self.repair_run = False
                 self.run_id = event["run_id"]
                 job_id = self._hook.get_job_id(self.run_id)
@@ -981,27 +961,14 @@ class DatabricksRunNowOperator(BaseOperator):
             self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
 
 
-@deprecated(
-    reason=(
-        "`DatabricksRunNowDeferrableOperator` has been deprecated. "
-        "Please use `airflow.providers.databricks.operators.DatabricksRunNowOperator` "
-        "with `deferrable=True` instead."
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
-    """Deferrable version of ``DatabricksRunNowOperator``."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(deferrable=True, *args, **kwargs)
-
-
 class DatabricksTaskBaseOperator(BaseOperator, ABC):
     """
     Base class for operators that are run as Databricks job tasks or tasks within a Databricks workflow.
 
     :param caller: The name of the caller operator to be used in the logs.
     :param databricks_conn_id: The name of the Airflow connection to use.
+    :param databricks_task_key: An optional task_key used to refer to the task by Databricks API. By
+        default this will be set to the hash of ``dag_id + task_id``.
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param databricks_retry_delay: Number of seconds to wait between retries.
     :param databricks_retry_limit: Amount of times to retry if the Databricks backend is unreachable.
@@ -1022,6 +989,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self,
         caller: str = "DatabricksTaskBaseOperator",
         databricks_conn_id: str = "databricks_default",
+        databricks_task_key: str = "",
         databricks_retry_args: dict[Any, Any] | None = None,
         databricks_retry_delay: int = 1,
         databricks_retry_limit: int = 3,
@@ -1036,6 +1004,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     ):
         self.caller = caller
         self.databricks_conn_id = databricks_conn_id
+        self._databricks_task_key = databricks_task_key
         self.databricks_retry_args = databricks_retry_args
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_limit = databricks_retry_limit
@@ -1073,17 +1042,21 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             caller=caller,
         )
 
-    def _get_databricks_task_id(self, task_id: str) -> str:
-        """Get the databricks task ID using dag_id and task_id. Removes illegal characters."""
-        task_id = f"{self.dag_id}__{task_id.replace('.', '__')}"
-        if len(task_id) > 100:
-            self.log.warning(
-                "The generated task_key '%s' exceeds 100 characters and will be truncated by the Databricks API. "
-                "This will cause failure when trying to monitor the task. task_key is generated by ",
-                "concatenating dag_id and task_id.",
-                task_id,
+    @cached_property
+    def databricks_task_key(self) -> str:
+        return self._generate_databricks_task_key()
+
+    def _generate_databricks_task_key(self, task_id: str | None = None) -> str:
+        """Create a databricks task key using the hash of dag_id and task_id."""
+        if not self._databricks_task_key or len(self._databricks_task_key) > 100:
+            self.log.info(
+                "databricks_task_key has not be provided or the provided one exceeds 100 characters and will be truncated by the Databricks API. This will cause failure when trying to monitor the task. A task_key will be generated using the hash value of dag_id+task_id"
             )
-        return task_id
+            task_id = task_id or self.task_id
+            task_key = f"{self.dag_id}__{task_id}".encode()
+            self._databricks_task_key = hashlib.md5(task_key).hexdigest()
+            self.log.info("Generated databricks task_key: %s", self._databricks_task_key)
+        return self._databricks_task_key
 
     @property
     def _databricks_workflow_task_group(self) -> DatabricksWorkflowTaskGroup | None:
@@ -1113,7 +1086,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     def _get_run_json(self) -> dict[str, Any]:
         """Get run json to be used for task submissions."""
         run_json = {
-            "run_name": self._get_databricks_task_id(self.task_id),
+            "run_name": self.databricks_task_key,
             **self._get_task_base_json(),
         }
         if self.new_cluster and self.existing_cluster_id:
@@ -1163,9 +1136,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         # building the {task_key: task} map below.
         sorted_task_runs = sorted(tasks, key=lambda x: x["start_time"])
 
-        return {task["task_key"]: task for task in sorted_task_runs}[
-            self._get_databricks_task_id(self.task_id)
-        ]
+        return {task["task_key"]: task for task in sorted_task_runs}[self.databricks_task_key]
 
     def _convert_to_databricks_workflow_task(
         self, relevant_upstreams: list[BaseOperator], context: Context | None = None
@@ -1173,9 +1144,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         """Convert the operator to a Databricks workflow task that can be a task in a workflow."""
         base_task_json = self._get_task_base_json()
         result = {
-            "task_key": self._get_databricks_task_id(self.task_id),
+            "task_key": self.databricks_task_key,
             "depends_on": [
-                {"task_key": self._get_databricks_task_id(task_id)}
+                {"task_key": self._generate_databricks_task_key(task_id)}
                 for task_id in self.upstream_task_ids
                 if task_id in relevant_upstreams
             ],
@@ -1208,7 +1179,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         run_state = RunState(**run["state"])
         self.log.info(
             "Current state of the the databricks task %s is %s",
-            self._get_databricks_task_id(self.task_id),
+            self.databricks_task_key,
             run_state.life_cycle_state,
         )
         if self.deferrable and not run_state.is_terminal:
@@ -1230,7 +1201,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             run_state = RunState(**run["state"])
             self.log.info(
                 "Current state of the databricks task %s is %s",
-                self._get_databricks_task_id(self.task_id),
+                self.databricks_task_key,
                 run_state.life_cycle_state,
             )
         self._handle_terminal_run_state(run_state)

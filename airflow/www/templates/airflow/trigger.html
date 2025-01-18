@@ -118,7 +118,9 @@
     {% elif form_details.schema and "object" in form_details.schema.type %}
       <textarea class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" valuetype="object" rows="6"
         {%- if not "null" in form_details.schema.type %} required=""{% endif -%}>
-        {{- form_details.value | tojson() -}}
+        {%- if form_details.value %}
+          {{- form_details.value | tojson() -}}
+        {% endif -%}
       </textarea>
     {% elif form_details.schema and ("integer" in form_details.schema.type or "number" in form_details.schema.type) %}
       <input class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}"

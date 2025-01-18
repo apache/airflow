@@ -49,6 +49,9 @@ You can also run other kinds of tests when you are developing airflow packages:
 * `Testing packages <testing/testing_packages.rst>`__ is a document that describes how to
   manually build and test pre-release candidate packages of airflow and providers.
 
+* `Python client tests <testing/python_client_tests.rst>`__ are tests we run to check if the Python API
+  client works correctly.
+
 * `DAG testing <testing/dag_testing.rst>`__ is a document that describes how to test DAGs in a local environment
   with ``DebugExecutor``. Note, that this is a legacy method - you can now use dag.test() method to test DAGs.
 

@@ -24,10 +24,9 @@ import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
-import attr
+import attrs
 import methodtools
 
-from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -51,9 +50,7 @@ from airflow.models.expandinput import (
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
-from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.triggers.base import StartTriggerArgs
-from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
 from airflow.utils.helpers import is_container, prevent_duplicates
 from airflow.utils.task_instance_session import get_current_task_instance_session
@@ -62,6 +59,7 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import datetime
+    from typing import Literal
 
     import jinja2  # Slow import.
     import pendulum
@@ -81,15 +79,15 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
+    from airflow.sdk.definitions.context import Context
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.trigger_rule import TriggerRule
 
     TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, list[TaskStateChangeCallback]]
 
-ValidationSource = Union[Literal["expand"], Literal["partial"]]
+    ValidationSource = Literal["expand", "partial"]
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
@@ -140,7 +138,7 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
             ensure_xcomarg_return_value(v)
 
 
-@attr.define(kw_only=True, repr=False)
+@attrs.define(kw_only=True, repr=False)
 class OperatorPartial:
     """
     An "intermediate state" returned by ``BaseOperator.partial()``.
@@ -193,6 +191,7 @@ class OperatorPartial:
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
         from airflow.operators.empty import EmptyOperator
+        from airflow.sensors.base import BaseSensorOperator
 
         self._expand_called = True
         ensure_xcomarg_return_value(expand_input.value)
@@ -215,7 +214,6 @@ class OperatorPartial:
             partial_kwargs=partial_kwargs,
             task_id=task_id,
             params=self.params,
-            deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
             template_fields=self.operator_class.template_fields,
@@ -223,6 +221,7 @@ class OperatorPartial:
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_empty=issubclass(self.operator_class, EmptyOperator),
+            is_sensor=issubclass(self.operator_class, BaseSensorOperator),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             operator_name=operator_name,
@@ -240,7 +239,7 @@ class OperatorPartial:
         return op
 
 
-@attr.define(
+@attrs.define(
     kw_only=True,
     # Disable custom __getstate__ and __setstate__ generation since it interacts
     # badly with Airflow's DAG serialization and pickling. When a mapped task is
@@ -267,7 +266,7 @@ class MappedOperator(AbstractOperator):
     # Needed for serialization.
     task_id: str
     params: ParamsDict | dict
-    deps: frozenset[BaseTIDep]
+    deps: frozenset[BaseTIDep] = attrs.field(init=False)
     operator_extra_links: Collection[BaseOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
@@ -275,6 +274,7 @@ class MappedOperator(AbstractOperator):
     ui_color: str
     ui_fgcolor: str
     _is_empty: bool
+    _is_sensor: bool = False
     _task_module: str
     _task_type: str
     _operator_name: str
@@ -286,8 +286,8 @@ class MappedOperator(AbstractOperator):
     task_group: TaskGroup | None
     start_date: pendulum.DateTime | None
     end_date: pendulum.DateTime | None
-    upstream_task_ids: set[str] = attr.ib(factory=set, init=False)
-    downstream_task_ids: set[str] = attr.ib(factory=set, init=False)
+    upstream_task_ids: set[str] = attrs.field(factory=set, init=False)
+    downstream_task_ids: set[str] = attrs.field(factory=set, init=False)
 
     _disallow_kwargs_override: bool
     """Whether execution fails if ``expand_input`` has duplicates to ``partial_kwargs``.
@@ -307,6 +307,12 @@ class MappedOperator(AbstractOperator):
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
     )
+
+    @deps.default
+    def _deps(self):
+        from airflow.models.baseoperator import BaseOperator
+
+        return BaseOperator.deps
 
     def __hash__(self):
         return id(self)
@@ -333,7 +339,7 @@ class MappedOperator(AbstractOperator):
     @classmethod
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
-        return (frozenset(attr.fields_dict(MappedOperator)) | {"task_type"}) - {
+        return (frozenset(attrs.fields_dict(MappedOperator)) | {"task_type"}) - {
             "_task_type",
             "dag",
             "deps",
@@ -345,17 +351,6 @@ class MappedOperator(AbstractOperator):
             "_is_teardown",
             "_on_failure_fail_dagrun",
         }
-
-    @methodtools.lru_cache(maxsize=None)
-    @staticmethod
-    def deps_for(operator_class: type[BaseOperator]) -> frozenset[BaseTIDep]:
-        operator_deps = operator_class.deps
-        if not isinstance(operator_deps, collections.abc.Set):
-            raise UnmappableOperator(
-                f"'deps' must be a set defined as a class-level variable on {operator_class.__name__}, "
-                f"not a {type(operator_deps).__name__}"
-            )
-        return operator_deps | {MappedTaskIsExpanded()}
 
     @property
     def task_type(self) -> str:
@@ -671,7 +666,7 @@ class MappedOperator(AbstractOperator):
         return DagAttributeTypes.OP, self.task_id
 
     def _expand_mapped_kwargs(
-        self, context: Context, session: Session, *, include_xcom: bool
+        self, context: Mapping[str, Any], session: Session, *, include_xcom: bool
     ) -> tuple[Mapping[str, Any], set[int]]:
         """
         Get the kwargs to create the unmapped operator.

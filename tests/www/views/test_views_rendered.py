@@ -34,13 +34,14 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator, PythonOperator
+from tests_common.test_utils.compat import BashOperator, PythonOperator
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_runs,
     clear_rendered_ti_fields,
     initial_db_init,
 )
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
 if AIRFLOW_V_3_0_PLUS:
@@ -146,6 +147,7 @@ def create_dag_run(dag, task1, task2, task3, task4, task_secret):
     def _create_dag_run(*, logical_date, session):
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_run = dag.create_dagrun(
+            run_id="test",
             state=DagRunState.RUNNING,
             logical_date=logical_date,
             data_interval=(logical_date, logical_date),
@@ -342,6 +344,7 @@ def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, 
     with create_session() as session:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
+            run_id="test",
             state=DagRunState.RUNNING,
             logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),

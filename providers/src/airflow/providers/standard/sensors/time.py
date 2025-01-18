@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.utils.version_references import AIRFLOW_V_2_10_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_2_10_PLUS
 from airflow.sensors.base import BaseSensorOperator
 
 try:
@@ -43,7 +43,11 @@ except ImportError:
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class TimeSensor(BaseSensorOperator):
