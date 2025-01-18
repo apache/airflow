@@ -23,7 +23,6 @@ from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
-from starlette.status import HTTP_404_NOT_FOUND
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
@@ -144,10 +143,7 @@ def post_connection(
     return connection
 
 
-@connections_router.patch(
-    "",
-    responses=create_openapi_http_exception_doc([HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
-)
+@connections_router.patch("")
 def bulk_connections(
     request: ConnectionBulkBody,
     session: SessionDep,

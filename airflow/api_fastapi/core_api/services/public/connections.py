@@ -31,14 +31,23 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
 from airflow.models.connection import Connection
 
 
-def categorize_connection_ids(session, connection_ids: set) -> tuple[set, set]:
-    """Categorize the given connection_ids into matched_connection_ids and not_found_connection_ids based on existing connection_ids."""
-    existing_connection_ids = {
-        connection for connection in session.execute(select(Connection.conn_id)).scalars()
-    }
-    matched_connection_ids = existing_connection_ids & connection_ids
-    not_found_connection_ids = connection_ids - existing_connection_ids
-    return matched_connection_ids, not_found_connection_ids
+def categorize_connections(session, connection_ids: set) -> tuple[dict, set, set]:
+    """
+    Categorize the given connection_ids into matched_connection_ids and not_found_connection_ids based on existing connection_ids.
+
+    Existed connections are returned as a dict of {connection_id : Connection}.
+
+    :param session: SQLAlchemy session
+    :param connection_ids: set of connection_ids
+    :return: tuple of dict of existed connections, set of matched connection_ids, set of not found connection_ids
+    """
+    existed_connections = session.execute(
+        select(Connection).filter(Connection.conn_id.in_(connection_ids))
+    ).scalars()
+    existed_connections_dict = {conn.conn_id: conn for conn in existed_connections}
+    matched_connection_ids = set(existed_connections_dict.keys())
+    not_found_connection_ids = connection_ids - matched_connection_ids
+    return existed_connections_dict, matched_connection_ids, not_found_connection_ids
 
 
 def handle_bulk_create(
@@ -46,10 +55,9 @@ def handle_bulk_create(
 ) -> None:
     """Bulk create connections."""
     to_create_connection_ids = {connection.connection_id for connection in action.connections}
-    matched_connection_ids, not_found_connection_ids = categorize_connection_ids(
+    existed_connections_dict, matched_connection_ids, not_found_connection_ids = categorize_connections(
         session, to_create_connection_ids
     )
-
     try:
         if action.action_if_exists == "fail" and matched_connection_ids:
             raise HTTPException(
@@ -63,7 +71,12 @@ def handle_bulk_create(
 
         for connection in action.connections:
             if connection.connection_id in create_connection_ids:
-                session.add(connection)
+                if connection.connection_id in matched_connection_ids:
+                    existed_connection = existed_connections_dict[connection.connection_id]
+                    for key, val in connection.model_dump(by_alias=True).items():
+                        setattr(existed_connection, key, val)
+                else:
+                    session.add(Connection(**connection.model_dump(by_alias=True)))
                 results.success.append(connection.connection_id)
 
     except HTTPException as e:
@@ -75,7 +88,7 @@ def handle_bulk_update(
 ) -> None:
     """Bulk Update connections."""
     to_update_connection_ids = {connection.connection_id for connection in action.connections}
-    matched_connection_ids, not_found_connection_ids = categorize_connection_ids(
+    _, matched_connection_ids, not_found_connection_ids = categorize_connections(
         session, to_update_connection_ids
     )
 
@@ -93,12 +106,10 @@ def handle_bulk_update(
         for connection in action.connections:
             if connection.connection_id in update_connection_ids:
                 old_connection = session.scalar(
-                    select(Connection).filter_by(Connection.conn_id == connection.connection_id).limit(1)
+                    select(Connection).filter(Connection.conn_id == connection.connection_id).limit(1)
                 )
                 ConnectionBody(**connection.model_dump())
-                data = connection.model_dump(exclude={"key"}, by_alias=True)
-
-                for key, val in data.items():
+                for key, val in connection.model_dump(by_alias=True).items():
                     setattr(old_connection, key, val)
                 results.success.append(connection.connection_id)
 
@@ -114,7 +125,7 @@ def handle_bulk_delete(
 ) -> None:
     """Bulk delete connections."""
     to_delete_connection_ids = set(action.connection_ids)
-    matched_connection_ids, not_found_connection_ids = categorize_connection_ids(
+    _, matched_connection_ids, not_found_connection_ids = categorize_connections(
         session, to_delete_connection_ids
     )
 
@@ -129,11 +140,13 @@ def handle_bulk_delete(
         else:
             delete_connection_ids = to_delete_connection_ids
 
-        for key in delete_connection_ids:
-            existing_connection = session.scalar(select(Connection).where(Connection.conn_id == key).limit(1))
+        for connection_id in delete_connection_ids:
+            existing_connection = session.scalar(
+                select(Connection).where(Connection.conn_id == connection_id).limit(1)
+            )
             if existing_connection:
                 session.delete(existing_connection)
-                results.success.append(key)
+                results.success.append(connection_id)
 
     except HTTPException as e:
         results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

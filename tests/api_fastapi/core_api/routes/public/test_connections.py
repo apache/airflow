@@ -635,3 +635,304 @@ class TestCreateDefaultConnections(TestConnectionEndpoint):
         response = test_client.post("/public/connections/defaults")
         assert response.status_code == 204
         mock_db_create_default_connections.assert_called_once()
+
+
+class TestBulkConnections(TestConnectionEndpoint):
+    @pytest.mark.parametrize(
+        "actions, expected_results",
+        [
+            # Test successful create
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "connections": [
+                                {
+                                    "connection_id": "NOT_EXISTING_CONN_ID",
+                                    "conn_type": "NOT_EXISTING_CONN_TYPE",
+                                }
+                            ],
+                            "action_if_exists": "skip",
+                        }
+                    ]
+                },
+                {
+                    "create": {
+                        "success": ["NOT_EXISTING_CONN_ID"],
+                        "errors": [],
+                    }
+                },
+            ),
+            # Test successful create with skip
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "connections": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                },
+                                {
+                                    "connection_id": "NOT_EXISTING_CONN_ID",
+                                    "conn_type": "NOT_EXISTING_CONN_TYPE",
+                                },
+                            ],
+                            "action_if_exists": "skip",
+                        }
+                    ]
+                },
+                {
+                    "create": {
+                        "success": ["NOT_EXISTING_CONN_ID"],
+                        "errors": [],
+                    }
+                },
+            ),
+            # Test create with overwrite
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "connections": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "new_description",
+                                }
+                            ],
+                            "action_if_exists": "overwrite",
+                        }
+                    ]
+                },
+                {
+                    "create": {
+                        "success": [TEST_CONN_ID],
+                        "errors": [],
+                    }
+                },
+            ),
+            # Test create conflict
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "connections": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": TEST_CONN_DESCRIPTION,
+                                    "host": TEST_CONN_HOST,
+                                    "port": TEST_CONN_PORT,
+                                    "login": TEST_CONN_LOGIN,
+                                },
+                            ],
+                            "action_if_exists": "fail",
+                        }
+                    ]
+                },
+                {
+                    "create": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The connections with these connection_ids: {'test_connection_id'} already exist.",
+                                "status_code": 409,
+                            },
+                        ],
+                    }
+                },
+            ),
+            # Test successful update
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "connections": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "new_description",
+                                }
+                            ],
+                            "action_if_not_exists": "skip",
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [TEST_CONN_ID],
+                        "errors": [],
+                    }
+                },
+            ),
+            # Test update with skip
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "connections": [
+                                {
+                                    "connection_id": "NOT_EXISTING_CONN_ID",
+                                    "conn_type": "NOT_EXISTING_CONN_TYPE",
+                                }
+                            ],
+                            "action_if_not_exists": "skip",
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [],
+                        "errors": [],
+                    }
+                },
+            ),
+            # Test update with fail
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "connections": [
+                                {
+                                    "connection_id": "NOT_EXISTING_CONN_ID",
+                                    "conn_type": "NOT_EXISTING_CONN_TYPE",
+                                }
+                            ],
+                            "action_if_not_exists": "fail",
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The connections with these connection_ids: {'NOT_EXISTING_CONN_ID'} were not found.",
+                                "status_code": 404,
+                            }
+                        ],
+                    }
+                },
+            ),
+            # Test successful delete
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "connection_ids": [TEST_CONN_ID],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [TEST_CONN_ID],
+                        "errors": [],
+                    }
+                },
+            ),
+            # Test delete with skip
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "connection_ids": ["NOT_EXISTING_CONN_ID"],
+                            "action_if_not_exists": "skip",
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [],
+                    }
+                },
+            ),
+            # Test delete not found
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "connection_ids": ["NOT_EXISTING_CONN_ID"],
+                            "action_if_not_exists": "fail",
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The connections with these connection_ids: {'NOT_EXISTING_CONN_ID'} were not found.",
+                                "status_code": 404,
+                            }
+                        ],
+                    }
+                },
+            ),
+            # Test Create, Update, Delete
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "connections": [
+                                {
+                                    "connection_id": "NOT_EXISTING_CONN_ID",
+                                    "conn_type": "NOT_EXISTING_CONN_TYPE",
+                                }
+                            ],
+                            "action_if_exists": "skip",
+                        },
+                        {
+                            "action": "update",
+                            "connections": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "new_description",
+                                }
+                            ],
+                            "action_if_not_exists": "skip",
+                        },
+                        {
+                            "action": "delete",
+                            "connection_ids": [TEST_CONN_ID],
+                            "action_if_not_exists": "skip",
+                        },
+                    ]
+                },
+                {
+                    "create": {
+                        "success": ["NOT_EXISTING_CONN_ID"],
+                        "errors": [],
+                    },
+                    "update": {
+                        "success": [TEST_CONN_ID],
+                        "errors": [],
+                    },
+                    "delete": {
+                        "success": [TEST_CONN_ID],
+                        "errors": [],
+                    },
+                },
+            ),
+        ],
+    )
+    def test_bulk_connections(self, test_client, actions, expected_results):
+        self.create_connections()
+        response = test_client.patch("/public/connections", json=actions)
+        response_data = response.json()
+        print(response_data)
+        for connection_id, value in expected_results.items():
+            assert response_data[connection_id] == value
