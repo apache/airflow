@@ -603,7 +603,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         self,
         request_filter: dict | None = None,
         **kwargs,
-    ) -> list[operations_pb2.Operation]:
+    ) -> list[TransferOperation]:
         """
         Get a transfer operation in Google Storage Transfer Service.
 
@@ -659,7 +659,11 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
                 else None
             )
 
-        return operations
+        transfer_operations = [
+            protobuf_helpers.from_any_pb(TransferOperation, op.metadata) for op in operations
+        ]
+
+        return transfer_operations
 
     async def _inject_project_id(self, body: dict, param_name: str, target_key: str) -> dict:
         body = deepcopy(body)
@@ -673,7 +677,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
 
     @staticmethod
     async def operations_contain_expected_statuses(
-        operations: list[operations_pb2.Operation], expected_statuses: set[str] | str
+        operations: list[TransferOperation], expected_statuses: set[str] | str
     ) -> bool:
         """
         Check whether an operation exists with the expected status.
@@ -692,10 +696,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         if not operations:
             return False
 
-        current_statuses = {
-            protobuf_helpers.from_any_pb(TransferOperation, operation.metadata).status.name
-            for operation in operations
-        }
+        current_statuses = {operation.status.name for operation in operations}
 
         if len(current_statuses - expected_statuses_set) != len(current_statuses):
             return True

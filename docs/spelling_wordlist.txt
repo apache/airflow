@@ -1753,6 +1753,7 @@ traceback
 tracebacks
 tracemalloc
 TrainingPipeline
+TransferOperation
 TranslationServiceClient
 travis
 triage

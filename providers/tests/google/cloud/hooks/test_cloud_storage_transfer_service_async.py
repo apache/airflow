@@ -124,11 +124,14 @@ class TestCloudDataTransferServiceAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRANSFER_HOOK_PATH}.CloudDataTransferServiceAsyncHook.get_conn")
-    async def test_list_transfer_operations(self, mock_conn, hook_async):
+    @mock.patch("google.api_core.protobuf_helpers.from_any_pb")
+    async def test_list_transfer_operations(self, from_any_pb, mock_conn, hook_async):
         expected_operations = [mock.MagicMock(), mock.MagicMock()]
+        from_any_pb.side_effect = expected_operations
+
         mock_conn.return_value.list_operations.side_effect = [
-            mock.MagicMock(next_page_token="token", operations=[expected_operations[0]]),
-            mock.MagicMock(next_page_token=None, operations=[expected_operations[1]]),
+            mock.MagicMock(next_page_token="token", operations=[mock.MagicMock()]),
+            mock.MagicMock(next_page_token=None, operations=[mock.MagicMock()]),
         ]
 
         actual_operations = await hook_async.list_transfer_operations(
@@ -154,12 +157,8 @@ class TestCloudDataTransferServiceAsyncHook:
             ),
         ],
     )
-    @mock.patch("google.api_core.protobuf_helpers.from_any_pb")
-    async def test_operations_contain_expected_statuses_red_path(
-        self, from_any_pb, statuses, expected_statuses
-    ):
-        operations = [mock.MagicMock() for _ in statuses]
-        from_any_pb.side_effect = [mock.MagicMock(**{"status.name": status}) for status in statuses]
+    async def test_operations_contain_expected_statuses_red_path(self, statuses, expected_statuses):
+        operations = [mock.MagicMock(**{"status.name": status}) for status in statuses]
 
         with pytest.raises(
             AirflowException,
@@ -193,12 +192,8 @@ class TestCloudDataTransferServiceAsyncHook:
             ),
         ],
     )
-    @mock.patch("google.api_core.protobuf_helpers.from_any_pb")
-    async def test_operations_contain_expected_statuses_green_path(
-        self, from_any_pb, statuses, expected_statuses
-    ):
-        operations = [mock.MagicMock() for _ in statuses]
-        from_any_pb.side_effect = [mock.MagicMock(**{"status.name": status}) for status in statuses]
+    async def test_operations_contain_expected_statuses_green_path(self, statuses, expected_statuses):
+        operations = [mock.MagicMock(**{"status.name": status}) for status in statuses]
 
         result = await CloudDataTransferServiceAsyncHook.operations_contain_expected_statuses(
             operations, expected_statuses
