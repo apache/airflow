@@ -16,20 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api.routes import (
-    assets,
-    connections,
-    health,
-    task_instances,
-    variables,
-    xcoms,
-)
+from airflow.exceptions import AirflowException
 
-execution_api_router = AirflowRouter()
-execution_api_router.include_router(assets.router, prefix="/assets", tags=["Assets"])
-execution_api_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
-execution_api_router.include_router(health.router, tags=["Health"])
-execution_api_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
-execution_api_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
-execution_api_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
+
+class HttpErrorException(AirflowException):
+    """Exception raised for HTTP error in Http hook."""
+
+
+class HttpMethodException(AirflowException):
+    """Exception raised for invalid HTTP methods in Http hook."""

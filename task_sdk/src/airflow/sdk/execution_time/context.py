@@ -17,20 +17,31 @@
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Generator
-from typing import TYPE_CHECKING, Any
+from collections.abc import Generator, Iterator, Mapping
+from typing import TYPE_CHECKING, Any, Union
 
+import attrs
 import structlog
 
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetAliasUniqueKey,
+    AssetNameRef,
+    AssetRef,
+    AssetUniqueKey,
+    AssetUriRef,
+    BaseAssetUniqueKey,
+)
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.variable import Variable
-    from airflow.sdk.execution_time.comms import ConnectionResult, VariableResult
+    from airflow.sdk.execution_time.comms import AssetResult, ConnectionResult, VariableResult
 
 log = structlog.get_logger(logger_name="task")
 
@@ -161,6 +172,112 @@ class MacrosAccessor:
         if not isinstance(other, MacrosAccessor):
             return False
         return True
+
+
+@attrs.define
+class AssetAliasEvent:
+    """Representation of asset event to be triggered by an asset alias."""
+
+    source_alias_name: str
+    dest_asset_key: AssetUniqueKey
+    extra: dict[str, Any]
+
+
+@attrs.define
+class OutletEventAccessor:
+    """Wrapper to access an outlet asset event in template."""
+
+    key: BaseAssetUniqueKey
+    extra: dict[str, Any] = attrs.Factory(dict)
+    asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
+
+    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None:
+        """Add an AssetEvent to an existing Asset."""
+        if not isinstance(self.key, AssetAliasUniqueKey):
+            return
+
+        asset_alias_name = self.key.name
+        event = AssetAliasEvent(
+            source_alias_name=asset_alias_name,
+            dest_asset_key=AssetUniqueKey.from_asset(asset),
+            extra=extra or {},
+        )
+        self.asset_alias_events.append(event)
+
+
+class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor]):
+    """Lazy mapping of outlet asset event accessors."""
+
+    _asset_ref_cache: dict[AssetRef, AssetUniqueKey] = {}
+
+    def __init__(self) -> None:
+        self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
+
+    def __str__(self) -> str:
+        return f"OutletEventAccessors(_dict={self._dict})"
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]:
+        return (
+            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias() for key in self._dict
+        )
+
+    def __len__(self) -> int:
+        return len(self._dict)
+
+    def __getitem__(self, key: Asset | AssetAlias) -> OutletEventAccessor:
+        hashable_key: BaseAssetUniqueKey
+        if isinstance(key, Asset):
+            hashable_key = AssetUniqueKey.from_asset(key)
+        elif isinstance(key, AssetAlias):
+            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
+        elif isinstance(key, AssetRef):
+            hashable_key = self._resolve_asset_ref(key)
+        else:
+            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
+
+        if hashable_key not in self._dict:
+            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
+        return self._dict[hashable_key]
+
+    def _resolve_asset_ref(self, ref: AssetRef) -> AssetUniqueKey:
+        with contextlib.suppress(KeyError):
+            return self._asset_ref_cache[ref]
+
+        refs_to_cache: list[AssetRef]
+        if isinstance(ref, AssetNameRef):
+            asset = self._get_asset_from_db(name=ref.name)
+            refs_to_cache = [ref, AssetUriRef(asset.uri)]
+        elif isinstance(ref, AssetUriRef):
+            asset = self._get_asset_from_db(uri=ref.uri)
+            refs_to_cache = [ref, AssetNameRef(asset.name)]
+        else:
+            raise TypeError(f"Unimplemented asset ref: {type(ref)}")
+        unique_key = AssetUniqueKey.from_asset(asset)
+        for ref in refs_to_cache:
+            self._asset_ref_cache[ref] = unique_key
+        return unique_key
+
+    # TODO: This is temporary to avoid code duplication between here & airflow/models/taskinstance.py
+    @staticmethod
+    def _get_asset_from_db(name: str | None = None, uri: str | None = None) -> Asset:
+        from airflow.sdk.definitions.asset import Asset
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetByName, GetAssetByUri
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        if name:
+            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetByName(name=name))
+        elif uri:
+            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetByUri(uri=uri))
+        else:
+            raise ValueError("Either name or uri must be provided")
+
+        msg = SUPERVISOR_COMMS.get_message()
+        if isinstance(msg, ErrorResponse):
+            raise AirflowRuntimeError(msg)
+
+        if TYPE_CHECKING:
+            assert isinstance(msg, AssetResult)
+        return Asset(**msg.model_dump(exclude={"type"}))
 
 
 @contextlib.contextmanager

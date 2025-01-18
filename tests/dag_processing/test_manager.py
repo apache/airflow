@@ -730,12 +730,12 @@ class TestDagFileProcessorManager:
             {
                 "name": "bundleone",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 0},
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
             },
             {
                 "name": "bundletwo",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 300},
+                "kwargs": {"path": "/dev/null", "refresh_interval": 300},
             },
         ]
 
@@ -748,7 +748,7 @@ class TestDagFileProcessorManager:
         bundletwo.refresh_interval = 300
         bundletwo.get_current_version.return_value = None
 
-        with conf_vars({("dag_bundles", "backends"): json.dumps(config)}):
+        with conf_vars({("dag_bundles", "config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch(
                 "airflow.dag_processing.bundles.manager.DagBundlesManager"
@@ -791,7 +791,7 @@ class TestDagFileProcessorManager:
             {
                 "name": "mybundle",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": "/dev/null", "refresh_interval": 0},
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
             },
         ]
 
@@ -801,7 +801,7 @@ class TestDagFileProcessorManager:
         mybundle.supports_versioning = True
         mybundle.get_current_version.return_value = "123"
 
-        with conf_vars({("dag_bundles", "backends"): json.dumps(config)}):
+        with conf_vars({("dag_bundles", "config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch(
                 "airflow.dag_processing.bundles.manager.DagBundlesManager"

@@ -92,10 +92,10 @@ def configure_testing_dag_bundle():
             {
                 "name": "testing",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": str(path_to_parse), "refresh_interval": 0},
+                "kwargs": {"path": str(path_to_parse), "refresh_interval": 0},
             }
         ]
-        with conf_vars({("dag_bundles", "backends"): json.dumps(bundle_config)}):
+        with conf_vars({("dag_bundles", "config_list"): json.dumps(bundle_config)}):
             yield
 
     return _config_bundle

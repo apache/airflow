@@ -17,15 +17,20 @@
 
 from __future__ import annotations
 
-from airflow import settings
-from airflow.dag_processing.bundles.local import LocalDagBundle
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class DagsFolderDagBundle(LocalDagBundle):
-    """A bundle for the DAGs folder."""
+class AssetResponse(BaseModel):
+    """Asset schema for responses with fields that are needed for Runtime."""
 
-    def __init__(self, **kwargs):
-        super().__init__(
-            local_folder=settings.DAGS_FOLDER,
-            **kwargs,
-        )
+    name: str
+    uri: str
+    group: str
+    extra: dict | None = None
+
+
+class AssetAliasResponse(BaseModel):
+    """Asset alias schema with fields that are needed for Runtime."""
+
+    name: str
+    group: str

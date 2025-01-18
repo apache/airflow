@@ -50,6 +50,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
     MacrosAccessor,
+    OutletEventAccessors,
     VariableAccessor,
     set_current_context,
 )
@@ -92,12 +93,13 @@ class RuntimeTaskInstance(TaskInstance):
             # TODO: Ensure that ti.log_url and such are available to use in context
             #   especially after removal of `conf` from Context.
             "ti": self,
-            # "outlet_events": OutletEventAccessors(),
+            "outlet_events": OutletEventAccessors(),
             # "expanded_ti_count": expanded_ti_count,
             "expanded_ti_count": None,  # TODO: Implement this
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
             "macros": MacrosAccessor(),
             # "params": validated_params,
+            # TODO: Make this go through Public API longer term.
             # "prev_data_interval_start_success": get_prev_data_interval_start_success(),
             # "prev_data_interval_end_success": get_prev_data_interval_end_success(),
             # "prev_start_date_success": get_prev_start_date_success(),

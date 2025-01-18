@@ -4766,6 +4766,8 @@ class DagRunModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
+    add_exclude_columns = ["conf"]
+
     list_columns = [
         "state",
         "dag_id",
@@ -4801,7 +4803,6 @@ class DagRunModelView(AirflowModelView):
         "start_date",
         "end_date",
         "run_id",
-        "conf",
         "note",
     ]
 

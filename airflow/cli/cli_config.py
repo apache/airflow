@@ -858,6 +858,7 @@ ARG_OPTION = Arg(
     help="The option name",
 )
 
+# lint
 ARG_LINT_CONFIG_SECTION = Arg(
     ("--section",),
     help="The section name(s) to lint in the airflow config.",
