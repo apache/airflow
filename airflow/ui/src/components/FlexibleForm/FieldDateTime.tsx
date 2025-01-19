@@ -25,8 +25,10 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
+    const date = new Date(value);
+
     if (paramsDict[name] && paramsDict[name].value !== undefined) {
-      paramsDict[name].value = value;
+      paramsDict[name].value = date.toISOString();
     }
 
     setParamsDict(paramsDict);
@@ -39,7 +41,7 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
       onChange={(event) => handleChange(event.target.value)}
       size="sm"
       type={rest.type}
-      value={typeof param.value === "string" ? param.value : undefined}
+      value={typeof param.value === "string" ? param.value.slice(0, 16) : undefined}
     />
   );
 };
