@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Stack, StackSeparator } from "@chakra-ui/react";
+import { Box, Stack, StackSeparator } from "@chakra-ui/react";
 
 import { flexibleFormDefaultSection } from ".";
 import { useParamStore } from "../TriggerDag/useParamStore";
-import { Accordion, Alert } from "../ui";
+import { Accordion } from "../ui";
 import { Row } from "./Row";
 
 export const FlexibleForm = () => {
@@ -39,22 +39,20 @@ export const FlexibleForm = () => {
           return (
             <Accordion.Item key={currentSection} value={currentSection}>
               <Accordion.ItemTrigger cursor="button">{currentSection}</Accordion.ItemTrigger>
-              <Accordion.ItemContent>
-                <Stack separator={<StackSeparator />}>
-                  <Alert
-                    status="warning"
-                    title="Population of changes in trigger form fields is not implemented yet. Please stay tuned for upcoming updates... and change the run conf in the 'Advanced Options' conf section below meanwhile."
-                  />
-                  {Object.entries(params)
-                    .filter(
-                      ([, param]) =>
-                        param.schema.section === currentSection ||
-                        (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
-                    )
-                    .map(([name]) => (
-                      <Row key={name} name={name} />
-                    ))}
-                </Stack>
+              <Accordion.ItemContent paddingTop={0}>
+                <Box p={5}>
+                  <Stack separator={<StackSeparator />}>
+                    {Object.entries(params)
+                      .filter(
+                        ([, param]) =>
+                          param.schema.section === currentSection ||
+                          (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
+                      )
+                      .map(([name]) => (
+                        <Row key={name} name={name} />
+                      ))}
+                  </Stack>
+                </Box>
               </Accordion.ItemContent>
             </Accordion.Item>
           );
