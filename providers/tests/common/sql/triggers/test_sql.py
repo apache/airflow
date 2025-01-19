@@ -28,12 +28,12 @@ from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
 class TestSQLExecuteQueryTrigger(Base):
-    @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
-    def test_run(self, mock_hook):
+    @mock.patch("airflow.hooks.base.BaseHook.get_hook")
+    def test_run(self, mock_get_hook):
         data = [(1, "Alice"), (2, "Bob")]
-        mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
-        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
-        mock_get_records.return_value = data
+        mock_hook = mock.MagicMock(spec=DbApiHook)
+        mock_hook.get_records.side_effect = lambda sql: data
+        mock_get_hook.return_value = mock_hook
 
         trigger = SQLExecuteQueryTrigger(sql="SELECT * FROM users;", conn_id="test_conn_id")
         actual = run_trigger(trigger)
@@ -41,4 +41,4 @@ class TestSQLExecuteQueryTrigger(Base):
         assert len(actual) == 1
         assert isinstance(actual[0], TriggerEvent)
         assert actual[0].payload["status"] == "success"
-        assert actual[0].payload["results"] == json.dumps(data)
+        assert actual[0].payload["results"] == data
