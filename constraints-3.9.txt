@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-19T02:26:16.271170
+# This constraints file was automatically generated on 2025-01-19T19:58:17.939861
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -74,7 +74,7 @@ aiohappyeyeballs==2.4.4
 aiohttp==3.11.11
 aioitertools==0.12.0
 aiomysql==0.2.0
-aioresponses==0.7.7
+aioresponses==0.7.8
 aiosignal==1.3.2
 aiosqlite==0.20.0
 airbyte-api==0.52.2
@@ -657,7 +657,7 @@ snowflake-snowpark-python==1.26.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.6
-sphinx-airflow-theme==0.1.0
+sphinx-airflow-theme==0.2.0
 sphinx-argparse==0.4.0
 sphinx-autoapi==3.4.0
 sphinx-copybutton==0.5.2
