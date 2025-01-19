@@ -99,7 +99,7 @@ with DAG(
     @task
     def variable():
         Variable.set("integration_test_key", "value")
-        assert Variable.get("integration_test_key") == "value"  # noqa: S101
+        assert Variable.get("integration_test_key") == "value"
         Variable.delete("integration_test_key")
 
     @task
