@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from collections import defaultdict, deque
@@ -39,6 +40,7 @@ from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.thread_safe_dict import ThreadSafeDict
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -117,6 +119,8 @@ class BaseExecutor(LoggingMixin):
     :param parallelism: how many jobs should run at one time. Set to ``0`` for infinity.
     """
 
+    active_spans = ThreadSafeDict()
+
     supports_ad_hoc_ti_run: bool = False
     supports_sentry: bool = False
 
@@ -151,6 +155,10 @@ class BaseExecutor(LoggingMixin):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(parallelism={self.parallelism})"
+
+    @classmethod
+    def set_active_spans(cls, active_spans: ThreadSafeDict):
+        cls.active_spans = active_spans
 
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
@@ -338,6 +346,33 @@ class BaseExecutor(LoggingMixin):
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, ti) = sorted_queue.pop(0)
+
+            # If it's None, then the span for the current TaskInstanceKey hasn't been started.
+            if self.active_spans is not None and self.active_spans.get(key) is None:
+                from airflow.models.taskinstance import SimpleTaskInstance
+
+                if isinstance(ti, SimpleTaskInstance):
+                    parent_context = Trace.extract(ti.parent_context_carrier)
+                else:
+                    parent_context = Trace.extract(ti.dag_run.context_carrier)
+                # Start a new span using the context from the parent.
+                # Attributes will be set once the task has finished so that all
+                # values will be available (end_time, duration, etc.).
+                span = Trace.start_child_span(
+                    span_name=f"{ti.task_id}",
+                    parent_context=parent_context,
+                    component="task",
+                    start_time=ti.queued_dttm,
+                    start_as_current=False,
+                )
+                self.active_spans.set(key, span)
+                # Inject the current context into the carrier.
+                carrier = Trace.inject()
+                # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
+                # So set the carrier as an argument to the command.
+                # The command execution will set it on the ti, and it will be propagated to the task itself.
+                command.append("--carrier")
+                command.append(json.dumps(carrier))
 
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed

@@ -64,6 +64,7 @@ from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -464,6 +465,16 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
     hostname = get_hostname()
 
     log.info("Running %s on host %s", ti, hostname)
+
+    if args.carrier is not None:
+        log.info("Found args.carrier: %s. Setting the value on the ti instance.", args.carrier)
+        # The arg value is a dict string, and it needs to be converted back to a dict.
+        carrier_dict = json.loads(args.carrier)
+        with create_session() as session:
+            ti.context_carrier = carrier_dict
+            ti.span_status = SpanStatus.ACTIVE
+            session.merge(ti)
+            session.commit()
 
     task_return_code = None
     try:

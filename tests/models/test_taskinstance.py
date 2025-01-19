@@ -93,6 +93,7 @@ from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
@@ -4010,6 +4011,8 @@ class TestTaskInstance:
             "updated_at": None,
             "task_display_name": "Test Refresh from DB Task",
             "dag_version_id": None,
+            "context_carrier": {},
+            "span_status": SpanStatus.ENDED,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}
