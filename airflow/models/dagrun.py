@@ -107,6 +107,11 @@ class TISchedulingDecision(NamedTuple):
     finished_tis: list[TI]
 
 
+def _default_run_after(ctx):
+    params = ctx.get_current_parameters()
+    return params["data_interval_end"] or params["logical_date"] or timezone.utcnow()
+
+
 def _creator_note(val):
     """Creator the ``note`` association proxy."""
     if isinstance(val, str):
@@ -146,7 +151,7 @@ class DagRun(Base, LoggingMixin):
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
     # Earliest time when this DagRun can start running.
-    run_after = Column(UtcDateTime, nullable=False)
+    run_after = Column(UtcDateTime, default=_default_run_after, nullable=False)
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
