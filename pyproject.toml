@@ -566,6 +566,7 @@ mypy_path = [
   "$MYPY_CONFIG_FILE_DIR/providers/src",
   "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
   "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
+  "$MYPY_CONFIG_FILE_DIR/providers/edge/src",
 ]
 
 [[tool.mypy.overrides]]
@@ -605,6 +606,7 @@ dev = [
   "local-providers",
   "apache-airflow-task-sdk",
   "apache-airflow-providers-airbyte",
+  "apache-airflow-providers-edge",
 ]
 
 [tool.uv.sources]
@@ -613,6 +615,7 @@ dev = [
 local-providers = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-providers-airbyte = {workspace = true}
+apache-airflow-providers-edge = {workspace = true}
 
 [tool.uv.workspace]
-members = ["providers", "task_sdk", "providers/airbyte" ]
+members = ["providers", "task_sdk", "providers/airbyte", "providers/edge" ]
