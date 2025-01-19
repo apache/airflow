@@ -16,42 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, useDisclosure, Text, VStack, Heading } from "@chakra-ui/react";
-import { FiTrash } from "react-icons/fi";
+import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
+import { FiTrash, FiTrash2 } from "react-icons/fi";
 
+import { ErrorAlert } from "src/components/ErrorAlert";
 import { Button, Dialog } from "src/components/ui";
-import ActionButton from "src/components/ui/ActionButton";
-import { useDeleteVariable } from "src/queries/useDeleteVariable";
+import { useBulkDeleteVariables } from "src/queries/useBulkDeleteVariables";
 
 type Props = {
-  readonly deleteKey: string;
-  readonly disabled: boolean;
+  readonly clearSelections: VoidFunction;
+  readonly deleteKeys: Array<string>;
 };
 
-const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
+const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { isPending, mutate } = useDeleteVariable({
-    onSuccessConfirm: onClose,
-  });
+  const { error, isPending, mutate } = useBulkDeleteVariables({ clearSelections, onSuccessConfirm: onClose });
 
   return (
     <>
-      <ActionButton
-        actionName="Delete Variable"
-        disabled={disabled}
-        icon={<FiTrash />}
+      <Button
         onClick={() => {
           onOpen();
         }}
-        text="Delete Variable"
-        withText={false}
-      />
+        size="sm"
+        variant="outline"
+      >
+        <FiTrash2 />
+        Delete
+      </Button>
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
-              <Heading size="xl">Delete Variable</Heading>
+              <Heading size="xl">Delete Variable{variableKeys.length > 1 ? "s" : ""}</Heading>
             </VStack>
           </Dialog.Header>
 
@@ -59,18 +57,34 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
 
           <Dialog.Body width="full">
             <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
-              You are about to delete variable with key <strong>{variableKey}</strong>.
+              You are about to delete{" "}
+              <strong>
+                {variableKeys.length} variable{variableKeys.length > 1 ? "s" : ""}.
+              </strong>
+              <br />
+              <Code mb={2} mt={2} p={4}>
+                {variableKeys.join(", ")}
+              </Code>
               <br />
               This action is permanent and cannot be undone.{" "}
               <strong>Are you sure you want to proceed?</strong>
             </Text>
+            <ErrorAlert error={error} />
             <Flex justifyContent="end" mt={3}>
               <Button
                 colorPalette="red"
                 loading={isPending}
                 onClick={() => {
                   mutate({
-                    variableKey,
+                    requestBody: {
+                      actions: [
+                        {
+                          action: "delete" as const,
+                          action_if_not_exists: "fail",
+                          keys: variableKeys,
+                        },
+                      ],
+                    },
                   });
                 }}
               >
@@ -84,4 +98,4 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
   );
 };
 
-export default DeleteVariableButton;
+export default DeleteVariablesButton;

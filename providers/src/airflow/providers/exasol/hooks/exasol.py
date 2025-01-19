@@ -246,7 +246,7 @@ class ExasolHook(DbApiHook):
                         else:
                             results.append(result)
                             self.descriptions.append(self.get_description(exa_statement))
-                    self.log.info("Rows affected: %s", exa_statement.rowcount)
+                    self.log.info("Rows affected: %s", exa_statement.rowcount())
 
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):

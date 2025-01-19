@@ -65,7 +65,7 @@ class TestExasolHookConn:
 
 class TestExasolHook:
     def setup_method(self):
-        self.cur = mock.MagicMock(rowcount=0)
+        self.cur = mock.MagicMock(rowcount=lambda: 0)
         self.conn = mock.MagicMock()
         self.conn.execute.return_value = self.cur
         conn = self.conn

@@ -23,12 +23,16 @@ import { Button, Dialog } from "src/components/ui";
 
 import ImportVariablesForm from "./ImportVariablesForm";
 
-const ImportVariablesButton = () => {
+type Props = {
+  readonly disabled: boolean;
+};
+
+const ImportVariablesButton = ({ disabled }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   return (
     <>
-      <Button colorPalette="blue" onClick={onOpen}>
+      <Button colorPalette="blue" disabled={disabled} onClick={onOpen}>
         <FiUploadCloud /> Import Variables
       </Button>
 
