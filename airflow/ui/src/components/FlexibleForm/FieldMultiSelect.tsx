@@ -44,7 +44,7 @@ export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
 
   useEffect(() => {
     if (paramsDict[name] && paramsDict[name].value !== undefined) {
-      paramsDict[name].value = selectedOptions;
+      paramsDict[name].value = selectedOptions.map((option) => option.value);
     }
     setParamsDict(paramsDict);
   }, [selectedOptions, paramsDict, setParamsDict, name]);

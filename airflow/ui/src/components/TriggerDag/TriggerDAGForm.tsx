@@ -66,13 +66,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
     setParamsDict(initialParamsDict.paramsDict);
   }
 
-  const {
-    control,
-    formState: { isDirty },
-    handleSubmit,
-    reset,
-    watch,
-  } = useForm<DagRunTriggerParams>({
+  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
@@ -97,17 +91,6 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
   const dataIntervalStart = watch("dataIntervalStart");
   const dataIntervalEnd = watch("dataIntervalEnd");
-
-  const handleReset = () => {
-    setErrors({ conf: undefined, date: undefined });
-    reset({
-      conf,
-      dagRunId: "",
-      dataIntervalEnd: "",
-      dataIntervalStart: "",
-      note: "",
-    });
-  };
 
   const onSubmit = (data: DagRunTriggerParams) => {
     triggerDagRun(dagId, data);
@@ -253,11 +236,6 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
       <ErrorAlert error={errors.date ?? errorTrigger} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
-          {isDirty ? (
-            <Button onClick={handleReset} variant="outline">
-              Reset
-            </Button>
-          ) : undefined}
           <Spacer />
           <Button
             colorPalette="blue"

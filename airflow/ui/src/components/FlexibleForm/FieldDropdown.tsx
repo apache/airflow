@@ -44,6 +44,7 @@ export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
         value,
       })) ?? [],
   });
+
   const contentRef = useRef<HTMLDivElement>(null);
 
   const handleChange = (value: Array<string>) => {
