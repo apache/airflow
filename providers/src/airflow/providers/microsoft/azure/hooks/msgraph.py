@@ -27,7 +27,7 @@ from urllib.parse import quote, urljoin, urlparse
 
 import httpx
 from azure.identity import ClientSecretCredential
-from httpx import Timeout
+from httpx import AsyncHTTPTransport, Timeout
 from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
 from kiota_abstractions.request_information import RequestInformation
@@ -208,9 +208,9 @@ class KiotaRequestAdapterHook(BaseHook):
     def to_httpx_proxies(cls, proxies: dict) -> dict:
         proxies = proxies.copy()
         if proxies.get("http"):
-            proxies["http://"] = proxies.pop("http")
+            proxies["http://"] = AsyncHTTPTransport(proxy=proxies.pop("http"))
         if proxies.get("https"):
-            proxies["https://"] = proxies.pop("https")
+            proxies["https://"] = AsyncHTTPTransport(proxy=proxies.pop("https"))
         if proxies.get("no"):
             for url in proxies.pop("no", "").split(","):
                 proxies[cls.format_no_proxy_url(url.strip())] = None
@@ -288,7 +288,7 @@ class KiotaRequestAdapterHook(BaseHook):
             http_client = GraphClientFactory.create_with_default_middleware(
                 api_version=api_version,  # type: ignore
                 client=httpx.AsyncClient(
-                    proxy=httpx_proxies,  # type: ignore
+                    mounts=httpx_proxies,
                     timeout=Timeout(timeout=self.timeout),
                     verify=verify,
                     trust_env=trust_env,
