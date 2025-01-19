@@ -42,7 +42,7 @@ export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
         throw new TypeError("Value must be an array");
       }
 
-      if (paramsDict[name] && paramsDict[name].value !== undefined) {
+      if (paramsDict[name]) {
         paramsDict[name].value = parsedValue;
       }
 

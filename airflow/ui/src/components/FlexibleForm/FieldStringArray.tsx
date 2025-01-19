@@ -27,7 +27,7 @@ export const FieldStringArray = ({ name }: FlexibleFormElementProps) => {
   const handleChange = (newValue: string) => {
     const newValueArray = newValue.split("\n");
 
-    if (paramsDict[name] && paramsDict[name].value !== undefined) {
+    if (paramsDict[name]) {
       paramsDict[name].value = newValueArray;
     }
 

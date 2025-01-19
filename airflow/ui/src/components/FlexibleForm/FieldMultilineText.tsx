@@ -25,7 +25,7 @@ export const FieldMultilineText = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
-    if (paramsDict[name] && paramsDict[name].value !== undefined) {
+    if (paramsDict[name]) {
       paramsDict[name].value = value;
     }
 

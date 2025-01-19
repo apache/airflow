@@ -27,7 +27,7 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
   const handleChange = (value: string) => {
     const date = new Date(value);
 
-    if (paramsDict[name] && paramsDict[name].value !== undefined) {
+    if (paramsDict[name]) {
       paramsDict[name].value = date.toISOString();
     }
 

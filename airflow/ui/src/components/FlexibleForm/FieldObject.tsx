@@ -39,7 +39,7 @@ export const FieldObject = ({ name }: FlexibleFormElementProps) => {
     try {
       const parsedValue = JSON.parse(value) as JSON;
 
-      if (paramsDict[name] && paramsDict[name].value !== undefined) {
+      if (paramsDict[name]) {
         paramsDict[name].value = parsedValue;
       }
 

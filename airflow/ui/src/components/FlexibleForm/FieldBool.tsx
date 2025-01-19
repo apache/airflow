@@ -24,7 +24,7 @@ export const FieldBool = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const onCheck = (value: boolean) => {
-    if (paramsDict[name] && paramsDict[name].value !== undefined) {
+    if (paramsDict[name]) {
       paramsDict[name].value = value;
     }
 
