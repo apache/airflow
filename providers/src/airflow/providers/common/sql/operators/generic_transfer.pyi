@@ -38,12 +38,13 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook as DbApiHook
 from airflow.utils.context import Context as Context
 from collections.abc import Sequence
 from functools import cached_property as cached_property
-from typing import Any
+from typing import Any, ClassVar
 
 
 class GenericTransfer(BaseOperator):
     template_fields: Sequence[str]
     template_ext: Sequence[str]
+    template_fields_renderers: ClassVar[dict]
     ui_color: str
     sql: Incomplete
     destination_table: Incomplete
