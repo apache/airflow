@@ -27,11 +27,6 @@ source-date-epoch: 1729683247
 versions:
   - 0.10.1pre0
 
-dependencies:
-  - apache-airflow>=2.10.0
-  - pydantic>=2.10.2
-  - retryhttp>=1.2.0
-
 plugins:
   - name: edge_executor
     plugin-class: airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin

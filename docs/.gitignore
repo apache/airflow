@@ -1,3 +1,4 @@
 # TODO(potiuk): change it to apache-airflow-providers-* after all providers are migrated to the new structure
 # Eventually when we swtich to individually build docs for each provider, we should remove this altogether
 apache-airflow-providers-airbyte
+apache-airflow-providers-edge
