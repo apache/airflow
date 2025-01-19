@@ -81,5 +81,7 @@ Start the Breeze Airflow server:
 
 .. code-block:: bash
 
-root@b76fcb399bb6:/opt/airflow# breeze start-airflow
+   root@b76fcb399bb6:/opt/airflow# breeze start-airflow
+
 Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.
+
