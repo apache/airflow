@@ -99,6 +99,11 @@ Starting Airflow
 
 To start Airflow using Breeze:
 
+.. image:: images/airflow-gitpod.png
+   :alt: Open personal airflow clone with Gitpod
+   :align: center
+   :width: 600px
+
 .. code-block:: bash
 
    breeze start-airflow
