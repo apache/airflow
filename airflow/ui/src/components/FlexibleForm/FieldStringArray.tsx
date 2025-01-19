@@ -23,26 +23,28 @@ import { useParamStore } from "../TriggerDag/useParamStore";
 
 export const FieldStringArray = ({ name, param }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
-  const handleChange = (value: string) => {
+
+  const handleChange = (newValue: string) => {
+    const newValueArray = newValue.split("\n");
+
     if (paramsDict[name] && paramsDict[name].value !== undefined) {
-      paramsDict[name].value = value;
+      paramsDict[name].value = newValueArray;
     }
 
     setParamsDict(paramsDict);
   };
 
+  const value = Array.isArray(param.value) ? param.value.join("\n") : "";
+
   return (
     <Textarea
+      defaultValue={value}
       id={`element_${name}`}
       name={`element_${name}`}
-      onChange={(event) => {
-        handleChange(event.target.value);
-      }}
+      onBlur={(event) => handleChange(event.target.value)}
+      placeholder="Enter each string on a new line"
       rows={6}
       size="sm"
-      value={
-        Array.isArray(param.value) ? (param.value as Array<string>).join("\n") : String(param.value ?? "")
-      }
     />
   );
 };
