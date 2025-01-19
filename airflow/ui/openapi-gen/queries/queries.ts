@@ -506,7 +506,7 @@ export const useDagsServiceRecentDagRuns = <
     owners?: string[];
     paused?: boolean;
     tags?: string[];
-    tagsMatchMode?: string;
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1134,7 +1134,7 @@ export const useDagWarningServiceListDagWarnings = <
  * @param data.startDateLte
  * @param data.endDateGte
  * @param data.endDateLte
- * @param data.state
+ * @param data.dagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -1147,6 +1147,7 @@ export const useDagServiceGetDags = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunState,
     endDateGte,
     endDateLte,
     lastDagRunState,
@@ -1158,12 +1159,12 @@ export const useDagServiceGetDags = <
     paused,
     startDateGte,
     startDateLte,
-    state,
     tags,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunState?: string[];
     endDateGte?: string;
     endDateLte?: string;
     lastDagRunState?: DagRunState;
@@ -1175,9 +1176,8 @@ export const useDagServiceGetDags = <
     paused?: boolean;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string[];
     tags?: string[];
-    tagsMatchMode?: string;
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1187,6 +1187,7 @@ export const useDagServiceGetDags = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunState,
         endDateGte,
         endDateLte,
         lastDagRunState,
@@ -1198,7 +1199,6 @@ export const useDagServiceGetDags = <
         paused,
         startDateGte,
         startDateLte,
-        state,
         tags,
         tagsMatchMode,
       },
@@ -1208,6 +1208,7 @@ export const useDagServiceGetDags = <
       DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunState,
         endDateGte,
         endDateLte,
         lastDagRunState,
@@ -1219,7 +1220,6 @@ export const useDagServiceGetDags = <
         paused,
         startDateGte,
         startDateLte,
-        state,
         tags,
         tagsMatchMode,
       }) as TData,
@@ -3512,7 +3512,7 @@ export const useDagServicePatchDags = <
         paused?: boolean;
         requestBody: DAGPatchBody;
         tags?: string[];
-        tagsMatchMode?: string;
+        tagsMatchMode?: "any" | "all";
         updateMask?: string[];
       },
       TContext
@@ -3533,7 +3533,7 @@ export const useDagServicePatchDags = <
       paused?: boolean;
       requestBody: DAGPatchBody;
       tags?: string[];
-      tagsMatchMode?: string;
+      tagsMatchMode?: "any" | "all";
       updateMask?: string[];
     },
     TContext

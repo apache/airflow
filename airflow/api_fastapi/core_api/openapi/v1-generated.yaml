@@ -98,7 +98,10 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: string
+          - enum:
+            - any
+            - all
+            type: string
           - type: 'null'
           title: Tags Match Mode
       - name: owners
@@ -2813,7 +2816,10 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: string
+          - enum:
+            - any
+            - all
+            type: string
           - type: 'null'
           title: Tags Match Mode
       - name: owners
@@ -2899,14 +2905,14 @@ paths:
             format: date-time
           - type: 'null'
           title: End Date Lte
-      - name: state
+      - name: dag_run_state
         in: query
         required: false
         schema:
           type: array
           items:
             type: string
-          title: State
+          title: Dag Run State
       - name: order_by
         in: query
         required: false
@@ -2985,7 +2991,10 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: string
+          - enum:
+            - any
+            - all
+            type: string
           - type: 'null'
           title: Tags Match Mode
       - name: owners

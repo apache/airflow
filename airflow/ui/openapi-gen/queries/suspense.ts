@@ -485,7 +485,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
     owners?: string[];
     paused?: boolean;
     tags?: string[];
-    tagsMatchMode?: string;
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1113,7 +1113,7 @@ export const useDagWarningServiceListDagWarningsSuspense = <
  * @param data.startDateLte
  * @param data.endDateGte
  * @param data.endDateLte
- * @param data.state
+ * @param data.dagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -1126,6 +1126,7 @@ export const useDagServiceGetDagsSuspense = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunState,
     endDateGte,
     endDateLte,
     lastDagRunState,
@@ -1137,12 +1138,12 @@ export const useDagServiceGetDagsSuspense = <
     paused,
     startDateGte,
     startDateLte,
-    state,
     tags,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunState?: string[];
     endDateGte?: string;
     endDateLte?: string;
     lastDagRunState?: DagRunState;
@@ -1154,9 +1155,8 @@ export const useDagServiceGetDagsSuspense = <
     paused?: boolean;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string[];
     tags?: string[];
-    tagsMatchMode?: string;
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1166,6 +1166,7 @@ export const useDagServiceGetDagsSuspense = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunState,
         endDateGte,
         endDateLte,
         lastDagRunState,
@@ -1177,7 +1178,6 @@ export const useDagServiceGetDagsSuspense = <
         paused,
         startDateGte,
         startDateLte,
-        state,
         tags,
         tagsMatchMode,
       },
@@ -1187,6 +1187,7 @@ export const useDagServiceGetDagsSuspense = <
       DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunState,
         endDateGte,
         endDateLte,
         lastDagRunState,
@@ -1198,7 +1199,6 @@ export const useDagServiceGetDagsSuspense = <
         paused,
         startDateGte,
         startDateLte,
-        state,
         tags,
         tagsMatchMode,
       }) as TData,

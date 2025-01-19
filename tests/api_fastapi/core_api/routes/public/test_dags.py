@@ -157,8 +157,8 @@ class TestGetDags(TestDagEndpoint):
             ({"owners": ["test_owner"], "only_active": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "success", "only_active": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "failed", "only_active": False}, 1, [DAG1_ID]),
-            ({"state": "failed"}, 1, [DAG1_ID]),
-            ({"state": "failed", "only_active": False}, 2, [DAG1_ID, DAG3_ID]),
+            ({"dag_run_state": "failed"}, 1, [DAG1_ID]),
+            ({"dag_run_state": "failed", "only_active": False}, 2, [DAG1_ID, DAG3_ID]),
             (
                 {"start_date_gte": DAG3_START_DATE_2.isoformat(), "only_active": False},
                 1,

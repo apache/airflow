@@ -28,29 +28,53 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 
 
-def generate_dag_select_query(
-    stmt: Select = select(DagRun).where().cte(), use_outer_join: bool = True
-) -> Select:
+def generate_dag_with_latest_run_query(dag_runs_cte: Select | None = None) -> Select:
+    use_outer_join = False
+
+    if dag_runs_cte is None:
+        dag_runs_cte = select(DagRun).where().cte()
+        use_outer_join = True
+
     latest_dag_run_per_dag_id_cte = (
-        select(stmt.c.dag_id, func.max(stmt.c.start_date).label("start_date"))
+        select(DagRun.dag_id, func.max(DagRun.start_date).label("start_date"))
         .where()
-        .group_by(stmt.c.dag_id)
+        .group_by(DagRun.dag_id)
         .cte()
     )
 
-    dags_select_with_latest_dag_run = (
+    dag_run_filters_cte = (
+        select(DagModel.dag_id)
+        .join(
+            dag_runs_cte,
+            DagModel.dag_id == dag_runs_cte.c.dag_id,
+        )
+        .join(
+            DagRun,
+            DagRun.dag_id == dag_runs_cte.c.dag_id,
+        )
+        .group_by(DagModel.dag_id)
+        .cte()
+    )
+
+    dags_with_latest_and_filtered_runs = (
         select(DagModel)
+        .join(
+            dag_run_filters_cte,
+            dag_run_filters_cte.c.dag_id == DagModel.dag_id,
+            isouter=use_outer_join,
+        )
         .join(
             latest_dag_run_per_dag_id_cte,
             DagModel.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
-            isouter=use_outer_join,
+            isouter=True,
         )
         .join(
             DagRun,
             DagRun.start_date == latest_dag_run_per_dag_id_cte.c.start_date
             and DagRun.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
-            isouter=use_outer_join,
+            isouter=True,
         )
         .order_by(DagModel.dag_id)
     )
-    return dags_select_with_latest_dag_run
+
+    return dags_with_latest_and_filtered_runs

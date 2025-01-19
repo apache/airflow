@@ -27,6 +27,7 @@ from typing import (
     Any,
     Callable,
     Generic,
+    Literal,
     Optional,
     TypeVar,
     Union,
@@ -332,7 +333,7 @@ class _TagFilterModel(BaseModel):
     """Tag Filter Model with a match mode parameter."""
 
     tags: list[str]
-    tags_match_mode: str | None
+    tags_match_mode: Literal["any", "all"] | None
 
 
 class _TagsFilter(BaseParam[_TagFilterModel]):
@@ -345,15 +346,14 @@ class _TagsFilter(BaseParam[_TagFilterModel]):
         if not self.value or not self.value.tags:
             return select
 
-        if not self.value.tags_match_mode or self.value.tags_match_mode == "any":
-            conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value.tags]
-            return select.where(or_(*conditions))
-        else:
-            conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value.tags]
-            return select.where(and_(*conditions))
+        conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value.tags]
+        operator = or_ if not self.value.tags_match_mode or self.value.tags_match_mode == "any" else and_
+        return select.where(operator(*conditions))
 
     def depends(
-        self, tags: list[str] = Query(default_factory=list), tags_match_mode: str | None = Query(default=None)
+        self,
+        tags: list[str] = Query(default_factory=list),
+        tags_match_mode: Literal["any", "all"] | None = None,
     ) -> _TagsFilter:
         return self.set_value(_TagFilterModel(tags=tags, tags_match_mode=tags_match_mode))
 
@@ -460,6 +460,12 @@ class RangeFilter(BaseParam[Range]):
     def depends(self, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use the `range_filter_factory` function to create the dependency")
 
+    def is_active(self) -> bool:
+        """Check if the range filter has any active bounds."""
+        return self.value is not None and (
+            self.value.lower_bound is not None or self.value.upper_bound is not None
+        )
+
 
 def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
@@ -488,13 +494,6 @@ def float_range_filter_factory(
         )
 
     return depends_float
-
-
-def is_range_filter_active(range_filter: RangeFilter) -> bool:
-    """Check if a range filter has any active bounds."""
-    if range_filter is not None and range_filter.value is not None:
-        return range_filter.value.lower_bound is not None or range_filter.value.upper_bound is not None
-    return False
 
 
 # Common Safe DateTime

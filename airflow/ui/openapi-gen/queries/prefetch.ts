@@ -408,7 +408,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
-    tagsMatchMode?: string;
+    tagsMatchMode?: "any" | "all";
   } = {},
 ) =>
   queryClient.prefetchQuery({
@@ -937,7 +937,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
  * @param data.startDateLte
  * @param data.endDateGte
  * @param data.endDateLte
- * @param data.state
+ * @param data.dagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -947,6 +947,7 @@ export const prefetchUseDagServiceGetDags = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunState,
     endDateGte,
     endDateLte,
     lastDagRunState,
@@ -958,12 +959,12 @@ export const prefetchUseDagServiceGetDags = (
     paused,
     startDateGte,
     startDateLte,
-    state,
     tags,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunState?: string[];
     endDateGte?: string;
     endDateLte?: string;
     lastDagRunState?: DagRunState;
@@ -975,15 +976,15 @@ export const prefetchUseDagServiceGetDags = (
     paused?: boolean;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string[];
     tags?: string[];
-    tagsMatchMode?: string;
+    tagsMatchMode?: "any" | "all";
   } = {},
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseDagServiceGetDagsKeyFn({
       dagDisplayNamePattern,
       dagIdPattern,
+      dagRunState,
       endDateGte,
       endDateLte,
       lastDagRunState,
@@ -995,7 +996,6 @@ export const prefetchUseDagServiceGetDags = (
       paused,
       startDateGte,
       startDateLte,
-      state,
       tags,
       tagsMatchMode,
     }),
@@ -1003,6 +1003,7 @@ export const prefetchUseDagServiceGetDags = (
       DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunState,
         endDateGte,
         endDateLte,
         lastDagRunState,
@@ -1014,7 +1015,6 @@ export const prefetchUseDagServiceGetDags = (
         paused,
         startDateGte,
         startDateLte,
-        state,
         tags,
         tagsMatchMode,
       }),

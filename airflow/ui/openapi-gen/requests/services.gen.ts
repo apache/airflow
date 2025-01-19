@@ -1547,7 +1547,7 @@ export class DagService {
    * @param data.startDateLte
    * @param data.endDateGte
    * @param data.endDateLte
-   * @param data.state
+   * @param data.dagRunState
    * @param data.orderBy
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
@@ -1571,7 +1571,7 @@ export class DagService {
         start_date_lte: data.startDateLte,
         end_date_gte: data.endDateGte,
         end_date_lte: data.endDateLte,
-        state: data.state,
+        dag_run_state: data.dagRunState,
         order_by: data.orderBy,
       },
       errors: {
