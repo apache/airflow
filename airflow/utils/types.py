@@ -17,13 +17,14 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 import airflow.sdk.definitions._internal.types
-from airflow.typing_compat import TypeAlias, TypedDict
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+    from airflow.typing_compat import TypeAlias
 
 ArgNotSet: TypeAlias = airflow.sdk.definitions._internal.types.ArgNotSet
 

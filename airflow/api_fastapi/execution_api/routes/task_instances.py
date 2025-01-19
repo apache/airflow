@@ -75,12 +75,14 @@ def ti_run(
     ti_id_str = str(task_instance_id)
 
     old = (
-        select(TI.state, TI.dag_id, TI.run_id, TI.task_id, TI.map_index, TI.next_method)
+        select(TI.state, TI.dag_id, TI.run_id, TI.task_id, TI.map_index, TI.next_method, TI.max_tries)
         .where(TI.id == ti_id_str)
         .with_for_update()
     )
     try:
-        (previous_state, dag_id, run_id, task_id, map_index, next_method) = session.execute(old).one()
+        (previous_state, dag_id, run_id, task_id, map_index, next_method, max_tries) = session.execute(
+            old
+        ).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -165,6 +167,7 @@ def ti_run(
 
         return TIRunContext(
             dag_run=DagRun.model_validate(dr, from_attributes=True),
+            max_tries=max_tries,
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],
             connections=[],

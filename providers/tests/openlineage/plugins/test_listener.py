@@ -36,14 +36,13 @@ from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
+from airflow.utils import types
 from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -80,20 +79,30 @@ def regular_call(self, callable, callable_name, use_fork):
 def test_listener_does_not_change_task_instance(render_mock, xcom_push_mock):
     render_mock.return_value = render_df()
 
+    date = dt.datetime(2022, 1, 1)
     dag = DAG(
         "test",
         schedule=None,
-        start_date=dt.datetime(2022, 1, 1),
+        start_date=date,
         user_defined_macros={"render_df": render_df},
         params={"df": {"col": [1, 2]}},
     )
     t = TemplateOperator(task_id="template_op", dag=dag, do_xcom_push=True, df=dag.param("df"))
     run_id = str(uuid.uuid1())
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun_kwargs = {
+            "dag_version": None,
+            "logical_date": date,
+            "triggered_by": types.DagRunTriggeredByType.TEST,
+        }
+    else:
+        dagrun_kwargs = {"execution_date": date}
     dag.create_dagrun(
-        state=State.NONE,
         run_id=run_id,
-        **triggered_by_kwargs,
+        data_interval=(date, date),
+        run_type=types.DagRunType.MANUAL,
+        state=DagRunState.QUEUED,
+        **dagrun_kwargs,
     )
     ti = TaskInstance(t, run_id=run_id)
     ti.check_and_change_state_before_execution()  # make listener hook on running event
@@ -146,8 +155,9 @@ def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> 
 
     :return: TaskInstance: The created TaskInstance object.
 
-    This function creates a DAG and a PythonOperator task with the provided python_callable. It generates a unique
-    run ID and creates a DAG run. This setup is useful for testing different scenarios in Airflow tasks.
+    This function creates a DAG and a PythonOperator task with the provided
+    python_callable. It generates a unique run ID and creates a DAG run. This
+    setup is useful for testing different scenarios in Airflow tasks.
 
     :Example:
 
@@ -157,18 +167,28 @@ def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> 
         task_instance = _create_test_dag_and_task(sample_callable, "sample_scenario")
         # Use task_instance to simulate running a task in a test.
     """
+    date = dt.datetime(2022, 1, 1)
     dag = DAG(
         f"test_{scenario_name}",
         schedule=None,
-        start_date=dt.datetime(2022, 1, 1),
+        start_date=date,
     )
     t = PythonOperator(task_id=f"test_task_{scenario_name}", dag=dag, python_callable=python_callable)
     run_id = str(uuid.uuid1())
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun_kwargs: dict = {
+            "dag_version": None,
+            "logical_date": date,
+            "triggered_by": types.DagRunTriggeredByType.TEST,
+        }
+    else:
+        dagrun_kwargs = {"execution_date": date}
     dagrun = dag.create_dagrun(
-        state=State.NONE,  # type: ignore
         run_id=run_id,
-        **triggered_by_kwargs,  # type: ignore
+        data_interval=(date, date),
+        run_type=types.DagRunType.MANUAL,
+        state=DagRunState.QUEUED,
+        **dagrun_kwargs,
     )
     task_instance = TaskInstance(t, run_id=run_id)
     return dagrun, task_instance
@@ -669,10 +689,11 @@ def test_listener_logs_failed_serialization():
 
 class TestOpenLineageSelectiveEnable:
     def setup_method(self):
+        date = dt.datetime(2022, 1, 1)
         self.dag = DAG(
             "test_selective_enable",
             schedule=None,
-            start_date=dt.datetime(2022, 1, 1),
+            start_date=date,
         )
 
         def simple_callable(**kwargs):
@@ -685,15 +706,27 @@ class TestOpenLineageSelectiveEnable:
             task_id="test_task_selective_enable_2", dag=self.dag, python_callable=simple_callable
         )
         run_id = str(uuid.uuid1())
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        if AIRFLOW_V_3_0_PLUS:
+            dagrun_kwargs = {
+                "dag_version": None,
+                "logical_date": date,
+                "triggered_by": types.DagRunTriggeredByType.TEST,
+            }
+        else:
+            dagrun_kwargs = {"execution_date": date}
         self.dagrun = self.dag.create_dagrun(
-            state=State.NONE,
             run_id=run_id,
-            **triggered_by_kwargs,
+            data_interval=(date, date),
+            run_type=types.DagRunType.MANUAL,
+            state=DagRunState.QUEUED,
+            **dagrun_kwargs,
         )  # type: ignore
         self.task_instance_1 = TaskInstance(self.task_1, run_id=run_id, map_index=-1)
         self.task_instance_2 = TaskInstance(self.task_2, run_id=run_id, map_index=-1)
         self.task_instance_1.dag_run = self.task_instance_2.dag_run = self.dagrun
+
+    def teardown_method(self):
+        clear_db_runs()
 
     @pytest.mark.parametrize(
         "selective_enable, enable_dag, expected_call_count",

@@ -19,10 +19,9 @@
 
 labelPRBasedOnFilePath:
   provider:airbyte:
-    - providers/src/airflow/providers/airbyte/**/*
-    - docs/apache-airflow-providers-airbyte/**/*
-    - providers/tests/airbyte/**/*
-    - providers/tests/system/airbyte/**/*
+    - providers/airbyte/src/airflow/providers/airbyte/**/*
+    - providers/airbyte/docs/**/*
+    - providers/airbyte/tests/**/*
 
   provider:alibaba:
     - providers/src/airflow/providers/alibaba/**/*
@@ -226,9 +225,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/docker/**/*
 
   provider:edge:
-    - providers/src/airflow/providers/edge/**/*
-    - docs/apache-airflow-providers-edge/**/*
-    - providers/tests/edge/**/*
+    - providers/edge/**
 
   provider:elasticsearch:
     - providers/src/airflow/providers/elasticsearch/**/*

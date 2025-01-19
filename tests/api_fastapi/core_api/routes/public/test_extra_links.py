@@ -21,6 +21,7 @@ from urllib.parse import quote_plus
 
 import pytest
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XCom
@@ -67,10 +68,11 @@ class TestExtraLinks:
 
         self.dag = self._create_dag()
 
+        DagBundlesManager().sync_bundles_to_db()
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {self.dag.dag_id: self.dag}
         test_client.app.state.dag_bag = dag_bag
-        dag_bag.sync_to_db()
+        dag_bag.sync_to_db("dags-folder", None)
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST}
 

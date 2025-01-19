@@ -32,7 +32,6 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
-  Body_import_variables,
   ClearTaskInstancesBody,
   ConnectionBody,
   ConnectionBulkBody,
@@ -50,6 +49,7 @@ import {
   TaskInstancesBatchBody,
   TriggerDAGRunPostBody,
   VariableBody,
+  VariableBulkBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -2746,6 +2746,42 @@ export const useBackfillServiceCreateBackfill = <
     ...options,
   });
 /**
+ * Create Backfill Dry Run
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns DryRunBackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceCreateBackfillDryRun = <
+  TData = Common.BackfillServiceCreateBackfillDryRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: BackfillPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: BackfillPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      BackfillService.createBackfillDryRun({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Post Connection
  * Create connection entry.
  * @param data The data for the request.
@@ -3120,46 +3156,6 @@ export const useVariableServicePostVariable = <
   >({
     mutationFn: ({ requestBody }) =>
       VariableService.postVariable({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Import Variables
- * Import variables from a JSON file.
- * @param data The data for the request.
- * @param data.formData
- * @param data.actionIfExists
- * @returns VariablesImportResponse Successful Response
- * @throws ApiError
- */
-export const useVariableServiceImportVariables = <
-  TData = Common.VariableServiceImportVariablesMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        actionIfExists?: "overwrite" | "fail" | "skip";
-        formData: Body_import_variables;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      actionIfExists?: "overwrite" | "fail" | "skip";
-      formData: Body_import_variables;
-    },
-    TContext
-  >({
-    mutationFn: ({ actionIfExists, formData }) =>
-      VariableService.importVariables({ actionIfExists, formData }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3811,6 +3807,43 @@ export const useVariableServicePatchVariable = <
   >({
     mutationFn: ({ requestBody, updateMask, variableKey }) =>
       VariableService.patchVariable({ requestBody, updateMask, variableKey }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Bulk Variables
+ * Bulk create, update, and delete variables.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns VariableBulkResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceBulkVariables = <
+  TData = Common.VariableServiceBulkVariablesMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: VariableBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: VariableBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      VariableService.bulkVariables({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**

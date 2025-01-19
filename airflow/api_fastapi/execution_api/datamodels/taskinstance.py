@@ -163,7 +163,8 @@ class TaskInstance(BaseModel):
     dag_id: str
     run_id: str
     try_number: int
-    map_index: int | None = None
+    map_index: int = -1
+    hostname: str | None = None
 
 
 class DagRun(BaseModel):
@@ -189,6 +190,9 @@ class TIRunContext(BaseModel):
 
     dag_run: DagRun
     """DAG run information for the task instance."""
+
+    max_tries: int
+    """Maximum number of tries for the task instance (from DB)."""
 
     variables: Annotated[list[VariableResponse], Field(default_factory=list)]
     """Variables that can be accessed by the task instance."""

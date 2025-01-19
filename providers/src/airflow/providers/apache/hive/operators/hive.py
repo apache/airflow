@@ -141,13 +141,15 @@ class HiveOperator(BaseOperator):
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
             ti = context["ti"]
-            if ti.logical_date is None:
+            logical_date = context["logical_date"]
+            if logical_date is None:
                 raise RuntimeError("logical_date is None")
+            hostname = ti.hostname or ""
             self.hook.mapred_job_name = self.mapred_job_name_template.format(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
-                logical_date=ti.logical_date.isoformat(),
-                hostname=ti.hostname.split(".")[0],
+                logical_date=logical_date.isoformat(),
+                hostname=hostname.split(".")[0],
             )
 
         if self.hiveconf_jinja_translate:

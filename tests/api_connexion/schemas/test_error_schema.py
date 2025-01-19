@@ -55,6 +55,7 @@ class TestErrorSchema(TestErrorSchemaBase):
         serialized_data["import_error_id"] = 1
         assert serialized_data == {
             "filename": "lorem.py",
+            "bundle_name": None,
             "import_error_id": 1,
             "stack_trace": "Lorem Ipsum",
             "timestamp": "2020-06-10T12:02:44+00:00",
@@ -86,12 +87,14 @@ class TestErrorCollectionSchema(TestErrorSchemaBase):
             "import_errors": [
                 {
                     "filename": "Lorem_ipsum.py",
+                    "bundle_name": None,
                     "import_error_id": 1,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-10T12:02:44+00:00",
                 },
                 {
                     "filename": "Lorem_ipsum.py",
+                    "bundle_name": None,
                     "import_error_id": 2,
                     "stack_trace": "Lorem ipsum",
                     "timestamp": "2020-06-10T12:02:44+00:00",

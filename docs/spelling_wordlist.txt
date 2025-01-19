@@ -574,6 +574,8 @@ encodable
 encryptor
 enqueue
 enqueued
+EntryGroup
+EntryGroups
 entrypoint
 entrypoints
 Enum
@@ -633,6 +635,7 @@ fetchmany
 fetchone
 FieldMask
 Filebeat
+filebeat
 filehandle
 fileloc
 filelocs

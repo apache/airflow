@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import ast
 import os
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -26,7 +25,12 @@ from airflow.models import DagBag
 from airflow.providers.fab.www.security import permissions
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
-from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
+from tests_common.test_utils.db import (
+    clear_db_dag_code,
+    clear_db_dags,
+    clear_db_serialized_dags,
+    parse_and_sync_to_db,
+)
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = [
@@ -34,11 +38,7 @@ pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
 ]
 
-if TYPE_CHECKING:
-    from airflow.models.dag import DAG
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
-EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
 EXAMPLE_DAG_ID = "example_bash_operator"
 TEST_DAG_ID = "latest_only"
 NOT_READABLE_DAG_ID = "latest_only_with_trigger"
@@ -97,9 +97,9 @@ class TestGetSource:
         return docstring
 
     def test_should_respond_403_not_readable(self, url_safe_serializer):
-        dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
-        dagbag.sync_to_db()
-        dag: DAG = dagbag.dags[NOT_READABLE_DAG_ID]
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+        dagbag = DagBag(read_dags_from_db=True)
+        dag = dagbag.get_dag(NOT_READABLE_DAG_ID)
 
         response = self.client.get(
             f"/api/v1/dagSources/{dag.dag_id}",
@@ -114,9 +114,9 @@ class TestGetSource:
         assert read_dag.status_code == 403
 
     def test_should_respond_403_some_dags_not_readable_in_the_file(self, url_safe_serializer):
-        dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
-        dagbag.sync_to_db()
-        dag: DAG = dagbag.dags[TEST_MULTIPLE_DAGS_ID]
+        parse_and_sync_to_db(os.devnull, include_examples=True)
+        dagbag = DagBag(read_dags_from_db=True)
+        dag = dagbag.get_dag(TEST_MULTIPLE_DAGS_ID)
 
         response = self.client.get(
             f"/api/v1/dagSources/{dag.dag_id}",

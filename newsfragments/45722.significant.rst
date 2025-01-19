@@ -1,0 +1,18 @@
+Move airflow config ``scheduler.dag_dir_list_interval`` to ``dag_bundles.refresh_interval``
+
+* Types of change
+
+  * [ ] DAG changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency change
+  * [ ] Code interface change
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``scheduler.dag_dir_list_interval`` → ``dag_bundles.refresh_interval``

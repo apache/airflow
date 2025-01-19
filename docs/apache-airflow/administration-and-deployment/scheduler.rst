@@ -354,9 +354,6 @@ However, you can also look at other non-performance-related scheduler configurat
   queued tasks that were launched by the dead process will be "adopted" and
   monitored by this scheduler instead.
 
-- :ref:`config:scheduler__dag_dir_list_interval`
-  How often (in seconds) to scan the DAGs directory for new files.
-
 - :ref:`config:scheduler__file_parsing_sort_mode`
   The scheduler will list and sort the DAG files to decide the parsing order.
 

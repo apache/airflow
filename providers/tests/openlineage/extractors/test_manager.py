@@ -42,7 +42,11 @@ from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 if AIRFLOW_V_2_10_PLUS:
 
