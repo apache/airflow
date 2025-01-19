@@ -19,11 +19,11 @@
 import { Textarea } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
-import { useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
-export const FieldStringArray = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldStringArray = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
-
+  const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (newValue: string) => {
     const newValueArray = newValue.split("\n");
 

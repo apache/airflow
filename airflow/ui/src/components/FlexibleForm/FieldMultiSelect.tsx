@@ -20,7 +20,7 @@ import { Select as ReactSelect } from "chakra-react-select";
 import { useEffect, useState } from "react";
 
 import type { FlexibleFormElementProps } from ".";
-import { useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
@@ -30,7 +30,9 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
   return key;
 };
 
-export const FieldMultiSelect = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
   const [selectedOptions, setSelectedOptions] = useState(
     Array.isArray(param.value)
       ? (param.value as Array<string>).map((value) => ({
@@ -39,8 +41,6 @@ export const FieldMultiSelect = ({ name, param }: FlexibleFormElementProps) => {
         }))
       : [],
   );
-
-  const { paramsDict, setParamsDict } = useParamStore();
 
   useEffect(() => {
     if (paramsDict[name] && paramsDict[name].value !== undefined) {

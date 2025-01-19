@@ -25,12 +25,13 @@ import { useState } from "react";
 import { useColorMode } from "src/context/colorMode";
 
 import type { FlexibleFormElementProps } from ".";
-import { useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
-export const FieldObject = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldObject = ({ name }: FlexibleFormElementProps) => {
   const { colorMode } = useColorMode();
 
   const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
   const [error, setError] = useState<unknown>(undefined);
 
   const handleChange = (value: string) => {

@@ -19,10 +19,11 @@
 import { Input, type InputProps } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
-import { useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
-export const FieldDateTime = ({ name, param, ...rest }: FlexibleFormElementProps & InputProps) => {
+export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & InputProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name] && paramsDict[name].value !== undefined) {
       paramsDict[name].value = value;

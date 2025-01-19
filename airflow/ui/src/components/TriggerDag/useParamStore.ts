@@ -18,23 +18,27 @@
  */
 import { create } from "zustand";
 
-import type { DagParamsSpec, ParamSchema } from "src/queries/useDagParams";
+import type { DagParamsSpec, ParamSpec } from "src/queries/useDagParams";
 
-const defaultParamSchema: ParamSchema = {
-  const: undefined,
-  description_md: undefined,
-  enum: undefined,
-  examples: undefined,
-  format: undefined,
-  items: undefined,
-  maximum: undefined,
-  maxLength: undefined,
-  minimum: undefined,
-  minLength: undefined,
-  section: undefined,
-  title: undefined,
-  type: undefined,
-  values_display: undefined,
+export const paramPlaceholder: ParamSpec = {
+  description: undefined,
+  schema: {
+    const: undefined,
+    description_md: undefined,
+    enum: undefined,
+    examples: undefined,
+    format: undefined,
+    items: undefined,
+    maximum: undefined,
+    maxLength: undefined,
+    minimum: undefined,
+    minLength: undefined,
+    section: undefined,
+    title: undefined,
+    type: undefined,
+    values_display: undefined,
+  },
+  value: "",
 };
 
 type FormStore = {
@@ -64,7 +68,7 @@ export const useParamStore = create<FormStore>((set) => ({
             key,
             {
               description: existingParam?.description,
-              schema: existingParam?.schema ?? defaultParamSchema,
+              schema: existingParam?.schema ?? paramPlaceholder.schema,
               value: value as unknown,
             },
           ];

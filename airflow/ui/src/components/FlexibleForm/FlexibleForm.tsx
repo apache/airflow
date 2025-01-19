@@ -51,8 +51,8 @@ export const FlexibleForm = () => {
                         param.schema.section === currentSection ||
                         (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
                     )
-                    .map(([name, param]) => (
-                      <Row key={name} name={name} param={param} />
+                    .map(([name]) => (
+                      <Row key={name} name={name} />
                     ))}
                 </Stack>
               </Accordion.ItemContent>

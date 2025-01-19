@@ -22,7 +22,7 @@ import { useRef } from "react";
 import { Select } from "src/components/ui";
 
 import type { FlexibleFormElementProps } from ".";
-import { useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
@@ -33,7 +33,10 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
 };
 const enumTypes = ["string", "number", "integer"];
 
-export const FieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+
   const selectOptions = createListCollection({
     items:
       param.schema.enum?.map((value) => ({
@@ -43,7 +46,6 @@ export const FieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
   });
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const { paramsDict, setParamsDict } = useParamStore();
   const handleChange = (value: Array<string>) => {
     if (paramsDict[name] && paramsDict[name].value !== undefined) {
       paramsDict[name].value = value;

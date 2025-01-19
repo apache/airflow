@@ -17,11 +17,12 @@
  * under the License.
  */
 import type { FlexibleFormElementProps } from ".";
-import { useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 import { Switch } from "../ui";
 
-export const FieldBool = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldBool = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
   const onCheck = (value: boolean) => {
     if (paramsDict[name] && paramsDict[name].value !== undefined) {
       paramsDict[name].value = value;

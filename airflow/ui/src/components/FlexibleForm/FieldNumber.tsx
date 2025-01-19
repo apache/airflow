@@ -17,11 +17,12 @@
  * under the License.
  */
 import type { FlexibleFormElementProps } from ".";
-import { useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
 
-export const FieldNumber = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldNumber = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name] && paramsDict[name].value !== undefined) {
       paramsDict[name].value = Number(value);
