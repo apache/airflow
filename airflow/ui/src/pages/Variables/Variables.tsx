@@ -34,6 +34,7 @@ import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { TrimText } from "src/utils/TrimText";
+import { downloadJson } from "src/utils/downloadJson";
 
 import DeleteVariablesButton from "./DeleteVariablesButton";
 import ImportVariablesButton from "./ImportVariablesButton";
@@ -178,20 +179,6 @@ export const Variables = () => {
     }
   }, [selectedRows, data, selectedVariables]);
 
-  const handleExport = () => {
-    const jsonData = JSON.stringify(selectedVariables, undefined, 2);
-    const blob = new Blob([jsonData], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = "variables.json";
-    link.click();
-
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <>
       <VStack alignItems="none">
@@ -228,8 +215,8 @@ export const Variables = () => {
           <Tooltip content="Delete selected variables">
             <DeleteVariablesButton clearSelections={clearSelections} deleteKeys={[...selectedRows.keys()]} />
           </Tooltip>
-          <Tooltip content="Export selected variable coming soon..">
-            <Button onClick={handleExport} size="sm" variant="outline">
+          <Tooltip content="Export selected variables">
+            <Button onClick={() => downloadJson(selectedVariables, "variables")} size="sm" variant="outline">
               <FiShare />
               Export
             </Button>
