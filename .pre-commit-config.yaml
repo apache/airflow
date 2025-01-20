@@ -1220,9 +1220,10 @@ repos:
         name: Validate provider doc files
         entry: ./scripts/ci/pre_commit/check_provider_docs.py
         language: python
-        files: ^providers/src/airflow/providers/.*/provider\.yaml|^docs/.*
+        files: ^providers/.*/provider\.yaml|^docs/.*
         additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'jinja2']
         require_serial: true
+        pass_filenames: false
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"
