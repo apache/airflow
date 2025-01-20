@@ -22,13 +22,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.sdk import get_current_context
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasUniqueKey, AssetUniqueKey
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetAliasEvent,
+    AssetAliasUniqueKey,
+    AssetUniqueKey,
+)
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import AssetResult, ConnectionResult, ErrorResponse, VariableResult
 from airflow.sdk.execution_time.context import (
-    AssetAliasEvent,
     ConnectionAccessor,
     OutletEventAccessor,
     OutletEventAccessors,
