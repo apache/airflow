@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from flask import Blueprint, request, redirect, url_for
+from flask import Blueprint, redirect, url_for
 from flask_appbuilder import BaseView, expose
 from sqlalchemy import select
 
@@ -114,30 +114,30 @@ class EdgeWorkerHosts(BaseView):
         hosts = session.scalars(select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)).all()
         five_min_ago = datetime.now() - timedelta(minutes=5)
         return self.render_template("edge_worker_hosts.html", hosts=hosts, five_min_ago=five_min_ago)
-    
+
     @expose("/status/maintenance/<string:worker_name>/on")
     @has_access_view(AccessView.JOBS)
     @provide_session
     def worker_to_maintenance(self, worker_name: str, session: Session = NEW_SESSION):
-        from airflow.providers.edge.models.edge_worker import EdgeWorkerModel ,EdgeWorkerState
+        from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
         session.commit()
-        return redirect(url_for('EdgeWorkerHosts.status'))
+        return redirect(url_for("EdgeWorkerHosts.status"))
 
     @expose("/status/maintenance/<string:worker_name>/off")
     @has_access_view(AccessView.JOBS)
     @provide_session
     def remove_worker_from_maintenance(self, worker_name: str, session: Session = NEW_SESSION):
-        from airflow.providers.edge.models.edge_worker import EdgeWorkerModel ,EdgeWorkerState
+        from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.state = EdgeWorkerState.MAINTENANCE_EXIT
         session.commit()
-        return redirect(url_for('EdgeWorkerHosts.status'))
+        return redirect(url_for("EdgeWorkerHosts.status"))
 
 
 # Check if EdgeExecutor is actually loaded
