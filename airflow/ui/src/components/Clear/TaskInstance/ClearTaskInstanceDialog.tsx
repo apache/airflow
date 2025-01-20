@@ -136,6 +136,7 @@ const ClearTaskInstanceDialog = ({
                 mutatePatchTaskInstance({
                   dagId,
                   dagRunId,
+                  mapIndex,
                   requestBody: { note },
                   taskId,
                 });
