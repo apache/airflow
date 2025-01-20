@@ -828,6 +828,9 @@ if PACKAGE_NAME.startswith("apache-airflow-providers-"):
         )
     )
 
+    # Here we remove all other providers from the autoapi list, only leaving the current provider,
+    # Otherwise all the other provider indexes will no be found in any TOC.
+
     for p in load_package_data(include_suspended=True):
         if p["package-name"] == PACKAGE_NAME:
             continue
@@ -840,6 +843,9 @@ if PACKAGE_NAME.startswith("apache-airflow-providers-"):
         autoapi_dirs.append(test_dir)
 
         autoapi_ignore.extend(f"{d}/*" for d in test_dir.glob("*") if d.is_dir() and d.name != "system")
+    print("#### AUTOAPI_IGNORE:")
+    print(autoapi_ignore)
+    print("#### END OF AUTOAPI_IGNORE:")
 else:
     if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
         autoapi_dirs.append(SYSTEM_TESTS_DIR)
