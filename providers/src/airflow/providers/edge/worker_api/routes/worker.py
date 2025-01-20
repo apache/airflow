@@ -112,6 +112,21 @@ _worker_queue_doc = Body(
 )
 
 
+def redefine_state_if_maintenance(worker_state: EdgeWorkerState, body_state: EdgeWorkerState) -> EdgeWorkerState:
+    """Redefine the state of the worker based on maintenenace request."""
+    if worker_state == EdgeWorkerState.MAINTENANCE_REQUEST and body_state not in (EdgeWorkerState.MAINTENANCE_PENDING, EdgeWorkerState.MAINTENANCE_MODE):
+        return EdgeWorkerState.MAINTENANCE_REQUEST
+
+    if worker_state == EdgeWorkerState.MAINTENANCE_EXIT:
+        if body_state == EdgeWorkerState.MAINTENANCE_PENDING:
+            return EdgeWorkerState.RUNNING
+        if body_state == EdgeWorkerState.MAINTENANCE_MODE:
+            return EdgeWorkerState.IDLE
+            
+    return body_state
+
+
+
 @worker_router.post("/{worker_name}", dependencies=[Depends(jwt_token_authorization_rest)])
 def register(
     worker_name: Annotated[str, _worker_name_doc],
@@ -140,10 +155,8 @@ def set_state(
 ) -> Dict[str, str | list[str]] | None:
     """Set state of worker and returns the current assigned queues."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
-    if worker.state == EdgeWorkerState.MAINTENANCE_REQUEST and body.state not in (EdgeWorkerState.MAINTENANCE_PENDING, EdgeWorkerState.MAINTENANCE_MODE):
-        body.state = EdgeWorkerState.MAINTENANCE_REQUEST
-    worker.state = body.state
+    worker: EdgeWorkerModel = session.scalar(query)          
+    worker.state = redefine_state_if_maintenance(worker.state, body.state)
     worker.jobs_active = body.jobs_active
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
