@@ -43,7 +43,7 @@
               <th>Jobs Failed</th>
             -->
             <th>System Information</th>
-            <th>maintenance mode</th>
+            <th>Maintenance mode</th>
         </tr>
         {% for host in hosts %}
           <tr>
@@ -99,12 +99,16 @@
               </ul>
             </td>
             <td>
-              <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}" method="GET" target="hidden_iframe">
+              <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/on" method="GET" target="../edgeworkerhosts/status" style="display: inline;">
                 <button type="submit" style="padding: 10px 20px; background-color: #008d23; color: white; border: none; border-radius: 5px;">
                     ON
                 </button>
-              </form>
-              <iframe name="hidden_iframe" style="display:none;"></iframe>            
+              </form>       
+              <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/off" method="GET" target="../edgeworkerhosts/status" style="display: inline;">
+                <button type="submit" style="padding: 10px 20px; background-color: #8d0000; color: white; border: none; border-radius: 5px;">
+                    OFF
+                </button>
+              </form>          
             </td>
           </tr>
         {% endfor %}
