@@ -33,10 +33,6 @@ from collections.abc import Mapping, MutableMapping
 from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING, Any, Optional
 
-from celery import Celery, Task, states as celery_states
-from celery.backends.base import BaseKeyValueStoreBackend
-from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
-from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
 from sqlalchemy import select
 
@@ -50,14 +46,17 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.timeout import timeout
+from celery import Celery, Task, states as celery_states
+from celery.backends.base import BaseKeyValueStoreBackend
+from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
+from celery.signals import import_modules as celery_import_modules
 
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from celery.result import AsyncResult
-
     from airflow.executors.base_executor import CommandType, EventBufferValueType
     from airflow.models.taskinstance import TaskInstanceKey
+    from celery.result import AsyncResult
 
     TaskInstanceInCelery = tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 

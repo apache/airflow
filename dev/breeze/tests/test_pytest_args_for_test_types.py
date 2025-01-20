@@ -19,7 +19,17 @@ from __future__ import annotations
 import pytest
 
 from airflow_breeze.global_constants import GroupOfTests
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
+
+
+# TODO(potiuk): rename to all_providers when we move all providers to the new structure
+def _all_new_providers() -> list[str]:
+    all_new_providers: list[str] = []
+    for file in (AIRFLOW_SOURCES_ROOT / "providers").iterdir():
+        if file.is_dir() and not file.name.startswith(".") and file.name not in ["src", "tests"]:
+            all_new_providers.append(file.name)
+    return sorted(all_new_providers)
 
 
 @pytest.mark.parametrize(
@@ -66,7 +76,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             GroupOfTests.PROVIDERS,
             "Providers",
-            ["providers/airbyte/tests", "providers/edge/tests", "providers/tests"],
+            [*[f"providers/{provider}/tests" for provider in _all_new_providers()], "providers/tests"],
         ),
         (
             GroupOfTests.PROVIDERS,
@@ -87,8 +97,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google,microsoft.azure]",
             [
-                "providers/airbyte/tests",
-                "providers/edge/tests",
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
                 "providers/tests",
                 "--ignore=providers/tests/amazon",
                 "--ignore=providers/amazon",
@@ -107,8 +116,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
             GroupOfTests.PROVIDERS,
             "All-Quarantined",
             [
-                "providers/airbyte/tests",
-                "providers/edge/tests",
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
                 "providers/tests",
                 "-m",
                 "quarantined",
@@ -211,8 +219,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers",
             [
-                "providers/airbyte/tests",
-                "providers/edge/tests",
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
                 "providers/tests",
             ],
         ),
@@ -235,8 +242,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google]",
             [
-                "providers/airbyte/tests",
-                "providers/edge/tests",
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
                 "providers/tests",
             ],
         ),
@@ -244,8 +250,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google] Providers[amazon] Providers[google]",
             [
-                "providers/airbyte/tests",
-                "providers/edge/tests",
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
                 "providers/tests",
             ],
         ),

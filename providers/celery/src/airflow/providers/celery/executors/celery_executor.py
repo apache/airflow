@@ -35,7 +35,6 @@ from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, Optional
 
-from celery import states as celery_states
 from deprecated import deprecated
 
 from airflow.cli.cli_config import (
@@ -57,6 +56,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_2_8_PLUS
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
+from celery import states as celery_states
 
 log = logging.getLogger(__name__)
 
@@ -67,11 +67,10 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 if TYPE_CHECKING:
     import argparse
 
-    from celery import Task
-
     from airflow.executors.base_executor import CommandType, TaskTuple
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from celery import Task
 
     # Task instance that is sent over Celery queues
     # TaskInstanceKey, Command, queue_name, CallableTask

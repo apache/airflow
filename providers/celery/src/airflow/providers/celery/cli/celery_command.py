@@ -26,9 +26,6 @@ from multiprocessing import Process
 
 import psutil
 import sqlalchemy.exc
-from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
-from celery.app.defaults import DEFAULT_TASK_LOG_FMT
-from celery.signals import after_setup_logger
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
@@ -37,6 +34,9 @@ from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.serve_logs import serve_logs
+from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
+from celery.app.defaults import DEFAULT_TASK_LOG_FMT
+from celery.signals import after_setup_logger
 
 WORKER_PROCESS_NAME = "worker"
 
