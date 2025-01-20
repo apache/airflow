@@ -930,6 +930,14 @@ repos:
         files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
         pass_filenames: false
         require_serial: true
+      - id: check-pyproject-toml-consistency
+        name: Check consistency of Airflow's pyproject.toml
+        language: python
+        entry: ./scripts/ci/pre_commit/check_pyproject_toml_consistency.py
+        files: ^pyproject.toml$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4', 'tomli']
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python
