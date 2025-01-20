@@ -4520,6 +4520,7 @@ class TestSchedulerJob:
         ]
         assert dagrun_logical_dates == expected_logical_dates
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_do_schedule_max_active_runs_and_manual_trigger(self, dag_maker, mock_executors):
         """
         Make sure that when a DAG is already at max_active_runs, that manually triggered
