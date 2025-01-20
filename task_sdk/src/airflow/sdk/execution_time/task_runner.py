@@ -53,10 +53,7 @@ from airflow.sdk.execution_time.context import (
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
-    get_prev_data_interval_end_success,
-    get_prev_data_interval_start_success,
-    get_prev_end_date_success,
-    get_prev_start_date_success,
+    get_previous_dagrun_success,
     set_current_context,
 )
 from airflow.utils.net import get_hostname
@@ -136,15 +133,17 @@ class RuntimeTaskInstance(TaskInstance):
                 "ts_nodash": ts_nodash,
                 "ts_nodash_with_tz": ts_nodash_with_tz,
                 "prev_data_interval_start_success": lazy_object_proxy.Proxy(
-                    lambda: get_prev_data_interval_start_success(self.id)
+                    lambda: get_previous_dagrun_success(self.id).data_interval_start
                 ),
                 "prev_data_interval_end_success": lazy_object_proxy.Proxy(
-                    lambda: get_prev_data_interval_end_success(self.id)
+                    lambda: get_previous_dagrun_success(self.id).data_interval_end
                 ),
                 "prev_start_date_success": lazy_object_proxy.Proxy(
-                    lambda: get_prev_start_date_success(self.id)
+                    lambda: get_previous_dagrun_success(self.id).start_date
                 ),
-                "prev_end_date_success": lazy_object_proxy.Proxy(lambda: get_prev_end_date_success(self.id)),
+                "prev_end_date_success": lazy_object_proxy.Proxy(
+                    lambda: get_previous_dagrun_success(self.id).end_date
+                ),
             }
             context.update(context_from_server)
 

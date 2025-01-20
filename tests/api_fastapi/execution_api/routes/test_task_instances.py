@@ -831,13 +831,8 @@ class TestPreviousDagRun:
         response = client.get(f"/execution/task-instances/{ti.id}/previous_successful_dagrun")
         assert response.status_code == 200
         assert response.json() == {
-            "conf": {},
-            "dag_id": "test_dag",
             "data_interval_start": "2025-01-18T00:00:00Z",
             "data_interval_end": "2025-01-19T00:00:00Z",
-            "logical_date": "2025-01-18T00:00:00Z",
-            "run_id": "test_run_id_2",
-            "run_type": "scheduled",
             "start_date": "2024-01-17T00:00:00Z",
             "end_date": "2025-01-18T01:00:00Z",
         }
@@ -848,8 +843,10 @@ class TestPreviousDagRun:
         assert session.get(TaskInstance, ti_id) is None
 
         response = client.get(f"/execution/task-instances/{ti_id}/previous_successful_dagrun")
-        assert response.status_code == 404
-        assert response.json()["detail"] == {
-            "reason": "not_found",
-            "message": "Task Instance not found",
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "start_date": None,
+            "end_date": None,
         }

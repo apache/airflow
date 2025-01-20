@@ -31,6 +31,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
+    PrevSuccessfulDagRunResponse,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
@@ -400,7 +401,9 @@ def ti_put_rtif(
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance or Dag Run not found"},
     },
 )
-def get_previous_successful_dagrun(task_instance_id: UUID, session: SessionDep) -> DagRun:
+def get_previous_successful_dagrun(
+    task_instance_id: UUID, session: SessionDep
+) -> PrevSuccessfulDagRunResponse:
     """
     Get the previous successful DagRun for a TaskInstance.
 
@@ -409,13 +412,7 @@ def get_previous_successful_dagrun(task_instance_id: UUID, session: SessionDep) 
     ti_id_str = str(task_instance_id)
     task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
     if not task_instance:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "Task Instance not found",
-            },
-        )
+        return PrevSuccessfulDagRunResponse()
 
     dag_run = session.scalar(
         select(DR)
@@ -428,15 +425,9 @@ def get_previous_successful_dagrun(task_instance_id: UUID, session: SessionDep) 
         .limit(1)
     )
     if not dag_run:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": "No previous successful DagRun found",
-            },
-        )
+        return PrevSuccessfulDagRunResponse()
 
-    return DagRun.model_validate(dag_run)
+    return PrevSuccessfulDagRunResponse.model_validate(dag_run)
 
 
 def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:

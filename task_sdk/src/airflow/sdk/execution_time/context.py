@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, Union
 import attrs
 import structlog
 
-from airflow.sdk.api.datamodels._generated import DagRun
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -41,13 +40,17 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
 if TYPE_CHECKING:
-    from datetime import datetime
     from uuid import UUID
 
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.variable import Variable
-    from airflow.sdk.execution_time.comms import AssetResult, ConnectionResult, VariableResult
+    from airflow.sdk.execution_time.comms import (
+        AssetResult,
+        ConnectionResult,
+        PrevSuccessfulDagRunResponse,
+        VariableResult,
+    )
 
 log = structlog.get_logger(logger_name="task")
 
@@ -278,42 +281,20 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
 
 
 @cache  # Prevent multiple API access.
-def _get_previous_dagrun_success(ti_id: UUID) -> DagRun | None:
-    from airflow.sdk.execution_time.comms import DagRunResult, ErrorResponse, GetPrevSuccessfulDagRun
+def get_previous_dagrun_success(ti_id: UUID) -> PrevSuccessfulDagRunResponse:
+    from airflow.sdk.execution_time.comms import (
+        GetPrevSuccessfulDagRun,
+        PrevSuccessfulDagRunResponse,
+        PrevSuccessfulDagRunResult,
+    )
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     SUPERVISOR_COMMS.send_request(log=log, msg=GetPrevSuccessfulDagRun(ti_id=ti_id))
     msg = SUPERVISOR_COMMS.get_message()
-    if isinstance(msg, ErrorResponse):
-        if msg.error == ErrorType.DAGRUN_NOT_FOUND:
-            return None
-        raise AirflowRuntimeError(msg)
 
     if TYPE_CHECKING:
-        assert isinstance(msg, DagRunResult)
-    return DagRun(**msg.model_dump(exclude={"type"}))
-
-
-def get_prev_data_interval_start_success(ti_id: UUID) -> datetime | None:
-    dag_run = _get_previous_dagrun_success(ti_id)
-    return dag_run.data_interval_start if dag_run else None
-
-
-def get_prev_data_interval_end_success(ti_id: UUID) -> datetime | None:
-    dag_run = _get_previous_dagrun_success(ti_id)
-    return dag_run.data_interval_end if dag_run else None
-
-
-def get_prev_start_date_success(ti_id: UUID) -> datetime | None:
-    dag_run = _get_previous_dagrun_success(ti_id)
-    # TODO: Use timezone.coerce_datetime
-    return dag_run.start_date if dag_run else None
-
-
-def get_prev_end_date_success(ti_id: UUID) -> datetime | None:
-    dag_run = _get_previous_dagrun_success(ti_id)
-    # TODO: Use timezone.coerce_datetime
-    return dag_run.end_date if dag_run else None
+        assert isinstance(msg, PrevSuccessfulDagRunResult)
+    return PrevSuccessfulDagRunResponse(**msg.model_dump(exclude={"type"}))
 
 
 @contextlib.contextmanager

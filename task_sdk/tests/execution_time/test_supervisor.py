@@ -39,11 +39,10 @@ from uuid6 import uuid7
 from airflow.executors.workloads import BundleInfo
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
-from airflow.sdk.api.datamodels._generated import DagRunType, TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
-    DagRunResult,
     DeferTask,
     GetAssetByName,
     GetAssetByUri,
@@ -51,6 +50,7 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
     SetRenderedFields,
@@ -981,18 +981,18 @@ class TestHandleRequest:
             pytest.param(
                 GetPrevSuccessfulDagRun(ti_id=TI_ID),
                 (
-                    b'{"dag_id":"test_dag","run_id":"test_run","logical_date":"2024-10-31T12:00:00Z",'
-                    b'"start_date":"2024-10-31T12:00:00Z","run_type":"scheduled","type":"DagRunResult"}\n'
+                    b'{"data_interval_start":"2025-01-10T12:00:00Z","data_interval_end":"2025-01-10T14:00:00Z",'
+                    b'"start_date":"2025-01-10T12:00:00Z","end_date":"2025-01-10T14:00:00Z",'
+                    b'"type":"PrevSuccessfulDagRunResult"}\n'
                 ),
                 "task_instances.get_previous_successful_dagrun",
                 (TI_ID,),
                 {},
-                DagRunResult(
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    logical_date=timezone.parse("2024-10-31T12:00:00Z"),
-                    start_date=timezone.parse("2024-10-31T12:00:00Z"),
-                    run_type=DagRunType.SCHEDULED,
+                PrevSuccessfulDagRunResult(
+                    start_date=timezone.parse("2025-01-10T12:00:00Z"),
+                    end_date=timezone.parse("2025-01-10T14:00:00Z"),
+                    data_interval_start=timezone.parse("2025-01-10T12:00:00Z"),
+                    data_interval_end=timezone.parse("2025-01-10T14:00:00Z"),
                 ),
                 id="get_prev_successful_dagrun",
             ),
