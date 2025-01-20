@@ -589,6 +589,7 @@ components:
       - maintenance mode
       - maintenance request
       - maintenance pending
+      - maintenance exit
       title: EdgeWorkerState
       type: string
     WorkerStateBody:

@@ -81,13 +81,6 @@ def _make_generic_request(method: str, rest_path: str, data: str | None = None) 
     }
     api_endpoint = urljoin(api_url, rest_path)
     response = requests.request(method, url=api_endpoint, data=data, headers=headers)
-    logger.info("Response text: %s", response.text)
-    logger.info("Response headers: %s", response.headers)
-    try:
-        logger.info("Response json: %s", response.json())
-    except:
-        pass
-
     response.raise_for_status()
     if response.status_code == HTTPStatus.NO_CONTENT:
         return None
