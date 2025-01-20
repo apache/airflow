@@ -50,7 +50,7 @@ from tests_common.test_utils.db import clear_db_dag_bundles
                     {
                         "name": "my-bundle",
                         "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                        "kwargs": {"local_folder": "/tmp/hihi", "refresh_interval": 1},
+                        "kwargs": {"path": "/tmp/hihi", "refresh_interval": 1},
                     }
                 ]
             ),

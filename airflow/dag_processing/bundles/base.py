@@ -46,7 +46,13 @@ class BaseDagBundle(ABC):
 
     supports_versioning: bool = False
 
-    def __init__(self, *, name: str, refresh_interval: int = 300, version: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        name: str,
+        refresh_interval: int = conf.getint("dag_bundles", "refresh_interval"),
+        version: str | None = None,
+    ) -> None:
         self.name = name
         self.version = version
         self.refresh_interval = refresh_interval
