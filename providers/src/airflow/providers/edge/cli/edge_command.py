@@ -390,6 +390,8 @@ class _EdgeWorkerCli:
                     logger.info("Maintenance mode requested!")
                 _EdgeWorkerCli.maintenance_mode = True
             else:
+                if _EdgeWorkerCli.maintenance_mode:
+                    logger.info("Exit Maintenance mode requested!")
                 _EdgeWorkerCli.maintenance_mode = False
         except EdgeWorkerVersionException:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
