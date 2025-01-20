@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-20T13:51:33.933157
+# This constraints file was automatically generated on 2025-01-20T19:51:29.958775
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -310,7 +310,7 @@ jedi==0.19.2
 jeepney==0.8.0
 jiter==0.8.2
 jmespath==0.10.0
-joserfc==1.0.1
+joserfc==1.0.2
 jpype1==1.5.1
 json-merge-patch==0.2
 jsonpatch==1.33
@@ -383,12 +383,12 @@ nh3==0.2.20
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.59.8
+openai==1.59.9
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.26.0
-openlineage-python==1.26.0
-openlineage_sql==1.26.0
+openlineage-integration-common==1.27.0
+openlineage-python==1.27.0
+openlineage_sql==1.27.0
 openpyxl==3.1.5
 opensearch-py==2.8.0
 opentelemetry-api==1.27.0
@@ -437,7 +437,7 @@ pprintpp==0.4.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.1
-prompt_toolkit==3.0.49
+prompt_toolkit==3.0.50
 propcache==0.2.1
 proto-plus==1.25.0
 protobuf==4.25.5
