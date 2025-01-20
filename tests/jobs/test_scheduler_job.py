@@ -2190,7 +2190,9 @@ class TestSchedulerJob:
         assert [x.queued_dttm for x in tis] == [None, None]
 
         _queue_tasks(tis=tis)
-        log_events = [x.event for x in session.scalars(select(Log).where(Log.run_id == run_id)).all()]
+        log_events = [
+            x.event for x in session.scalars(select(Log).where(Log.run_id == run_id).order_by(Log.id)).all()
+        ]
         assert log_events == [
             "stuck in queued reschedule",
             "stuck in queued reschedule",
@@ -2199,7 +2201,9 @@ class TestSchedulerJob:
         with _loader_mock(mock_executors):
             scheduler._handle_tasks_stuck_in_queued()
 
-        log_events = [x.event for x in session.scalars(select(Log).where(Log.run_id == run_id)).all()]
+        log_events = [
+            x.event for x in session.scalars(select(Log).where(Log.run_id == run_id).order_by(Log.id)).all()
+        ]
         assert log_events == [
             "stuck in queued reschedule",
             "stuck in queued reschedule",
@@ -2213,7 +2217,9 @@ class TestSchedulerJob:
 
         with _loader_mock(mock_executors):
             scheduler._handle_tasks_stuck_in_queued()
-        log_events = [x.event for x in session.scalars(select(Log).where(Log.run_id == run_id)).all()]
+        log_events = [
+            x.event for x in session.scalars(select(Log).where(Log.run_id == run_id).order_by(Log.id)).all()
+        ]
         assert log_events == [
             "stuck in queued reschedule",
             "stuck in queued reschedule",
