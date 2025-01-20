@@ -419,7 +419,6 @@ def get_task_instances(
         limit=limit,
         session=session,
     )
-    print(task_instance_select)
     task_instances = session.scalars(task_instance_select)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
