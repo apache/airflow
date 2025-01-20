@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+import pytest
 from flask import redirect, request, session, url_for
 from flask_appbuilder import expose
 
@@ -66,6 +67,9 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         session.clear()
         return redirect(url_for("SimpleAuthManagerAuthenticationViews.login"))
 
+    @pytest.mark.skip(
+        "This test will be deleted soon, meanwhile disabling it because it is flaky. See: https://github.com/apache/airflow/issues/45818"
+    )
     @csrf.exempt
     @expose("/login_submit", methods=("GET", "POST"))
     def login_submit(self):
