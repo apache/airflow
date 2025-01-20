@@ -574,6 +574,8 @@ encodable
 encryptor
 enqueue
 enqueued
+EntryGroup
+EntryGroups
 entrypoint
 entrypoints
 Enum

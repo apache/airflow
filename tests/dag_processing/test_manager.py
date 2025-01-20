@@ -857,7 +857,7 @@ class TestDagFileProcessorManager:
         bundletwo.refresh_interval = 300
         bundletwo.get_current_version.return_value = None
 
-        with conf_vars({("dag_bundles", "backends"): json.dumps(config)}):
+        with conf_vars({("dag_bundles", "config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch(
                 "airflow.dag_processing.bundles.manager.DagBundlesManager"
@@ -910,7 +910,7 @@ class TestDagFileProcessorManager:
         mybundle.supports_versioning = True
         mybundle.get_current_version.return_value = "123"
 
-        with conf_vars({("dag_bundles", "backends"): json.dumps(config)}):
+        with conf_vars({("dag_bundles", "config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch(
                 "airflow.dag_processing.bundles.manager.DagBundlesManager"

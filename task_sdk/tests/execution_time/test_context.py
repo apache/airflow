@@ -22,12 +22,16 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.sdk import get_current_context
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasUniqueKey, AssetUniqueKey
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, VariableResult
+from airflow.sdk.execution_time.comms import AssetResult, ConnectionResult, ErrorResponse, VariableResult
 from airflow.sdk.execution_time.context import (
+    AssetAliasEvent,
     ConnectionAccessor,
+    OutletEventAccessor,
+    OutletEventAccessors,
     VariableAccessor,
     _convert_connection_result_conn,
     _convert_variable_result_to_variable,
@@ -248,3 +252,100 @@ class TestCurrentContext:
             assert ctx["ContextId"] == i
             # End of with statement
             ctx_list[i].__exit__(None, None, None)
+
+
+class TestOutletEventAccessor:
+    @pytest.mark.parametrize(
+        "key, asset_alias_events",
+        (
+            (AssetUniqueKey.from_asset(Asset("test_uri")), []),
+            (
+                AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
+                [
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_key=AssetUniqueKey(uri="test_uri", name="test_uri"),
+                        extra={},
+                    )
+                ],
+            ),
+        ),
+    )
+    def test_add(self, key, asset_alias_events, mock_supervisor_comms):
+        asset = Asset("test_uri")
+        mock_supervisor_comms.get_message.return_value = asset
+
+        outlet_event_accessor = OutletEventAccessor(key=key, extra={})
+        outlet_event_accessor.add(asset)
+        assert outlet_event_accessor.asset_alias_events == asset_alias_events
+
+    @pytest.mark.parametrize(
+        "key, asset_alias_events",
+        (
+            (AssetUniqueKey.from_asset(Asset("test_uri")), []),
+            (
+                AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
+                [
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_key=AssetUniqueKey(name="test-asset", uri="test://asset-uri/"),
+                        extra={},
+                    )
+                ],
+            ),
+        ),
+    )
+    def test_add_with_db(self, key, asset_alias_events, mock_supervisor_comms):
+        asset = Asset(uri="test://asset-uri", name="test-asset")
+        mock_supervisor_comms.get_message.return_value = asset
+
+        outlet_event_accessor = OutletEventAccessor(key=key, extra={"not": ""})
+        outlet_event_accessor.add(asset, extra={})
+        assert outlet_event_accessor.asset_alias_events == asset_alias_events
+
+
+class TestOutletEventAccessors:
+    @pytest.mark.parametrize(
+        "access_key, internal_key",
+        (
+            (Asset("test"), AssetUniqueKey.from_asset(Asset("test"))),
+            (
+                Asset(name="test", uri="test://asset"),
+                AssetUniqueKey.from_asset(Asset(name="test", uri="test://asset")),
+            ),
+            (AssetAlias("test_alias"), AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias"))),
+        ),
+    )
+    def test__get_item__dict_key_not_exists(self, access_key, internal_key):
+        outlet_event_accessors = OutletEventAccessors()
+        assert len(outlet_event_accessors) == 0
+        outlet_event_accessor = outlet_event_accessors[access_key]
+        assert len(outlet_event_accessors) == 1
+        assert outlet_event_accessor.key == internal_key
+        assert outlet_event_accessor.extra == {}
+
+    @pytest.mark.parametrize(
+        ["access_key", "asset"],
+        (
+            (Asset.ref(name="test"), Asset(name="test")),
+            (Asset.ref(name="test1"), Asset(name="test1", uri="test://asset-uri")),
+            (Asset.ref(uri="test://asset-uri"), Asset(uri="test://asset-uri")),
+        ),
+    )
+    def test__get_item__asset_ref(self, access_key, asset, mock_supervisor_comms):
+        """Test accessing OutletEventAccessors with AssetRef resolves to correct Asset."""
+        internal_key = AssetUniqueKey.from_asset(asset)
+        outlet_event_accessors = OutletEventAccessors()
+        assert len(outlet_event_accessors) == 0
+
+        # Asset from the API Server via the supervisor
+        mock_supervisor_comms.get_message.return_value = AssetResult(
+            name=asset.name,
+            uri=asset.uri,
+            group=asset.group,
+        )
+
+        outlet_event_accessor = outlet_event_accessors[access_key]
+        assert len(outlet_event_accessors) == 1
+        assert outlet_event_accessor.key == internal_key
+        assert outlet_event_accessor.extra == {}

@@ -488,14 +488,14 @@ class AssetRef(BaseAsset, AttrsInstance):
             )
 
 
-@attrs.define()
+@attrs.define(hash=True)
 class AssetNameRef(AssetRef):
     """Name reference to an asset."""
 
     name: str
 
 
-@attrs.define()
+@attrs.define(hash=True)
 class AssetUriRef(AssetRef):
     """URI reference to an asset."""
 

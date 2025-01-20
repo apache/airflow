@@ -64,6 +64,7 @@ from airflow.sdk.definitions.asset import (
     BaseAsset,
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.execution_time.context import AssetAliasEvent, OutletEventAccessor
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -77,10 +78,8 @@ from airflow.task.priority_strategy import (
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import (
-    AssetAliasEvent,
     ConnectionAccessor,
     Context,
-    OutletEventAccessor,
     OutletEventAccessors,
     VariableAccessor,
 )

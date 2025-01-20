@@ -20,15 +20,22 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.dataplex_v1 import DataplexServiceClient, DataScanServiceAsyncClient, DataScanServiceClient
+from google.cloud.dataplex_v1 import (
+    DataplexServiceClient,
+    DataScanServiceAsyncClient,
+    DataScanServiceClient,
+)
+from google.cloud.dataplex_v1.services.catalog_service import CatalogServiceClient
 from google.cloud.dataplex_v1.types import (
     Asset,
     DataScan,
     DataScanJob,
+    EntryGroup,
     Lake,
     Task,
     Zone,
@@ -47,6 +54,7 @@ if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
+    from google.cloud.dataplex_v1.services.catalog_service.pagers import ListEntryGroupsPager
     from googleapiclient.discovery import Resource
 
 PATH_DATA_SCAN = "projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
@@ -110,6 +118,14 @@ class DataplexHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
+    def get_dataplex_catalog_client(self) -> CatalogServiceClient:
+        """Return CatalogServiceClient."""
+        client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
+
+        return CatalogServiceClient(
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+        )
+
     def wait_for_operation(self, timeout: float | None, operation: Operation):
         """Wait for long-lasting operation to complete."""
         try:
@@ -117,6 +133,200 @@ class DataplexHook(GoogleBaseHook):
         except Exception:
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_entry_group(
+        self,
+        location: str,
+        entry_group_id: str,
+        entry_group_configuration: EntryGroup | dict,
+        project_id: str = PROVIDE_PROJECT_ID,
+        validate_only: bool = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Create an Entry resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_group_id: Required. EntryGroup identifier.
+        :param entry_group_configuration: Required. EntryGroup configuration body.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param validate_only: Optional. If set, performs request validation, but does not actually execute
+            the create request.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.create_entry_group(
+            request={
+                "parent": client.common_location_path(project_id, location),
+                "entry_group_id": entry_group_id,
+                "entry_group": entry_group_configuration,
+                "validate_only": validate_only,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_entry_group(
+        self,
+        location: str,
+        entry_group_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> EntryGroup:
+        """
+        Get an EntryGroup resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_group_id: Required. EntryGroup identifier.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.get_entry_group(
+            request={
+                "name": client.entry_group_path(project_id, location, entry_group_id),
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_entry_group(
+        self,
+        location: str,
+        entry_group_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Delete an EntryGroup resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_group_id: Required. EntryGroup identifier.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.delete_entry_group(
+            request={
+                "name": client.entry_group_path(project_id, location, entry_group_id),
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_entry_groups(
+        self,
+        location: str,
+        filter_by: str | None = None,
+        order_by: str | None = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> ListEntryGroupsPager:
+        """
+        List EntryGroups resources from specific location.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param filter_by: Optional. Filter to apply on the list results.
+        :param order_by: Optional. Fields to order the results by.
+        :param page_size: Optional. Maximum number of EntryGroups to return on one page.
+        :param page_token: Optional. Token to retrieve the next page of results.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.list_entry_groups(
+            request={
+                "parent": client.common_location_path(project_id, location),
+                "filter": filter_by,
+                "order_by": order_by,
+                "page_size": page_size,
+                "page_token": page_token,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_entry_group(
+        self,
+        location: str,
+        entry_group_id: str,
+        entry_group_configuration: dict | EntryGroup,
+        project_id: str = PROVIDE_PROJECT_ID,
+        update_mask: list[str] | FieldMask | None = None,
+        validate_only: bool | None = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Update an EntryGroup resource.
+
+        :param entry_group_id: Required. ID of the EntryGroup to update.
+        :param entry_group_configuration: Required. The updated configuration body of the EntryGroup.
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param update_mask: Optional. Names of fields whose values to overwrite on an entry group.
+            If this parameter is absent or empty, all modifiable fields are overwritten. If such
+            fields are non-required and omitted in the request body, their values are emptied.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param validate_only: Optional. The service validates the request without performing any mutations.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        _entry_group = (
+            deepcopy(entry_group_configuration)
+            if isinstance(entry_group_configuration, dict)
+            else EntryGroup.to_dict(entry_group_configuration)
+        )
+        _entry_group["name"] = client.entry_group_path(project_id, location, entry_group_id)
+        return client.update_entry_group(
+            request={
+                "entry_group": _entry_group,
+                "update_mask": FieldMask(paths=update_mask) if type(update_mask) is list else update_mask,
+                "validate_only": validate_only,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_task(

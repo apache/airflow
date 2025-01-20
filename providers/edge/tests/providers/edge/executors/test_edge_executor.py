@@ -107,7 +107,7 @@ class TestEdgeExecutor:
                         try_number=1,
                         state=state,
                         queue="default",
-                        command="dummy",
+                        command="mock",
                         concurrency_slots=1,
                         last_update=last_update,
                     )
@@ -153,7 +153,7 @@ class TestEdgeExecutor:
                         state=state,
                         queue="default",
                         concurrency_slots=1,
-                        command="dummy",
+                        command="mock",
                         last_update=last_update,
                     )
                 )
@@ -195,7 +195,7 @@ class TestEdgeExecutor:
                     state=state,
                     concurrency_slots=1,
                     queue="default",
-                    command="dummy",
+                    command="mock",
                     last_update=timezone.utcnow(),
                 )
             )
@@ -290,19 +290,19 @@ class TestEdgeExecutor:
             executor.queue_workload(command=["airflow", "tasks", "run", "hello", "world"])
 
         workload = ExecuteTask(
-            token="dummy",
+            token="mock",
             ti=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
-                task_id="dummy",
-                dag_id="dummy",
-                run_id="dummy",
+                task_id="mock",
+                dag_id="mock",
+                run_id="mock",
                 try_number=1,
                 pool_slots=1,
                 queue="default",
                 priority_weight=1,
             ),
-            dag_rel_path="dummy.py",
-            log_path="dummy.log",
+            dag_rel_path="mock.py",
+            log_path="mock.log",
             bundle_info={"name": "n/a", "version": "no matter"},
         )
         executor.queue_workload(workload=workload)
