@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-20T02:14:41.286122
+# This constraints file was automatically generated on 2025-01-20T13:51:33.667629
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -437,7 +437,7 @@ pprintpp==0.4.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.1
-prompt_toolkit==3.0.48
+prompt_toolkit==3.0.49
 propcache==0.2.1
 proto-plus==1.25.0
 protobuf==4.25.5
@@ -529,7 +529,7 @@ s3fs==2024.12.0
 s3transfer==0.11.1
 scramp==1.4.5
 scrapbook==0.5.0
-semver==3.0.3
+semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
 sentry-sdk==2.20.0
