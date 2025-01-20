@@ -144,6 +144,9 @@ class AbstractOperator(Templater, DAGNode):
     def inherits_from_empty_operator(self) -> bool:
         raise NotImplementedError()
 
+    _is_sensor: bool = False
+    _is_mapped: bool = False
+
     @property
     def dag_id(self) -> str:
         """Returns dag id if it has one or an adhoc + owner."""

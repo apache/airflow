@@ -55,21 +55,65 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
     onSuccessConfirm: onClose,
   });
 
-  const [selectedFile, setSelectedFile] = useState<Blob | File | undefined>(undefined);
-  const [actionIfExists, setActionIfExists] = useState<"fail" | "overwrite" | "skip" | undefined>("fail");
+  const [actionIfExists, setActionIfExists] = useState<"fail" | "overwrite" | "skip">("fail");
+  const [isParsing, setIsParsing] = useState(false);
+  const [fileContent, setFileContent] = useState<Record<string, string> | undefined>(undefined);
+
+  const onFileChange = (file: File) => {
+    setIsParsing(true);
+    const reader = new FileReader();
+
+    reader.addEventListener("load", (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsedContent = JSON.parse(text) as unknown;
+
+        if (
+          typeof parsedContent === "object" &&
+          parsedContent !== null &&
+          Object.entries(parsedContent).every(
+            ([key, value]) => typeof key === "string" && typeof value === "string",
+          )
+        ) {
+          const typedContent = parsedContent as Record<string, string>;
+
+          setFileContent(typedContent);
+        } else {
+          throw new Error("Invalid JSON format");
+        }
+      } catch {
+        setError({
+          body: {
+            detail:
+              'Error Parsing JSON File: Upload a JSON file containing variables (e.g., {"key": "value", ...}).',
+          },
+        });
+        setFileContent(undefined);
+      } finally {
+        setIsParsing(false);
+      }
+    });
+
+    reader.readAsText(file);
+  };
 
   const onSubmit = () => {
     setError(undefined);
-    if (selectedFile) {
-      const formData = new FormData();
+    if (fileContent) {
+      const formattedPayload = {
+        actions: [
+          {
+            action: "create" as const,
+            action_if_exists: actionIfExists,
+            variables: Object.entries(fileContent).map(([key, value]) => ({
+              key,
+              value,
+            })),
+          },
+        ],
+      };
 
-      formData.append("file", selectedFile);
-      mutate({
-        actionIfExists,
-        formData: {
-          file: selectedFile,
-        },
-      });
+      mutate({ requestBody: formattedPayload });
     }
   };
 
@@ -82,7 +126,11 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         mb={6}
         onFileChange={(files) => {
           if (files.acceptedFiles.length > 0) {
-            setSelectedFile(files.acceptedFiles[0]);
+            setError(undefined);
+            setFileContent(undefined);
+            if (files.acceptedFiles[0]) {
+              onFileChange(files.acceptedFiles[0]);
+            }
           }
         }}
         required
@@ -99,7 +147,8 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
                 focusVisibleRing="inside"
                 me="-1"
                 onClick={() => {
-                  setSelectedFile(undefined);
+                  setError(undefined);
+                  setFileContent(undefined);
                 }}
                 pointerEvents="auto"
                 size="xs"
@@ -112,6 +161,11 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         >
           <FileInput placeholder='Upload a JSON file containing variables (e.g., {"key": "value", ...})' />
         </InputGroup>
+        {isParsing ? (
+          <Center mt={2}>
+            <Spinner color="blue.solid" marginRight={2} size="sm" /> Parsing file...
+          </Center>
+        ) : undefined}
       </FileUpload.Root>
       <RadioCardRoot
         defaultValue="fail"
@@ -139,13 +193,13 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
       <ErrorAlert error={error} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         {isPending ? (
-          <Box bg="bg/80" inset="0" pos="absolute">
+          <Box bg="bg.muted" inset="0" pos="absolute">
             <Center h="full">
-              <Spinner borderWidth="4px" color="blue.500" size="xl" />
+              <Spinner borderWidth="4px" color="blue.solid" size="xl" />
             </Center>
           </Box>
         ) : undefined}
-        <Button colorPalette="blue" disabled={!selectedFile || isPending} onClick={onSubmit}>
+        <Button colorPalette="blue" disabled={!Boolean(fileContent) || isPending} onClick={onSubmit}>
           <FiUploadCloud /> Import
         </Button>
       </Box>

@@ -61,8 +61,11 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
 )
 from airflow.sdk.execution_time.comms import (
+    AssetResult,
     ConnectionResult,
     DeferTask,
+    GetAssetByName,
+    GetAssetByUri,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -787,6 +790,14 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+        elif isinstance(msg, GetAssetByName):
+            asset_resp = self.client.assets.get(name=msg.name)
+            asset_result = AssetResult.from_asset_response(asset_resp)
+            resp = asset_result.model_dump_json(exclude_unset=True).encode()
+        elif isinstance(msg, GetAssetByUri):
+            asset_resp = self.client.assets.get(uri=msg.uri)
+            asset_result = AssetResult.from_asset_response(asset_resp)
+            resp = asset_result.model_dump_json(exclude_unset=True).encode()
         else:
             log.error("Unhandled request", msg=msg)
             return

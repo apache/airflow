@@ -382,7 +382,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-openapi-spec-tags-to-be-sorted                     | Sort alphabetically openapi spec tags                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-providers-build-files                              | Update providers build files files                     |         |
+| update-providers-build-files                              | Update providers build files                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-providers-dependencies                             | Update dependencies for provider packages              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
