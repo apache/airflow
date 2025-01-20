@@ -320,7 +320,7 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/src/airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/src/airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
     rev: v1.0.0
@@ -349,7 +349,7 @@ repos:
         files: ^providers/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
       - id: update-providers-build-files
-        name: Update providers build files files
+        name: Update providers build files
         entry: ./scripts/ci/pre_commit/update_providers_build_files.py
         language: python
         pass_filenames: true

@@ -163,7 +163,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.definitions.protocols import RuntimeTaskInstanceProtocol
+    from airflow.sdk.types import OutletEventAccessorsProtocol, RuntimeTaskInstanceProtocol
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
@@ -2730,7 +2730,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
     def _register_asset_changes(
-        self, *, events: OutletEventAccessors, session: Session | None = None
+        self, *, events: OutletEventAccessorsProtocol, session: Session | None = None
     ) -> None:
         if session:
             TaskInstance._register_asset_changes_int(ti=self, events=events, session=session)
@@ -2740,7 +2740,7 @@ class TaskInstance(Base, LoggingMixin):
     @staticmethod
     @provide_session
     def _register_asset_changes_int(
-        ti: TaskInstance, *, events: OutletEventAccessors, session: Session = NEW_SESSION
+        ti: TaskInstance, *, events: OutletEventAccessorsProtocol, session: Session = NEW_SESSION
     ) -> None:
         if TYPE_CHECKING:
             assert ti.task

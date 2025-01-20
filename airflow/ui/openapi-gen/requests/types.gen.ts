@@ -138,10 +138,6 @@ export type BaseInfoResponse = {
   status: string | null;
 };
 
-export type Body_import_variables = {
-  file: Blob | File;
-};
-
 /**
  * Request body for Clear Task Instances endpoint.
  */
@@ -882,7 +878,6 @@ export type PluginResponse = {
   global_operator_extra_links: Array<string>;
   operator_extra_links: Array<string>;
   source: string;
-  ti_deps: Array<string>;
   listeners: Array<string>;
   timetables: Array<string>;
 };
@@ -1388,15 +1383,6 @@ export type VariableResponse = {
   value: string;
   description: string | null;
   is_encrypted: boolean;
-};
-
-/**
- * Import Variables serializer for responses.
- */
-export type VariablesImportResponse = {
-  created_variable_keys: Array<string>;
-  import_count: number;
-  created_count: number;
 };
 
 /**
@@ -2259,13 +2245,6 @@ export type BulkVariablesData = {
 };
 
 export type BulkVariablesResponse = VariableBulkResponse;
-
-export type ImportVariablesData = {
-  actionIfExists?: "overwrite" | "fail" | "skip";
-  formData: Body_import_variables;
-};
-
-export type ImportVariablesResponse = VariablesImportResponse;
 
 export type ReparseDagFileData = {
   fileToken: string;
@@ -4764,37 +4743,6 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/variables/import": {
-    post: {
-      req: ImportVariablesData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: VariablesImportResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Conflict
-         */
-        409: HTTPExceptionResponse;
-        /**
-         * Unprocessable Entity
-         */
-        422: HTTPExceptionResponse;
       };
     };
   };

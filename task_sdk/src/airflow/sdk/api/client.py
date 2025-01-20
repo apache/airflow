@@ -34,6 +34,7 @@ from uuid6 import uuid7
 
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     DagRunType,
     TerminalTIState,
@@ -267,6 +268,24 @@ class XComOperations:
         return {"ok": True}
 
 
+class AssetOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, name: str | None = None, uri: str | None = None) -> AssetResponse:
+        """Get Asset value from the API server."""
+        if name:
+            resp = self.client.get("assets/by-name", params={"name": name})
+        elif uri:
+            resp = self.client.get("assets/by-uri", params={"uri": uri})
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+
+        return AssetResponse.model_validate_json(resp.read())
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -373,6 +392,12 @@ class Client(httpx.Client):
     def xcoms(self) -> XComOperations:
         """Operations related to XComs."""
         return XComOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def assets(self) -> AssetOperations:
+        """Operations related to XComs."""
+        return AssetOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead
