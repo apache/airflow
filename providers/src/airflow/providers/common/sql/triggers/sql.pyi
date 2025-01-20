@@ -34,7 +34,7 @@ isort:skip_file
 from airflow.triggers.base import BaseTrigger, TriggerEvent as TriggerEvent
 
 from collections.abc import AsyncIterator
-from typing import Any, Coroutine
+from typing import Any
 
 
 class SQLExecuteQueryTrigger(BaseTrigger):
@@ -42,4 +42,4 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         self, sql: str | list[str], conn_id: str, hook_params: dict | None = None, **kwargs
     ) -> None: ...
     def serialize(self) -> tuple[str, dict[str, Any]]: ...
-    async def run(self) -> Coroutine[Any, Any, AsyncIterator[TriggerEvent]]: ...
+    async def run(self) -> AsyncIterator[TriggerEvent]: ...
