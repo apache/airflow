@@ -124,6 +124,7 @@ class EdgeWorkerHosts(BaseView):
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
+        session.commit()
         return redirect(url_for('status'))
 
     @expose("/status/maintenance/<string:worker_name>/off")
@@ -135,6 +136,7 @@ class EdgeWorkerHosts(BaseView):
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.state = EdgeWorkerState.MAINTENANCE_EXIT
+        session.commit()
         return redirect(url_for('status'))
 
 
