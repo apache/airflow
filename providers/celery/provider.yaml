@@ -22,7 +22,7 @@ description: |
     `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 state: ready
-source-date-epoch: 1734529029
+source-date-epoch: 1737371674
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.9.0
@@ -62,27 +62,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  # The Celery is known to introduce problems when upgraded to a MAJOR version. Airflow Core
-  # Uses Celery for CeleryExecutor, and we also know that Kubernetes Python client follows SemVer
-  # (https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions).
-  # Make sure that the limit here is synchronized with [celery] extra in the airflow core
-  # The 5.3.3/5.3.2 limit comes from https://github.com/celery/celery/issues/8470
-  - celery[redis]>=5.3.0,<6,!=5.3.3,!=5.3.2
-  - flower>=1.0.0
-  - google-re2>=1.0
-
-additional-extras:
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=7.4.0
-
-
 integrations:
   - integration-name: Celery
     external-doc-url: https://docs.celeryq.dev/en/stable/
-    logo: /integration-logos/celery/Celery.png
+    logo: /docs/integration-logo/Celery.png
     tags: [software]
 
 sensors:
