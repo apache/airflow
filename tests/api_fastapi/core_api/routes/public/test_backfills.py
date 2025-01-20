@@ -264,7 +264,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             url="/public/backfills",
             json=data,
         )
-        assert response.status_code == 409
+        assert response.status_code == 422
         assert response.json().get("detail") == f"{dag.dag_id} has no schedule"
 
     @pytest.mark.parametrize(
