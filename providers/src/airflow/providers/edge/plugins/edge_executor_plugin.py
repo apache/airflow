@@ -124,7 +124,7 @@ class EdgeWorkerHosts(BaseView):
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
-        return redirect(url_for('/status'))
+        return redirect(url_for('status'))
 
     @expose("/status/maintenance/<string:worker_name>/off")
     @has_access_view(AccessView.JOBS)
@@ -135,7 +135,7 @@ class EdgeWorkerHosts(BaseView):
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.state = EdgeWorkerState.MAINTENANCE_EXIT
-        return redirect(url_for('/status'))
+        return redirect(url_for('status'))
 
 
 # Check if EdgeExecutor is actually loaded
