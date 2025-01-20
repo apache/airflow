@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from flask import Blueprint, request
+from flask import Blueprint, request, redirect, url_for
 from flask_appbuilder import BaseView, expose
 from sqlalchemy import select
 
@@ -124,8 +124,7 @@ class EdgeWorkerHosts(BaseView):
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
-        session.commit()
-        return self.status(session)
+        return redirect(url_for('/status'))
 
     @expose("/status/maintenance/<string:worker_name>/off")
     @has_access_view(AccessView.JOBS)
@@ -136,8 +135,7 @@ class EdgeWorkerHosts(BaseView):
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.state = EdgeWorkerState.MAINTENANCE_EXIT
-        session.commit()
-        return self.status(session)
+        return redirect(url_for('/status'))
 
 
 # Check if EdgeExecutor is actually loaded
