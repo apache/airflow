@@ -18,9 +18,9 @@
  */
 
 /* eslint-disable unicorn/no-null */
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, type HttpHandler } from "msw";
 
-export const handlers = [
+export const handlers: Array<HttpHandler> = [
   http.get("/ui/dags/recent_dag_runs", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");

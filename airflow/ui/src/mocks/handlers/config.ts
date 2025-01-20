@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, type HttpHandler } from "msw";
 
-export const handlers = [
+export const handlers: Array<HttpHandler> = [
   http.get("/ui/config", () =>
     HttpResponse.json({
       audit_view_excluded_events: "gantt,landing_times,tries,duration,calendar,graph,grid,tree,tree_data",

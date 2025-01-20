@@ -18,9 +18,9 @@
  */
 
 /* eslint-disable unicorn/no-null */
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, type HttpHandler } from "msw";
 
-export const handlers = [
+export const handlers: Array<HttpHandler> = [
   http.get("/public/dags/tutorial_taskflow_api/details", () =>
     HttpResponse.json({
       asset_expression: null,

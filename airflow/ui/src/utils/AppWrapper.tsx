@@ -16,13 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RouterProvider } from "react-router-dom";
-import { createMemoryRouter } from "react-router-dom";
+import { RouterProvider, createMemoryRouter } from "react-router-dom";
 
 import { TimezoneProvider } from "src/context/timezone";
 import { routerConfig } from "src/router";
+import { BaseWrapper } from "src/utils/Wrapper";
 
 type Props = {
   readonly initialEntries: Array<string>;
@@ -30,21 +28,12 @@ type Props = {
 
 export const AppWrapper = ({ initialEntries }: Props) => {
   const router = createMemoryRouter(routerConfig, { basename: "/", initialEntries });
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: Infinity,
-      },
-    },
-  });
 
   return (
-    <ChakraProvider value={defaultSystem}>
-      <QueryClientProvider client={queryClient}>
-        <TimezoneProvider>
-          <RouterProvider router={router} />
-        </TimezoneProvider>
-      </QueryClientProvider>
-    </ChakraProvider>
+    <BaseWrapper>
+      <TimezoneProvider>
+        <RouterProvider router={router} />
+      </TimezoneProvider>
+    </BaseWrapper>
   );
 };

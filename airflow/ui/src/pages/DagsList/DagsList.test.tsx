@@ -18,21 +18,9 @@
  */
 import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
-import { setupServer, type SetupServerApi } from "msw/node";
-import { afterEach, describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect } from "vitest";
 
-import { handlers } from "src/mocks/handlers";
 import { AppWrapper } from "src/utils/AppWrapper";
-
-let server: SetupServerApi;
-
-beforeAll(() => {
-  server = setupServer(...handlers);
-  server.listen({ onUnhandledRequest: "bypass" });
-});
-
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 
 describe("Dag Filters", () => {
   it("Filter by selected last run state", async () => {
@@ -40,10 +28,10 @@ describe("Dag Filters", () => {
 
     await waitFor(() => expect(screen.getByTestId("dags-success-filter")).toBeInTheDocument());
     await waitFor(() => screen.getByTestId("dags-success-filter").click());
-    await waitFor(() => expect(screen.getByText(/tutorial_taskflow_api_success/iu)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
     await waitFor(() => expect(screen.getByTestId("dags-failed-filter")).toBeInTheDocument());
     await waitFor(() => screen.getByTestId("dags-failed-filter").click());
-    await waitFor(() => expect(screen.getByText(/tutorial_taskflow_api_failed/iu)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
   });
 });
