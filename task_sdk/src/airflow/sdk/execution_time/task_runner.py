@@ -137,7 +137,6 @@ class RuntimeTaskInstance(TaskInstance):
             }
             context.update(context_from_server)
 
-        # TODO: We should use/move TypeDict from airflow.utils.context.Context
         return context
 
     def render_templates(

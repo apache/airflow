@@ -1988,7 +1988,7 @@ def test_upgrade_to_newer_dependencies(
             id="Only Airflow docs changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/celery/file.py",),
+            ("providers/celery/src/airflow/providers/celery/file.py",),
             {"docs-list-as-string": "celery cncf.kubernetes"},
             id="Celery python files changed",
         ),

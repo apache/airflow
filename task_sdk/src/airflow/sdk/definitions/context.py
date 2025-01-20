@@ -27,7 +27,11 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.definitions.protocols import DagRunProtocol, RuntimeTaskInstanceProtocol
+    from airflow.sdk.types import (
+        DagRunProtocol,
+        OutletEventAccessorsProtocol,
+        RuntimeTaskInstanceProtocol,
+    )
 
 
 class Context(TypedDict, total=False):
@@ -38,8 +42,7 @@ class Context(TypedDict, total=False):
     dag_run: DagRunProtocol
     data_interval_end: datetime | None
     data_interval_start: datetime | None
-    # outlet_events: OutletEventAccessors
-    outlet_events: Any
+    outlet_events: OutletEventAccessorsProtocol
     ds: str
     ds_nodash: str
     expanded_ti_count: int | None
