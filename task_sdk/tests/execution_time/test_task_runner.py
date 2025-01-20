@@ -37,11 +37,12 @@ from airflow.exceptions import (
     AirflowTaskTerminated,
 )
 from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import DagRunType, TaskInstance, TerminalTIState
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
     ConnectionResult,
+    DagRunResult,
     DeferTask,
     GetConnection,
     GetVariable,
@@ -626,7 +627,7 @@ class TestRuntimeTaskInstance:
             "ti": runtime_ti,
         }
 
-    def test_get_context_with_ti_context_from_server(self, create_runtime_ti):
+    def test_get_context_with_ti_context_from_server(self, create_runtime_ti, mock_supervisor_comms):
         """Test the context keys are added when sent from API server (mocked)"""
         from airflow.utils import timezone
 
@@ -638,6 +639,17 @@ class TestRuntimeTaskInstance:
         runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
 
         dr = runtime_ti._ti_context_from_server.dag_run
+
+        mock_supervisor_comms.get_message.return_value = DagRunResult(
+            dag_id=dr.dag_id,
+            run_id=dr.run_id,
+            logical_date=dr.logical_date - timedelta(hours=1),
+            data_interval_end=dr.logical_date - timedelta(hours=1),
+            data_interval_start=dr.logical_date - timedelta(hours=2),
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+            run_type=dr.run_type,
+        )
 
         context = runtime_ti.get_template_context()
 
@@ -653,6 +665,10 @@ class TestRuntimeTaskInstance:
             "map_index_template": task.map_index_template,
             "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
+            "prev_data_interval_end_success": timezone.datetime(2024, 12, 1, 0, 0, 0),
+            "prev_data_interval_start_success": timezone.datetime(2024, 11, 30, 23, 0, 0),
+            "prev_end_date_success": timezone.datetime(2024, 12, 1, 1, 0, 0),
+            "prev_start_date_success": timezone.datetime(2024, 12, 1, 0, 0, 0),
             "run_id": "test_run",
             "task": task,
             "task_instance": runtime_ti,
@@ -669,6 +685,34 @@ class TestRuntimeTaskInstance:
             "ts_nodash": "20241201T010000",
             "ts_nodash_with_tz": "20241201T010000+0000",
         }
+
+    def test_lazy_loading_not_triggered_until_accessed(self, create_runtime_ti, mock_supervisor_comms):
+        """Ensure lazy-loaded attributes are not resolved until accessed."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        mock_supervisor_comms.get_message.return_value = DagRunResult(
+            dag_id="basic_task",
+            run_id="c",
+            logical_date=timezone.datetime(2025, 1, 1, 2, 0, 0),
+            data_interval_end=timezone.datetime(2025, 1, 1, 2, 0, 0),
+            data_interval_start=timezone.datetime(2025, 1, 1, 1, 0, 0),
+            start_date=timezone.datetime(2025, 1, 1, 1, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 2, 0, 0),
+            run_type=DagRunType.MANUAL,
+        )
+
+        # Generate the context
+        context = runtime_ti.get_template_context()
+
+        # Assert lazy attributes are not resolved initially
+        mock_supervisor_comms.get_message.assert_not_called()
+
+        # Access a lazy-loaded attribute to trigger computation
+        assert context["prev_data_interval_start_success"] == timezone.datetime(2025, 1, 1, 1, 0, 0)
+
+        # Now the lazy attribute should trigger the call
+        mock_supervisor_comms.get_message.assert_called_once()
 
     def test_get_connection_from_context(self, create_runtime_ti, mock_supervisor_comms):
         """Test that the connection is fetched from the API server via the Supervisor lazily when accessed"""

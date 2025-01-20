@@ -39,14 +39,16 @@ from uuid6 import uuid7
 from airflow.executors.workloads import BundleInfo
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import DagRunType, TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
+    DagRunResult,
     DeferTask,
     GetAssetByName,
     GetAssetByUri,
     GetConnection,
+    GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
     PutVariable,
@@ -975,6 +977,24 @@ class TestHandleRequest:
                 {"uri": "s3://bucket/obj"},
                 AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
                 id="get_asset_by_uri",
+            ),
+            pytest.param(
+                GetPrevSuccessfulDagRun(ti_id=TI_ID),
+                (
+                    b'{"dag_id":"test_dag","run_id":"test_run","logical_date":"2024-10-31T12:00:00Z",'
+                    b'"start_date":"2024-10-31T12:00:00Z","run_type":"scheduled","type":"DagRunResult"}\n'
+                ),
+                "task_instances.get_previous_successful_dagrun",
+                (TI_ID,),
+                {},
+                DagRunResult(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    logical_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    start_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    run_type=DagRunType.SCHEDULED,
+                ),
+                id="get_prev_successful_dagrun",
             ),
         ],
     )

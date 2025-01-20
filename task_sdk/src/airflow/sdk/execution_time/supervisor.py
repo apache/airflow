@@ -55,6 +55,7 @@ from pydantic import TypeAdapter
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
+    DagRun,
     IntermediateTIState,
     TaskInstance,
     TerminalTIState,
@@ -63,10 +64,12 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
+    DagRunResult,
     DeferTask,
     GetAssetByName,
     GetAssetByUri,
     GetConnection,
+    GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
     PutVariable,
@@ -798,6 +801,13 @@ class ActivitySubprocess(WatchedSubprocess):
             asset_resp = self.client.assets.get(uri=msg.uri)
             asset_result = AssetResult.from_asset_response(asset_resp)
             resp = asset_result.model_dump_json(exclude_unset=True).encode()
+        elif isinstance(msg, GetPrevSuccessfulDagRun):
+            dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
+            if isinstance(dagrun_resp, DagRun):
+                dagrun_result = DagRunResult.from_dagrun(dagrun_resp)
+                resp = dagrun_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = dagrun_resp.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return
