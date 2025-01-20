@@ -56,6 +56,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
+    AssetAliasEvent,
     AssetAliasUniqueKey,
     AssetAll,
     AssetAny,
@@ -64,7 +65,7 @@ from airflow.sdk.definitions.asset import (
     BaseAsset,
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.execution_time.context import AssetAliasEvent, OutletEventAccessor
+from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -80,7 +81,6 @@ from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import (
     ConnectionAccessor,
     Context,
-    OutletEventAccessors,
     VariableAccessor,
 )
 from airflow.utils.db import LazySelectSequence
