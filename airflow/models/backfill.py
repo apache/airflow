@@ -78,7 +78,7 @@ class DagNoScheduleException(AirflowException):
 
 class InvalidBackfillDirection(AirflowException):
     """
-    Raised when backfill is attempted in reverse with tasks that depend on past runs.
+    Raised when backfill is attempted in reverse order with tasks that depend on past runs.
 
     :meta private:
     """

@@ -2813,9 +2813,9 @@ export type $OpenApiTs = {
          */
         409: HTTPExceptionResponse;
         /**
-         * Validation Error
+         * Unprocessable Entity
          */
-        422: HTTPValidationError;
+        422: HTTPExceptionResponse;
       };
     };
   };
@@ -2964,9 +2964,9 @@ export type $OpenApiTs = {
          */
         409: HTTPExceptionResponse;
         /**
-         * Validation Error
+         * Unprocessable Entity
          */
-        422: HTTPValidationError;
+        422: HTTPExceptionResponse;
       };
     };
   };

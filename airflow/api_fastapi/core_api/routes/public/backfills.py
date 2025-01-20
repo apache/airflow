@@ -185,10 +185,7 @@ def cancel_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
 @backfills_router.post(
     path="",
     responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_404_NOT_FOUND,
-            status.HTTP_409_CONFLICT,
-        ]
+        [status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT, status.HTTP_422_UNPROCESSABLE_ENTITY]
     ),
 )
 def create_backfill(
@@ -214,18 +211,19 @@ def create_backfill(
         )
     except DagNoScheduleException:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"{backfill_request.dag_id} has no schedule",
         )
     except InvalidReprocessBehavior:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"{backfill_request.dag_id} has tasks for which depends_on_past=True. "
             "You must set reprocess behavior to reprocess completed or reprocess failed.",
         )
+
     except InvalidBackfillDirection:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
         )
 
@@ -233,10 +231,7 @@ def create_backfill(
 @backfills_router.post(
     path="/dry_run",
     responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_404_NOT_FOUND,
-            status.HTTP_409_CONFLICT,
-        ]
+        [status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT, status.HTTP_422_UNPROCESSABLE_ENTITY]
     ),
 )
 def create_backfill_dry_run(
@@ -261,18 +256,18 @@ def create_backfill_dry_run(
 
     except DagNoScheduleException:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"{body.dag_id} has no schedule",
         )
 
     except InvalidReprocessBehavior:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"{body.dag_id} has tasks for which depends_on_past=True. "
             "You must set reprocess behavior to reprocess completed or reprocess failed.",
         )
     except InvalidBackfillDirection:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
         )
