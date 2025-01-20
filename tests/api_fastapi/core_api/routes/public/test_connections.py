@@ -653,7 +653,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
                                 }
                             ],
-                            "action_if_exists": "skip",
+                            "action_on_existence": "skip",
                         }
                     ]
                 },
@@ -680,7 +680,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
                                 },
                             ],
-                            "action_if_exists": "skip",
+                            "action_on_existence": "skip",
                         }
                     ]
                 },
@@ -704,7 +704,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "description": "new_description",
                                 }
                             ],
-                            "action_if_exists": "overwrite",
+                            "action_on_existence": "overwrite",
                         }
                     ]
                 },
@@ -731,7 +731,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "login": TEST_CONN_LOGIN,
                                 },
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         }
                     ]
                 },
@@ -760,7 +760,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "description": "new_description",
                                 }
                             ],
-                            "action_if_not_exists": "skip",
+                            "action_on_existence": "skip",
                         }
                     ]
                 },
@@ -783,7 +783,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
                                 }
                             ],
-                            "action_if_not_exists": "skip",
+                            "action_on_existence": "skip",
                         }
                     ]
                 },
@@ -806,7 +806,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_existence": "fail",
                         }
                     ]
                 },
@@ -846,7 +846,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                         {
                             "action": "delete",
                             "connection_ids": ["NOT_EXISTING_CONN_ID"],
-                            "action_if_not_exists": "skip",
+                            "action_on_existence": "skip",
                         }
                     ]
                 },
@@ -864,7 +864,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                         {
                             "action": "delete",
                             "connection_ids": ["NOT_EXISTING_CONN_ID"],
-                            "action_if_not_exists": "fail",
+                            "action_on_existence": "fail",
                         }
                     ]
                 },
@@ -892,7 +892,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
                                 }
                             ],
-                            "action_if_exists": "skip",
+                            "action_on_existence": "skip",
                         },
                         {
                             "action": "update",
@@ -903,12 +903,12 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "description": "new_description",
                                 }
                             ],
-                            "action_if_not_exists": "skip",
+                            "action_on_existence": "skip",
                         },
                         {
                             "action": "delete",
                             "connection_ids": [TEST_CONN_ID],
-                            "action_if_not_exists": "skip",
+                            "action_on_existence": "skip",
                         },
                     ]
                 },
@@ -933,6 +933,5 @@ class TestBulkConnections(TestConnectionEndpoint):
         self.create_connections()
         response = test_client.patch("/public/connections", json=actions)
         response_data = response.json()
-        print(response_data)
         for connection_id, value in expected_results.items():
             assert response_data[connection_id] == value

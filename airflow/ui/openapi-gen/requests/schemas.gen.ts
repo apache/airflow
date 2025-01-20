@@ -482,6 +482,20 @@ export const $BaseInfoResponse = {
   description: "Base info serializer for responses.",
 } as const;
 
+export const $BulkAction = {
+  type: "string",
+  enum: ["create", "delete", "update"],
+  title: "BulkAction",
+  description: "Bulk Action to be performed on the used model.",
+} as const;
+
+export const $BulkActionOnExistence = {
+  type: "string",
+  enum: ["fail", "skip", "overwrite"],
+  title: "BulkActionOnExistence",
+  description: "Bulk Action to be taken if the entity already exists or not.",
+} as const;
+
 export const $ClearTaskInstancesBody = {
   properties: {
     dry_run: {
@@ -914,10 +928,12 @@ export const $ConnectionBulkBody = {
 export const $ConnectionBulkCreateAction = {
   properties: {
     action: {
-      type: "string",
-      const: "create",
-      title: "Action",
+      $ref: "#/components/schemas/BulkAction",
       default: "create",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
     },
     connections: {
       items: {
@@ -926,12 +942,6 @@ export const $ConnectionBulkCreateAction = {
       type: "array",
       title: "Connections",
       description: "A list of connections to be created.",
-    },
-    action_if_exists: {
-      type: "string",
-      enum: ["skip", "overwrite", "fail"],
-      title: "Action If Exists",
-      default: "fail",
     },
   },
   type: "object",
@@ -943,10 +953,12 @@ export const $ConnectionBulkCreateAction = {
 export const $ConnectionBulkDeleteAction = {
   properties: {
     action: {
-      type: "string",
-      const: "delete",
-      title: "Action",
+      $ref: "#/components/schemas/BulkAction",
       default: "delete",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
     },
     connection_ids: {
       items: {
@@ -955,12 +967,6 @@ export const $ConnectionBulkDeleteAction = {
       type: "array",
       title: "Connection Ids",
       description: "A list of connection IDs to be deleted.",
-    },
-    action_if_not_exists: {
-      type: "string",
-      enum: ["skip", "fail"],
-      title: "Action If Not Exists",
-      default: "fail",
     },
   },
   type: "object",
@@ -1017,10 +1023,12 @@ Fields are populated in the response only if the respective action was part of t
 export const $ConnectionBulkUpdateAction = {
   properties: {
     action: {
-      type: "string",
-      const: "update",
-      title: "Action",
+      $ref: "#/components/schemas/BulkAction",
       default: "update",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
     },
     connections: {
       items: {
@@ -1029,12 +1037,6 @@ export const $ConnectionBulkUpdateAction = {
       type: "array",
       title: "Connections",
       description: "A list of connections to be updated.",
-    },
-    action_if_not_exists: {
-      type: "string",
-      enum: ["skip", "fail"],
-      title: "Action If Not Exists",
-      default: "fail",
     },
   },
   type: "object",
@@ -5715,10 +5717,12 @@ export const $VariableBulkBody = {
 export const $VariableBulkCreateAction = {
   properties: {
     action: {
-      type: "string",
-      const: "create",
-      title: "Action",
+      $ref: "#/components/schemas/BulkAction",
       default: "create",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
     },
     variables: {
       items: {
@@ -5727,12 +5731,6 @@ export const $VariableBulkCreateAction = {
       type: "array",
       title: "Variables",
       description: "A list of variables to be created.",
-    },
-    action_if_exists: {
-      type: "string",
-      enum: ["skip", "overwrite", "fail"],
-      title: "Action If Exists",
-      default: "fail",
     },
   },
   type: "object",
@@ -5744,10 +5742,12 @@ export const $VariableBulkCreateAction = {
 export const $VariableBulkDeleteAction = {
   properties: {
     action: {
-      type: "string",
-      const: "delete",
-      title: "Action",
+      $ref: "#/components/schemas/BulkAction",
       default: "delete",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
     },
     keys: {
       items: {
@@ -5756,12 +5756,6 @@ export const $VariableBulkDeleteAction = {
       type: "array",
       title: "Keys",
       description: "A list of variable keys to be deleted.",
-    },
-    action_if_not_exists: {
-      type: "string",
-      enum: ["skip", "fail"],
-      title: "Action If Not Exists",
-      default: "fail",
     },
   },
   type: "object",
@@ -5818,10 +5812,12 @@ Fields are populated in the response only if the respective action was part of t
 export const $VariableBulkUpdateAction = {
   properties: {
     action: {
-      type: "string",
-      const: "update",
-      title: "Action",
+      $ref: "#/components/schemas/BulkAction",
       default: "update",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
     },
     variables: {
       items: {
@@ -5830,12 +5826,6 @@ export const $VariableBulkUpdateAction = {
       type: "array",
       title: "Variables",
       description: "A list of variables to be updated.",
-    },
-    action_if_not_exists: {
-      type: "string",
-      enum: ["skip", "fail"],
-      title: "Action If Not Exists",
-      default: "fail",
     },
   },
   type: "object",

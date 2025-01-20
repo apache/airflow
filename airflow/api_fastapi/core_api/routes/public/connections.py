@@ -27,6 +27,7 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkAction
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
     ConnectionBulkActionResponse,
@@ -152,15 +153,15 @@ def bulk_connections(
     results: dict[str, ConnectionBulkActionResponse] = {}
 
     for action in request.actions:
-        if action.action not in results:
-            results[action.action] = ConnectionBulkActionResponse()
+        if action.action.value not in results:
+            results[action.action.value] = ConnectionBulkActionResponse()
 
-        if action.action == "create":
-            handle_bulk_create(session, action, results[action.action])
-        elif action.action == "update":
-            handle_bulk_update(session, action, results[action.action])
-        elif action.action == "delete":
-            handle_bulk_delete(session, action, results[action.action])
+        if action.action == BulkAction.CREATE:
+            handle_bulk_create(session, action, results[action.action.value])  # type: ignore
+        elif action.action == BulkAction.UPDATE:
+            handle_bulk_update(session, action, results[action.action.value])  # type: ignore
+        elif action.action == BulkAction.DELETE:
+            handle_bulk_delete(session, action, results[action.action.value])  # type: ignore
 
     return ConnectionBulkResponse(**results)
 

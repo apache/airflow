@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.common import BulkAction, BulkBaseAction
 from airflow.utils.log.secrets_masker import redact
 
 
@@ -91,28 +92,25 @@ class ConnectionBody(BaseModel):
     extra: str | None = Field(default=None)
 
 
-class ConnectionBulkCreateAction(BaseModel):
+class ConnectionBulkCreateAction(BulkBaseAction):
     """Bulk Create Variable serializer for request bodies."""
 
-    action: Literal["create"] = "create"
+    action: BulkAction = BulkAction.CREATE
     connections: list[ConnectionBody] = Field(..., description="A list of connections to be created.")
-    action_if_exists: Literal["skip", "overwrite", "fail"] = "fail"
 
 
-class ConnectionBulkUpdateAction(BaseModel):
+class ConnectionBulkUpdateAction(BulkBaseAction):
     """Bulk Update Connection serializer for request bodies."""
 
-    action: Literal["update"] = "update"
+    action: BulkAction = BulkAction.UPDATE
     connections: list[ConnectionBody] = Field(..., description="A list of connections to be updated.")
-    action_if_not_exists: Literal["skip", "fail"] = "fail"
 
 
-class ConnectionBulkDeleteAction(BaseModel):
+class ConnectionBulkDeleteAction(BulkBaseAction):
     """Bulk Delete Connection serializer for request bodies."""
 
-    action: Literal["delete"] = "delete"
+    action: BulkAction = BulkAction.DELETE
     connection_ids: list[str] = Field(..., description="A list of connection IDs to be deleted.")
-    action_if_not_exists: Literal["skip", "fail"] = "fail"
 
 
 class ConnectionBulkBody(BaseModel):

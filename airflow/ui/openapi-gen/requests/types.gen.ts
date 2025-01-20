@@ -139,6 +139,16 @@ export type BaseInfoResponse = {
 };
 
 /**
+ * Bulk Action to be performed on the used model.
+ */
+export type BulkAction = "create" | "delete" | "update";
+
+/**
+ * Bulk Action to be taken if the entity already exists or not.
+ */
+export type BulkActionOnExistence = "fail" | "skip" | "overwrite";
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type ClearTaskInstancesBody = {
@@ -256,29 +266,25 @@ export type ConnectionBulkBody = {
  * Bulk Create Variable serializer for request bodies.
  */
 export type ConnectionBulkCreateAction = {
-  action?: "create";
+  action?: BulkAction;
+  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of connections to be created.
    */
   connections: Array<ConnectionBody>;
-  action_if_exists?: "skip" | "overwrite" | "fail";
 };
-
-export type action_if_exists = "skip" | "overwrite" | "fail";
 
 /**
  * Bulk Delete Connection serializer for request bodies.
  */
 export type ConnectionBulkDeleteAction = {
-  action?: "delete";
+  action?: BulkAction;
+  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of connection IDs to be deleted.
    */
   connection_ids: Array<string>;
-  action_if_not_exists?: "skip" | "fail";
 };
-
-export type action_if_not_exists = "skip" | "fail";
 
 /**
  * Serializer for responses to bulk connection operations.
@@ -306,12 +312,12 @@ export type ConnectionBulkResponse = {
  * Bulk Update Connection serializer for request bodies.
  */
 export type ConnectionBulkUpdateAction = {
-  action?: "update";
+  action?: BulkAction;
+  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of connections to be updated.
    */
   connections: Array<ConnectionBody>;
-  action_if_not_exists?: "skip" | "fail";
 };
 
 /**
@@ -1393,24 +1399,24 @@ export type VariableBulkBody = {
  * Bulk Create Variable serializer for request bodies.
  */
 export type VariableBulkCreateAction = {
-  action?: "create";
+  action?: BulkAction;
+  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of variables to be created.
    */
   variables: Array<VariableBody>;
-  action_if_exists?: "skip" | "overwrite" | "fail";
 };
 
 /**
  * Bulk Delete Variable serializer for request bodies.
  */
 export type VariableBulkDeleteAction = {
-  action?: "delete";
+  action?: BulkAction;
+  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of variable keys to be deleted.
    */
   keys: Array<string>;
-  action_if_not_exists?: "skip" | "fail";
 };
 
 /**
@@ -1439,12 +1445,12 @@ export type VariableBulkResponse = {
  * Bulk Update Variable serializer for request bodies.
  */
 export type VariableBulkUpdateAction = {
-  action?: "update";
+  action?: BulkAction;
+  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of variables to be updated.
    */
   variables: Array<VariableBody>;
-  action_if_not_exists?: "skip" | "fail";
 };
 
 /**

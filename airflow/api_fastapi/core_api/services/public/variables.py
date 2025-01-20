@@ -21,6 +21,7 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow.api_fastapi.core_api.datamodels.common import BulkActionOnExistence
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
     VariableBulkActionResponse,
@@ -47,12 +48,12 @@ def handle_bulk_create(
     matched_keys, not_found_keys = categorize_keys(session, to_create_keys)
 
     try:
-        if action.action_if_exists == "fail" and matched_keys:
+        if action.action_on_existence == BulkActionOnExistence.FAIL and matched_keys:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"The variables with these keys: {matched_keys} already exist.",
             )
-        elif action.action_if_exists == "skip":
+        elif action.action_on_existence == BulkActionOnExistence.SKIP:
             create_keys = not_found_keys
         else:
             create_keys = to_create_keys
@@ -76,12 +77,12 @@ def handle_bulk_update(
     matched_keys, not_found_keys = categorize_keys(session, to_update_keys)
 
     try:
-        if action.action_if_not_exists == "fail" and not_found_keys:
+        if action.action_on_existence == BulkActionOnExistence.FAIL and not_found_keys:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The variables with these keys: {not_found_keys} were not found.",
             )
-        elif action.action_if_not_exists == "skip":
+        elif action.action_on_existence == BulkActionOnExistence.SKIP:
             update_keys = matched_keys
         else:
             update_keys = to_update_keys
@@ -111,12 +112,12 @@ def handle_bulk_delete(
     matched_keys, not_found_keys = categorize_keys(session, to_delete_keys)
 
     try:
-        if action.action_if_not_exists == "fail" and not_found_keys:
+        if action.action_on_existence == BulkActionOnExistence.FAIL and not_found_keys:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The variables with these keys: {not_found_keys} were not found.",
             )
-        elif action.action_if_not_exists == "skip":
+        elif action.action_on_existence == BulkActionOnExistence.SKIP:
             delete_keys = matched_keys
         else:
             delete_keys = to_delete_keys
