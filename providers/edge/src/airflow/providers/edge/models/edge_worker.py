@@ -122,7 +122,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
             if queue_name in queues:
                 queues.remove(queue_name)
         self.queues = queues
-    
+
     def update_state(self, state: str) -> None:
         """Updates state field."""
         self.state = state
