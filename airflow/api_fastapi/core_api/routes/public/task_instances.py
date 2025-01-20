@@ -126,7 +126,17 @@ def get_mapped_task_instances(
         SortParam,
         Depends(
             SortParam(
-                ["id", "state", "duration", "start_date", "end_date", "map_index", "rendered_map_index"],
+                [
+                    "id",
+                    "state",
+                    "duration",
+                    "start_date",
+                    "end_date",
+                    "map_index",
+                    "try_number",
+                    "logical_date",
+                    "rendered_map_index",
+                ],
                 TI,
             ).dynamic_depends(default="map_index")
         ),
@@ -349,7 +359,17 @@ def get_task_instances(
         SortParam,
         Depends(
             SortParam(
-                ["id", "state", "duration", "start_date", "end_date", "map_index"],
+                [
+                    "id",
+                    "state",
+                    "duration",
+                    "start_date",
+                    "end_date",
+                    "map_index",
+                    "try_number",
+                    "logical_date",
+                    "rendered_map_index",
+                ],
                 TI,
             ).dynamic_depends(default="map_index")
         ),
@@ -399,6 +419,7 @@ def get_task_instances(
         limit=limit,
         session=session,
     )
+    print(task_instance_select)
     task_instances = session.scalars(task_instance_select)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
