@@ -1343,14 +1343,14 @@ repos:
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
-        files: ^providers/src/airflow/providers/.*\.py$|^providers/tests//.*\.py$
+        files: ^providers/src/airflow/providers/.*\.py$|^providers/tests//.*\.py$|^providers/.*/src/.*\.py$|^providers/.*/tests/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         stages: ['manual']
         name: Run mypy for providers (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py providers/src/airflow/providers
+        entry: ./scripts/ci/pre_commit/mypy_folder.py providers/src/airflow/providers all_new_providers
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

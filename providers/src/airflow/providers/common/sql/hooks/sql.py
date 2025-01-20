@@ -324,8 +324,8 @@ class DbApiHook(BaseHook):
                 return import_string(dialect_info["dialect_class_name"])(self)
             except ImportError:
                 raise AirflowOptionalProviderFeatureException(
-                    f"{dialect_info.dialect_class_name} not found, run: pip install "
-                    f"'{dialect_info.provider_name}'."
+                    f"{dialect_info['dialect_class_name']} not found, run: pip install "
+                    f"'{dialect_info['provider_name']}'."
                 )
         return Dialect(self)
 
