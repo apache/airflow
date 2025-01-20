@@ -260,7 +260,7 @@ def test_query(
         cursors = []
         for index in range(len(cursor_descriptions)):
             cur = mock.MagicMock(
-                rowcount=len(cursor_results[index]),
+                rowcount=lambda: len(cursor_results[index]),
             )
             cur.columns.return_value = get_columns(cursor_descriptions[index])
             cur.fetchall.return_value = cursor_results[index]
@@ -287,7 +287,7 @@ def test_query(
 )
 def test_no_query(empty_statement):
     dbapi_hook = ExasolHookForTests()
-    dbapi_hook.get_conn.return_value.cursor.rowcount = 0
+    dbapi_hook.get_conn.return_value.cursor.rowcount = lambda: 0
     with pytest.raises(ValueError) as err:
         dbapi_hook.run(sql=empty_statement)
     assert err.value.args[0] == "List of SQL statements is empty"

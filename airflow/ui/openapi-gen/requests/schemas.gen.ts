@@ -482,19 +482,6 @@ export const $BaseInfoResponse = {
   description: "Base info serializer for responses.",
 } as const;
 
-export const $Body_import_variables = {
-  properties: {
-    file: {
-      type: "string",
-      format: "binary",
-      title: "File",
-    },
-  },
-  type: "object",
-  required: ["file"],
-  title: "Body_import_variables",
-} as const;
-
 export const $ClearTaskInstancesBody = {
   properties: {
     dry_run: {
@@ -5747,30 +5734,6 @@ export const $VariableResponse = {
   required: ["key", "value", "description", "is_encrypted"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
-} as const;
-
-export const $VariablesImportResponse = {
-  properties: {
-    created_variable_keys: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Created Variable Keys",
-    },
-    import_count: {
-      type: "integer",
-      title: "Import Count",
-    },
-    created_count: {
-      type: "integer",
-      title: "Created Count",
-    },
-  },
-  type: "object",
-  required: ["created_variable_keys", "import_count", "created_count"],
-  title: "VariablesImportResponse",
-  description: "Import Variables serializer for responses.",
 } as const;
 
 export const $VersionInfo = {

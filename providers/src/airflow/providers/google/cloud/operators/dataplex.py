@@ -20,7 +20,10 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
+
+from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.triggers.dataplex import (
@@ -33,15 +36,26 @@ if TYPE_CHECKING:
 
     from airflow.utils.context import Context
 
-from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
+from google.api_core.exceptions import AlreadyExists, GoogleAPICallError, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
-from google.cloud.dataplex_v1.types import Asset, DataScan, DataScanJob, Lake, Task, Zone
+from google.cloud.dataplex_v1.types import (
+    Asset,
+    DataScan,
+    DataScanJob,
+    EntryGroup,
+    Lake,
+    ListEntryGroupsResponse,
+    Task,
+    Zone,
+)
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
 from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanException, DataplexHook
 from airflow.providers.google.cloud.links.dataplex import (
+    DataplexCatalogEntryGroupLink,
+    DataplexCatalogEntryGroupsLink,
     DataplexLakeLink,
     DataplexTaskLink,
     DataplexTasksLink,
@@ -2093,3 +2107,475 @@ class DataplexDeleteAssetOperator(GoogleCloudBaseOperator):
         )
         hook.wait_for_operation(timeout=self.timeout, operation=operation)
         self.log.info("Dataplex asset %s deleted successfully!", self.asset_id)
+
+
+class DataplexCatalogBaseOperator(GoogleCloudBaseOperator):
+    """
+    Base class for all Dataplex Catalog operators.
+
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "location",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        project_id: str,
+        location: str,
+        gcp_conn_id: str = "google_cloud_default",
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+
+    @cached_property
+    def hook(self) -> DataplexHook:
+        return DataplexHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+
+class DataplexCatalogCreateEntryGroupOperator(DataplexCatalogBaseOperator):
+    """
+    Create an EntryGroup resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogCreateEntryGroupOperator`
+
+    :param entry_group_id: Required. EntryGroup identifier.
+    :param entry_group_configuration: Required. EntryGroup configuration.
+        For more details please see API documentation:
+        https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.entryGroups#EntryGroup
+    :param validate_request: Optional. If set, performs request validation, but does not actually
+        execute the request.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"entry_group_id", "entry_group_configuration"} | set(DataplexCatalogBaseOperator.template_fields)
+    )
+    operator_extra_links = (DataplexCatalogEntryGroupLink(),)
+
+    def __init__(
+        self,
+        entry_group_id: str,
+        entry_group_configuration: EntryGroup | dict,
+        validate_request: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.entry_group_id = entry_group_id
+        self.entry_group_configuration = entry_group_configuration
+        self.validate_request = validate_request
+
+    def execute(self, context: Context):
+        DataplexCatalogEntryGroupLink.persist(
+            context=context,
+            task_instance=self,
+        )
+
+        if self.validate_request:
+            self.log.info("Validating a Create Dataplex Catalog EntryGroup request.")
+        else:
+            self.log.info("Creating a Dataplex Catalog EntryGroup.")
+
+        try:
+            operation = self.hook.create_entry_group(
+                entry_group_id=self.entry_group_id,
+                entry_group_configuration=self.entry_group_configuration,
+                location=self.location,
+                project_id=self.project_id,
+                validate_only=self.validate_request,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            entry_group = self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        except AlreadyExists:
+            entry_group = self.hook.get_entry_group(
+                entry_group_id=self.entry_group_id,
+                location=self.location,
+                project_id=self.project_id,
+            )
+            self.log.info(
+                "Dataplex Catalog EntryGroup %s already exists.",
+                self.entry_group_id,
+            )
+            result = EntryGroup.to_dict(entry_group)
+            return result
+        except Exception as ex:
+            raise AirflowException(ex)
+        else:
+            result = EntryGroup.to_dict(entry_group) if not self.validate_request else None
+
+        if not self.validate_request:
+            self.log.info("Dataplex Catalog EntryGroup %s was successfully created.", self.entry_group_id)
+        return result
+
+
+class DataplexCatalogGetEntryGroupOperator(DataplexCatalogBaseOperator):
+    """
+    Get an EntryGroup resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogGetEntryGroupOperator`
+
+    :param entry_group_id: Required. EntryGroup identifier.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"entry_group_id"} | set(DataplexCatalogBaseOperator.template_fields)
+    )
+    operator_extra_links = (DataplexCatalogEntryGroupLink(),)
+
+    def __init__(
+        self,
+        entry_group_id: str,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.entry_group_id = entry_group_id
+
+    def execute(self, context: Context):
+        DataplexCatalogEntryGroupLink.persist(
+            context=context,
+            task_instance=self,
+        )
+        self.log.info(
+            "Retrieving Dataplex Catalog EntryGroup %s.",
+            self.entry_group_id,
+        )
+        try:
+            entry_group = self.hook.get_entry_group(
+                entry_group_id=self.entry_group_id,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except NotFound:
+            self.log.info(
+                "Dataplex Catalog EntryGroup %s not found.",
+                self.entry_group_id,
+            )
+            raise AirflowException(NotFound)
+        except Exception as ex:
+            raise AirflowException(ex)
+
+        return EntryGroup.to_dict(entry_group)
+
+
+class DataplexCatalogDeleteEntryGroupOperator(DataplexCatalogBaseOperator):
+    """
+    Delete an EntryGroup resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogDeleteEntryGroupOperator`
+
+    :param entry_group_id: Required. EntryGroup identifier.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"entry_group_id"} | set(DataplexCatalogBaseOperator.template_fields)
+    )
+
+    def __init__(
+        self,
+        entry_group_id: str,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.entry_group_id = entry_group_id
+
+    def execute(self, context: Context):
+        self.log.info(
+            "Deleting Dataplex Catalog EntryGroup %s.",
+            self.entry_group_id,
+        )
+        try:
+            operation = self.hook.delete_entry_group(
+                entry_group_id=self.entry_group_id,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
+
+        except NotFound:
+            self.log.info(
+                "Dataplex Catalog EntryGroup %s not found.",
+                self.entry_group_id,
+            )
+            raise AirflowException(NotFound)
+        except Exception as ex:
+            raise AirflowException(ex)
+        return None
+
+
+class DataplexCatalogListEntryGroupsOperator(DataplexCatalogBaseOperator):
+    """
+    List EntryGroup resources.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogListEntryGroupsOperator`
+
+    :param filter_by: Optional. Filter to apply on the list results.
+    :param order_by: Optional. Fields to order the results by.
+    :param page_size: Optional. Maximum number of EntryGroups to return on the page.
+    :param page_token: Optional. Token to retrieve the next page of results.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(DataplexCatalogBaseOperator.template_fields)
+    operator_extra_links = (DataplexCatalogEntryGroupsLink(),)
+
+    def __init__(
+        self,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter_by: str | None = None,
+        order_by: str | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.page_size = page_size
+        self.page_token = page_token
+        self.filter_by = filter_by
+        self.order_by = order_by
+
+    def execute(self, context: Context):
+        DataplexCatalogEntryGroupsLink.persist(
+            context=context,
+            task_instance=self,
+        )
+        self.log.info(
+            "Listing Dataplex Catalog EntryGroup from location %s.",
+            self.location,
+        )
+        try:
+            entry_group_on_page = self.hook.list_entry_groups(
+                location=self.location,
+                project_id=self.project_id,
+                page_size=self.page_size,
+                page_token=self.page_token,
+                filter_by=self.filter_by,
+                order_by=self.order_by,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("EntryGroup on page: %s", entry_group_on_page)
+            self.xcom_push(
+                context=context,
+                key="entry_group_page",
+                value=ListEntryGroupsResponse.to_dict(entry_group_on_page._response),
+            )
+        except Exception as ex:
+            raise AirflowException(ex)
+
+        # Constructing list to return EntryGroups in readable format
+        entry_groups_list = [
+            MessageToDict(entry_group._pb, preserving_proto_field_name=True)
+            for entry_group in next(iter(entry_group_on_page.pages)).entry_groups
+        ]
+        return entry_groups_list
+
+
+class DataplexCatalogUpdateEntryGroupOperator(DataplexCatalogBaseOperator):
+    """
+    Update an EntryGroup resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogUpdateEntryGroupOperator`
+
+    :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
+    :param location: Required. The ID of the Google Cloud region that the task belongs to.
+    :param update_mask: Optional. Names of fields whose values to overwrite on an entry group.
+        If this parameter is absent or empty, all modifiable fields are overwritten. If such
+        fields are non-required and omitted in the request body, their values are emptied.
+    :param entry_group_id: Required. ID of the EntryGroup to update.
+    :param entry_group_configuration: Required. The updated configuration body of the EntryGroup.
+        For more details please see API documentation:
+        https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.entryGroups#EntryGroup
+    :param validate_only: Optional. The service validates the request without performing any mutations.
+    :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param gcp_conn_id: Optional. The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"entry_group_id", "entry_group_configuration", "update_mask"}
+        | set(DataplexCatalogBaseOperator.template_fields)
+    )
+    operator_extra_links = (DataplexCatalogEntryGroupLink(),)
+
+    def __init__(
+        self,
+        entry_group_id: str,
+        entry_group_configuration: dict | EntryGroup,
+        update_mask: list[str] | FieldMask | None = None,
+        validate_request: bool | None = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.entry_group_id = entry_group_id
+        self.entry_group_configuration = entry_group_configuration
+        self.update_mask = update_mask
+        self.validate_request = validate_request
+
+    def execute(self, context: Context):
+        DataplexCatalogEntryGroupLink.persist(
+            context=context,
+            task_instance=self,
+        )
+
+        if self.validate_request:
+            self.log.info("Validating an Update Dataplex Catalog EntryGroup request.")
+        else:
+            self.log.info(
+                "Updating Dataplex Catalog EntryGroup %s.",
+                self.entry_group_id,
+            )
+        try:
+            operation = self.hook.update_entry_group(
+                location=self.location,
+                project_id=self.project_id,
+                entry_group_id=self.entry_group_id,
+                entry_group_configuration=self.entry_group_configuration,
+                update_mask=self.update_mask,
+                validate_only=self.validate_request,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            entry_group = self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
+
+        except NotFound as ex:
+            self.log.info("Specified EntryGroup was not found.")
+            raise AirflowException(ex)
+        except Exception as exc:
+            raise AirflowException(exc)
+        else:
+            result = EntryGroup.to_dict(entry_group) if not self.validate_request else None
+
+        if not self.validate_request:
+            self.log.info("EntryGroup %s was successfully updated.", self.entry_group_id)
+        return result

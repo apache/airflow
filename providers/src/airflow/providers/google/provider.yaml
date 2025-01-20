@@ -131,7 +131,7 @@ dependencies:
   - google-cloud-datacatalog>=3.23.0
   - google-cloud-dataflow-client>=0.8.6
   - google-cloud-dataform>=0.5.0
-  - google-cloud-dataplex>=1.10.0
+  - google-cloud-dataplex>=2.6.0
   - google-cloud-dataproc>=5.12.0
   - google-cloud-dataproc-metastore>=1.12.0
   - google-cloud-dlp>=3.12.0
@@ -1203,6 +1203,8 @@ extra-links:
   - airflow.providers.google.cloud.links.dataplex.DataplexTaskLink
   - airflow.providers.google.cloud.links.dataplex.DataplexTasksLink
   - airflow.providers.google.cloud.links.dataplex.DataplexLakeLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupsLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryTableLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryJobDetailLink

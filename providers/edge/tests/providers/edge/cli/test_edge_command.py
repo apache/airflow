@@ -41,19 +41,19 @@ pytest.importorskip("pydantic", minversion="2.0.0")
 
 MOCK_COMMAND = (
     {
-        "token": "dummy",
+        "token": "mock",
         "ti": {
             "id": "4d828a62-a417-4936-a7a6-2b3fabacecab",
-            "task_id": "dummy",
-            "dag_id": "dummy",
-            "run_id": "dummy",
+            "task_id": "mock",
+            "dag_id": "mock",
+            "run_id": "mock",
             "try_number": 1,
             "pool_slots": 1,
             "queue": "default",
             "priority_weight": 1,
         },
-        "dag_rel_path": "dummy.py",
-        "log_path": "dummy.log",
+        "dag_rel_path": "mock.py",
+        "log_path": "mock.log",
         "bundle_info": {"name": "hello", "version": "abc"},
     }
     if AIRFLOW_V_3_0_PLUS
@@ -112,7 +112,7 @@ class _MockPopen(Popen):
 
 class TestEdgeWorkerCli:
     @pytest.fixture
-    def dummy_joblist(self, tmp_path: Path) -> list[_Job]:
+    def mock_joblist(self, tmp_path: Path) -> list[_Job]:
         logfile = tmp_path / "file.log"
         logfile.touch()
 
@@ -134,9 +134,9 @@ class TestEdgeWorkerCli:
         ]
 
     @pytest.fixture
-    def worker_with_job(self, tmp_path: Path, dummy_joblist: list[_Job]) -> _EdgeWorkerCli:
-        test_worker = _EdgeWorkerCli(str(tmp_path / "dummy.pid"), "dummy", None, 8, 5, 5)
-        test_worker.jobs = dummy_joblist
+    def worker_with_job(self, tmp_path: Path, mock_joblist: list[_Job]) -> _EdgeWorkerCli:
+        test_worker = _EdgeWorkerCli(str(tmp_path / "mock.pid"), "mock", None, 8, 5, 5)
+        test_worker.jobs = mock_joblist
         return test_worker
 
     @patch("airflow.providers.edge.cli.edge_command.Process")
@@ -198,7 +198,7 @@ class TestEdgeWorkerCli:
     ):
         logfile_path_call_count, set_state_call_count = expected_calls
         mock_reserve_task.side_effect = [reserve_result]
-        mock_popen.side_effect = ["dummy"]
+        mock_popen.side_effect = ["mock"]
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             got_job = worker_with_job.fetch_job()
         mock_reserve_task.assert_called_once()

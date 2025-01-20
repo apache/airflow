@@ -556,7 +556,11 @@ def _update_source_date_epoch_in_provider_yaml(
 
 def _verify_changelog_exists(package: str) -> Path:
     provider_details = get_provider_details(package)
-    changelog_path = Path(provider_details.root_provider_path) / "CHANGELOG.rst"
+    changelog_path = (
+        Path(provider_details.root_provider_path) / "docs" / "changelog.rst"
+        if provider_details.is_new_structure
+        else Path(provider_details.root_provider_path) / "CHANGELOG.rst"
+    )
     if not os.path.isfile(changelog_path):
         get_console().print(f"\n[error]ERROR: Missing {changelog_path}[/]\n")
         get_console().print("[info]Please add the file with initial content:")

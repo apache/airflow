@@ -16,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import json
-from typing import Annotated, Literal
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, UploadFile, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -39,7 +38,6 @@ from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBulkResponse,
     VariableCollectionResponse,
     VariableResponse,
-    VariablesImportResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.services.public.variables import (
@@ -190,59 +188,6 @@ def post_variable(
     variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
 
     return variable
-
-
-@variables_router.post(
-    "/import",
-    status_code=status.HTTP_200_OK,
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT, status.HTTP_422_UNPROCESSABLE_ENTITY]
-    ),
-)
-def import_variables(
-    file: UploadFile,
-    session: SessionDep,
-    action_if_exists: Literal["overwrite", "fail", "skip"] = "fail",
-) -> VariablesImportResponse:
-    """Import variables from a JSON file."""
-    try:
-        file_content = file.file.read().decode("utf-8")
-        variables = json.loads(file_content)
-
-        if not isinstance(variables, dict):
-            raise ValueError("Uploaded JSON must contain key-value pairs.")
-    except (json.JSONDecodeError, ValueError) as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid JSON format: {e}")
-
-    if not variables:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No variables found in the provided JSON.",
-        )
-
-    existing_keys = {variable for variable in session.execute(select(Variable.key)).scalars()}
-    import_keys = set(variables.keys())
-
-    matched_keys = existing_keys & import_keys
-
-    if action_if_exists == "fail" and matched_keys:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"The variables with these keys: {matched_keys} already exists.",
-        )
-    elif action_if_exists == "skip":
-        create_keys = import_keys - matched_keys
-    else:
-        create_keys = import_keys
-
-    for key in create_keys:
-        Variable.set(key=key, value=variables[key], session=session)
-
-    return VariablesImportResponse(
-        created_count=len(create_keys),
-        import_count=len(import_keys),
-        created_variable_keys=list(create_keys),
-    )
 
 
 @variables_router.patch("")
