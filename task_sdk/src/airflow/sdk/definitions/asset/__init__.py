@@ -500,14 +500,14 @@ class AssetRef(BaseAsset, AttrsInstance):
             )
 
 
-@attrs.define()
+@attrs.define(hash=True)
 class AssetNameRef(AssetRef):
     """Name reference to an asset."""
 
     name: str
 
 
-@attrs.define()
+@attrs.define(hash=True)
 class AssetUriRef(AssetRef):
     """URI reference to an asset."""
 
@@ -672,3 +672,12 @@ class AssetAll(_AssetBooleanCondition):
         :meta private:
         """
         return {"all": [o.as_expression() for o in self.objects]}
+
+
+@attrs.define
+class AssetAliasEvent:
+    """Representation of asset event to be triggered by an asset alias."""
+
+    source_alias_name: str
+    dest_asset_key: AssetUniqueKey
+    extra: dict[str, Any]

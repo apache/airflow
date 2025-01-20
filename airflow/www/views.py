@@ -4768,6 +4768,8 @@ class DagRunModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
+    add_exclude_columns = ["conf"]
+
     list_columns = [
         "state",
         "dag_id",
@@ -4803,7 +4805,6 @@ class DagRunModelView(AirflowModelView):
         "start_date",
         "end_date",
         "run_id",
-        "conf",
         "note",
     ]
 
@@ -5541,7 +5542,7 @@ class DagDependenciesView(AirflowBaseView):
         seconds=conf.getint(
             "webserver",
             "dag_dependencies_refresh_interval",
-            fallback=conf.getint("scheduler", "dag_dir_list_interval"),
+            fallback=300,
         )
     )
     last_refresh = timezone.utcnow() - refresh_interval

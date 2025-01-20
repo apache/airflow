@@ -123,6 +123,7 @@ class AirflowDocsBuilder:
         shutil.rmtree(self.log_spelling_output_dir, ignore_errors=True)
         os.makedirs(self.log_spelling_output_dir, exist_ok=True)
 
+        # TODO(potiuk) - remove if when all providers are new-style
         if self.new_structure_provider:
             self.cleanup_new_provider_dir()
         build_cmd = [
@@ -207,6 +208,7 @@ class AirflowDocsBuilder:
                 shutil.rmtree(self._src_dir, ignore_errors=True)
         return spelling_errors, build_errors
 
+    # TODO(potiuk) - rename when all providers are new-style
     def cleanup_new_provider_dir(self):
         console.print(
             f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Cleaning up old files in {self._src_dir}."
@@ -232,6 +234,7 @@ class AirflowDocsBuilder:
         build_errors = []
         os.makedirs(self._build_dir, exist_ok=True)
 
+        # TODO(potiuk) - remove if when all providers are new-style
         if self.new_structure_provider:
             self.cleanup_new_provider_dir()
         build_cmd = [

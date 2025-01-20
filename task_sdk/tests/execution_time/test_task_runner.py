@@ -52,7 +52,12 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     XComResult,
 )
-from airflow.sdk.execution_time.context import ConnectionAccessor, MacrosAccessor, VariableAccessor
+from airflow.sdk.execution_time.context import (
+    ConnectionAccessor,
+    MacrosAccessor,
+    OutletEventAccessors,
+    VariableAccessor,
+)
 from airflow.sdk.execution_time.task_runner import (
     CommsDecoder,
     RuntimeTaskInstance,
@@ -63,7 +68,7 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.utils import timezone
 
-FAKE_BUNDLE = BundleInfo.model_construct(name="anything", version="any")
+FAKE_BUNDLE = BundleInfo(name="anything", version="any")
 
 
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
@@ -109,7 +114,7 @@ class TestCommsDecoder:
         assert msg.ti.task_id == "a"
         assert msg.ti.dag_id == "c"
         assert msg.dag_rel_path == "/dev/null"
-        assert msg.bundle_info == BundleInfo.model_construct(name="any-name", version="any-version")
+        assert msg.bundle_info == BundleInfo(name="any-name", version="any-version")
 
         # Since this was a StartupDetails message, the decoder should open the other socket
         assert decoder.request_socket is not None
@@ -122,7 +127,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="a", dag_id="super_basic", run_id="c", try_number=1),
         dag_rel_path="super_basic.py",
-        bundle_info=BundleInfo.model_construct(name="my-bundle", version=None),
+        bundle_info=BundleInfo(name="my-bundle", version=None),
         requests_fd=0,
         ti_context=make_ti_context(),
     )
@@ -130,12 +135,12 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     with patch.dict(
         os.environ,
         {
-            "AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(
+            "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
                 [
                     {
                         "name": "my-bundle",
                         "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                        "kwargs": {"local_folder": str(test_dags_dir), "refresh_interval": 1},
+                        "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
                     }
                 ]
             ),
@@ -569,12 +574,12 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
             {
                 "name": "my-bundle",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"local_folder": str(test_dags_dir), "refresh_interval": 1},
+                "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
             }
         ]
     )
 
-    monkeypatch.setenv("AIRFLOW__DAG_BUNDLES__BACKENDS", dag_bundle_val)
+    monkeypatch.setenv("AIRFLOW__DAG_BUNDLES__CONFIG_LIST", dag_bundle_val)
     ti, _ = startup()
 
     # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!
@@ -613,6 +618,7 @@ class TestRuntimeTaskInstance:
             "inlets": task.inlets,
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
+            "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
             "run_id": "test_run",
             "task": task,
@@ -645,6 +651,7 @@ class TestRuntimeTaskInstance:
             "inlets": task.inlets,
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
+            "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
             "run_id": "test_run",
             "task": task,

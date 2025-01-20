@@ -215,6 +215,58 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "updated_at": mock.ANY,
         }
 
+    def test_dag_not_exist(self, session, test_client):
+        session.query(DagModel).all()
+        session.commit()
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-02-01")
+        to_date_iso = to_iso(to_date)
+        max_active_runs = 5
+        data = {
+            "dag_id": "DAG_NOT_EXIST",
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": False,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+            "dry_run": False,
+            "reprocess_behavior": ReprocessBehavior.NONE,
+        }
+        response = test_client.post(
+            url="/public/backfills",
+            json=data,
+        )
+        assert response.status_code == 404
+        assert response.json().get("detail") == "Could not find dag DAG_NOT_EXIST"
+
+    def test_no_schedule_dag(self, session, dag_maker, test_client):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="None") as dag:
+            EmptyOperator(task_id="mytask")
+        session.query(DagModel).all()
+        session.commit()
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-02-01")
+        to_date_iso = to_iso(to_date)
+        max_active_runs = 5
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": False,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+            "dry_run": False,
+            "reprocess_behavior": ReprocessBehavior.NONE,
+        }
+        response = test_client.post(
+            url="/public/backfills",
+            json=data,
+        )
+        assert response.status_code == 409
+        assert response.json().get("detail") == f"{dag.dag_id} has no schedule"
+
 
 class TestCreateBackfillDryRun(TestBackfillEndpoint):
     @pytest.mark.parametrize(

@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.1.10.15",
+    "trove-classifiers==2025.1.15.22",
 ]
 build-backend = "hatchling.build"
 
@@ -566,6 +566,8 @@ mypy_path = [
   "$MYPY_CONFIG_FILE_DIR/providers/src",
   "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
   "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
+  "$MYPY_CONFIG_FILE_DIR/providers/celery/src",
+  "$MYPY_CONFIG_FILE_DIR/providers/edge/src",
 ]
 
 [[tool.mypy.overrides]]
@@ -605,6 +607,8 @@ dev = [
   "local-providers",
   "apache-airflow-task-sdk",
   "apache-airflow-providers-airbyte",
+  "apache-airflow-providers-celery",
+  "apache-airflow-providers-edge",
 ]
 
 [tool.uv.sources]
@@ -613,6 +617,8 @@ dev = [
 local-providers = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-providers-airbyte = {workspace = true}
+apache-airflow-providers-celery = {workspace = true}
+apache-airflow-providers-edge = {workspace = true}
 
 [tool.uv.workspace]
-members = ["providers", "task_sdk", "providers/airbyte" ]
+members = ["providers", "task_sdk", "providers/airbyte", "providers/celery", "providers/edge" ]
