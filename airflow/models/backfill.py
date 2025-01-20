@@ -85,7 +85,7 @@ class InvalidBackfillDirection(AirflowException):
 
 class InvalidReprocessBehavior(AirflowException):
     """
-    Raised when reprocess behavior is not set for tasks with depends_on_past=True.
+    Raised when a backfill cannot be completed because the reprocess behavior is not valid.
 
     :meta private:
     """
