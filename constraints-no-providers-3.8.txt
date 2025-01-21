@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-16T16:08:00.203772
+# This constraints file was automatically generated on 2025-01-21T12:39:00.403308
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -33,12 +33,12 @@ SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
 WTForms==3.1.2
 Werkzeug==2.2.3
-aiobotocore==2.17.0
+aiobotocore==2.18.0
 aiohappyeyeballs==2.4.4
 aiohttp==3.10.11
 aioitertools==0.12.0
 aiosignal==1.3.1
-alembic==1.14.0
+alembic==1.14.1
 amqp==5.3.1
 annotated-types==0.7.0
 anyio==4.5.2
@@ -52,7 +52,7 @@ babel==2.16.0
 backports.zoneinfo==0.2.1
 bcrypt==4.2.1
 blinker==1.8.2
-botocore==1.35.93
+botocore==1.36.1
 cachelib==0.9.0
 certifi==2024.12.14
 cffi==1.17.1
@@ -185,7 +185,7 @@ universal_pathlib==0.2.6
 urllib3==1.26.20
 uv==0.5.17
 vine==5.1.0
-virtualenv==20.29.0
+virtualenv==20.29.1
 wirerope==1.0.0
 wrapt==1.17.2
 xmlsec==1.3.14
