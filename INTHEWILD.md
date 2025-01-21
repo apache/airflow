@@ -53,6 +53,7 @@ Currently, **officially** using Airflow:
 1. [American Family Insurance](https://www.amfam.com/about) [[@di1eep](https://github.com/di1eep)]
 1. [AMPATH](https://www.ampathkenya.org/) [[@AMPATH](https://github.com/AMPATH), [@fatmali](https://github.com/fatmali)]
 1. [Apigee](https://apigee.com) [[@btallman](https://github.com/btallman)]
+1. [Appier](https://www.appier.com) [[@nailo2c](https://github.com/nailo2c)]
 1. [ARGO Labs](http://www.argolabs.org) [[@California Data Collaborative](https://github.com/California-Data-Collaborative)]
 1. [ARMEDANGELS](https://www.armedangels.de) [[@swiffer](https://github.com/swiffer)]
 1. [Arquivei](https://www.arquivei.com.br/) [[@arquivei](https://github.com/arquivei)]

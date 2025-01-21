@@ -29,7 +29,6 @@ import stat
 import subprocess
 import sys
 from collections.abc import Mapping
-from functools import cache
 from pathlib import Path
 from typing import Union
 
@@ -37,6 +36,7 @@ from rich.markup import escape
 
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     UI_ASSET_COMPILE_LOCK,
@@ -387,7 +387,7 @@ def check_if_buildx_plugin_installed() -> bool:
     return False
 
 
-@cache
+@clearable_cache
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
     command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)

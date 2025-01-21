@@ -787,22 +787,20 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context) -> list[str]:
         # Define intervals and prefixes.
-        try:
-            orig_start = context["data_interval_start"]
-            orig_end = context["data_interval_end"]
-        except KeyError:
-            orig_start = pendulum.instance(context["logical_date"])
-            next_dagrun = context["dag"].next_dagrun_info(last_automated_dagrun=None, restricted=False)
-            if next_dagrun and next_dagrun.data_interval and next_dagrun.data_interval.end:
-                orig_end = next_dagrun.data_interval.end
-            else:
-                orig_end = None
+        orig_start = context["data_interval_start"]
+        orig_end = context["data_interval_end"]
+
+        if orig_start is None or orig_end is None:
+            raise RuntimeError("`data_interval_start` & `data_interval_end` must not be None")
+
+        if not isinstance(orig_start, pendulum.DateTime):
+            orig_start = pendulum.instance(orig_start)
+
+        if not isinstance(orig_end, pendulum.DateTime):
+            orig_end = pendulum.instance(orig_end)
 
         timespan_start = orig_start
-        if orig_end is None:  # Only possible in Airflow before 2.2.
-            self.log.warning("No following schedule found, setting timespan end to max %s", orig_end)
-            timespan_end = pendulum.instance(datetime.datetime.max)
-        elif orig_start >= orig_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
+        if orig_start >= orig_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
             self.log.warning("DAG schedule not periodic, setting timespan end to max %s", orig_end)
             timespan_end = pendulum.instance(datetime.datetime.max)
         else:

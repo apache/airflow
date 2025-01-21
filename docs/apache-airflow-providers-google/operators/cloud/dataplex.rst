@@ -417,3 +417,181 @@ To get a Data Profile scan job you can use:
     :dedent: 4
     :start-after: [START howto_dataplex_get_data_profile_job_operator]
     :end-before: [END howto_dataplex_get_data_profile_job_operator]
+
+
+Google Dataplex Catalog Operators
+=================================
+
+Dataplex Catalog provides a unified inventory of Google Cloud resources, such as BigQuery, and other resources,
+such as on-premises resources. Dataplex Catalog automatically retrieves metadata for Google Cloud resources,
+and you bring metadata for third-party resources into Dataplex Catalog.
+
+For more information about Dataplex Catalog visit `Dataplex Catalog production documentation <Product documentation <https://cloud.google.com/dataplex/docs/catalog-overview>`__
+
+.. _howto/operator:DataplexCatalogCreateEntryGroupOperator:
+
+Create an EntryGroup
+--------------------
+
+To create an Entry Group in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryGroupOperator`
+For more information about the available fields to pass when creating an Entry Group, visit `Entry Group resource configuration. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.entryGroups#EntryGroup>`__
+
+A simple Entry Group configuration can look as followed:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_dataplex_entry_group_configuration]
+    :end-before: [END howto_dataplex_entry_group_configuration]
+
+With this configuration you can create an Entry Group resource:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryGroupOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_create_entry_group]
+    :end-before: [END howto_operator_dataplex_catalog_create_entry_group]
+
+.. _howto/operator:DataplexCatalogDeleteEntryGroupOperator:
+
+Delete an EntryGroup
+--------------------
+
+To delete an Entry Group in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryGroupOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_delete_entry_group]
+    :end-before: [END howto_operator_dataplex_catalog_delete_entry_group]
+
+.. _howto/operator:DataplexCatalogListEntryGroupsOperator:
+
+List EntryGroups
+----------------
+
+To list all Entry Groups in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogListEntryGroupsOperator`.
+This operator also supports filtering and ordering the result of the operation.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_list_entry_groups]
+    :end-before: [END howto_operator_dataplex_catalog_list_entry_groups]
+
+.. _howto/operator:DataplexCatalogGetEntryGroupOperator:
+
+Get an EntryGroup
+-----------------
+
+To retrieve an Entry Group in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryGroupOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_get_entry_group]
+    :end-before: [END howto_operator_dataplex_catalog_get_entry_group]
+
+.. _howto/operator:DataplexCatalogUpdateEntryGroupOperator:
+
+Update an EntryGroup
+--------------------
+
+To update an Entry Group in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryGroupOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_update_entry_group]
+    :end-before: [END howto_operator_dataplex_catalog_update_entry_group]
+
+.. _howto/operator:DataplexCatalogCreateEntryTypeOperator:
+
+Create an EntryType
+--------------------
+
+To create an Entry Type in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryTypeOperator`
+For more information about the available fields to pass when creating an Entry Type, visit `Entry Type resource configuration. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.entryTypes#EntryType>`__
+
+A simple Entry Group configuration can look as followed:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_dataplex_entry_type_configuration]
+    :end-before: [END howto_dataplex_entry_type_configuration]
+
+With this configuration you can create an Entry Type resource:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryTypeOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_create_entry_type]
+    :end-before: [END howto_operator_dataplex_catalog_create_entry_type]
+
+.. _howto/operator:DataplexCatalogDeleteEntryTypeOperator:
+
+Delete an EntryType
+--------------------
+
+To delete an Entry Type in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryTypeOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_delete_entry_type]
+    :end-before: [END howto_operator_dataplex_catalog_delete_entry_type]
+
+.. _howto/operator:DataplexCatalogListEntryTypesOperator:
+
+List EntryTypes
+----------------
+
+To list all Entry Types in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogListEntryTypesOperator`.
+This operator also supports filtering and ordering the result of the operation.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_list_entry_types]
+    :end-before: [END howto_operator_dataplex_catalog_list_entry_types]
+
+.. _howto/operator:DataplexCatalogGetEntryTypeOperator:
+
+Get an EntryType
+-----------------
+
+To retrieve an Entry Group in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryTypeOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_get_entry_type]
+    :end-before: [END howto_operator_dataplex_catalog_get_entry_type]
+
+.. _howto/operator:DataplexCatalogUpdateEntryTypeOperator:
+
+Update an EntryType
+--------------------
+
+To update an Entry Type in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryTypeOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_update_entry_type]
+    :end-before: [END howto_operator_dataplex_catalog_update_entry_type]

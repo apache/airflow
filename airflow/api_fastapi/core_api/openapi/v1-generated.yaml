@@ -5952,38 +5952,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/variables/import:
-    post:
+    patch:
       tags:
       - Variable
-      summary: Import Variables
-      description: Import variables from a JSON file.
-      operationId: import_variables
-      parameters:
-      - name: action_if_exists
-        in: query
-        required: false
-        schema:
-          enum:
-          - overwrite
-          - fail
-          - skip
-          type: string
-          default: fail
-          title: Action If Exists
+      summary: Bulk Variables
+      description: Bulk create, update, and delete variables.
+      operationId: bulk_variables
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
-              $ref: '#/components/schemas/Body_import_variables'
+              $ref: '#/components/schemas/VariableBulkBody'
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VariablesImportResponse'
+                $ref: '#/components/schemas/VariableBulkResponse'
         '401':
           content:
             application/json:
@@ -5996,24 +5983,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
     get:
       tags:
@@ -6592,16 +6567,6 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    Body_import_variables:
-      properties:
-        file:
-          type: string
-          format: binary
-          title: File
-      type: object
-      required:
-      - file
-      title: Body_import_variables
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -8403,6 +8368,9 @@ components:
         filename:
           type: string
           title: Filename
+        bundle_name:
+          type: string
+          title: Bundle Name
         stack_trace:
           type: string
           title: Stack Trace
@@ -8411,6 +8379,7 @@ components:
       - import_error_id
       - timestamp
       - filename
+      - bundle_name
       - stack_trace
       title: ImportErrorResponse
       description: Import Error Response.
@@ -8658,11 +8627,6 @@ components:
         source:
           type: string
           title: Source
-        ti_deps:
-          items:
-            type: string
-          type: array
-          title: Ti Deps
         listeners:
           items:
             type: string
@@ -8684,7 +8648,6 @@ components:
       - global_operator_extra_links
       - operator_extra_links
       - source
-      - ti_deps
       - listeners
       - timetables
       title: PluginResponse
@@ -9837,6 +9800,160 @@ components:
       - value
       title: VariableBody
       description: Variable serializer for bodies.
+    VariableBulkActionResponse:
+      properties:
+        success:
+          items:
+            type: string
+          type: array
+          title: Success
+          description: A list of keys representing successful operations.
+          default: []
+        errors:
+          items:
+            type: object
+          type: array
+          title: Errors
+          description: A list of errors encountered during the operation, each containing
+            details about the issue.
+          default: []
+      type: object
+      title: VariableBulkActionResponse
+      description: 'Serializer for individual bulk action responses.
+
+
+        Represents the outcome of a single bulk operation (create, update, or delete).
+
+        The response includes a list of successful keys and any errors encountered
+        during the operation.
+
+        This structure helps users understand which key actions succeeded and which
+        failed.'
+    VariableBulkBody:
+      properties:
+        actions:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/VariableBulkCreateAction'
+            - $ref: '#/components/schemas/VariableBulkUpdateAction'
+            - $ref: '#/components/schemas/VariableBulkDeleteAction'
+          type: array
+          title: Actions
+          description: A list of variable actions to perform.
+      type: object
+      required:
+      - actions
+      title: VariableBulkBody
+      description: Request body for bulk variable operations (create, update, delete).
+    VariableBulkCreateAction:
+      properties:
+        action:
+          type: string
+          const: create
+          title: Action
+          default: create
+        variables:
+          items:
+            $ref: '#/components/schemas/VariableBody'
+          type: array
+          title: Variables
+          description: A list of variables to be created.
+        action_if_exists:
+          type: string
+          enum:
+          - skip
+          - overwrite
+          - fail
+          title: Action If Exists
+          default: fail
+      type: object
+      required:
+      - variables
+      title: VariableBulkCreateAction
+      description: Bulk Create Variable serializer for request bodies.
+    VariableBulkDeleteAction:
+      properties:
+        action:
+          type: string
+          const: delete
+          title: Action
+          default: delete
+        keys:
+          items:
+            type: string
+          type: array
+          title: Keys
+          description: A list of variable keys to be deleted.
+        action_if_not_exists:
+          type: string
+          enum:
+          - skip
+          - fail
+          title: Action If Not Exists
+          default: fail
+      type: object
+      required:
+      - keys
+      title: VariableBulkDeleteAction
+      description: Bulk Delete Variable serializer for request bodies.
+    VariableBulkResponse:
+      properties:
+        create:
+          anyOf:
+          - $ref: '#/components/schemas/VariableBulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk create operation, including successful
+            keys and errors.
+        update:
+          anyOf:
+          - $ref: '#/components/schemas/VariableBulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk update operation, including successful
+            keys and errors.
+        delete:
+          anyOf:
+          - $ref: '#/components/schemas/VariableBulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk delete operation, including successful
+            keys and errors.
+      type: object
+      title: VariableBulkResponse
+      description: 'Serializer for responses to bulk variable operations.
+
+
+        This represents the results of create, update, and delete actions performed
+        on variables in bulk.
+
+        Each action (if requested) is represented as a field containing details about
+        successful keys and any encountered errors.
+
+        Fields are populated in the response only if the respective action was part
+        of the request, else are set None.'
+    VariableBulkUpdateAction:
+      properties:
+        action:
+          type: string
+          const: update
+          title: Action
+          default: update
+        variables:
+          items:
+            $ref: '#/components/schemas/VariableBody'
+          type: array
+          title: Variables
+          description: A list of variables to be updated.
+        action_if_not_exists:
+          type: string
+          enum:
+          - skip
+          - fail
+          title: Action If Not Exists
+          default: fail
+      type: object
+      required:
+      - variables
+      title: VariableBulkUpdateAction
+      description: Bulk Update Variable serializer for request bodies.
     VariableCollectionResponse:
       properties:
         variables:
@@ -9877,26 +9994,6 @@ components:
       - is_encrypted
       title: VariableResponse
       description: Variable serializer for responses.
-    VariablesImportResponse:
-      properties:
-        created_variable_keys:
-          items:
-            type: string
-          type: array
-          title: Created Variable Keys
-        import_count:
-          type: integer
-          title: Import Count
-        created_count:
-          type: integer
-          title: Created Count
-      type: object
-      required:
-      - created_variable_keys
-      - import_count
-      - created_count
-      title: VariablesImportResponse
-      description: Import Variables serializer for responses.
     VersionInfo:
       properties:
         version:

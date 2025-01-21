@@ -26,6 +26,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagRun, TaskInstance
@@ -522,9 +523,10 @@ class TestGetMappedTaskInstances:
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)
                 session.add(ti)
 
+            DagBundlesManager().sync_bundles_to_db()
             dagbag = DagBag(os.devnull, include_examples=False)
             dagbag.dags = {dag_id: dag_maker.dag}
-            dagbag.sync_to_db()
+            dagbag.sync_to_db("dags-folder", None)
             session.flush()
 
             mapped.expand_mapped_task(dr.run_id, session=session)
@@ -1857,7 +1859,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{request_dag}/clearTaskInstances",
             json=payload,
@@ -1871,7 +1873,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         dag_id = "example_python_operator"
         payload = {"reset_dag_runs": True, "dry_run": False}
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -1891,7 +1893,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert dagrun.state == "running"
 
         payload = {"dry_run": False, "reset_dag_runs": True, "task_ids": [""]}
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -1941,7 +1943,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=DagRunState.FAILED,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -2028,7 +2030,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=State.FAILED,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -2110,7 +2112,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=State.FAILED,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -2194,7 +2196,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             update_extras=False,
             dag_run_state=State.FAILED,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             f"/public/dags/{dag_id}/clearTaskInstances",
             json=payload,
@@ -2344,7 +2346,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.dagbag.sync_to_db()
+        self.dagbag.sync_to_db("dags-folder", None)
         response = test_client.post(
             "/public/dags/example_python_operator/clearTaskInstances",
             json=payload,

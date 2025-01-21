@@ -49,8 +49,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
+    from airflow.sdk.definitions.context import Context
     from airflow.typing_compat import Self
-    from airflow.utils.context import Context
 
 # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
 _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
@@ -129,6 +129,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     ui_color: str = "#e6f1f2"
     valid_modes: Iterable[str] = ["poke", "reschedule"]
+
+    _is_sensor: bool = True
 
     # Adds one additional dependency for all sensor operators that checks if a
     # sensor task instance can be rescheduled.
@@ -406,7 +408,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     @classmethod
     def get_serialized_fields(cls):
-        return super().get_serialized_fields() | {"reschedule"}
+        return super().get_serialized_fields() | {"reschedule", "_is_sensor"}
 
 
 def poke_mode_only(cls):

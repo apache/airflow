@@ -59,6 +59,7 @@ from requests import Session
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
@@ -454,9 +455,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id=table_id,
         )
         table = Table.from_api_repr(table_resource)
-        return self.get_client(project_id=project_id, location=location).create_table(
+        result = self.get_client(project_id=project_id, location=location).create_table(
             table=table, exists_ok=exists_ok, retry=retry
         )
+        get_hook_lineage_collector().add_output_asset(
+            context=self,
+            scheme="bigquery",
+            asset_kwargs={
+                "project_id": result.project,
+                "dataset_id": result.dataset_id,
+                "table_id": result.table_id,
+            },
+        )
+        return result
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_dataset(
@@ -617,6 +628,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.log.info("Updating table: %s", table_resource["tableReference"])
         table_object = self.get_client(project_id=project_id).update_table(table=table, fields=fields)
         self.log.info("Table %s.%s.%s updated successfully", project_id, dataset_id, table_id)
+        get_hook_lineage_collector().add_output_asset(
+            context=self,
+            scheme="bigquery",
+            asset_kwargs={
+                "project_id": table_object.project,
+                "dataset_id": table_object.dataset_id,
+                "table_id": table_object.table_id,
+            },
+        )
         return table_object.to_api_repr()
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -908,6 +928,16 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             not_found_ok=not_found_ok,
         )
         self.log.info("Deleted table %s", table_id)
+        table_ref = TableReference.from_string(table_id, default_project=project_id)
+        get_hook_lineage_collector().add_input_asset(
+            context=self,
+            scheme="bigquery",
+            asset_kwargs={
+                "project_id": table_ref.project,
+                "dataset_id": table_ref.dataset_id,
+                "table_id": table_ref.table_id,
+            },
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_rows(

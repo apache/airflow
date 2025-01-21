@@ -25,7 +25,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils.timezone import datetime
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
 class DummyWithOnKill(EmptyOperator):
