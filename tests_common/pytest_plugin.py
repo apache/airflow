@@ -937,7 +937,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
-
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
                 ti.refresh_from_task(dag.get_task(ti.task_id))

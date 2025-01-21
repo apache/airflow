@@ -157,12 +157,14 @@ class TestDagFileProcessorManager:
 
         # TODO: AIP-66 no asserts?
 
-    def test_start_new_processes_with_same_filepath(self):
+    def test_start_new_processes_with_same_filepath(self, configure_testing_dag_bundle):
         """
         Test that when a processor already exist with a filepath, a new processor won't be created
         with that filepath. The filepath will just be removed from the list.
         """
-        manager = DagFileProcessorManager(max_runs=1)
+        with configure_testing_dag_bundle("/tmp"):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
 
         file_1 = DagFileInfo(bundle_name="testing", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER)
         file_2 = DagFileInfo(bundle_name="testing", rel_path=Path("file_2.py"), bundle_path=TEST_DAGS_FOLDER)
@@ -472,6 +474,7 @@ class TestDagFileProcessorManager:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(
         ["callbacks", "path", "expected_buffer"],
         [
@@ -489,10 +492,11 @@ class TestDagFileProcessorManager:
             pytest.param(
                 [
                     DagCallbackRequest(
-                        full_filepath="/opt/airflow/dags/dag_callback_dag.py",
+                        filepath="dag_callback_dag.py",
                         dag_id="dag_id",
                         run_id="run_id",
                         bundle_name="testing",
+                        bundle_version=None,
                         is_failure_callback=False,
                     )
                 ],
@@ -503,14 +507,14 @@ class TestDagFileProcessorManager:
                 b'"requests_fd":123,"callback_requests":'
                 b"["
                 b"{"
-                b'"filepath":"/opt/airflow/dags/dag_callback_dag.py",'
+                b'"filepath":"dag_callback_dag.py",'
+                b'"bundle_name":"testing",'
+                b'"bundle_version":null,'
                 b'"msg":null,'
                 b'"dag_id":"dag_id",'
                 b'"run_id":"run_id",'
                 b'"is_failure_callback":false,'
                 b'"type":"DagCallbackRequest"'
-                b'"bundle_name":"testing"'
-                b'"bundle_version":null'
                 b"}"
                 b"],"
                 b'"type":"DagFileParseRequest"'
@@ -648,20 +652,22 @@ class TestDagFileProcessorManager:
         assert dagbag.get_dag("test_dag2").get_is_active() is False
 
     @conf_vars({("core", "load_examples"): "False"})
-    def test_fetch_callbacks_from_database(self, tmp_path, configure_testing_dag_bundle):
+    def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
 
         callback1 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
             bundle_name="testing",
-            full_filepath=str(dag_filepath),
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
             is_failure_callback=True,
             run_id="123",
         )
         callback2 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
             bundle_name="testing",
-            full_filepath=str(dag_filepath),
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
             is_failure_callback=True,
             run_id="456",
         )
@@ -670,7 +676,7 @@ class TestDagFileProcessorManager:
             session.add(DbCallbackRequest(callback=callback1, priority_weight=11))
             session.add(DbCallbackRequest(callback=callback2, priority_weight=10))
 
-        with configure_testing_dag_bundle(tmp_path):
+        with configure_testing_dag_bundle(dag_filepath):
             manager = DagFileProcessorManager(max_runs=1)
 
             with create_session() as session:
@@ -692,13 +698,14 @@ class TestDagFileProcessorManager:
                 callback = DagCallbackRequest(
                     dag_id="test_start_date_scheduling",
                     bundle_name="testing",
-                    full_filepath=str(dag_filepath),
+                    bundle_version=None,
+                    filepath="test_on_failure_callback_dag.py",
                     is_failure_callback=True,
                     run_id=str(i),
                 )
                 session.add(DbCallbackRequest(callback=callback, priority_weight=i))
 
-        with configure_testing_dag_bundle(tmp_path):
+        with configure_testing_dag_bundle(dag_filepath):
             manager = DagFileProcessorManager(max_runs=1)
 
             with create_session() as session:
@@ -709,85 +716,102 @@ class TestDagFileProcessorManager:
                 manager.run()
                 assert session.query(DbCallbackRequest).count() == 1
 
-    def test_callback_queue(self, tmp_path):
-        """
-        This test has gotten a bit out of sync with the codebase.
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
+    def test_callback_queue(self, mock_logger, configure_testing_dag_bundle):
+        tmp_path = "/green_eggs/ham"
+        with configure_testing_dag_bundle(tmp_path):
+            # given
+            manager = DagFileProcessorManager(
+                max_runs=1,
+                processor_timeout=365 * 86_400,
+            )
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
 
-        I am just updating it to be consistent with the changes in DagFileInfo
-        """
-        # given
-        manager = DagFileProcessorManager(
-            max_runs=1,
-            processor_timeout=365 * 86_400,
-        )
+            dag1_path = DagFileInfo(
+                bundle_name="testing", path=f"{tmp_path}/file1.py", bundle_path=Path(tmp_path)
+            )
+            dag1_req1 = DagCallbackRequest(
+                filepath="file1.py",
+                dag_id="dag1",
+                run_id="run1",
+                is_failure_callback=False,
+                bundle_name="testing",
+                bundle_version=None,
+                msg=None,
+            )
+            dag1_req2 = DagCallbackRequest(
+                filepath="file1.py",
+                dag_id="dag1",
+                run_id="run1",
+                is_failure_callback=False,
+                bundle_name="testing",
+                bundle_version=None,
+                msg=None,
+            )
 
-        dag1_path = DagFileInfo(
-            bundle_name="testing", rel_path=Path("green_eggs/ham/file1.py"), bundle_path=TEST_DAGS_FOLDER
-        )
-        dag1_req1 = DagCallbackRequest(
-            full_filepath=TEST_DAGS_FOLDER / "green_eggs/ham/file1.py",
-            dag_id="dag1",
-            run_id="run1",
-            bundle_name="testing",
-            is_failure_callback=False,
-            msg=None,
-        )
-        dag1_req2 = DagCallbackRequest(
-            full_filepath=TEST_DAGS_FOLDER / "green_eggs/ham/file1.py",
-            dag_id="dag1",
-            run_id="run1",
-            bundle_name="testing",
-            is_failure_callback=False,
-            msg=None,
-        )
+            dag2_path = DagFileInfo(
+                bundle_name="testing", path=f"{tmp_path}/file2.py", bundle_path=Path(tmp_path)
+            )
+            dag2_req1 = DagCallbackRequest(
+                filepath="file2.py",
+                dag_id="dag2",
+                run_id="run1",
+                bundle_name=dag2_path.bundle_name,
+                bundle_version=None,
+                is_failure_callback=False,
+                msg=None,
+            )
 
-        dag2_path = DagFileInfo(
-            bundle_name="testing", rel_path=Path("green_eggs/ham/file2.py"), bundle_path=TEST_DAGS_FOLDER
-        )
-        dag2_req1 = DagCallbackRequest(
-            full_filepath=TEST_DAGS_FOLDER / "green_eggs/ham/file2.py",
-            dag_id="dag2",
-            run_id="run1",
-            bundle_name=dag2_path.bundle_name,
-            is_failure_callback=False,
-            msg=None,
-        )
+            # when
+            manager._add_callback_to_queue(dag1_req1)
+            manager._add_callback_to_queue(dag2_req1)
 
-        # when
-        manager._add_callback_to_queue(dag1_req1)
-        manager._add_callback_to_queue(dag2_req1)
+            # then - requests should be in manager's queue, with dag2 ahead of dag1 (because it was added last)
+            assert manager._file_queue == deque([dag2_path, dag1_path])
+            assert set(manager._callback_to_execute.keys()) == {
+                dag1_path,
+                dag2_path,
+            }
+            assert manager._callback_to_execute[dag2_path] == [dag2_req1]
 
-        # then - requests should be in manager's queue, with dag2 ahead of dag1 (because it was added last)
-        assert manager._file_queue == deque([dag2_path, dag1_path])
-        assert set(manager._callback_to_execute.keys()) == {
-            dag1_path,
-            dag2_path,
-        }
-        assert manager._callback_to_execute[dag2_path] == [dag2_req1]
+            # update the queue, although the callback is registered
+            assert manager._file_queue == deque([dag2_path, dag1_path])
 
-        # update the queue, although the callback is registered
-        assert manager._file_queue == deque([dag2_path, dag1_path])
+            # when
+            manager._add_callback_to_queue(dag1_req2)
+            # Since dag1_req2 is same as dag1_req1, we now have 2 items in file_path_queue
+            assert manager._file_path_queue == deque([dag2_path, dag1_path])
+            assert manager._callback_to_execute[dag1_path] == [
+                dag1_req1,
+                dag1_req2,
+            ]
 
-        # when
-        manager._add_callback_to_queue(dag1_req2)
-
-        # then - non-sla callback should have brought dag1 to the fore
-        assert manager._file_queue == deque([dag1_path, dag2_path])
-        assert manager._callback_to_execute[dag1_path] == [
-            dag1_req1,
-            dag1_req2,
-        ]
-
-        with mock.patch.object(
-            DagFileProcessorProcess, "start", side_effect=lambda *args, **kwargs: self.mock_processor()
-        ) as start:
-            manager._start_new_processes()
-        # Callbacks passed to process ctor
-        start.assert_any_call(
-            id=mock.ANY, path=dag1_req1.full_filepath, callbacks=[dag1_req1, dag1_req2], selector=mock.ANY
-        )
-        # And removed from the queue
-        assert dag1_path not in manager._callback_to_execute
+            with mock.patch.object(
+                DagFileProcessorProcess, "start", side_effect=lambda *args, **kwargs: self.mock_processor()
+            ) as start:
+                manager._start_new_processes()
+            # Callbacks passed to processor
+            assert start.call_args_list == [
+                mock.call(
+                    id=mock.ANY,
+                    path=dag2_path.path,
+                    bundle_path=dag2_path.bundle_path,
+                    callbacks=[dag2_req1],
+                    selector=mock.ANY,
+                    logger=mock_logger.return_value,
+                ),
+                mock.call(
+                    id=mock.ANY,
+                    path=dag1_path.path,
+                    bundle_path=dag1_path.bundle_path,
+                    callbacks=[dag1_req1, dag1_req2],
+                    selector=mock.ANY,
+                    logger=mock_logger.return_value,
+                ),
+            ]
+            # And removed from the queue
+            assert dag1_path not in manager._callback_to_execute
+            assert dag2_path not in manager._callback_to_execute
 
     def test_dag_with_assets(self, session, configure_testing_dag_bundle):
         """'Integration' test to ensure that the assets get parsed and stored correctly for parsed dags."""

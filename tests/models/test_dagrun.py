@@ -33,7 +33,9 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
@@ -95,6 +97,7 @@ class TestDagRun:
         logical_date: datetime.datetime | None = None,
         is_backfill: bool = False,
         state: DagRunState = DagRunState.RUNNING,
+        dag_version: DagVersion | None = None,
         session: Session,
     ):
         now = timezone.utcnow()
@@ -118,6 +121,7 @@ class TestDagRun:
             start_date=now,
             state=state,
             external_trigger=False,
+            dag_version=dag_version or DagVersion.get_latest_version(dag.dag_id, session=session),
             triggered_by=DagRunTriggeredByType.TEST,
         )
 
@@ -476,6 +480,8 @@ class TestDagRun:
 
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
 
@@ -484,10 +490,12 @@ class TestDagRun:
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
         assert callback == DagCallbackRequest(
-            full_filepath=dag_run.dag.fileloc,
+            filepath=dag_run.dag.fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             run_id=dag_run.run_id,
             is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version=None,
             msg="success",
         )
 
@@ -502,7 +510,8 @@ class TestDagRun:
             on_failure_callback=on_failure_callable,
         )
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
-
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        session.commit()
         dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_state_failed2", dag=dag)
         dag_task1.set_downstream(dag_task2)
@@ -522,11 +531,13 @@ class TestDagRun:
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
         assert callback == DagCallbackRequest(
-            full_filepath=dag_run.dag.fileloc,
+            filepath=dag_run.dag.fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             run_id=dag_run.run_id,
             is_failure_callback=True,
             msg="task_failure",
+            bundle_name="testing",
+            bundle_version=None,
         )
 
     def test_dagrun_set_state_end_date(self, dag_maker, session):

@@ -34,10 +34,10 @@ class BaseCallbackRequest(BaseModel):
     :param msg: Additional Message that can be used for logging
     """
 
-    full_filepath: str
+    filepath: str
     """File Path to use to run the callback"""
     bundle_name: str
-    bundle_version: str | None = None
+    bundle_version: str | None
     msg: str | None = None
     """Additional Message that can be used for logging to determine failure/zombie"""
 
