@@ -1580,12 +1580,12 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
-    def test_one_to_many_with_teardown_and_fail_stop(self, dag_maker):
+    def test_one_to_many_with_teardown_and_fail_fast(self, dag_maker):
         """
-        With fail_stop enabled, the teardown for an already-completed setup
+        With fail_fast enabled, the teardown for an already-completed setup
         should not be skipped.
         """
-        with dag_maker(fail_stop=True) as dag:
+        with dag_maker(fail_fast=True) as dag:
 
             @task
             def my_setup():
@@ -1616,12 +1616,12 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
-    def test_one_to_many_with_teardown_and_fail_stop_more_tasks(self, dag_maker):
+    def test_one_to_many_with_teardown_and_fail_fast_more_tasks(self, dag_maker):
         """
-        when fail_stop enabled, teardowns should run according to their setups.
+        when fail_fast enabled, teardowns should run according to their setups.
         in this case, the second teardown skips because its setup skips.
         """
-        with dag_maker(fail_stop=True) as dag:
+        with dag_maker(fail_fast=True) as dag:
             for num in (1, 2):
                 with TaskGroup(f"tg_{num}"):
 
@@ -1658,12 +1658,12 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
-    def test_one_to_many_with_teardown_and_fail_stop_more_tasks_mapped_setup(self, dag_maker):
+    def test_one_to_many_with_teardown_and_fail_fast_more_tasks_mapped_setup(self, dag_maker):
         """
-        when fail_stop enabled, teardowns should run according to their setups.
+        when fail_fast enabled, teardowns should run according to their setups.
         in this case, the second teardown skips because its setup skips.
         """
-        with dag_maker(fail_stop=True) as dag:
+        with dag_maker(fail_fast=True) as dag:
             for num in (1, 2):
                 with TaskGroup(f"tg_{num}"):
 
