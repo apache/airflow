@@ -1471,7 +1471,6 @@ class DagRun(Base, LoggingMixin):
         map_indexes: Iterable[int]
         for task in tasks:
             try:
-                breakpoint
                 count = BaseOperator.get_mapped_ti_count(task, self.run_id, session=session)
             except (NotMapped, NotFullyPopulated):
                 map_indexes = (-1,)
