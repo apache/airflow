@@ -981,19 +981,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
 
-        if self.email:
+        if emailis not None:
             warnings.warn(
                 "email is deprecated please migrate to SmtpNotifier`.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
-        if self.email_on_retry:
+        if email_on_retry is not None:
             warnings.warn(
                 "email_on_retry is deprecated please migrate to SmtpNotifier`.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
-        if self.email_on_failure:
+        if email_on_failure is not None:
             warnings.warn(
                 "email_on_retry is deprecated please migrate to SmtpNotifier`.",
                 RemovedInAirflow3Warning,
