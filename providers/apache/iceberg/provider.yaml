@@ -29,15 +29,9 @@ versions:
   - 1.1.0
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-
-devel-dependencies:
-  - pyiceberg>=0.5.0
-
 integrations:
   - integration-name: Iceberg
-    logo: /integration-logos/iceberg/iceberg.png
+    logo: /docs/integration-logo/iceberg.png
     external-doc-url: https://iceberg.apache.org/
     tags: [software]
 
