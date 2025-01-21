@@ -173,9 +173,11 @@ def _get_dag_run(
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_id=logical_date_or_run_id,
+            run_type=DagRunType.MANUAL,
             logical_date=dag_run_logical_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
             triggered_by=DagRunTriggeredByType.CLI,
+            state=DagRunState.RUNNING,
         )
         return dag_run, True
     elif create_if_necessary == "db":
@@ -186,7 +188,7 @@ def _get_dag_run(
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
             dag_version=None,
-            state=DagRunState.QUEUED,
+            state=DagRunState.RUNNING,
             session=session,
         )
         return dag_run, True

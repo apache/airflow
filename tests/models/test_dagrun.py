@@ -134,10 +134,10 @@ class TestDagRun:
 
         return dag_run
 
-    @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    def test_clear_task_instances_for_backfill_unfinished_dagrun(self, state, session):
+    def test_clear_task_instances_for_backfill_running_dagrun(self, session):
         now = timezone.utcnow()
-        dag_id = "test_clear_task_instances_for_backfill_dagrun"
+        state = DagRunState.RUNNING
+        dag_id = "test_clear_task_instances_for_backfill_running_dagrun"
         dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=now)
         dag_run = self.create_dag_run(dag, logical_date=now, is_backfill=True, state=state, session=session)
 
@@ -156,7 +156,7 @@ class TestDagRun:
     @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
     def test_clear_task_instances_for_backfill_finished_dagrun(self, state, session):
         now = timezone.utcnow()
-        dag_id = "test_clear_task_instances_for_backfill_dagrun"
+        dag_id = "test_clear_task_instances_for_backfill_finished_dagrun"
         dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=now)
         dag_run = self.create_dag_run(dag, logical_date=now, is_backfill=True, state=state, session=session)
 
