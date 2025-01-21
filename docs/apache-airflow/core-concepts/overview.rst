@@ -49,6 +49,10 @@ A minimal Airflow installation consists of the following components:
   a configuration property of the *scheduler*, not a separate component and runs within the scheduler
   process. There are several executors available out of the box, and you can also write your own.
 
+* A *dag processor*, which parses DAG files and serializes them into the
+  *metadata database*. More about processing DAG files can be found in
+  :doc:`/administration-and-deployment/dagfile-processing`
+
 * A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of
   DAGs and tasks.
 
@@ -73,12 +77,6 @@ performance in your Airflow:
 * Optional *triggerer*, which executes deferred tasks in an asyncio event loop. In basic installation
   where deferred tasks are not used, a triggerer is not necessary. More about deferring tasks can be
   found in :doc:`/authoring-and-scheduling/deferring`.
-
-* Optional *dag processor*, which parses DAG files and serializes them into the
-  *metadata database*. By default, the *dag processor* process is part of the scheduler, but it can
-  be run as a separate component for scalability and security reasons. If *dag processor* is present
-  *scheduler* does not need to read the *DAG files* directly. More about
-  processing DAG files can be found in :doc:`/authoring-and-scheduling/dagfile-processing`
 
 * Optional folder of *plugins*. Plugins are a way to extend Airflow's functionality (similar to installed
   packages). Plugins are read by the *scheduler*, *dag processor*, *triggerer* and *webserver*. More about

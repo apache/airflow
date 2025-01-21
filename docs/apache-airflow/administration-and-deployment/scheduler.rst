@@ -67,15 +67,6 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
     For more read about that you can reference `this GitHub discussion <https://github.com/apache/airflow/discussions/28809>`__.
 
 
-DAG File Processing
--------------------
-
-You can have the Airflow Scheduler be responsible for starting the process that turns the Python files contained in the DAGs folder into DAG objects
-that contain tasks to be scheduled.
-
-Refer to :doc:`../authoring-and-scheduling/dagfile-processing` for details on how this can be achieved
-
-
 Triggering DAG with Future Date
 -------------------------------
 
