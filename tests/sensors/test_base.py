@@ -64,7 +64,7 @@ from tests_common.test_utils import db
 pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"

@@ -22,6 +22,7 @@
 export const stateColor = {
   deferred: "mediumpurple",
   failed: "red",
+  none: "lightblue",
   null: "lightblue",
   queued: "gray",
   removed: "lightgrey",

@@ -28,6 +28,7 @@ from airflow.api_fastapi.core_api.app import (
     init_dag_bag,
     init_error_handlers,
     init_flask_plugins,
+    init_middlewares,
     init_plugins,
     init_views,
 )
@@ -74,6 +75,7 @@ def create_app(apps: str = "all") -> FastAPI:
         init_auth_manager(app)
         init_flask_plugins(app)
         init_error_handlers(app)
+        init_middlewares(app)
 
     if "execution" in apps_list or "all" in apps_list:
         task_exec_api_app = create_task_execution_api_app(app)

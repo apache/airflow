@@ -163,7 +163,8 @@ class TaskInstance(BaseModel):
     dag_id: str
     run_id: str
     try_number: int
-    map_index: int | None = None
+    map_index: int = -1
+    hostname: str | None = None
 
 
 class DagRun(BaseModel):
@@ -190,8 +191,20 @@ class TIRunContext(BaseModel):
     dag_run: DagRun
     """DAG run information for the task instance."""
 
+    max_tries: int
+    """Maximum number of tries for the task instance (from DB)."""
+
     variables: Annotated[list[VariableResponse], Field(default_factory=list)]
     """Variables that can be accessed by the task instance."""
 
     connections: Annotated[list[ConnectionResponse], Field(default_factory=list)]
     """Connections that can be accessed by the task instance."""
+
+
+class PrevSuccessfulDagRunResponse(BaseModel):
+    """Schema for response with previous successful DagRun information for Task Template Context."""
+
+    data_interval_start: UtcDateTime | None = None
+    data_interval_end: UtcDateTime | None = None
+    start_date: UtcDateTime | None = None
+    end_date: UtcDateTime | None = None

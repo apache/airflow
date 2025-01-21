@@ -30,19 +30,6 @@ from airflow.utils.net import get_hostname
 from airflow.version import version
 
 
-def not_found(error):
-    """Show Not Found on screen for any error in the Webserver."""
-    return (
-        render_template(
-            "airflow/error.html",
-            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
-            status_code=404,
-            error_message="Page cannot be found.",
-        ),
-        404,
-    )
-
-
 def show_traceback(error):
     """Show Traceback for a given error."""
     is_logged_in = get_auth_manager().is_logged_in()

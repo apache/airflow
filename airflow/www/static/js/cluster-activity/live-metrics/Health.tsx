@@ -105,16 +105,12 @@ const Health = (props: CenterProps) => {
               status={data?.triggerer?.status}
               latestHeartbeat={data?.triggerer?.latestTriggererHeartbeat}
             />
-            {!!standaloneDagProcessor && (
-              <HealthSection
-                title="Dag Processor"
-                status={data?.dagProcessor?.status}
-                latestHeartbeat={
-                  data?.dagProcessor?.latestDagProcessorHeartbeat
-                }
-                mt={3}
-              />
-            )}
+            <HealthSection
+              title="Dag Processor"
+              status={data?.dagProcessor?.status}
+              latestHeartbeat={data?.dagProcessor?.latestDagProcessorHeartbeat}
+              mt={3}
+            />
           </CardBody>
         </Card>
       </LoadingWrapper>

@@ -29,14 +29,14 @@ class DagBundleModel(Base):
     We track the following information about each bundle, as it can be useful for
     informational purposes and for debugging:
      - active: Is the bundle currently found in configuration?
-     - latest_version: The latest version Airflow has seen for the bundle.
+     - version: The latest version Airflow has seen for the bundle.
      - last_refreshed: When the bundle was last refreshed.
     """
 
     __tablename__ = "dag_bundle"
     name = Column(StringID(), primary_key=True)
     active = Column(Boolean, default=True)
-    latest_version = Column(String(200), nullable=True)
+    version = Column(String(200), nullable=True)
     last_refreshed = Column(UtcDateTime, nullable=True)
 
     def __init__(self, *, name: str):

@@ -84,11 +84,23 @@ class TestLocalExecutor:
         with spy_on(executor._spawn_worker) as spawn_worker:
             for ti in success_tis:
                 executor.queue_workload(
-                    workloads.ExecuteTask(token="", ti=ti, dag_path="some/path", log_path=None)
+                    workloads.ExecuteTask(
+                        token="",
+                        ti=ti,
+                        dag_rel_path="some/path",
+                        log_path=None,
+                        bundle_info=dict(name="hi", version="hi"),
+                    )
                 )
 
             executor.queue_workload(
-                workloads.ExecuteTask(token="", ti=fail_ti, dag_path="some/path", log_path=None)
+                workloads.ExecuteTask(
+                    token="",
+                    ti=fail_ti,
+                    dag_rel_path="some/path",
+                    log_path=None,
+                    bundle_info=dict(name="hi", version="hi"),
+                )
             )
 
             executor.end()

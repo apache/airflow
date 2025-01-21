@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import attr
@@ -29,7 +29,7 @@ from tests_common.test_utils.compat import BaseOperatorLink
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
 class MockOperator(BaseOperator):
@@ -67,7 +67,7 @@ class MockOperatorWithNestedFields(BaseOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Mapping[str, Any],
+        context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:

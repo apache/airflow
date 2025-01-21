@@ -26,7 +26,7 @@ import os
 import re
 import shlex
 import string
-from collections.abc import Container, Iterable, Mapping, Sequence
+from collections.abc import Container, Iterable, Sequence
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
@@ -90,7 +90,12 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
     from airflow.providers.cncf.kubernetes.secret import Secret
-    from airflow.utils.context import Context
+
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 alphanum_lower = string.ascii_lowercase + string.digits
 
@@ -423,7 +428,7 @@ class KubernetesPodOperator(BaseOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Mapping[str, Any],
+        context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:
@@ -481,10 +486,10 @@ class KubernetesPodOperator(BaseOperator):
 
         map_index = ti.map_index
         if map_index >= 0:
-            labels["map_index"] = map_index
+            labels["map_index"] = str(map_index)
 
         if include_try_number:
-            labels.update(try_number=ti.try_number)
+            labels.update(try_number=str(ti.try_number))
         # In the case of sub dags this is just useful
         # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
         if getattr(context["dag"], "parent_dag", False):

@@ -185,8 +185,8 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
-  ImportVariablesData,
-  ImportVariablesResponse,
+  BulkVariablesData,
+  BulkVariablesResponse,
   ReparseDagFileData,
   ReparseDagFileResponse,
   GetHealthResponse,
@@ -3073,29 +3073,23 @@ export class VariableService {
   }
 
   /**
-   * Import Variables
-   * Import variables from a JSON file.
+   * Bulk Variables
+   * Bulk create, update, and delete variables.
    * @param data The data for the request.
-   * @param data.formData
-   * @param data.actionIfExists
-   * @returns VariablesImportResponse Successful Response
+   * @param data.requestBody
+   * @returns VariableBulkResponse Successful Response
    * @throws ApiError
    */
-  public static importVariables(data: ImportVariablesData): CancelablePromise<ImportVariablesResponse> {
+  public static bulkVariables(data: BulkVariablesData): CancelablePromise<BulkVariablesResponse> {
     return __request(OpenAPI, {
-      method: "POST",
-      url: "/public/variables/import",
-      query: {
-        action_if_exists: data.actionIfExists,
-      },
-      formData: data.formData,
-      mediaType: "multipart/form-data",
+      method: "PATCH",
+      url: "/public/variables",
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: {
-        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
-        409: "Conflict",
-        422: "Unprocessable Entity",
+        422: "Validation Error",
       },
     });
   }
