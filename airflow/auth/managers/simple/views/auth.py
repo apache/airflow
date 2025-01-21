@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+import pytest
 from flask import redirect, request, session, url_for
 from flask_appbuilder import expose
 
@@ -48,7 +49,6 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         """Start login process."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["no_status"] = state_color_mapping.pop(None)
-        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         return self.render_template(
             "airflow/login.html",
             disable_nav_bar=True,
@@ -57,7 +57,6 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
             ),
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
-            standalone_dag_processor=standalone_dag_processor,
         )
 
     @expose("/logout", methods=["GET", "POST"])
@@ -66,6 +65,9 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         session.clear()
         return redirect(url_for("SimpleAuthManagerAuthenticationViews.login"))
 
+    @pytest.mark.skip(
+        "This test will be deleted soon, meanwhile disabling it because it is flaky. See: https://github.com/apache/airflow/issues/45818"
+    )
     @csrf.exempt
     @expose("/login_submit", methods=("GET", "POST"))
     def login_submit(self):

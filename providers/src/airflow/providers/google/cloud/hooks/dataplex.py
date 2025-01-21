@@ -36,6 +36,7 @@ from google.cloud.dataplex_v1.types import (
     DataScan,
     DataScanJob,
     EntryGroup,
+    EntryType,
     Lake,
     Task,
     Zone,
@@ -54,7 +55,10 @@ if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
-    from google.cloud.dataplex_v1.services.catalog_service.pagers import ListEntryGroupsPager
+    from google.cloud.dataplex_v1.services.catalog_service.pagers import (
+        ListEntryGroupsPager,
+        ListEntryTypesPager,
+    )
     from googleapiclient.discovery import Resource
 
 PATH_DATA_SCAN = "projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
@@ -133,6 +137,200 @@ class DataplexHook(GoogleBaseHook):
         except Exception:
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_entry_type(
+        self,
+        location: str,
+        entry_type_id: str,
+        entry_type_configuration: EntryType | dict,
+        project_id: str = PROVIDE_PROJECT_ID,
+        validate_only: bool = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Create an EntryType resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_type_id: Required. EntryType identifier.
+        :param entry_type_configuration: Required. EntryType configuration body.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param validate_only: Optional. If set, performs request validation, but does not actually execute
+            the create request.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.create_entry_type(
+            request={
+                "parent": client.common_location_path(project_id, location),
+                "entry_type_id": entry_type_id,
+                "entry_type": entry_type_configuration,
+                "validate_only": validate_only,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_entry_type(
+        self,
+        location: str,
+        entry_type_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> EntryType:
+        """
+        Get an EntryType resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_type_id: Required. EntryGroup identifier.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.get_entry_type(
+            request={
+                "name": client.entry_type_path(project_id, location, entry_type_id),
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_entry_type(
+        self,
+        location: str,
+        entry_type_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Delete an EntryType resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_type_id: Required. EntryType identifier.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.delete_entry_type(
+            request={
+                "name": client.entry_type_path(project_id, location, entry_type_id),
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_entry_types(
+        self,
+        location: str,
+        filter_by: str | None = None,
+        order_by: str | None = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> ListEntryTypesPager:
+        """
+        List EntryTypes resources from specific location.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param filter_by: Optional. Filter to apply on the list results.
+        :param order_by: Optional. Fields to order the results by.
+        :param page_size: Optional. Maximum number of EntryGroups to return on one page.
+        :param page_token: Optional. Token to retrieve the next page of results.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.list_entry_types(
+            request={
+                "parent": client.common_location_path(project_id, location),
+                "filter": filter_by,
+                "order_by": order_by,
+                "page_size": page_size,
+                "page_token": page_token,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_entry_type(
+        self,
+        location: str,
+        entry_type_id: str,
+        entry_type_configuration: dict | EntryType,
+        project_id: str = PROVIDE_PROJECT_ID,
+        update_mask: list[str] | FieldMask | None = None,
+        validate_only: bool | None = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Update an EntryType resource.
+
+        :param entry_type_id: Required. ID of the EntryType to update.
+        :param entry_type_configuration: Required. The updated configuration body of the EntryType.
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param update_mask: Optional. Names of fields whose values to overwrite on an entry group.
+            If this parameter is absent or empty, all modifiable fields are overwritten. If such
+            fields are non-required and omitted in the request body, their values are emptied.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param validate_only: Optional. The service validates the request without performing any mutations.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        _entry_type = (
+            deepcopy(entry_type_configuration)
+            if isinstance(entry_type_configuration, dict)
+            else EntryType.to_dict(entry_type_configuration)
+        )
+        _entry_type["name"] = client.entry_type_path(project_id, location, entry_type_id)
+        return client.update_entry_type(
+            request={
+                "entry_type": _entry_type,
+                "update_mask": FieldMask(paths=update_mask) if type(update_mask) is list else update_mask,
+                "validate_only": validate_only,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_entry_group(

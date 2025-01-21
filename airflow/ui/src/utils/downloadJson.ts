@@ -17,17 +17,16 @@
  * under the License.
  */
 
-import type { DepEdge, DepNode } from "./types";
+export const downloadJson = (data: Record<string, string | undefined>, name: string) => {
+  const jsonData = JSON.stringify(data, undefined, 2);
+  const blob = new Blob([jsonData], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
 
-// define global variables that come from FAB
-declare global {
-  const autoRefreshInterval: number | undefined;
-  const stateColors: {
-    [key: string]: string;
-  };
-  const depEdges: DepEdge[];
-  const depNodes: DepNode[];
-  const arrange: string;
-}
+  const link = document.createElement("a");
 
-export {};
+  link.href = url;
+  link.download = `${name}.json`;
+  link.click();
+
+  URL.revokeObjectURL(url);
+};
