@@ -322,6 +322,7 @@ class CeleryExecutor(BaseExecutor):
             self.log.debug("No task to query celery, skipping sync")
             return
         self.update_all_task_states()
+        print("Test print statement")
 
     def debug_dump(self) -> None:
         """Debug dump; called in response to SIGUSR2 by the scheduler."""
