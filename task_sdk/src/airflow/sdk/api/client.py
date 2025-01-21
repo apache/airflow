@@ -168,7 +168,7 @@ class TaskInstanceOperations:
 
         The data from it is used to get values for Task Context.
         """
-        resp = self.client.get(f"task-instances/{id}/previous_successful_dagrun")
+        resp = self.client.get(f"task-instances/{id}/previous-successful-dagrun")
         return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
 
 

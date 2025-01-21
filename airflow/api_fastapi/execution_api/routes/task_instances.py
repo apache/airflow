@@ -395,7 +395,7 @@ def ti_put_rtif(
 
 
 @router.get(
-    "/{task_instance_id}/previous_successful_dagrun",
+    "/{task_instance_id}/previous-successful-dagrun",
     status_code=status.HTTP_200_OK,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance or Dag Run not found"},

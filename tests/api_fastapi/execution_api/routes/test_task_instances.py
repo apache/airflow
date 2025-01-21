@@ -828,7 +828,7 @@ class TestPreviousDagRun:
 
         session.commit()
 
-        response = client.get(f"/execution/task-instances/{ti.id}/previous_successful_dagrun")
+        response = client.get(f"/execution/task-instances/{ti.id}/previous-successful-dagrun")
         assert response.status_code == 200
         assert response.json() == {
             "data_interval_start": "2025-01-18T00:00:00Z",
@@ -842,7 +842,7 @@ class TestPreviousDagRun:
 
         assert session.get(TaskInstance, ti_id) is None
 
-        response = client.get(f"/execution/task-instances/{ti_id}/previous_successful_dagrun")
+        response = client.get(f"/execution/task-instances/{ti_id}/previous-successful-dagrun")
         assert response.status_code == 200
         assert response.json() == {
             "data_interval_start": None,
