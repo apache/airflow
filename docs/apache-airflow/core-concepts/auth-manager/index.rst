@@ -96,10 +96,9 @@ Some reasons you may want to write a custom auth manager include:
 Authentication related BaseAuthManager methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* ``is_logged_in``: Return whether the user is signed-in.
-* ``get_user``: Return the signed-in user.
 * ``get_url_login``: Return the URL the user is redirected to for signing in.
-* ``get_url_logout``: Return the URL the user is redirected to for signing out.
+* ``serialize_user``: Return a dict from a user object. This dict will be used to deserialize a user. See below.
+* ``deserialize_user``: Create a user object from dict. The dict schema is the same as the one provided during serialization.
 
 Authorization related BaseAuthManager methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -176,10 +175,10 @@ Auth managers may vend CLI commands which will be included in the ``airflow`` co
 .. note::
     When creating a new auth manager, or updating any existing auth manager, be sure to not import or execute any expensive operations/code at the module level. Auth manager classes are imported in several places and if they are slow to import this will negatively impact the performance of your Airflow environment, especially for CLI commands.
 
-Rest API
-^^^^^^^^
+Extend the Fastapi application
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Auth managers may vend Rest API endpoints which will be included in the :doc:`/stable-rest-api-ref` by implementing the ``get_api_endpoints`` method. The endpoints can be used to manage resources such as users, groups, roles (if any) handled by your auth manager. Endpoints are only vended for the currently configured auth manager.
+Auth managers can provide custom API endpoints and/or web pages. To do this, you can customize the FastAPI application by overriding the ``get_fastapi_app method``. The application returned by this method will be mounted within the main FastAPI application at the ``/auth`` route.
 
 Next Steps
 ^^^^^^^^^^

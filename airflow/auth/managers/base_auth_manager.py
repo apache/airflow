@@ -20,12 +20,13 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
+from deprecated import deprecated
 from sqlalchemy import select
 
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
 from airflow.utils.jwt_signer import JWTSigner
@@ -90,17 +91,21 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """Return the user's display name associated to the user in session."""
         return self.get_user_name()
 
-    @abstractmethod
+    @deprecated(
+        reason="Only used in Airflow 2 legacy UI. Will be deleted soon.",
+        category=RemovedInAirflow3Warning,
+    )
     def get_user(self) -> T | None:
         """Return the user associated to the user in session."""
-
-    @abstractmethod
-    def deserialize_user(self, token: dict[str, Any]) -> T:
-        """Create a user object from dict."""
+        raise NotImplementedError()
 
     @abstractmethod
     def serialize_user(self, user: T) -> dict[str, Any]:
         """Create a dict from a user object."""
+
+    @abstractmethod
+    def deserialize_user(self, token: dict[str, Any]) -> T:
+        """Create a user object from dict."""
 
     def get_jwt_token(self, user: T) -> str:
         """Return the JWT token from a user object."""
@@ -121,17 +126,25 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             return str(user_id)
         return None
 
-    @abstractmethod
+    @deprecated(
+        reason="Only used in Airflow 2 legacy UI. Will be deleted soon.",
+        category=RemovedInAirflow3Warning,
+    )
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
+        raise NotImplementedError()
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
 
-    @abstractmethod
+    @deprecated(
+        reason="Only used in Airflow 2 legacy UI. Will be deleted soon.",
+        category=RemovedInAirflow3Warning,
+    )
     def get_url_logout(self) -> str:
         """Return the logout page url."""
+        raise NotImplementedError()
 
     def get_url_user_profile(self) -> str | None:
         """

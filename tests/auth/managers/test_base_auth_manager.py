@@ -58,9 +58,6 @@ class BaseAuthManagerUserTest(BaseUser):
 class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
     appbuilder: AirflowAppBuilder | None = None
 
-    def get_user(self) -> BaseAuthManagerUserTest:
-        raise NotImplementedError()
-
     def deserialize_user(self, token: dict[str, Any]) -> BaseAuthManagerUserTest:
         raise NotImplementedError()
 
@@ -132,13 +129,7 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
     ):
         raise NotImplementedError()
 
-    def is_logged_in(self) -> bool:
-        raise NotImplementedError()
-
     def get_url_login(self, **kwargs) -> str:
-        raise NotImplementedError()
-
-    def get_url_logout(self) -> str:
         raise NotImplementedError()
 
     def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:

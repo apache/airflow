@@ -13,3 +13,9 @@ As part of this change the following breaking changes have occurred:
   - The property ``security_manager`` has been removed from the interface
 
   - The method ``filter_permitted_menu_items`` is now abstract and must be implemented
+
+  - The method ``get_user`` is deprecated and no longer abstract
+
+  - The method ``is_logged_in`` is deprecated and no longer abstract
+
+  - The method ``get_url_logout`` is deprecated and no longer abstract
