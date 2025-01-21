@@ -25,10 +25,8 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
-    const date = new Date(value);
-
     if (paramsDict[name]) {
-      paramsDict[name].value = date.toISOString();
+      paramsDict[name].value = value.slice(0, 16);
     }
 
     setParamsDict(paramsDict);

@@ -49,16 +49,10 @@ export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
 
   const handleChange = ([value]: Array<string>) => {
     if (paramsDict[name]) {
-      const updatedParams = {
-        ...paramsDict,
-        [name]: {
-          ...paramsDict[name],
-          value,
-        },
-      };
-
-      setParamsDict(updatedParams);
+      paramsDict[name].value = value;
     }
+
+    setParamsDict(paramsDict);
   };
 
   return (
