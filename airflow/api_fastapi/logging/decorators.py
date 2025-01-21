@@ -120,11 +120,9 @@ def action_logging(event: str | None = None):
         if params and "is_paused" in params:
             extra_fields["is_paused"] = params["is_paused"] == "false"
 
-        event_name = event or request.url.path.strip("/").replace("/", ".")
-
         # Create log entry
         log = Log(
-            event=event_name,
+            event=event,
             task_instance=None,
             owner=user_name,
             owner_display_name=user_display,
