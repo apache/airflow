@@ -84,6 +84,7 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     # with "src" in the output paths of modules which we don't want
 
     package_id = PACKAGE_NAME[len("apache-airflow-providers-") :].replace("-", ".")
+    # TODO(potiuk) - remove the if when all providers are new-style
     if CURRENT_PROVIDER["is_new_provider"]:
         base_provider_dir = (ROOT_DIR / "providers").joinpath(*package_id.split("."))
         PACKAGE_DIR = base_provider_dir / "src" / "airflow"
@@ -92,7 +93,6 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
         target_dir = ROOT_DIR / "docs" / PACKAGE_NAME
         conf_py_path = f"/providers/{package_id.replace('.', '/')}/docs/"
     else:
-        # TODO(potiuk) remove this when we move all providers from the old structure
         PACKAGE_DIR = ROOT_DIR / "providers" / "src" / "airflow"
         PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
         SYSTEM_TESTS_DIR = ROOT_DIR / "providers" / "tests" / "system"
@@ -828,6 +828,9 @@ if PACKAGE_NAME.startswith("apache-airflow-providers-"):
         )
     )
 
+    # Here we remove all other providers from the autoapi list, only leaving the current provider,
+    # Otherwise all the other provider indexes will no be found in any TOC.
+
     for p in load_package_data(include_suspended=True):
         if p["package-name"] == PACKAGE_NAME:
             continue
@@ -840,6 +843,9 @@ if PACKAGE_NAME.startswith("apache-airflow-providers-"):
         autoapi_dirs.append(test_dir)
 
         autoapi_ignore.extend(f"{d}/*" for d in test_dir.glob("*") if d.is_dir() and d.name != "system")
+    print("#### AUTOAPI_IGNORE:")
+    print(autoapi_ignore)
+    print("#### END OF AUTOAPI_IGNORE:")
 else:
     if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
         autoapi_dirs.append(SYSTEM_TESTS_DIR)

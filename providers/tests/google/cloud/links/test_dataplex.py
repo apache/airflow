@@ -22,13 +22,17 @@ import pytest
 from airflow.providers.google.cloud.links.dataplex import (
     DataplexCatalogEntryGroupLink,
     DataplexCatalogEntryGroupsLink,
+    DataplexCatalogEntryTypeLink,
+    DataplexCatalogEntryTypesLink,
     DataplexLakeLink,
     DataplexTaskLink,
     DataplexTasksLink,
 )
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCatalogCreateEntryGroupOperator,
+    DataplexCatalogCreateEntryTypeOperator,
     DataplexCatalogGetEntryGroupOperator,
+    DataplexCatalogGetEntryTypeOperator,
     DataplexCreateLakeOperator,
     DataplexCreateTaskOperator,
     DataplexListTasksOperator,
@@ -39,6 +43,9 @@ TEST_PROJECT_ID = "test-project-id"
 TEST_ENTRY_GROUP_ID = "test-entry-group-id"
 TEST_ENTRY_GROUP_ID_BODY = {"description": "some description"}
 TEST_ENTRY_GROUPS_ID = "test-entry-groups-id"
+TEST_ENTRY_TYPE_ID = "test-entry-type-id"
+TEST_ENTRY_TYPE_ID_BODY = {"description": "some description"}
+TEST_ENTRY_TYPES_ID = "test-entry-groups-id"
 TEST_TASK_ID = "test-task-id"
 TEST_TASKS_ID = "test-tasks-id"
 TEST_LAKE_ID = "test-lake-id"
@@ -51,6 +58,13 @@ EXPECTED_DATAPLEX_CATALOG_ENTRY_GROUP_LINK = (
 )
 EXPECTED_DATAPLEX_CATALOG_ENTRY_GROUPS_LINK = (
     DATAPLEX_BASE_LINK + f"catalog/entry-groups?project={TEST_PROJECT_ID}"
+)
+EXPECTED_DATAPLEX_CATALOG_ENTRY_TYPE_LINK = (
+    DATAPLEX_BASE_LINK
+    + f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/entryTypes/{TEST_ENTRY_TYPE_ID}?project={TEST_PROJECT_ID}"
+)
+EXPECTED_DATAPLEX_CATALOG_ENTRY_TYPES_LINK = (
+    DATAPLEX_BASE_LINK + f"catalog/entry-types?project={TEST_PROJECT_ID}"
 )
 DATAPLEX_LAKE_LINK = (
     DATAPLEX_BASE_LINK + f"lakes/{TEST_LAKE_ID};location={TEST_LOCATION}?project={TEST_PROJECT_ID}"
@@ -159,6 +173,47 @@ class TestDataplexCatalogEntryGroupsLink:
             location=TEST_LOCATION,
             entry_group_id=TEST_ENTRY_GROUP_ID,
             entry_group_configuration=TEST_ENTRY_GROUP_ID_BODY,
+            project_id=TEST_PROJECT_ID,
+        )
+        session.add(ti)
+        session.commit()
+        link.persist(context={"ti": ti}, task_instance=ti.task)
+        actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+        assert actual_url == expected_url
+
+
+class TestDataplexCatalogEntryTypeLink:
+    @pytest.mark.db_test
+    def test_get_link(self, create_task_instance_of_operator, session):
+        expected_url = EXPECTED_DATAPLEX_CATALOG_ENTRY_TYPE_LINK
+        link = DataplexCatalogEntryTypeLink()
+        ti = create_task_instance_of_operator(
+            DataplexCatalogGetEntryTypeOperator,
+            dag_id="test_link_dag",
+            task_id="test_link_task",
+            location=TEST_LOCATION,
+            entry_type_id=TEST_ENTRY_TYPE_ID,
+            project_id=TEST_PROJECT_ID,
+        )
+        session.add(ti)
+        session.commit()
+        link.persist(context={"ti": ti}, task_instance=ti.task)
+        actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+        assert actual_url == expected_url
+
+
+class TestDataplexCatalogEntryTypesLink:
+    @pytest.mark.db_test
+    def test_get_link(self, create_task_instance_of_operator, session):
+        expected_url = EXPECTED_DATAPLEX_CATALOG_ENTRY_TYPES_LINK
+        link = DataplexCatalogEntryTypesLink()
+        ti = create_task_instance_of_operator(
+            DataplexCatalogCreateEntryTypeOperator,
+            dag_id="test_link_dag",
+            task_id="test_link_task",
+            location=TEST_LOCATION,
+            entry_type_id=TEST_ENTRY_TYPE_ID,
+            entry_type_configuration=TEST_ENTRY_TYPE_ID_BODY,
             project_id=TEST_PROJECT_ID,
         )
         session.add(ti)

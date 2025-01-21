@@ -61,13 +61,13 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: >
           change_types=(
-            'DAG changes'
+            'Dag changes'
             'Config changes'
             'API changes'
             'CLI changes'
             'Behaviour changes'
             'Plugin changes'
-            'Dependency change'
+            'Dependency changes'
           )
           news_fragment_content=`git diff origin/${BASE_REF} newsfragments/*.significant.rst`
 

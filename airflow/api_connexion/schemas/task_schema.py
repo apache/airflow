@@ -26,7 +26,6 @@ from airflow.api_connexion.schemas.common_schema import (
     TimeDeltaSchema,
     WeightRuleField,
 )
-from airflow.models.mappedoperator import MappedOperator
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
@@ -62,7 +61,7 @@ class TaskSchema(Schema):
     template_fields = fields.List(fields.String(), dump_only=True)
     downstream_task_ids = fields.List(fields.String(), dump_only=True)
     params = fields.Method("_get_params", dump_only=True)
-    is_mapped = fields.Method("_get_is_mapped", dump_only=True)
+    is_mapped = fields.Boolean(dump_only=True)
     doc_md = fields.String(dump_only=True)
 
     @staticmethod
@@ -79,10 +78,6 @@ class TaskSchema(Schema):
         """Get the Params defined in a Task."""
         params = obj.params
         return {k: v.dump() for k, v in params.items()}
-
-    @staticmethod
-    def _get_is_mapped(obj):
-        return isinstance(obj, MappedOperator)
 
 
 class TaskCollection(NamedTuple):

@@ -75,6 +75,7 @@ PRE_COMMIT_LIST = [
     "check-provider-yaml-valid",
     "check-providers-subpackages-init-file-exist",
     "check-pydevd-left-in-code",
+    "check-pyproject-toml-consistency",
     "check-revision-heads-map",
     "check-safe-filter-usage-in-html",
     "check-sql-dependency-common-data-structure",

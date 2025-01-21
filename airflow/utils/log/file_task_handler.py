@@ -282,7 +282,8 @@ class FileTaskHandler(logging.Handler):
         if str_tpl:
             if ti.task is not None and ti.task.dag is not None:
                 dag = ti.task.dag
-                data_interval = dag.get_run_data_interval(dag_run)
+                # TODO: TaskSDK: why do we need this on the DAG! Where is this render fn called from. Revisit
+                data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined]
             else:
                 from airflow.timetables.base import DataInterval
 

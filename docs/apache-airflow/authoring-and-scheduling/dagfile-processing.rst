@@ -24,9 +24,7 @@ DAG File Processing refers to the process of turning Python files contained in t
 There are two primary components involved in DAG file processing.  The ``DagFileProcessorManager`` is a process executing an infinite loop that determines which files need
 to be processed, and the ``DagFileProcessorProcess`` is a separate process that is started to convert an individual file into one or more DAG objects.
 
-The ``DagFileProcessorManager`` runs user codes. As a result, you can decide to run it as a standalone process in a different host than the scheduler process.
-If you decide to run it as a standalone process, you need to set this configuration: ``AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True`` and
-run the ``airflow dag-processor`` CLI command, otherwise, starting the scheduler process (``airflow scheduler``) also starts the ``DagFileProcessorManager``.
+The ``DagFileProcessorManager`` runs user codes. As a result, it runs as a standalone process by running the ``airflow dag-processor`` CLI command.
 
 .. image:: /img/dag_file_processing_diagram.png
 
