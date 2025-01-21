@@ -28,9 +28,9 @@ from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.types import Operator
 
 logger = logging.getLogger(__name__)
 

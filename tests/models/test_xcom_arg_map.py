@@ -365,7 +365,7 @@ def test_xcom_map_zip_nest(dag_maker, session):
 
 
 def test_xcom_concat(dag_maker, session):
-    from airflow.models.xcom_arg import _ConcatResult
+    from airflow.sdk.definitions.xcom_arg import _ConcatResult
 
     agg_results = set()
     all_results = None

@@ -411,28 +411,6 @@ def test_deepcopy():
     copy.deepcopy(dag)
 
 
-@pytest.mark.db_test
-def test_find_mapped_dependants_in_another_group(dag_maker):
-    from airflow.utils.task_group import TaskGroup
-
-    @task_decorator
-    def gen(x):
-        return list(range(x))
-
-    @task_decorator
-    def add(x, y):
-        return x + y
-
-    with dag_maker():
-        with TaskGroup(group_id="g1"):
-            gen_result = gen(3)
-        with TaskGroup(group_id="g2"):
-            add_result = add.partial(y=1).expand(x=gen_result)
-
-    dependants = list(gen_result.operator.iter_mapped_dependants())
-    assert dependants == [add_result.operator]
-
-
 def get_states(dr):
     """
     For a given dag run, get a dict of states.

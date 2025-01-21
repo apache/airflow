@@ -1514,26 +1514,24 @@ class TestDag:
         assert dagrun.state == dag_run_state
 
     @pytest.mark.parametrize("dag_run_state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    def test_clear_set_dagrun_state_for_mapped_task(self, dag_run_state):
+    @pytest.mark.need_serialized_dag
+    def test_clear_set_dagrun_state_for_mapped_task(self, dag_maker, dag_run_state):
         dag_id = "test_clear_set_dagrun_state"
         self._clean_up(dag_id)
         task_id = "t1"
 
-        dag = DAG(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1)
+        with dag_maker(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1) as dag:
 
-        @dag.task
-        def make_arg_lists():
-            return [[1], [2], [{"a": "b"}]]
+            @task_decorator
+            def make_arg_lists():
+                return [[1], [2], [{"a": "b"}]]
 
-        def consumer(value):
-            print(value)
+            def consumer(value):
+                print(value)
 
-        mapped = PythonOperator.partial(task_id=task_id, dag=dag, python_callable=consumer).expand(
-            op_args=make_arg_lists()
-        )
+            PythonOperator.partial(task_id=task_id, python_callable=consumer).expand(op_args=make_arg_lists())
 
-        session = settings.Session()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        session = dag_maker.session
         dagrun_1 = dag.create_dagrun(
             run_id="backfill",
             run_type=DagRunType.BACKFILL_JOB,
@@ -1542,8 +1540,10 @@ class TestDag:
             logical_date=DEFAULT_DATE,
             session=session,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
+        # Get the (de)serialized MappedOperator
+        mapped = dag.get_task(task_id)
         expand_mapped_task(mapped, dagrun_1.run_id, "make_arg_lists", length=2, session=session)
 
         upstream_ti = dagrun_1.get_task_instance("make_arg_lists", session=session)
@@ -2732,20 +2732,21 @@ def test_set_task_instance_state(run_id, session, dag_maker):
     }
 
 
+@pytest.mark.need_serialized_dag
 def test_set_task_instance_state_mapped(dag_maker, session):
     """Test that when setting an individual mapped TI that the other TIs are not affected"""
     task_id = "t1"
 
     with dag_maker(session=session) as dag:
 
-        @dag.task
+        @task_decorator
         def make_arg_lists():
             return [[1], [2], [{"a": "b"}]]
 
         def consumer(value):
             print(value)
 
-        mapped = PythonOperator.partial(task_id=task_id, dag=dag, python_callable=consumer).expand(
+        mapped = PythonOperator.partial(task_id=task_id, python_callable=consumer).expand(
             op_args=make_arg_lists()
         )
 
@@ -2755,6 +2756,8 @@ def test_set_task_instance_state_mapped(dag_maker, session):
         run_type=DagRunType.SCHEDULED,
         state=DagRunState.FAILED,
     )
+
+    mapped = dag.get_task(task_id)
     expand_mapped_task(mapped, dr1.run_id, "make_arg_lists", length=2, session=session)
 
     # set_state(future=True) only applies to scheduled runs
