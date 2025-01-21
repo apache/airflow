@@ -56,15 +56,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
     isPending,
     triggerDagRun,
   } = useTrigger({ onSuccessConfirm: onClose });
-  const { conf, paramsDict, setConf, setParamsDict } = useParamStore();
-
-  useEffect(() => {
-    setParamsDict({});
-  }, [open, setParamsDict]);
-
-  if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(paramsDict).length === 0) {
-    setParamsDict(initialParamsDict.paramsDict);
-  }
+  const { conf, setConf } = useParamStore();
 
   const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
@@ -130,7 +122,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   return (
     <>
       <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="enclosed">
-        <FlexibleForm />
+        <FlexibleForm initialParamsDict={initialParamsDict} />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>

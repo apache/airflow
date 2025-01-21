@@ -38,13 +38,13 @@ export const FieldStringArray = ({ name }: FlexibleFormElementProps) => {
 
   return (
     <Textarea
-      defaultValue={value}
       id={`element_${name}`}
       name={`element_${name}`}
-      onBlur={(event) => handleChange(event.target.value)}
+      onChange={(event) => handleChange(event.target.value)}
       placeholder="Enter each string on a new line"
       rows={6}
       size="sm"
+      value={value}
     />
   );
 };

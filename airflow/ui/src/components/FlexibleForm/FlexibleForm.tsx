@@ -17,15 +17,35 @@
  * under the License.
  */
 import { Box, Stack, StackSeparator } from "@chakra-ui/react";
+import { useEffect } from "react";
+
+import type { DagParamsSpec } from "src/queries/useDagParams";
 
 import { flexibleFormDefaultSection } from ".";
 import { useParamStore } from "../TriggerDag/useParamStore";
 import { Accordion } from "../ui";
 import { Row } from "./Row";
 
-export const FlexibleForm = () => {
-  const { paramsDict: params } = useParamStore();
+export type FlexibleFormProps = {
+  initialParamsDict: { paramsDict: DagParamsSpec };
+};
+
+export const FlexibleForm = ({ initialParamsDict }: FlexibleFormProps) => {
+  const { paramsDict: params, setParamsDict } = useParamStore();
   const processedSections = new Map();
+
+  useEffect(() => {
+    if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(params).length === 0) {
+      setParamsDict(initialParamsDict.paramsDict);
+    }
+  }, [initialParamsDict, params, setParamsDict]);
+
+  useEffect(
+    () => () => {
+      setParamsDict({});
+    },
+    [setParamsDict],
+  );
 
   return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string")
     ? Object.entries(params).map(([, secParam]) => {
@@ -60,5 +80,3 @@ export const FlexibleForm = () => {
       })
     : undefined;
 };
-
-export default FlexibleForm;
