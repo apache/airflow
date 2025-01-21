@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import cast
 
 from fastapi import HTTPException, status
@@ -45,9 +46,10 @@ def get_dag_report(
     subdir: str,
 ):
     """Get DAG report."""
-    if not subdir.startswith(settings.DAGS_FOLDER):
+    fullpath = os.path.normpath(subdir)
+    if not fullpath.startswith(settings.DAGS_FOLDER):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "subdir should be subpath of DAGS_FOLDER settings")
-    dagbag = DagBag(subdir)
+    dagbag = DagBag(fullpath)
     return DagReportCollectionResponse(
         dag_reports=cast(list[DagReportResponse], dagbag.dagbag_stats),
         total_entries=len(dagbag.dagbag_stats),
