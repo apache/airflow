@@ -67,8 +67,10 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByName,
     GetAssetByUri,
     GetConnection,
+    GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
     SetRenderedFields,
@@ -798,6 +800,10 @@ class ActivitySubprocess(WatchedSubprocess):
             asset_resp = self.client.assets.get(uri=msg.uri)
             asset_result = AssetResult.from_asset_response(asset_resp)
             resp = asset_result.model_dump_json(exclude_unset=True).encode()
+        elif isinstance(msg, GetPrevSuccessfulDagRun):
+            dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
+            dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
+            resp = dagrun_result.model_dump_json(exclude_unset=True).encode()
         else:
             log.error("Unhandled request", msg=msg)
             return

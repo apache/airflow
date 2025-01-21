@@ -37,6 +37,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
     DagRunType,
+    PrevSuccessfulDagRunResponse,
     TerminalTIState,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
@@ -161,6 +162,15 @@ class TaskInstanceOperations:
         # decouple from the server response string
         return {"ok": True}
 
+    def get_previous_successful_dagrun(self, id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
+        """
+        Get the previous successful dag run for a given task instance.
+
+        The data from it is used to get values for Task Context.
+        """
+        resp = self.client.get(f"task-instances/{id}/previous-successful-dagrun")
+        return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
+
 
 class ConnectionOperations:
     __slots__ = ("client",)
@@ -181,6 +191,7 @@ class ConnectionOperations:
                     status_code=e.response.status_code,
                 )
                 return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
+            raise
         return ConnectionResponse.model_validate_json(resp.read())
 
 
