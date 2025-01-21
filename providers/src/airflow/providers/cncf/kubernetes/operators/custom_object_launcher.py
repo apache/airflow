@@ -291,7 +291,7 @@ class CustomObjectLauncher(LoggingMixin):
             # Wait for the driver pod to come alive
             self.pod_spec = k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
-                    labels=self.spark_obj_spec["spec"]["driver"]["labels"],
+                    labels=self.spark_obj_spec["spec"]["driver"].get("labels"),
                     name=self.spark_obj_spec["metadata"]["name"] + "-driver",
                     namespace=self.namespace,
                 )
