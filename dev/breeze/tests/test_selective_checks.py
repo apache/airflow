@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import re
-from functools import cache
 from typing import Any
 
 import pytest
@@ -30,6 +29,7 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     GithubEvents,
 )
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
@@ -59,7 +59,7 @@ def escape_ansi_colors(line):
     return ANSI_COLORS_MATCHER.sub("", line)
 
 
-@cache
+@clearable_cache
 def get_rich_console() -> Console:
     return Console(color_system="truecolor", force_terminal=True)
 
@@ -92,7 +92,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     print_in_color()
                     assert received_value == expected_value, f"Correct value for {expected_key!r}"
                 else:
-                    print(
+                    print_in_color(
                         f"\n[red]ERROR: The key '{expected_key}' missing but "
                         f"it is expected. Expected value:"
                     )
@@ -602,7 +602,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "INTHEWILD.md",
                     "chart/aaaa.txt",
-                    "providers/tests/airbyte/file.py",
+                    "providers/airbyte/tests/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "airbyte",
@@ -654,8 +654,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
                     "providers-test-types-list-as-string": "",
-                    "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow']",
+                    "needs-mypy": "false",
+                    "mypy-checks": "[]",
                 },
                 id="Docs should run even if unimportant files were added and prod image "
                 "should be build for chart changes",
@@ -742,7 +742,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
         pytest.param(
-            ("providers/tests/airbyte/__init__.py",),
+            ("providers/airbyte/tests/airbyte/__init__.py",),
             {
                 "selected-providers-list-as-string": "airbyte",
                 "all-python-versions": "['3.9']",
@@ -1752,7 +1752,7 @@ def test_expected_output_push(
                 "airflow/datasets/",
             ),
             {
-                "selected-providers-list-as-string": "amazon common.compat common.io common.sql dbt.cloud ftp google mysql openlineage postgres sftp snowflake trino",
+                "selected-providers-list-as-string": "amazon common.compat common.io common.sql dbt.cloud ftp google microsoft.mssql mysql openlineage postgres sftp snowflake trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1762,13 +1762,13 @@ def test_expected_output_push(
                 "skip-providers-tests": "false",
                 "test-groups": "['core', 'providers']",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow amazon common.compat common.io common.sql dbt.cloud ftp google mysql openlineage postgres sftp snowflake trino",
+                "docs-list-as-string": "apache-airflow amazon common.compat common.io common.sql dbt.cloud ftp google microsoft.mssql mysql openlineage postgres sftp snowflake trino",
                 "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization WWW",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,common.io,common.sql,dbt.cloud,ftp,mysql,openlineage,postgres,sftp,snowflake,trino] Providers[google]",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,common.io,common.sql,dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,postgres,sftp,snowflake,trino] Providers[google]",
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
             },
@@ -1988,7 +1988,7 @@ def test_upgrade_to_newer_dependencies(
             id="Only Airflow docs changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/celery/file.py",),
+            ("providers/celery/src/airflow/providers/celery/file.py",),
             {"docs-list-as-string": "celery cncf.kubernetes"},
             id="Celery python files changed",
         ),

@@ -29,6 +29,7 @@ from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 if TYPE_CHECKING:
     from airflow.providers.common.sql.dialects.dialect import Dialect
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
 class MsSqlHook(DbApiHook):
@@ -117,3 +118,30 @@ class MsSqlHook(DbApiHook):
 
     def get_autocommit(self, conn: PymssqlConnection):
         return conn.autocommit_state
+
+    def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+        """Return MSSQL specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=DbApiHook.get_openlineage_authority_part(connection, default_port=1433),
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            database=self.schema or self.connection.schema,
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, connection) -> str:
+        """Return database dialect."""
+        return "mssql"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """Return current schema."""
+        return self.get_first("SELECT SCHEMA_NAME();")[0]

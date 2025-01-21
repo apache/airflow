@@ -1748,6 +1748,8 @@ class TestTaskInstance:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = ti.task.dag.create_dagrun(
             run_id="test2",
+            run_type=DagRunType.MANUAL,
+            logical_date=exec_date,
             data_interval=(exec_date, exec_date),
             state=None,
             **triggered_by_kwargs,
@@ -2022,6 +2024,7 @@ class TestTaskInstance:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = ti1.task.dag.create_dagrun(
             logical_date=logical_date,
+            run_type=DagRunType.MANUAL,
             state=None,
             run_id="2",
             session=session,
@@ -2127,7 +2130,7 @@ class TestTaskInstance:
         dag_run.conf = {"override": True}
         ti.task.params = {"override": False}
 
-        params = process_params(ti.task.dag, ti.task, dag_run, suppress_exception=False)
+        params = process_params(ti.task.dag, ti.task, dag_run.conf, suppress_exception=False)
         assert params["override"] is True
 
     def test_overwrite_params_with_dag_run_none(self, create_task_instance):
@@ -2142,7 +2145,7 @@ class TestTaskInstance:
         dag_run = ti.dag_run
         ti.task.params = {"override": False}
 
-        params = process_params(ti.task.dag, ti.task, dag_run, suppress_exception=False)
+        params = process_params(ti.task.dag, ti.task, dag_run.conf, suppress_exception=False)
         assert params["override"] is False
 
     @pytest.mark.parametrize("use_native_obj", [True, False])
@@ -3646,19 +3649,19 @@ class TestTaskInstance:
         ti.handle_failure("test ti.task undefined")
 
     @provide_session
-    def test_handle_failure_fail_stop(self, create_dummy_dag, session=None):
+    def test_handle_failure_fail_fast(self, create_dummy_dag, session=None):
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
         dag, task1 = create_dummy_dag(
-            dag_id="test_handle_failure_fail_stop",
+            dag_id="test_handle_failure_fail_fast",
             schedule=None,
             start_date=start_date,
             task_id="task1",
             trigger_rule="all_success",
             with_dagrun_type=DagRunType.MANUAL,
             session=session,
-            fail_stop=True,
+            fail_fast=True,
         )
         logical_date = timezone.utcnow()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}

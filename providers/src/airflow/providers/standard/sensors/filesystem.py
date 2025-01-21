@@ -47,7 +47,11 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class FileSensor(BaseSensorOperator):

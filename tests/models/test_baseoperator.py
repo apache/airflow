@@ -71,24 +71,24 @@ class TestBaseOperator:
     def test_trigger_rule_validation(self):
         from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
 
-        fail_stop_dag = DAG(
+        fail_fast_dag = DAG(
             dag_id="test_dag_trigger_rule_validation",
             schedule=None,
             start_date=DEFAULT_DATE,
-            fail_stop=True,
+            fail_fast=True,
         )
-        non_fail_stop_dag = DAG(
+        non_fail_fast_dag = DAG(
             dag_id="test_dag_trigger_rule_validation",
             schedule=None,
             start_date=DEFAULT_DATE,
-            fail_stop=False,
+            fail_fast=False,
         )
 
         # An operator with default trigger rule and a fail-stop dag should be allowed
-        BaseOperator(task_id="test_valid_trigger_rule", dag=fail_stop_dag, trigger_rule=DEFAULT_TRIGGER_RULE)
+        BaseOperator(task_id="test_valid_trigger_rule", dag=fail_fast_dag, trigger_rule=DEFAULT_TRIGGER_RULE)
         # An operator with non default trigger rule and a non fail-stop dag should be allowed
         BaseOperator(
-            task_id="test_valid_trigger_rule", dag=non_fail_stop_dag, trigger_rule=TriggerRule.ALWAYS
+            task_id="test_valid_trigger_rule", dag=non_fail_fast_dag, trigger_rule=TriggerRule.ALWAYS
         )
 
     def test_cross_downstream(self):
@@ -454,13 +454,13 @@ def get_states(dr):
 
 
 @pytest.mark.db_test
-def test_teardown_and_fail_stop(dag_maker):
+def test_teardown_and_fail_fast(dag_maker):
     """
-    when fail_stop enabled, teardowns should run according to their setups.
+    when fail_fast enabled, teardowns should run according to their setups.
     in this case, the second teardown skips because its setup skips.
     """
 
-    with dag_maker(fail_stop=True) as dag:
+    with dag_maker(fail_fast=True) as dag:
         for num in (1, 2):
             with TaskGroup(f"tg_{num}"):
 

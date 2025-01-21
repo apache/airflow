@@ -832,7 +832,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 return
 
             dag.clear(session=self.session)
-            dag.sync_to_db(session=self.session)
+            if AIRFLOW_V_3_0_PLUS:
+                dag.bulk_write_to_db(self.bundle_name, None, [dag], session=self.session)
+            else:
+                dag.sync_to_db(session=self.session)
 
             if dag.access_control:
                 from airflow.www.security_appless import ApplessAirflowSecurityManager
@@ -889,32 +892,43 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 "session": self.session,
                 **kwargs,
             }
-            # Need to provide run_id if the user does not either provide one
-            # explicitly, or pass run_type for inference in dag.create_dagrun().
-            if "run_id" not in kwargs and "run_type" not in kwargs:
-                kwargs["run_id"] = "test"
 
-            if "run_type" not in kwargs:
-                kwargs["run_type"] = DagRunType.from_run_id(kwargs["run_id"])
+            run_type = kwargs.get("run_type", DagRunType.MANUAL)
+            if not isinstance(run_type, DagRunType):
+                run_type = DagRunType(run_type)
 
             if logical_date is None:
-                if kwargs["run_type"] == DagRunType.MANUAL:
+                if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
                     logical_date = dag.next_dagrun_info(None).logical_date
             logical_date = timezone.coerce_datetime(logical_date)
 
-            if "data_interval" not in kwargs:
-                if kwargs["run_type"] == DagRunType.MANUAL:
+            try:
+                data_interval = kwargs["data_interval"]
+            except KeyError:
+                if run_type == DagRunType.MANUAL:
                     data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
                 else:
                     data_interval = dag.infer_automated_data_interval(logical_date)
                 kwargs["data_interval"] = data_interval
 
+            if "run_id" not in kwargs:
+                if "run_type" not in kwargs:
+                    kwargs["run_id"] = "test"
+                else:
+                    kwargs["run_id"] = dag.timetable.generate_run_id(
+                        run_type=run_type,
+                        logical_date=logical_date,
+                        data_interval=data_interval,
+                    )
+            kwargs["run_type"] = run_type
+
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
             else:
+                kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
 
@@ -940,13 +954,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 self.dagbag.sync_to_db()
                 return
 
-            from airflow.models.dagbundle import DagBundleModel
-
-            if self.session.query(DagBundleModel).filter(DagBundleModel.name == "dag_maker").count() == 0:
-                self.session.add(DagBundleModel(name="dag_maker"))
-                self.session.commit()
-
-            self.dagbag.sync_to_db("dag_maker", None)
+            self.dagbag.sync_to_db(
+                self.bundle_name,
+                None,
+            )
 
         def __call__(
             self,
@@ -955,6 +966,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             serialized=want_serialized,
             activate_assets=want_activate_assets,
             fileloc=None,
+            bundle_name=None,
             session=None,
             **kwargs,
         ):
@@ -986,6 +998,16 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
+            self.bundle_name = bundle_name or "dag_maker"
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dagbundle import DagBundleModel
+
+                if (
+                    self.session.query(DagBundleModel).filter(DagBundleModel.name == self.bundle_name).count()
+                    == 0
+                ):
+                    self.session.add(DagBundleModel(name=self.bundle_name))
+                    self.session.commit()
 
             return self
 

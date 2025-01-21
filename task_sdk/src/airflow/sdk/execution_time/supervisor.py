@@ -61,8 +61,11 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
 )
 from airflow.sdk.execution_time.comms import (
+    AssetResult,
     ConnectionResult,
     DeferTask,
+    GetAssetByName,
+    GetAssetByUri,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -80,6 +83,7 @@ from airflow.sdk.execution_time.comms import (
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
+    from airflow.executors.workloads import BundleInfo
     from airflow.typing_compat import Self
 
 
@@ -316,6 +320,7 @@ class WatchedSubprocess:
     @classmethod
     def start(
         cls,
+        *,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
         **constructor_kwargs,
@@ -574,8 +579,10 @@ class ActivitySubprocess(WatchedSubprocess):
     @classmethod
     def start(  # type: ignore[override]
         cls,
-        path: str | os.PathLike[str],
+        *,
         what: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info,
         client: Client,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
@@ -584,10 +591,10 @@ class ActivitySubprocess(WatchedSubprocess):
         """Fork and start a new subprocess to execute the given task."""
         proc: Self = super().start(id=what.id, client=client, target=target, logger=logger, **kwargs)
         # Tell the task process what it needs to do!
-        proc._on_child_started(what, path)
+        proc._on_child_started(ti=what, dag_rel_path=dag_rel_path, bundle_info=bundle_info)
         return proc
 
-    def _on_child_started(self, ti: TaskInstance, path: str | os.PathLike[str]):
+    def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
         """Send startup message to the subprocess."""
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
@@ -602,7 +609,8 @@ class ActivitySubprocess(WatchedSubprocess):
 
         msg = StartupDetails.model_construct(
             ti=ti,
-            file=os.fspath(path),
+            dag_rel_path=os.fspath(dag_rel_path),
+            bundle_info=bundle_info,
             requests_fd=self._requests_fd,
             ti_context=ti_context,
         )
@@ -782,6 +790,14 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+        elif isinstance(msg, GetAssetByName):
+            asset_resp = self.client.assets.get(name=msg.name)
+            asset_result = AssetResult.from_asset_response(asset_resp)
+            resp = asset_result.model_dump_json(exclude_unset=True).encode()
+        elif isinstance(msg, GetAssetByUri):
+            asset_resp = self.client.assets.get(uri=msg.uri)
+            asset_result = AssetResult.from_asset_response(asset_resp)
+            resp = asset_result.model_dump_json(exclude_unset=True).encode()
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -879,7 +895,8 @@ def forward_to_log(target_log: FilteringBoundLogger, level: int) -> Generator[No
 def supervise(
     *,
     ti: TaskInstance,
-    dag_path: str | os.PathLike[str],
+    bundle_info: BundleInfo,
+    dag_rel_path: str | os.PathLike[str],
     token: str,
     server: str | None = None,
     dry_run: bool = False,
@@ -902,13 +919,8 @@ def supervise(
     if not client and ((not server) ^ dry_run):
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
 
-    if not dag_path:
+    if not dag_rel_path:
         raise ValueError("dag_path is required")
-
-    if (str_path := os.fspath(dag_path)).startswith("DAGS_FOLDER/"):
-        from airflow.settings import DAGS_FOLDER
-
-        dag_path = str_path.replace("DAGS_FOLDER/", DAGS_FOLDER + "/", 1)
 
     if not client:
         limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
@@ -932,7 +944,13 @@ def supervise(
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
-    process = ActivitySubprocess.start(dag_path, ti, client=client, logger=logger)
+    process = ActivitySubprocess.start(
+        dag_rel_path=dag_rel_path,
+        what=ti,
+        client=client,
+        logger=logger,
+        bundle_info=bundle_info,
+    )
 
     exit_code = process.wait()
     end = time.monotonic()

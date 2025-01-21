@@ -23,6 +23,15 @@ from typing import TYPE_CHECKING
 from connexion import Resolver
 from connexion.decorators.validation import RequestBodyValidator
 from connexion.exceptions import BadRequestProblem
+from flask import jsonify
+from starlette import status
+
+from airflow.providers.fab.www.api_connexion.exceptions import (
+    BadRequest,
+    NotFound,
+    PermissionDenied,
+    Unauthenticated,
+)
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -114,7 +123,26 @@ def init_plugins(app):
 
 def init_error_handlers(app: Flask):
     """Add custom errors handlers."""
-    from airflow.providers.fab.www import views
 
-    app.register_error_handler(500, views.show_traceback)
-    app.register_error_handler(404, views.not_found)
+    def handle_bad_request(error):
+        response = {"error": "Bad request"}
+        return jsonify(response), status.HTTP_400_BAD_REQUEST
+
+    def handle_not_found(error):
+        response = {"error": "Not found"}
+        return jsonify(response), status.HTTP_404_NOT_FOUND
+
+    def handle_unauthenticated(error):
+        response = {"error": "User is not authenticated"}
+        return jsonify(response), status.HTTP_401_UNAUTHORIZED
+
+    def handle_denied(error):
+        response = {"error": "Access is denied"}
+        return jsonify(response), status.HTTP_403_FORBIDDEN
+
+    app.register_error_handler(404, handle_not_found)
+
+    app.register_error_handler(BadRequest, handle_bad_request)
+    app.register_error_handler(NotFound, handle_not_found)
+    app.register_error_handler(Unauthenticated, handle_unauthenticated)
+    app.register_error_handler(PermissionDenied, handle_denied)

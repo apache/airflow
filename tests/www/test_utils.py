@@ -616,16 +616,10 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     interface = DagRunCustomSQLAInterface(obj=DagRun, session=session)
     dag_ids = (f"test_dag_{x}" for x in range(1, 4))
     dates = (pendulum.datetime(2023, 1, x) for x in range(1, 4))
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     for dag_id, date in itertools.product(dag_ids, dates):
-        with dag_maker(dag_id=dag_id) as dag:
-            dag.create_dagrun(
-                logical_date=date,
-                state="running",
-                run_type="scheduled",
-                data_interval=(date, date),
-                **triggered_by_kwargs,
-            )
+        with dag_maker(dag_id=dag_id):
+            pass
+        dag_maker.create_dagrun(logical_date=date, state="running", run_type="scheduled")
     dag_runs = session.query(DagRun).all()
     assert len(dag_runs) == 9
     assert len(set(x.run_id for x in dag_runs)) == 3

@@ -60,13 +60,13 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
+from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
-from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException, PodReconciliationError
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session

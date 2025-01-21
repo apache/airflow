@@ -31,7 +31,12 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from airflow.decorators.base import TaskDecorator
-    from airflow.utils.context import Context
+
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
     Serializer = Literal["pickle", "dill", "cloudpickle"]
 

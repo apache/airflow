@@ -17,11 +17,14 @@
 
 from __future__ import annotations
 
+import json
+import os
 import uuid
 from datetime import timedelta
 from pathlib import Path
 from socket import socketpair
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from uuid6 import uuid7
@@ -37,6 +40,7 @@ from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
+    BundleInfo,
     ConnectionResult,
     DeferTask,
     GetConnection,
@@ -48,7 +52,12 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     XComResult,
 )
-from airflow.sdk.execution_time.context import ConnectionAccessor, MacrosAccessor, VariableAccessor
+from airflow.sdk.execution_time.context import (
+    ConnectionAccessor,
+    MacrosAccessor,
+    OutletEventAccessors,
+    VariableAccessor,
+)
 from airflow.sdk.execution_time.task_runner import (
     CommsDecoder,
     RuntimeTaskInstance,
@@ -58,6 +67,8 @@ from airflow.sdk.execution_time.task_runner import (
     startup,
 )
 from airflow.utils import timezone
+
+FAKE_BUNDLE = BundleInfo(name="anything", version="any")
 
 
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
@@ -89,7 +100,8 @@ class TestCommsDecoder:
             b'"ti_context":{"dag_run":{"dag_id":"c","run_id":"b","logical_date":"2024-12-01T01:00:00Z",'
             b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
             b'"start_date":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
-            b'"variables":null,"connections":null},"file": "/dev/null", "requests_fd": '
+            b'"max_tries":0,"variables":null,"connections":null},"file": "/dev/null", "dag_rel_path": "/dev/null", "bundle_info": {"name": '
+            b'"any-name", "version": "any-version"}, "requests_fd": '
             + str(w2.fileno()).encode("ascii")
             + b"}\n"
         )
@@ -101,7 +113,8 @@ class TestCommsDecoder:
         assert msg.ti.id == uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab")
         assert msg.ti.task_id == "a"
         assert msg.ti.dag_id == "c"
-        assert msg.file == "/dev/null"
+        assert msg.dag_rel_path == "/dev/null"
+        assert msg.bundle_info == BundleInfo(name="any-name", version="any-version")
 
         # Since this was a StartupDetails message, the decoder should open the other socket
         assert decoder.request_socket is not None
@@ -113,12 +126,27 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="a", dag_id="super_basic", run_id="c", try_number=1),
-        file=str(test_dags_dir / "super_basic.py"),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
         requests_fd=0,
         ti_context=make_ti_context(),
     )
 
-    ti = parse(what)
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        ti = parse(what)
 
     assert ti.task
     assert ti.task.dag
@@ -325,7 +353,8 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context, mock_supervi
         ti=TaskInstance(
             id=uuid7(), task_id="templated_task", dag_id="basic_templated_dag", run_id="c", try_number=1
         ),
-        file="",
+        bundle_info=FAKE_BUNDLE,
+        dag_rel_path="",
         requests_fd=0,
         ti_context=make_ti_context(),
     )
@@ -393,7 +422,8 @@ def test_startup_and_run_dag_with_rtif(
 
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="templated_task", dag_id="basic_dag", run_id="c", try_number=1),
-        file="",
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
         requests_fd=0,
         ti_context=make_ti_context(),
     )
@@ -517,6 +547,46 @@ def test_run_basic_failed(
     )
 
 
+def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch, test_dags_dir):
+    """
+    Test that the DAG parsing context is correctly set during the startup process.
+
+    This test verifies that the DAG and task IDs are correctly set in the parsing context
+    when a DAG is started up.
+    """
+    dag_id = "dag_parsing_context_test"
+    task_id = "conditional_task"
+
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
+        dag_rel_path="dag_parsing_context.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        requests_fd=0,
+        ti_context=make_ti_context(dag_id=dag_id, run_id="c"),
+    )
+
+    mock_supervisor_comms.get_message.return_value = what
+
+    # Set the environment variable for DAG bundles
+    # We use the DAG defined in `task_sdk/tests/dags/dag_parsing_context.py` for this test!
+    dag_bundle_val = json.dumps(
+        [
+            {
+                "name": "my-bundle",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+            }
+        ]
+    )
+
+    monkeypatch.setenv("AIRFLOW__DAG_BUNDLES__CONFIG_LIST", dag_bundle_val)
+    ti, _ = startup()
+
+    # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!
+    # Check the dag file for the actual logic!
+    assert ti.task.dag.task_dict.keys() == {"visible_task", "conditional_task"}
+
+
 class TestRuntimeTaskInstance:
     def test_get_context_without_ti_context_from_server(self, mocked_parse, make_ti_context):
         """Test get_template_context without ti_context_from_server."""
@@ -548,6 +618,7 @@ class TestRuntimeTaskInstance:
             "inlets": task.inlets,
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
+            "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
             "run_id": "test_run",
             "task": task,
@@ -580,6 +651,7 @@ class TestRuntimeTaskInstance:
             "inlets": task.inlets,
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
+            "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
             "run_id": "test_run",
             "task": task,
@@ -772,7 +844,7 @@ class TestRuntimeTaskInstance:
                     dag_id="test_dag",
                     run_id="test_run",
                     task_id=task_id,
-                    map_index=None,
+                    map_index=-1,
                 ),
             )
 

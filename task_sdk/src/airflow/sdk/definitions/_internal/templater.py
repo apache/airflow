@@ -32,9 +32,8 @@ from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from airflow.models.operator import Operator
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
 
 
@@ -51,7 +50,7 @@ class LiteralValue(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Mapping[str, Any], *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
         return self.value
 
 
@@ -113,7 +112,7 @@ class Templater:
         self,
         parent: Any,
         template_fields: Iterable[str],
-        context: Mapping[str, Any],
+        context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: set[int],
     ) -> None:
@@ -136,7 +135,7 @@ class Templater:
     def render_template(
         self,
         content: Any,
-        context: Mapping[str, Any],
+        context: Context,
         jinja_env: jinja2.Environment | None = None,
         seen_oids: set[int] | None = None,
     ) -> Any:
@@ -199,7 +198,7 @@ class Templater:
         return value
 
     def _render_object_storage_path(
-        self, value: ObjectStoragePath, context: Mapping[str, Any], jinja_env: jinja2.Environment
+        self, value: ObjectStoragePath, context: Context, jinja_env: jinja2.Environment
     ) -> ObjectStoragePath:
         serialized_path = value.serialize()
         path_version = value.__version__
@@ -209,7 +208,7 @@ class Templater:
     def _render_nested_template_fields(
         self,
         value: Any,
-        context: Mapping[str, Any],
+        context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: set[int],
     ) -> None:

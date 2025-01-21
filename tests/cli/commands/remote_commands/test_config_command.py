@@ -264,8 +264,8 @@ class TestConfigLint:
             ),
             (
                 "core",
-                "strict_asset_uri_validation",
-                "Asset URI with a defined scheme will now always be validated strictly, raising a hard error on validation failure.",
+                "strict_dataset_uri_validation",
+                "Dataset URI with a defined scheme will now always be validated strictly, raising a hard error on validation failure.",
             ),
             (
                 "logging",
@@ -324,7 +324,7 @@ class TestConfigLint:
     def test_lint_detects_multiple_issues(self):
         with mock.patch(
             "airflow.configuration.conf.has_option",
-            side_effect=lambda s, o: o in ["check_slas", "strict_asset_uri_validation"],
+            side_effect=lambda s, o: o in ["check_slas", "strict_dataset_uri_validation"],
         ):
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
@@ -338,7 +338,7 @@ class TestConfigLint:
             in normalized_output
         )
         assert (
-            "Removed deprecated `strict_asset_uri_validation` configuration parameter from `core` section."
+            "Removed deprecated `strict_dataset_uri_validation` configuration parameter from `core` section."
             in normalized_output
         )
 
@@ -353,8 +353,8 @@ class TestConfigLint:
                 ),
                 (
                     "core",
-                    "strict_asset_uri_validation",
-                    "Asset URI with a defined scheme will now always be validated strictly, raising a hard error on validation failure.",
+                    "strict_dataset_uri_validation",
+                    "Dataset URI with a defined scheme will now always be validated strictly, raising a hard error on validation failure.",
                 ),
                 (
                     "logging",
@@ -425,12 +425,12 @@ class TestConfigLint:
                 "Removed deprecated `check_slas` configuration parameter from `core` section.",
             ),
             (
-                "AIRFLOW__CORE__STRICT_ASSET_URI_VALIDATION",
+                "AIRFLOW__CORE__strict_dataset_uri_validation",
                 ConfigChange(
-                    config=ConfigParameter("core", "strict_asset_uri_validation"),
-                    suggestion="Asset URI with a defined scheme will now always be validated strictly, raising a hard error on validation failure.",
+                    config=ConfigParameter("core", "strict_dataset_uri_validation"),
+                    suggestion="Dataset URI with a defined scheme will now always be validated strictly, raising a hard error on validation failure.",
                 ),
-                "Removed deprecated `strict_asset_uri_validation` configuration parameter from `core` section.",
+                "Removed deprecated `strict_dataset_uri_validation` configuration parameter from `core` section.",
             ),
         ],
     )
