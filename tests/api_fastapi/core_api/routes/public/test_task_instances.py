@@ -1034,38 +1034,67 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
 
     def test_should_respond_200_for_order_by(self, test_client, session):
         dag_id = "example_python_operator"
+
+        dag_runs = [
+            DagRun(
+                dag_id=dag_id,
+                run_id=f"run_{i}",
+                run_type=DagRunType.MANUAL,
+                logical_date=DEFAULT_DATETIME_1 + dt.timedelta(days=i),
+                data_interval=(
+                    DEFAULT_DATETIME_1 + dt.timedelta(days=i),
+                    DEFAULT_DATETIME_1 + dt.timedelta(days=i, hours=1),
+                ),
+            )
+            for i in range(10)
+        ]
+        session.add_all(dag_runs)
+        session.commit()
+
         self.create_task_instances(
             session,
             task_instances=[
-                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+                {"run_id": f"run_{i}", "start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))}
+                for i in range(10)
             ],
             dag_id=dag_id,
         )
 
         ti_count = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count()
 
-        # Ascending order
-        response_asc = test_client.get(
-            "/public/dags/~/dagRuns/~/taskInstances", params={"order_by": "start_date"}
-        )
-        assert response_asc.status_code == 200
-        assert response_asc.json()["total_entries"] == ti_count
-        assert len(response_asc.json()["task_instances"]) == ti_count
+        for field in ["start_date", "logical_date", "data_interval_start", "data_interval_end"]:
+            # Ascending order
+            response_asc = test_client.get(
+                "/public/dags/~/dagRuns/~/taskInstances", params={"order_by": field}
+            )
+            assert response_asc.status_code == 200
+            assert response_asc.json()["total_entries"] == ti_count
+            assert len(response_asc.json()["task_instances"]) == ti_count
 
-        # Descending order
-        response_desc = test_client.get(
-            "/public/dags/~/dagRuns/~/taskInstances", params={"order_by": "-start_date"}
-        )
-        assert response_desc.status_code == 200
-        assert response_desc.json()["total_entries"] == ti_count
-        assert len(response_desc.json()["task_instances"]) == ti_count
+            # Descending order
+            response_desc = test_client.get(
+                "/public/dags/~/dagRuns/~/taskInstances", params={"order_by": f"-{field}"}
+            )
+            assert response_desc.status_code == 200
+            assert response_desc.json()["total_entries"] == ti_count
+            assert len(response_desc.json()["task_instances"]) == ti_count
 
-        # Compare
-        start_dates_asc = [ti["start_date"] for ti in response_asc.json()["task_instances"]]
-        assert len(start_dates_asc) == ti_count
-        start_dates_desc = [ti["start_date"] for ti in response_desc.json()["task_instances"]]
-        assert len(start_dates_desc) == ti_count
-        assert start_dates_asc == list(reversed(start_dates_desc))
+            if field in ["start_date", "logical_date"]:
+                # Compare
+                field_asc = [ti[field] for ti in response_asc.json()["task_instances"]]
+                assert len(field_asc) == ti_count
+                field_desc = [ti[field] for ti in response_desc.json()["task_instances"]]
+                assert len(field_desc) == ti_count
+                assert field_asc == list(reversed(field_desc))
+
+            # Separate condition since these attributes are not returned by the api response, so using ti["id"] to compare
+            elif field in ["data_interval_start", "data_interval_end"]:
+                # Compare
+                field_asc = [ti["id"] for ti in response_asc.json()["task_instances"]]
+                assert len(field_asc) == ti_count
+                field_desc = [ti["id"] for ti in response_desc.json()["task_instances"]]
+                assert len(field_desc) == ti_count
+                assert field_asc == list(reversed(field_desc))
 
     def test_should_respond_200_for_pagination(self, test_client, session):
         dag_id = "example_python_operator"
