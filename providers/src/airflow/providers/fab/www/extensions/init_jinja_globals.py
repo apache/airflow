@@ -30,7 +30,7 @@ from airflow.utils.platform import get_airflow_git_version
 logger = logging.getLogger(__name__)
 
 
-def init_jinja_globals(app):
+def init_jinja_globals(app, enable_plugins: bool):
     """Add extra globals variable to Jinja context."""
     server_timezone = conf.get("core", "default_timezone")
     if server_timezone == "system":
@@ -70,6 +70,8 @@ def init_jinja_globals(app):
             "state_color_mapping": STATE_COLORS,
             "airflow_version": airflow_version,
             "git_version": git_version,
+            "show_plugin_message": enable_plugins,
+            "disable_nav_bar": not enable_plugins,
         }
 
         # Extra global specific to auth manager

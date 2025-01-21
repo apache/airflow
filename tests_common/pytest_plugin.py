@@ -784,6 +784,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dagbag = DagBag(os.devnull, include_examples=False, read_dags_from_db=False)
 
         def __enter__(self):
+            self.serialized_model = None
+
             self.dag.__enter__()
             if self.want_serialized:
                 return lazy_object_proxy.Proxy(self._serialized_dag)

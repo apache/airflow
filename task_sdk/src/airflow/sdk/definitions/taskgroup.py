@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
+    from airflow.sdk.types import Operator
     from airflow.serialization.enums import DagAttributeTypes
 
 
@@ -105,7 +106,9 @@ class TaskGroup(DAGNode):
     """
 
     _group_id: str | None = attrs.field(
-        validator=attrs.validators.optional(attrs.validators.instance_of(str))
+        validator=attrs.validators.optional(attrs.validators.instance_of(str)),
+        # This is the default behaviour for attrs, but by specifying this it makes IDEs happier
+        alias="group_id",
     )
     group_display_name: str = attrs.field(default="", validator=attrs.validators.instance_of(str))
     prefix_group_id: bool = attrs.field(default=True)
@@ -561,7 +564,7 @@ class TaskGroup(DAGNode):
 
     def iter_tasks(self) -> Iterator[AbstractOperator]:
         """Return an iterator of the child tasks."""
-        from airflow.models.abstractoperator import AbstractOperator
+        from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 
         groups_to_visit = [self]
 
@@ -575,7 +578,7 @@ class TaskGroup(DAGNode):
                     groups_to_visit.append(child)
                 else:
                     raise ValueError(
-                        f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
+                        f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child).__module__}.{type(child)}"
                     )
 
 
@@ -604,13 +607,6 @@ class MappedTaskGroup(TaskGroup):
                 )
             yield from self._iter_child(child)
 
-    def iter_mapped_dependencies(self) -> Iterator[DAGNode]:
-        """Upstream dependencies that provide XComs used by this mapped task group."""
-        from airflow.models.xcom_arg import XComArg
-
-        for op, _ in XComArg.iter_xcom_references(self._expand_input):
-            yield op
-
     @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
@@ -637,11 +633,18 @@ class MappedTaskGroup(TaskGroup):
             self.set_upstream(op)
         super().__exit__(exc_type, exc_val, exc_tb)
 
+    def iter_mapped_dependencies(self) -> Iterator[Operator]:
+        """Upstream dependencies that provide XComs used by this mapped task group."""
+        from airflow.models.xcom_arg import XComArg
+
+        for op, _ in XComArg.iter_xcom_references(self._expand_input):
+            yield op
+
 
 def task_group_to_dict(task_item_or_group):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
-    from airflow.models.abstractoperator import AbstractOperator
-    from airflow.models.mappedoperator import MappedOperator
+    from airflow.sdk.definitions.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sensors.base import BaseSensorOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):

@@ -24,9 +24,11 @@ from sqlalchemy import select
 
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import DagDetails
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
+from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -99,6 +101,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     @abstractmethod
     def serialize_user(self, user: T) -> dict[str, Any]:
         """Create a dict from a user object."""
+
+    def get_jwt_token(self, user: T) -> str:
+        """Return the JWT token from a user object."""
+        signer = JWTSigner(
+            secret_key=conf.get("api", "auth_jwt_secret"),
+            expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
+            audience="front-apis",
+        )
+        return signer.generate_signed_token(self.serialize_user(user))
 
     def get_user_id(self) -> str | None:
         """Return the user ID associated to the user in session."""

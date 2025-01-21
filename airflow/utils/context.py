@@ -62,7 +62,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
 
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:

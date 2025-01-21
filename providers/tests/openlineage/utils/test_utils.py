@@ -25,7 +25,6 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
@@ -186,7 +185,6 @@ def test_get_fully_qualified_class_name_serialized_operator():
 
 def test_get_fully_qualified_class_name_mapped_operator():
     mapped = MockOperator.partial(task_id="task_2").expand(arg2=["a", "b", "c"])
-    assert isinstance(mapped, MappedOperator)
     mapped_op_path = get_fully_qualified_class_name(mapped)
     assert mapped_op_path == "tests_common.test_utils.mock_operators.MockOperator"
 
@@ -216,7 +214,6 @@ def test_get_operator_class():
 
 def test_get_operator_class_mapped_operator():
     mapped = MockOperator.partial(task_id="task").expand(arg2=["a", "b", "c"])
-    assert isinstance(mapped, MappedOperator)
     op_class = get_operator_class(mapped)
     assert op_class == MockOperator
 

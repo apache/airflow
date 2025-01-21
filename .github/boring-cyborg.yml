@@ -74,10 +74,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/hive/**/*
 
   provider:apache-iceberg:
-    - providers/src/airflow/providers/apache/iceberg/**/*
-    - docs/apache-airflow-providers-apache-iceberg/**/*
-    - providers/tests/apache/iceberg/**/*
-    - providers/tests/system/apache/iceberg/**/*
+    - providers/apache/iceberg/**
 
   provider:apache-impala:
     - providers/src/airflow/providers/apache/impala/**/*

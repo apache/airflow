@@ -22,10 +22,8 @@ import itertools
 import pytest
 
 from airflow.decorators import setup, task, teardown
-from airflow.models.baseoperator import BaseOperator
-from airflow.operators.empty import EmptyOperator
-
-pytestmark = pytest.mark.db_test
+from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.definitions.dag import DAG
 
 
 def cleared_tasks(dag, task_id):
@@ -73,14 +71,14 @@ def make_task(name, type_, setup_=False, teardown_=False):
 @pytest.mark.parametrize(
     "setup_type, work_type, teardown_type", itertools.product(["classic", "taskflow"], repeat=3)
 )
-def test_as_teardown(dag_maker, setup_type, work_type, teardown_type):
+def test_as_teardown(setup_type, work_type, teardown_type):
     """
     Check that as_teardown works properly as implemented in PlainXComArg
 
     It should mark the teardown as teardown, and if a task is provided, it should mark that as setup
     and set it as a direct upstream.
     """
-    with dag_maker() as dag:
+    with DAG("test") as dag:
         s1 = make_task(name="s1", type_=setup_type)
         w1 = make_task(name="w1", type_=work_type)
         t1 = make_task(name="t1", type_=teardown_type)
@@ -106,7 +104,7 @@ def test_as_teardown(dag_maker, setup_type, work_type, teardown_type):
 @pytest.mark.parametrize(
     "setup_type, work_type, teardown_type", itertools.product(["classic", "taskflow"], repeat=3)
 )
-def test_as_teardown_oneline(dag_maker, setup_type, work_type, teardown_type):
+def test_as_teardown_oneline(setup_type, work_type, teardown_type):
     """
     Check that as_teardown implementations work properly. Tests all combinations of taskflow and classic.
 
@@ -114,7 +112,7 @@ def test_as_teardown_oneline(dag_maker, setup_type, work_type, teardown_type):
     and set it as a direct upstream.
     """
 
-    with dag_maker() as dag:
+    with DAG("test") as dag:
         s1 = make_task(name="s1", type_=setup_type)
         w1 = make_task(name="w1", type_=work_type)
         t1 = make_task(name="t1", type_=teardown_type)
@@ -156,10 +154,10 @@ def test_as_teardown_oneline(dag_maker, setup_type, work_type, teardown_type):
 
 
 @pytest.mark.parametrize("type_", ["classic", "taskflow"])
-def test_cannot_be_both_setup_and_teardown(dag_maker, type_):
+def test_cannot_be_both_setup_and_teardown(type_):
     # can't change a setup task to a teardown task or vice versa
     for first, second in [("setup", "teardown"), ("teardown", "setup")]:
-        with dag_maker():
+        with DAG("test"):
             s1 = make_task(name="s1", type_=type_)
             getattr(s1, f"as_{first}")()
             with pytest.raises(
@@ -168,8 +166,8 @@ def test_cannot_be_both_setup_and_teardown(dag_maker, type_):
                 getattr(s1, f"as_{second}")()
 
 
-def test_cannot_set_on_failure_fail_dagrun_unless_teardown_classic(dag_maker):
-    with dag_maker():
+def test_cannot_set_on_failure_fail_dagrun_unless_teardown_classic():
+    with DAG("test"):
         t = make_task(name="t", type_="classic")
         assert t.is_teardown is False
         with pytest.raises(
@@ -179,7 +177,7 @@ def test_cannot_set_on_failure_fail_dagrun_unless_teardown_classic(dag_maker):
             t.on_failure_fail_dagrun = True
 
 
-def test_cannot_set_on_failure_fail_dagrun_unless_teardown_taskflow(dag_maker):
+def test_cannot_set_on_failure_fail_dagrun_unless_teardown_taskflow():
     @task(on_failure_fail_dagrun=True)
     def my_bad_task():
         pass
@@ -188,7 +186,7 @@ def test_cannot_set_on_failure_fail_dagrun_unless_teardown_taskflow(dag_maker):
     def my_ok_task():
         pass
 
-    with dag_maker():
+    with DAG("test"):
         with pytest.raises(
             ValueError,
             match="Cannot set task on_failure_fail_dagrun for "
@@ -218,12 +216,12 @@ def test_cannot_set_on_failure_fail_dagrun_unless_teardown_taskflow(dag_maker):
 
 
 class TestDependencyMixin:
-    def test_set_upstream(self, dag_maker):
-        with dag_maker("test_set_upstream"):
-            op_a = EmptyOperator(task_id="a")
-            op_b = EmptyOperator(task_id="b")
-            op_c = EmptyOperator(task_id="c")
-            op_d = EmptyOperator(task_id="d")
+    def test_set_upstream(self):
+        with DAG("test_set_upstream"):
+            op_a = BaseOperator(task_id="a")
+            op_b = BaseOperator(task_id="b")
+            op_c = BaseOperator(task_id="c")
+            op_d = BaseOperator(task_id="d")
 
             op_d << op_c << op_b << op_a
 
@@ -231,12 +229,12 @@ class TestDependencyMixin:
         assert [op_b] == op_c.upstream_list
         assert [op_c] == op_d.upstream_list
 
-    def test_set_downstream(self, dag_maker):
-        with dag_maker("test_set_downstream"):
-            op_a = EmptyOperator(task_id="a")
-            op_b = EmptyOperator(task_id="b")
-            op_c = EmptyOperator(task_id="c")
-            op_d = EmptyOperator(task_id="d")
+    def test_set_downstream(self):
+        with DAG("test_set_downstream"):
+            op_a = BaseOperator(task_id="a")
+            op_b = BaseOperator(task_id="b")
+            op_c = BaseOperator(task_id="c")
+            op_d = BaseOperator(task_id="d")
 
             op_a >> op_b >> op_c >> op_d
 
@@ -244,12 +242,12 @@ class TestDependencyMixin:
         assert [op_b] == op_c.upstream_list
         assert [op_c] == op_d.upstream_list
 
-    def test_set_upstream_list(self, dag_maker):
-        with dag_maker("test_set_upstream_list"):
-            op_a = EmptyOperator(task_id="a")
-            op_b = EmptyOperator(task_id="b")
-            op_c = EmptyOperator(task_id="c")
-            op_d = EmptyOperator(task_id="d")
+    def test_set_upstream_list(self):
+        with DAG("test_set_upstream_list"):
+            op_a = BaseOperator(task_id="a")
+            op_b = BaseOperator(task_id="b")
+            op_c = BaseOperator(task_id="c")
+            op_d = BaseOperator(task_id="d")
 
             [op_d, op_c << op_b] << op_a
 
@@ -257,12 +255,12 @@ class TestDependencyMixin:
         assert [op_a] == op_d.upstream_list
         assert [op_b] == op_c.upstream_list
 
-    def test_set_downstream_list(self, dag_maker):
-        with dag_maker("test_set_downstream_list"):
-            op_a = EmptyOperator(task_id="a")
-            op_b = EmptyOperator(task_id="b")
-            op_c = EmptyOperator(task_id="c")
-            op_d = EmptyOperator(task_id="d")
+    def test_set_downstream_list(self):
+        with DAG("test_set_downstream_list"):
+            op_a = BaseOperator(task_id="a")
+            op_b = BaseOperator(task_id="b")
+            op_c = BaseOperator(task_id="c")
+            op_d = BaseOperator(task_id="d")
 
             op_a >> [op_b >> op_c, op_d]
 
@@ -270,12 +268,12 @@ class TestDependencyMixin:
         assert [op_a] == op_d.upstream_list
         assert {op_a, op_b} == set(op_c.upstream_list)
 
-    def test_set_upstream_inner_list(self, dag_maker):
-        with dag_maker("test_set_upstream_inner_list"):
-            op_a = EmptyOperator(task_id="a")
-            op_b = EmptyOperator(task_id="b")
-            op_c = EmptyOperator(task_id="c")
-            op_d = EmptyOperator(task_id="d")
+    def test_set_upstream_inner_list(self):
+        with DAG("test_set_upstream_inner_list"):
+            op_a = BaseOperator(task_id="a")
+            op_b = BaseOperator(task_id="b")
+            op_c = BaseOperator(task_id="c")
+            op_d = BaseOperator(task_id="d")
         with pytest.raises(AttributeError) as e_info:
             [op_d << [op_c, op_b]] << op_a
 
@@ -285,12 +283,12 @@ class TestDependencyMixin:
         assert op_c.upstream_list == []
         assert {op_b, op_c} == set(op_d.upstream_list)
 
-    def test_set_downstream_inner_list(self, dag_maker):
-        with dag_maker("test_set_downstream_inner_list"):
-            op_a = EmptyOperator(task_id="a")
-            op_b = EmptyOperator(task_id="b")
-            op_c = EmptyOperator(task_id="c")
-            op_d = EmptyOperator(task_id="d")
+    def test_set_downstream_inner_list(self):
+        with DAG("test_set_downstream_inner_list"):
+            op_a = BaseOperator(task_id="a")
+            op_b = BaseOperator(task_id="b")
+            op_c = BaseOperator(task_id="c")
+            op_d = BaseOperator(task_id="d")
 
             op_a >> [[op_b, op_c] >> op_d]
 
@@ -298,13 +296,13 @@ class TestDependencyMixin:
         assert op_c.upstream_list == []
         assert {op_b, op_c, op_a} == set(op_d.upstream_list)
 
-    def test_set_upstream_list_subarray(self, dag_maker):
-        with dag_maker("test_set_upstream_list"):
-            op_a = EmptyOperator(task_id="a")
-            op_b_1 = EmptyOperator(task_id="b_1")
-            op_b_2 = EmptyOperator(task_id="b_2")
-            op_c = EmptyOperator(task_id="c")
-            op_d = EmptyOperator(task_id="d")
+    def test_set_upstream_list_subarray(self):
+        with DAG("test_set_upstream_list"):
+            op_a = BaseOperator(task_id="a")
+            op_b_1 = BaseOperator(task_id="b_1")
+            op_b_2 = BaseOperator(task_id="b_2")
+            op_c = BaseOperator(task_id="c")
+            op_d = BaseOperator(task_id="d")
 
         with pytest.raises(AttributeError) as e_info:
             [op_d, op_c << [op_b_1, op_b_2]] << op_a
@@ -316,13 +314,13 @@ class TestDependencyMixin:
         assert op_d.upstream_list == []
         assert {op_b_1, op_b_2} == set(op_c.upstream_list)
 
-    def test_set_downstream_list_subarray(self, dag_maker):
-        with dag_maker("test_set_downstream_list"):
-            op_a = EmptyOperator(task_id="a")
-            op_b_1 = EmptyOperator(task_id="b_1")
-            op_b_2 = EmptyOperator(task_id="b2")
-            op_c = EmptyOperator(task_id="c")
-            op_d = EmptyOperator(task_id="d")
+    def test_set_downstream_list_subarray(self):
+        with DAG("test_set_downstream_list"):
+            op_a = BaseOperator(task_id="a")
+            op_b_1 = BaseOperator(task_id="b_1")
+            op_b_2 = BaseOperator(task_id="b2")
+            op_c = BaseOperator(task_id="c")
+            op_d = BaseOperator(task_id="d")
 
             op_a >> [[op_b_1, op_b_2] >> op_c, op_d]
 

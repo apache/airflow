@@ -6,6 +6,7 @@ import {
   BackfillService,
   ConfigService,
   ConnectionService,
+  DagReportService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -881,6 +882,26 @@ export const prefetchUseDagStatsServiceGetDagStats = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
     queryFn: () => DagStatsService.getDagStats({ dagIds }),
+  });
+/**
+ * Get Dag Report
+ * Get DAG report.
+ * @param data The data for the request.
+ * @param data.subdir
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagReportServiceGetDagReport = (
+  queryClient: QueryClient,
+  {
+    subdir,
+  }: {
+    subdir: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }),
+    queryFn: () => DagReportService.getDagReport({ subdir }),
   });
 /**
  * List Dag Warnings
