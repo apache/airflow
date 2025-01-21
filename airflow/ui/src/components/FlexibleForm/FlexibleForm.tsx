@@ -36,7 +36,9 @@ export const FlexibleForm = ({ initialParamsDict }: FlexibleFormProps) => {
 
   useEffect(() => {
     if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(params).length === 0) {
-      setParamsDict(initialParamsDict.paramsDict);
+      const paramsCopy = structuredClone(initialParamsDict.paramsDict);
+
+      setParamsDict(paramsCopy);
     }
   }, [initialParamsDict, params, setParamsDict]);
 
