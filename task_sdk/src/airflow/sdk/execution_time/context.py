@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import Generator, Iterator, Mapping
+from functools import cache
 from typing import TYPE_CHECKING, Any, Union
 
 import attrs
@@ -39,10 +40,17 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.variable import Variable
-    from airflow.sdk.execution_time.comms import AssetResult, ConnectionResult, VariableResult
+    from airflow.sdk.execution_time.comms import (
+        AssetResult,
+        ConnectionResult,
+        PrevSuccessfulDagRunResponse,
+        VariableResult,
+    )
 
 log = structlog.get_logger(logger_name="task")
 
@@ -270,6 +278,23 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
         if TYPE_CHECKING:
             assert isinstance(msg, AssetResult)
         return Asset(**msg.model_dump(exclude={"type"}))
+
+
+@cache  # Prevent multiple API access.
+def get_previous_dagrun_success(ti_id: UUID) -> PrevSuccessfulDagRunResponse:
+    from airflow.sdk.execution_time.comms import (
+        GetPrevSuccessfulDagRun,
+        PrevSuccessfulDagRunResponse,
+        PrevSuccessfulDagRunResult,
+    )
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    SUPERVISOR_COMMS.send_request(log=log, msg=GetPrevSuccessfulDagRun(ti_id=ti_id))
+    msg = SUPERVISOR_COMMS.get_message()
+
+    if TYPE_CHECKING:
+        assert isinstance(msg, PrevSuccessfulDagRunResult)
+    return PrevSuccessfulDagRunResponse(**msg.model_dump(exclude={"type"}))
 
 
 @contextlib.contextmanager

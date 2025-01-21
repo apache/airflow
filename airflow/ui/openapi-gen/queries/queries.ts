@@ -7,6 +7,7 @@ import {
   ConfigService,
   ConnectionService,
   DagParsingService,
+  DagReportService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -1068,6 +1069,32 @@ export const useDagStatsServiceGetDagStats = <
   useQuery<TData, TError>({
     queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
     queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Report
+ * Get DAG report.
+ * @param data The data for the request.
+ * @param data.subdir
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagReportServiceGetDagReport = <
+  TData = Common.DagReportServiceGetDagReportDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    subdir,
+  }: {
+    subdir: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }, queryKey),
+    queryFn: () => DagReportService.getDagReport({ subdir }) as TData,
     ...options,
   });
 /**

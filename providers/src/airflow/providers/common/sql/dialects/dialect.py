@@ -49,6 +49,7 @@ class Dialect(LoggingMixin):
     def remove_quotes(cls, value: str | None) -> str | None:
         if value:
             return cls.pattern.sub(r"\1", value)
+        return value
 
     @property
     def placeholder(self) -> str:
@@ -73,7 +74,7 @@ class Dialect(LoggingMixin):
     @classmethod
     def extract_schema_from_table(cls, table: str) -> tuple[str, str | None]:
         parts = table.split(".")
-        return tuple(parts[::-1]) if len(parts) == 2 else (table, None)
+        return tuple(parts[::-1]) if len(parts) == 2 else (table, None)  # type: ignore[return-value]
 
     @lru_cache(maxsize=None)
     def get_column_names(
