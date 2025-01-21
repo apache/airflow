@@ -17,10 +17,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from airflow.metrics.protocols import Timer
-from airflow.typing_compat import Protocol
 
 if TYPE_CHECKING:
     from airflow.metrics.protocols import DeltaType, TimerProtocol
