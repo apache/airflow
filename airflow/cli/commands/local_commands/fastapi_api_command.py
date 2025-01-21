@@ -24,6 +24,8 @@ import subprocess
 import textwrap
 
 import uvicorn
+from gunicorn.util import daemonize
+from setproctitle import setproctitle
 
 from airflow import settings
 from airflow.exceptions import AirflowConfigException
@@ -75,6 +77,10 @@ def fastapi_api(args):
             process.wait()
         os.environ.pop("AIRFLOW_API_APPS")
     else:
+        if args.daemon:
+            daemonize()
+            log.info("Daemonized the FastAPI API server process PID: %s", os.getpid())
+
         log.info(
             textwrap.dedent(
                 f"""\
@@ -89,6 +95,7 @@ def fastapi_api(args):
             )
         )
         ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
+        setproctitle(f"airflow-fastapi-{args.hostname}:{args.port}")
         uvicorn.run(
             "airflow.api_fastapi.main:app",
             host=args.hostname,
