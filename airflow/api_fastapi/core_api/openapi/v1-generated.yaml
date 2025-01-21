@@ -2918,7 +2918,7 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
-      - name: start_date_gte
+      - name: dag_run_start_date_gte
         in: query
         required: false
         schema:
@@ -2926,8 +2926,8 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          title: Start Date Gte
-      - name: start_date_lte
+          title: Dag Run Start Date Gte
+      - name: dag_run_start_date_lte
         in: query
         required: false
         schema:
@@ -2935,8 +2935,8 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          title: Start Date Lte
-      - name: end_date_gte
+          title: Dag Run Start Date Lte
+      - name: dag_run_end_date_gte
         in: query
         required: false
         schema:
@@ -2944,8 +2944,8 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          title: End Date Gte
-      - name: end_date_lte
+          title: Dag Run End Date Gte
+      - name: dag_run_end_date_lte
         in: query
         required: false
         schema:
@@ -2953,7 +2953,7 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          title: End Date Lte
+          title: Dag Run End Date Lte
       - name: dag_run_state
         in: query
         required: false

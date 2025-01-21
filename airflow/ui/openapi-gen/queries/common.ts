@@ -687,9 +687,11 @@ export const UseDagServiceGetDagsKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunEndDateGte,
+    dagRunEndDateLte,
+    dagRunStartDateGte,
+    dagRunStartDateLte,
     dagRunState,
-    endDateGte,
-    endDateLte,
     lastDagRunState,
     limit,
     offset,
@@ -697,16 +699,16 @@ export const UseDagServiceGetDagsKeyFn = (
     orderBy,
     owners,
     paused,
-    startDateGte,
-    startDateLte,
     tags,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunEndDateGte?: string;
+    dagRunEndDateLte?: string;
+    dagRunStartDateGte?: string;
+    dagRunStartDateLte?: string;
     dagRunState?: string[];
-    endDateGte?: string;
-    endDateLte?: string;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -714,8 +716,6 @@ export const UseDagServiceGetDagsKeyFn = (
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
-    startDateGte?: string;
-    startDateLte?: string;
     tags?: string[];
     tagsMatchMode?: "any" | "all";
   } = {},
@@ -726,9 +726,11 @@ export const UseDagServiceGetDagsKeyFn = (
     {
       dagDisplayNamePattern,
       dagIdPattern,
+      dagRunEndDateGte,
+      dagRunEndDateLte,
+      dagRunStartDateGte,
+      dagRunStartDateLte,
       dagRunState,
-      endDateGte,
-      endDateLte,
       lastDagRunState,
       limit,
       offset,
@@ -736,8 +738,6 @@ export const UseDagServiceGetDagsKeyFn = (
       orderBy,
       owners,
       paused,
-      startDateGte,
-      startDateLte,
       tags,
       tagsMatchMode,
     },

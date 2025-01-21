@@ -160,21 +160,21 @@ class TestGetDags(TestDagEndpoint):
             ({"dag_run_state": "failed"}, 1, [DAG1_ID]),
             ({"dag_run_state": "failed", "only_active": False}, 2, [DAG1_ID, DAG3_ID]),
             (
-                {"start_date_gte": DAG3_START_DATE_2.isoformat(), "only_active": False},
+                {"dag_run_start_date_gte": DAG3_START_DATE_2.isoformat(), "only_active": False},
                 1,
                 [DAG3_ID],
             ),
             (
                 {
-                    "start_date_gte": DAG1_START_DATE.isoformat(),
-                    "start_date_lte": DAG2_START_DATE.isoformat(),
+                    "dag_run_start_date_gte": DAG1_START_DATE.isoformat(),
+                    "dag_run_start_date_lte": DAG2_START_DATE.isoformat(),
                 },
                 1,
                 [DAG1_ID],
             ),
             (
                 {
-                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                     "only_active": False,
                 },
                 2,
@@ -182,8 +182,8 @@ class TestGetDags(TestDagEndpoint):
             ),
             (
                 {
-                    "end_date_gte": DAG3_START_DATE_2.isoformat(),
-                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "dag_run_end_date_gte": DAG3_START_DATE_2.isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                     "only_active": False,
                     "last_dag_run_state": "success",
                 },
@@ -192,11 +192,22 @@ class TestGetDags(TestDagEndpoint):
             ),
             (
                 {
-                    "start_date_gte": DAG2_START_DATE.isoformat(),
-                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "dag_run_start_date_gte": DAG2_START_DATE.isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
                 0,
                 [],
+            ),
+            (
+                {
+                    "dag_run_start_date_gte": (DAG3_START_DATE_1 - timedelta(days=1)).isoformat(),
+                    "dag_run_start_date_lte": (DAG3_START_DATE_1 + timedelta(days=1)).isoformat(),
+                    "last_dag_run_state": "success",
+                    "dag_run_state": "failed",
+                    "only_active": False,
+                },
+                1,
+                [DAG3_ID],
             ),
             # # Sort
             ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),

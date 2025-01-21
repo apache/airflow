@@ -1109,10 +1109,10 @@ export const useDagWarningServiceListDagWarningsSuspense = <
  * @param data.onlyActive
  * @param data.paused
  * @param data.lastDagRunState
- * @param data.startDateGte
- * @param data.startDateLte
- * @param data.endDateGte
- * @param data.endDateLte
+ * @param data.dagRunStartDateGte
+ * @param data.dagRunStartDateLte
+ * @param data.dagRunEndDateGte
+ * @param data.dagRunEndDateLte
  * @param data.dagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
@@ -1126,9 +1126,11 @@ export const useDagServiceGetDagsSuspense = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunEndDateGte,
+    dagRunEndDateLte,
+    dagRunStartDateGte,
+    dagRunStartDateLte,
     dagRunState,
-    endDateGte,
-    endDateLte,
     lastDagRunState,
     limit,
     offset,
@@ -1136,16 +1138,16 @@ export const useDagServiceGetDagsSuspense = <
     orderBy,
     owners,
     paused,
-    startDateGte,
-    startDateLte,
     tags,
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunEndDateGte?: string;
+    dagRunEndDateLte?: string;
+    dagRunStartDateGte?: string;
+    dagRunStartDateLte?: string;
     dagRunState?: string[];
-    endDateGte?: string;
-    endDateLte?: string;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -1153,8 +1155,6 @@ export const useDagServiceGetDagsSuspense = <
     orderBy?: string;
     owners?: string[];
     paused?: boolean;
-    startDateGte?: string;
-    startDateLte?: string;
     tags?: string[];
     tagsMatchMode?: "any" | "all";
   } = {},
@@ -1166,9 +1166,11 @@ export const useDagServiceGetDagsSuspense = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunEndDateGte,
+        dagRunEndDateLte,
+        dagRunStartDateGte,
+        dagRunStartDateLte,
         dagRunState,
-        endDateGte,
-        endDateLte,
         lastDagRunState,
         limit,
         offset,
@@ -1176,8 +1178,6 @@ export const useDagServiceGetDagsSuspense = <
         orderBy,
         owners,
         paused,
-        startDateGte,
-        startDateLte,
         tags,
         tagsMatchMode,
       },
@@ -1187,9 +1187,11 @@ export const useDagServiceGetDagsSuspense = <
       DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunEndDateGte,
+        dagRunEndDateLte,
+        dagRunStartDateGte,
+        dagRunStartDateLte,
         dagRunState,
-        endDateGte,
-        endDateLte,
         lastDagRunState,
         limit,
         offset,
@@ -1197,8 +1199,6 @@ export const useDagServiceGetDagsSuspense = <
         orderBy,
         owners,
         paused,
-        startDateGte,
-        startDateLte,
         tags,
         tagsMatchMode,
       }) as TData,

@@ -76,10 +76,10 @@ def get_dags(
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     dag_run_start_date_range: Annotated[
-        RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))
+        RangeFilter, Depends(datetime_range_filter_factory("dag_run_start_date", DagRun, "start_date"))
     ],
     dag_run_end_date_range: Annotated[
-        RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))
+        RangeFilter, Depends(datetime_range_filter_factory("dag_run_end_date", DagRun, "end_date"))
     ],
     dag_run_state: Annotated[
         FilterParam[list[str]],

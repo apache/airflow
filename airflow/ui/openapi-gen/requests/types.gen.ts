@@ -1814,9 +1814,11 @@ export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
+  dagRunEndDateGte?: string | null;
+  dagRunEndDateLte?: string | null;
+  dagRunStartDateGte?: string | null;
+  dagRunStartDateLte?: string | null;
   dagRunState?: Array<string>;
-  endDateGte?: string | null;
-  endDateLte?: string | null;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
@@ -1824,8 +1826,6 @@ export type GetDagsData = {
   orderBy?: string;
   owners?: Array<string>;
   paused?: boolean | null;
-  startDateGte?: string | null;
-  startDateLte?: string | null;
   tags?: Array<string>;
   tagsMatchMode?: "any" | "all" | null;
 };

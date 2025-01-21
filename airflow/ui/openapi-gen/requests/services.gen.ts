@@ -1570,10 +1570,10 @@ export class DagService {
    * @param data.onlyActive
    * @param data.paused
    * @param data.lastDagRunState
-   * @param data.startDateGte
-   * @param data.startDateLte
-   * @param data.endDateGte
-   * @param data.endDateLte
+   * @param data.dagRunStartDateGte
+   * @param data.dagRunStartDateLte
+   * @param data.dagRunEndDateGte
+   * @param data.dagRunEndDateLte
    * @param data.dagRunState
    * @param data.orderBy
    * @returns DAGCollectionResponse Successful Response
@@ -1594,10 +1594,10 @@ export class DagService {
         only_active: data.onlyActive,
         paused: data.paused,
         last_dag_run_state: data.lastDagRunState,
-        start_date_gte: data.startDateGte,
-        start_date_lte: data.startDateLte,
-        end_date_gte: data.endDateGte,
-        end_date_lte: data.endDateLte,
+        dag_run_start_date_gte: data.dagRunStartDateGte,
+        dag_run_start_date_lte: data.dagRunStartDateLte,
+        dag_run_end_date_gte: data.dagRunEndDateGte,
+        dag_run_end_date_lte: data.dagRunEndDateLte,
         dag_run_state: data.dagRunState,
         order_by: data.orderBy,
       },
