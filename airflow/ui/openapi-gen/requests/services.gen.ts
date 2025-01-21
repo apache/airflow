@@ -93,6 +93,8 @@ import type {
   GetDagSourceResponse,
   GetDagStatsData,
   GetDagStatsResponse,
+  GetDagReportData,
+  GetDagReportResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
   GetDagsData,
@@ -1514,6 +1516,32 @@ export class DagStatsService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DagReportService {
+  /**
+   * Get Dag Report
+   * Get DAG report.
+   * @param data The data for the request.
+   * @param data.subdir
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getDagReport(data: GetDagReportData): CancelablePromise<GetDagReportResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagReports",
+      query: {
+        subdir: data.subdir,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });

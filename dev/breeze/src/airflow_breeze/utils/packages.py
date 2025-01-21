@@ -187,6 +187,10 @@ def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
         optional_dependencies = toml_content["project"].get("optional-dependencies")
         if optional_dependencies:
             PROVIDER_METADATA[provider_id]["optional-dependencies"] = optional_dependencies
+        dependency_groups = toml_content.get("dependency-groups")
+        if dependency_groups and dependency_groups.get("dev"):
+            devel_dependencies = dependency_groups.get("dev")
+            PROVIDER_METADATA[provider_id]["devel-dependencies"] = devel_dependencies
 
 
 def clear_cache_for_provider_metadata(provider_yaml_path: Path):
@@ -806,6 +810,8 @@ def get_provider_jinja_context(
         "EXTRAS_REQUIREMENTS": get_package_extras_for_old_providers(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
         ),
+        # TODO(potiuk) - remove when all providers are new-style
+        "DEPENDENCY_GROUPS": {},
         "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.root_provider_path,
             provider_details.documentation_provider_package_path,
