@@ -92,7 +92,7 @@ class TestSkipMixin:
         ],
         ids=["list-of-task-ids", "tuple-of-task-ids", "str-task-id", "None", "empty-list"],
     )
-    def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states):
+    def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states, session):
         with dag_maker(
             "dag_test_skip_all_except",
             serialized=True,
@@ -109,6 +109,8 @@ class TestSkipMixin:
         ti3 = TI(task3, run_id=DEFAULT_DAG_RUN_ID)
 
         SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
+
+        session.expire_all()
 
         def get_state(ti):
             ti.refresh_from_db()

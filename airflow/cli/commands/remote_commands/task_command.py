@@ -206,6 +206,11 @@ def _get_ti(
     dag = task.dag
     if dag is None:
         raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+    if not isinstance(dag, DAG):
+        # TODO: Task-SDK: Shouldn't really happen, and this command will go away before 3.0
+        raise ValueError(
+            f"We need a {DAG.__module__}.DAG, but we got {type(dag).__module__}.{type(dag).__name__}!"
+        )
 
     # this check is imperfect because diff dags could have tasks with same name
     # but in a task, dag_id is a property that accesses its dag, and we don't

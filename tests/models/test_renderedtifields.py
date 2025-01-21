@@ -33,6 +33,7 @@ from airflow.configuration import conf
 from airflow.decorators import task as task_decorator
 from airflow.models import DagRun, Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.task_instance_session import set_current_task_instance_session
@@ -289,7 +290,7 @@ class TestRenderedTaskInstanceFields:
                     run_id=f"run_{num}", logical_date=dag.start_date + timedelta(days=num)
                 )
 
-                mapped.expand_mapped_task(dr.run_id, session=dag_maker.session)
+                TaskMap.expand_mapped_task(mapped, dr.run_id, session=dag_maker.session)
                 session.refresh(dr)
                 for ti in dr.task_instances:
                     ti.task = dag.get_task(ti.task_id)

@@ -83,6 +83,9 @@ def set_state(
     if not run_id:
         raise ValueError("Received tasks with no run_id")
 
+    if TYPE_CHECKING:
+        assert isinstance(dag, DAG)
+
     dag_run_ids = get_run_ids(dag, run_id, future, past, session=session)
     task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
     # now look for the task instances that are affected

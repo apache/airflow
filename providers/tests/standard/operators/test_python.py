@@ -925,6 +925,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
                 "prev_execution_date",
                 "prev_execution_date_success",
                 "conf",
+                "expanded_ti_count",
             }
         else:
             declared_keys.remove("triggering_asset_events")

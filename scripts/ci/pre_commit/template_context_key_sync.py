@@ -102,6 +102,9 @@ def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str],
     retn_keys.add("templates_dict")
     docs_keys.add("templates_dict")
 
+    # Compat shim for task-sdk, not actually designed for user use
+    retn_keys.add("expanded_ti_count")
+
     # Only present in callbacks. Not listed in templates-ref (that doc is for task execution).
     retn_keys.update(("exception", "reason", "try_number"))
     docs_keys.update(("exception", "reason", "try_number"))

@@ -47,8 +47,10 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByName,
     GetAssetByUri,
     GetConnection,
+    GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
     SetRenderedFields,
@@ -975,6 +977,24 @@ class TestHandleRequest:
                 {"uri": "s3://bucket/obj"},
                 AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
                 id="get_asset_by_uri",
+            ),
+            pytest.param(
+                GetPrevSuccessfulDagRun(ti_id=TI_ID),
+                (
+                    b'{"data_interval_start":"2025-01-10T12:00:00Z","data_interval_end":"2025-01-10T14:00:00Z",'
+                    b'"start_date":"2025-01-10T12:00:00Z","end_date":"2025-01-10T14:00:00Z",'
+                    b'"type":"PrevSuccessfulDagRunResult"}\n'
+                ),
+                "task_instances.get_previous_successful_dagrun",
+                (TI_ID,),
+                {},
+                PrevSuccessfulDagRunResult(
+                    start_date=timezone.parse("2025-01-10T12:00:00Z"),
+                    end_date=timezone.parse("2025-01-10T14:00:00Z"),
+                    data_interval_start=timezone.parse("2025-01-10T12:00:00Z"),
+                    data_interval_end=timezone.parse("2025-01-10T14:00:00Z"),
+                ),
+                id="get_prev_successful_dagrun",
             ),
         ],
     )
