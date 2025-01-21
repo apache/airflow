@@ -1896,7 +1896,6 @@ class TaskInstance(Base, LoggingMixin):
             task=runtime_ti.task,  # type: ignore[arg-type]
             map_index=runtime_ti.map_index,
         )
-        ti.refresh_from_db()
 
         if TYPE_CHECKING:
             assert ti
