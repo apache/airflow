@@ -30,7 +30,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_queued,
     set_dag_run_state_to_success,
 )
-from airflow.api_fastapi.common.db.common import SessionDep, action_logging, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -60,6 +60,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
@@ -327,13 +328,13 @@ def get_dag_runs(
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(action_logging("trigger_dag_run"))],
 )
 def trigger_dag_run(
     dag_id,
     body: TriggerDAGRunPostBody,
     request: Request,
     session: SessionDep,
-    _: None = Depends(action_logging("trigger_dag_run")),
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))

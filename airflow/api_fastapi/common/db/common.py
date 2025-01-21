@@ -22,20 +22,14 @@ Database helpers for Airflow REST API.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Literal, overload
 
-import pendulum
-from fastapi import Depends, Request
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.core_api.security import get_user_with_exception_handling
-from airflow.auth.managers.models.base_user import BaseUser
-from airflow.models import Log
 from airflow.utils.db import get_query_count, get_query_count_async
-from airflow.utils.log import secrets_masker
 from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 
 if TYPE_CHECKING:
@@ -185,89 +179,3 @@ def paginated_select(
     statement = apply_filters_to_select(statement=statement, filters=[order_by, offset, limit])
 
     return statement, total_entries
-
-
-def action_logging(event: str | None):
-    async def log_action(
-        request: Request,
-        session: SessionDep,
-        user: Annotated[BaseUser, Depends(get_user_with_exception_handling)],
-    ):
-        """Log user actions."""
-        if not user:
-            user_name = "anonymous"
-            user_display = ""
-        else:
-            user_name = getattr(user, "role", "unknown_role")
-            user_display = getattr(user, "username", "unknown_user")
-
-        # Extract basic request details
-        query_params = dict(request.query_params)
-        extra_fields = {
-            "path": request.url.path,
-            "method": request.method,
-            "query_params": query_params,
-        }
-
-        # Add JSON body if present
-        json_body = {}
-        try:
-            if request.headers.get("content-type") == "application/json":
-                json_body = await request.json()
-                extra_fields.update({k: secrets_masker.redact(v, k) for k, v in json_body.items()})
-        except Exception as e:
-            extra_fields["json_error"] = str(e)
-
-        # Merge query parameters and JSON body to extract key fields
-        params = {**query_params, **json_body}
-
-        # Extract relevant fields for logging
-        task_id = params.get("task_id")
-        dag_id = params.get("dag_id")
-        run_id = params.get("run_id") or params.get("dag_run_id")
-        logical_date = params.get("logical_date")
-
-        parsed_logical_date = None
-        if logical_date:
-            try:
-                parsed_date = pendulum.parse(logical_date, strict=False)
-                if isinstance(parsed_date, (pendulum.DateTime, pendulum.Date)):
-                    parsed_logical_date = parsed_date.isoformat()
-                else:
-                    extra_fields["logical_date_error"] = (
-                        f"Unsupported type for logical_date: {type(parsed_date).__name__}"
-                    )
-            except pendulum.exceptions.ParserError:
-                extra_fields["logical_date_error"] = f"Invalid logical_date: {logical_date}"
-
-        # Mask sensitive fields
-        fields_skip_logging = {
-            "csrf_token",
-            "_csrf_token",
-            "is_paused",
-        }
-        extra_fields = {k: v for k, v in extra_fields.items() if k not in fields_skip_logging}
-
-        # Set event name dynamically if not provided
-        event_name = event or request.url.path.strip("/").replace("/", ".")
-
-        # Create log entry
-        log = Log(
-            event=event_name,
-            task_instance=None,
-            owner=user_name,
-            owner_display_name=user_display,
-            extra=json.dumps(extra_fields),
-            task_id=task_id,
-            dag_id=dag_id,
-            run_id=run_id,
-            logical_date=parsed_logical_date,
-        )
-        try:
-            session.add(log)
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            raise e
-
-    return log_action
