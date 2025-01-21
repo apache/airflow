@@ -43,6 +43,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.executor_loader import clean_executor_loader
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -76,6 +77,7 @@ class TestFileTaskLogHandler:
     @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
     def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance, state):
         """Test for k8s executor, the log is read from get_task_log method"""
+        clean_executor_loader()
         mock_k8s_get_task_log.return_value = ([], [])
         executor_name = "KubernetesExecutor"
         ti = create_task_instance(
@@ -86,6 +88,7 @@ class TestFileTaskLogHandler:
         )
         ti.state = state
         ti.triggerer_job = None
+        ti.executor = executor_name
         with conf_vars({("core", "executor"): executor_name}):
             reload(executor_loader)
             fth = FileTaskHandler("")
@@ -105,11 +108,12 @@ class TestFileTaskLogHandler:
             pytest.param(k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-name-xxx")), "default"),
         ],
     )
-    @patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="KubernetesExecutor")
+    @conf_vars({("core", "executor"): "KubernetesExecutor"})
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_read_from_k8s_under_multi_namespace_mode(
         self, mock_kube_client, pod_override, namespace_to_call
     ):
+        reload(executor_loader)
         mock_read_log = mock_kube_client.return_value.read_namespaced_pod_log
         mock_list_pod = mock_kube_client.return_value.list_namespaced_pod
 
@@ -139,6 +143,7 @@ class TestFileTaskLogHandler:
         )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
         ti.try_number = 3
+        ti.executor = "KubernetesExecutor"
 
         logger = ti.log
         ti.log.disabled = False
@@ -147,6 +152,8 @@ class TestFileTaskLogHandler:
         set_context(logger, ti)
         ti.run(ignore_ti_state=True)
         ti.state = TaskInstanceState.RUNNING
+        # clear executor_instances cache
+        file_handler.executor_instances = {}
         file_handler.read(ti, 2)
 
         # first we find pod name

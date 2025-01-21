@@ -238,8 +238,8 @@ class TestFileTaskLogHandler:
             )
             if executor_name is not None:
                 ti.executor = executor_name
-            ti.state = TaskInstanceState.RUNNING
             ti.try_number = 1
+            ti.state = TaskInstanceState.RUNNING
             logger = ti.log
             ti.log.disabled = False
 
@@ -249,13 +249,13 @@ class TestFileTaskLogHandler:
             assert file_handler is not None
 
             set_context(logger, ti)
+            # clear executor_instances cache
+            file_handler.executor_instances = {}
             assert file_handler.handler is not None
             # We expect set_context generates a file locally.
             log_filename = file_handler.handler.baseFilename
             assert os.path.isfile(log_filename)
             assert log_filename.endswith("1.log"), log_filename
-
-            ti.run(ignore_ti_state=True)
 
             file_handler.flush()
             file_handler.close()
