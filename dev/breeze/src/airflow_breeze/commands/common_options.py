@@ -363,9 +363,11 @@ option_skip_db_tests = click.option(
     envvar="SKIP_DB_TESTS",
 )
 option_standalone_dag_processor = click.option(
-    "--standalone-dag-processor",
-    help="Run standalone dag processor for start-airflow.",
+    "--standalone-dag-processor/--no-standalone-dag-processor",
     is_flag=True,
+    default=True,
+    show_default=True,
+    help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
 option_upgrade_boto = click.option(

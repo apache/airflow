@@ -29,6 +29,7 @@ import { useDagParams } from "src/queries/useDagParams";
 import { useTrigger } from "src/queries/useTrigger";
 
 import { ErrorAlert } from "../ErrorAlert";
+import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { Accordion } from "../ui";
 
 type TriggerDAGFormProps = {
@@ -47,13 +48,14 @@ export type DagRunTriggerParams = {
 
 const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
-  const conf = useDagParams(dagId, open);
+  const { initialConf, paramsDict } = useDagParams(dagId, open);
   const {
     dateValidationError,
     error: errorTrigger,
     isPending,
     triggerDagRun,
   } = useTrigger({ onSuccessConfirm: onClose });
+  const conf = initialConf;
 
   const {
     control,
@@ -110,8 +112,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
       return JSON.stringify(parsedJson, undefined, 2);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred.";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
 
       setErrors((prev) => ({
         ...prev,
@@ -130,11 +131,17 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
   return (
     <>
-      <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="enclosed">
+      <Accordion.Root
+        collapsible
+        defaultValue={[flexibleFormDefaultSection]}
+        mb={4}
+        mt={4}
+        size="lg"
+        variant="enclosed"
+      >
+        <FlexibleForm params={paramsDict} />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
-          <Accordion.ItemTrigger cursor="button">
-            Advanced Options
-          </Accordion.ItemTrigger>
+          <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>
             <Box p={5}>
               <Controller
@@ -142,9 +149,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 name="dataIntervalStart"
                 render={({ field }) => (
                   <Field.Root invalid={Boolean(errors.date)}>
-                    <Field.Label fontSize="md">
-                      Data Interval Start Date
-                    </Field.Label>
+                    <Field.Label fontSize="md">Data Interval Start Date</Field.Label>
                     <Input
                       {...field}
                       max={dataIntervalEnd || undefined}
@@ -162,9 +167,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 name="dataIntervalEnd"
                 render={({ field }) => (
                   <Field.Root invalid={Boolean(errors.date)} mt={6}>
-                    <Field.Label fontSize="md">
-                      Data Interval End Date
-                    </Field.Label>
+                    <Field.Label fontSize="md">Data Interval End Date</Field.Label>
                     <Input
                       {...field}
                       min={dataIntervalStart || undefined}
@@ -212,7 +215,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                         field.onChange(validateAndPrettifyJson(field.value));
                       }}
                       style={{
-                        border: "1px solid #CBD5E0",
+                        border: "1px solid var(--chakra-colors-border)",
                         borderRadius: "8px",
                         outline: "none",
                         padding: "2px",
@@ -220,9 +223,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                       }}
                       theme={colorMode === "dark" ? githubDark : githubLight}
                     />
-                    {Boolean(errors.conf) ? (
-                      <Field.ErrorText>{errors.conf}</Field.ErrorText>
-                    ) : undefined}
+                    {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
                   </Field.Root>
                 )}
               />

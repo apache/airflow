@@ -20,7 +20,7 @@ import base64
 import os
 from collections.abc import Sequence
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.exceptions import AirflowException
@@ -28,8 +28,15 @@ from airflow.providers.common.compat.standard.utils import write_python_script
 from airflow.providers.docker.operators.docker import DockerOperator
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from airflow.decorators.base import TaskDecorator
-    from airflow.utils.context import Context
+
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
     Serializer = Literal["pickle", "dill", "cloudpickle"]
 

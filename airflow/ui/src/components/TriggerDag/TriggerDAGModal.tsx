@@ -39,24 +39,16 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   onClose,
   open,
 }) => (
-  <Dialog.Root
-    lazyMount
-    onOpenChange={onClose}
-    open={open}
-    size="xl"
-    unmountOnExit
-  >
+  <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
     <Dialog.Content backdrop>
       <Dialog.Header>
         <VStack align="start" gap={4}>
           <Heading size="xl">
-            Trigger Dag - {dagDisplayName}{" "}
-            <TogglePause dagId={dagId} isPaused={isPaused} skipConfirm />
+            Trigger Dag - {dagDisplayName} <TogglePause dagId={dagId} isPaused={isPaused} skipConfirm />
           </Heading>
           {isPaused ? (
             <Alert status="warning" title="Paused DAG">
-              Triggering will create a DAG run, but it will not start until the
-              Dag is unpaused.
+              Triggering will create a DAG run, but it will not start until the Dag is unpaused.
             </Alert>
           ) : undefined}
         </VStack>

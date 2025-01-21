@@ -4161,6 +4161,10 @@
         "1.5.1": {
             "associated_airflow_version": "2.10.4",
             "date_released": "2024-11-18T09:01:40Z"
+        },
+        "1.5.2": {
+            "associated_airflow_version": "2.10.4",
+            "date_released": "2025-01-03T14:12:57Z"
         }
     },
     "facebook": {

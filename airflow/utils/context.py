@@ -19,28 +19,19 @@
 
 from __future__ import annotations
 
-import contextlib
-import copy
-import functools
-import warnings
 from collections.abc import (
     Container,
-    ItemsView,
     Iterator,
-    KeysView,
     Mapping,
-    MutableMapping,
-    ValuesView,
 )
 from typing import (
     TYPE_CHECKING,
     Any,
-    SupportsIndex,
     Union,
+    cast,
 )
 
 import attrs
-import lazy_object_proxy
 from sqlalchemy import and_, select
 
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -59,8 +50,9 @@ from airflow.sdk.definitions.asset import (
     AssetRef,
     AssetUniqueKey,
     AssetUriRef,
-    BaseAssetUniqueKey,
 )
+from airflow.sdk.definitions.context import Context
+from airflow.sdk.execution_time.context import OutletEventAccessors as OutletEventAccessorsSDK
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.session import create_session
 from airflow.utils.types import NOTSET
@@ -71,9 +63,10 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import Select, TextClause
 
     from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:
-# * Context in airflow/utils/context.pyi.
+# * Context in task_sdk/src/airflow/sdk/definitions/context.py
 # * Table in docs/apache-airflow/templates-ref.rst
 KNOWN_CONTEXT_KEYS: set[str] = {
     "conn",
@@ -163,104 +156,29 @@ class ConnectionAccessor:
             return default_conn
 
 
-@attrs.define()
-class AssetAliasEvent:
-    """
-    Represeation of asset event to be triggered by an asset alias.
-
-    :meta private:
-    """
-
-    source_alias_name: str
-    dest_asset_key: AssetUniqueKey
-    extra: dict[str, Any]
-
-
-@attrs.define()
-class OutletEventAccessor:
-    """
-    Wrapper to access an outlet asset event in template.
-
-    :meta private:
-    """
-
-    key: BaseAssetUniqueKey
-    extra: dict[str, Any] = attrs.Factory(dict)
-    asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
-
-    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None:
-        """Add an AssetEvent to an existing Asset."""
-        if not isinstance(self.key, AssetAliasUniqueKey):
-            return
-
-        asset_alias_name = self.key.name
-        event = AssetAliasEvent(
-            source_alias_name=asset_alias_name,
-            dest_asset_key=AssetUniqueKey.from_asset(asset),
-            extra=extra or {},
-        )
-        self.asset_alias_events.append(event)
-
-
-class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor]):
+class OutletEventAccessors(OutletEventAccessorsSDK):
     """
     Lazy mapping of outlet asset event accessors.
 
     :meta private:
     """
 
-    _asset_ref_cache: dict[AssetRef, AssetUniqueKey] = {}
-
-    def __init__(self) -> None:
-        self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
-
-    def __str__(self) -> str:
-        return f"OutletEventAccessors(_dict={self._dict})"
-
-    def __iter__(self) -> Iterator[Asset | AssetAlias]:
-        return (
-            key.to_asset() if isinstance(key, AssetUniqueKey) else key.to_asset_alias() for key in self._dict
-        )
-
-    def __len__(self) -> int:
-        return len(self._dict)
-
-    def __getitem__(self, key: Asset | AssetAlias) -> OutletEventAccessor:
-        hashable_key: BaseAssetUniqueKey
-        if isinstance(key, Asset):
-            hashable_key = AssetUniqueKey.from_asset(key)
-        elif isinstance(key, AssetAlias):
-            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
-        elif isinstance(key, AssetRef):
-            hashable_key = self._resolve_asset_ref(key)
+    @staticmethod
+    def _get_asset_from_db(name: str | None = None, uri: str | None = None) -> Asset:
+        if name:
+            with create_session() as session:
+                asset = session.scalar(
+                    select(AssetModel).where(AssetModel.name == name, AssetModel.active.has())
+                )
+        elif uri:
+            with create_session() as session:
+                asset = session.scalar(
+                    select(AssetModel).where(AssetModel.uri == uri, AssetModel.active.has())
+                )
         else:
-            raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
+            raise ValueError("Either name or uri must be provided")
 
-        if hashable_key not in self._dict:
-            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
-        return self._dict[hashable_key]
-
-    def _resolve_asset_ref(self, ref: AssetRef) -> AssetUniqueKey:
-        with contextlib.suppress(KeyError):
-            return self._asset_ref_cache[ref]
-
-        refs_to_cache: list[AssetRef]
-        with create_session() as session:
-            if isinstance(ref, AssetNameRef):
-                asset = session.scalar(
-                    select(AssetModel).where(AssetModel.name == ref.name, AssetModel.active.has())
-                )
-                refs_to_cache = [ref, AssetUriRef(asset.uri)]
-            elif isinstance(ref, AssetUriRef):
-                asset = session.scalar(
-                    select(AssetModel).where(AssetModel.uri == ref.uri, AssetModel.active.has())
-                )
-                refs_to_cache = [ref, AssetNameRef(asset.name)]
-            else:
-                raise TypeError(f"Unimplemented asset ref: {type(ref)}")
-            for ref in refs_to_cache:
-                self._asset_ref_cache[ref] = unique_key = AssetUniqueKey.from_asset(asset)
-        return unique_key
+        return asset.to_public()
 
 
 class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
@@ -367,99 +285,6 @@ class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
     """Warn for usage of deprecated context variables in a task."""
 
 
-def _create_deprecation_warning(key: str, replacements: list[str]) -> RemovedInAirflow3Warning:
-    message = f"Accessing {key!r} from the template is deprecated and will be removed in a future version."
-    if not replacements:
-        return AirflowContextDeprecationWarning(message)
-    display_except_last = ", ".join(repr(r) for r in replacements[:-1])
-    if display_except_last:
-        message += f" Please use {display_except_last} or {replacements[-1]!r} instead."
-    else:
-        message += f" Please use {replacements[-1]!r} instead."
-    return AirflowContextDeprecationWarning(message)
-
-
-class Context(MutableMapping[str, Any]):
-    """
-    Jinja2 template context for task rendering.
-
-    This is a mapping (dict-like) class that can lazily emit warnings when
-    (and only when) deprecated context keys are accessed.
-    """
-
-    _DEPRECATION_REPLACEMENTS: dict[str, list[str]] = {}
-
-    def __init__(self, context: MutableMapping[str, Any] | None = None, **kwargs: Any) -> None:
-        self._context: MutableMapping[str, Any] = context or {}
-        if kwargs:
-            self._context.update(kwargs)
-        self._deprecation_replacements = self._DEPRECATION_REPLACEMENTS.copy()
-
-    def __repr__(self) -> str:
-        return repr(self._context)
-
-    def __reduce_ex__(self, protocol: SupportsIndex) -> tuple[Any, ...]:
-        """
-        Pickle the context as a dict.
-
-        We are intentionally going through ``__getitem__`` in this function,
-        instead of using ``items()``, to trigger deprecation warnings.
-        """
-        items = [(key, self[key]) for key in self._context]
-        return dict, (items,)
-
-    def __copy__(self) -> Context:
-        new = type(self)(copy.copy(self._context))
-        new._deprecation_replacements = self._deprecation_replacements.copy()
-        return new
-
-    def __getitem__(self, key: str) -> Any:
-        with contextlib.suppress(KeyError):
-            warnings.warn(
-                _create_deprecation_warning(key, self._deprecation_replacements[key]),
-                stacklevel=2,
-            )
-        with contextlib.suppress(KeyError):
-            return self._context[key]
-        raise KeyError(key)
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self._deprecation_replacements.pop(key, None)
-        self._context[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        self._deprecation_replacements.pop(key, None)
-        del self._context[key]
-
-    def __contains__(self, key: object) -> bool:
-        return key in self._context
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._context)
-
-    def __len__(self) -> int:
-        return len(self._context)
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, Context):
-            return NotImplemented
-        return self._context == other._context
-
-    def __ne__(self, other: Any) -> bool:
-        if not isinstance(other, Context):
-            return NotImplemented
-        return self._context != other._context
-
-    def keys(self) -> KeysView[str]:
-        return self._context.keys()
-
-    def items(self):
-        return ItemsView(self._context)
-
-    def values(self):
-        return ValuesView(self._context)
-
-
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     """
     Merge parameters into an existing context.
@@ -492,60 +317,22 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     from airflow.models.param import process_params
 
     context["task"] = context["ti"].task = task
-    context["params"] = process_params(context["dag"], task, context["dag_run"], suppress_exception=False)
+    context["params"] = process_params(
+        context["dag"], task, context["dag_run"].conf, suppress_exception=False
+    )
 
 
 def context_copy_partial(source: Context, keys: Container[str]) -> Context:
     """
     Create a context by copying items under selected keys in ``source``.
 
-    This is implemented as a free function because the ``Context`` type is
-    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
-    functions.
-
     :meta private:
     """
-    new = Context({k: v for k, v in source._context.items() if k in keys})
-    new._deprecation_replacements = source._deprecation_replacements.copy()
-    return new
+    new = {k: v for k, v in source.items() if k in keys}
+    return cast(Context, new)
 
 
-def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
-    """
-    Create a mapping that wraps deprecated entries in a lazy object proxy.
-
-    This further delays deprecation warning to until when the entry is actually
-    used, instead of when it's accessed in the context. The result is useful for
-    passing into a callable with ``**kwargs``, which would unpack the mapping
-    too eagerly otherwise.
-
-    This is implemented as a free function because the ``Context`` type is
-    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
-    functions.
-
-    :meta private:
-    """
-    if not isinstance(source, Context):
-        # Sometimes we are passed a plain dict (usually in tests, or in User's
-        # custom operators) -- be lenient about what we accept so we don't
-        # break anything for users.
-        return source
-
-    def _deprecated_proxy_factory(k: str, v: Any) -> Any:
-        replacements = source._deprecation_replacements[k]
-        warnings.warn(_create_deprecation_warning(k, replacements), stacklevel=2)
-        return v
-
-    def _create_value(k: str, v: Any) -> Any:
-        if k not in source._deprecation_replacements:
-            return v
-        factory = functools.partial(_deprecated_proxy_factory, k, v)
-        return lazy_object_proxy.Proxy(factory)
-
-    return {k: _create_value(k, v) for k, v in source._context.items()}
-
-
-def context_get_outlet_events(context: Context) -> OutletEventAccessors:
+def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     try:
         return context["outlet_events"]
     except KeyError:

@@ -16,12 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  createContext,
-  useCallback,
-  useMemo,
-  type PropsWithChildren,
-} from "react";
+import { createContext, useCallback, useMemo, type PropsWithChildren } from "react";
 import { useLocalStorage } from "usehooks-ts";
 
 export type OpenGroupsContextType = {
@@ -30,9 +25,7 @@ export type OpenGroupsContextType = {
   toggleGroupId: (groupId: string) => void;
 };
 
-export const OpenGroupsContext = createContext<
-  OpenGroupsContextType | undefined
->(undefined);
+export const OpenGroupsContext = createContext<OpenGroupsContextType | undefined>(undefined);
 
 type Props = {
   readonly dagId: string;
@@ -40,10 +33,7 @@ type Props = {
 
 export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   const openGroupsKey = `${dagId}/open-groups`;
-  const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(
-    openGroupsKey,
-    [],
-  );
+  const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey, []);
 
   const toggleGroupId = useCallback(
     (groupId: string) => {
@@ -61,9 +51,5 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
     [openGroupIds, setOpenGroupIds, toggleGroupId],
   );
 
-  return (
-    <OpenGroupsContext.Provider value={value}>
-      {children}
-    </OpenGroupsContext.Provider>
-  );
+  return <OpenGroupsContext.Provider value={value}>{children}</OpenGroupsContext.Provider>;
 };

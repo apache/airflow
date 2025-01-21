@@ -41,6 +41,9 @@ on:  # yamllint disable-line rule:truthy
         type: string
 
 permissions:
+  # Those permissions are only active for workflow dispatch (only committers can trigger it) and workflow call
+  # Which is triggered automatically by "automatic-backport" push workflow (only when merging by committer)
+  # Branch protection  prevents from pushing to the "code" branches
   contents: write
   pull-requests: write
 jobs:
@@ -58,30 +61,34 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install cherry-picker==2.4.0 requests==2.32.3
+          python -m pip install cherry-picker==2.5.0 requests==2.32.3
 
       - name: Run backport script
         id: execute-backport
         env:
           GH_AUTH: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+          COMMIT_SHA: ${{ inputs.commit-sha }}
         run: |
           git config --global user.email "name@example.com"
           git config --global user.name "Your Name"
           set +e
           {
           echo 'cherry_picker_output<<EOF'
-          cherry_picker ${{ inputs.commit-sha }} ${{ inputs.target-branch }}
+          cherry_picker ${COMMIT_SHA} ${TARGET_BRANCH}
           echo EOF
           } >> "${GITHUB_OUTPUT}"
         continue-on-error: true
 
       - name: Parse backport output
         id: parse-backport-output
+        env:
+          CHERRY_PICKER_OUTPUT: ${{ steps.execute-backport.outputs.cherry_picker_output }}
         run: |
           set +e
-          echo "${{ steps.execute-backport.outputs.cherry_picker_output }}"
+          echo "${CHERRY_PICKER_OUTPUT}"
 
-          url=$(echo "${{ steps.execute-backport.outputs.cherry_picker_output }}" | \
+          url=$(echo "${CHERRY_PICKER_OUTPUT}" | \
               grep -o 'Backport PR created at https://[^ ]*' | \
               awk '{print $5}')
 
@@ -99,17 +106,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
+          COMMIT_SHA: ${{ inputs.commit-sha }}
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+          BACKPORT_URL: ${{ steps.parse-backport-output.outputs.backport-url }}
         run: |
-          COMMIT_INFO_URL="https://api.github.com/repos/${{ github.repository }}/commits/"
-          COMMIT_INFO_URL="${COMMIT_INFO_URL}${{ inputs.commit-sha }}/pulls"
+          COMMIT_INFO_URL="https://api.github.com/repos/$REPOSITORY/commits/"
+          COMMIT_INFO_URL="${COMMIT_INFO_URL}$COMMIT_SHA/pulls"
 
           PR_NUMBER=$(gh api \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              /repos/${{ github.repository }}/commits/${{ inputs.commit-sha }}/pulls \
+              /repos/$REPOSITORY/commits/$COMMIT_SHA/pulls \
               --jq '.[0].number')
 
           python ./dev/backport/update_backport_status.py \
-              ${{ steps.parse-backport-output.outputs.backport-url }} \
-              ${{ inputs.commit-sha }} ${{ inputs.target-branch }} \
+              $BACKPORT_URL \
+              $COMMIT_SHA $TARGET_BRANCH \
               "$PR_NUMBER"

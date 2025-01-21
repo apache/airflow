@@ -21,15 +21,17 @@ import copy
 import logging
 import os
 import pathlib
+import re
 from collections import defaultdict
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from attr import define, field
 from google.cloud.dataproc_v1 import Batch, RuntimeConfig
 
 from airflow.providers.common.compat.openlineage.facet import (
-    BaseFacet,
     ColumnLineageDatasetFacet,
+    DatasetFacet,
     DocumentationDatasetFacet,
     Fields,
     Identifier,
@@ -41,6 +43,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
+    inject_transport_information_into_spark_properties,
 )
 from airflow.providers.google import __version__ as provider_version
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
@@ -212,9 +215,9 @@ def extract_ds_name_from_gcs_path(path: str) -> str:
     return path
 
 
-def get_facets_from_bq_table(table: Table) -> dict[str, BaseFacet]:
+def get_facets_from_bq_table(table: Table) -> dict[str, DatasetFacet]:
     """Get facets from BigQuery table object."""
-    facets: dict[str, BaseFacet] = {}
+    facets: dict[str, DatasetFacet] = {}
     if table.schema:
         facets["schema"] = SchemaDatasetFacet(
             fields=[
@@ -228,26 +231,37 @@ def get_facets_from_bq_table(table: Table) -> dict[str, BaseFacet]:
         facets["documentation"] = DocumentationDatasetFacet(description=table.description)
 
     if table.external_data_configuration:
-        symlinks = set()
-        for uri in table.external_data_configuration.source_uris:
-            if uri.startswith("gs://"):
-                bucket, blob = _parse_gcs_url(uri)
-                blob = extract_ds_name_from_gcs_path(blob)
-                symlinks.add((f"gs://{bucket}", blob))
-
+        symlinks = get_namespace_name_from_source_uris(table.external_data_configuration.source_uris)
         facets["symlink"] = SymlinksDatasetFacet(
             identifiers=[
-                Identifier(namespace=namespace, name=name, type="file")
+                Identifier(
+                    namespace=namespace, name=name, type="file" if namespace.startswith("gs://") else "table"
+                )
                 for namespace, name in sorted(symlinks)
             ]
         )
     return facets
 
 
+def get_namespace_name_from_source_uris(source_uris: Iterable[str]) -> set[tuple[str, str]]:
+    result = set()
+    for uri in source_uris:
+        if uri.startswith("gs://"):
+            bucket, blob = _parse_gcs_url(uri)
+            result.add((f"gs://{bucket}", extract_ds_name_from_gcs_path(blob)))
+        elif uri.startswith("https://googleapis.com/bigtable"):
+            regex = r"https://googleapis.com/bigtable/projects/([^/]+)/instances/([^/]+)(?:/appProfiles/([^/]+))?/tables/([^/]+)"
+            match = re.match(regex, uri)
+            if match:
+                project_id, instance_id, table_id = match.groups()[0], match.groups()[1], match.groups()[3]
+                result.add((f"bigtable://{project_id}/{instance_id}", table_id))
+    return result
+
+
 def get_identity_column_lineage_facet(
-    dest_field_names: list[str],
-    input_datasets: list[Dataset],
-) -> dict[str, ColumnLineageDatasetFacet]:
+    dest_field_names: Iterable[str],
+    input_datasets: Iterable[Dataset],
+) -> dict[str, DatasetFacet]:
     """
     Get column lineage facet for identity transformations.
 
@@ -440,31 +454,38 @@ def _replace_dataproc_job_properties(job: dict, job_type: str, new_properties: d
 
 
 def inject_openlineage_properties_into_dataproc_job(
-    job: dict, context: Context, inject_parent_job_info: bool
+    job: dict, context: Context, inject_parent_job_info: bool, inject_transport_info: bool
 ) -> dict:
     """
     Inject OpenLineage properties into Spark job definition.
 
-    Function is not removing any configuration or modifying the job in any other way,
-    apart from adding desired OpenLineage properties to Dataproc job definition if not already present.
+    This function does not remove existing configurations or modify the job definition in any way,
+     except to add the required OpenLineage properties if they are not already present.
 
-    Note:
-        Any modification to job will be skipped if:
-            - OpenLineage provider is not accessible.
-            - The job type is not supported.
-            - Automatic parent job information injection is disabled.
-            - Any OpenLineage properties with parent job information are already present
-              in the Spark job definition.
+    The entire properties injection process will be skipped if any condition is met:
+        - The OpenLineage provider is not accessible.
+        - The job type is unsupported.
+        - Both `inject_parent_job_info` and `inject_transport_info` are set to False.
+
+    Additionally, specific information will not be injected if relevant OpenLineage properties already exist.
+
+    Parent job information will not be injected if:
+        - Any property prefixed with `spark.openlineage.parent` exists.
+        - `inject_parent_job_info` is False.
+    Transport information will not be injected if:
+        - Any property prefixed with `spark.openlineage.transport` exists.
+        - `inject_transport_info` is False.
 
     Args:
         job: The original Dataproc job definition.
         context: The Airflow context in which the job is running.
         inject_parent_job_info: Flag indicating whether to inject parent job information.
+        inject_transport_info: Flag indicating whether to inject transport information.
 
     Returns:
         The modified job definition with OpenLineage properties injected, if applicable.
     """
-    if not inject_parent_job_info:
+    if not inject_parent_job_info and not inject_transport_info:
         log.debug("Automatic injection of OpenLineage information is disabled.")
         return job
 
@@ -484,7 +505,17 @@ def inject_openlineage_properties_into_dataproc_job(
 
     properties = job[job_type].get("properties", {})
 
-    properties = inject_parent_job_information_into_spark_properties(properties=properties, context=context)
+    if inject_parent_job_info:
+        log.debug("Injecting OpenLineage parent job information into Spark properties.")
+        properties = inject_parent_job_information_into_spark_properties(
+            properties=properties, context=context
+        )
+
+    if inject_transport_info:
+        log.debug("Injecting OpenLineage transport information into Spark properties.")
+        properties = inject_transport_information_into_spark_properties(
+            properties=properties, context=context
+        )
 
     job_with_ol_config = _replace_dataproc_job_properties(
         job=job, job_type=job_type, new_properties=properties
@@ -574,31 +605,38 @@ def _replace_dataproc_batch_properties(batch: dict | Batch, new_properties: dict
 
 
 def inject_openlineage_properties_into_dataproc_batch(
-    batch: dict | Batch, context: Context, inject_parent_job_info: bool
+    batch: dict | Batch, context: Context, inject_parent_job_info: bool, inject_transport_info: bool
 ) -> dict | Batch:
     """
     Inject OpenLineage properties into Dataproc batch definition.
 
-    It's not removing any configuration or modifying the batch in any other way.
-    This function add desired OpenLineage properties to Dataproc batch configuration.
+    This function does not remove existing configurations or modify the batch definition in any way,
+     except to add the required OpenLineage properties if they are not already present.
 
-    Note:
-        Any modification to job will be skipped if:
-            - OpenLineage provider is not accessible.
-            - The batch type is not supported.
-            - Automatic parent job information injection is disabled.
-            - Any OpenLineage properties with parent job information are already present
-              in the Spark job configuration.
+    The entire properties injection process will be skipped if any condition is met:
+        - The OpenLineage provider is not accessible.
+        - The batch type is unsupported.
+        - Both `inject_parent_job_info` and `inject_transport_info` are set to False.
+
+    Additionally, specific information will not be injected if relevant OpenLineage properties already exist.
+
+    Parent job information will not be injected if:
+        - Any property prefixed with `spark.openlineage.parent` exists.
+        - `inject_parent_job_info` is False.
+    Transport information will not be injected if:
+        - Any property prefixed with `spark.openlineage.transport` exists.
+        - `inject_transport_info` is False.
 
     Args:
         batch: The original Dataproc batch definition.
         context: The Airflow context in which the job is running.
         inject_parent_job_info: Flag indicating whether to inject parent job information.
+        inject_transport_info: Flag indicating whether to inject transport information.
 
     Returns:
         The modified batch definition with OpenLineage properties injected, if applicable.
     """
-    if not inject_parent_job_info:
+    if not inject_parent_job_info and not inject_transport_info:
         log.debug("Automatic injection of OpenLineage information is disabled.")
         return batch
 
@@ -618,7 +656,96 @@ def inject_openlineage_properties_into_dataproc_batch(
 
     properties = _extract_dataproc_batch_properties(batch)
 
-    properties = inject_parent_job_information_into_spark_properties(properties=properties, context=context)
+    if inject_parent_job_info:
+        log.debug("Injecting OpenLineage parent job information into Spark properties.")
+        properties = inject_parent_job_information_into_spark_properties(
+            properties=properties, context=context
+        )
+
+    if inject_transport_info:
+        log.debug("Injecting OpenLineage transport information into Spark properties.")
+        properties = inject_transport_information_into_spark_properties(
+            properties=properties, context=context
+        )
 
     batch_with_ol_config = _replace_dataproc_batch_properties(batch=batch, new_properties=properties)
     return batch_with_ol_config
+
+
+def inject_openlineage_properties_into_dataproc_workflow_template(
+    template: dict, context: Context, inject_parent_job_info: bool, inject_transport_info: bool
+) -> dict:
+    """
+    Inject OpenLineage properties into all Spark jobs within Workflow Template.
+
+    This function does not remove existing configurations or modify the jobs definition in any way,
+     except to add the required OpenLineage properties if they are not already present.
+
+    The entire properties injection process for each job will be skipped if any condition is met:
+        - The OpenLineage provider is not accessible.
+        - The job type is unsupported.
+        - Both `inject_parent_job_info` and `inject_transport_info` are set to False.
+
+    Additionally, specific information will not be injected if relevant OpenLineage properties already exist.
+
+    Parent job information will not be injected if:
+        - Any property prefixed with `spark.openlineage.parent` exists.
+        - `inject_parent_job_info` is False.
+    Transport information will not be injected if:
+        - Any property prefixed with `spark.openlineage.transport` exists.
+        - `inject_transport_info` is False.
+
+    Args:
+        template: The original Dataproc Workflow Template definition.
+        context: The Airflow context in which the job is running.
+        inject_parent_job_info: Flag indicating whether to inject parent job information.
+        inject_transport_info: Flag indicating whether to inject transport information.
+
+    Returns:
+        The modified Workflow Template definition with OpenLineage properties injected, if applicable.
+    """
+    if not inject_parent_job_info and not inject_transport_info:
+        log.debug("Automatic injection of OpenLineage information is disabled.")
+        return template
+
+    if not _is_openlineage_provider_accessible():
+        log.warning(
+            "Could not access OpenLineage provider for automatic OpenLineage "
+            "properties injection. No action will be performed."
+        )
+        return template
+
+    final_jobs = []
+    for single_job_definition in template["jobs"]:
+        step_id = single_job_definition["step_id"]
+        log.debug("Injecting OpenLineage properties into Workflow step: `%s`", step_id)
+
+        if (job_type := _extract_supported_job_type_from_dataproc_job(single_job_definition)) is None:
+            log.debug(
+                "Could not find a supported Dataproc job type for automatic OpenLineage "
+                "properties injection. No action will be performed.",
+            )
+            final_jobs.append(single_job_definition)
+            continue
+
+        properties = single_job_definition[job_type].get("properties", {})
+
+        if inject_parent_job_info:
+            log.debug("Injecting OpenLineage parent job information into Spark properties.")
+            properties = inject_parent_job_information_into_spark_properties(
+                properties=properties, context=context
+            )
+
+        if inject_transport_info:
+            log.debug("Injecting OpenLineage transport information into Spark properties.")
+            properties = inject_transport_information_into_spark_properties(
+                properties=properties, context=context
+            )
+
+        job_with_ol_config = _replace_dataproc_job_properties(
+            job=single_job_definition, job_type=job_type, new_properties=properties
+        )
+        final_jobs.append(job_with_ol_config)
+
+    template["jobs"] = final_jobs
+    return template

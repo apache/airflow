@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlparse
 
@@ -32,6 +31,7 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -359,6 +359,7 @@ class HttpAsyncHook(BaseHook):
 
     async def run(
         self,
+        session: aiohttp.ClientSession,
         endpoint: str | None = None,
         data: dict[str, Any] | str | None = None,
         json: dict[str, Any] | str | None = None,
@@ -410,54 +411,51 @@ class HttpAsyncHook(BaseHook):
 
         url = _url_from_endpoint(self.base_url, endpoint)
 
-        async with aiohttp.ClientSession() as session:
-            if self.method == "GET":
-                request_func = session.get
-            elif self.method == "POST":
-                request_func = session.post
-            elif self.method == "PATCH":
-                request_func = session.patch
-            elif self.method == "HEAD":
-                request_func = session.head
-            elif self.method == "PUT":
-                request_func = session.put
-            elif self.method == "DELETE":
-                request_func = session.delete
-            elif self.method == "OPTIONS":
-                request_func = session.options
-            else:
-                raise AirflowException(f"Unexpected HTTP Method: {self.method}")
+        if self.method == "GET":
+            request_func = session.get
+        elif self.method == "POST":
+            request_func = session.post
+        elif self.method == "PATCH":
+            request_func = session.patch
+        elif self.method == "HEAD":
+            request_func = session.head
+        elif self.method == "PUT":
+            request_func = session.put
+        elif self.method == "DELETE":
+            request_func = session.delete
+        elif self.method == "OPTIONS":
+            request_func = session.options
+        else:
+            raise HttpMethodException(f"Unexpected HTTP Method: {self.method}")
 
-            for attempt in range(1, 1 + self.retry_limit):
-                response = await request_func(
+        for attempt in range(1, 1 + self.retry_limit):
+            response = await request_func(
+                url,
+                params=data if self.method == "GET" else None,
+                data=data if self.method in ("POST", "PUT", "PATCH") else None,
+                json=json,
+                headers=_headers,
+                auth=auth,
+                **extra_options,
+            )
+            try:
+                response.raise_for_status()
+            except ClientResponseError as e:
+                self.log.warning(
+                    "[Try %d of %d] Request to %s failed.",
+                    attempt,
+                    self.retry_limit,
                     url,
-                    params=data if self.method == "GET" else None,
-                    data=data if self.method in ("POST", "PUT", "PATCH") else None,
-                    json=json,
-                    headers=_headers,
-                    auth=auth,
-                    **extra_options,
                 )
-                try:
-                    response.raise_for_status()
-                except ClientResponseError as e:
-                    self.log.warning(
-                        "[Try %d of %d] Request to %s failed.",
-                        attempt,
-                        self.retry_limit,
-                        url,
-                    )
-                    if not self._retryable_error_async(e) or attempt == self.retry_limit:
-                        self.log.exception("HTTP error with status: %s", e.status)
-                        # In this case, the user probably made a mistake.
-                        # Don't retry.
-                        raise AirflowException(f"{e.status}:{e.message}")
-                    else:
-                        await asyncio.sleep(self.retry_delay)
-                else:
-                    return response
+                if not self._retryable_error_async(e) or attempt == self.retry_limit:
+                    self.log.exception("HTTP error with status: %s", e.status)
+                    # In this case, the user probably made a mistake.
+                    # Don't retry.
+                    raise HttpErrorException(f"{e.status}:{e.message}")
             else:
-                raise NotImplementedError  # should not reach this, but makes mypy happy
+                return response
+
+        raise NotImplementedError  # should not reach this, but makes mypy happy
 
     @classmethod
     def _process_extra_options_from_connection(cls, conn: Connection, extra_options: dict) -> dict:

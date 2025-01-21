@@ -29,6 +29,15 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class AssetAliasResponse(BaseModel):
+    """
+    Asset alias schema with fields that are needed for Runtime.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    group: Annotated[str, Field(title="Group")]
+
+
 class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.
@@ -168,6 +177,11 @@ class XComResponse(BaseModel):
     value: Annotated[Any, Field(title="Value")]
 
 
+class BundleInfo(BaseModel):
+    name: str
+    version: str | None = None
+
+
 class TaskInstance(BaseModel):
     """
     Schema for TaskInstance model with minimal required fields needed for Runtime.
@@ -178,7 +192,19 @@ class TaskInstance(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     try_number: Annotated[int, Field(title="Try Number")]
-    map_index: Annotated[int | None, Field(title="Map Index")] = None
+    map_index: Annotated[int, Field(title="Map Index")] = -1
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+
+
+class AssetResponse(BaseModel):
+    """
+    Asset schema for responses with fields that are needed for Runtime.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    group: Annotated[str, Field(title="Group")]
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
 class DagRun(BaseModel):
@@ -207,6 +233,7 @@ class TIRunContext(BaseModel):
     """
 
     dag_run: DagRun
+    max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
 

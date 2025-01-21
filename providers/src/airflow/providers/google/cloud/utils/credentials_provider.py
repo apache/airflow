@@ -219,11 +219,19 @@ class _CredentialProvider(LoggingMixin):
         idp_extra_params_dict: dict[str, str] | None = None,
     ) -> None:
         super().__init__()
-        key_options = [key_path, keyfile_dict, credential_config_file, key_secret_name, is_anonymous]
-        if len([x for x in key_options if x]) > 1:
+        key_options_map = {
+            "key_path": key_path,
+            "keyfile_dict": keyfile_dict,
+            "credential_config_file": credential_config_file,
+            "key_secret_name": key_secret_name,
+            "is_anonymous": is_anonymous,
+        }
+        key_options_label_provided = [label for label, credential in key_options_map.items() if credential]
+        if len(key_options_label_provided) > 1:
             raise AirflowException(
-                "The `keyfile_dict`, `key_path`, `credential_config_file`, `is_anonymous` and"
-                " `key_secret_name` fields are all mutually exclusive. Please provide only one value."
+                f"The `keyfile_dict`, `key_path`, `credential_config_file`, `is_anonymous` and"
+                f" `key_secret_name` fields are all mutually exclusive. "
+                f"Received options: {key_options_label_provided}. Please provide only one value."
             )
         self.key_path = key_path
         self.keyfile_dict = keyfile_dict

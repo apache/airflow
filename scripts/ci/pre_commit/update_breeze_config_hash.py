@@ -27,7 +27,7 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
-BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
+BREEZE_PROJECT_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -41,14 +41,14 @@ def get_package_setup_metadata_hash() -> str:
     """
     try:
         the_hash = hashlib.new("blake2b")
-        the_hash.update((BREEZE_SOURCES_ROOT / "pyproject.toml").read_bytes())
+        the_hash.update((BREEZE_PROJECT_ROOT / "pyproject.toml").read_bytes())
         return the_hash.hexdigest()
     except FileNotFoundError as e:
         return f"Missing file {e.filename}"
 
 
 def process_breeze_readme():
-    breeze_readme = BREEZE_SOURCES_ROOT / "README.md"
+    breeze_readme = BREEZE_PROJECT_ROOT / "README.md"
     lines = breeze_readme.read_text().splitlines(keepends=True)
     result_lines = []
     for line in lines:

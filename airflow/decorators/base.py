@@ -22,16 +22,7 @@ import textwrap
 import warnings
 from collections.abc import Collection, Iterator, Mapping, Sequence
 from functools import cached_property, update_wrapper
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    ClassVar,
-    Generic,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Protocol, TypeVar, cast, overload
 
 import attr
 import re2
@@ -52,10 +43,10 @@ from airflow.models.expandinput import (
 )
 from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.models.xcom_arg import XComArg
+from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
-from airflow.typing_compat import ParamSpec, Protocol
+from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.decorators import remove_task_decorator
@@ -72,8 +63,8 @@ if TYPE_CHECKING:
         OperatorExpandKwargsArgument,
     )
     from airflow.models.mappedoperator import ValidationSource
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
-    from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
 
 
@@ -514,7 +505,6 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             partial_kwargs=partial_kwargs,
             task_id=task_id,
             params=partial_params,
-            deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,
             template_ext=self.operator_class.template_ext,
             template_fields=self.operator_class.template_fields,
@@ -522,6 +512,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             ui_color=self.operator_class.ui_color,
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_empty=False,
+            is_sensor=self.operator_class._is_sensor,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             operator_name=operator_name,
@@ -578,7 +569,7 @@ class DecoratedMappedOperator(MappedOperator):
         XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
     def _expand_mapped_kwargs(
-        self, context: Context, session: Session, *, include_xcom: bool
+        self, context: Mapping[str, Any], session: Session, *, include_xcom: bool
     ) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
         if self.expand_input is not EXPAND_INPUT_EMPTY:

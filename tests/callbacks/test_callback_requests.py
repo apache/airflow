@@ -21,7 +21,6 @@ from datetime import datetime
 import pytest
 
 from airflow.callbacks.callback_requests import (
-    CallbackRequest,
     DagCallbackRequest,
     TaskCallbackRequest,
 )
@@ -38,7 +37,6 @@ class TestCallbackRequest:
     @pytest.mark.parametrize(
         "input,request_class",
         [
-            (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
             (
                 None,  # to be generated when test is run
                 TaskCallbackRequest,

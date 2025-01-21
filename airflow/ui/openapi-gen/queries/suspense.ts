@@ -99,14 +99,7 @@ export const useAssetServiceGetAssetsSuspense = <
       queryKey,
     ),
     queryFn: () =>
-      AssetService.getAssets({
-        dagIds,
-        limit,
-        namePattern,
-        offset,
-        orderBy,
-        uriPattern,
-      }) as TData,
+      AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uriPattern }) as TData,
     ...options,
   });
 /**
@@ -140,17 +133,8 @@ export const useAssetServiceGetAssetAliasesSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn(
-      { limit, namePattern, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.getAssetAliases({
-        limit,
-        namePattern,
-        offset,
-        orderBy,
-      }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({ limit, namePattern, offset, orderBy }, queryKey),
+    queryFn: () => AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -175,10 +159,7 @@ export const useAssetServiceGetAssetAliasSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn(
-      { assetAliasId },
-      queryKey,
-    ),
+    queryKey: Common.UseAssetServiceGetAssetAliasKeyFn({ assetAliasId }, queryKey),
     queryFn: () => AssetService.getAssetAlias({ assetAliasId }) as TData,
     ...options,
   });
@@ -286,12 +267,8 @@ export const useAssetServiceGetAssetQueuedEventsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn(
-      { assetId, before },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.getAssetQueuedEvents({ assetId, before }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({ assetId, before }, queryKey),
+    queryFn: () => AssetService.getAssetQueuedEvents({ assetId, before }) as TData,
     ...options,
   });
 /**
@@ -345,12 +322,8 @@ export const useAssetServiceGetDagAssetQueuedEventsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn(
-      { before, dagId },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.getDagAssetQueuedEvents({ before, dagId }) as TData,
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn({ before, dagId }, queryKey),
+    queryFn: () => AssetService.getDagAssetQueuedEvents({ before, dagId }) as TData,
     ...options,
   });
 /**
@@ -381,12 +354,8 @@ export const useAssetServiceGetDagAssetQueuedEventSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn(
-      { assetId, before, dagId },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }) as TData,
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn({ assetId, before, dagId }, queryKey),
+    queryFn: () => AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }) as TData,
     ...options,
   });
 /**
@@ -432,10 +401,7 @@ export const useConfigServiceGetConfigSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigKeyFn(
-      { accept, section },
-      queryKey,
-    ),
+    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }, queryKey),
     queryFn: () => ConfigService.getConfig({ accept, section }) as TData,
     ...options,
   });
@@ -466,12 +432,8 @@ export const useConfigServiceGetConfigValueSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigValueKeyFn(
-      { accept, option, section },
-      queryKey,
-    ),
-    queryFn: () =>
-      ConfigService.getConfigValue({ accept, option, section }) as TData,
+    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }, queryKey),
+    queryFn: () => ConfigService.getConfigValue({ accept, option, section }) as TData,
     ...options,
   });
 /**
@@ -583,12 +545,8 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn(
-      { endDate, startDate },
-      queryKey,
-    ),
-    queryFn: () =>
-      DashboardService.historicalMetrics({ endDate, startDate }) as TData,
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }, queryKey),
+    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }) as TData,
     ...options,
   });
 /**
@@ -676,14 +634,7 @@ export const useBackfillServiceListBackfillsSuspense = <
       { active, dagId, limit, offset, orderBy },
       queryKey,
     ),
-    queryFn: () =>
-      BackfillService.listBackfills({
-        active,
-        dagId,
-        limit,
-        offset,
-        orderBy,
-      }) as TData,
+    queryFn: () => BackfillService.listBackfills({ active, dagId, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -716,17 +667,8 @@ export const useBackfillServiceListBackfills1Suspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceListBackfills1KeyFn(
-      { dagId, limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      BackfillService.listBackfills1({
-        dagId,
-        limit,
-        offset,
-        orderBy,
-      }) as TData,
+    queryKey: Common.UseBackfillServiceListBackfills1KeyFn({ dagId, limit, offset, orderBy }, queryKey),
+    queryFn: () => BackfillService.listBackfills1({ dagId, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -750,10 +692,7 @@ export const useBackfillServiceGetBackfillSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseBackfillServiceGetBackfillKeyFn(
-      { backfillId },
-      queryKey,
-    ),
+    queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }, queryKey),
     queryFn: () => BackfillService.getBackfill({ backfillId }) as TData,
     ...options,
   });
@@ -863,10 +802,7 @@ export const useConnectionServiceGetConnectionSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionKeyFn(
-      { connectionId },
-      queryKey,
-    ),
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey),
     queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
     ...options,
   });
@@ -898,12 +834,8 @@ export const useConnectionServiceGetConnectionsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
-      { limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ limit, offset, orderBy }, queryKey),
+    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -930,10 +862,7 @@ export const useDagRunServiceGetDagRunSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetDagRunKeyFn(
-      { dagId, dagRunId },
-      queryKey,
-    ),
+    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }, queryKey),
     queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData,
     ...options,
   });
@@ -962,12 +891,8 @@ export const useDagRunServiceGetUpstreamAssetEventsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn(
-      { dagId, dagRunId },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData,
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }, queryKey),
+    queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData,
     ...options,
   });
 /**
@@ -1094,12 +1019,8 @@ export const useDagSourceServiceGetDagSourceSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn(
-      { accept, dagId, versionNumber },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagSourceService.getDagSource({ accept, dagId, versionNumber }) as TData,
+    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({ accept, dagId, versionNumber }, queryKey),
+    queryFn: () => DagSourceService.getDagSource({ accept, dagId, versionNumber }) as TData,
     ...options,
   });
 /**
@@ -1166,14 +1087,7 @@ export const useDagWarningServiceListDagWarningsSuspense = <
       { dagId, limit, offset, orderBy, warningType },
       queryKey,
     ),
-    queryFn: () =>
-      DagWarningService.listDagWarnings({
-        dagId,
-        limit,
-        offset,
-        orderBy,
-        warningType,
-      }) as TData,
+    queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }) as TData,
     ...options,
   });
 /**
@@ -1338,17 +1252,8 @@ export const useDagServiceGetDagTagsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn(
-      { limit, offset, orderBy, tagNamePattern },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagService.getDagTags({
-        limit,
-        offset,
-        orderBy,
-        tagNamePattern,
-      }) as TData,
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }, queryKey),
+    queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }) as TData,
     ...options,
   });
 /**
@@ -1372,10 +1277,7 @@ export const useEventLogServiceGetEventLogSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn(
-      { eventLogId },
-      queryKey,
-    ),
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }, queryKey),
     queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
     ...options,
   });
@@ -1506,12 +1408,8 @@ export const useExtraLinksServiceGetExtraLinksSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn(
-      { dagId, dagRunId, taskId },
-      queryKey,
-    ),
-    queryFn: () =>
-      ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }, queryKey),
+    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
     ...options,
   });
 /**
@@ -1542,12 +1440,8 @@ export const useTaskInstanceServiceGetExtraLinksSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn(
-      { dagId, dagRunId, taskId },
-      queryKey,
-    ),
-    queryFn: () =>
-      TaskInstanceService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }, queryKey),
+    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
     ...options,
   });
 /**
@@ -1578,12 +1472,8 @@ export const useTaskInstanceServiceGetTaskInstanceSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn(
-      { dagId, dagRunId, taskId },
-      queryKey,
-    ),
-    queryFn: () =>
-      TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }, queryKey),
+    queryFn: () => TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) as TData,
     ...options,
   });
 /**
@@ -1751,12 +1641,7 @@ export const useTaskInstanceServiceGetTaskInstanceDependenciesSuspense = <
       queryKey,
     ),
     queryFn: () =>
-      TaskInstanceService.getTaskInstanceDependencies({
-        dagId,
-        dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
+      TaskInstanceService.getTaskInstanceDependencies({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1795,12 +1680,7 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1Suspense = <
       queryKey,
     ),
     queryFn: () =>
-      TaskInstanceService.getTaskInstanceDependencies1({
-        dagId,
-        dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
+      TaskInstanceService.getTaskInstanceDependencies1({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1838,13 +1718,7 @@ export const useTaskInstanceServiceGetTaskInstanceTriesSuspense = <
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
-    queryFn: () =>
-      TaskInstanceService.getTaskInstanceTries({
-        dagId,
-        dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
+    queryFn: () => TaskInstanceService.getTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1882,12 +1756,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTriesSuspense = <
       queryKey,
     ),
     queryFn: () =>
-      TaskInstanceService.getMappedTaskInstanceTries({
-        dagId,
-        dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
+      TaskInstanceService.getMappedTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1925,13 +1794,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <
       { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
-    queryFn: () =>
-      TaskInstanceService.getMappedTaskInstance({
-        dagId,
-        dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
+    queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -2210,16 +2073,7 @@ export const useTaskInstanceServiceGetLogSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetLogKeyFn(
-      {
-        accept,
-        dagId,
-        dagRunId,
-        fullContent,
-        mapIndex,
-        taskId,
-        token,
-        tryNumber,
-      },
+      { accept, dagId, dagRunId, fullContent, mapIndex, taskId, token, tryNumber },
       queryKey,
     ),
     queryFn: () =>
@@ -2257,12 +2111,8 @@ export const useImportErrorServiceGetImportErrorSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn(
-      { importErrorId },
-      queryKey,
-    ),
-    queryFn: () =>
-      ImportErrorService.getImportError({ importErrorId }) as TData,
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({ importErrorId }, queryKey),
+    queryFn: () => ImportErrorService.getImportError({ importErrorId }) as TData,
     ...options,
   });
 /**
@@ -2293,12 +2143,8 @@ export const useImportErrorServiceGetImportErrorsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn(
-      { limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }, queryKey),
+    queryFn: () => ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -2414,10 +2260,7 @@ export const usePluginServiceGetPluginsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UsePluginServiceGetPluginsKeyFn(
-      { limit, offset },
-      queryKey,
-    ),
+    queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }, queryKey),
     queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
     ...options,
   });
@@ -2475,10 +2318,7 @@ export const usePoolServiceGetPoolsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn(
-      { limit, offset, orderBy },
-      queryKey,
-    ),
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy }, queryKey),
     queryFn: () => PoolService.getPools({ limit, offset, orderBy }) as TData,
     ...options,
   });
@@ -2507,10 +2347,7 @@ export const useProviderServiceGetProvidersSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseProviderServiceGetProvidersKeyFn(
-      { limit, offset },
-      queryKey,
-    ),
+    queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey),
     queryFn: () => ProviderService.getProviders({ limit, offset }) as TData,
     ...options,
   });
@@ -2617,15 +2454,7 @@ export const useXcomServiceGetXcomEntriesSuspense = <
       queryKey,
     ),
     queryFn: () =>
-      XcomService.getXcomEntries({
-        dagId,
-        dagRunId,
-        limit,
-        mapIndex,
-        offset,
-        taskId,
-        xcomKey,
-      }) as TData,
+      XcomService.getXcomEntries({ dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey }) as TData,
     ...options,
   });
 /**
@@ -2708,10 +2537,7 @@ export const useVariableServiceGetVariableSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseVariableServiceGetVariableKeyFn(
-      { variableKey },
-      queryKey,
-    ),
+    queryKey: Common.UseVariableServiceGetVariableKeyFn({ variableKey }, queryKey),
     queryFn: () => VariableService.getVariable({ variableKey }) as TData,
     ...options,
   });
@@ -2750,13 +2576,7 @@ export const useVariableServiceGetVariablesSuspense = <
       { limit, offset, orderBy, variableKeyPattern },
       queryKey,
     ),
-    queryFn: () =>
-      VariableService.getVariables({
-        limit,
-        offset,
-        orderBy,
-        variableKeyPattern,
-      }) as TData,
+    queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) as TData,
     ...options,
   });
 /**

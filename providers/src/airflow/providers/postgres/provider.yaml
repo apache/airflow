@@ -70,7 +70,7 @@ versions:
 dependencies:
   - apache-airflow>=2.9.0
   - apache-airflow-providers-common-sql>=1.20.0
-  - psycopg2-binary>=2.9.4
+  - psycopg2-binary>=2.9.7
   - asyncpg>=0.30.0
 
 additional-extras:
@@ -85,6 +85,10 @@ integrations:
       - /docs/apache-airflow-providers-postgres/operators/postgres_operator_howto_guide.rst
     logo: /integration-logos/postgres/Postgres.png
     tags: [software]
+
+dialects:
+  - dialect-type: postgresql
+    dialect-class-name: airflow.providers.postgres.dialects.postgres.PostgresDialect
 
 hooks:
   - integration-name: PostgreSQL

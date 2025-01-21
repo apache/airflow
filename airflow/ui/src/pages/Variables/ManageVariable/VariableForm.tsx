@@ -37,13 +37,7 @@ type VariableFormProps = {
   readonly setError: (error: unknown) => void;
 };
 
-const VariableForm = ({
-  error,
-  initialVariable,
-  isPending,
-  manageMutate,
-  setError,
-}: VariableFormProps) => {
+const VariableForm = ({ error, initialVariable, isPending, manageMutate, setError }: VariableFormProps) => {
   const {
     control,
     formState: { isDirty, isValid },
@@ -73,42 +67,27 @@ const VariableForm = ({
             <Field.Label fontSize="md">
               Key <Field.RequiredIndicator />
             </Field.Label>
-            <Input
-              {...field}
-              disabled={Boolean(initialVariable.key)}
-              required
-              size="sm"
-            />
-            {fieldState.error ? (
-              <Field.ErrorText>{fieldState.error.message}</Field.ErrorText>
-            ) : undefined}
+            <Input {...field} disabled={Boolean(initialVariable.key)} required size="sm" />
+            {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
           </Field.Root>
         )}
         rules={{
           required: "Key is required",
-          validate: (_value) =>
-            _value.length <= 250 ||
-            "Key can contain a maximum of 250 characters",
+          validate: (_value) => _value.length <= 250 || "Key can contain a maximum of 250 characters",
         }}
       />
 
       <Controller
         control={control}
         name="value"
-        render={({ field, fieldState }) => (
-          <Field.Root invalid={Boolean(fieldState.error)} mt={4} required>
+        render={({ field }) => (
+          <Field.Root mt={4}>
             <Field.Label fontSize="md">
               Value <Field.RequiredIndicator />
             </Field.Label>
-            <Textarea {...field} required size="sm" />
-            {fieldState.error ? (
-              <Field.ErrorText>{fieldState.error.message}</Field.ErrorText>
-            ) : undefined}
+            <Textarea {...field} size="sm" />
           </Field.Root>
         )}
-        rules={{
-          required: "Value is required",
-        }}
       />
 
       <Controller

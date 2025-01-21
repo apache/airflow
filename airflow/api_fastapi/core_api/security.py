@@ -17,18 +17,21 @@
 from __future__ import annotations
 
 from functools import cache
-from typing import Annotated, Any, Callable
+from typing import TYPE_CHECKING, Annotated, Any, Callable
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
+from starlette import status
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.auth.managers.base_auth_manager import ResourceMethod
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -48,7 +51,7 @@ def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
         payload: dict[str, Any] = signer.verify_token(token_str)
         return get_auth_manager().deserialize_user(payload)
     except InvalidTokenError:
-        raise HTTPException(403, "Forbidden")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
 
 
 def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None = None) -> Callable:
@@ -73,4 +76,4 @@ def _requires_access(
     is_authorized_callback: Callable[[], bool],
 ) -> None:
     if not is_authorized_callback():
-        raise HTTPException(403, "Forbidden")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")

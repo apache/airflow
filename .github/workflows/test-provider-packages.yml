@@ -58,6 +58,12 @@ on:  # yamllint disable-line rule:truthy
         description: "JSON-formatted array of Python versions to build images from"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
   prepare-install-verify-provider-packages:
     timeout-minutes: 80
@@ -87,6 +93,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
@@ -121,29 +128,35 @@ jobs:
           breeze release-management generate-constraints
           --airflow-constraints-mode constraints-source-providers --answer yes
       - name: "Install and verify wheel provider packages"
+        env:
+          PACKAGE_FORMAT: ${{ matrix.package-format }}
+          PYTHON_MAJOR_MINOR_VERSION: ${env.PYTHON_MAJOR_MINOR_VERSION}
+          AIRFLOW_SKIP_CONSTRAINTS: "${{ inputs.upgrade-to-newer-dependencies }}"
         run: >
           breeze release-management verify-provider-packages
           --use-packages-from-dist
-          --package-format ${{ matrix.package-format }}
-          --use-airflow-version ${{ matrix.package-format }}
+          --package-format "${PACKAGE_FORMAT}"
+          --use-airflow-version "${PACKAGE_FORMAT}"
           --airflow-constraints-reference default
           --providers-constraints-location
-          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
-        env:
-          AIRFLOW_SKIP_CONSTRAINTS: "${{ inputs.upgrade-to-newer-dependencies }}"
+          /files/constraints-${PYTHON_MAJOR_MINOR_VERSION}/constraints-source-providers-${PYTHON_MAJOR_MINOR_VERSION}.txt
         if: matrix.package-format == 'wheel'
       - name: "Install all sdist provider packages and airflow"
+        env:
+          PACKAGE_FORMAT: ${{ matrix.package-format }}
+          PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
         run: >
           breeze release-management install-provider-packages
           --use-packages-from-dist
-          --package-format ${{ matrix.package-format }}
-          --use-airflow-version ${{ matrix.package-format }}
+          --package-format "${PACKAGE_FORMAT}"
+          --use-airflow-version ${PACKAGE_FORMAT}
           --airflow-constraints-reference default
           --providers-constraints-location
-          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
+          /files/constraints-${PYTHON_MAJOR_MINOR_VERSION}/constraints-source-providers-${PYTHON_MAJOR_MINOR_VERSION}.txt
           --run-in-parallel
         if: matrix.package-format == 'sdist'
 
+  # All matrix parameters are passed as JSON string in the input variable providers-compatibility-tests-matrix
   providers-compatibility-tests-matrix:
     timeout-minutes: 80
     name: Compat ${{ matrix.airflow-version }}:P${{ matrix.python-version }} providers test
@@ -175,6 +188,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python: ${{ matrix.python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: wheel"
@@ -184,8 +198,10 @@ jobs:
       - name: >
           Remove incompatible Airflow
           ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }} provider packages
+        env:
+          REMOVE_PROVIDERS: ${{ matrix.remove-providers }}
         run: |
-          for provider in ${{ matrix.remove-providers }}; do
+          for provider in ${REMOVE_PROVIDERS}; do
             echo "Removing incompatible provider: ${provider}"
             rm -vf dist/apache_airflow_providers_${provider/./_}*
           done
@@ -199,12 +215,14 @@ jobs:
         # We do not need to run import check if we run tests, the tests should cover all the import checks
         # automatically
         if: matrix.run-tests != 'true'
+        env:
+          AIRFLOW_VERSION: "${{ matrix.airflow-version }}"
         run: >
           breeze release-management verify-provider-packages
           --use-packages-from-dist
           --package-format wheel
           --use-airflow-version wheel
-          --airflow-constraints-reference constraints-${{matrix.airflow-version}}
+          --airflow-constraints-reference constraints-${AIRFLOW_VERSION}
           --providers-skip-constraints
           --install-airflow-with-constraints
       - name: Check amount of disk space available
@@ -214,13 +232,17 @@ jobs:
           Run provider unit tests on
           Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
         if: matrix.run-tests == 'true'
+        env:
+          PROVIDERS_TEST_TYPES: "${{ inputs.providers-test-types-list-as-string }}"
+          AIRFLOW_VERSION: "${{ matrix.airflow-version }}"
+          REMOVE_PROVIDERS: "${{ matrix.remove-providers }}"
         run: >
           breeze testing providers-tests --run-in-parallel
-          --parallel-test-types "${{ inputs.providers-test-types-list-as-string }}"
+          --parallel-test-types "${PROVIDERS_TEST_TYPES}"
           --use-packages-from-dist
           --package-format wheel
-          --use-airflow-version "${{ matrix.airflow-version }}"
-          --airflow-constraints-reference constraints-${{matrix.airflow-version}}
+          --use-airflow-version "${AIRFLOW_VERSION}"
+          --airflow-constraints-reference constraints-${AIRFLOW_VERSION}
           --install-airflow-with-constraints
           --providers-skip-constraints
-          --skip-providers "${{ matrix.remove-providers }}"
+          --skip-providers "${REMOVE_PROVIDERS}"

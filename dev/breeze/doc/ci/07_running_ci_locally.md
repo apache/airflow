@@ -22,11 +22,12 @@
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Running the CI Jobs locally](#running-the-ci-jobs-locally)
+- [Getting the CI image from failing job](#getting-the-ci-image-from-failing-job)
+- [Options and environment variables used](#options-and-environment-variables-used)
   - [Basic variables](#basic-variables)
-  - [Host & GIT variables](#host--git-variables)
+  - [Test variables](#test-variables)
   - [In-container environment initialization](#in-container-environment-initialization)
-- [Image build variables](#image-build-variables)
-- [Upgrade to newer dependencies](#upgrade-to-newer-dependencies)
+  - [Host & GIT variables](#host--git-variables)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -62,68 +63,125 @@ exactly what our CI is doing by running the sequence of corresponding
 In the output of the CI jobs, you will find both - the flags passed and
 environment variables set.
 
+# Getting the CI image from failing job
+
 Every contributor can also pull and run images being result of a specific
 CI run in GitHub Actions. This is a powerful tool that allows to
 reproduce CI failures locally, enter the images and fix them much
-faster. It is enough to download and uncompress the artifact that stores the
-image and run ``breeze ci-image load -i <path-to-image.tar> --python python``
-to load the  image and mark the image as refreshed in the local cache.
+faster.
 
-You can read more about it in [Breeze](../README.rst) and
-[Testing](../../../../contributing-docs/09_testing.rst)
+Note that this currently only works for AMD machines, not for ARM machines, but
+this will change soon.
 
-Depending whether the scripts are run locally via
-[Breeze](../README.rst) or whether they are run in
-`Build Images` or `Tests` workflows they can take different values.
+To load the image from specific PR, you can use the following command:
 
-You can use those variables when you try to reproduce the build locally
-(alternatively you can pass those via corresponding command line flags
-passed to `breeze shell` command.
+```bash
+breeze ci-image load --from-pr 12345 --python 3.9 --github-token <your_github_token>
+```
+
+To load the image from specific run (for example 12538475388),
+you can use the following command, find the run id from github action runs.
+
+```bash
+breeze ci-image load --from-run 12538475388 --python 3.9 --github-token <your_github_token>
+```
+
+After you load the image, you can reproduce the very exact environment that was used in the CI run by
+entering breeze container without mounting your local sources:
+
+```bash
+breeze shell --mount-sources skip [OPTIONS]
+```
+
+And you should be able to run any tests and commands interactively in the very exact environment that
+was used in the failing CI run even without checking out sources of the failing PR.
+This is a powerful tool to debug and fix CI issues.
+
+You can also build the image locally by checking-out the branch of the PR that was used and running:
+
+```bash
+breeze ci-image build
+```
+
+You have to be aware that some of the PRs and canary builds use the `--upgrade-to-newer-dependencies` flag
+(`UPGRADE_TO_NEWER_DEPENDENCIES` environment variable set to `true`) and they are not using constraints
+to build the image so if you want to build it locally, you should pass the `--upgrade-to-newer-dependencies`
+flag when you are building the image.
+
+Note however, that if constraints changed for regulare builds and if someone released a new package in PyPI
+since the build was run (which is very likely - we have many packages released a day), the image you
+build locally might be different than the one in CI, that's why loading image using `breeze ci-image load`
+is more reliable way to reproduce the CI build.
+
+If you check-out the branch of the PR that was used, regular ``breeze`` commands will
+also reproduce the CI environment without having to rebuild the image - for example when dependencies
+changed or when new dependencies were released and used in the CI job - and you will
+be able to edit source files locally as usual and use your IDE and tools you usually use to develop Airflow.
+
+In order to reproduce the exact job you also need to set the "[OPTIONS]" corresponding to the particular
+job you want to reproduce within the run. You can find those in the logs of the CI job. Note that some
+of the options can be passed by `--flags` and some via environment variables, for convenience, so you should
+take a look at both if you want to be sure to reproduce the exact job configuration. See the next chapter
+for summary of the most important environment variables and options used in the CI jobs.
+
+You can read more about it in [Breeze](../README.rst) and [Testing](../../../../contributing-docs/09_testing.rst)
+
+# Options and environment variables used
+
+Depending whether the scripts are run locally via [Breeze](../README.rst) or whether they are run in
+`Build Images` or `Tests` workflows can behave differently.
+
+You can use those variables when you try to reproduce the build locally - alternatively you can pass
+those via corresponding command line flag passed to `breeze shell` command.
 
 ## Basic variables
 
-| Variable                    | Local dev | CI   | Comment                                                                      |
-|-----------------------------|-----------|------|------------------------------------------------------------------------------|
-| PYTHON_MAJOR_MINOR_VERSION  |           |      | Major/Minor version of Python used.                                          |
-| DB_RESET                    | false     | true | Determines whether database should be reset at the container entry.          |
-| ANSWER                      |           | yes  | This variable determines if answer to questions should be automatically set. |
+Those variables are controlling basic configuration and behaviour of the breeze command.
 
-## Host & GIT variables
+| Variable                   | Option                   | Local dev | CI   | Comment                                                                      |
+|----------------------------|--------------------------|-----------|------|------------------------------------------------------------------------------|
+| PYTHON_MAJOR_MINOR_VERSION | --python                 |           |      | Major/Minor version of Python used.                                          |
+| BACKEND                    | --backend                |           |      | Backend used in the tests.                                                   |
+| INTEGRATION                | --integration            |           |      | Integration used in tests.                                                   |
+| DB_RESET                   | --db-reset/--no-db-reset | false     | true | Determines whether database should be reset at the container entry.          |
+| ANSWER                     | --answer                 |           | yes  | This variable determines if answer to questions should be automatically set. |
 
-| Variable          | Local dev | CI         | Comment                                 |
-|-------------------|-----------|------------|-----------------------------------------|
-| HOST_USER_ID      | Host UID  |            | User id of the host user.               |
-| HOST_GROUP_ID     | Host GID  |            | Group id of the host user.              |
-| HOST_OS           | <from os> | linux      | OS of the Host (darwin/linux/windows).  |
-| COMMIT_SHA        |           | GITHUB_SHA | SHA of the commit of the build is run   |
+## Test variables
+
+Those variables are used to control the test execution.
+
+| Variable          | Option              | Local dev | CI                   | Comment                                   |
+|-------------------|---------------------|-----------|----------------------|-------------------------------------------|
+| RUN_DB_TESTS_ONLY | --run-db-tests-only |           | true in db tests     | Whether only db tests should be executed. |
+| SKIP_DB_TESTS     | --skip-db-tests     |           | true in non-db tests | Whether db tests should be skipped.       |
+
 
 ## In-container environment initialization
 
-| Variable                        | Local dev | CI        | Comment                                                                     |
-|---------------------------------|-----------|-----------|-----------------------------------------------------------------------------|
-| SKIP_ENVIRONMENT_INITIALIZATION | false (*) | false (*) | Skip initialization of test environment (*) set to true in pre-commits.     |
-| SKIP_IMAGE_UPGRADE_CHECK        | false (*) | false (*) | Skip checking if image should be upgraded (*) set to true in pre-commits.   |
-| SKIP_PROVIDERS_TESTS            | false     | false     | Skip running provider integration tests.                                    |
-| SKIP_SSH_SETUP                  | false     | false (*) | Skip setting up SSH server for tests. (*) set to true in GitHub CodeSpaces. |
-| VERBOSE_COMMANDS                | false     | false     | Whether every command executed in docker should be printed.                 |
+Those variables are used to control the initialization of the environment in the container.
 
-# Image build variables
+| Variable                        | Option                             | Local dev | CI        | Comment                                                                     |
+|---------------------------------|------------------------------------|-----------|-----------|-----------------------------------------------------------------------------|
+| MOUNT_SOURCES                   | --mount-sources                    |           | skip      | Whether to mount the local sources into the container.                      |
+| SKIP_ENVIRONMENT_INITIALIZATION | --skip-enviromnment-initialization | false (*) | false (*) | Skip initialization of test environment (*) set to true in pre-commits.     |
+| SKIP_IMAGE_UPGRADE_CHECK        | --skip-image-upgrade-check         | false (*) | false (*) | Skip checking if image should be upgraded (*) set to true in pre-commits.   |
+| SKIP_PROVIDERS_TESTS            |                                    | false     | false     | Skip running provider integration tests (in non-main branch).               |
+| SKIP_SSH_SETUP                  |                                    | false     | false (*) | Skip setting up SSH server for tests. (*) set to true in GitHub CodeSpaces. |
+| VERBOSE_COMMANDS                |                                    | false     | false     | Whether every command executed in docker should be printed.                 |
 
-| Variable                        | Local dev | CI        | Comment                                                            |
-|---------------------------------|-----------|-----------|--------------------------------------------------------------------|
-| UPGRADE_TO_NEWER_DEPENDENCIES   | false     | false (*) | Whether dependencies should be upgraded. (*) set in CI when needed |
+## Host & GIT variables
 
-# Upgrade to newer dependencies
+Those variables are automatically set by Breeze when running the commands locally, but you can override them
+if you want to run the commands in a different environment.
 
-By default, we are using a tested set of dependency constraints stored in separated "orphan" branches of the airflow repository
-("constraints-main, "constraints-2-0") but when this flag is set to anything but false (for example random value),
-they are not used and "eager" upgrade strategy is used when installing dependencies. We set it to true in case of direct
-pushes (merges) to main and scheduled builds so that the constraints are tested. In those builds, in case we determine
-that the tests pass we automatically push latest set of "tested" constraints to the repository. Setting the value to random
-value is best way to assure that constraints are upgraded even if there is no change to pyproject.toml
-This way our constraints are automatically tested and updated whenever new versions of libraries are released.
-(*) true in case of direct pushes and scheduled builds
+| Variable      | Local dev | CI         | Comment                                |
+|---------------|-----------|------------|----------------------------------------|
+| HOST_USER_ID  | Host UID  |            | User id of the host user.              |
+| HOST_GROUP_ID | Host GID  |            | Group id of the host user.             |
+| HOST_OS       | <from os> | linux      | OS of the Host (darwin/linux/windows). |
+| COMMIT_SHA    |           | GITHUB_SHA | SHA of the commit of the build is run  |
+
 
 ----
 
-**Thank you** for reading this far. We hope that you have learned a lot about Airflow's CI.
+**Thank you** for reading this far. We hope that you have learned a lot about Reproducing Airlfow's CI job locally and CI in general.
