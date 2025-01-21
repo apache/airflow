@@ -163,7 +163,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.definitions.protocols import RuntimeTaskInstanceProtocol
+    from airflow.sdk.types import OutletEventAccessorsProtocol, RuntimeTaskInstanceProtocol
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
@@ -409,10 +409,10 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, session: Session):
         task = task_instance.task.dag.task_dict[ti.task_id]
         if not task.is_teardown:
             if ti.state == TaskInstanceState.RUNNING:
-                log.info("Forcing task %s to fail due to dag's `fail_stop` setting", ti.task_id)
+                log.info("Forcing task %s to fail due to dag's `fail_fast` setting", ti.task_id)
                 ti.error(session)
             else:
-                log.info("Setting task %s to SKIPPED due to dag's `fail_stop` setting.", ti.task_id)
+                log.info("Setting task %s to SKIPPED due to dag's `fail_fast` setting.", ti.task_id)
                 ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
         else:
             log.info("Not skipping teardown task '%s'", ti.task_id)
@@ -1083,7 +1083,7 @@ def _handle_failure(
     test_mode: bool | None = None,
     context: Context | None = None,
     force_fail: bool = False,
-    fail_stop: bool = False,
+    fail_fast: bool = False,
 ) -> None:
     """
     Handle Failure for a task instance.
@@ -1106,7 +1106,7 @@ def _handle_failure(
         context=context,
         force_fail=force_fail,
         session=session,
-        fail_stop=fail_stop,
+        fail_fast=fail_fast,
     )
 
     _log_state(task_instance=task_instance, lead_msg="Immediate failure requested. " if force_fail else "")
@@ -2730,7 +2730,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
     def _register_asset_changes(
-        self, *, events: OutletEventAccessors, session: Session | None = None
+        self, *, events: OutletEventAccessorsProtocol, session: Session | None = None
     ) -> None:
         if session:
             TaskInstance._register_asset_changes_int(ti=self, events=events, session=session)
@@ -2740,7 +2740,7 @@ class TaskInstance(Base, LoggingMixin):
     @staticmethod
     @provide_session
     def _register_asset_changes_int(
-        ti: TaskInstance, *, events: OutletEventAccessors, session: Session = NEW_SESSION
+        ti: TaskInstance, *, events: OutletEventAccessorsProtocol, session: Session = NEW_SESSION
     ) -> None:
         if TYPE_CHECKING:
             assert ti.task
@@ -3065,7 +3065,7 @@ class TaskInstance(Base, LoggingMixin):
         force_fail: bool = False,
         *,
         session: Session,
-        fail_stop: bool = False,
+        fail_fast: bool = False,
     ):
         """
         Fetch the context needed to handle a failure.
@@ -3076,7 +3076,7 @@ class TaskInstance(Base, LoggingMixin):
         :param context: Jinja2 context
         :param force_fail: if True, task does not retry
         :param session: SQLAlchemy ORM Session
-        :param fail_stop: if True, fail all downstream tasks
+        :param fail_fast: if True, fail all downstream tasks
         """
         if error:
             if isinstance(error, BaseException):
@@ -3133,7 +3133,7 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
 
-            if task and fail_stop:
+            if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
             if ti.state == TaskInstanceState.RUNNING:
@@ -3190,9 +3190,9 @@ class TaskInstance(Base, LoggingMixin):
             assert self.task
             assert self.task.dag
         try:
-            fail_stop = self.task.dag.fail_stop
+            fail_fast = self.task.dag.fail_fast
         except Exception:
-            fail_stop = False
+            fail_fast = False
         _handle_failure(
             task_instance=self,
             error=error,
@@ -3200,7 +3200,7 @@ class TaskInstance(Base, LoggingMixin):
             test_mode=test_mode,
             context=context,
             force_fail=force_fail,
-            fail_stop=fail_stop,
+            fail_fast=fail_fast,
         )
 
     def is_eligible_to_retry(self):

@@ -34,6 +34,7 @@ type Props = {
 const ActionButton = ({
   actionName,
   colorPalette,
+  disabled = false,
   icon,
   onClick,
   text,
@@ -47,6 +48,7 @@ const ActionButton = ({
       <ButtonComponent
         aria-label={actionName}
         colorPalette={withText ? colorPalette : "blue"}
+        disabled={disabled}
         onClick={onClick}
         size={withText ? "md" : "sm"}
         variant={withText ? variant : "ghost"}

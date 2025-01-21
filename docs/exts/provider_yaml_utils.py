@@ -31,15 +31,18 @@ AIRFLOW_PROVIDERS_SRC = AIRFLOW_PROVIDERS_DIR / "src"
 AIRFLOW_PROVIDERS_NS_PACKAGE = AIRFLOW_PROVIDERS_SRC / "airflow" / "providers"
 # TODO(potiuk) remove this when we move all providers from the old structure
 OLD_PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR / "airflow" / "provider.yaml.schema.json"
+# TODO(potiuk) - rename when all providers are new-style
 NEW_PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR / "airflow" / "new_provider.yaml.schema.json"
 
 
+# TODO(potiuk) - remove when all providers are new-style
 @cache
 def old_provider_yaml_schema() -> dict[str, Any]:
     with open(OLD_PROVIDER_DATA_SCHEMA_PATH) as schema_file:
         return json.load(schema_file)
 
 
+# TODO(potiuk) - rename when all providers are new-style
 @cache
 def new_provider_yaml_schema() -> dict[str, Any]:
     with open(NEW_PROVIDER_DATA_SCHEMA_PATH) as schema_file:
@@ -60,6 +63,7 @@ def _filepath_to_system_tests_str(provider_yaml_directory_path: str) -> str:
     ).as_posix()
 
 
+# TODO(potiuk) - rename when all providers are new-style
 def _get_new_provider_root_path(provider_yaml_directory_path: Path) -> Path:
     for parent in Path(provider_yaml_directory_path).parents:
         if (parent / "src").exists():
@@ -70,6 +74,7 @@ def _get_new_provider_root_path(provider_yaml_directory_path: Path) -> Path:
     )
 
 
+# TODO(potiuk) - rename when all providers are new-style
 def _new_filepath_to_system_tests(provider_yaml_directory_path: Path) -> Path:
     test_root_path = _get_new_provider_root_path(provider_yaml_directory_path) / "tests"
     return (test_root_path / "system").relative_to(AIRFLOW_PROVIDERS_DIR)
@@ -93,6 +98,7 @@ def get_old_provider_yaml_paths() -> list[Path]:
     return sorted(AIRFLOW_PROVIDERS_NS_PACKAGE.rglob("**/provider.yaml"))
 
 
+# TODO(potiuk) - rename when all providers are new-style
 @cache
 def get_new_provider_yaml_paths() -> list[Path]:
     """Returns list of provider.yaml files for new structure"""
@@ -108,9 +114,11 @@ def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
 
     :return: A list containing the contents of all provider.yaml files - old and new structure.
     """
+    # TODO(potiuk) - remove when all providers are new-style
     schema = old_provider_yaml_schema()
     new_schema = new_provider_yaml_schema()
     result = []
+    # TODO(potiuk) - rename when all providers are new-style
     for new_provider_yaml_path in get_new_provider_yaml_paths():
         with open(new_provider_yaml_path) as yaml_file:
             provider = yaml.safe_load(yaml_file)
@@ -130,6 +138,7 @@ def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
         provider["system-tests-dir"] = (
             (Path(provider_yaml_dir_str) / "tests" / "system").relative_to(AIRFLOW_PROVIDERS_DIR).as_posix()
         )
+        # TODO(potiuk) - remove when all providers are new-style
         provider["is_new_provider"] = True
         result.append(provider)
     # TODO(potiuk): Remove me when all providers are moved ALL_PROVIDERS

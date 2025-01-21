@@ -579,6 +579,8 @@ def fix_ownership_using_docker(quiet: bool = False):
         "-e",
         f"HOST_GROUP_ID={get_host_group_id()}",
         "-e",
+        f"VERBOSE={str(get_verbose()).lower()}",
+        "-e",
         f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
         "--rm",
         "-t",
