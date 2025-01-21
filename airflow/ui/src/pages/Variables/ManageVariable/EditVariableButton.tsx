@@ -28,20 +28,20 @@ import type { VariableBody } from "./VariableForm";
 import VariableForm from "./VariableForm";
 
 type Props = {
+  readonly disabled: boolean;
   readonly variable: VariableResponse;
 };
 
-const EditVariableButton = ({ variable }: Props) => {
+const EditVariableButton = ({ disabled, variable }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const initialVariableValue: VariableBody = {
     description: variable.description ?? "",
     key: variable.key,
-    value: variable.value ?? "",
+    value: variable.value,
   };
-  const { editVariable, error, isPending, setError } = useEditVariable(
-    initialVariableValue,
-    { onSuccessConfirm: onClose },
-  );
+  const { editVariable, error, isPending, setError } = useEditVariable(initialVariableValue, {
+    onSuccessConfirm: onClose,
+  });
 
   const handleClose = () => {
     setError(undefined);
@@ -52,6 +52,7 @@ const EditVariableButton = ({ variable }: Props) => {
     <>
       <ActionButton
         actionName="Edit Variable"
+        disabled={disabled}
         icon={<FiEdit />}
         onClick={() => {
           onOpen();

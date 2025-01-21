@@ -26,7 +26,12 @@ from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 
 if TYPE_CHECKING:
     from airflow.providers.opsgenie.typing.opsgenie import CreateAlertPayload
-    from airflow.utils.context import Context
+
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class OpsgenieNotifier(BaseNotifier):

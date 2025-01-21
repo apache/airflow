@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 import os
 import selectors
@@ -27,7 +28,7 @@ from io import BytesIO
 from operator import attrgetter
 from time import sleep
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import httpx
 import psutil
@@ -35,12 +36,16 @@ import pytest
 from pytest_unordered import unordered
 from uuid6 import uuid7
 
+from airflow.executors.workloads import BundleInfo
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
+    AssetResult,
     ConnectionResult,
     DeferTask,
+    GetAssetByName,
+    GetAssetByUri,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -52,11 +57,12 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     XComResult,
 )
-from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
+from airflow.sdk.execution_time.supervisor import ActivitySubprocess, supervise
 from airflow.sdk.execution_time.task_runner import CommsDecoder
 from airflow.utils import timezone, timezone as tz
 
 from task_sdk.tests.api.test_client import make_client
+from task_sdk.tests.execution_time.test_task_runner import FAKE_BUNDLE
 
 if TYPE_CHECKING:
     import kgb
@@ -67,6 +73,20 @@ TI_ID = uuid7()
 def lineno():
     """Returns the current line number in our program."""
     return inspect.currentframe().f_back.f_lineno
+
+
+def local_dag_bundle_cfg(path, name="my-bundle"):
+    return {
+        "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
+            [
+                {
+                    "name": name,
+                    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                    "kwargs": {"path": str(path), "refresh_interval": 1},
+                }
+            ]
+        )
+    }
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -99,8 +119,9 @@ class TestWatchedSubprocess:
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
-        proc = WatchedSubprocess.start(
-            path=os.devnull,
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
@@ -166,8 +187,9 @@ class TestWatchedSubprocess:
             assert os.getpid() != main_pid
             os.kill(os.getpid(), signal.SIGKILL)
 
-        proc = WatchedSubprocess.start(
-            path=os.devnull,
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
                 id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
@@ -189,8 +211,9 @@ class TestWatchedSubprocess:
             # or import error for instance - a very early exception
             raise RuntimeError("Fake syntax error")
 
-        proc = WatchedSubprocess.start(
-            path=os.devnull,
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
                 id=uuid7(),
                 task_id="b",
@@ -225,8 +248,9 @@ class TestWatchedSubprocess:
 
         ti_id = uuid7()
         spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
-        proc = WatchedSubprocess.start(
-            path=os.devnull,
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
                 id=ti_id,
                 task_id="b",
@@ -248,7 +272,7 @@ class TestWatchedSubprocess:
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
-        dagfile_path = test_dags_dir / "super_basic_run.py"
+        dagfile_path = test_dags_dir
         ti = TaskInstance(
             id=uuid7(),
             task_id="hello",
@@ -256,8 +280,17 @@ class TestWatchedSubprocess:
             run_id="c",
             try_number=1,
         )
-        # Assert Exit Code is 0
-        assert supervise(ti=ti, dag_path=dagfile_path, token="", server="", dry_run=True) == 0, captured_logs
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+            exit_code = supervise(
+                ti=ti,
+                dag_rel_path=dagfile_path,
+                token="",
+                server="",
+                dry_run=True,
+                bundle_info=bundle_info,
+            )
+            assert exit_code == 0, captured_logs
 
         # We should have a log from the task!
         assert {
@@ -281,7 +314,6 @@ class TestWatchedSubprocess:
         ti = TaskInstance(
             id=uuid7(), task_id="async", dag_id="super_basic_deferred_run", run_id="d", try_number=1
         )
-        dagfile_path = test_dags_dir / "super_basic_deferred_run.py"
 
         # Create a mock client to assert calls to the client
         # We assume the implementation of the client is correct and only need to check the calls
@@ -291,8 +323,16 @@ class TestWatchedSubprocess:
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
         time_machine.move_to(instant, tick=False)
 
-        # Assert supervisor runs the task successfully
-        assert supervise(ti=ti, dag_path=dagfile_path, token="", client=mock_client) == 0, captured_logs
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+            exit_code = supervise(
+                ti=ti,
+                dag_rel_path="super_basic_deferred_run.py",
+                token="",
+                client=mock_client,
+                bundle_info=bundle_info,
+            )
+        assert exit_code == 0, captured_logs
 
         # Validate calls to the client
         mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
@@ -341,7 +381,7 @@ class TestWatchedSubprocess:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError, match="Server returned error") as err:
-            WatchedSubprocess.start(path=os.devnull, what=ti, client=client)
+            ActivitySubprocess.start(dag_rel_path=os.devnull, bundle_info=FAKE_BUNDLE, what=ti, client=client)
 
         assert err.value.response.status_code == 409
         assert err.value.detail == {
@@ -394,11 +434,12 @@ class TestWatchedSubprocess:
             # Return a 204 for all other requests
             return httpx.Response(status_code=204)
 
-        proc = WatchedSubprocess.start(
-            path=os.devnull,
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
             what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
+            bundle_info=FAKE_BUNDLE,
         )
 
         # Wait for the subprocess to finish -- it should have been terminated
@@ -447,12 +488,13 @@ class TestWatchedSubprocess:
         # Patch the kill method at the class level so we can assert it was called with the correct signal
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
 
-        proc = WatchedSubprocess(
+        proc = ActivitySubprocess(
             id=TI_ID,
             pid=mock_process.pid,
             stdin=mocker.MagicMock(),
             client=client,
             process=mock_process,
+            requests_fd=-1,
         )
 
         time_now = tz.datetime(2024, 11, 28, 12, 0, 0)
@@ -533,14 +575,15 @@ class TestWatchedSubprocess:
         mocker.patch("time.monotonic", return_value=20.0)
 
         # Patch the task overtime threshold
-        monkeypatch.setattr(WatchedSubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+        monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
-        mock_watched_subprocess = WatchedSubprocess(
+        mock_watched_subprocess = ActivitySubprocess(
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
             process=mocker.Mock(),
             client=mocker.Mock(),
+            requests_fd=-1,
         )
 
         # Set the terminal state and task end datetime
@@ -572,12 +615,13 @@ class TestWatchedSubprocessKill:
 
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
-        proc = WatchedSubprocess(
+        proc = ActivitySubprocess(
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
             client=mocker.Mock(),
             process=mock_process,
+            requests_fd=-1,
         )
         # Mock the selector
         mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
@@ -662,8 +706,9 @@ class TestWatchedSubprocessKill:
 
         ti_id = uuid7()
 
-        proc = WatchedSubprocess.start(
-            path=os.devnull,
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
             what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
@@ -753,22 +798,24 @@ class TestHandleRequest:
     @pytest.fixture
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
-        return WatchedSubprocess(
+        return ActivitySubprocess(
             id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
             client=mocker.Mock(),
             process=mocker.Mock(),
+            requests_fd=-1,
         )
 
     @pytest.mark.parametrize(
-        ["message", "expected_buffer", "client_attr_path", "method_arg", "mock_response"],
+        ["message", "expected_buffer", "client_attr_path", "method_arg", "method_kwarg", "mock_response"],
         [
             pytest.param(
                 GetConnection(conn_id="test_conn"),
                 b'{"conn_id":"test_conn","conn_type":"mysql","type":"ConnectionResult"}\n',
                 "connections.get",
                 ("test_conn",),
+                {},
                 ConnectionResult(conn_id="test_conn", conn_type="mysql"),
                 id="get_connection",
             ),
@@ -777,6 +824,7 @@ class TestHandleRequest:
                 b'{"key":"test_key","value":"test_value","type":"VariableResult"}\n',
                 "variables.get",
                 ("test_key",),
+                {},
                 VariableResult(key="test_key", value="test_value"),
                 id="get_variable",
             ),
@@ -785,6 +833,7 @@ class TestHandleRequest:
                 b"",
                 "variables.set",
                 ("test_key", "test_value", "test_description"),
+                {},
                 {"ok": True},
                 id="set_variable",
             ),
@@ -793,6 +842,7 @@ class TestHandleRequest:
                 b"",
                 "task_instances.defer",
                 (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
+                {},
                 "",
                 id="patch_task_instance_to_deferred",
             ),
@@ -810,6 +860,7 @@ class TestHandleRequest:
                         end_date=timezone.parse("2024-10-31T12:00:00Z"),
                     ),
                 ),
+                {},
                 "",
                 id="patch_task_instance_to_up_for_reschedule",
             ),
@@ -818,6 +869,7 @@ class TestHandleRequest:
                 b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", None),
+                {},
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom",
             ),
@@ -828,8 +880,18 @@ class TestHandleRequest:
                 b'{"key":"test_key","value":"test_value","type":"XComResult"}\n',
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", 2),
+                {},
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom_map_index",
+            ),
+            pytest.param(
+                GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
+                b'{"key":"test_key","value":null,"type":"XComResult"}\n',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", None),
+                {},
+                XComResult(key="test_key", value=None, type="XComResult"),
+                id="get_xcom_not_found",
             ),
             pytest.param(
                 SetXCom(
@@ -849,6 +911,7 @@ class TestHandleRequest:
                     '{"key": "test_key", "value": {"key2": "value2"}}',
                     None,
                 ),
+                {},
                 {"ok": True},
                 id="set_xcom",
             ),
@@ -871,6 +934,7 @@ class TestHandleRequest:
                     '{"key": "test_key", "value": {"key2": "value2"}}',
                     2,
                 ),
+                {},
                 {"ok": True},
                 id="set_xcom_with_map_index",
             ),
@@ -881,6 +945,7 @@ class TestHandleRequest:
                 b"",
                 "",
                 (),
+                {},
                 "",
                 id="patch_task_instance_to_skipped",
             ),
@@ -889,8 +954,27 @@ class TestHandleRequest:
                 b"",
                 "task_instances.set_rtif",
                 (TI_ID, {"field1": "rendered_value1", "field2": "rendered_value2"}),
+                {},
                 {"ok": True},
                 id="set_rtif",
+            ),
+            pytest.param(
+                GetAssetByName(name="asset"),
+                b'{"name":"asset","uri":"s3://bucket/obj","group":"asset","type":"AssetResult"}\n',
+                "assets.get",
+                [],
+                {"name": "asset"},
+                AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
+                id="get_asset_by_name",
+            ),
+            pytest.param(
+                GetAssetByUri(uri="s3://bucket/obj"),
+                b'{"name":"asset","uri":"s3://bucket/obj","group":"asset","type":"AssetResult"}\n',
+                "assets.get",
+                [],
+                {"uri": "s3://bucket/obj"},
+                AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
+                id="get_asset_by_uri",
             ),
         ],
     )
@@ -902,8 +986,8 @@ class TestHandleRequest:
         expected_buffer,
         client_attr_path,
         method_arg,
+        method_kwarg,
         mock_response,
-        time_machine,
     ):
         """
         Test handling of different messages to the subprocess. For any new message type, add a
@@ -929,7 +1013,7 @@ class TestHandleRequest:
 
         # Verify the correct client method was called
         if client_attr_path:
-            mock_client_method.assert_called_once_with(*method_arg)
+            mock_client_method.assert_called_once_with(*method_arg, **method_kwarg)
 
         # Verify the response was added to the buffer
         val = watched_subprocess.stdin.getvalue()

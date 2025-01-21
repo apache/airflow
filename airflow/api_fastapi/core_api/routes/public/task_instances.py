@@ -55,8 +55,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceCollectionResponse,
     TaskInstanceHistoryCollectionResponse,
     TaskInstanceHistoryResponse,
-    TaskInstanceReferenceCollectionResponse,
-    TaskInstanceReferenceResponse,
     TaskInstanceResponse,
     TaskInstancesBatchBody,
 )
@@ -550,7 +548,7 @@ def post_clear_task_instances(
     request: Request,
     body: ClearTaskInstancesBody,
     session: SessionDep,
-) -> TaskInstanceReferenceCollectionResponse:
+) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
     dag = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
@@ -597,6 +595,7 @@ def post_clear_task_instances(
         dry_run=True,
         task_ids=task_ids,
         dag_bag=request.app.state.dag_bag,
+        session=session,
         **body.model_dump(
             include={
                 "start_date",
@@ -615,9 +614,9 @@ def post_clear_task_instances(
             DagRunState.QUEUED if reset_dag_runs else False,
         )
 
-    return TaskInstanceReferenceCollectionResponse(
+    return TaskInstanceCollectionResponse(
         task_instances=[
-            TaskInstanceReferenceResponse.model_validate(
+            TaskInstanceResponse.model_validate(
                 ti,
                 from_attributes=True,
             )
@@ -629,11 +628,15 @@ def post_clear_task_instances(
 
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+    ),
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+    ),
 )
 def patch_task_instance(
     dag_id: str,
@@ -702,8 +705,10 @@ def patch_task_instance(
                     commit=True,
                     session=session,
                 )
-                if not ti:
-                    raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
+                if not tis:
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT, f"Task id {task_id} is already in {data['new_state']} state"
+                    )
                 ti = tis[0] if isinstance(tis, list) else tis
         elif key == "note":
             if update_mask or body.note is not None:

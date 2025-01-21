@@ -1481,6 +1481,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/backfills/dry_run:
+    post:
+      tags:
+      - Backfill
+      summary: Create Backfill Dry Run
+      operationId: create_backfill_dry_run
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackfillPostBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DryRunBackfillCollectionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/{connection_id}:
     delete:
       tags:
@@ -1738,12 +1787,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/bulk:
-    post:
+    put:
       tags:
       - Connection
-      summary: Post Connections
+      summary: Put Connections
       description: Create connection entry.
-      operationId: post_connections
+      operationId: put_connections
       requestBody:
         content:
           application/json:
@@ -1751,8 +1800,8 @@ paths:
               $ref: '#/components/schemas/ConnectionBulkBody'
         required: true
       responses:
-        '201':
-          description: Successful Response
+        '200':
+          description: Created with overwrite
           content:
             application/json:
               schema:
@@ -1775,6 +1824,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -1828,6 +1883,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/defaults:
+    post:
+      tags:
+      - Connection
+      summary: Create Default Connections
+      description: Create default connections.
+      operationId: create_default_connections
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -3993,12 +4070,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
   /public/pools/bulk:
-    post:
+    put:
       tags:
       - Pool
-      summary: Post Pools
+      summary: Put Pools
       description: Create multiple pools.
-      operationId: post_pools
+      operationId: put_pools
       requestBody:
         content:
           application/json:
@@ -4007,7 +4084,7 @@ paths:
         required: true
       responses:
         '201':
-          description: Successful Response
+          description: Created
           content:
             application/json:
               schema:
@@ -4030,6 +4107,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '200':
+          description: Created with overwriting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -4415,6 +4498,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -5015,6 +5104,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -5460,7 +5555,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceReferenceCollectionResponse'
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
           content:
             application/json:
@@ -5857,38 +5952,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/variables/import:
-    post:
+    patch:
       tags:
       - Variable
-      summary: Import Variables
-      description: Import variables from a JSON file.
-      operationId: import_variables
-      parameters:
-      - name: action_if_exists
-        in: query
-        required: false
-        schema:
-          enum:
-          - overwrite
-          - fail
-          - skip
-          type: string
-          default: fail
-          title: Action If Exists
+      summary: Bulk Variables
+      description: Bulk create, update, and delete variables.
+      operationId: bulk_variables
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
-              $ref: '#/components/schemas/Body_import_variables'
+              $ref: '#/components/schemas/VariableBulkBody'
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VariablesImportResponse'
+                $ref: '#/components/schemas/VariableBulkResponse'
         '401':
           content:
             application/json:
@@ -5901,24 +5983,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
     get:
       tags:
@@ -6497,16 +6567,6 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    Body_import_variables:
-      properties:
-        file:
-          type: string
-          format: binary
-          title: File
-      type: object
-      required:
-      - file
-      title: Body_import_variables
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -6536,7 +6596,7 @@ components:
         reset_dag_runs:
           type: boolean
           title: Reset Dag Runs
-          default: false
+          default: true
         task_ids:
           anyOf:
           - items:
@@ -6761,6 +6821,12 @@ components:
             $ref: '#/components/schemas/ConnectionBody'
           type: array
           title: Connections
+        overwrite:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Overwrite
+          default: false
       type: object
       required:
       - connections
@@ -7912,6 +7978,33 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
+    DryRunBackfillCollectionResponse:
+      properties:
+        backfills:
+          items:
+            $ref: '#/components/schemas/DryRunBackfillResponse'
+          type: array
+          title: Backfills
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - backfills
+      - total_entries
+      title: DryRunBackfillCollectionResponse
+      description: Backfill collection serializer for responses in dry-run mode.
+    DryRunBackfillResponse:
+      properties:
+        logical_date:
+          type: string
+          format: date-time
+          title: Logical Date
+      type: object
+      required:
+      - logical_date
+      title: DryRunBackfillResponse
+      description: Backfill serializer for responses in dry-run mode.
     EdgeResponse:
       properties:
         is_setup_teardown:
@@ -8275,6 +8368,9 @@ components:
         filename:
           type: string
           title: Filename
+        bundle_name:
+          type: string
+          title: Bundle Name
         stack_trace:
           type: string
           title: Stack Trace
@@ -8283,6 +8379,7 @@ components:
       - import_error_id
       - timestamp
       - filename
+      - bundle_name
       - stack_trace
       title: ImportErrorResponse
       description: Import Error Response.
@@ -8530,11 +8627,6 @@ components:
         source:
           type: string
           title: Source
-        ti_deps:
-          items:
-            type: string
-          type: array
-          title: Ti Deps
         listeners:
           items:
             type: string
@@ -8556,7 +8648,6 @@ components:
       - global_operator_extra_links
       - operator_extra_links
       - source
-      - ti_deps
       - listeners
       - timetables
       title: PluginResponse
@@ -8633,6 +8724,12 @@ components:
             $ref: '#/components/schemas/PoolPostBody'
           type: array
           title: Pools
+        overwrite:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Overwrite
+          default: false
       type: object
       required:
       - pools
@@ -9005,40 +9102,6 @@ components:
       - executor_config
       title: TaskInstanceHistoryResponse
       description: TaskInstanceHistory serializer for responses.
-    TaskInstanceReferenceCollectionResponse:
-      properties:
-        task_instances:
-          items:
-            $ref: '#/components/schemas/TaskInstanceReferenceResponse'
-          type: array
-          title: Task Instances
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - task_instances
-      - total_entries
-      title: TaskInstanceReferenceCollectionResponse
-      description: Task Instance Reference collection serializer for responses.
-    TaskInstanceReferenceResponse:
-      properties:
-        task_id:
-          type: string
-          title: Task Id
-        dag_run_id:
-          type: string
-          title: Dag Run Id
-        dag_id:
-          type: string
-          title: Dag Id
-      type: object
-      required:
-      - task_id
-      - dag_run_id
-      - dag_id
-      title: TaskInstanceReferenceResponse
-      description: Task Instance Reference serializer for responses.
     TaskInstanceResponse:
       properties:
         id:
@@ -9724,9 +9787,7 @@ components:
           maxLength: 250
           title: Key
         value:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Value
         description:
           anyOf:
@@ -9739,6 +9800,160 @@ components:
       - value
       title: VariableBody
       description: Variable serializer for bodies.
+    VariableBulkActionResponse:
+      properties:
+        success:
+          items:
+            type: string
+          type: array
+          title: Success
+          description: A list of keys representing successful operations.
+          default: []
+        errors:
+          items:
+            type: object
+          type: array
+          title: Errors
+          description: A list of errors encountered during the operation, each containing
+            details about the issue.
+          default: []
+      type: object
+      title: VariableBulkActionResponse
+      description: 'Serializer for individual bulk action responses.
+
+
+        Represents the outcome of a single bulk operation (create, update, or delete).
+
+        The response includes a list of successful keys and any errors encountered
+        during the operation.
+
+        This structure helps users understand which key actions succeeded and which
+        failed.'
+    VariableBulkBody:
+      properties:
+        actions:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/VariableBulkCreateAction'
+            - $ref: '#/components/schemas/VariableBulkUpdateAction'
+            - $ref: '#/components/schemas/VariableBulkDeleteAction'
+          type: array
+          title: Actions
+          description: A list of variable actions to perform.
+      type: object
+      required:
+      - actions
+      title: VariableBulkBody
+      description: Request body for bulk variable operations (create, update, delete).
+    VariableBulkCreateAction:
+      properties:
+        action:
+          type: string
+          const: create
+          title: Action
+          default: create
+        variables:
+          items:
+            $ref: '#/components/schemas/VariableBody'
+          type: array
+          title: Variables
+          description: A list of variables to be created.
+        action_if_exists:
+          type: string
+          enum:
+          - skip
+          - overwrite
+          - fail
+          title: Action If Exists
+          default: fail
+      type: object
+      required:
+      - variables
+      title: VariableBulkCreateAction
+      description: Bulk Create Variable serializer for request bodies.
+    VariableBulkDeleteAction:
+      properties:
+        action:
+          type: string
+          const: delete
+          title: Action
+          default: delete
+        keys:
+          items:
+            type: string
+          type: array
+          title: Keys
+          description: A list of variable keys to be deleted.
+        action_if_not_exists:
+          type: string
+          enum:
+          - skip
+          - fail
+          title: Action If Not Exists
+          default: fail
+      type: object
+      required:
+      - keys
+      title: VariableBulkDeleteAction
+      description: Bulk Delete Variable serializer for request bodies.
+    VariableBulkResponse:
+      properties:
+        create:
+          anyOf:
+          - $ref: '#/components/schemas/VariableBulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk create operation, including successful
+            keys and errors.
+        update:
+          anyOf:
+          - $ref: '#/components/schemas/VariableBulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk update operation, including successful
+            keys and errors.
+        delete:
+          anyOf:
+          - $ref: '#/components/schemas/VariableBulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk delete operation, including successful
+            keys and errors.
+      type: object
+      title: VariableBulkResponse
+      description: 'Serializer for responses to bulk variable operations.
+
+
+        This represents the results of create, update, and delete actions performed
+        on variables in bulk.
+
+        Each action (if requested) is represented as a field containing details about
+        successful keys and any encountered errors.
+
+        Fields are populated in the response only if the respective action was part
+        of the request, else are set None.'
+    VariableBulkUpdateAction:
+      properties:
+        action:
+          type: string
+          const: update
+          title: Action
+          default: update
+        variables:
+          items:
+            $ref: '#/components/schemas/VariableBody'
+          type: array
+          title: Variables
+          description: A list of variables to be updated.
+        action_if_not_exists:
+          type: string
+          enum:
+          - skip
+          - fail
+          title: Action If Not Exists
+          default: fail
+      type: object
+      required:
+      - variables
+      title: VariableBulkUpdateAction
+      description: Bulk Update Variable serializer for request bodies.
     VariableCollectionResponse:
       properties:
         variables:
@@ -9761,9 +9976,7 @@ components:
           type: string
           title: Key
         value:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Value
         description:
           anyOf:
@@ -9781,26 +9994,6 @@ components:
       - is_encrypted
       title: VariableResponse
       description: Variable serializer for responses.
-    VariablesImportResponse:
-      properties:
-        created_variable_keys:
-          items:
-            type: string
-          type: array
-          title: Created Variable Keys
-        import_count:
-          type: integer
-          title: Import Count
-        created_count:
-          type: integer
-          title: Created Count
-      type: object
-      required:
-      - created_variable_keys
-      - import_count
-      - created_count
-      title: VariablesImportResponse
-      description: Import Variables serializer for responses.
     VersionInfo:
       properties:
         version:

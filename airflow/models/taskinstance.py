@@ -106,11 +106,12 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
+from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
+from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
-from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.traces.tracer import Trace
@@ -142,7 +143,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 TR = TaskReschedule
 
-_CURRENT_CONTEXT: list[Context] = []
 log = logging.getLogger(__name__)
 
 
@@ -163,6 +163,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.types import OutletEventAccessorsProtocol, RuntimeTaskInstanceProtocol
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
@@ -408,10 +409,10 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, session: Session):
         task = task_instance.task.dag.task_dict[ti.task_id]
         if not task.is_teardown:
             if ti.state == TaskInstanceState.RUNNING:
-                log.info("Forcing task %s to fail due to dag's `fail_stop` setting", ti.task_id)
+                log.info("Forcing task %s to fail due to dag's `fail_fast` setting", ti.task_id)
                 ti.error(session)
             else:
-                log.info("Setting task %s to SKIPPED due to dag's `fail_stop` setting.", ti.task_id)
+                log.info("Setting task %s to SKIPPED due to dag's `fail_fast` setting.", ti.task_id)
                 ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
         else:
             log.info("Not skipping teardown task '%s'", ti.task_id)
@@ -940,7 +941,7 @@ def _get_template_context(
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
 
-    validated_params = process_params(dag, task, dag_run, suppress_exception=ignore_param_exceptions)
+    validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
 
     logical_date: DateTime = timezone.coerce_datetime(task_instance.logical_date)
     ds = logical_date.strftime("%Y-%m-%d")
@@ -1007,10 +1008,10 @@ def _get_template_context(
         expanded_ti_count = None
 
     # NOTE: If you add to this dict, make sure to also update the following:
-    # * Context in airflow/utils/context.pyi
+    # * Context in task_sdk/src/airflow/sdk/definitions/context.py
     # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
     # * Table in docs/apache-airflow/templates-ref.rst
-    context: dict[str, Any] = {
+    context: Context = {
         "dag": dag,
         "dag_run": dag_run,
         "data_interval_end": timezone.coerce_datetime(data_interval.end),
@@ -1048,7 +1049,7 @@ def _get_template_context(
     }
     # Mypy doesn't like turning existing dicts in to a TypeDict -- and we "lie" in the type stub to say it
     # is one, but in practice it isn't. See https://github.com/python/mypy/issues/8890
-    return Context(context)  # type: ignore
+    return context
 
 
 def _is_eligible_to_retry(*, task_instance: TaskInstance):
@@ -1082,7 +1083,7 @@ def _handle_failure(
     test_mode: bool | None = None,
     context: Context | None = None,
     force_fail: bool = False,
-    fail_stop: bool = False,
+    fail_fast: bool = False,
 ) -> None:
     """
     Handle Failure for a task instance.
@@ -1105,7 +1106,7 @@ def _handle_failure(
         context=context,
         force_fail=force_fail,
         session=session,
-        fail_stop=fail_stop,
+        fail_fast=fail_fast,
     )
 
     _log_state(task_instance=task_instance, lead_msg="Immediate failure requested. " if force_fail else "")
@@ -1873,6 +1874,22 @@ class TaskInstance(Base, LoggingMixin):
     @hybrid_property
     def task_display_name(self) -> str:
         return self._task_display_property_value or self.task_id
+
+    @classmethod
+    def from_runtime_ti(cls, runtime_ti: RuntimeTaskInstanceProtocol) -> TaskInstance:
+        if runtime_ti.map_index is None:
+            runtime_ti.map_index = -1
+        ti = TaskInstance(
+            run_id=runtime_ti.run_id,
+            task=runtime_ti.task,  # type: ignore[arg-type]
+            map_index=runtime_ti.map_index,
+        )
+        ti.refresh_from_db()
+
+        if TYPE_CHECKING:
+            assert ti
+            assert isinstance(ti, TaskInstance)
+        return ti
 
     @staticmethod
     def _command_as_list(
@@ -2713,7 +2730,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
     def _register_asset_changes(
-        self, *, events: OutletEventAccessors, session: Session | None = None
+        self, *, events: OutletEventAccessorsProtocol, session: Session | None = None
     ) -> None:
         if session:
             TaskInstance._register_asset_changes_int(ti=self, events=events, session=session)
@@ -2723,7 +2740,7 @@ class TaskInstance(Base, LoggingMixin):
     @staticmethod
     @provide_session
     def _register_asset_changes_int(
-        ti: TaskInstance, *, events: OutletEventAccessors, session: Session = NEW_SESSION
+        ti: TaskInstance, *, events: OutletEventAccessorsProtocol, session: Session = NEW_SESSION
     ) -> None:
         if TYPE_CHECKING:
             assert ti.task
@@ -3048,7 +3065,7 @@ class TaskInstance(Base, LoggingMixin):
         force_fail: bool = False,
         *,
         session: Session,
-        fail_stop: bool = False,
+        fail_fast: bool = False,
     ):
         """
         Fetch the context needed to handle a failure.
@@ -3059,7 +3076,7 @@ class TaskInstance(Base, LoggingMixin):
         :param context: Jinja2 context
         :param force_fail: if True, task does not retry
         :param session: SQLAlchemy ORM Session
-        :param fail_stop: if True, fail all downstream tasks
+        :param fail_fast: if True, fail all downstream tasks
         """
         if error:
             if isinstance(error, BaseException):
@@ -3116,7 +3133,7 @@ class TaskInstance(Base, LoggingMixin):
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
 
-            if task and fail_stop:
+            if task and fail_fast:
                 _stop_remaining_tasks(task_instance=ti, session=session)
         else:
             if ti.state == TaskInstanceState.RUNNING:
@@ -3173,9 +3190,9 @@ class TaskInstance(Base, LoggingMixin):
             assert self.task
             assert self.task.dag
         try:
-            fail_stop = self.task.dag.fail_stop
+            fail_fast = self.task.dag.fail_fast
         except Exception:
-            fail_stop = False
+            fail_fast = False
         _handle_failure(
             task_instance=self,
             error=error,
@@ -3183,7 +3200,7 @@ class TaskInstance(Base, LoggingMixin):
             test_mode=test_mode,
             context=context,
             force_fail=force_fail,
-            fail_stop=fail_stop,
+            fail_fast=fail_fast,
         )
 
     def is_eligible_to_retry(self):
@@ -3276,7 +3293,7 @@ class TaskInstance(Base, LoggingMixin):
             assert ti.task
 
         if ti.task.dag.__class__ is AttributeRemoved:
-            ti.task.dag = self.task.dag
+            ti.task.dag = self.task.dag  # type: ignore[assignment]
 
         # If self.task is mapped, this call replaces self.task to point to the
         # unmapped BaseOperator created by this function! This is because the
@@ -3284,7 +3301,7 @@ class TaskInstance(Base, LoggingMixin):
         # able to access the unmapped task instead.
         original_task.render_template_fields(context, jinja_env)
         if isinstance(self.task, MappedOperator):
-            self.task = context["ti"].task
+            self.task = context["ti"].task  # type: ignore[assignment]
 
         return original_task
 

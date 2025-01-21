@@ -37,12 +37,7 @@ type Props = {
   readonly skipConfirm?: boolean;
 };
 
-export const TogglePause = ({
-  dagDisplayName,
-  dagId,
-  isPaused,
-  skipConfirm,
-}: Props) => {
+export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm }: Props) => {
   const queryClient = useQueryClient();
   const { onClose, onOpen, open } = useDisclosure();
 
@@ -60,9 +55,7 @@ export const TogglePause = ({
     onSuccess,
   });
 
-  const showConfirmation = Boolean(
-    useConfig("require_confirmation_dag_change"),
-  );
+  const showConfirmation = Boolean(useConfig("require_confirmation_dag_change"));
 
   const onToggle = useCallback(() => {
     mutate({
@@ -83,12 +76,7 @@ export const TogglePause = ({
 
   return (
     <>
-      <Switch
-        checked={!isPaused}
-        colorPalette="blue"
-        onCheckedChange={onChange}
-        size="sm"
-      />
+      <Switch checked={!isPaused} colorPalette="blue" onCheckedChange={onChange} size="sm" />
       <ConfirmationModal
         header={`${isPaused ? "Unpause" : "Pause"} ${dagDisplayName ?? dagId}?`}
         onConfirm={onToggle}

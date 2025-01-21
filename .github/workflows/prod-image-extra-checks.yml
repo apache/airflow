@@ -64,6 +64,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Disable airflow repo cache read from main."
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   myssql-client-image:
     uses: ./.github/workflows/prod-image-build.yml
@@ -86,6 +88,7 @@ jobs:
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
+      prod-image-build: "true"
 
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
@@ -110,3 +113,4 @@ jobs:
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
+      prod-image-build: "true"

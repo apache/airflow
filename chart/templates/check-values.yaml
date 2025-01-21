@@ -62,6 +62,10 @@ The sole purpose of this yaml file is it to check the values file is consistent 
 
   {{- end }}
 
+  {{- if and .Values.elasticsearch.enabled .Values.opensearch.enabled  }}
+    {{ required "You must not set both values elasticsearch.enabled and opensearch.enabled" nil }}
+  {{- end }}
+
   {{- if .Values.elasticsearch.enabled  }}
     {{- if and .Values.elasticsearch.secretName .Values.elasticsearch.connection }}
       {{ required "You must not set both values elasticsearch.secretName and elasticsearch.connection" nil }}
@@ -69,6 +73,17 @@ The sole purpose of this yaml file is it to check the values file is consistent 
 
     {{- if not (or .Values.elasticsearch.secretName .Values.elasticsearch.connection) }}
       {{ required "You must set one of the values elasticsearch.secretName or elasticsearch.connection when using a Elasticsearch" nil }}
+    {{- end }}
+
+  {{- end }}
+
+  {{- if .Values.opensearch.enabled  }}
+    {{- if and .Values.opensearch.secretName .Values.opensearch.connection }}
+      {{ required "You must not set both values opensearch.secretName and opensearch.connection" nil }}
+    {{- end }}
+
+    {{- if not (or .Values.opensearch.secretName .Values.opensearch.connection) }}
+      {{ required "You must set one of the values opensearch.secretName or opensearch.connection when using OpenSearch" nil }}
     {{- end }}
 
   {{- end }}

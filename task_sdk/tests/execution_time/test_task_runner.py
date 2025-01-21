@@ -17,32 +17,47 @@
 
 from __future__ import annotations
 
+import json
+import os
 import uuid
 from datetime import timedelta
 from pathlib import Path
 from socket import socketpair
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from uuid6 import uuid7
 
 from airflow.exceptions import (
+    AirflowException,
     AirflowFailException,
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
 )
-from airflow.sdk import DAG, BaseOperator, Connection
+from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
+    BundleInfo,
     ConnectionResult,
     DeferTask,
     GetConnection,
+    GetVariable,
+    GetXCom,
     SetRenderedFields,
     StartupDetails,
     TaskState,
+    VariableResult,
+    XComResult,
 )
-from airflow.sdk.execution_time.context import ConnectionAccessor
+from airflow.sdk.execution_time.context import (
+    ConnectionAccessor,
+    MacrosAccessor,
+    OutletEventAccessors,
+    VariableAccessor,
+)
 from airflow.sdk.execution_time.task_runner import (
     CommsDecoder,
     RuntimeTaskInstance,
@@ -53,6 +68,8 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.utils import timezone
 
+FAKE_BUNDLE = BundleInfo(name="anything", version="any")
+
 
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
     """Creates an inline dag and returns it based on dag_id and task."""
@@ -60,40 +77,6 @@ def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
     task.dag = dag
 
     return dag
-
-
-@pytest.fixture
-def mocked_parse(spy_agency):
-    """
-    Fixture to set up an inline DAG and use it in a stubbed `parse` function. Use this fixture if you
-    want to isolate and test `parse` or `run` logic without having to define a DAG file.
-
-    This fixture returns a helper function `set_dag` that:
-    1. Creates an in line DAG with the given `dag_id` and `task` (limited to one task)
-    2. Constructs a `RuntimeTaskInstance` based on the provided `StartupDetails` and task.
-    3. Stubs the `parse` function using `spy_agency`, to return the mocked `RuntimeTaskInstance`.
-
-    After adding the fixture in your test function signature, you can use it like this ::
-
-            mocked_parse(
-                StartupDetails(
-                    ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
-                    file="",
-                    requests_fd=0,
-                ),
-                "example_dag_id",
-                CustomOperator(task_id="hello"),
-            )
-    """
-
-    def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
-        dag = get_inline_dag(dag_id, task)
-        t = dag.task_dict[task.task_id]
-        ti = RuntimeTaskInstance.model_construct(**what.ti.model_dump(exclude_unset=True), task=t)
-        spy_agency.spy_on(parse, call_fake=lambda _: ti)
-        return ti
-
-    return set_dag
 
 
 class CustomOperator(BaseOperator):
@@ -117,7 +100,8 @@ class TestCommsDecoder:
             b'"ti_context":{"dag_run":{"dag_id":"c","run_id":"b","logical_date":"2024-12-01T01:00:00Z",'
             b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
             b'"start_date":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
-            b'"variables":null,"connections":null},"file": "/dev/null", "requests_fd": '
+            b'"max_tries":0,"variables":null,"connections":null},"file": "/dev/null", "dag_rel_path": "/dev/null", "bundle_info": {"name": '
+            b'"any-name", "version": "any-version"}, "requests_fd": '
             + str(w2.fileno()).encode("ascii")
             + b"}\n"
         )
@@ -129,7 +113,8 @@ class TestCommsDecoder:
         assert msg.ti.id == uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab")
         assert msg.ti.task_id == "a"
         assert msg.ti.dag_id == "c"
-        assert msg.file == "/dev/null"
+        assert msg.dag_rel_path == "/dev/null"
+        assert msg.bundle_info == BundleInfo(name="any-name", version="any-version")
 
         # Since this was a StartupDetails message, the decoder should open the other socket
         assert decoder.request_socket is not None
@@ -141,12 +126,27 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     """Test that checks parsing of a basic dag with an un-mocked parse."""
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="a", dag_id="super_basic", run_id="c", try_number=1),
-        file=str(test_dags_dir / "super_basic.py"),
+        dag_rel_path="super_basic.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
         requests_fd=0,
         ti_context=make_ti_context(),
     )
 
-    ti = parse(what)
+    with patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+                    }
+                ]
+            ),
+        },
+    ):
+        ti = parse(what)
 
     assert ti.task
     assert ti.task.dag
@@ -154,19 +154,12 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     assert isinstance(ti.task.dag, DAG)
 
 
-def test_run_basic(time_machine, mocked_parse, make_ti_context, spy_agency, mock_supervisor_comms):
+def test_run_basic(time_machine, create_runtime_ti, spy_agency, mock_supervisor_comms):
     """Test running a basic task."""
-    what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
-        file="",
-        requests_fd=0,
-        ti_context=make_ti_context(),
-    )
-
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
-    ti = mocked_parse(what, "super_basic_run", CustomOperator(task_id="hello"))
+    ti = create_runtime_ti(dag_id="super_basic_run", task=CustomOperator(task_id="hello"))
 
     # Ensure that task is locked for execution
     spy_agency.spy_on(ti.task.prepare_for_execution)
@@ -182,7 +175,7 @@ def test_run_basic(time_machine, mocked_parse, make_ti_context, spy_agency, mock
     )
 
 
-def test_run_deferred_basic(time_machine, mocked_parse, make_ti_context, mock_supervisor_comms):
+def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test that a task can transition to a deferred state."""
     import datetime
 
@@ -197,12 +190,6 @@ def test_run_deferred_basic(time_machine, mocked_parse, make_ti_context, mock_su
         timeout=600,
     )
     time_machine.move_to(instant, tick=False)
-    what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id="async", dag_id="basic_deferred_run", run_id="c", try_number=1),
-        file="",
-        requests_fd=0,
-        ti_context=make_ti_context(),
-    )
 
     # Expected DeferTask
     expected_defer_task = DeferTask(
@@ -217,14 +204,14 @@ def test_run_deferred_basic(time_machine, mocked_parse, make_ti_context, mock_su
     )
 
     # Run the task
-    ti = mocked_parse(what, "basic_deferred_run", task)
+    ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
     run(ti, log=mock.MagicMock())
 
     # send_request will only be called when the TaskDeferred exception is raised
     mock_supervisor_comms.send_request.assert_called_once_with(msg=expected_defer_task, log=mock.ANY)
 
 
-def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context, mock_supervisor_comms):
+def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that marks itself skipped."""
     from airflow.providers.standard.operators.python import PythonOperator
 
@@ -235,14 +222,7 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context, mock_sup
         ),
     )
 
-    what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id="skip", dag_id="basic_skipped", run_id="c", try_number=1),
-        file="",
-        requests_fd=0,
-        ti_context=make_ti_context(),
-    )
-
-    ti = mocked_parse(what, "basic_skipped", task)
+    ti = create_runtime_ti(dag_id="basic_skipped", task=task)
 
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
@@ -254,7 +234,7 @@ def test_run_basic_skipped(time_machine, mocked_parse, make_ti_context, mock_sup
     )
 
 
-def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context, mock_supervisor_comms):
+def test_run_raises_base_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that raises a base exception which should send fail_with_retry state."""
     from airflow.providers.standard.operators.python import PythonOperator
 
@@ -263,20 +243,7 @@ def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context, 
         python_callable=lambda: 1 / 0,
     )
 
-    what = StartupDetails(
-        ti=TaskInstance(
-            id=uuid7(),
-            task_id="zero_division_error",
-            dag_id="basic_dag_base_exception",
-            run_id="c",
-            try_number=1,
-        ),
-        file="",
-        requests_fd=0,
-        ti_context=make_ti_context(),
-    )
-
-    ti = mocked_parse(what, "basic_dag_base_exception", task)
+    ti = create_runtime_ti(dag_id="basic_dag_base_exception", task=task)
 
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
@@ -292,7 +259,7 @@ def test_run_raises_base_exception(time_machine, mocked_parse, make_ti_context, 
     )
 
 
-def test_run_raises_system_exit(time_machine, mocked_parse, make_ti_context, mock_supervisor_comms):
+def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that exits with SystemExit exception."""
     from airflow.providers.standard.operators.python import PythonOperator
 
@@ -301,26 +268,69 @@ def test_run_raises_system_exit(time_machine, mocked_parse, make_ti_context, moc
         python_callable=lambda: exit(10),
     )
 
-    what = StartupDetails(
-        ti=TaskInstance(
-            id=uuid7(),
-            task_id="system_exit_task",
-            dag_id="basic_dag_system_exit",
-            run_id="c",
-            try_number=1,
-        ),
-        file="",
-        requests_fd=0,
-        ti_context=make_ti_context(),
-    )
-
-    ti = mocked_parse(what, "basic_dag_system_exit", task)
+    ti = create_runtime_ti(task=task, dag_id="basic_dag_system_exit")
 
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
     run(ti, log=mock.MagicMock())
 
+    mock_supervisor_comms.send_request.assert_called_once_with(
+        msg=TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=instant,
+        ),
+        log=mock.ANY,
+    )
+
+
+def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
+    """Test running a basic task that exits with AirflowException."""
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id="af_exception_task",
+        python_callable=lambda: (_ for _ in ()).throw(
+            AirflowException("Oops! I am failing with AirflowException!"),
+        ),
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="basic_dag_af_exception")
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+
+    mock_supervisor_comms.send_request.assert_called_once_with(
+        msg=TaskState(
+            state=TerminalTIState.FAILED,
+            end_date=instant,
+        ),
+        log=mock.ANY,
+    )
+
+
+def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms):
+    """Test running a basic task that times out."""
+    from time import sleep
+
+    from airflow.providers.standard.operators.python import PythonOperator
+
+    task = PythonOperator(
+        task_id="sleep",
+        execution_timeout=timedelta(milliseconds=10),
+        python_callable=lambda: sleep(2),
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="basic_dag_time_out")
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+
+    # this state can only be reached if the try block passed down the exception to handler of AirflowTaskTimeout
     mock_supervisor_comms.send_request.assert_called_once_with(
         msg=TaskState(
             state=TerminalTIState.FAILED,
@@ -343,7 +353,8 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context, mock_supervi
         ti=TaskInstance(
             id=uuid7(), task_id="templated_task", dag_id="basic_templated_dag", run_id="c", try_number=1
         ),
-        file="",
+        bundle_info=FAKE_BUNDLE,
+        dag_rel_path="",
         requests_fd=0,
         ti_context=make_ti_context(),
     )
@@ -390,10 +401,10 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context, mock_supervi
         ),
     ],
 )
-def test_startup_and_run_dag_with_templated_fields(
+def test_startup_and_run_dag_with_rtif(
     mocked_parse, task_params, expected_rendered_fields, make_ti_context, time_machine, mock_supervisor_comms
 ):
-    """Test startup of a DAG with various templated fields."""
+    """Test startup of a DAG with various rendered templated fields."""
 
     class CustomOperator(BaseOperator):
         template_fields = tuple(task_params.keys())
@@ -411,7 +422,8 @@ def test_startup_and_run_dag_with_templated_fields(
 
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="templated_task", dag_id="basic_dag", run_id="c", try_number=1),
-        file="",
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
         requests_fd=0,
         ti_context=make_ti_context(),
     )
@@ -438,6 +450,58 @@ def test_startup_and_run_dag_with_templated_fields(
 
 
 @pytest.mark.parametrize(
+    ["command", "rendered_command"],
+    [
+        ("{{ task.task_id }}", "templated_task"),
+        ("{{ run_id }}", "c"),
+        ("{{ logical_date }}", "2024-12-01 01:00:00+00:00"),
+    ],
+)
+def test_startup_and_run_dag_with_templated_fields(
+    command, rendered_command, create_runtime_ti, time_machine, mock_supervisor_comms
+):
+    """Test startup of a DAG with various templated fields."""
+
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(task_id="templated_task", bash_command=command)
+
+    ti = create_runtime_ti(
+        task=task, dag_id="basic_dag", logical_date="2024-12-01 01:00:00+00:00", run_id="c"
+    )
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+    assert ti.task.bash_command == rendered_command
+
+
+def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_comms):
+    """Test that the `get_current_context` & `set_current_context` work correctly."""
+
+    class MyContextAssertOperator(BaseOperator):
+        def execute(self, context):
+            # Ensure the context returned by get_current_context is the same as the
+            # context passed to the operator
+            assert context == get_current_context()
+
+    task = MyContextAssertOperator(task_id="assert_context")
+
+    ti = create_runtime_ti(task=task)
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+
+    # Ensure the task is Successful
+    mock_supervisor_comms.send_request.assert_called_once_with(
+        msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
+    )
+
+
+@pytest.mark.parametrize(
     ["dag_id", "task_id", "fail_with_exception"],
     [
         pytest.param(
@@ -456,7 +520,7 @@ def test_startup_and_run_dag_with_templated_fields(
     ],
 )
 def test_run_basic_failed(
-    time_machine, mocked_parse, dag_id, task_id, fail_with_exception, make_ti_context, mock_supervisor_comms
+    time_machine, create_runtime_ti, dag_id, task_id, fail_with_exception, mock_supervisor_comms
 ):
     """Test running a basic task that marks itself as failed by raising exception."""
 
@@ -471,14 +535,7 @@ def test_run_basic_failed(
 
     task = CustomOperator(task_id=task_id, e=fail_with_exception)
 
-    what = StartupDetails(
-        ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
-        file="",
-        requests_fd=0,
-        ti_context=make_ti_context(),
-    )
-
-    ti = mocked_parse(what, dag_id, task)
+    ti = create_runtime_ti(task=task, dag_id=dag_id)
 
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
@@ -490,27 +547,78 @@ def test_run_basic_failed(
     )
 
 
+def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch, test_dags_dir):
+    """
+    Test that the DAG parsing context is correctly set during the startup process.
+
+    This test verifies that the DAG and task IDs are correctly set in the parsing context
+    when a DAG is started up.
+    """
+    dag_id = "dag_parsing_context_test"
+    task_id = "conditional_task"
+
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id=task_id, dag_id=dag_id, run_id="c", try_number=1),
+        dag_rel_path="dag_parsing_context.py",
+        bundle_info=BundleInfo(name="my-bundle", version=None),
+        requests_fd=0,
+        ti_context=make_ti_context(dag_id=dag_id, run_id="c"),
+    )
+
+    mock_supervisor_comms.get_message.return_value = what
+
+    # Set the environment variable for DAG bundles
+    # We use the DAG defined in `task_sdk/tests/dags/dag_parsing_context.py` for this test!
+    dag_bundle_val = json.dumps(
+        [
+            {
+                "name": "my-bundle",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(test_dags_dir), "refresh_interval": 1},
+            }
+        ]
+    )
+
+    monkeypatch.setenv("AIRFLOW__DAG_BUNDLES__CONFIG_LIST", dag_bundle_val)
+    ti, _ = startup()
+
+    # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!
+    # Check the dag file for the actual logic!
+    assert ti.task.dag.task_dict.keys() == {"visible_task", "conditional_task"}
+
+
 class TestRuntimeTaskInstance:
     def test_get_context_without_ti_context_from_server(self, mocked_parse, make_ti_context):
         """Test get_template_context without ti_context_from_server."""
 
         task = BaseOperator(task_id="hello")
+        dag_id = "basic_task"
+
+        # Assign task to DAG
+        get_inline_dag(dag_id=dag_id, task=task)
 
         ti_id = uuid7()
-        ti = TaskInstance(
-            id=ti_id, task_id=task.task_id, dag_id="basic_task", run_id="test_run", try_number=1
-        )
+        ti = TaskInstance(id=ti_id, task_id=task.task_id, dag_id=dag_id, run_id="test_run", try_number=1)
 
-        what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=make_ti_context())
-        runtime_ti = mocked_parse(what, ti.dag_id, task)
+        # Keep the context empty
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True), task=task, _ti_context_from_server=None
+        )
         context = runtime_ti.get_template_context()
 
         # Verify the context keys and values
         assert context == {
+            "var": {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            },
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
+            "expanded_ti_count": None,
             "inlets": task.inlets,
+            "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
+            "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
             "run_id": "test_run",
             "task": task,
@@ -518,32 +626,32 @@ class TestRuntimeTaskInstance:
             "ti": runtime_ti,
         }
 
-    def test_get_context_with_ti_context_from_server(self, mocked_parse, make_ti_context):
+    def test_get_context_with_ti_context_from_server(self, create_runtime_ti):
         """Test the context keys are added when sent from API server (mocked)"""
         from airflow.utils import timezone
 
-        ti = TaskInstance(id=uuid7(), task_id="hello", dag_id="basic_task", run_id="test_run", try_number=1)
-
-        task = BaseOperator(task_id=ti.task_id)
-
-        ti_context = make_ti_context(dag_id=ti.dag_id, run_id=ti.run_id)
-        what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=ti_context)
-
-        runtime_ti = mocked_parse(what, ti.dag_id, task)
+        task = BaseOperator(task_id="hello")
 
         # Assume the context is sent from the API server
         # `task_sdk/tests/api/test_client.py::test_task_instance_start` checks the context is received
         # from the API server
-        runtime_ti._ti_context_from_server = ti_context
-        dr = ti_context.dag_run
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        dr = runtime_ti._ti_context_from_server.dag_run
 
         context = runtime_ti.get_template_context()
 
         assert context == {
+            "var": {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            },
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
+            "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
+            "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
             "run_id": "test_run",
             "task": task,
@@ -555,21 +663,18 @@ class TestRuntimeTaskInstance:
             "logical_date": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "ds": "2024-12-01",
             "ds_nodash": "20241201",
+            "expanded_ti_count": None,
             "task_instance_key_str": "basic_task__hello__20241201",
             "ts": "2024-12-01T01:00:00+00:00",
             "ts_nodash": "20241201T010000",
             "ts_nodash_with_tz": "20241201T010000+0000",
         }
 
-    def test_get_connection_from_context(self, mocked_parse, make_ti_context, mock_supervisor_comms):
+    def test_get_connection_from_context(self, create_runtime_ti, mock_supervisor_comms):
         """Test that the connection is fetched from the API server via the Supervisor lazily when accessed"""
 
         task = BaseOperator(task_id="hello")
 
-        ti_id = uuid7()
-        ti = TaskInstance(
-            id=ti_id, task_id=task.task_id, dag_id="basic_task", run_id="test_run", try_number=1
-        )
         conn = ConnectionResult(
             conn_id="test_conn",
             conn_type="mysql",
@@ -581,8 +686,7 @@ class TestRuntimeTaskInstance:
             extra='{"extra_key": "extra_value"}',
         )
 
-        what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=make_ti_context())
-        runtime_ti = mocked_parse(what, ti.dag_id, task)
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_get_connection_from_context")
         mock_supervisor_comms.get_message.return_value = conn
 
         context = runtime_ti.get_template_context()
@@ -612,6 +716,138 @@ class TestRuntimeTaskInstance:
             extra='{"extra_key": "extra_value"}',
         )
 
+        dejson_from_conn = conn_from_context.extra_dejson
+        assert dejson_from_conn == {"extra_key": "extra_value"}
+
+    def test_template_render(self, create_runtime_ti):
+        task = BaseOperator(task_id="test_template_render_task")
+
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_template_render")
+        template_context = runtime_ti.get_template_context()
+        result = runtime_ti.task.render_template(
+            "Task: {{ dag.dag_id }} -> {{ task.task_id }}", template_context
+        )
+        assert result == "Task: test_template_render -> test_template_render_task"
+
+    @pytest.mark.parametrize(
+        ["content", "expected_output"],
+        [
+            ('{{ conn.get("a_connection").host }}', "hostvalue"),
+            ('{{ conn.get("a_connection", "unused_fallback").host }}', "hostvalue"),
+            ("{{ conn.a_connection.host }}", "hostvalue"),
+            ("{{ conn.a_connection.login }}", "loginvalue"),
+            ("{{ conn.a_connection.schema }}", "schemavalues"),
+            ("{{ conn.a_connection.password }}", "passwordvalue"),
+            ('{{ conn.a_connection.extra_dejson["extra__asana__workspace"] }}', "extra1"),
+            ("{{ conn.a_connection.extra_dejson.extra__asana__workspace }}", "extra1"),
+        ],
+    )
+    def test_template_with_connection(
+        self, content, expected_output, create_runtime_ti, mock_supervisor_comms
+    ):
+        """
+        Test the availability of connections in templates
+        """
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_template_with_connection")
+
+        conn = ConnectionResult(
+            conn_id="a_connection",
+            conn_type="a_type",
+            host="hostvalue",
+            login="loginvalue",
+            password="passwordvalue",
+            schema="schemavalues",
+            extra='{"extra__asana__workspace": "extra1"}',
+        )
+
+        mock_supervisor_comms.get_message.return_value = conn
+
+        context = runtime_ti.get_template_context()
+        result = runtime_ti.task.render_template(content, context)
+        assert result == expected_output
+
+    @pytest.mark.parametrize(
+        ["accessor_type", "var_value", "expected_value"],
+        [
+            pytest.param("value", "test_value", "test_value"),
+            pytest.param(
+                "json",
+                '{\r\n  "key1": "value1",\r\n  "key2": "value2",\r\n  "enabled": true,\r\n  "threshold": 42\r\n}',
+                {"key1": "value1", "key2": "value2", "enabled": True, "threshold": 42},
+            ),
+        ],
+    )
+    def test_get_variable_from_context(
+        self, create_runtime_ti, mock_supervisor_comms, accessor_type, var_value: str, expected_value
+    ):
+        """Test that the variable is fetched from the API server via the Supervisor lazily when accessed"""
+
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task)
+
+        var = VariableResult(key="test_key", value=var_value)
+
+        mock_supervisor_comms.get_message.return_value = var
+
+        context = runtime_ti.get_template_context()
+
+        # Assert that the variable is not fetched from the API server yet!
+        # The variable should be only fetched connection is accessed
+        mock_supervisor_comms.send_request.assert_not_called()
+        mock_supervisor_comms.get_message.assert_not_called()
+
+        # Access the variable from the context
+        var_from_context = context["var"][accessor_type].test_key
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            log=mock.ANY, msg=GetVariable(key="test_key")
+        )
+        mock_supervisor_comms.get_message.assert_called_once_with()
+
+        assert var_from_context == Variable(key="test_key", value=expected_value)
+
+    @pytest.mark.parametrize(
+        "task_ids",
+        [
+            "push_task",
+            ["push_task1", "push_task2"],
+            {"push_task1", "push_task2"},
+        ],
+    )
+    def test_xcom_pull(self, create_runtime_ti, mock_supervisor_comms, spy_agency, task_ids):
+        """Test that a task pulls the expected XCom value if it exists."""
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                value = context["ti"].xcom_pull(task_ids=task_ids, key="key")
+                print(f"Pulled XCom Value: {value}")
+
+        task = CustomOperator(task_id="pull_task")
+
+        runtime_ti = create_runtime_ti(task=task)
+
+        mock_supervisor_comms.get_message.return_value = XComResult(key="key", value='"value"')
+
+        spy_agency.spy_on(runtime_ti.xcom_pull, call_original=True)
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        if isinstance(task_ids, str):
+            task_ids = [task_ids]
+
+        for task_id in task_ids:
+            mock_supervisor_comms.send_request.assert_any_call(
+                log=mock.ANY,
+                msg=GetXCom(
+                    key="key",
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id=task_id,
+                    map_index=-1,
+                ),
+            )
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
@@ -623,8 +859,7 @@ class TestXComAfterTaskExecution:
     )
     def test_xcom_push_flag(
         self,
-        mocked_parse,
-        make_ti_context,
+        create_runtime_ti,
         mock_supervisor_comms,
         spy_agency,
         do_xcom_push: bool,
@@ -639,12 +874,7 @@ class TestXComAfterTaskExecution:
 
         task = CustomOperator(task_id="hello", do_xcom_push=do_xcom_push)
 
-        ti = TaskInstance(
-            id=uuid7(), task_id=task.task_id, dag_id="xcom_push_flag", run_id="test_run", try_number=1
-        )
-
-        what = StartupDetails(ti=ti, file="", requests_fd=0, ti_context=make_ti_context())
-        runtime_ti = mocked_parse(what, ti.dag_id, task)
+        runtime_ti = create_runtime_ti(task=task)
 
         spy_agency.spy_on(_push_xcom_if_needed, call_original=True)
         spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
@@ -658,7 +888,7 @@ class TestXComAfterTaskExecution:
         else:
             spy_agency.assert_spy_not_called(runtime_ti.xcom_push)
 
-    def test_xcom_with_multiple_outputs(self, mocked_parse, spy_agency):
+    def test_xcom_with_multiple_outputs(self, create_runtime_ti, spy_agency):
         """Test that the task pushes to XCom when multiple outputs are returned."""
         result = {"key1": "value1", "key2": "value2"}
 
@@ -669,12 +899,8 @@ class TestXComAfterTaskExecution:
         task = CustomOperator(
             task_id="test_xcom_push_with_multiple_outputs", do_xcom_push=True, multiple_outputs=True
         )
-        dag = get_inline_dag(dag_id="test_dag", task=task)
-        ti = TaskInstance(
-            id=uuid7(), task_id=task.task_id, dag_id=dag.dag_id, run_id="test_run", try_number=1
-        )
 
-        runtime_ti = RuntimeTaskInstance.model_construct(**ti.model_dump(exclude_unset=True), task=task)
+        runtime_ti = create_runtime_ti(task=task)
 
         spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
         _push_xcom_if_needed(result=result, ti=runtime_ti)
@@ -688,7 +914,7 @@ class TestXComAfterTaskExecution:
         for key, value in expected_calls:
             spy_agency.assert_spy_called_with(runtime_ti.xcom_push, key, value)
 
-    def test_xcom_with_multiple_outputs_and_no_mapping_result(self, mocked_parse, spy_agency):
+    def test_xcom_with_multiple_outputs_and_no_mapping_result(self, create_runtime_ti, spy_agency):
         """Test that error is raised when multiple outputs are returned without mapping."""
         result = "value1"
 
@@ -699,12 +925,8 @@ class TestXComAfterTaskExecution:
         task = CustomOperator(
             task_id="test_xcom_push_with_multiple_outputs", do_xcom_push=True, multiple_outputs=True
         )
-        dag = get_inline_dag(dag_id="test_dag", task=task)
-        ti = TaskInstance(
-            id=uuid7(), task_id=task.task_id, dag_id=dag.dag_id, run_id="test_run", try_number=1
-        )
 
-        runtime_ti = RuntimeTaskInstance.model_construct(**ti.model_dump(exclude_unset=True), task=task)
+        runtime_ti = create_runtime_ti(task=task)
 
         spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
         with pytest.raises(
@@ -713,7 +935,7 @@ class TestXComAfterTaskExecution:
         ):
             _push_xcom_if_needed(result=result, ti=runtime_ti)
 
-    def test_xcom_with_multiple_outputs_and_key_is_not_string(self, mocked_parse, spy_agency):
+    def test_xcom_with_multiple_outputs_and_key_is_not_string(self, create_runtime_ti, spy_agency):
         """Test that error is raised when multiple outputs are returned and key isn't string."""
         result = {2: "value1", "key2": "value2"}
 
@@ -724,12 +946,8 @@ class TestXComAfterTaskExecution:
         task = CustomOperator(
             task_id="test_xcom_push_with_multiple_outputs", do_xcom_push=True, multiple_outputs=True
         )
-        dag = get_inline_dag(dag_id="test_dag", task=task)
-        ti = TaskInstance(
-            id=uuid7(), task_id=task.task_id, dag_id=dag.dag_id, run_id="test_run", try_number=1
-        )
 
-        runtime_ti = RuntimeTaskInstance.model_construct(**ti.model_dump(exclude_unset=True), task=task)
+        runtime_ti = create_runtime_ti(task=task)
 
         spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
 

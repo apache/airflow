@@ -34,6 +34,7 @@ from uuid6 import uuid7
 
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     DagRunType,
     TerminalTIState,
@@ -189,9 +190,20 @@ class VariableOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, key: str) -> VariableResponse:
+    def get(self, key: str) -> VariableResponse | ErrorResponse:
         """Get a variable from the API server."""
-        resp = self.client.get(f"variables/{key}")
+        try:
+            resp = self.client.get(f"variables/{key}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "Variable not found",
+                    key=key,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key})
+            raise
         return VariableResponse.model_validate_json(resp.read())
 
     def set(self, key: str, value: str | None, description: str | None = None):
@@ -219,7 +231,25 @@ class XComOperations:
         params = {}
         if map_index is not None:
             params.update({"map_index": map_index})
-        resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+        try:
+            resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "XCom not found",
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    key=key,
+                    map_index=map_index,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                # Airflow 2.x just ignores the absence of an XCom and moves on with a return value of None
+                # Hence returning with key as `key` and value as `None`, so that the message is sent back to task runner
+                # and the default value of None in xcom_pull is used.
+                return XComResponse(key=key, value=None)
+            raise
         return XComResponse.model_validate_json(resp.read())
 
     def set(
@@ -236,6 +266,24 @@ class XComOperations:
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
         return {"ok": True}
+
+
+class AssetOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, name: str | None = None, uri: str | None = None) -> AssetResponse:
+        """Get Asset value from the API server."""
+        if name:
+            resp = self.client.get("assets/by-name", params={"name": name})
+        elif uri:
+            resp = self.client.get("assets/by-uri", params={"uri": uri})
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+
+        return AssetResponse.model_validate_json(resp.read())
 
 
 class BearerAuth(httpx.Auth):
@@ -266,6 +314,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
                     "start_date": "2021-01-01T00:00:00Z",
                     "run_type": DagRunType.MANUAL,
                 },
+                "max_tries": 0,
             },
         )
     return httpx.Response(200, json={"text": "Hello, world!"})
@@ -343,6 +392,12 @@ class Client(httpx.Client):
     def xcoms(self) -> XComOperations:
         """Operations related to XComs."""
         return XComOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def assets(self) -> AssetOperations:
+        """Operations related to XComs."""
+        return AssetOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

@@ -110,6 +110,7 @@ class ConfigChange:
 
 
 CONFIGS_CHANGES = [
+    # admin
     ConfigChange(
         config=ConfigParameter("admin", "hide_sensitive_variable_fields"),
         renamed_to=ConfigParameter("core", "hide_sensitive_var_conn_fields"),
@@ -118,15 +119,23 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("admin", "sensitive_variable_fields"),
         renamed_to=ConfigParameter("core", "sensitive_var_conn_names"),
     ),
+    # core
     ConfigChange(
         config=ConfigParameter("core", "check_slas"),
-        suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in "
-        "future",
+        suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
     ),
     ConfigChange(
-        config=ConfigParameter("core", "strict_asset_uri_validation"),
-        suggestion="Asset URI with a defined scheme will now always be validated strictly, "
+        config=ConfigParameter("core", "strict_dataset_uri_validation"),
+        suggestion="Dataset URI with a defined scheme will now always be validated strictly, "
         "raising a hard error on validation failure.",
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "dataset_manager_class"),
+        renamed_to=ConfigParameter("core", "asset_manager_class"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "dataset_manager_kwargs"),
+        renamed_to=ConfigParameter("core", "asset_manager_kwargs"),
     ),
     ConfigChange(
         config=ConfigParameter("core", "worker_precheck"),
@@ -188,6 +197,9 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("core", "max_db_retries"),
         renamed_to=ConfigParameter("database", "max_db_retries"),
     ),
+    ConfigChange(config=ConfigParameter("core", "task_runner")),
+    ConfigChange(config=ConfigParameter("core", "enable_xcom_pickling")),
+    # api
     ConfigChange(
         config=ConfigParameter("api", "access_control_allow_origin"),
         renamed_to=ConfigParameter("api", "access_control_allow_origins"),
@@ -196,11 +208,13 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("api", "auth_backend"),
         renamed_to=ConfigParameter("api", "auth_backends"),
     ),
+    # logging
     ConfigChange(
         config=ConfigParameter("logging", "enable_task_context_logger"),
         suggestion="Remove TaskContextLogger: Replaced by the Log table for better handling of task log "
         "messages outside the execution context.",
     ),
+    # metrics
     ConfigChange(
         config=ConfigParameter("metrics", "metrics_use_pattern_match"),
     ),
@@ -218,14 +232,20 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("metrics", "statsd_block_list"),
         renamed_to=ConfigParameter("metrics", "metrics_block_list"),
     ),
+    # traces
     ConfigChange(
         config=ConfigParameter("traces", "otel_task_log_event"),
     ),
+    # operators
     ConfigChange(
         config=ConfigParameter("operators", "allow_illegal_arguments"),
     ),
+    # webserver
     ConfigChange(
         config=ConfigParameter("webserver", "allow_raw_html_descriptions"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "cookie_samesite"),
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "update_fab_perms"),
@@ -247,10 +267,12 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "force_log_out_after"),
         renamed_to=ConfigParameter("webserver", "session_lifetime_minutes"),
     ),
+    # policy
     ConfigChange(
         config=ConfigParameter("policy", "airflow_local_settings"),
         renamed_to=ConfigParameter("policy", "task_policy"),
     ),
+    # scheduler
     ConfigChange(
         config=ConfigParameter("scheduler", "dependency_detector"),
     ),
@@ -306,6 +328,11 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("metrics", "statsd_custom_client_path"),
     ),
     ConfigChange(
+        config=ConfigParameter("scheduler", "dag_dir_list_interval"),
+        renamed_to=ConfigParameter("dag_bundles", "refresh_interval"),
+    ),
+    # celery
+    ConfigChange(
         config=ConfigParameter("celery", "stalled_task_timeout"),
         renamed_to=ConfigParameter("scheduler", "task_queued_timeout"),
     ),
@@ -317,6 +344,7 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("celery", "task_adoption_timeout"),
         renamed_to=ConfigParameter("scheduler", "task_queued_timeout"),
     ),
+    # kubernetes_executor
     ConfigChange(
         config=ConfigParameter("kubernetes_executor", "worker_pods_pending_timeout"),
         renamed_to=ConfigParameter("scheduler", "task_queued_timeout"),
@@ -325,6 +353,7 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("kubernetes_executor", "worker_pods_pending_timeout_check_interval"),
         renamed_to=ConfigParameter("scheduler", "task_queued_timeout_check_interval"),
     ),
+    # smtp
     ConfigChange(
         config=ConfigParameter("smtp", "smtp_user"),
         suggestion="Please use the SMTP connection (`smtp_default`).",

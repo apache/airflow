@@ -242,13 +242,7 @@ export const $AssetEventResponse = {
     },
   },
   type: "object",
-  required: [
-    "id",
-    "asset_id",
-    "source_map_index",
-    "created_dagruns",
-    "timestamp",
-  ],
+  required: ["id", "asset_id", "source_map_index", "created_dagruns", "timestamp"],
   title: "AssetEventResponse",
   description: "Asset event serializer for responses.",
 } as const;
@@ -488,19 +482,6 @@ export const $BaseInfoResponse = {
   description: "Base info serializer for responses.",
 } as const;
 
-export const $Body_import_variables = {
-  properties: {
-    file: {
-      type: "string",
-      format: "binary",
-      title: "File",
-    },
-  },
-  type: "object",
-  required: ["file"],
-  title: "Body_import_variables",
-} as const;
-
 export const $ClearTaskInstancesBody = {
   properties: {
     dry_run: {
@@ -545,7 +526,7 @@ export const $ClearTaskInstancesBody = {
     reset_dag_runs: {
       type: "boolean",
       title: "Reset Dag Runs",
-      default: false,
+      default: true,
     },
     task_ids: {
       anyOf: [
@@ -882,6 +863,18 @@ export const $ConnectionBulkBody = {
       },
       type: "array",
       title: "Connections",
+    },
+    overwrite: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Overwrite",
+      default: false,
     },
   },
   type: "object",
@@ -2516,16 +2509,7 @@ same name in TaskInstanceState.`,
 
 export const $DagRunTriggeredByType = {
   type: "string",
-  enum: [
-    "cli",
-    "operator",
-    "rest_api",
-    "ui",
-    "test",
-    "timetable",
-    "asset",
-    "backfill",
-  ],
+  enum: ["cli", "operator", "rest_api", "ui", "test", "timetable", "asset", "backfill"],
   title: "DagRunTriggeredByType",
   description: "Class with TriggeredBy types for DagRun.",
 } as const;
@@ -2641,6 +2625,40 @@ export const $DagWarningType = {
 
 This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`,
+} as const;
+
+export const $DryRunBackfillCollectionResponse = {
+  properties: {
+    backfills: {
+      items: {
+        $ref: "#/components/schemas/DryRunBackfillResponse",
+      },
+      type: "array",
+      title: "Backfills",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["backfills", "total_entries"],
+  title: "DryRunBackfillCollectionResponse",
+  description: "Backfill collection serializer for responses in dry-run mode.",
+} as const;
+
+export const $DryRunBackfillResponse = {
+  properties: {
+    logical_date: {
+      type: "string",
+      format: "date-time",
+      title: "Logical Date",
+    },
+  },
+  type: "object",
+  required: ["logical_date"],
+  title: "DryRunBackfillResponse",
+  description: "Backfill serializer for responses in dry-run mode.",
 } as const;
 
 export const $EdgeResponse = {
@@ -3228,13 +3246,17 @@ export const $ImportErrorResponse = {
       type: "string",
       title: "Filename",
     },
+    bundle_name: {
+      type: "string",
+      title: "Bundle Name",
+    },
     stack_trace: {
       type: "string",
       title: "Stack Trace",
     },
   },
   type: "object",
-  required: ["import_error_id", "timestamp", "filename", "stack_trace"],
+  required: ["import_error_id", "timestamp", "filename", "bundle_name", "stack_trace"],
   title: "ImportErrorResponse",
   description: "Import Error Response.",
 } as const;
@@ -3446,16 +3468,7 @@ export const $NodeResponse = {
     },
     type: {
       type: "string",
-      enum: [
-        "join",
-        "task",
-        "asset-condition",
-        "asset",
-        "asset-alias",
-        "dag",
-        "sensor",
-        "trigger",
-      ],
+      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
       title: "Type",
     },
     operator: {
@@ -3623,13 +3636,6 @@ export const $PluginResponse = {
       type: "string",
       title: "Source",
     },
-    ti_deps: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Ti Deps",
-    },
     listeners: {
       items: {
         type: "string",
@@ -3656,7 +3662,6 @@ export const $PluginResponse = {
     "global_operator_extra_links",
     "operator_extra_links",
     "source",
-    "ti_deps",
     "listeners",
     "timetables",
   ],
@@ -3778,6 +3783,18 @@ export const $PoolPostBulkBody = {
       },
       type: "array",
       title: "Pools",
+    },
+    overwrite: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Overwrite",
+      default: false,
     },
   },
   type: "object",
@@ -4037,8 +4054,7 @@ export const $TaskDependencyCollectionResponse = {
   type: "object",
   required: ["dependencies"],
   title: "TaskDependencyCollectionResponse",
-  description:
-    "Task scheduling dependencies collection serializer for responses.",
+  description: "Task scheduling dependencies collection serializer for responses.",
 } as const;
 
 export const $TaskDependencyResponse = {
@@ -4302,47 +4318,6 @@ export const $TaskInstanceHistoryResponse = {
   ],
   title: "TaskInstanceHistoryResponse",
   description: "TaskInstanceHistory serializer for responses.",
-} as const;
-
-export const $TaskInstanceReferenceCollectionResponse = {
-  properties: {
-    task_instances: {
-      items: {
-        $ref: "#/components/schemas/TaskInstanceReferenceResponse",
-      },
-      type: "array",
-      title: "Task Instances",
-    },
-    total_entries: {
-      type: "integer",
-      title: "Total Entries",
-    },
-  },
-  type: "object",
-  required: ["task_instances", "total_entries"],
-  title: "TaskInstanceReferenceCollectionResponse",
-  description: "Task Instance Reference collection serializer for responses.",
-} as const;
-
-export const $TaskInstanceReferenceResponse = {
-  properties: {
-    task_id: {
-      type: "string",
-      title: "Task Id",
-    },
-    dag_run_id: {
-      type: "string",
-      title: "Dag Run Id",
-    },
-    dag_id: {
-      type: "string",
-      title: "Dag Id",
-    },
-  },
-  type: "object",
-  required: ["task_id", "dag_run_id", "dag_id"],
-  title: "TaskInstanceReferenceResponse",
-  description: "Task Instance Reference serializer for responses.",
 } as const;
 
 export const $TaskInstanceResponse = {
@@ -5331,8 +5306,7 @@ export const $TimeDelta = {
   type: "object",
   required: ["days", "seconds", "microseconds"],
   title: "TimeDelta",
-  description:
-    "TimeDelta can be used to interact with datetime.timedelta objects.",
+  description: "TimeDelta can be used to interact with datetime.timedelta objects.",
 } as const;
 
 export const $TriggerDAGRunPostBody = {
@@ -5499,14 +5473,7 @@ export const $VariableBody = {
       title: "Key",
     },
     value: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Value",
     },
     description: {
@@ -5525,6 +5492,196 @@ export const $VariableBody = {
   required: ["key", "value"],
   title: "VariableBody",
   description: "Variable serializer for bodies.",
+} as const;
+
+export const $VariableBulkActionResponse = {
+  properties: {
+    success: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Success",
+      description: "A list of keys representing successful operations.",
+      default: [],
+    },
+    errors: {
+      items: {
+        type: "object",
+      },
+      type: "array",
+      title: "Errors",
+      description:
+        "A list of errors encountered during the operation, each containing details about the issue.",
+      default: [],
+    },
+  },
+  type: "object",
+  title: "VariableBulkActionResponse",
+  description: `Serializer for individual bulk action responses.
+
+Represents the outcome of a single bulk operation (create, update, or delete).
+The response includes a list of successful keys and any errors encountered during the operation.
+This structure helps users understand which key actions succeeded and which failed.`,
+} as const;
+
+export const $VariableBulkBody = {
+  properties: {
+    actions: {
+      items: {
+        anyOf: [
+          {
+            $ref: "#/components/schemas/VariableBulkCreateAction",
+          },
+          {
+            $ref: "#/components/schemas/VariableBulkUpdateAction",
+          },
+          {
+            $ref: "#/components/schemas/VariableBulkDeleteAction",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+      description: "A list of variable actions to perform.",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "VariableBulkBody",
+  description: "Request body for bulk variable operations (create, update, delete).",
+} as const;
+
+export const $VariableBulkCreateAction = {
+  properties: {
+    action: {
+      type: "string",
+      const: "create",
+      title: "Action",
+      default: "create",
+    },
+    variables: {
+      items: {
+        $ref: "#/components/schemas/VariableBody",
+      },
+      type: "array",
+      title: "Variables",
+      description: "A list of variables to be created.",
+    },
+    action_if_exists: {
+      type: "string",
+      enum: ["skip", "overwrite", "fail"],
+      title: "Action If Exists",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["variables"],
+  title: "VariableBulkCreateAction",
+  description: "Bulk Create Variable serializer for request bodies.",
+} as const;
+
+export const $VariableBulkDeleteAction = {
+  properties: {
+    action: {
+      type: "string",
+      const: "delete",
+      title: "Action",
+      default: "delete",
+    },
+    keys: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Keys",
+      description: "A list of variable keys to be deleted.",
+    },
+    action_if_not_exists: {
+      type: "string",
+      enum: ["skip", "fail"],
+      title: "Action If Not Exists",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["keys"],
+  title: "VariableBulkDeleteAction",
+  description: "Bulk Delete Variable serializer for request bodies.",
+} as const;
+
+export const $VariableBulkResponse = {
+  properties: {
+    create: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/VariableBulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk create operation, including successful keys and errors.",
+    },
+    update: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/VariableBulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk update operation, including successful keys and errors.",
+    },
+    delete: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/VariableBulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk delete operation, including successful keys and errors.",
+    },
+  },
+  type: "object",
+  title: "VariableBulkResponse",
+  description: `Serializer for responses to bulk variable operations.
+
+This represents the results of create, update, and delete actions performed on variables in bulk.
+Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
+Fields are populated in the response only if the respective action was part of the request, else are set None.`,
+} as const;
+
+export const $VariableBulkUpdateAction = {
+  properties: {
+    action: {
+      type: "string",
+      const: "update",
+      title: "Action",
+      default: "update",
+    },
+    variables: {
+      items: {
+        $ref: "#/components/schemas/VariableBody",
+      },
+      type: "array",
+      title: "Variables",
+      description: "A list of variables to be updated.",
+    },
+    action_if_not_exists: {
+      type: "string",
+      enum: ["skip", "fail"],
+      title: "Action If Not Exists",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["variables"],
+  title: "VariableBulkUpdateAction",
+  description: "Bulk Update Variable serializer for request bodies.",
 } as const;
 
 export const $VariableCollectionResponse = {
@@ -5554,14 +5711,7 @@ export const $VariableResponse = {
       title: "Key",
     },
     value: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       title: "Value",
     },
     description: {
@@ -5584,30 +5734,6 @@ export const $VariableResponse = {
   required: ["key", "value", "description", "is_encrypted"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
-} as const;
-
-export const $VariablesImportResponse = {
-  properties: {
-    created_variable_keys: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Created Variable Keys",
-    },
-    import_count: {
-      type: "integer",
-      title: "Import Count",
-    },
-    created_count: {
-      type: "integer",
-      title: "Created Count",
-    },
-  },
-  type: "object",
-  required: ["created_variable_keys", "import_count", "created_count"],
-  title: "VariablesImportResponse",
-  description: "Import Variables serializer for responses.",
 } as const;
 
 export const $VersionInfo = {
@@ -5688,15 +5814,7 @@ export const $XComResponse = {
     },
   },
   type: "object",
-  required: [
-    "key",
-    "timestamp",
-    "logical_date",
-    "map_index",
-    "task_id",
-    "dag_id",
-    "run_id",
-  ],
+  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id"],
   title: "XComResponse",
   description: "Serializer for a xcom item.",
 } as const;
@@ -5738,16 +5856,7 @@ export const $XComResponseNative = {
     },
   },
   type: "object",
-  required: [
-    "key",
-    "timestamp",
-    "logical_date",
-    "map_index",
-    "task_id",
-    "dag_id",
-    "run_id",
-    "value",
-  ],
+  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
   title: "XComResponseNative",
   description: "XCom response serializer with native return type.",
 } as const;
@@ -5797,16 +5906,7 @@ export const $XComResponseString = {
     },
   },
   type: "object",
-  required: [
-    "key",
-    "timestamp",
-    "logical_date",
-    "map_index",
-    "task_id",
-    "dag_id",
-    "run_id",
-    "value",
-  ],
+  required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
   title: "XComResponseString",
   description: "XCom response serializer with string return type.",
 } as const;

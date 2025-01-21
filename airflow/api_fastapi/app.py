@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from starlette.routing import Mount
@@ -27,13 +28,16 @@ from airflow.api_fastapi.core_api.app import (
     init_dag_bag,
     init_error_handlers,
     init_flask_plugins,
+    init_middlewares,
     init_plugins,
     init_views,
 )
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import BaseAuthManager
 
 log = logging.getLogger(__name__)
 
@@ -71,6 +75,7 @@ def create_app(apps: str = "all") -> FastAPI:
         init_auth_manager(app)
         init_flask_plugins(app)
         init_error_handlers(app)
+        init_middlewares(app)
 
     if "execution" in apps_list or "all" in apps_list:
         task_exec_api_app = create_task_execution_api_app(app)

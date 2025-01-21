@@ -68,6 +68,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a canary run (true/false)"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+      debug-resources:
+        description: "Whether to debug resources or not (true/false)"
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
   update-constraints:
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
@@ -140,7 +150,7 @@ jobs:
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
+      use-uv: ${{ inputs.use-uv }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
@@ -183,10 +193,14 @@ jobs:
           persist-credentials: false
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
-      - name: "Download all artifacts from the current build"
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
+      - name: "Download all test warning artifacts from the current build"
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+          pattern: test-warnings-*
       - name: "Setup python"
         uses: actions/setup-python@v5
         with:

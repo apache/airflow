@@ -220,6 +220,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-pyproject-toml-consistency                          | Check consistency of Airflow's pyproject.toml          |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                            |         |
@@ -360,8 +362,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-build-dependencies                                 | Update build-dependencies to latest (manual)           |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-chart-dependencies                                 | Update chart dependencies to latest (manual)           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-common-sql-api-stubs                               | Check and update common.sql API stubs                  |         |
@@ -376,7 +376,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-installed-providers-to-be-sorted                   | Sort and uniquify installed_providers.txt              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-installers                                         | Update installers to latest (manual)                   |         |
+| update-installers-and-pre-commit                          | Update installers and pre-commit to latest (manual)    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-local-yml-file                                     | Update mounts in the local yml file                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -384,9 +384,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-openapi-spec-tags-to-be-sorted                     | Sort alphabetically openapi spec tags                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-providers-dependencies                             | Update dependencies for provider packages              |         |
+| update-providers-build-files                              | Update providers build files                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-providers-init-py                                  | Update providers __init__.py files                     |         |
+| update-providers-dependencies                             | Update dependencies for provider packages              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -401,6 +401,8 @@ require Breeze Docker image to be built locally.
 | validate-operators-init                                   | No templated field logic checks in operator __init__   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| zizmor                                                    | Run zizmor to check for github workflow syntax errors  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 
   .. END AUTO-GENERATED STATIC CHECK LIST

@@ -24,7 +24,11 @@ import { useAddVariable } from "src/queries/useAddVariable";
 
 import VariableForm, { type VariableBody } from "./VariableForm";
 
-const AddVariableButton = () => {
+type Props = {
+  readonly disabled: boolean;
+};
+
+const AddVariableButton = ({ disabled }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { addVariable, error, isPending, setError } = useAddVariable({
     onSuccessConfirm: onClose,
@@ -44,7 +48,7 @@ const AddVariableButton = () => {
   return (
     <>
       <Toaster />
-      <Button colorPalette="blue" onClick={onOpen}>
+      <Button colorPalette="blue" disabled={disabled} onClick={onOpen}>
         <FiPlusCircle /> Add Variable
       </Button>
 

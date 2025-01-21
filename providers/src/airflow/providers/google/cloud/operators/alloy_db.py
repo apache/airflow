@@ -29,7 +29,11 @@ from google.cloud import alloydb_v1
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.alloy_db import AlloyDbHook
-from airflow.providers.google.cloud.links.alloy_db import AlloyDBClusterLink
+from airflow.providers.google.cloud.links.alloy_db import (
+    AlloyDBBackupsLink,
+    AlloyDBClusterLink,
+    AlloyDBUsersLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
@@ -592,7 +596,7 @@ class AlloyDBUpdateInstanceOperator(AlloyDBWriteBaseOperator):
         :ref:`howto/operator:AlloyDBUpdateInstanceOperator`
 
     :param cluster_id: Required. ID of the cluster.
-    :param instance_id: Required. ID of the cluster to update.
+    :param instance_id: Required. ID of the instance to update.
     :param instance_configuration: Required. Instance to update. For more details please see API documentation:
             https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.Instance
     :param update_mask: Optional. Field mask is used to specify the fields to be overwritten in the
@@ -774,3 +778,594 @@ class AlloyDBDeleteInstanceOperator(AlloyDBWriteBaseOperator):
 
         if not self.validate_request:
             self.log.info("AlloyDB instance %s was successfully removed.", self.instance_id)
+
+
+class AlloyDBCreateUserOperator(AlloyDBWriteBaseOperator):
+    """
+    Create a User in an Alloy DB cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AlloyDBCreateUserOperator`
+
+    :param user_id: Required. ID of the user to create.
+    :param user_configuration: Required. The user to create. For more details please see API documentation:
+        https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.User
+    :param cluster_id: Required. ID of the cluster for creating a user in.
+    :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+        so that if you must retry your request, the server ignores the request if it has already been
+        completed. The server guarantees that for at least 60 minutes since the first request.
+        For example, consider a situation where you make an initial request and the request times out.
+        If you make the request again with the same request ID, the server can check if the original operation
+        with the same request ID was received, and if so, ignores the second request.
+        This prevents clients from accidentally creating duplicate commitments.
+        The request ID must be a valid UUID with the exception that zero UUID is not supported
+        (00000000-0000-0000-0000-000000000000).
+    :param validate_request: Optional. If set, performs request validation, but does not actually
+        execute the request.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"user_id", "user_configuration", "cluster_id"} | set(AlloyDBWriteBaseOperator.template_fields)
+    )
+    operator_extra_links = (AlloyDBUsersLink(),)
+
+    def __init__(
+        self,
+        user_id: str,
+        user_configuration: alloydb_v1.User | dict,
+        cluster_id: str,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.user_id = user_id
+        self.user_configuration = user_configuration
+        self.cluster_id = cluster_id
+
+    def _get_user(self) -> proto.Message | None:
+        self.log.info("Checking if the user %s exists already...", self.user_id)
+        try:
+            user = self.hook.get_user(
+                user_id=self.user_id,
+                cluster_id=self.cluster_id,
+                location=self.location,
+                project_id=self.project_id,
+            )
+        except NotFound:
+            self.log.info("The user %s does not exist yet.", self.user_id)
+        except Exception as ex:
+            raise AirflowException(ex) from ex
+        else:
+            self.log.info(
+                "AlloyDB user %s already exists in the cluster %s.",
+                self.user_id,
+                self.cluster_id,
+            )
+            result = alloydb_v1.User.to_dict(user)
+            return result
+        return None
+
+    def execute(self, context: Context) -> dict | None:
+        AlloyDBUsersLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.location,
+            cluster_id=self.cluster_id,
+            project_id=self.project_id,
+        )
+        if (_user := self._get_user()) is not None:
+            return _user
+
+        if self.validate_request:
+            self.log.info("Validating a Create AlloyDB user request.")
+        else:
+            self.log.info("Creating an AlloyDB user.")
+
+        try:
+            user = self.hook.create_user(
+                user_id=self.user_id,
+                cluster_id=self.cluster_id,
+                user=self.user_configuration,
+                location=self.location,
+                project_id=self.project_id,
+                request_id=self.request_id,
+                validate_only=self.validate_request,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except Exception as ex:
+            raise AirflowException(ex)
+        else:
+            result = alloydb_v1.User.to_dict(user) if not self.validate_request else None
+
+        if not self.validate_request:
+            self.log.info("AlloyDB user %s was successfully created.", self.user_id)
+        return result
+
+
+class AlloyDBUpdateUserOperator(AlloyDBWriteBaseOperator):
+    """
+    Update an Alloy DB user.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AlloyDBUpdateUserOperator`
+
+    :param user_id: Required. The ID of the user to update.
+    :param cluster_id: Required. ID of the cluster.
+    :param user_configuration: Required. User to update. For more details please see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.User
+    :param update_mask: Optional. Field mask is used to specify the fields to be overwritten in the
+            User resource by the update.
+    :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+        so that if you must retry your request, the server ignores the request if it has already been
+        completed. The server guarantees that for at least 60 minutes since the first request.
+        For example, consider a situation where you make an initial request and the request times out.
+        If you make the request again with the same request ID, the server can check if the original operation
+        with the same request ID was received, and if so, ignores the second request.
+        This prevents clients from accidentally creating duplicate commitments.
+        The request ID must be a valid UUID with the exception that zero UUID is not supported
+        (00000000-0000-0000-0000-000000000000).
+    :param validate_request: Optional. If set, performs request validation, but does not actually
+        execute the request.
+    :param allow_missing: Optional. If set to true, update succeeds even if instance is not found.
+        In that case, a new user is created and update_mask is ignored.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"cluster_id", "user_id", "user_configuration", "update_mask", "allow_missing"}
+        | set(AlloyDBWriteBaseOperator.template_fields)
+    )
+    operator_extra_links = (AlloyDBUsersLink(),)
+
+    def __init__(
+        self,
+        cluster_id: str,
+        user_id: str,
+        user_configuration: alloydb_v1.User | dict,
+        update_mask: FieldMask | dict | None = None,
+        allow_missing: bool = False,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.cluster_id = cluster_id
+        self.user_id = user_id
+        self.user_configuration = user_configuration
+        self.update_mask = update_mask
+        self.allow_missing = allow_missing
+
+    def execute(self, context: Context) -> dict | None:
+        AlloyDBUsersLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.location,
+            cluster_id=self.cluster_id,
+            project_id=self.project_id,
+        )
+        if self.validate_request:
+            self.log.info("Validating an Update AlloyDB user request.")
+        else:
+            self.log.info("Updating an AlloyDB user.")
+
+        try:
+            user = self.hook.update_user(
+                cluster_id=self.cluster_id,
+                user_id=self.user_id,
+                project_id=self.project_id,
+                location=self.location,
+                user=self.user_configuration,
+                update_mask=self.update_mask,
+                allow_missing=self.allow_missing,
+                request_id=self.request_id,
+                validate_only=self.validate_request,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except Exception as ex:
+            raise AirflowException(ex) from ex
+        else:
+            result = alloydb_v1.User.to_dict(user) if not self.validate_request else None
+
+        if not self.validate_request:
+            self.log.info("AlloyDB user %s was successfully updated.", self.user_id)
+        return result
+
+
+class AlloyDBDeleteUserOperator(AlloyDBWriteBaseOperator):
+    """
+    Delete an Alloy DB user.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AlloyDBDeleteUserOperator`
+
+    :param user_id: Required. ID of the user to delete.
+    :param cluster_id: Required. ID of the cluster.
+    :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+        so that if you must retry your request, the server ignores the request if it has already been
+        completed. The server guarantees that for at least 60 minutes since the first request.
+        For example, consider a situation where you make an initial request and the request times out.
+        If you make the request again with the same request ID, the server can check if the original operation
+        with the same request ID was received, and if so, ignores the second request.
+        This prevents clients from accidentally creating duplicate commitments.
+        The request ID must be a valid UUID with the exception that zero UUID is not supported
+        (00000000-0000-0000-0000-000000000000).
+    :param validate_request: Optional. If set, performs request validation, but does not actually
+        execute the request.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"user_id", "cluster_id"} | set(AlloyDBWriteBaseOperator.template_fields)
+    )
+
+    def __init__(
+        self,
+        user_id: str,
+        cluster_id: str,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.user_id = user_id
+        self.cluster_id = cluster_id
+
+    def execute(self, context: Context) -> None:
+        if self.validate_request:
+            self.log.info("Validating a Delete AlloyDB user request.")
+        else:
+            self.log.info("Deleting an AlloyDB user.")
+
+        try:
+            self.hook.delete_user(
+                user_id=self.user_id,
+                cluster_id=self.cluster_id,
+                project_id=self.project_id,
+                location=self.location,
+                request_id=self.request_id,
+                validate_only=self.validate_request,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except Exception as ex:
+            raise AirflowException(ex) from ex
+
+        if not self.validate_request:
+            self.log.info("AlloyDB user %s was successfully removed.", self.user_id)
+
+
+class AlloyDBCreateBackupOperator(AlloyDBWriteBaseOperator):
+    """
+    Create a Backup in an Alloy DB cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AlloyDBCreateBackupOperator`
+
+    :param backup_id: Required. ID of the backup to create.
+    :param backup_configuration: Required. Backup to create. For more details please see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.Backup
+    :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+        so that if you must retry your request, the server ignores the request if it has already been
+        completed. The server guarantees that for at least 60 minutes since the first request.
+        For example, consider a situation where you make an initial request and the request times out.
+        If you make the request again with the same request ID, the server can check if the original operation
+        with the same request ID was received, and if so, ignores the second request.
+        This prevents clients from accidentally creating duplicate commitments.
+        The request ID must be a valid UUID with the exception that zero UUID is not supported
+        (00000000-0000-0000-0000-000000000000).
+    :param validate_request: Optional. If set, performs request validation, but does not actually
+        execute the request.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the backups should be saved.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"backup_id", "backup_configuration"} | set(AlloyDBWriteBaseOperator.template_fields)
+    )
+    operator_extra_links = (AlloyDBBackupsLink(),)
+
+    def __init__(
+        self,
+        backup_id: str,
+        backup_configuration: alloydb_v1.Backup | dict,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.backup_id = backup_id
+        self.backup_configuration = backup_configuration
+
+    def _get_backup(self) -> proto.Message | None:
+        self.log.info("Checking if the backup %s exists already...", self.backup_id)
+        try:
+            backup = self.hook.get_backup(
+                backup_id=self.backup_id,
+                location=self.location,
+                project_id=self.project_id,
+            )
+        except NotFound:
+            self.log.info("The backup %s does not exist yet.", self.backup_id)
+        except Exception as ex:
+            raise AirflowException(ex) from ex
+        else:
+            self.log.info("AlloyDB backup %s already exists.", self.backup_id)
+            result = alloydb_v1.Backup.to_dict(backup)
+            return result
+        return None
+
+    def execute(self, context: Context) -> dict | None:
+        AlloyDBBackupsLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=self.project_id,
+        )
+        if backup := self._get_backup():
+            return backup
+
+        if self.validate_request:
+            self.log.info("Validating a Create AlloyDB backup request.")
+        else:
+            self.log.info("Creating an AlloyDB backup.")
+
+        try:
+            operation = self.hook.create_backup(
+                backup_id=self.backup_id,
+                backup=self.backup_configuration,
+                location=self.location,
+                project_id=self.project_id,
+                request_id=self.request_id,
+                validate_only=self.validate_request,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except Exception as ex:
+            raise AirflowException(ex)
+        else:
+            operation_result = self.get_operation_result(operation)
+            result = alloydb_v1.Backup.to_dict(operation_result) if operation_result else None
+
+        return result
+
+
+class AlloyDBUpdateBackupOperator(AlloyDBWriteBaseOperator):
+    """
+    Update an Alloy DB backup.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AlloyDBUpdateBackupOperator`
+
+    :param backup_id: Required. ID of the backup to update.
+    :param backup_configuration: Required. Backup to update. For more details please see API documentation:
+            https://cloud.google.com/python/docs/reference/alloydb/latest/google.cloud.alloydb_v1.types.Backup
+    :param update_mask: Optional. Field mask is used to specify the fields to be overwritten in the
+            Backup resource by the update.
+    :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+        so that if you must retry your request, the server ignores the request if it has already been
+        completed. The server guarantees that for at least 60 minutes since the first request.
+        For example, consider a situation where you make an initial request and the request times out.
+        If you make the request again with the same request ID, the server can check if the original operation
+        with the same request ID was received, and if so, ignores the second request.
+        This prevents clients from accidentally creating duplicate commitments.
+        The request ID must be a valid UUID with the exception that zero UUID is not supported
+        (00000000-0000-0000-0000-000000000000).
+    :param validate_request: Optional. If set, performs request validation, but does not actually
+        execute the request.
+    :param allow_missing: Optional. If set to true, update succeeds even if backup is not found.
+        In that case, a new backup is created and update_mask is ignored.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"backup_id", "backup_configuration", "update_mask", "allow_missing"}
+        | set(AlloyDBWriteBaseOperator.template_fields)
+    )
+    operator_extra_links = (AlloyDBBackupsLink(),)
+
+    def __init__(
+        self,
+        backup_id: str,
+        backup_configuration: alloydb_v1.Backup | dict,
+        update_mask: FieldMask | dict | None = None,
+        allow_missing: bool = False,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.backup_id = backup_id
+        self.backup_configuration = backup_configuration
+        self.update_mask = update_mask
+        self.allow_missing = allow_missing
+
+    def execute(self, context: Context) -> dict | None:
+        AlloyDBBackupsLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=self.project_id,
+        )
+        if self.validate_request:
+            self.log.info("Validating an Update AlloyDB backup request.")
+        else:
+            self.log.info("Updating an AlloyDB backup.")
+
+        try:
+            operation = self.hook.update_backup(
+                backup_id=self.backup_id,
+                project_id=self.project_id,
+                location=self.location,
+                backup=self.backup_configuration,
+                update_mask=self.update_mask,
+                allow_missing=self.allow_missing,
+                request_id=self.request_id,
+                validate_only=self.validate_request,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except Exception as ex:
+            raise AirflowException(ex) from ex
+        else:
+            operation_result = self.get_operation_result(operation)
+            result = alloydb_v1.Backup.to_dict(operation_result) if operation_result else None
+
+        if not self.validate_request:
+            self.log.info("AlloyDB backup %s was successfully updated.", self.backup_id)
+        return result
+
+
+class AlloyDBDeleteBackupOperator(AlloyDBWriteBaseOperator):
+    """
+    Delete an Alloy DB backup.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AlloyDBDeleteBackupOperator`
+
+    :param backup_id: Required. ID of the backup to delete.
+    :param request_id: Optional. An optional request ID to identify requests. Specify a unique request ID
+        so that if you must retry your request, the server ignores the request if it has already been
+        completed. The server guarantees that for at least 60 minutes since the first request.
+        For example, consider a situation where you make an initial request and the request times out.
+        If you make the request again with the same request ID, the server can check if the original operation
+        with the same request ID was received, and if so, ignores the second request.
+        This prevents clients from accidentally creating duplicate commitments.
+        The request ID must be a valid UUID with the exception that zero UUID is not supported
+        (00000000-0000-0000-0000-000000000000).
+    :param validate_request: Optional. If set, performs request validation, but does not actually
+        execute the request.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple({"backup_id"} | set(AlloyDBWriteBaseOperator.template_fields))
+
+    def __init__(
+        self,
+        backup_id: str,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.backup_id = backup_id
+
+    def execute(self, context: Context) -> None:
+        if self.validate_request:
+            self.log.info("Validating a Delete AlloyDB backup request.")
+        else:
+            self.log.info("Deleting an AlloyDB backup.")
+
+        try:
+            operation = self.hook.delete_backup(
+                backup_id=self.backup_id,
+                project_id=self.project_id,
+                location=self.location,
+                request_id=self.request_id,
+                validate_only=self.validate_request,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except Exception as ex:
+            raise AirflowException(ex) from ex
+        else:
+            self.get_operation_result(operation)
+
+        if not self.validate_request:
+            self.log.info("AlloyDB backup %s was successfully removed.", self.backup_id)

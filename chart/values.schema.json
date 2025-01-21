@@ -887,7 +887,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2024.09.19-1.22.1"
+                            "default": "airflow-pgbouncer-2025.01.10-1.24.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -1091,6 +1091,11 @@
                 },
                 "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST": {
                     "description": "Enable ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` variable to be read from the Elasticsearch Host Secret - Airflow <1.10.4 variant",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__OPENSEARCH__HOST": {
+                    "description": "Enable ``AIRFLOW__OPENSEARCH__HOST`` variable to be read from the OpenSearch Host Secret",
                     "type": "boolean",
                     "default": true
                 }
@@ -1483,7 +1488,7 @@
                     "default": "airflow@FOO.COM"
                 },
                 "reinitFrequency": {
-                    "description": "How often (in seconds) airflow kerberos will reinitialize the credentials cache.",
+                    "description": "How often (in minutes) airflow kerberos will reinitialize the credentials cache.",
                     "type": "integer",
                     "default": 3600
                 },
@@ -1785,7 +1790,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -3156,7 +3161,7 @@
                             "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -3581,8 +3586,11 @@
             "properties": {
                 "enabled": {
                     "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
-                    "type": "boolean",
-                    "default": false
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
@@ -7021,6 +7029,14 @@
                         "additionalProperties": false
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the PgBouncer objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "enabled": {
                     "description": "Enable PgBouncer.",
                     "type": "boolean",
@@ -7075,6 +7091,12 @@
                         "type": "string"
                     },
                     "default": null
+                },
+                "mountConfigSecret": {
+                    "description": "Whether to mount the config secret files under `/etc/pgbouncer/` by default.",
+                    "type": "boolean",
+                    "x-docsSection": "Common",
+                    "default": true
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
@@ -7614,6 +7636,14 @@
                                     "default": 1
                                 }
                             }
+                        },
+                        "extraVolumeMounts": {
+                            "description": "Mount additional volumes into PgBouncer Metrics Exporter.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                            }
                         }
                     }
                 }
@@ -7684,7 +7714,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8002,6 +8032,69 @@
                 },
                 "connection": {
                     "description": "Elasticsearch connection configuration.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        "scheme": {
+                            "description": "Scheme",
+                            "type": "string",
+                            "default": "http"
+                        },
+                        "user": {
+                            "description": "Username",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "pass": {
+                            "description": "Password",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "host": {
+                            "description": "Host",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "port": {
+                            "description": "Port",
+                            "type": "number",
+                            "default": 80
+                        }
+                    },
+                    "examples": [
+                        {
+                            "scheme": "https",
+                            "user": "...",
+                            "pass": "...",
+                            "host": "...",
+                            "port": "..."
+                        }
+                    ]
+                }
+            }
+        },
+        "opensearch": {
+            "description": "OpenSearch logging configuration.",
+            "type": "object",
+            "x-docsSection": "Airflow",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable OpenSearch task logging.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "secretName": {
+                    "description": "A secret containing the connection string.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "connection": {
+                    "description": "OpenSearch connection configuration.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": false,
@@ -8553,7 +8646,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here.",
+                            "description": "If using a custom StorageClass, pass name here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8862,7 +8955,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here.",
+                            "description": "If using a custom StorageClass, pass name here (can be templated).",
                             "type": [
                                 "string",
                                 "null"

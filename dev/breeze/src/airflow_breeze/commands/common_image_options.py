@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import click
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -189,12 +192,12 @@ option_skip_image_file_deletion = click.option(
     is_flag=True,
     envvar="SKIP_IMAGE_FILE_DELETION",
 )
-option_from_job = click.option(
-    "--from-job",
+option_from_run = click.option(
+    "--from-run",
     required=False,
     default="",
-    envvar="FROM_JOB",
-    help="Optional run id of the github action job to load the image from.",
+    envvar="FROM_RUN",
+    help="Optional run id of the github action run to load the image from.",
 )
 
 option_from_pr = click.option(
@@ -210,4 +213,20 @@ option_github_token_for_images = click.option(
     "https://github.com/settings/tokens/new?description=Read%20repo&scopes=public_repo",
     envvar="GITHUB_TOKEN",
     required=True,
+)
+option_image_file_dir = click.option(
+    "--image-file-dir",
+    help="The path to the directory where the image files are stored by default.",
+    envvar="IMAGE_FILE_DIR",
+    type=click.Path(
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        resolve_path=True,
+        writable=True,
+        readable=True,
+        path_type=Path,
+    ),
+    default=tempfile.gettempdir() if not generating_command_images() else "/tmp",
+    show_default=True,
 )

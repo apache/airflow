@@ -113,3 +113,92 @@ To delete an AlloyDB instance you can use
     :dedent: 4
     :start-after: [START howto_operator_alloy_db_delete_instance]
     :end-before: [END howto_operator_alloy_db_delete_instance]
+
+.. _howto/operator:AlloyDBCreateUserOperator:
+
+Create user
+"""""""""""
+
+To create an AlloyDB user you can use
+:class:`~airflow.providers.google.cloud.operators.alloy_db.AlloyDBCreateUserOperator`. Note that the primary instance
+must be created in the cluster
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/alloy_db/example_alloy_db.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_alloy_db_create_user]
+    :end-before: [END howto_operator_alloy_db_create_user]
+
+
+.. _howto/operator:AlloyDBUpdateUserOperator:
+
+Update user
+"""""""""""
+
+To update an AlloyDB user you can use
+:class:`~airflow.providers.google.cloud.operators.alloy_db.AlloyDBUpdateUserOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/alloy_db/example_alloy_db.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_alloy_db_update_user]
+    :end-before: [END howto_operator_alloy_db_update_user]
+
+
+.. _howto/operator:AlloyDBDeleteUserOperator:
+
+Delete user
+"""""""""""
+
+To delete an AlloyDB user you can use
+:class:`~airflow.providers.google.cloud.operators.alloy_db.AlloyDBDeleteUserOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/alloy_db/example_alloy_db.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_alloy_db_delete_user]
+    :end-before: [END howto_operator_alloy_db_delete_user]
+
+.. _howto/operator:AlloyDBCreateBackupOperator:
+
+Create backup
+"""""""""""""
+
+To create an AlloyDB backup you can use
+:class:`~airflow.providers.google.cloud.operators.alloy_db.AlloyDBCreateBackupOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/alloy_db/example_alloy_db.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_alloy_db_create_backup]
+    :end-before: [END howto_operator_alloy_db_create_backup]
+
+
+.. _howto/operator:AlloyDBUpdateBackupOperator:
+
+Update backup
+"""""""""""""
+
+To update an AlloyDB backup you can use
+:class:`~airflow.providers.google.cloud.operators.alloy_db.AlloyDBUpdateBackupOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/alloy_db/example_alloy_db.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_alloy_db_update_backup]
+    :end-before: [END howto_operator_alloy_db_update_backup]
+
+
+.. _howto/operator:AlloyDBDeleteBackupOperator:
+
+Delete backup
+"""""""""""""
+
+To delete an AlloyDB backup you can use
+:class:`~airflow.providers.google.cloud.operators.alloy_db.AlloyDBDeleteBackupOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/alloy_db/example_alloy_db.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_alloy_db_delete_backup]
+    :end-before: [END howto_operator_alloy_db_delete_backup]

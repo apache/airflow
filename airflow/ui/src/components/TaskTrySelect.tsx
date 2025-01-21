@@ -16,19 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Button,
-  createListCollection,
-  HStack,
-  VStack,
-  Heading,
-} from "@chakra-ui/react";
+import { Button, createListCollection, HStack, VStack, Heading } from "@chakra-ui/react";
 
 import { useTaskInstanceServiceGetMappedTaskInstanceTries } from "openapi/queries";
-import type {
-  TaskInstanceHistoryResponse,
-  TaskInstanceResponse,
-} from "openapi/requests/types.gen";
+import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
 import { Select, Status } from "./ui";
@@ -39,11 +30,7 @@ type Props = {
   readonly taskInstance: TaskInstanceResponse;
 };
 
-export const TaskTrySelect = ({
-  onSelectTryNumber,
-  selectedTryNumber,
-  taskInstance,
-}: Props) => {
+export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstance }: Props) => {
   const {
     dag_id: dagId,
     dag_run_id: dagRunId,
@@ -90,9 +77,7 @@ export const TaskTrySelect = ({
           onValueChange={(details) => {
             if (onSelectTryNumber) {
               onSelectTryNumber(
-                details.value[0] === undefined
-                  ? finalTryNumber
-                  : parseInt(details.value[0], 10),
+                details.value[0] === undefined ? finalTryNumber : parseInt(details.value[0], 10),
               );
             }
           }}
@@ -141,9 +126,7 @@ export const TaskTrySelect = ({
                     onSelectTryNumber(ti.try_number);
                   }
                 }}
-                variant={
-                  selectedTryNumber === ti.try_number ? "surface" : "outline"
-                }
+                variant={selectedTryNumber === ti.try_number ? "surface" : "outline"}
               >
                 {ti.try_number}
                 <Status state={ti.state} />

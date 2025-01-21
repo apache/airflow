@@ -41,9 +41,7 @@ export const RecentRuns = ({
 
   const runsWithDuration = latestRuns.map((run) => ({
     ...run,
-    duration: dayjs
-      .duration(dayjs(run.end_date).diff(run.start_date))
-      .asSeconds(),
+    duration: dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds(),
   }));
 
   const max = Math.max.apply(
@@ -72,7 +70,6 @@ export const RecentRuns = ({
             },
             placement: "bottom-start",
           }}
-          showArrow
         >
           <Link to={`/dags/${run.dag_id}/runs/${run.dag_run_id}/`}>
             <Box p={1}>
