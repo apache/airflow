@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Annotated, Any, Callable
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
-from starlette import status
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.base_user import BaseUser
