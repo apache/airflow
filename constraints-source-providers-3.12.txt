@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-21T13:50:45.461849
+# This constraints file was automatically generated on 2025-01-21T19:51:26.003799
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -144,7 +144,7 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==3.1.1
-cohere==5.13.10
+cohere==5.13.11
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
@@ -215,7 +215,7 @@ google-cloud-audit-log==0.3.0
 google-cloud-automl==2.15.0
 google-cloud-batch==0.17.33
 google-cloud-bigquery-datatransfer==3.18.0
-google-cloud-bigquery==3.27.0
+google-cloud-bigquery==3.29.0
 google-cloud-bigtable==2.28.1
 google-cloud-build==3.29.0
 google-cloud-compute==1.23.0
@@ -283,6 +283,7 @@ hyperframe==6.0.1
 ibm-cloud-sdk-core==3.20.3
 ibmcloudant==0.9.1
 icdiff==2.0.7
+id==1.5.0
 idna==3.10
 ijson==3.3.0
 imagesize==1.4.1
@@ -418,7 +419,6 @@ pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
 pipdeptree==2.24.0
-pkginfo==1.12.0
 platformdirs==4.3.6
 pluggy==1.5.0
 ply==3.11
@@ -585,7 +585,7 @@ towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.332.0
-twine==6.0.1
+twine==6.1.0
 typer==0.15.1
 types-Deprecated==1.2.15.20241117
 types-Markdown==3.7.0.20241204
