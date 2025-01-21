@@ -1859,7 +1859,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "example_python_operator",
                 {
                     "dry_run": False,
-                    "task_ids": [["print_the_context", "0"], "sleep_for_1"],
+                    "task_ids": [["print_the_context", 0], "sleep_for_1"],
                 },
                 2,
                 id="clear mapped task and unmapped tasks together",

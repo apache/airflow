@@ -60,14 +60,21 @@ export const useClearTaskInstances = ({
       onSuccessDryRun(data);
     } else {
       const taskInstanceKeys = (variables.requestBody.task_ids ?? [])
-        .filter((taskId): taskId is string => typeof taskId === "string")
+        .filter(
+          (taskId): taskId is string | [string, number] =>
+            typeof taskId === "string" || Array.isArray(taskId),
+        )
         .map((taskId) => {
+          // Determine the actual task_id
+          const actualTaskId = Array.isArray(taskId) ? taskId[0] : taskId;
+
           const runId = variables.requestBody.dag_run_id;
 
           if (runId === null || runId === undefined) {
             return undefined;
           }
-          const params = { dagId, dagRunId: runId, taskId };
+
+          const params = { dagId, dagRunId: runId, taskId: actualTaskId };
 
           return UseTaskInstanceServiceGetTaskInstanceKeyFn(params);
         })

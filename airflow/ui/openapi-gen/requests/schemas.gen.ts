@@ -550,10 +550,17 @@ export const $ClearTaskInstancesBody = {
                 type: "string",
               },
               {
-                items: {
-                  type: "string",
-                },
+                prefixItems: [
+                  {
+                    type: "string",
+                  },
+                  {
+                    type: "integer",
+                  },
+                ],
                 type: "array",
+                maxItems: 2,
+                minItems: 2,
               },
             ],
           },
