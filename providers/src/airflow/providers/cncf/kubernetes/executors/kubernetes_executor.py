@@ -184,6 +184,7 @@ class KubernetesExecutor(BaseExecutor):
         # speed up load times of the kubernetes_executor module.
         from airflow.providers.cncf.kubernetes import pod_generator
 
+        print("I am a log line to trigger tests")
         if isinstance(input_value, datetime):
             return pod_generator.datetime_to_label_safe_datestring(input_value)
         return pod_generator.make_safe_label_value(input_value)
