@@ -47,12 +47,18 @@ export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
 
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const handleChange = (value: Array<string>) => {
+  const handleChange = ([value]: Array<string>) => {
     if (paramsDict[name]) {
-      paramsDict[name].value = value;
-    }
+      const updatedParams = {
+        ...paramsDict,
+        [name]: {
+          ...paramsDict[name],
+          value,
+        },
+      };
 
-    setParamsDict(paramsDict);
+      setParamsDict(updatedParams);
+    }
   };
 
   return (
@@ -63,7 +69,7 @@ export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
       onValueChange={(event) => handleChange(event.value)}
       ref={contentRef}
       size="sm"
-      value={enumTypes.includes(typeof param.value) ? [String(param.value)] : undefined}
+      value={enumTypes.includes(typeof param.value) ? [param.value as string] : undefined}
     >
       <Select.Trigger>
         <Select.ValueText placeholder="Select Value" />

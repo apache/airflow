@@ -26,7 +26,7 @@ export const FieldString = ({ name }: FlexibleFormElementProps) => {
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name]) {
-      paramsDict[name].value = value;
+      paramsDict[name].value = value === "" ? undefined : value;
     }
 
     setParamsDict(paramsDict);
