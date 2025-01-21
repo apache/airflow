@@ -7,6 +7,7 @@ import {
   ConfigService,
   ConnectionService,
   DagParsingService,
+  DagReportService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -647,6 +648,22 @@ export const UseDagStatsServiceGetDagStatsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
+export type DagReportServiceGetDagReportDefaultResponse = Awaited<
+  ReturnType<typeof DagReportService.getDagReport>
+>;
+export type DagReportServiceGetDagReportQueryResult<
+  TData = DagReportServiceGetDagReportDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagReportServiceGetDagReportKey = "DagReportServiceGetDagReport";
+export const UseDagReportServiceGetDagReportKeyFn = (
+  {
+    subdir,
+  }: {
+    subdir: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagReportServiceGetDagReportKey, ...(queryKey ?? [{ subdir }])];
 export type DagWarningServiceListDagWarningsDefaultResponse = Awaited<
   ReturnType<typeof DagWarningService.listDagWarnings>
 >;
@@ -1596,11 +1613,17 @@ export type AssetServiceCreateAssetEventMutationResult = Awaited<
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
 >;
+export type BackfillServiceCreateBackfillDryRunMutationResult = Awaited<
+  ReturnType<typeof BackfillService.createBackfillDryRun>
+>;
 export type ConnectionServicePostConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.postConnection>
 >;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.testConnection>
+>;
+export type ConnectionServiceCreateDefaultConnectionsMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.createDefaultConnections>
 >;
 export type DagRunServiceClearDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRun>>;
 export type DagRunServiceTriggerDagRunMutationResult = Awaited<
@@ -1618,9 +1641,6 @@ export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<
 export type PoolServicePostPoolMutationResult = Awaited<ReturnType<typeof PoolService.postPool>>;
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
->;
-export type VariableServiceImportVariablesMutationResult = Awaited<
-  ReturnType<typeof VariableService.importVariables>
 >;
 export type BackfillServicePauseBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.pauseBackfill>
@@ -1653,6 +1673,9 @@ export type TaskInstanceServicePatchTaskInstance1MutationResult = Awaited<
 export type PoolServicePatchPoolMutationResult = Awaited<ReturnType<typeof PoolService.patchPool>>;
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
+>;
+export type VariableServiceBulkVariablesMutationResult = Awaited<
+  ReturnType<typeof VariableService.bulkVariables>
 >;
 export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<
   ReturnType<typeof AssetService.deleteAssetQueuedEvents>

@@ -32,7 +32,7 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.operator import Operator
+    from airflow.sdk.types import Operator
 
 _SUCCESSFUL_STATES = (TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)
 

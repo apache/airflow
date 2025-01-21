@@ -116,6 +116,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   tests:
     timeout-minutes: 120

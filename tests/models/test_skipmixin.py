@@ -65,7 +65,7 @@ class TestSkipMixin:
             logical_date=now,
             state=State.FAILED,
         )
-        SkipMixin().skip(dag_run=dag_run, tasks=tasks)
+        SkipMixin().skip(dag_id=dag_run.dag_id, run_id=dag_run.run_id, tasks=tasks)
 
         session.query(TI).filter(
             TI.dag_id == "dag",
@@ -77,7 +77,7 @@ class TestSkipMixin:
 
     def test_skip_none_tasks(self):
         session = Mock()
-        SkipMixin().skip(dag_run=None, tasks=[])
+        SkipMixin().skip(dag_id="test_dag", run_id="test_run", tasks=[])
         assert not session.query.called
         assert not session.commit.called
 
@@ -92,7 +92,7 @@ class TestSkipMixin:
         ],
         ids=["list-of-task-ids", "tuple-of-task-ids", "str-task-id", "None", "empty-list"],
     )
-    def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states):
+    def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states, session):
         with dag_maker(
             "dag_test_skip_all_except",
             serialized=True,
@@ -109,6 +109,8 @@ class TestSkipMixin:
         ti3 = TI(task3, run_id=DEFAULT_DAG_RUN_ID)
 
         SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
+
+        session.expire_all()
 
         def get_state(ti):
             ti.refresh_from_db()

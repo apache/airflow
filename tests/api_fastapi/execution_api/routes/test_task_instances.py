@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 import uuid6
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
@@ -88,6 +88,7 @@ class TestTIRunState:
                 "run_type": "manual",
                 "conf": {},
             },
+            "max_tries": 0,
             "variables": [],
             "connections": [],
         }
@@ -135,6 +136,92 @@ class TestTIRunState:
         }
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
+
+    def test_xcom_cleared_when_ti_runs(self, client, session, create_task_instance, time_machine):
+        """
+        Test that the xcoms are cleared when the Task Instance state is updated to running.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_xcom_cleared_when_ti_runs",
+            state=State.QUEUED,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        # Lets stage a xcom push
+        ti.xcom_push(key="key", value="value")
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        # Once the task is running, we can check if xcom is cleared
+        assert ti.xcom_pull(task_ids="test_xcom_cleared_when_ti_runs", key="key") is None
+
+    def test_xcom_not_cleared_for_deferral(self, client, session, create_task_instance, time_machine):
+        """
+        Test that the xcoms are not cleared when the Task Instance state is re-running after deferral.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_xcom_not_cleared_for_deferral",
+            state=State.RUNNING,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        # Move this task to deferred
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+            "trigger_timeout": "P1D",  # 1 day
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        # Deferred -> Queued so that we can run it again
+        query = update(TaskInstance).where(TaskInstance.id == ti.id).values(state="queued")
+        session.execute(query)
+        session.commit()
+
+        # Lets stage a xcom push
+        ti.xcom_push(key="key", value="value")
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        assert ti.xcom_pull(task_ids="test_xcom_not_cleared_for_deferral", key="key") == "value"
 
 
 class TestTIUpdateState:
@@ -698,3 +785,68 @@ class TestTIPutRTIF:
         response = client.put(f"/execution/task-instances/{random_id}/rtif", json=payload)
         assert response.status_code == 404
         assert response.json()["detail"] == "Not Found"
+
+
+class TestPreviousDagRun:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_ti_previous_dag_run(self, client, session, create_task_instance, dag_maker):
+        """Test that the previous dag run is returned correctly for a task instance."""
+        ti = create_task_instance(
+            task_id="test_ti_previous_dag_run",
+            dag_id="test_dag",
+            logical_date=timezone.datetime(2025, 1, 19),
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 17),
+            session=session,
+        )
+        session.commit()
+
+        # Create 2 DagRuns for the same DAG to verify that the correct DagRun (last) is returned
+        dr1 = dag_maker.create_dagrun(
+            run_id="test_run_id_1",
+            logical_date=timezone.datetime(2025, 1, 17),
+            run_type="scheduled",
+            state=State.SUCCESS,
+            session=session,
+        )
+        dr1.end_date = timezone.datetime(2025, 1, 17, 1, 0, 0)
+
+        dr2 = dag_maker.create_dagrun(
+            run_id="test_run_id_2",
+            logical_date=timezone.datetime(2025, 1, 18),
+            run_type="scheduled",
+            state=State.SUCCESS,
+            session=session,
+        )
+
+        dr2.end_date = timezone.datetime(2025, 1, 18, 1, 0, 0)
+
+        session.commit()
+
+        response = client.get(f"/execution/task-instances/{ti.id}/previous-successful-dagrun")
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": "2025-01-18T00:00:00Z",
+            "data_interval_end": "2025-01-19T00:00:00Z",
+            "start_date": "2024-01-17T00:00:00Z",
+            "end_date": "2025-01-18T01:00:00Z",
+        }
+
+    def test_ti_previous_dag_run_not_found(self, client, session):
+        ti_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+
+        assert session.get(TaskInstance, ti_id) is None
+
+        response = client.get(f"/execution/task-instances/{ti_id}/previous-successful-dagrun")
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "start_date": None,
+            "end_date": None,
+        }

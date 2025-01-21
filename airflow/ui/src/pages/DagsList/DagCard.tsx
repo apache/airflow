@@ -41,7 +41,7 @@ export const DagCard = ({ dag }: Props) => {
     <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden">
       <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" px={3} py={2}>
         <HStack>
-          <Tooltip content={dag.description} disabled={!Boolean(dag.description)} showArrow>
+          <Tooltip content={dag.description} disabled={!Boolean(dag.description)}>
             <Link asChild color="fg.info" fontWeight="bold">
               <RouterLink to={`/dags/${dag.dag_id}`}>{dag.dag_display_name}</RouterLink>
             </Link>

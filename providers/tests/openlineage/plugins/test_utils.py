@@ -28,7 +28,7 @@ from attrs import define
 from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
-from airflow.models import DAG as AIRFLOW_DAG, DagModel
+from airflow.models import DagModel
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
@@ -47,6 +47,7 @@ from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import (
     BashOperator,
@@ -91,19 +92,29 @@ def test_get_airflow_debug_facet_logging_set_to_debug(mock_debug_mode, mock_get_
 
 
 @pytest.mark.db_test
-def test_get_dagrun_start_end():
+def test_get_dagrun_start_end(dag_maker):
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)
-    dag = AIRFLOW_DAG("test", start_date=start_date, end_date=end_date, schedule="@once")
-    AIRFLOW_DAG.bulk_write_to_db([dag])
+    with dag_maker("test", start_date=start_date, end_date=end_date, schedule="@once") as dag:
+        pass
+    dag_maker.sync_dagbag_to_db()
     dag_model = DagModel.get_dagmodel(dag.dag_id)
+
     run_id = str(uuid.uuid1())
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    data_interval = dag.get_next_data_interval(dag_model)
+    if AIRFLOW_V_3_0_PLUS:
+        dagrun_kwargs = {
+            "logical_date": data_interval.start,
+            "triggered_by": DagRunTriggeredByType.TEST,
+        }
+    else:
+        dagrun_kwargs = {"execution_date": data_interval.start}
     dagrun = dag.create_dagrun(
         state=State.NONE,
         run_id=run_id,
-        data_interval=dag.get_next_data_interval(dag_model),
-        **triggered_by_kwargs,
+        run_type=DagRunType.MANUAL,
+        data_interval=data_interval,
+        **dagrun_kwargs,
     )
     assert dagrun.data_interval_start is not None
     start_date_tz = datetime.datetime(2022, 1, 1, tzinfo=timezone.utc)

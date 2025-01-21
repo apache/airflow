@@ -19,9 +19,9 @@ from __future__ import annotations
 import pendulum
 import pytest
 
-from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel
-from airflow.security import permissions
+from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.providers.fab.www.security import permissions
 from airflow.utils.session import provide_session
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user

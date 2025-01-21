@@ -241,6 +241,22 @@ option_start_webserver_with_examples = click.option(
     envvar="START_WEBSERVER_WITH_EXAMPLES",
 )
 
+option_load_example_dags = click.option(
+    "-e",
+    "--load-example-dags",
+    help="Enable configuration to load example DAGs when starting Airflow.",
+    is_flag=True,
+    envvar="LOAD_EXAMPLES",
+)
+
+option_load_default_connections = click.option(
+    "-c",
+    "--load-default-connections",
+    help="Enable configuration to load default connections when starting Airflow.",
+    is_flag=True,
+    envvar="LOAD_DEFAULT_CONNECTIONS",
+)
+
 
 @main.command()
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -288,6 +304,8 @@ option_start_webserver_with_examples = click.option(
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
 @option_installation_package_format
+@option_load_example_dags
+@option_load_default_connections
 @option_all_integration
 @option_keep_env_variables
 @option_max_time
@@ -343,6 +361,8 @@ def shell(
     install_airflow_python_client: bool,
     integration: tuple[str, ...],
     keep_env_variables: bool,
+    load_example_dags: bool,
+    load_default_connections: bool,
     max_time: int | None,
     mount_sources: str,
     mysql_version: str,
@@ -412,6 +432,8 @@ def shell(
         install_selected_providers=install_selected_providers,
         integration=integration,
         keep_env_variables=keep_env_variables,
+        load_example_dags=load_example_dags,
+        load_default_connections=load_default_connections,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
@@ -446,22 +468,6 @@ def shell(
     fix_ownership_using_docker()
     sys.exit(result.returncode)
 
-
-option_load_example_dags = click.option(
-    "-e",
-    "--load-example-dags",
-    help="Enable configuration to load example DAGs when starting Airflow.",
-    is_flag=True,
-    envvar="LOAD_EXAMPLES",
-)
-
-option_load_default_connection = click.option(
-    "-c",
-    "--load-default-connections",
-    help="Enable configuration to load default connections when starting Airflow.",
-    is_flag=True,
-    envvar="LOAD_DEFAULT_CONNECTIONS",
-)
 
 option_executor_start_airflow = click.option(
     "--executor",
@@ -506,7 +512,7 @@ option_executor_start_airflow = click.option(
 @option_installation_package_format
 @option_install_selected_providers
 @option_all_integration
-@option_load_default_connection
+@option_load_default_connections
 @option_load_example_dags
 @option_mount_sources
 @option_mysql_version
@@ -667,6 +673,11 @@ def start_airflow(
     is_flag=True,
 )
 @click.option(
+    "--skip-deletion",
+    help="Skip deletion of generated new packages documentation in `docs/apache-airflow-providers-*`.",
+    is_flag=True,
+)
+@click.option(
     "--package-filter",
     help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
     "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
@@ -694,6 +705,7 @@ def build_docs(
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     one_pass_only: bool,
+    skip_deletion: bool,
     package_filter: tuple[str, ...],
     package_list: str,
     spellcheck_only: bool,
@@ -710,11 +722,15 @@ def build_docs(
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
-        docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
-        for dir_name in ["_build", "_doctrees", "_inventory_cache", "_api"]:
-            for directory in docs_dir.rglob(dir_name):
-                get_console().print(f"[info]Removing {directory}")
-                shutil.rmtree(directory, ignore_errors=True)
+        directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "_api"]
+    else:
+        directories_to_clean = ["_api"]
+    docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+    for dir_name in directories_to_clean:
+        for directory in docs_dir.rglob(dir_name):
+            get_console().print(f"[info]Removing {directory}")
+            shutil.rmtree(directory, ignore_errors=True)
+
     docs_list_as_tuple: tuple[str, ...] = ()
     if package_list and len(package_list):
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
@@ -730,6 +746,7 @@ def build_docs(
         package_filter=package_filter,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
+        skip_deletion=skip_deletion,
         one_pass_only=one_pass_only,
         short_doc_packages=expand_all_provider_packages(
             short_doc_packages=doc_packages,

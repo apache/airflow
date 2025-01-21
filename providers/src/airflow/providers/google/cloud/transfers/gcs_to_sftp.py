@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
@@ -129,13 +130,15 @@ class GCSToSFTPOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.sftp_dirs = None
 
+    @cached_property
+    def sftp_hook(self):
+        return SFTPHook(self.sftp_conn_id)
+
     def execute(self, context: Context):
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-
-        sftp_hook = SFTPHook(self.sftp_conn_id)
 
         if WILDCARD in self.source_object:
             total_wildcards = self.source_object.count(WILDCARD)
@@ -155,12 +158,12 @@ class GCSToSFTPOperator(BaseOperator):
 
             for source_object in objects:
                 destination_path = self._resolve_destination_path(source_object, prefix=prefix_dirname)
-                self._copy_single_object(gcs_hook, sftp_hook, source_object, destination_path)
+                self._copy_single_object(gcs_hook, self.sftp_hook, source_object, destination_path)
 
             self.log.info("Done. Uploaded '%d' files to %s", len(objects), self.destination_path)
         else:
             destination_path = self._resolve_destination_path(self.source_object)
-            self._copy_single_object(gcs_hook, sftp_hook, self.source_object, destination_path)
+            self._copy_single_object(gcs_hook, self.sftp_hook, self.source_object, destination_path)
             self.log.info("Done. Uploaded '%s' file to %s", self.source_object, destination_path)
 
     def _resolve_destination_path(self, source_object: str, prefix: str | None = None) -> str:
@@ -200,3 +203,32 @@ class GCSToSFTPOperator(BaseOperator):
         if self.move_object:
             self.log.info("Executing delete of gs://%s/%s", self.source_bucket, source_object)
             gcs_hook.delete(self.source_bucket, source_object)
+
+    def get_openlineage_facets_on_start(self):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import extract_ds_name_from_gcs_path
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        source_name = extract_ds_name_from_gcs_path(f"{self.source_object}")
+        dest_name = f"{self.destination_path}"
+        if self.keep_directory_structure:
+            dest_name = os.path.join(dest_name, source_name if source_name != "/" else "")
+        elif WILDCARD not in self.source_object:
+            dest_name = os.path.join(dest_name, os.path.basename(self.source_object))
+
+        dest_name = dest_name.rstrip("/") if dest_name != "/" else "/"
+
+        return OperatorLineage(
+            inputs=[
+                Dataset(
+                    namespace=f"gs://{self.source_bucket}",
+                    name=source_name,
+                )
+            ],
+            outputs=[
+                Dataset(
+                    namespace=f"file://{self.sftp_hook.remote_host}:{self.sftp_hook.port}",
+                    name=dest_name,
+                )
+            ],
+        )

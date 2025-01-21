@@ -28,7 +28,7 @@ import sys
 import textwrap
 from collections.abc import Generator
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import TYPE_CHECKING, Protocol, Union, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
 from pendulum.parsing.exceptions import ParserError
@@ -50,7 +50,6 @@ from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
-from airflow.typing_compat import Literal
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import (
     get_dag,
@@ -67,16 +66,18 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.operator import Operator
 
-log = logging.getLogger(__name__)
+    CreateIfNecessary = Literal[False, "db", "memory"]
 
-CreateIfNecessary = Union[Literal[False], Literal["db"], Literal["memory"]]
+log = logging.getLogger(__name__)
 
 
 def _generate_temporary_run_id() -> str:
@@ -179,12 +180,14 @@ def _get_dag_run(
         return dag_run, True
     elif create_if_necessary == "db":
         dag_run = dag.create_dagrun(
-            state=DagRunState.QUEUED,
-            logical_date=dag_run_logical_date,
             run_id=_generate_temporary_run_id(),
+            logical_date=dag_run_logical_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
-            session=session,
+            run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
+            dag_version=None,
+            state=DagRunState.QUEUED,
+            session=session,
         )
         return dag_run, True
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
@@ -203,6 +206,11 @@ def _get_ti(
     dag = task.dag
     if dag is None:
         raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+    if not isinstance(dag, DAG):
+        # TODO: Task-SDK: Shouldn't really happen, and this command will go away before 3.0
+        raise ValueError(
+            f"We need a {DAG.__module__}.DAG, but we got {type(dag).__module__}.{type(dag).__name__}!"
+        )
 
     # this check is imperfect because diff dags could have tasks with same name
     # but in a task, dag_id is a property that accesses its dag, and we don't
@@ -244,6 +252,9 @@ def _get_ti(
     # we do refresh_from_task so that if TI has come back via RPC, we ensure that ti.task
     # is the original task object and not the result of the round trip
     ti.refresh_from_task(task, pool_override=pool)
+
+    ti.dag_model  # we must ensure dag model is loaded eagerly for bundle info
+
     return ti, dr_created
 
 
@@ -285,8 +296,9 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
     if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
         from airflow.executors import workloads
 
-        workload = workloads.ExecuteTask.make(ti, dag_path=dag.relative_fileloc)
-        executor.queue_workload(workload)
+        workload = workloads.ExecuteTask.make(ti, dag_rel_path=dag.relative_fileloc)
+        with create_session() as session:
+            executor.queue_workload(workload, session)
     else:
         executor.queue_task_instance(
             ti,

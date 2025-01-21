@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import tuple_, update
 
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -33,9 +34,8 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
-    from airflow.sdk.definitions.node import DAGNode
+    from airflow.sdk.definitions._internal.node import DAGNode
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -59,7 +59,8 @@ class SkipMixin(LoggingMixin):
 
     @staticmethod
     def _set_state_to_skipped(
-        dag_run: DagRun,
+        dag_id: str,
+        run_id: str,
         tasks: Sequence[str] | Sequence[tuple[str, int]],
         session: Session,
     ) -> None:
@@ -71,8 +72,8 @@ class SkipMixin(LoggingMixin):
                 session.execute(
                     update(TaskInstance)
                     .where(
-                        TaskInstance.dag_id == dag_run.dag_id,
-                        TaskInstance.run_id == dag_run.run_id,
+                        TaskInstance.dag_id == dag_id,
+                        TaskInstance.run_id == run_id,
                         tuple_(TaskInstance.task_id, TaskInstance.map_index).in_(tasks),
                     )
                     .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
@@ -82,8 +83,8 @@ class SkipMixin(LoggingMixin):
                 session.execute(
                     update(TaskInstance)
                     .where(
-                        TaskInstance.dag_id == dag_run.dag_id,
-                        TaskInstance.run_id == dag_run.run_id,
+                        TaskInstance.dag_id == dag_id,
+                        TaskInstance.run_id == run_id,
                         TaskInstance.task_id.in_(tasks),
                     )
                     .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
@@ -93,7 +94,8 @@ class SkipMixin(LoggingMixin):
     @provide_session
     def skip(
         self,
-        dag_run: DagRun,
+        dag_id: str,
+        run_id: str,
         tasks: Iterable[DAGNode],
         map_index: int = -1,
         session: Session = NEW_SESSION,
@@ -105,7 +107,8 @@ class SkipMixin(LoggingMixin):
         so that NotPreviouslySkippedDep knows these tasks should be skipped when they
         are cleared.
 
-        :param dag_run: the DagRun for which to set the tasks to skipped
+        :param dag_id: the dag_id of the dag run for which to set the tasks to skipped
+        :param run_id: the run_id of the dag run for which to set the tasks to skipped
         :param tasks: tasks to skip (not task_ids)
         :param session: db session to use
         :param map_index: map_index of the current task instance
@@ -116,11 +119,8 @@ class SkipMixin(LoggingMixin):
         if not task_list:
             return
 
-        if dag_run is None:
-            raise ValueError("dag_run is required")
-
         task_ids_list = [d.task_id for d in task_list]
-        SkipMixin._set_state_to_skipped(dag_run, task_ids_list, session)
+        SkipMixin._set_state_to_skipped(dag_id, run_id, task_ids_list, session)
         session.commit()
 
         if task_id is not None:
@@ -130,18 +130,16 @@ class SkipMixin(LoggingMixin):
                 key=XCOM_SKIPMIXIN_KEY,
                 value={XCOM_SKIPMIXIN_SKIPPED: task_ids_list},
                 task_id=task_id,
-                dag_id=dag_run.dag_id,
-                run_id=dag_run.run_id,
+                dag_id=dag_id,
+                run_id=run_id,
                 map_index=map_index,
                 session=session,
             )
 
-    @provide_session
     def skip_all_except(
         self,
         ti: TaskInstance,
         branch_task_ids: None | str | Iterable[str],
-        session: Session = NEW_SESSION,
     ):
         """
         Implement the logic for a branching operator.
@@ -178,12 +176,11 @@ class SkipMixin(LoggingMixin):
 
         log.info("Following branch %s", branch_task_id_set)
 
-        dag_run = ti.get_dagrun(session=session)
         if TYPE_CHECKING:
-            assert isinstance(dag_run, DagRun)
             assert ti.task
 
         task = ti.task
+        session = settings.Session()
         dag = TaskInstance.ensure_dag(ti, session=session)
 
         valid_task_ids = set(dag.task_ids)
@@ -212,6 +209,7 @@ class SkipMixin(LoggingMixin):
             for branch_task_id in list(branch_task_id_set):
                 branch_task_id_set.update(dag.get_task(branch_task_id).get_flat_relative_ids(upstream=False))
 
+            dag_run = ti.get_dagrun(session=session)
             skip_tasks = [
                 (t.task_id, downstream_ti.map_index)
                 for t in downstream_tasks
@@ -225,7 +223,7 @@ class SkipMixin(LoggingMixin):
 
             follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_id_set]
             log.info("Skipping tasks %s", skip_tasks)
-            SkipMixin._set_state_to_skipped(dag_run, skip_tasks, session=session)
+            SkipMixin._set_state_to_skipped(dag_run.dag_id, dag_run.run_id, skip_tasks, session=session)
             ti.xcom_push(
                 key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids}, session=session
             )

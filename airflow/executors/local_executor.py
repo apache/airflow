@@ -37,9 +37,12 @@ from setproctitle import setproctitle
 
 from airflow import settings
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.executors import workloads
 
     TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Optional[Exception]]
@@ -113,7 +116,8 @@ def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
         ti=workload.ti,  # type: ignore[arg-type]
-        dag_path=workload.dag_path,
+        dag_rel_path=workload.dag_rel_path,
+        bundle_info=workload.bundle_info,
         token=workload.token,
         server=conf.get("workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"),
         log_path=workload.log_path,
@@ -239,7 +243,8 @@ class LocalExecutor(BaseExecutor):
     def terminate(self):
         """Terminate the executor is not doing anything."""
 
-    def queue_workload(self, workload: workloads.All):
+    @provide_session
+    def queue_workload(self, workload: workloads.All, session: Session = NEW_SESSION):
         self.activity_queue.put(workload)
         with self._unread_messages:
             self._unread_messages.value += 1

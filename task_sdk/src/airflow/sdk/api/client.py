@@ -34,8 +34,10 @@ from uuid6 import uuid7
 
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     DagRunType,
+    PrevSuccessfulDagRunResponse,
     TerminalTIState,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
@@ -160,6 +162,15 @@ class TaskInstanceOperations:
         # decouple from the server response string
         return {"ok": True}
 
+    def get_previous_successful_dagrun(self, id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
+        """
+        Get the previous successful dag run for a given task instance.
+
+        The data from it is used to get values for Task Context.
+        """
+        resp = self.client.get(f"task-instances/{id}/previous-successful-dagrun")
+        return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
+
 
 class ConnectionOperations:
     __slots__ = ("client",)
@@ -180,6 +191,7 @@ class ConnectionOperations:
                     status_code=e.response.status_code,
                 )
                 return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
+            raise
         return ConnectionResponse.model_validate_json(resp.read())
 
 
@@ -189,9 +201,20 @@ class VariableOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, key: str) -> VariableResponse:
+    def get(self, key: str) -> VariableResponse | ErrorResponse:
         """Get a variable from the API server."""
-        resp = self.client.get(f"variables/{key}")
+        try:
+            resp = self.client.get(f"variables/{key}")
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "Variable not found",
+                    key=key,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key})
+            raise
         return VariableResponse.model_validate_json(resp.read())
 
     def set(self, key: str, value: str | None, description: str | None = None):
@@ -256,6 +279,24 @@ class XComOperations:
         return {"ok": True}
 
 
+class AssetOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, name: str | None = None, uri: str | None = None) -> AssetResponse:
+        """Get Asset value from the API server."""
+        if name:
+            resp = self.client.get("assets/by-name", params={"name": name})
+        elif uri:
+            resp = self.client.get("assets/by-uri", params={"uri": uri})
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+
+        return AssetResponse.model_validate_json(resp.read())
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -284,6 +325,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
                     "start_date": "2021-01-01T00:00:00Z",
                     "run_type": DagRunType.MANUAL,
                 },
+                "max_tries": 0,
             },
         )
     return httpx.Response(200, json={"text": "Hello, world!"})
@@ -361,6 +403,12 @@ class Client(httpx.Client):
     def xcoms(self) -> XComOperations:
         """Operations related to XComs."""
         return XComOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def assets(self) -> AssetOperations:
+        """Operations related to XComs."""
+        return AssetOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

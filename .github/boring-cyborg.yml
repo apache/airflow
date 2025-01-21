@@ -19,10 +19,7 @@
 
 labelPRBasedOnFilePath:
   provider:airbyte:
-    - providers/src/airflow/providers/airbyte/**/*
-    - docs/apache-airflow-providers-airbyte/**/*
-    - providers/tests/airbyte/**/*
-    - providers/tests/system/airbyte/**/*
+    - providers/airbyte/**
 
   provider:alibaba:
     - providers/src/airflow/providers/alibaba/**/*
@@ -77,10 +74,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/hive/**/*
 
   provider:apache-iceberg:
-    - providers/src/airflow/providers/apache/iceberg/**/*
-    - docs/apache-airflow-providers-apache-iceberg/**/*
-    - providers/tests/apache/iceberg/**/*
-    - providers/tests/system/apache/iceberg/**/*
+    - providers/apache/iceberg/**
 
   provider:apache-impala:
     - providers/src/airflow/providers/apache/impala/**/*
@@ -145,9 +139,7 @@ labelPRBasedOnFilePath:
     - providers/tests/atlassian/jira/**/*
 
   provider:celery:
-    - providers/src/airflow/providers/celery/**/*
-    - docs/apache-airflow-providers-celery/**/*
-    - providers/tests/celery/**/*
+    - providers/celery/**
 
   provider:cloudant:
     - providers/src/airflow/providers/cloudant/**/*
@@ -158,7 +150,7 @@ labelPRBasedOnFilePath:
     - airflow/example_dags/example_kubernetes_executor.py
     - airflow/example_dags/example_local_kubernetes_executor.py
     - providers/src/airflow/providers/cncf/kubernetes/**/*
-    - providers/src/airflow/providers/celery/executors/celery_kubernetes_executor.py
+    - providers/celery/src/airflow/providers/celery/executors/celery_kubernetes_executor.py
     - docs/apache-airflow-providers-cncf-kubernetes/**/*
     - kubernetes_tests/**/*
     - providers/tests/cncf/kubernetes/**/*
@@ -226,9 +218,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/docker/**/*
 
   provider:edge:
-    - providers/src/airflow/providers/edge/**/*
-    - docs/apache-airflow-providers-edge/**/*
-    - providers/tests/edge/**/*
+    - providers/edge/**
 
   provider:elasticsearch:
     - providers/src/airflow/providers/elasticsearch/**/*
