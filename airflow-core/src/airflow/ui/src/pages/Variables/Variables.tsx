@@ -18,7 +18,7 @@
  */
 import { useState } from "react";
 
-import { Box, Flex, useDisclosure } from "@chakra-ui/react";
+import { Box, Flex, Spacer, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -48,6 +48,7 @@ import { useConfig } from "src/queries/useConfig.tsx";
 import { useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
+import { BackendsOrderCard } from "./BackendsOrderCard";
 import DeleteVariablesButton from "./DeleteVariablesButton";
 import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
@@ -113,11 +114,11 @@ const getColumns = ({
     },
     ...(multiTeam
       ? [
-          {
-            accessorKey: "team_name",
-            header: translate("columns.team"),
-          },
-        ]
+        {
+          accessorKey: "team_name",
+          header: translate("columns.team"),
+        },
+      ]
       : []),
     {
       accessorKey: "actions",
@@ -202,6 +203,8 @@ export const Variables = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
+      <BackendsOrderCard />
+      <Spacer />
       <DataTable
         columns={columns}
         data={variables}

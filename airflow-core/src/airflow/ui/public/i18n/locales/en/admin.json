@@ -148,6 +148,7 @@
   },
   "variables": {
     "add": "Add $t(variables.variable_one)",
+    "backendsOrder": "Secret backends order",
     "columns": {
       "isEncrypted": "Is Encrypted"
     },
