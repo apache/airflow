@@ -47,7 +47,7 @@ from airflow.utils.log.file_task_handler import (
     LogType,
     _fetch_logs_from_service,
     _interleave_logs,
-    _parse_timestamps_in_log_file,
+    _get_parsed_log_stream,
 )
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.net import get_hostname
@@ -680,11 +680,12 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 """
 
 
-def test_parse_timestamps():
-    actual = []
-    for timestamp, _, _ in _parse_timestamps_in_log_file(log_sample.splitlines()):
-        actual.append(timestamp)
-    assert actual == [
+def test_get_parsed_log_stream(tmp_path):
+    log_path: Path = tmp_path / "test_parsed_log_stream.log"
+    log_path.write_text(log_sample)
+    expected_line_num = 0
+    expected_lines = log_sample.splitlines()
+    expected_timestamps = [
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
@@ -706,6 +707,13 @@ def test_parse_timestamps():
         pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.604000-08:00"),
     ]
+    for record in _get_parsed_log_stream(log_path):
+        assert record == (
+            expected_timestamps[expected_line_num],
+            expected_line_num,
+            expected_lines[expected_line_num],
+        )
+        expected_line_num += 1
 
 
 def test_interleave_interleaves():
