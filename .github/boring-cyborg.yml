@@ -22,10 +22,7 @@ labelPRBasedOnFilePath:
     - providers/airbyte/**
 
   provider:alibaba:
-    - providers/src/airflow/providers/alibaba/**/*
-    - docs/apache-airflow-providers-alibaba/**/*
-    - providers/tests/alibaba/**/*
-    - providers/tests/system/alibaba/**/*
+    - providers/alibaba/**
 
   provider:amazon:
     - providers/src/airflow/providers/amazon/**/*
@@ -173,15 +170,10 @@ labelPRBasedOnFilePath:
     - providers/tests/system/common/io/**/*
 
   provider:common-sql:
-    - providers/src/airflow/providers/common/sql/**/*
-    - docs/apache-airflow-providers-common-sql/**/*
-    - providers/tests/common/sql/**/*
-    - providers/tests/system/common/sql/**/*
+    - providers/common/sql/**
 
   provider:standard:
-    - providers/src/airflow/providers/standard/**/*
-    - docs/apache-airflow-providers-standard/**/*
-    - providers/tests/standard/**/*
+    - providers/standard/**
 
   provider:databricks:
     - providers/src/airflow/providers/databricks/**/*
@@ -647,12 +639,12 @@ labelPRBasedOnFilePath:
     - airflow/cli/commands/local_commands/triggerer_command.py
     - airflow/jobs/triggerer_job_runner.py
     - airflow/models/trigger.py
-    - providers/src/airflow/providers/standard/triggers/**/*
+    - providers/standard/src/airflow/providers/standard/triggers/**/*
     - tests/cli/commands/local_commands/test_triggerer_command.py
     - tests/jobs/test_triggerer_job.py
     - tests/models/test_trigger.py
     - tests/jobs/test_triggerer_job_logging.py
-    - providers/tests/standard/triggers/**/*
+    - providers/standard/tests/provider_tests/standard/triggers/**/*
 
   area:Serialization:
     - airflow/serialization/**/*

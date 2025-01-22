@@ -71,7 +71,7 @@ def get_provider_info():
             {
                 "integration-name": "Celery",
                 "external-doc-url": "https://docs.celeryq.dev/en/stable/",
-                "logo": "/docs/integration-logo/Celery.png",
+                "logo": "/docs/integration-logos/Celery.png",
                 "tags": ["software"],
             }
         ],
