@@ -220,7 +220,6 @@ Scarf based telemetry: Airflow now collect telemetry data (#39510)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 Airflow integrates Scarf to collect basic usage data during operation. Deployments can opt-out of data collection by
 setting the ``[usage_data_collection]enabled`` option to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
-See :ref:`Usage data collection FAQ <usage-data-collection>` for more information.
 
 Datasets no longer trigger inactive DAGs (#38891)
 """""""""""""""""""""""""""""""""""""""""""""""""
