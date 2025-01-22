@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 import os
-from typing import Annotated, cast
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Response, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -27,14 +27,22 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkAction
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
+    ConnectionBulkActionResponse,
     ConnectionBulkBody,
+    ConnectionBulkResponse,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.connections import (
+    handle_bulk_create,
+    handle_bulk_delete,
+    handle_bulk_update,
+)
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
@@ -136,52 +144,26 @@ def post_connection(
     return connection
 
 
-@connections_router.put(
-    "/bulk",
-    responses={
-        **create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
-        status.HTTP_201_CREATED: {
-            "description": "Created",
-            "model": ConnectionCollectionResponse,
-        },
-        status.HTTP_200_OK: {
-            "description": "Created with overwrite",
-            "model": ConnectionCollectionResponse,
-        },
-    },
-)
-def put_connections(
-    response: Response,
-    post_body: ConnectionBulkBody,
+@connections_router.patch("")
+def bulk_connections(
+    request: ConnectionBulkBody,
     session: SessionDep,
-) -> ConnectionCollectionResponse:
-    """Create connection entry."""
-    response.status_code = status.HTTP_201_CREATED if not post_body.overwrite else status.HTTP_200_OK
-    connections: list[Connection]
-    if not post_body.overwrite:
-        connections = [Connection(**body.model_dump(by_alias=True)) for body in post_body.connections]
-        session.add_all(connections)
-    else:
-        connection_ids = [conn.connection_id for conn in post_body.connections]
-        existed_connections = session.execute(
-            select(Connection).filter(Connection.conn_id.in_(connection_ids))
-        ).scalars()
-        existed_connections_dict = {conn.conn_id: conn for conn in existed_connections}
-        connections = []
-        # if conn_id exists, update the corresponding connection, else add a new connection
-        for body in post_body.connections:
-            if body.connection_id in existed_connections_dict:
-                connection = existed_connections_dict[body.connection_id]
-                for key, val in body.model_dump(by_alias=True).items():
-                    setattr(connection, key, val)
-                connections.append(connection)
-            else:
-                connections.append(Connection(**body.model_dump(by_alias=True)))
-        session.add_all(connections)
-    return ConnectionCollectionResponse(
-        connections=cast(list[ConnectionResponse], connections),
-        total_entries=len(connections),
-    )
+) -> ConnectionBulkResponse:
+    """Bulk create, update, and delete connections."""
+    results: dict[str, ConnectionBulkActionResponse] = {}
+
+    for action in request.actions:
+        if action.action.value not in results:
+            results[action.action.value] = ConnectionBulkActionResponse()
+
+        if action.action == BulkAction.CREATE:
+            handle_bulk_create(session, action, results[action.action.value])  # type: ignore
+        elif action.action == BulkAction.UPDATE:
+            handle_bulk_update(session, action, results[action.action.value])  # type: ignore
+        elif action.action == BulkAction.DELETE:
+            handle_bulk_delete(session, action, results[action.action.value])  # type: ignore
+
+    return ConnectionBulkResponse(**results)
 
 
 @connections_router.patch(
@@ -243,7 +225,7 @@ def test_connection(
 
     This method first creates an in-memory transient conn_id & exports that to an env var,
     as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
-    It also deletes the conn id env variable after the test.
+    It also deletes the conn id env connection after the test.
     """
     if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
         raise HTTPException(

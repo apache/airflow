@@ -16,37 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { FiSettings } from "react-icons/fi";
-import { Link } from "react-router-dom";
 
-import { Menu } from "src/components/ui";
-
-import { NavButton } from "./NavButton";
-
-const links = [
-  {
-    href: "/variables",
-    title: "Variables",
-  },
-  {
-    href: "/pools",
-    title: "Pools",
-  },
-];
-
-export const AdminButton = () => (
-  <Menu.Root positioning={{ placement: "right" }}>
-    <Menu.Trigger asChild>
-      <NavButton icon={<FiSettings size="1.75rem" />} title="Admin" />
-    </Menu.Trigger>
-    <Menu.Content>
-      {links.map((link) => (
-        <Menu.Item asChild key={link.title} value={link.title}>
-          <Link aria-label={link.title} to={link.href}>
-            {link.title}
-          </Link>
-        </Menu.Item>
-      ))}
-    </Menu.Content>
-  </Menu.Root>
-);
+export { Pools } from "./Pools";

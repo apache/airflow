@@ -16,37 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { FiSettings } from "react-icons/fi";
-import { Link } from "react-router-dom";
+import { Box, Skeleton } from "@chakra-ui/react";
 
-import { Menu } from "src/components/ui";
+import { usePoolServiceGetPools } from "openapi/queries";
+import { ErrorAlert } from "src/components/ErrorAlert";
 
-import { NavButton } from "./NavButton";
+import PoolBar from "./PoolBar";
 
-const links = [
-  {
-    href: "/variables",
-    title: "Variables",
-  },
-  {
-    href: "/pools",
-    title: "Pools",
-  },
-];
+export const Pools = () => {
+  const { data, error, isLoading } = usePoolServiceGetPools();
 
-export const AdminButton = () => (
-  <Menu.Root positioning={{ placement: "right" }}>
-    <Menu.Trigger asChild>
-      <NavButton icon={<FiSettings size="1.75rem" />} title="Admin" />
-    </Menu.Trigger>
-    <Menu.Content>
-      {links.map((link) => (
-        <Menu.Item asChild key={link.title} value={link.title}>
-          <Link aria-label={link.title} to={link.href}>
-            {link.title}
-          </Link>
-        </Menu.Item>
-      ))}
-    </Menu.Content>
-  </Menu.Root>
-);
+  return isLoading ? (
+    <Skeleton height="30" />
+  ) : (
+    <>
+      <ErrorAlert error={error} />
+      <Box p={2}>{data?.pools.map((pool) => <PoolBar key={pool.name} pool={pool} />)}</Box>
+    </>
+  );
+};

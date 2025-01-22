@@ -113,7 +113,7 @@ class TestCliTasks:
             else {}
         )
         cls.dag_run = cls.dag.create_dagrun(
-            state=State.NONE,
+            state=State.RUNNING,
             run_id=cls.run_id,
             run_type=DagRunType.MANUAL,
             logical_date=DEFAULT_DATE,
@@ -184,7 +184,7 @@ class TestCliTasks:
             else {}
         )
         dag.create_dagrun(
-            state=State.NONE,
+            state=State.RUNNING,
             run_id="abc123",
             run_type=DagRunType.MANUAL,
             logical_date=logical_date,

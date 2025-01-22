@@ -17,12 +17,12 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
-import { FiCalendar } from "react-icons/fi";
+import { FiBookOpen, FiCalendar } from "react-icons/fi";
 
 import type { DAGDetailsResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import DagRunInfo from "src/components/DagRunInfo";
-import DocumentationModal from "src/components/DocumentationModal";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import ParseDag from "src/components/ParseDag";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
@@ -53,7 +53,14 @@ export const Header = ({
         <Flex>
           {dag ? (
             <HStack>
-              {dag.doc_md === null ? undefined : <DocumentationModal docMd={dag.doc_md} docType="Dag" />}
+              {dag.doc_md === null ? undefined : (
+                <DisplayMarkdownButton
+                  header="Dag Documentation"
+                  icon={<FiBookOpen />}
+                  mdContent={dag.doc_md}
+                  text="Dag Docs"
+                />
+              )}
               <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
               <TriggerDAGButton dag={dag} />
             </HStack>
