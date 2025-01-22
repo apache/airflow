@@ -27,32 +27,65 @@ import typing
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]
 
-TASKINSTANCE_PY = ROOT_DIR.joinpath("airflow", "models", "taskinstance.py")
+TASKRUNNER_PY = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "execution_time", "task_runner.py")
 CONTEXT_PY = ROOT_DIR.joinpath("airflow", "utils", "context.py")
 CONTEXT_HINT = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "definitions", "context.py")
 TEMPLATES_REF_RST = ROOT_DIR.joinpath("docs", "apache-airflow", "templates-ref.rst")
 
 
 def _iter_template_context_keys_from_original_return() -> typing.Iterator[str]:
-    ti_mod = ast.parse(TASKINSTANCE_PY.read_text("utf-8"), str(TASKINSTANCE_PY))
-    fn_get_template_context = next(
+    ti_mod = ast.parse(TASKRUNNER_PY.read_text("utf-8"), str(TASKRUNNER_PY))
+
+    # Locate the RuntimeTaskInstance class definition
+    runtime_task_instance_class = next(
         node
         for node in ast.iter_child_nodes(ti_mod)
-        if isinstance(node, ast.FunctionDef) and node.name == "_get_template_context"
+        if isinstance(node, ast.ClassDef) and node.name == "RuntimeTaskInstance"
     )
-    st_context_value = next(
-        stmt.value
+
+    # Locate the get_template_context method in RuntimeTaskInstance
+    fn_get_template_context = next(
+        node
+        for node in ast.iter_child_nodes(runtime_task_instance_class)
+        if isinstance(node, ast.FunctionDef) and node.name == "get_template_context"
+    )
+
+    # Helper function to extract keys from a dictionary node
+    def extract_keys_from_dict(node: ast.Dict) -> typing.Iterator[str]:
+        for key in node.keys:
+            if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                raise ValueError("Key in dictionary is not a string literal")
+            yield key.value
+
+    # Extract keys from the main `context` dictionary assignment
+    context_assignment = next(
+        stmt
         for stmt in fn_get_template_context.body
         if isinstance(stmt, ast.AnnAssign)
         and isinstance(stmt.target, ast.Name)
         and stmt.target.id == "context"
     )
-    if not isinstance(st_context_value, ast.Dict):
-        raise ValueError("'context' is not assigned a dict literal")
-    for expr in st_context_value.keys:
-        if not isinstance(expr, ast.Constant) or not isinstance(expr.value, str):
-            raise ValueError("key in 'context' dict is not a str literal")
-        yield expr.value
+
+    if not isinstance(context_assignment.value, ast.Dict):
+        raise ValueError("'context' is not assigned a dictionary literal")
+    yield from extract_keys_from_dict(context_assignment.value)
+
+    # Handle keys added conditionally in `if self._ti_context_from_server`
+    for stmt in fn_get_template_context.body:
+        if (
+            isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Attribute)
+            and stmt.test.attr == "_ti_context_from_server"
+        ):
+            for sub_stmt in stmt.body:
+                # Get keys from `context_from_server` assignment
+                if (
+                    isinstance(sub_stmt, ast.AnnAssign)
+                    and isinstance(sub_stmt.target, ast.Name)
+                    and isinstance(sub_stmt.value, ast.Dict)
+                    and sub_stmt.target.id == "context_from_server"
+                ):
+                    yield from extract_keys_from_dict(sub_stmt.value)
 
 
 def _iter_template_context_keys_from_declaration() -> typing.Iterator[str]:
@@ -101,6 +134,15 @@ def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str],
     # Not listed in templates-ref (but in operator docs).
     retn_keys.add("templates_dict")
     docs_keys.add("templates_dict")
+
+    # Compat shim for task-sdk, not actually designed for user use
+    retn_keys.add("expanded_ti_count")
+
+    # TODO: These are the keys that are yet to be ported over to the Task SDK.
+    retn_keys.add("inlet_events")
+    retn_keys.add("params")
+    retn_keys.add("test_mode")
+    retn_keys.add("triggering_asset_events")
 
     # Only present in callbacks. Not listed in templates-ref (that doc is for task execution).
     retn_keys.update(("exception", "reason", "try_number"))

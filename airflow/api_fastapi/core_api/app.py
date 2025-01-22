@@ -132,7 +132,7 @@ def init_flask_plugins(app: FastAPI) -> None:
         stacklevel=2,
     )
 
-    flask_app = create_app()
+    flask_app = create_app(enable_plugins=True)
     app.mount("/pluginsv2", WSGIMiddleware(flask_app))
 
 

@@ -440,7 +440,8 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 "id": item.task_id,
                 "instances": instances,
                 "label": item.label,
-                "extra_links": item.extra_links,
+                # TODO: Task-SDK: MappedOperator doesn't support extra links right now
+                "extra_links": getattr(item, "extra_links", []),
                 "is_mapped": item_is_mapped,
                 "has_outlet_assets": any(isinstance(i, (Asset, AssetAlias)) for i in (item.outlets or [])),
                 "operator": item.operator_name,
@@ -1158,12 +1159,10 @@ class Airflow(AirflowBaseView):
         """Cluster Activity view."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["no_status"] = state_color_mapping.pop(None)
-        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         return self.render_template(
             "airflow/cluster_activity.html",
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
-            standalone_dag_processor=standalone_dag_processor,
         )
 
     @expose("/next_run_assets_summary", methods=["POST"])
