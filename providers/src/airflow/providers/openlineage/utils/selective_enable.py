@@ -18,10 +18,19 @@
 from __future__ import annotations
 
 import logging
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
-from airflow.models import DAG, Operator, Param
+from airflow.models import Param
 from airflow.models.xcom_arg import XComArg
+
+if TYPE_CHECKING:
+    from airflow.sdk import DAG
+    from airflow.sdk.definitions._internal.abstractoperator import Operator
+else:
+    try:
+        from airflow.sdk import DAG
+    except ImportError:
+        from airflow.models import DAG
 
 ENABLE_OL_PARAM_NAME = "_selective_enable_ol"
 ENABLE_OL_PARAM = Param(True, const=True)

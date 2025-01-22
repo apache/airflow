@@ -38,6 +38,7 @@ import { Task, Instances } from "src/pages/Task";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { XCom } from "src/pages/XCom";
 
+import { Pools } from "./pages/Pools";
 import { Variables } from "./pages/Variables";
 import { queryClient } from "./queryClient";
 
@@ -64,6 +65,10 @@ export const router = createBrowserRouter(
         {
           element: <Variables />,
           path: "variables",
+        },
+        {
+          element: <Pools />,
+          path: "pools",
         },
         {
           children: [

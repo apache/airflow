@@ -101,7 +101,7 @@ class Dialect(LoggingMixin):
     @classmethod
     def extract_schema_from_table(cls, table: str) -> tuple[str, str | None]:
         parts = table.split(".")
-        return tuple(parts[::-1]) if len(parts) == 2 else (table, None)
+        return tuple(parts[::-1]) if len(parts) == 2 else (table, None)  # type: ignore[return-value]
 
     @lru_cache(maxsize=None)
     def get_column_names(

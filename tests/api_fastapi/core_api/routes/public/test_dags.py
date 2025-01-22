@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pendulum
 import pytest
@@ -35,6 +35,7 @@ pytestmark = pytest.mark.db_test
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
+DAG1_START_DATE = datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc)
 DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=timezone.utc)
 DAG3_ID = "test_dag3"
 DAG4_ID = "test_dag4"
@@ -44,6 +45,8 @@ DAG5_DISPLAY_NAME = "display5"
 TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 API_PREFIX = "/public/dags"
+DAG3_START_DATE_1 = datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+DAG3_START_DATE_2 = datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
 class TestDagEndpoint:
@@ -70,7 +73,7 @@ class TestDagEndpoint:
             dag_id=DAG3_ID,
             run_id="run1",
             logical_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            start_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            start_date=DAG3_START_DATE_1,
             run_type=DagRunType.SCHEDULED,
             state=DagRunState.FAILED,
             triggered_by=DagRunTriggeredByType.TEST,
@@ -80,7 +83,7 @@ class TestDagEndpoint:
             dag_id=DAG3_ID,
             run_id="run2",
             logical_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            start_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            start_date=DAG3_START_DATE_2,
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
             triggered_by=DagRunTriggeredByType.TEST,
@@ -104,7 +107,7 @@ class TestDagEndpoint:
             DAG1_ID,
             dag_display_name=DAG1_DISPLAY_NAME,
             schedule=None,
-            start_date=datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc),
+            start_date=DAG1_START_DATE,
             doc_md="details",
             params={"foo": 1},
             tags=["example"],
@@ -154,6 +157,58 @@ class TestGetDags(TestDagEndpoint):
             ({"owners": ["test_owner"], "only_active": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "success", "only_active": False}, 1, [DAG3_ID]),
             ({"last_dag_run_state": "failed", "only_active": False}, 1, [DAG1_ID]),
+            ({"dag_run_state": "failed"}, 1, [DAG1_ID]),
+            ({"dag_run_state": "failed", "only_active": False}, 2, [DAG1_ID, DAG3_ID]),
+            (
+                {"dag_run_start_date_gte": DAG3_START_DATE_2.isoformat(), "only_active": False},
+                1,
+                [DAG3_ID],
+            ),
+            (
+                {
+                    "dag_run_start_date_gte": DAG1_START_DATE.isoformat(),
+                    "dag_run_start_date_lte": DAG2_START_DATE.isoformat(),
+                },
+                1,
+                [DAG1_ID],
+            ),
+            (
+                {
+                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "only_active": False,
+                },
+                2,
+                [DAG1_ID, DAG3_ID],
+            ),
+            (
+                {
+                    "dag_run_end_date_gte": DAG3_START_DATE_2.isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                    "only_active": False,
+                    "last_dag_run_state": "success",
+                },
+                1,
+                [DAG3_ID],
+            ),
+            (
+                {
+                    "dag_run_start_date_gte": DAG2_START_DATE.isoformat(),
+                    "dag_run_end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                0,
+                [],
+            ),
+            (
+                {
+                    "dag_run_start_date_gte": (DAG3_START_DATE_1 - timedelta(days=1)).isoformat(),
+                    "dag_run_start_date_lte": (DAG3_START_DATE_1 + timedelta(days=1)).isoformat(),
+                    "last_dag_run_state": "success",
+                    "dag_run_state": "failed",
+                    "only_active": False,
+                },
+                1,
+                [DAG3_ID],
+            ),
             # # Sort
             ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
             ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),

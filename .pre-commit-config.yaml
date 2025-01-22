@@ -320,7 +320,7 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/src/airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/src/airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
     rev: v1.0.0
@@ -349,7 +349,7 @@ repos:
         files: ^providers/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
       - id: update-providers-build-files
-        name: Update providers build files files
+        name: Update providers build files
         entry: ./scripts/ci/pre_commit/update_providers_build_files.py
         language: python
         pass_filenames: true
@@ -930,6 +930,14 @@ repos:
         files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
         pass_filenames: false
         require_serial: true
+      - id: check-pyproject-toml-consistency
+        name: Check consistency of Airflow's pyproject.toml
+        language: python
+        entry: ./scripts/ci/pre_commit/check_pyproject_toml_consistency.py
+        files: ^pyproject.toml$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4', 'tomli']
       - id: update-reproducible-source-date-epoch
         name: Update Source Date Epoch for reproducible builds
         language: python
@@ -1212,9 +1220,10 @@ repos:
         name: Validate provider doc files
         entry: ./scripts/ci/pre_commit/check_provider_docs.py
         language: python
-        files: ^providers/src/airflow/providers/.*/provider\.yaml|^docs/.*
+        files: ^providers/.*/provider\.yaml|^docs/.*
         additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'jinja2']
         require_serial: true
+        pass_filenames: false
       - id: bandit
         name: bandit
         description: "Bandit is a tool for finding common security issues in Python code"
@@ -1334,14 +1343,14 @@ repos:
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
-        files: ^providers/src/airflow/providers/.*\.py$|^providers/tests//.*\.py$
+        files: ^providers/src/airflow/providers/.*\.py$|^providers/tests//.*\.py$|^providers/.*/src/.*\.py$|^providers/.*/tests/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         stages: ['manual']
         name: Run mypy for providers (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py providers/src/airflow/providers
+        entry: ./scripts/ci/pre_commit/mypy_folder.py providers/src/airflow/providers all_new_providers
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
