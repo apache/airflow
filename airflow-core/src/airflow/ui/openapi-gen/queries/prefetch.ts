@@ -393,6 +393,16 @@ export const prefetchUseConfigServiceGetConfigValue = (queryClient: QueryClient,
   section: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }), queryFn: () => ConfigService.getConfigValue({ accept, option, section }) });
 /**
+* Get Backends Order Value
+* @param data The data for the request.
+* @param data.accept
+* @returns Config Successful Response
+* @throws ApiError
+*/
+export const prefetchUseConfigServiceGetBackendsOrderValue = (queryClient: QueryClient, { accept }: {
+  accept?: "application/json" | "text/plain" | "*/*";
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseConfigServiceGetBackendsOrderValueKeyFn({ accept }), queryFn: () => ConfigService.getBackendsOrderValue({ accept }) });
+/**
 * Get Configs
 * Get configs for UI.
 * @returns ConfigResponse Successful Response

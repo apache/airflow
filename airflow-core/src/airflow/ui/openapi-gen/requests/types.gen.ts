@@ -2280,6 +2280,12 @@ export type GetConfigValueData = {
 
 export type GetConfigValueResponse = Config;
 
+export type GetBackendsOrderValueData = {
+    accept?: 'application/json' | 'text/plain' | '*/*';
+};
+
+export type GetBackendsOrderValueResponse = Config;
+
 export type GetConfigsResponse = ConfigResponse;
 
 export type ListDagWarningsData = {
@@ -4234,6 +4240,37 @@ export type $OpenApiTs = {
     '/api/v2/config/section/{section}/option/{option}': {
         get: {
             req: GetConfigValueData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: Config;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Not Acceptable
+                 */
+                406: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/config/backends_order': {
+        get: {
+            req: GetBackendsOrderValueData;
             res: {
                 /**
                  * Successful Response

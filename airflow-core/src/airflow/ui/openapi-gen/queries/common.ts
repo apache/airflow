@@ -212,6 +212,12 @@ export const UseConfigServiceGetConfigValueKeyFn = ({ accept, option, section }:
   option: string;
   section: string;
 }, queryKey?: Array<unknown>) => [useConfigServiceGetConfigValueKey, ...(queryKey ?? [{ accept, option, section }])];
+export type ConfigServiceGetBackendsOrderValueDefaultResponse = Awaited<ReturnType<typeof ConfigService.getBackendsOrderValue>>;
+export type ConfigServiceGetBackendsOrderValueQueryResult<TData = ConfigServiceGetBackendsOrderValueDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useConfigServiceGetBackendsOrderValueKey = "ConfigServiceGetBackendsOrderValue";
+export const UseConfigServiceGetBackendsOrderValueKeyFn = ({ accept }: {
+  accept?: "application/json" | "text/plain" | "*/*";
+} = {}, queryKey?: Array<unknown>) => [useConfigServiceGetBackendsOrderValueKey, ...(queryKey ?? [{ accept }])];
 export type ConfigServiceGetConfigsDefaultResponse = Awaited<ReturnType<typeof ConfigService.getConfigs>>;
 export type ConfigServiceGetConfigsQueryResult<TData = ConfigServiceGetConfigsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConfigServiceGetConfigsKey = "ConfigServiceGetConfigs";
