@@ -4,11 +4,11 @@ The scheduler is no longer able to parse DAGs itself - it relies on the standalo
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [x] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
-  * [ ] Code interface change
+  * [ ] Dependency changes
+  * [ ] Code interface changes

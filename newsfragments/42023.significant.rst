@@ -11,7 +11,7 @@ Rename ``Dataset`` as ``Asset`` in API endpoints
 
   * [ ] Dag changes
   * [ ] Config changes
-  * [x] API chanes
+  * [x] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
