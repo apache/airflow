@@ -1183,18 +1183,22 @@ def _regenerate_pyproject_toml(context: dict[str, Any], provider_details: Provid
         if in_required_dependencies and line == "]":
             in_required_dependencies = False
             continue
-        if line == "[project.optional-dependencies]":
-            in_optional_dependencies = True
-            continue
-        if in_optional_dependencies and line == "":
-            in_optional_dependencies = False
-            continue
         if line == "[dependency-groups]":
             in_dependency_groups = True
             continue
         if in_dependency_groups and line == "":
             in_dependency_groups = False
             continue
+        if in_dependency_groups and line.startswith("["):
+            in_dependency_groups = False
+        if line == "[project.optional-dependencies]":
+            in_optional_dependencies = True
+            continue
+        if in_optional_dependencies and line == "":
+            in_optional_dependencies = False
+            continue
+        if in_optional_dependencies and line.startswith("["):
+            in_optional_dependencies = False
         if in_required_dependencies:
             required_dependencies.append(line)
         if in_optional_dependencies:
@@ -1209,7 +1213,9 @@ def _regenerate_pyproject_toml(context: dict[str, Any], provider_details: Provid
 
     # Add cross-provider dependencies to the optional dependencies if they are missing
     for module in PROVIDER_DEPENDENCIES.get(provider_details.provider_id)["cross-providers-deps"]:
-        if f'"{module}" = [' not in optional_dependencies:
+        if f'"{module}" = [' not in optional_dependencies and get_pip_package_name(module) not in "\n".join(
+            required_dependencies
+        ):
             optional_dependencies.append(f'"{module}" = [')
             optional_dependencies.append(f'    "{get_pip_package_name(module)}"')
             optional_dependencies.append("]")
@@ -1221,6 +1227,8 @@ def _regenerate_pyproject_toml(context: dict[str, Any], provider_details: Provid
         context=context,
         extension=".toml",
         autoescape=False,
+        lstrip_blocks=True,
+        trim_blocks=True,
         keep_trailing_newline=True,
     )
     get_pyproject_toml_path.write_text(get_pyproject_toml_content)
