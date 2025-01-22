@@ -186,9 +186,7 @@ def cancel_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
 
 @backfills_router.post(
     path="",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT, status.HTTP_422_UNPROCESSABLE_ENTITY]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
 )
 def create_backfill(
     backfill_request: BackfillPostBody,
@@ -228,9 +226,7 @@ def create_backfill(
 
 @backfills_router.post(
     path="/dry_run",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT, status.HTTP_422_UNPROCESSABLE_ENTITY]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
 )
 def create_backfill_dry_run(
     body: BackfillPostBody,

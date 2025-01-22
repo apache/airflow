@@ -78,7 +78,7 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
     if dep_on_past:
         cm = pytest.raises(
             InvalidBackfillDirection,
-            match="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True",
+            match="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
         )
     b = None
     with cm:
