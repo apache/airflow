@@ -307,7 +307,10 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     if dat == DAT.ASSET:
         serialized_watchers = var["watchers"] if "watchers" in var else []
         return Asset(
-            **var,
+            name=var["name"],
+            uri=var["uri"],
+            group=var["group"],
+            extra=var["extra"],
             watchers=[
                 AssetWatcher(name=watcher["name"], trigger=watcher["trigger"])
                 for watcher in serialized_watchers
