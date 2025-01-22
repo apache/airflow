@@ -620,11 +620,16 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow/authoring-and-scheduling/plugins.rst
 
   area:Scheduler:
-    - airflow/jobs/**/*
+    - airflow/jobs/scheduler_job_runner.py
     - airflow/task/standard_task_runner.py
-    - airflow/dag_processing/**/*
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
-    - tests/jobs/**/*
+    - tests/jobs/test_scheduler_job.py
+
+  area:DAG-processing:
+    - airflow/dag_processing/**/*
+    - airflow/jobs/dag_processor_job_runner.py
+    - docs/apache-airflow/administration-and-deployment/dagfile-processing.rst
+    - tests/dag_processing/**/*
 
   area:Executors-core:
     - airflow/executors/**/*

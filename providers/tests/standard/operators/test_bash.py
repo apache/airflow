@@ -273,7 +273,7 @@ class TestBashOperator:
             # Templated fields
             bash_command='echo "{{ dag_run.dag_id }}"',
             env={"FOO": "{{ ds }}"},
-            cwd="{{ dag_run.dag.folder }}",
+            cwd="{{ task.dag.folder }}",
             # Other parameters
             dag_id="test_templated_fields_dag",
             task_id="test_templated_fields_task",

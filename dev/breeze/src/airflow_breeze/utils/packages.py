@@ -55,7 +55,6 @@ from airflow_breeze.utils.publish_docs_helpers import (
     OLD_PROVIDER_DATA_SCHEMA_PATH,
 )
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.shared_options import get_verbose
 from airflow_breeze.utils.version_utils import remove_local_version_suffix
 from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
@@ -636,14 +635,11 @@ def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
     except ImportError:
         import tomli as tomllib
     toml_content = pyproject_toml_file_path.read_text()
-    syntax = Syntax(toml_content, "toml", theme="monokai", line_numbers=True)
-    if get_verbose():
-        get_console().print(syntax)
+    syntax = Syntax(toml_content, "toml", theme="ansi_dark", line_numbers=True)
     try:
         return tomllib.loads(toml_content)
     except tomllib.TOMLDecodeError as e:
-        if not get_verbose():
-            get_console().print(syntax)
+        get_console().print(syntax)
         get_console().print(f"[red]Error when loading {pyproject_toml_file_path}: {e}:")
         sys.exit(1)
 

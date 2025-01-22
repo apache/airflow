@@ -14,15 +14,39 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Common Data Models for Airflow REST API.
+
+:meta private:
+"""
+
 from __future__ import annotations
 
-import pytest
+import enum
 
-from providers.tests.system.openlineage.conftest import set_transport_variable  # noqa: F401
-
-REQUIRED_ENV_VARS = ("SYSTEM_TESTS_GCP_PROJECT",)
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
-@pytest.fixture
-def provider_env_vars():
-    return REQUIRED_ENV_VARS
+# Common Bulk Data Models
+class BulkAction(enum.Enum):
+    """Bulk Action to be performed on the used model."""
+
+    CREATE = "create"
+    DELETE = "delete"
+    UPDATE = "update"
+
+
+class BulkActionOnExistence(enum.Enum):
+    """Bulk Action to be taken if the entity already exists or not."""
+
+    FAIL = "fail"
+    SKIP = "skip"
+    OVERWRITE = "overwrite"
+
+
+# TODO: Unify All Bulk Operation Related Base Data Models
+class BulkBaseAction(BaseModel):
+    """Base class for bulk actions."""
+
+    action: BulkAction
+    action_on_existence: BulkActionOnExistence = BulkActionOnExistence.FAIL
