@@ -47,11 +47,9 @@ from airflow.models.expandinput import (
     create_expand_input,
     get_map_type_key,
 )
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -65,6 +63,9 @@ from airflow.sdk.definitions.asset import (
     BaseAsset,
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+from airflow.sdk.definitions.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -87,9 +88,8 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 from airflow.utils.timezone import from_timestamp, parse_timezone
-from airflow.utils.types import NOTSET, ArgNotSet, AttributeRemoved
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -97,8 +97,8 @@ if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
-    from airflow.models.operator import Operator
     from airflow.sdk.definitions._internal.node import DAGNode
+    from airflow.sdk.types import Operator
     from airflow.serialization.json_schema import Validator
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
@@ -1339,7 +1339,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
                 if v is False:
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
-                object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
+                object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})  # type: ignore[union-attr]
                 continue
             elif (
                 k in cls._decorated_fields
@@ -1408,13 +1408,18 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         op: Operator
         if encoded_op.get("_is_mapped", False):
             # Most of these will be loaded later, these are just some stand-ins.
-            op_data = {k: v for k, v in encoded_op.items() if k in BaseOperator.get_serialized_fields()}
+            op_data = {
+                k: v for k, v in encoded_op.items() if k in TaskSDKBaseOperator.get_serialized_fields()
+            }
+
+            from airflow.models.mappedoperator import MappedOperator as MappedOperatorWithDB
+
             try:
                 operator_name = encoded_op["_operator_name"]
             except KeyError:
                 operator_name = encoded_op["task_type"]
 
-            op = MappedOperator(
+            op = MappedOperatorWithDB(
                 operator_class=op_data,
                 expand_input=EXPAND_INPUT_EMPTY,
                 partial_kwargs={},
@@ -1442,7 +1447,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])
-        op.dag = AttributeRemoved("dag")  # type: ignore[assignment]
         cls.populate_operator(op, encoded_op)
         return op
 
@@ -1455,12 +1459,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, op: DAGNode):
-        if (
-            var is not None
-            and op.has_dag()
-            and op.dag.__class__ is not AttributeRemoved
-            and attrname.endswith("_date")
-        ):
+        if var is not None and op.has_dag() and attrname.endswith("_date"):
             # If this date is the same as the matching field in the dag, then
             # don't store it again at the task level.
             dag_date = getattr(op.dag, attrname, None)

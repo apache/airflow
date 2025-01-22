@@ -32,7 +32,7 @@ from sqlalchemy import exists
 from airflow import __version__ as AIRFLOW_VERSION
 
 # TODO: move this maybe to Airflow's logic?
-from airflow.models import DAG, BaseOperator, DagRun, MappedOperator, TaskReschedule
+from airflow.models import DagRun, TaskReschedule
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
     conf,
@@ -70,13 +70,19 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
+    from airflow.sdk import DAG, BaseOperator, MappedOperator
     from airflow.utils.state import DagRunState, TaskInstanceState
 else:
+    try:
+        from airflow.sdk import DAG, BaseOperator, MappedOperator
+    except ImportError:
+        from airflow.models import DAG, BaseOperator, MappedOperator
+
     try:
         from airflow.providers.common.compat.assets import Asset
     except ImportError:
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk.definitions.asset import Asset
+            from airflow.sdk import Asset
         else:
             # dataset is renamed to asset since Airflow 3.0
             from airflow.datasets import Dataset as Asset
@@ -565,8 +571,8 @@ def _emits_ol_events(task: BaseOperator | MappedOperator) -> bool:
     is_skipped_as_empty_operator = all(
         (
             task.inherits_from_empty_operator,
-            not task.on_execute_callback,
-            not task.on_success_callback,
+            not getattr(task, "on_execute_callback", None),
+            not getattr(task, "on_success_callback", None),
             not task.outlets,
         )
     )

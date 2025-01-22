@@ -22,7 +22,7 @@ description: |
   `Airbyte <https://airbyte.com/>`__
 
 state: ready
-source-date-epoch: 1734526450
+source-date-epoch: 1737371678
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 5.0.0
@@ -53,7 +53,7 @@ versions:
 integrations:
   - integration-name: Airbyte
     external-doc-url: https://airbyte.com/
-    logo: /docs/integration-logos/Airbyte.png
+    logo: /docs/integration-logo/Airbyte.png
     how-to-guide:
       - /docs/apache-airflow-providers-airbyte/operators/airbyte.rst
     tags: [service]

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import sys
 from typing import TYPE_CHECKING
-from unittest import mock
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -40,14 +39,6 @@ def disable_capturing():
     sys.stderr = sys.__stderr__
     yield
     sys.stdin, sys.stdout, sys.stderr = old_in, old_out, old_err
-
-
-@pytest.fixture
-def mock_supervisor_comms():
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
 
 
 @pytest.fixture

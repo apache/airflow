@@ -52,7 +52,11 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
 )
 from airflow.sdk.definitions.context import Context
-from airflow.sdk.execution_time.context import OutletEventAccessors as OutletEventAccessorsSDK
+from airflow.sdk.execution_time.context import (
+    ConnectionAccessor as ConnectionAccessorSDK,
+    OutletEventAccessors as OutletEventAccessorsSDK,
+    VariableAccessor as VariableAccessorSDK,
+)
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.session import create_session
 from airflow.utils.types import NOTSET
@@ -62,7 +66,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
 
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:
@@ -107,21 +111,13 @@ KNOWN_CONTEXT_KEYS: set[str] = {
 }
 
 
-class VariableAccessor:
+class VariableAccessor(VariableAccessorSDK):
     """Wrapper to access Variable values in template."""
-
-    def __init__(self, *, deserialize_json: bool) -> None:
-        self._deserialize_json = deserialize_json
-        self.var: Any = None
 
     def __getattr__(self, key: str) -> Any:
         from airflow.models.variable import Variable
 
-        self.var = Variable.get(key, deserialize_json=self._deserialize_json)
-        return self.var
-
-    def __repr__(self) -> str:
-        return str(self.var)
+        return Variable.get(key, deserialize_json=self._deserialize_json)
 
     def get(self, key, default: Any = NOTSET) -> Any:
         from airflow.models.variable import Variable
@@ -131,27 +127,20 @@ class VariableAccessor:
         return Variable.get(key, default, deserialize_json=self._deserialize_json)
 
 
-class ConnectionAccessor:
+class ConnectionAccessor(ConnectionAccessorSDK):
     """Wrapper to access Connection entries in template."""
 
-    def __init__(self) -> None:
-        self.var: Any = None
-
-    def __getattr__(self, key: str) -> Any:
+    def __getattr__(self, conn_id: str) -> Any:
         from airflow.models.connection import Connection
 
-        self.var = Connection.get_connection_from_secrets(key)
-        return self.var
+        return Connection.get_connection_from_secrets(conn_id)
 
-    def __repr__(self) -> str:
-        return str(self.var)
-
-    def get(self, key: str, default_conn: Any = None) -> Any:
+    def get(self, conn_id: str, default_conn: Any = None) -> Any:
         from airflow.exceptions import AirflowNotFoundException
         from airflow.models.connection import Connection
 
         try:
-            return Connection.get_connection_from_secrets(key)
+            return Connection.get_connection_from_secrets(conn_id)
         except AirflowNotFoundException:
             return default_conn
 

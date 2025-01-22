@@ -177,9 +177,9 @@ class Templater:
             return self._render(template, context)
         if isinstance(value, ObjectStoragePath):
             return self._render_object_storage_path(value, context, jinja_env)
-        if isinstance(value, ResolveMixin):
-            # TODO: Task-SDK: Tidy up the typing on template context
-            return value.resolve(context, include_xcom=True)  # type: ignore[arg-type]
+
+        if resolve := getattr(value, "resolve", None):
+            return resolve(context, include_xcom=True)
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:

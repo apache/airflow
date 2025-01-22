@@ -1205,6 +1205,8 @@ extra-links:
   - airflow.providers.google.cloud.links.dataplex.DataplexLakeLink
   - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupLink
   - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupsLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryTypeLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryTypesLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryTableLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryJobDetailLink

@@ -187,6 +187,7 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "OpenAPI": ["clients/python"],
 }
 
+# TODO(potiuk) - rename when all providers are new-style
 ALL_NEW_PROVIDER_TEST_FOLDERS: list[str] = sorted(
     [
         path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
@@ -298,13 +299,14 @@ def convert_test_type_to_pytest_args(
             provider_list = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
             providers_to_test = []
             for provider in provider_list:
-                # TODO(potiuk): remove me when all providers are migrated
+                # TODO(potiuk) - remove when all providers are new-style
                 provider_path = OLD_TESTS_PROVIDERS_ROOT.joinpath(provider.replace(".", "/")).relative_to(
                     AIRFLOW_SOURCES_ROOT
                 )
                 if provider_path.is_dir():
                     providers_to_test.append(provider_path.as_posix())
                 else:
+                    # TODO(potiuk) - remove when all providers are new-style
                     old_provider_path = provider_path
                     provider_path = (
                         AIRFLOW_PROVIDERS_DIR.joinpath(provider.replace(".", "/")).relative_to(
