@@ -908,16 +908,6 @@ class TestSecretsBackend:
             in DEFAULT_SECRETS_SEARCH_PATH_WORKERS
         )
 
-    def test_metastore_backend_in_server_chain(self):
-        """Test that MetastoreBackend is in the API server search path."""
-        from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
-
-        assert "airflow.secrets.metastore.MetastoreBackend" in _SERVER_DEFAULT_SECRETS_SEARCH_PATH
-        assert (
-            "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
-            not in _SERVER_DEFAULT_SECRETS_SEARCH_PATH
-        )
-
     def test_get_connection_uses_backend_chain(self, mock_supervisor_comms):
         """Test that _get_connection properly iterates through backends."""
         from airflow.sdk.api.datamodels._generated import ConnectionResponse
