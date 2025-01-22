@@ -331,6 +331,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     invalid_cols = [c for c in cols if c not in dag_schema.fields]
     valid_cols = [c for c in cols if c in dag_schema.fields]
 
+
     if invalid_cols:
         from rich import print as rich_print
 

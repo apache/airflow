@@ -176,6 +176,9 @@ ARG_BUNDLE_NAME = Arg(
     default=None,
     action="append",
 )
+ARG_LATEST_BUNDLE_VERSION = Arg(
+    ("-bv", "--latest-bundle-version"), help=("The latest version of the bundle."), type=str, default=None
+)
 ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
 ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
 ARG_OUTPUT_PATH = Arg(
