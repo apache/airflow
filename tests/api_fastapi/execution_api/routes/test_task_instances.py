@@ -285,13 +285,25 @@ class TestTIUpdateState:
         [
             (
                 "Asset",
-                '[{"name":"s3://bucket/my-task","uri":"s3://bucket/my-task"}]',
-                '[{"key":{"name":"s3://bucket/my-task","uri":"s3://bucket/my-task"},"extra":{},"asset_alias_events":[]}]',
+                [{"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"}],
+                [
+                    {
+                        "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                        "asset_alias_events": [],
+                    }
+                ],
             ),
             (
                 "AssetAlias",
                 [],
-                '[{"source_alias_name":"example-alias","dest_asset_key":{"name":"s3://bucket/my-task","uri":"s3://bucket/my-task"},"extra":{}}]',
+                [
+                    {
+                        "source_alias_name": "example-alias",
+                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                    }
+                ],
             ),
         ],
     )

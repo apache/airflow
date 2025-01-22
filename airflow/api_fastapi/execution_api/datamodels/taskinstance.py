@@ -29,7 +29,6 @@ from pydantic import (
     TypeAdapter,
     WithJsonSchema,
     field_validator,
-    root_validator,
 )
 
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -96,18 +95,6 @@ class TISuccessStatePayload(BaseModel):
     task_outlets: Annotated[list[AssetNameAndUri], Field(default_factory=list)]
     outlet_events: Annotated[list[Any], Field(default_factory=list)]
     asset_type: str | None = None
-
-    @root_validator(pre=True)
-    def parse_json_fields(cls, values):
-        import json
-
-        if "task_outlets" in values and isinstance(values["task_outlets"], str):
-            values["task_outlets"] = json.loads(values["task_outlets"])
-
-        if "outlet_events" in values and isinstance(values["outlet_events"], str):
-            values["outlet_events"] = json.loads(values["outlet_events"])
-
-        return values
 
 
 class TITargetStatePayload(BaseModel):
