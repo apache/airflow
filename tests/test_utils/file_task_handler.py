@@ -18,13 +18,9 @@ from __future__ import annotations
 
 from contextlib import suppress
 
-import pytest
-
 from airflow.utils.log.file_task_handler import (
     _parse_timestamp,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
 
 def log_str_to_parsed_log_stream(log_sample: str):
     lines = log_sample.splitlines()
@@ -40,9 +36,10 @@ def log_str_to_parsed_log_stream(log_sample: str):
             yield timestamp, idx, line
 
 
-mark_test_for_stream_based_read_log_method = pytest.mark.skipif(
-    not AIRFLOW_V_3_0_PLUS, reason="Test case for new stream-based read log method"
-)
-mark_test_for_old_read_log_method = pytest.mark.skipif(
-    AIRFLOW_V_3_0_PLUS, reason="Test case for old read log method"
-)
+def mark_test_for_stream_based_read_log_method(func):
+    """Test case for new stream-based read log method"""
+    return func
+
+def mark_test_for_old_read_log_method(func):
+    """Test case for old read log method"""
+    return func
