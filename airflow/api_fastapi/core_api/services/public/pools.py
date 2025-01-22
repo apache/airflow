@@ -36,7 +36,7 @@ def categorize_pools(session, pool_names: set) -> tuple[dict, set, set]:
     """
     Categorize the given pool_names into matched_pool_names and not_found_pool_names based on existing pool_names.
 
-    Existed pools are returned as a dict of {pool_names : Pool}.
+    Existed pools are returned as a dict of {pool_name : Pool}.
 
     :param session: SQLAlchemy session
     :param pool_names: set of pool_names
@@ -73,8 +73,9 @@ def handle_bulk_create(session, action: PoolBulkCreateAction, results: PoolBulkA
                     for key, val in pool.model_dump().items():
                         setattr(existed_pool, key, val)
                 else:
-                    Pool(**pool.model_dump())
+                    session.add(Pool(**pool.model_dump()))
                 results.success.append(pool.pool)
+        session.commit()
 
     except HTTPException as e:
         results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
@@ -99,16 +100,22 @@ def handle_bulk_update(session, action: PoolBulkUpdateAction, results: PoolBulkA
         for pool in action.pools:
             if pool.name in update_pool_names:
                 old_pool = session.scalar(select(Pool).filter(Pool.pool == pool.name).limit(1))
-                PoolPatchBody(**pool.model_dump())
-                for key, val in pool.model_dump().items():
-                    setattr(old_pool, key, val)
-                results.success.append(str(pool.name))
+
+                data = {key: val for key, val in pool.model_dump(by_alias=True).items() if val is not None}
+
+                try:
+                    PoolPatchBody(**data)
+
+                    for key, val in data.items():
+                        setattr(old_pool, key, val)
+
+                    results.success.append(str(pool.name))
+
+                except ValidationError as e:
+                    results.errors.append({"error": f"{e.errors()}"})
 
     except HTTPException as e:
         results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
-
-    except ValidationError as e:
-        results.errors.append({"error": f"{e.errors()}"})
 
 
 def handle_bulk_delete(session, action: PoolBulkDeleteAction, results: PoolBulkActionResponse) -> None:
