@@ -329,6 +329,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
     cols = args.columns if args.columns else []
     invalid_cols = [c for c in cols if c not in dag_schema.fields]
     valid_cols = [c for c in cols if c in dag_schema.fields]
+
     if invalid_cols:
         from rich import print as rich_print
 
@@ -343,13 +344,18 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
     manager.sync_bundles_to_db(session=session)
     session.commit()
 
-    # dagbag = DagBag(process_subdir(args.subdir))
-
     if args.bundle_name:
-        bundle = manager.get_bundle(args.bundle_name)
+        bundle = manager.get_bundle(name=args.bundle_name, version=args.latest_bundle_version)
         if not bundle:
             raise SystemExit(f"Bundle {args.bundle_name} not found")
         dagbag = DagBag(bundle.path, include_examples=False)
+        dagbag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
+    else:
+        # Default Case - Read all the configured bundles.
+        bundles = manager.get_all_dag_bundles()
+        for bundle in bundles:
+            dagbag = DagBag(bundle.path, include_examples=False)
+            dagbag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
 
     if dagbag.import_errors:
         from rich import print as rich_print
