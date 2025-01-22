@@ -112,7 +112,7 @@ class DagBundlesManager(LoggingMixin):
             bundle.active = False
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
 
-    def get_bundle(self, name: str, version: str | None = None) -> BaseDagBundle:
+    def get_bundle(self, name: str, version: str | None = None, mark_in_use=False) -> BaseDagBundle:
         """
         Get a DAG bundle by name.
 
@@ -125,7 +125,10 @@ class DagBundlesManager(LoggingMixin):
         if not cfg_tuple:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
         class_, kwargs = cfg_tuple
-        return class_(name=name, version=version, **kwargs)
+        instance = class_(name=name, version=version, **kwargs)
+        if mark_in_use:
+            instance.mark_in_use()
+        return instance
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
