@@ -305,17 +305,7 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     """
     dat = var["__type"]
     if dat == DAT.ASSET:
-        serialized_watchers = var["watchers"] if "watchers" in var else []
-        return Asset(
-            name=var["name"],
-            uri=var["uri"],
-            group=var["group"],
-            extra=var["extra"],
-            watchers=[
-                AssetWatcher(name=watcher["name"], trigger=watcher["trigger"])
-                for watcher in serialized_watchers
-            ],
-        )
+        return decode_asset(var)
     if dat == DAT.ASSET_ALL:
         return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ANY:
@@ -325,6 +315,17 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     if dat == DAT.ASSET_REF:
         return Asset.ref(**{k: v for k, v in var.items() if k != "__type"})
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
+
+
+def decode_asset(var: dict[str, Any]):
+    watchers = var.pop("watchers", [])
+    return Asset(
+        name=var["name"],
+        uri=var["uri"],
+        group=var["group"],
+        extra=var["extra"],
+        watchers=[AssetWatcher(name=watcher["name"], trigger=watcher["trigger"]) for watcher in watchers],
+    )
 
 
 def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
@@ -906,13 +907,7 @@ class BaseSerialization:
         elif type_ == DAT.XCOM_REF:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.ASSET:
-            watchers = var.pop("watchers", [])
-            return Asset(
-                **var,
-                watchers=[
-                    AssetWatcher(name=watcher["name"], trigger=watcher["trigger"]) for watcher in watchers
-                ],
-            )
+            return decode_asset(var)
         elif type_ == DAT.ASSET_ALIAS:
             return AssetAlias(**var)
         elif type_ == DAT.ASSET_ANY:
