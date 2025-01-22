@@ -45,6 +45,7 @@ import { useConfig } from "src/queries/useConfig.tsx";
 import { useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
+import { BackendsOrderCard } from "./BackendsOrderCard";
 import DeleteVariablesButton from "./DeleteVariablesButton";
 import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
@@ -206,6 +207,8 @@ export const Variables = () => {
           placeholder={translate("variables.searchPlaceholder")}
         />
         <HStack gap={4} mt={2}>
+          <BackendsOrderCard />
+          <Spacer />
           <ExpandCollapseButtons
             collapseLabel={translate("common:expand.collapse")}
             expandLabel={translate("common:expand.expand")}
