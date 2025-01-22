@@ -431,6 +431,16 @@ export const prefetchUseConfigServiceGetConfigValue = (queryClient: QueryClient,
 */
 export const prefetchUseConfigServiceGetConfigs = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseConfigServiceGetConfigsKeyFn(), queryFn: () => ConfigService.getConfigs() });
 /**
+* Get Backends Order Value
+* @param data The data for the request.
+* @param data.accept
+* @returns Config Successful Response
+* @throws ApiError
+*/
+export const prefetchUseConfigServiceGetBackendsOrderValue = (queryClient: QueryClient, { accept }: {
+  accept?: "application/json" | "text/plain" | "*/*";
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseConfigServiceGetBackendsOrderValueKeyFn({ accept }), queryFn: () => ConfigService.getBackendsOrderValue({ accept }) });
+/**
 * List Dag Warnings
 * Get a list of DAG warnings.
 * @param data The data for the request.
