@@ -23,6 +23,7 @@ import logging
 import os
 import pathlib
 from configparser import ConfigParser
+from enum import Enum
 from io import StringIO
 from typing import Any
 
@@ -31,7 +32,7 @@ from airflow.sdk._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     configure_parser_from_configuration_description,
 )
-from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
+from airflow.sdk.exceptions import AirflowConfigException
 
 log = logging.getLogger(__name__)
 
@@ -204,8 +205,27 @@ def get_custom_secret_backend(worker_mode: bool = False):
     return conf._get_custom_secret_backend(worker_mode=worker_mode)
 
 
+class Backends(Enum):
+    """Type of the secrets backend."""
+
+    ENVIRONMENT_VARIABLE = "environment_variable"
+    EXECUTION_API = "execution_api"
+    CUSTOM = "custom"
+    METASTORE = "metastore"
+
+
+def get_importable_secret_backend(class_name: str | None) -> Any | None:
+    """Get secret backend defined in the given class name."""
+    from airflow.sdk._shared.module_loading import import_string
+
+    if class_name is not None:
+        secrets_backend_cls = import_string(class_name)
+        return secrets_backend_cls()
+    return None
+
+
 def initialize_secrets_backends(
-    default_backends: list[str] = _SERVER_DEFAULT_SECRETS_SEARCH_PATH,
+    default_backends: list[str] | None = None,
 ):
     """
     Initialize secrets backend.
@@ -215,36 +235,92 @@ def initialize_secrets_backends(
 
     Uses SDK's conf instead of Core's conf.
     """
-    from airflow.sdk._shared.module_loading import import_string
-
-    backend_list = []
-    worker_mode = False
     # Determine worker mode - if default_backends is not the server default, it's worker mode
     # This is a simplified check; in practice, worker mode is determined by the caller
-    if default_backends != _SERVER_DEFAULT_SECRETS_SEARCH_PATH:
+    from airflow.sdk.configuration import conf
+
+    worker_mode = False
+    search_section = "secrets"
+    environment_variable_args: str | None = (
+        "airflow.secrets.environment_variables.EnvironmentVariablesBackend"
+    )
+    metastore_args: str | None = "airflow.secrets.metastore.MetastoreBackend"
+    execution_args: str | None = None
+
+    if default_backends is not None:
         worker_mode = True
+        search_section = "workers"
+        environment_variable_args = (
+            environment_variable_args if environment_variable_args in default_backends else None
+        )
+        metastore_args = metastore_args if metastore_args in default_backends else None
+        execution_args = (
+            "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
+            if "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
+            in default_backends
+            else None
+        )
 
-    custom_secret_backend = get_custom_secret_backend(worker_mode)
+    backends_map: dict[str, dict[str, Any]] = {
+        "environment_variable": {
+            "callback": get_importable_secret_backend,
+            "args": (environment_variable_args,),
+        },
+        "metastore": {
+            "callback": get_importable_secret_backend,
+            "args": (metastore_args,),
+        },
+        "custom": {
+            "callback": get_custom_secret_backend,
+            "args": (worker_mode,),
+        },
+        "execution_api": {
+            "callback": get_importable_secret_backend,
+            "args": (execution_args,),
+        },
+    }
 
-    if custom_secret_backend is not None:
-        from airflow.sdk.definitions.connection import Connection
+    backends_order = conf.getlist(search_section, "backends_order", delimiter=",")
 
-        custom_secret_backend._set_connection_class(Connection)
-        backend_list.append(custom_secret_backend)
+    required_backends = (
+        [Backends.ENVIRONMENT_VARIABLE, Backends.EXECUTION_API]
+        if worker_mode
+        else [Backends.METASTORE, Backends.ENVIRONMENT_VARIABLE]
+    )
 
-    for class_name in default_backends:
-        from airflow.sdk.definitions.connection import Connection
+    if missing_backends := [b.value for b in required_backends if b.value not in backends_order]:
+        raise AirflowConfigException(
+            f"The configuration option [{search_section}]backends_order is misconfigured. "
+            f"The following backend types are missing: {missing_backends}",
+            search_section,
+            missing_backends,
+        )
 
-        secrets_backend_cls = import_string(class_name)
-        backend = secrets_backend_cls()
-        backend._set_connection_class(Connection)
-        backend_list.append(backend)
+    if unsupported_backends := [b for b in backends_order if b not in backends_map.keys()]:
+        raise AirflowConfigException(
+            f"The configuration option [{search_section}]backends_order is misconfigured. "
+            f"The following backend types are unsupported: {unsupported_backends}",
+            search_section,
+            unsupported_backends,
+        )
+
+    backend_list = []
+
+    for backend_type in backends_order:
+        backend_item = backends_map[backend_type]
+        callback, args = backend_item["callback"], backend_item["args"]
+        backend = callback(*args) if args else callback()
+        if backend:
+            from airflow.sdk.definitions.connection import Connection
+
+            backend._set_connection_class(Connection)
+            backend_list.append(backend)
 
     return backend_list
 
 
 def ensure_secrets_loaded(
-    default_backends: list[str] = _SERVER_DEFAULT_SECRETS_SEARCH_PATH,
+    default_backends: list[str] | None = None,
 ) -> list:
     """
     Ensure that all secrets backends are loaded.
@@ -253,10 +329,9 @@ def ensure_secrets_loaded(
     """
     # Check if the secrets_backend_list contains only 2 default backends.
 
-    # Check if we are loading the backends for worker too by checking if the default_backends is equal
-    # to _SERVER_DEFAULT_SECRETS_SEARCH_PATH.
+    # Check if we are loading the backends for worker too by checking if the default_backends is not None
     secrets_backend_list = initialize_secrets_backends()
-    if len(secrets_backend_list) == 2 or default_backends != _SERVER_DEFAULT_SECRETS_SEARCH_PATH:
+    if len(secrets_backend_list) == 2 or default_backends is not None:
         return initialize_secrets_backends(default_backends=default_backends)
     return secrets_backend_list
 

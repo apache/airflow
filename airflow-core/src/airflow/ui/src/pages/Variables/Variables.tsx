@@ -38,6 +38,7 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useConfig } from "src/queries/useConfig.tsx";
 import { TrimText } from "src/utils/TrimText";
 
+import { BackendsOrderCard } from "./BackendsOrderCard";
 import DeleteVariablesButton from "./DeleteVariablesButton";
 import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
@@ -208,6 +209,7 @@ export const Variables = () => {
         />
         <HStack gap={4} mt={2}>
           <ImportVariablesButton disabled={selectedRows.size > 0} />
+          <BackendsOrderCard />
           <Spacer />
           <ExpandCollapseButtons
             collapseLabel={translate("common:expand.collapse")}
