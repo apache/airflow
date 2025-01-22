@@ -34,6 +34,9 @@ export default defineConfig({
     cssInjectedByJsPlugin(),
   ],
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
+  server: {
+    cors: true, // Only used by the dev server.
+  },
   test: {
     coverage: {
       include: ["src/**/*.ts", "src/**/*.tsx"],
