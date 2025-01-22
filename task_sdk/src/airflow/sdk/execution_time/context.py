@@ -81,8 +81,7 @@ def _get_connection(conn_id: str) -> Connection:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
-    msg = SUPERVISOR_COMMS.get_message()
+    msg = SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
 
@@ -100,8 +99,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Variable:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
-    msg = SUPERVISOR_COMMS.get_message()
+    msg = SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
 
@@ -265,13 +263,12 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         if name:
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetByName(name=name))
+            msg = SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetByName(name=name))
         elif uri:
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetByUri(uri=uri))
+            msg = SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetByUri(uri=uri))
         else:
             raise ValueError("Either name or uri must be provided")
 
-        msg = SUPERVISOR_COMMS.get_message()
         if isinstance(msg, ErrorResponse):
             raise AirflowRuntimeError(msg)
 
@@ -289,8 +286,7 @@ def get_previous_dagrun_success(ti_id: UUID) -> PrevSuccessfulDagRunResponse:
     )
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    SUPERVISOR_COMMS.send_request(log=log, msg=GetPrevSuccessfulDagRun(ti_id=ti_id))
-    msg = SUPERVISOR_COMMS.get_message()
+    msg = SUPERVISOR_COMMS.send_request(log=log, msg=GetPrevSuccessfulDagRun(ti_id=ti_id))
 
     if TYPE_CHECKING:
         assert isinstance(msg, PrevSuccessfulDagRunResult)

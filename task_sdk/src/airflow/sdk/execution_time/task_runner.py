@@ -25,7 +25,7 @@ from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from io import FileIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
+from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar, overload
 
 import attrs
 import lazy_object_proxy
@@ -39,6 +39,7 @@ from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     GetXCom,
+    NoResponseMessage,
     RescheduleTask,
     SetRenderedFields,
     SetXCom,
@@ -248,7 +249,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         xcoms = []
         for t in task_ids:
-            SUPERVISOR_COMMS.send_request(
+            msg = SUPERVISOR_COMMS.send_request(
                 log=log,
                 msg=GetXCom(
                     key=key,
@@ -259,7 +260,6 @@ class RuntimeTaskInstance(TaskInstance):
                 ),
             )
 
-            msg = SUPERVISOR_COMMS.get_message()
             if not isinstance(msg, XComResult):
                 raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
@@ -365,11 +365,13 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # "sort of wrong default"
     decoder: TypeAdapter[ReceiveMsgType] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
 
-    def get_message(self) -> ReceiveMsgType:
+    def get_message(self) -> ReceiveMsgType | None:
         """
         Get a message from the parent.
 
         This will block until the message has been received.
+
+        Most of the time you should call ``send_request`` which will call this method
         """
         line = self.input.readline()
         try:
@@ -384,11 +386,23 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 self.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
         return msg
 
-    def send_request(self, log: Logger, msg: SendMsgType):
+    @overload
+    def send_request(self, log: Logger, msg: NoResponseMessage) -> None: ...
+
+    @overload
+    def send_request(self, log: Logger, msg: SendMsgType) -> ReceiveMsgType: ...
+
+    def send_request(self, log: Logger, msg: SendMsgType | NoResponseMessage) -> ReceiveMsgType | None:
+        """Send a request to the parent and return the response message (which might be None)."""
+        if TYPE_CHECKING:
+            assert isinstance(msg, BaseModel)
         encoded_msg = msg.model_dump_json().encode() + b"\n"
 
         log.debug("Sending request", json=encoded_msg)
         self.request_socket.write(encoded_msg)
+        if isinstance(msg, NoResponseMessage):
+            return self.get_message()
+        return None
 
 
 # This global variable will be used by Connection/Variable/XCom classes, or other parts of the task's execution,

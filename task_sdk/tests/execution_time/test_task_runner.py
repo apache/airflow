@@ -438,16 +438,16 @@ def test_startup_and_run_dag_with_rtif(
     startup()
     run(ti, log=mock.MagicMock())
     expected_calls = [
-        mock.call.send_request(
+        mock.call(
             msg=SetRenderedFields(rendered_fields=expected_rendered_fields),
             log=mock.ANY,
         ),
-        mock.call.send_request(
+        mock.call(
             msg=TaskState(end_date=instant, state=TerminalTIState.SUCCESS),
             log=mock.ANY,
         ),
     ]
-    mock_supervisor_comms.assert_has_calls(expected_calls)
+    mock_supervisor_comms.send_request.assert_has_calls(expected_calls)
 
 
 @pytest.mark.parametrize(

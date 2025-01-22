@@ -219,8 +219,14 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
 
 
 @pytest.fixture
-def mock_supervisor_comms():
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
+def mock_supervisor_comms(monkeypatch):
+    from airflow.sdk.execution_time import task_runner
+
+    comms = mock.Mock(spec=task_runner.CommsDecoder)
+
+    def send_request(*args, **kwargs):
+        return comms.get_message()
+
+    comms.send_request.side_effect = send_request
+    monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+    return comms

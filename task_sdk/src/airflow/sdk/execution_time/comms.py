@@ -182,7 +182,11 @@ ToTask = Annotated[
 ]
 
 
-class TaskState(BaseModel):
+class NoResponseMessage:
+    """A "marker" class/mixin that indicates this message type does not receive a response from the Supervisor."""
+
+
+class TaskState(BaseModel, NoResponseMessage):
     """
     Update a task's state.
 
@@ -196,13 +200,13 @@ class TaskState(BaseModel):
     type: Literal["TaskState"] = "TaskState"
 
 
-class DeferTask(TIDeferredStatePayload):
+class DeferTask(TIDeferredStatePayload, NoResponseMessage):
     """Update a task instance state to deferred."""
 
     type: Literal["DeferTask"] = "DeferTask"
 
 
-class RescheduleTask(TIRescheduleStatePayload):
+class RescheduleTask(TIRescheduleStatePayload, NoResponseMessage):
     """Update a task instance state to reschedule/up_for_reschedule."""
 
     type: Literal["RescheduleTask"] = "RescheduleTask"
@@ -217,7 +221,7 @@ class GetXCom(BaseModel):
     type: Literal["GetXCom"] = "GetXCom"
 
 
-class SetXCom(BaseModel):
+class SetXCom(BaseModel, NoResponseMessage):
     key: str
     value: Annotated[
         # JsonValue can handle non JSON stringified dicts, lists and strings, which is better
@@ -265,7 +269,7 @@ class PutVariable(BaseModel):
     type: Literal["PutVariable"] = "PutVariable"
 
 
-class SetRenderedFields(BaseModel):
+class SetRenderedFields(BaseModel, NoResponseMessage):
     """Payload for setting RTIF for a task instance."""
 
     # We are using a BaseModel here compared to server using RootModel because we
