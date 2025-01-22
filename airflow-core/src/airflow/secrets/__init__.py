@@ -29,12 +29,11 @@ from __future__ import annotations
 
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
-__all__ = ["BaseSecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH"]
+__all__ = [
+    "BaseSecretsBackend",
+]
 
-from airflow.secrets.base_secrets import (
-    DEFAULT_SECRETS_SEARCH_PATH as DEFAULT_SECRETS_SEARCH_PATH,
-    BaseSecretsBackend,
-)
+from airflow.secrets.base_secrets import BaseSecretsBackend
 
 __deprecated_classes = {
     "cache": {
