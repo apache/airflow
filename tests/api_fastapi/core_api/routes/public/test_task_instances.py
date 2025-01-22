@@ -491,7 +491,11 @@ class TestGetMappedTaskInstances:
                 task1 = BaseOperator(task_id="op1")
                 mapped = MockOperator.partial(task_id="task_2", executor="default").expand(arg2=task1.output)
 
-            dr = dag_maker.create_dagrun(run_id=f"run_{dag_id}")
+            dr = dag_maker.create_dagrun(
+                run_id=f"run_{dag_id}",
+                logical_date=DEFAULT_DATETIME_1,
+                data_interval=(DEFAULT_DATETIME_1, DEFAULT_DATETIME_2),
+            )
 
             session.add(
                 TaskMap(
@@ -614,53 +618,49 @@ class TestGetMappedTaskInstances:
         assert len(body["task_instances"]) == 10
         assert list(range(4, 14)) == [ti["map_index"] for ti in body["task_instances"]]
 
-    def test_order(self, test_client, one_task_with_many_mapped_tis):
+    @pytest.mark.parametrize(
+        "params , expected_map_indexes",
+        [
+            ({"order_by": "map_index", "limit": 100}, list(range(100))),
+            ({"order_by": "-map_index", "limit": 100}, list(range(109, 9, -1))),
+            (
+                {"order_by": "state", "limit": 108},
+                list(range(5, 25)) + list(range(25, 110)) + list(range(3)),
+            ),
+            (
+                {"order_by": "-state", "limit": 100},
+                list(range(5)[::-1]) + list(range(25, 110)[::-1]) + list(range(15, 25)[::-1]),
+            ),
+            ({"order_by": "logical_date", "limit": 100}, list(range(100))),
+            ({"order_by": "-logical_date", "limit": 100}, list(range(109, 9, -1))),
+            ({"order_by": "data_interval_start", "limit": 100}, list(range(100))),
+            ({"order_by": "-data_interval_start", "limit": 100}, list(range(109, 9, -1))),
+        ],
+    )
+    def test_mapped_instances_order(
+        self, test_client, session, params, expected_map_indexes, one_task_with_many_mapped_tis
+    ):
         response = test_client.get(
             "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params=params,
         )
-        assert response.status_code == 200
-        body = response.json()
-        assert body["total_entries"] == 110
-        assert len(body["task_instances"]) == 100
-        assert list(range(100)) == [ti["map_index"] for ti in body["task_instances"]]
 
-    def test_mapped_task_instances_reverse_order(self, test_client, one_task_with_many_mapped_tis):
-        response = test_client.get(
-            "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
-            params={"order_by": "-map_index"},
-        )
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 110
-        assert len(body["task_instances"]) == 100
-        assert list(range(109, 9, -1)) == [ti["map_index"] for ti in body["task_instances"]]
+        assert len(body["task_instances"]) == params["limit"]
+        assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
 
-    def test_state_order(self, test_client, one_task_with_many_mapped_tis):
-        response = test_client.get(
-            "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
-            params={"order_by": "-state"},
-        )
-        assert response.status_code == 200
-        body = response.json()
-        assert body["total_entries"] == 110
-        assert len(body["task_instances"]) == 100
-        assert list(range(5)[::-1]) + list(range(25, 110)[::-1]) + list(range(15, 25)[::-1]) == [
-            ti["map_index"] for ti in body["task_instances"]
-        ]
-        # State ascending
-        response = test_client.get(
-            "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
-            params={"order_by": "state", "limit": 108},
-        )
-        assert response.status_code == 200
-        body = response.json()
-        assert body["total_entries"] == 110
-        assert len(body["task_instances"]) == 108
-        assert list(range(5, 25)) + list(range(25, 110)) + list(range(3)) == [
-            ti["map_index"] for ti in body["task_instances"]
-        ]
-
-    def test_rendered_map_index_order(self, test_client, session, one_task_with_many_mapped_tis):
+    @pytest.mark.parametrize(
+        "params, expected_map_indexes",
+        [
+            ({"order_by": "rendered_map_index", "limit": 108}, [0] + list(range(1, 108))),  # Asc
+            ({"order_by": "-rendered_map_index", "limit": 100}, [0] + list(range(11, 110)[::-1])),  # Desc
+        ],
+    )
+    def test_rendered_map_index_order(
+        self, test_client, session, params, expected_map_indexes, one_task_with_many_mapped_tis
+    ):
         ti = (
             session.query(TaskInstance)
             .where(TaskInstance.task_id == "task_2", TaskInstance.map_index == 0)
@@ -673,23 +673,13 @@ class TestGetMappedTaskInstances:
 
         response = test_client.get(
             "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
-            params={"order_by": "-rendered_map_index"},
+            params=params,
         )
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 110
-        assert len(body["task_instances"]) == 100
-        assert [0] + list(range(11, 110)[::-1]) == [ti["map_index"] for ti in body["task_instances"]]
-        # State ascending
-        response = test_client.get(
-            "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
-            params={"order_by": "rendered_map_index", "limit": 108},
-        )
-        assert response.status_code == 200
-        body = response.json()
-        assert body["total_entries"] == 110
-        assert len(body["task_instances"]) == 108
-        assert [0] + list(range(1, 108)) == [ti["map_index"] for ti in body["task_instances"]]
+        assert len(body["task_instances"]) == params["limit"]
+        assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
 
     def test_with_date(self, test_client, one_task_with_mapped_tis):
         response = test_client.get(
@@ -1032,7 +1022,10 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert count == response.json()["total_entries"]
         assert count == len(response.json()["task_instances"])
 
-    def test_should_respond_200_for_order_by(self, test_client, session):
+    @pytest.mark.parametrize(
+        "order_by_field", ["start_date", "logical_date", "data_interval_start", "data_interval_end"]
+    )
+    def test_should_respond_200_for_order_by(self, order_by_field, test_client, session):
         dag_id = "example_python_operator"
 
         dag_runs = [
@@ -1062,39 +1055,28 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
 
         ti_count = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count()
 
-        for field in ["start_date", "logical_date", "data_interval_start", "data_interval_end"]:
-            # Ascending order
-            response_asc = test_client.get(
-                "/public/dags/~/dagRuns/~/taskInstances", params={"order_by": field}
-            )
-            assert response_asc.status_code == 200
-            assert response_asc.json()["total_entries"] == ti_count
-            assert len(response_asc.json()["task_instances"]) == ti_count
+        # Ascending order
+        response_asc = test_client.get(
+            "/public/dags/~/dagRuns/~/taskInstances", params={"order_by": order_by_field}
+        )
+        assert response_asc.status_code == 200
+        assert response_asc.json()["total_entries"] == ti_count
+        assert len(response_asc.json()["task_instances"]) == ti_count
 
-            # Descending order
-            response_desc = test_client.get(
-                "/public/dags/~/dagRuns/~/taskInstances", params={"order_by": f"-{field}"}
-            )
-            assert response_desc.status_code == 200
-            assert response_desc.json()["total_entries"] == ti_count
-            assert len(response_desc.json()["task_instances"]) == ti_count
+        # Descending order
+        response_desc = test_client.get(
+            "/public/dags/~/dagRuns/~/taskInstances", params={"order_by": f"-{order_by_field}"}
+        )
+        assert response_desc.status_code == 200
+        assert response_desc.json()["total_entries"] == ti_count
+        assert len(response_desc.json()["task_instances"]) == ti_count
 
-            if field in ["start_date", "logical_date"]:
-                # Compare
-                field_asc = [ti[field] for ti in response_asc.json()["task_instances"]]
-                assert len(field_asc) == ti_count
-                field_desc = [ti[field] for ti in response_desc.json()["task_instances"]]
-                assert len(field_desc) == ti_count
-                assert field_asc == list(reversed(field_desc))
-
-            # Separate condition since these attributes are not returned by the api response, so using ti["id"] to compare
-            elif field in ["data_interval_start", "data_interval_end"]:
-                # Compare
-                field_asc = [ti["id"] for ti in response_asc.json()["task_instances"]]
-                assert len(field_asc) == ti_count
-                field_desc = [ti["id"] for ti in response_desc.json()["task_instances"]]
-                assert len(field_desc) == ti_count
-                assert field_asc == list(reversed(field_desc))
+        # Compare
+        field_asc = [ti["id"] for ti in response_asc.json()["task_instances"]]
+        assert len(field_asc) == ti_count
+        field_desc = [ti["id"] for ti in response_desc.json()["task_instances"]]
+        assert len(field_desc) == ti_count
+        assert field_asc == list(reversed(field_desc))
 
     def test_should_respond_200_for_pagination(self, test_client, session):
         dag_id = "example_python_operator"
