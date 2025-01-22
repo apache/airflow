@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any, Callable, Union
 
 from pydantic import BeforeValidator, ConfigDict, Field
 
@@ -91,7 +91,7 @@ class PoolBulkCreateAction(BulkBaseAction):
     """Bulk Create Pool serializer for request bodies."""
 
     action: BulkAction = BulkAction.CREATE
-    pools: list[PoolPatchBody] = Field(..., description="A list of pools to be created.")
+    pools: list[PoolPostBody] = Field(..., description="A list of pools to be created.")
 
 
 class PoolBulkUpdateAction(BulkBaseAction):
@@ -111,7 +111,7 @@ class PoolBulkDeleteAction(BulkBaseAction):
 class PoolBulkBody(BaseModel):
     """Request body for bulk Pool operations (create, update, delete)."""
 
-    actions: list[PoolBulkCreateAction | PoolBulkUpdateAction | PoolBulkDeleteAction] = Field(
+    actions: list[Union[PoolBulkCreateAction, PoolBulkUpdateAction, PoolBulkDeleteAction]] = Field(
         ..., description="A list of Pool actions to perform."
     )
 

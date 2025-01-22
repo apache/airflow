@@ -43,6 +43,11 @@ class BulkActionOnExistence(enum.Enum):
     SKIP = "skip"
     OVERWRITE = "overwrite"
 
+class BulkActionNotOnExistence(enum.Enum):
+    """Bulk Action to be taken if the entity does not exists."""
+
+    FAIL = "fail"
+    SKIP = "skip"
 
 # TODO: Unify All Bulk Operation Related Base Data Models
 class BulkBaseAction(BaseModel):

@@ -44,9 +44,9 @@ import {
   DagRunState,
   DagWarningType,
   PatchTaskInstanceBody,
+  PoolBulkBody,
   PoolPatchBody,
   PoolPostBody,
-  PoolPostBulkBody,
   TaskInstancesBatchBody,
   TriggerDAGRunPostBody,
   VariableBody,
@@ -3294,43 +3294,6 @@ export const useBackfillServiceCancelBackfill = <
     ...options,
   });
 /**
- * Put Pools
- * Create multiple pools.
- * @param data The data for the request.
- * @param data.requestBody
- * @returns PoolCollectionResponse Created with overwriting
- * @returns PoolCollectionResponse Created
- * @throws ApiError
- */
-export const usePoolServicePutPools = <
-  TData = Common.PoolServicePutPoolsMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: PoolPostBulkBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: PoolPostBulkBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) => PoolService.putPools({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
  * Reparse Dag File
  * Request re-parsing a DAG file.
  * @param data The data for the request.
@@ -3790,6 +3753,42 @@ export const usePoolServicePatchPool = <
   >({
     mutationFn: ({ poolName, requestBody, updateMask }) =>
       PoolService.patchPool({ poolName, requestBody, updateMask }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Bulk Pools
+ * Bulk create, update, and delete pools.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns PoolBulkResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServiceBulkPools = <
+  TData = Common.PoolServiceBulkPoolsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: PoolBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: PoolBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) => PoolService.bulkPools({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**

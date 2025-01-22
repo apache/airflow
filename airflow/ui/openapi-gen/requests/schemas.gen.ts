@@ -3831,6 +3831,182 @@ export const $PluginResponse = {
   description: "Plugin serializer.",
 } as const;
 
+export const $PoolBulkActionResponse = {
+  properties: {
+    success: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Success",
+      description: "A list of pool names representing successful operations.",
+    },
+    errors: {
+      items: {
+        type: "object",
+      },
+      type: "array",
+      title: "Errors",
+      description:
+        "A list of errors encountered during the operation, each containing details about the issue.",
+    },
+  },
+  type: "object",
+  title: "PoolBulkActionResponse",
+  description: `Serializer for individual bulk action responses.
+
+Represents the outcome of a single bulk operation (create, update, or delete).
+The response includes a list of successful pool names and any errors encountered during the operation.
+This structure helps users understand which key actions succeeded and which failed.`,
+} as const;
+
+export const $PoolBulkBody = {
+  properties: {
+    actions: {
+      items: {
+        anyOf: [
+          {
+            $ref: "#/components/schemas/PoolBulkCreateAction",
+          },
+          {
+            $ref: "#/components/schemas/PoolBulkUpdateAction",
+          },
+          {
+            $ref: "#/components/schemas/PoolBulkDeleteAction",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+      description: "A list of Pool actions to perform.",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "PoolBulkBody",
+  description: "Request body for bulk Pool operations (create, update, delete).",
+} as const;
+
+export const $PoolBulkCreateAction = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      default: "create",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+    pools: {
+      items: {
+        $ref: "#/components/schemas/PoolPostBody",
+      },
+      type: "array",
+      title: "Pools",
+      description: "A list of pools to be created.",
+    },
+  },
+  type: "object",
+  required: ["pools"],
+  title: "PoolBulkCreateAction",
+  description: "Bulk Create Pool serializer for request bodies.",
+} as const;
+
+export const $PoolBulkDeleteAction = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      default: "delete",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+    pool_names: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Pool Names",
+      description: "A list of pool names to be deleted.",
+    },
+  },
+  type: "object",
+  required: ["pool_names"],
+  title: "PoolBulkDeleteAction",
+  description: "Bulk Delete Pool serializer for request bodies.",
+} as const;
+
+export const $PoolBulkResponse = {
+  properties: {
+    create: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/PoolBulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk create operation, including successful pool names and errors.",
+    },
+    update: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/PoolBulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk update operation, including successful pool names and errors.",
+    },
+    delete: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/PoolBulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk delete operation, including successful pool names and errors.",
+    },
+  },
+  type: "object",
+  title: "PoolBulkResponse",
+  description: `Serializer for responses to bulk pool operations.
+
+This represents the results of create, update, and delete actions performed on pools in bulk.
+Each action (if requested) is represented as a field containing details about successful pool names and any encountered errors.
+Fields are populated in the response only if the respective action was part of the request, else are set None.`,
+} as const;
+
+export const $PoolBulkUpdateAction = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      default: "update",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+    pools: {
+      items: {
+        $ref: "#/components/schemas/PoolPatchBody",
+      },
+      type: "array",
+      title: "Pools",
+      description: "A list of pools to be updated.",
+    },
+  },
+  type: "object",
+  required: ["pools"],
+  title: "PoolBulkUpdateAction",
+  description: "Bulk Update Pool serializer for request bodies.",
+} as const;
+
 export const $PoolCollectionResponse = {
   properties: {
     pools: {
@@ -3935,34 +4111,6 @@ export const $PoolPostBody = {
   required: ["name", "slots"],
   title: "PoolPostBody",
   description: "Pool serializer for post bodies.",
-} as const;
-
-export const $PoolPostBulkBody = {
-  properties: {
-    pools: {
-      items: {
-        $ref: "#/components/schemas/PoolPostBody",
-      },
-      type: "array",
-      title: "Pools",
-    },
-    overwrite: {
-      anyOf: [
-        {
-          type: "boolean",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Overwrite",
-      default: false,
-    },
-  },
-  type: "object",
-  required: ["pools"],
-  title: "PoolPostBulkBody",
-  description: "Pools serializer for post bodies.",
 } as const;
 
 export const $PoolResponse = {
