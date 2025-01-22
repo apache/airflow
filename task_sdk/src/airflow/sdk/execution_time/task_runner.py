@@ -31,6 +31,7 @@ import attrs
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -69,6 +70,7 @@ class RuntimeTaskInstance(TaskInstance):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     task: BaseOperator
+    bundle_instance: BaseDagBundle
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
@@ -308,6 +310,7 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     bundle_instance = DagBundlesManager().get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
+        mark_in_use=True,
     )
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
@@ -332,6 +335,7 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     return RuntimeTaskInstance.model_construct(
         **what.ti.model_dump(exclude_unset=True),
         task=task,
+        bundle_instance=bundle_instance,
         _ti_context_from_server=what.ti_context,
         max_tries=what.ti_context.max_tries,
     )
@@ -605,6 +609,7 @@ def main():
 
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
+    ti = None
     try:
         ti, log = startup()
         run(ti, log)
@@ -617,6 +622,14 @@ def main():
         log = structlog.get_logger(logger_name="task")
         log.exception("Top level error")
         exit(1)
+    finally:
+        try:
+            if ti:
+                ti.bundle_instance.remove_in_use_marker()
+                ti.bundle_instance.remove_stale_bundle_versions()
+        except Exception:
+            log = structlog.get_logger(logger_name="task")
+            log.exception("Error while performing bundle cleanup.")
 
 
 if __name__ == "__main__":

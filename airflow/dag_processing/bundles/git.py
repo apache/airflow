@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 from git import Repo
@@ -29,9 +30,6 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 class GitHook(BaseHook):
@@ -110,13 +108,54 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         super().__init__(**kwargs)
         self.tracking_ref = tracking_ref
         self.subdir = subdir
-        self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
-        self.repo_path = (
-            self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
-        )
+        base_folder = self._dag_bundle_root_storage_path / "git" / self.name
+        self.bare_repo_path = base_folder / "bare"
+        self.versions_path = base_folder / "versions"
+        self.pid_tracking_path = base_folder / "pid_tracking"
+        self.ttl_tracking_path = base_folder / "ttl_tracking"
+        if self.version:
+            self.repo_path = base_folder / "versions" / self.version
+        else:
+            self.repo_path = base_folder / "tracking_repo"
         self.git_conn_id = git_conn_id
         self.hook = GitHook(git_conn_id=self.git_conn_id)
         self.repo_url = self.hook.repo_url
+
+    def mark_in_use(self):
+        if not self.supports_versioning:
+            return
+        if self.version is None:
+            raise ValueError("Cannot mark a tracking bundle as 'in use'.")
+        import os
+
+        pid = os.getpid()
+        self.pid_tracking_path.mkdir(parents=True, exist_ok=True)
+        self.pid_tracking_file = Path(self.pid_tracking_path, str(pid))
+        self.pid_tracking_file.write_text(self.version)
+
+        self.ttl_tracking_path.mkdir(parents=True, exist_ok=True)
+        ttl_tracking_file = Path(self.ttl_tracking_path, self.version)
+        ttl_tracking_file.touch(exist_ok=True)
+
+    def remove_in_use_marker(self):
+        if self.pid_tracking_file:
+            os.remove(self.pid_tracking_file)
+
+    def remove_stale_bundle_versions(self):
+        import time
+
+        files = self.ttl_tracking_path.iterdir()
+        now = time.time()
+        versions = [(x.name, x.stat().st_mtime) for x in files]
+        candidates = []
+        ignore = []
+        for version, mtime in versions:
+            if now - mtime > 30:
+                candidates.append(version)
+            else:
+                ignore.append(version)
+        print(f"REMOVAL CANDIDATES: {candidates}")
+        print(f"RECENTLY USED VERSIONS: {ignore}")
 
     def _initialize(self):
         self._clone_bare_repo_if_required()
@@ -126,7 +165,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         if self.version:
             if not self._has_version(self.repo, self.version):
                 self.repo.remotes.origin.fetch()
-            self.repo.head.set_reference(self.repo.commit(self.version))
+            self.repo.head.set_reference(str(self.repo.commit(self.version)))
             self.repo.head.reset(index=True, working_tree=True)
         else:
             self.refresh()
