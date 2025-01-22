@@ -17,12 +17,17 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Callable, Union
+from typing import Annotated, Any, Callable
 
 from pydantic import BeforeValidator, ConfigDict, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction, BulkBaseAction
+from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkAction,
+    BulkActionNotOnExistence,
+    BulkActionOnExistence,
+    BulkBaseAction,
+)
 
 
 def _call_function(function: Callable[[], int]) -> int:
@@ -92,6 +97,7 @@ class PoolBulkCreateAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.CREATE
     pools: list[PoolPostBody] = Field(..., description="A list of pools to be created.")
+    action_on_existence: BulkActionOnExistence = BulkActionOnExistence.FAIL
 
 
 class PoolBulkUpdateAction(BulkBaseAction):
@@ -99,6 +105,7 @@ class PoolBulkUpdateAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.UPDATE
     pools: list[PoolPatchBody] = Field(..., description="A list of pools to be updated.")
+    action_not_on_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
 class PoolBulkDeleteAction(BulkBaseAction):
@@ -106,12 +113,13 @@ class PoolBulkDeleteAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.DELETE
     pool_names: list[str] = Field(..., description="A list of pool names to be deleted.")
+    action_not_on_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
 class PoolBulkBody(BaseModel):
     """Request body for bulk Pool operations (create, update, delete)."""
 
-    actions: list[Union[PoolBulkCreateAction, PoolBulkUpdateAction, PoolBulkDeleteAction]] = Field(
+    actions: list[PoolBulkCreateAction | PoolBulkUpdateAction | PoolBulkDeleteAction] = Field(
         ..., description="A list of Pool actions to perform."
     )
 

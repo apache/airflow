@@ -21,7 +21,7 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow.api_fastapi.core_api.datamodels.common import BulkActionOnExistence
+from airflow.api_fastapi.core_api.datamodels.common import BulkActionNotOnExistence, BulkActionOnExistence
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
     ConnectionBulkActionResponse,
@@ -94,12 +94,12 @@ def handle_bulk_update(
     )
 
     try:
-        if action.action_on_existence == BulkActionOnExistence.FAIL and not_found_connection_ids:
+        if action.action_not_on_existence == BulkActionNotOnExistence.FAIL and not_found_connection_ids:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The connections with these connection_ids: {not_found_connection_ids} were not found.",
             )
-        elif action.action_on_existence == BulkActionOnExistence.SKIP:
+        elif action.action_not_on_existence == BulkActionNotOnExistence.SKIP:
             update_connection_ids = matched_connection_ids
         else:
             update_connection_ids = to_update_connection_ids
@@ -131,12 +131,12 @@ def handle_bulk_delete(
     )
 
     try:
-        if action.action_on_existence == BulkActionOnExistence.FAIL and not_found_connection_ids:
+        if action.action_not_on_existence == BulkActionNotOnExistence.FAIL and not_found_connection_ids:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The connections with these connection_ids: {not_found_connection_ids} were not found.",
             )
-        elif action.action_on_existence == BulkActionOnExistence.SKIP:
+        elif action.action_not_on_existence == BulkActionNotOnExistence.SKIP:
             delete_connection_ids = matched_connection_ids
         else:
             delete_connection_ids = to_delete_connection_ids

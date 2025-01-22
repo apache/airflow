@@ -144,6 +144,11 @@ export type BaseInfoResponse = {
 export type BulkAction = "create" | "delete" | "update";
 
 /**
+ * Bulk Action to be taken if the entity does not exists.
+ */
+export type BulkActionNotOnExistence = "fail" | "skip";
+
+/**
  * Bulk Action to be taken if the entity already exists or not.
  */
 export type BulkActionOnExistence = "fail" | "skip" | "overwrite";
@@ -267,11 +272,11 @@ export type ConnectionBulkBody = {
  */
 export type ConnectionBulkCreateAction = {
   action?: BulkAction;
-  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of connections to be created.
    */
   connections: Array<ConnectionBody>;
+  action_on_existence?: BulkActionOnExistence;
 };
 
 /**
@@ -279,11 +284,11 @@ export type ConnectionBulkCreateAction = {
  */
 export type ConnectionBulkDeleteAction = {
   action?: BulkAction;
-  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of connection IDs to be deleted.
    */
   connection_ids: Array<string>;
+  action_not_on_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -313,11 +318,11 @@ export type ConnectionBulkResponse = {
  */
 export type ConnectionBulkUpdateAction = {
   action?: BulkAction;
-  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of connections to be updated.
    */
   connections: Array<ConnectionBody>;
+  action_not_on_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -1007,11 +1012,11 @@ export type PoolBulkBody = {
  */
 export type PoolBulkCreateAction = {
   action?: BulkAction;
-  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of pools to be created.
    */
   pools: Array<PoolPostBody>;
+  action_on_existence?: BulkActionOnExistence;
 };
 
 /**
@@ -1019,11 +1024,11 @@ export type PoolBulkCreateAction = {
  */
 export type PoolBulkDeleteAction = {
   action?: BulkAction;
-  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of pool names to be deleted.
    */
   pool_names: Array<string>;
+  action_not_on_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -1053,11 +1058,11 @@ export type PoolBulkResponse = {
  */
 export type PoolBulkUpdateAction = {
   action?: BulkAction;
-  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of pools to be updated.
    */
   pools: Array<PoolPatchBody>;
+  action_not_on_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -1480,11 +1485,11 @@ export type VariableBulkBody = {
  */
 export type VariableBulkCreateAction = {
   action?: BulkAction;
-  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of variables to be created.
    */
   variables: Array<VariableBody>;
+  action_on_existence?: BulkActionOnExistence;
 };
 
 /**
@@ -1492,11 +1497,11 @@ export type VariableBulkCreateAction = {
  */
 export type VariableBulkDeleteAction = {
   action?: BulkAction;
-  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of variable keys to be deleted.
    */
   keys: Array<string>;
+  action_not_on_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -1526,11 +1531,11 @@ export type VariableBulkResponse = {
  */
 export type VariableBulkUpdateAction = {
   action?: BulkAction;
-  action_on_existence?: BulkActionOnExistence;
   /**
    * A list of variables to be updated.
    */
   variables: Array<VariableBody>;
+  action_not_on_existence?: BulkActionNotOnExistence;
 };
 
 /**

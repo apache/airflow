@@ -21,7 +21,7 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow.api_fastapi.core_api.datamodels.common import BulkActionOnExistence
+from airflow.api_fastapi.core_api.datamodels.common import BulkActionNotOnExistence, BulkActionOnExistence
 from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolBulkActionResponse,
     PoolBulkCreateAction,
@@ -86,12 +86,12 @@ def handle_bulk_update(session, action: PoolBulkUpdateAction, results: PoolBulkA
     _, matched_pool_names, not_found_pool_names = categorize_pools(session, to_update_pool_names)
 
     try:
-        if action.action_on_existence == BulkActionOnExistence.FAIL and not_found_pool_names:
+        if action.action_not_on_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The pools with these pool names: {not_found_pool_names} were not found.",
             )
-        elif action.action_on_existence == BulkActionOnExistence.SKIP:
+        elif action.action_not_on_existence == BulkActionNotOnExistence.SKIP:
             update_pool_names = matched_pool_names
         else:
             update_pool_names = to_update_pool_names
@@ -102,7 +102,7 @@ def handle_bulk_update(session, action: PoolBulkUpdateAction, results: PoolBulkA
                 PoolPatchBody(**pool.model_dump())
                 for key, val in pool.model_dump().items():
                     setattr(old_pool, key, val)
-                results.success.append(pool.name)
+                results.success.append(str(pool.name))
 
     except HTTPException as e:
         results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
@@ -117,12 +117,12 @@ def handle_bulk_delete(session, action: PoolBulkDeleteAction, results: PoolBulkA
     _, matched_pool_names, not_found_pool_names = categorize_pools(session, to_delete_pool_names)
 
     try:
-        if action.action_on_existence == BulkActionOnExistence.FAIL and not_found_pool_names:
+        if action.action_not_on_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The pools with these pool names: {not_found_pool_names} were not found.",
             )
-        elif action.action_on_existence == BulkActionOnExistence.SKIP:
+        elif action.action_not_on_existence == BulkActionNotOnExistence.SKIP:
             delete_pool_names = matched_pool_names
         else:
             delete_pool_names = to_delete_pool_names

@@ -489,6 +489,13 @@ export const $BulkAction = {
   description: "Bulk Action to be performed on the used model.",
 } as const;
 
+export const $BulkActionNotOnExistence = {
+  type: "string",
+  enum: ["fail", "skip"],
+  title: "BulkActionNotOnExistence",
+  description: "Bulk Action to be taken if the entity does not exists.",
+} as const;
+
 export const $BulkActionOnExistence = {
   type: "string",
   enum: ["fail", "skip", "overwrite"],
@@ -931,10 +938,6 @@ export const $ConnectionBulkCreateAction = {
       $ref: "#/components/schemas/BulkAction",
       default: "create",
     },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
     connections: {
       items: {
         $ref: "#/components/schemas/ConnectionBody",
@@ -942,6 +945,10 @@ export const $ConnectionBulkCreateAction = {
       type: "array",
       title: "Connections",
       description: "A list of connections to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
     },
   },
   type: "object",
@@ -956,10 +963,6 @@ export const $ConnectionBulkDeleteAction = {
       $ref: "#/components/schemas/BulkAction",
       default: "delete",
     },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
     connection_ids: {
       items: {
         type: "string",
@@ -967,6 +970,10 @@ export const $ConnectionBulkDeleteAction = {
       type: "array",
       title: "Connection Ids",
       description: "A list of connection IDs to be deleted.",
+    },
+    action_not_on_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
     },
   },
   type: "object",
@@ -1026,10 +1033,6 @@ export const $ConnectionBulkUpdateAction = {
       $ref: "#/components/schemas/BulkAction",
       default: "update",
     },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
     connections: {
       items: {
         $ref: "#/components/schemas/ConnectionBody",
@@ -1037,6 +1040,10 @@ export const $ConnectionBulkUpdateAction = {
       type: "array",
       title: "Connections",
       description: "A list of connections to be updated.",
+    },
+    action_not_on_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
     },
   },
   type: "object",
@@ -3893,10 +3900,6 @@ export const $PoolBulkCreateAction = {
       $ref: "#/components/schemas/BulkAction",
       default: "create",
     },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
     pools: {
       items: {
         $ref: "#/components/schemas/PoolPostBody",
@@ -3904,6 +3907,10 @@ export const $PoolBulkCreateAction = {
       type: "array",
       title: "Pools",
       description: "A list of pools to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
     },
   },
   type: "object",
@@ -3918,10 +3925,6 @@ export const $PoolBulkDeleteAction = {
       $ref: "#/components/schemas/BulkAction",
       default: "delete",
     },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
     pool_names: {
       items: {
         type: "string",
@@ -3929,6 +3932,10 @@ export const $PoolBulkDeleteAction = {
       type: "array",
       title: "Pool Names",
       description: "A list of pool names to be deleted.",
+    },
+    action_not_on_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
     },
   },
   type: "object",
@@ -3988,10 +3995,6 @@ export const $PoolBulkUpdateAction = {
       $ref: "#/components/schemas/BulkAction",
       default: "update",
     },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
     pools: {
       items: {
         $ref: "#/components/schemas/PoolPatchBody",
@@ -3999,6 +4002,10 @@ export const $PoolBulkUpdateAction = {
       type: "array",
       title: "Pools",
       description: "A list of pools to be updated.",
+    },
+    action_not_on_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
     },
   },
   type: "object",
@@ -5868,10 +5875,6 @@ export const $VariableBulkCreateAction = {
       $ref: "#/components/schemas/BulkAction",
       default: "create",
     },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
     variables: {
       items: {
         $ref: "#/components/schemas/VariableBody",
@@ -5879,6 +5882,10 @@ export const $VariableBulkCreateAction = {
       type: "array",
       title: "Variables",
       description: "A list of variables to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
     },
   },
   type: "object",
@@ -5893,10 +5900,6 @@ export const $VariableBulkDeleteAction = {
       $ref: "#/components/schemas/BulkAction",
       default: "delete",
     },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
     keys: {
       items: {
         type: "string",
@@ -5904,6 +5907,10 @@ export const $VariableBulkDeleteAction = {
       type: "array",
       title: "Keys",
       description: "A list of variable keys to be deleted.",
+    },
+    action_not_on_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
     },
   },
   type: "object",
@@ -5963,10 +5970,6 @@ export const $VariableBulkUpdateAction = {
       $ref: "#/components/schemas/BulkAction",
       default: "update",
     },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
     variables: {
       items: {
         $ref: "#/components/schemas/VariableBody",
@@ -5974,6 +5977,10 @@ export const $VariableBulkUpdateAction = {
       type: "array",
       title: "Variables",
       description: "A list of variables to be updated.",
+    },
+    action_not_on_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
     },
   },
   type: "object",
