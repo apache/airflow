@@ -75,6 +75,22 @@ class DagNoScheduleException(AirflowException):
     """
 
 
+class InvalidBackfillDirection(AirflowException):
+    """
+    Raised when backfill is attempted in reverse order with tasks that depend on past runs.
+
+    :meta private:
+    """
+
+
+class InvalidReprocessBehavior(AirflowException):
+    """
+    Raised when a backfill cannot be completed because the reprocess behavior is not valid.
+
+    :meta private:
+    """
+
+
 class ReprocessBehavior(str, Enum):
     """
     Internal enum for setting reprocess behavior in a backfill.
@@ -188,18 +204,16 @@ def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> 
 
 
 def _validate_backfill_params(dag, reverse, reprocess_behavior: ReprocessBehavior | None):
-    depends_on_past = None
     depends_on_past = any(x.depends_on_past for x in dag.tasks)
     if depends_on_past:
         if reverse is True:
-            raise ValueError(
-                "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
+            raise InvalidBackfillDirection(
+                "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True."
             )
         if reprocess_behavior in (None, ReprocessBehavior.NONE):
-            raise ValueError(
-                "Dag has task for which depends_on_past is true. "
-                "You must set reprocess behavior to reprocess completed or "
-                "reprocess failed"
+            raise InvalidReprocessBehavior(
+                "DAG has tasks for which depends_on_past=True. "
+                "You must set reprocess behavior to reprocess completed or reprocess failed."
             )
 
 
