@@ -32,8 +32,9 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
+from airflow.sdk.api.datamodels._generated import AssetNameAndUri, TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
@@ -42,6 +43,7 @@ from airflow.sdk.execution_time.comms import (
     SetRenderedFields,
     SetXCom,
     StartupDetails,
+    SucceedTask,
     TaskState,
     ToSupervisor,
     ToTask,
@@ -469,12 +471,40 @@ def run(ti: RuntimeTaskInstance, log: Logger):
 
         _push_xcom_if_needed(result, ti)
 
+        task_outlets = []
+        outlet_events = []
+        events = context["outlet_events"]
+        asset_type = ""
+
+        for obj in ti.task.outlets or []:
+            # Lineage can have other types of objects besides assets
+            if isinstance(obj, Asset):
+                task_outlets.append(AssetNameAndUri(name=obj.name, uri=obj.uri))
+                outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
+            elif isinstance(obj, AssetNameRef):
+                task_outlets.append(AssetNameAndUri(name=obj.name))
+                # send all as we do not know how to filter here yet
+                outlet_events.append(attrs.asdict(events))  # type: ignore
+            elif isinstance(obj, AssetUriRef):
+                task_outlets.append(AssetNameAndUri(uri=obj.uri))
+                # send all as we do not know how to filter here yet
+                outlet_events.append(attrs.asdict(events))  # type: ignore
+            elif isinstance(obj, AssetAlias):
+                for asset_alias_event in events[obj].asset_alias_events:
+                    outlet_events.append(attrs.asdict(asset_alias_event))
+            asset_type = type(obj).__name__
+
         # TODO: Get things from _execute_task_with_callbacks
         #   - Clearing XCom
         #   - Update RTIF
         #   - Pre Execute
         #   etc
-        msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
+        msg = SucceedTask(
+            end_date=datetime.now(tz=timezone.utc),
+            task_outlets=task_outlets,
+            outlet_events=outlet_events,
+            asset_type=asset_type,
+        )
     except TaskDeferred as defer:
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)

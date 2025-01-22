@@ -26,17 +26,31 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
+from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
-from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
+from tests_common.test_utils.db import clear_db_assets, clear_db_runs, clear_rendered_ti_fields
 
 pytestmark = pytest.mark.db_test
 
 
 DEFAULT_START_DATE = timezone.parse("2024-10-31T11:00:00Z")
 DEFAULT_END_DATE = timezone.parse("2024-10-31T12:00:00Z")
+
+
+def _create_asset_aliases(session, num: int = 2) -> None:
+    asset_aliases = [
+        AssetAliasModel(
+            id=i,
+            name=f"simple{i}",
+            group="alias",
+        )
+        for i in range(1, 1 + num)
+    ]
+    session.add_all(asset_aliases)
+    session.commit()
 
 
 class TestTIRunState:
@@ -265,6 +279,85 @@ class TestTIUpdateState:
         ti = session.get(TaskInstance, ti.id)
         assert ti.state == expected_state
         assert ti.end_date == end_date
+
+    @pytest.mark.parametrize(
+        ("asset_type", "task_outlets", "outlet_events"),
+        [
+            (
+                "Asset",
+                '[{"name":"s3://bucket/my-task","uri":"s3://bucket/my-task"}]',
+                '[{"key":{"name":"s3://bucket/my-task","uri":"s3://bucket/my-task"},"extra":{},"asset_alias_events":[]}]',
+            ),
+            (
+                "AssetAlias",
+                [],
+                '[{"source_alias_name":"example-alias","dest_asset_key":{"name":"s3://bucket/my-task","uri":"s3://bucket/my-task"},"extra":{}}]',
+            ),
+        ],
+    )
+    def test_ti_update_state_to_success_with_asset_events(
+        self, client, session, create_task_instance, asset_type, task_outlets, outlet_events
+    ):
+        clear_db_assets()
+        clear_db_runs()
+
+        asset = AssetModel(
+            id=1,
+            name="s3://bucket/my-task",
+            uri="s3://bucket/my-task",
+            group="asset",
+            extra={},
+        )
+        asset_active = AssetActive.for_asset(asset)
+        session.add_all([asset, asset_active])
+
+        if asset_type == "AssetAlias":
+            _create_asset_aliases(session, num=1)
+            asset_alias = session.query(AssetAliasModel).all()
+            assert len(asset_alias) == 1
+            assert asset_alias == [AssetAliasModel(name="simple1")]
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_with_asset_events",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": task_outlets,
+                "asset_type": asset_type,
+                "outlet_events": outlet_events,
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        # check if asset was created properly
+        asset = session.query(AssetModel).all()
+        assert len(asset) == 1
+        assert asset == [AssetModel(name="s3://bucket/my-task", uri="s3://bucket/my-task", extra={})]
+
+        event = session.query(AssetEvent).all()
+        assert len(event) == 1
+        assert event[0].asset_id == 1
+        assert event[0].asset == AssetModel(name="s3://bucket/my-task", uri="s3://bucket/my-task", extra={})
+        if asset_type == "AssetAlias":
+            assert event[0].source_aliases == [AssetAliasModel(name="example-alias")]
+        else:
+            assert event[0].extra == [
+                {
+                    "asset_alias_events": [],
+                    "extra": {},
+                    "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                }
+            ]
 
     def test_ti_update_state_not_found(self, client, session):
         """

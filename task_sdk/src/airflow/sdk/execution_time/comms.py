@@ -58,6 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRunContext,
+    TISuccessStatePayload,
     VariableResponse,
     XComResponse,
 )
@@ -167,9 +168,20 @@ class TaskState(BaseModel):
     - anything else = FAILED
     """
 
-    state: TerminalTIState
+    state: Literal[
+        TerminalTIState.FAILED,
+        TerminalTIState.SKIPPED,
+        TerminalTIState.REMOVED,
+        TerminalTIState.FAIL_WITHOUT_RETRY,
+    ]
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
+
+
+class SucceedTask(TISuccessStatePayload):
+    """Update a task's state to success. Includes task_outlets and outlet_events for registering asset events."""
+
+    type: Literal["SucceedTask"] = "SucceedTask"
 
 
 class DeferTask(TIDeferredStatePayload):
@@ -264,6 +276,7 @@ class GetAssetByUri(BaseModel):
 ToSupervisor = Annotated[
     Union[
         TaskState,
+        SucceedTask,
         GetXCom,
         GetConnection,
         GetVariable,

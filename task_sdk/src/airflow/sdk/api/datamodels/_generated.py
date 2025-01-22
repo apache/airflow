@@ -29,13 +29,24 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class AssetAliasResponse(BaseModel):
+class AssetNameAndUri(BaseModel):
     """
-    Asset alias schema with fields that are needed for Runtime.
+    Representation of an Asset.
+    """
+
+    name: Annotated[str | None, Field(title="Name")] = None
+    uri: Annotated[str | None, Field(title="Uri")] = None
+
+
+class AssetResponse(BaseModel):
+    """
+    Asset schema for responses with fields that are needed for Runtime.
     """
 
     name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
     group: Annotated[str, Field(title="Group")]
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
 class ConnectionResponse(BaseModel):
@@ -121,6 +132,18 @@ class TIRescheduleStatePayload(BaseModel):
     reschedule_date: Annotated[datetime, Field(title="Reschedule Date")]
 
 
+class TISuccessStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to success state.
+    """
+
+    state: Annotated[Literal["success"] | None, Field(title="State")] = "success"
+    end_date: Annotated[datetime, Field(title="End Date")]
+    task_outlets: Annotated[list[AssetNameAndUri] | None, Field(title="Task Outlets")] = None
+    outlet_events: Annotated[list | None, Field(title="Outlet Events")] = None
+    asset_type: Annotated[str | None, Field(title="Asset Type")] = None
+
+
 class TITargetStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a target state, excluding terminal and running states.
@@ -194,17 +217,6 @@ class TaskInstance(BaseModel):
     try_number: Annotated[int, Field(title="Try Number")]
     map_index: Annotated[int, Field(title="Map Index")] = -1
     hostname: Annotated[str | None, Field(title="Hostname")] = None
-
-
-class AssetResponse(BaseModel):
-    """
-    Asset schema for responses with fields that are needed for Runtime.
-    """
-
-    name: Annotated[str, Field(title="Name")]
-    uri: Annotated[str, Field(title="Uri")]
-    group: Annotated[str, Field(title="Group")]
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
 class DagRun(BaseModel):

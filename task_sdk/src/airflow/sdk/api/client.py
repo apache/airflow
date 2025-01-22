@@ -43,6 +43,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
     TIRunContext,
+    TISuccessStatePayload,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
     VariablePostBody,
@@ -133,6 +134,13 @@ class TaskInstanceOperations:
         """Tell the API server that this TI has reached a terminal state."""
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
         body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, asset_type):
+        """Tell the API server that this TI has to succeed."""
+        body = TISuccessStatePayload(
+            end_date=when, task_outlets=task_outlets, asset_type=asset_type, outlet_events=outlet_events
+        )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def heartbeat(self, id: uuid.UUID, pid: int):

@@ -38,6 +38,7 @@ from airflow.exceptions import (
 )
 from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
@@ -48,6 +49,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     SetRenderedFields,
     StartupDetails,
+    SucceedTask,
     TaskState,
     VariableResult,
     XComResult,
@@ -171,7 +173,10 @@ def test_run_basic(time_machine, create_runtime_ti, spy_agency, mock_supervisor_
     assert ti.task._lock_for_execution
 
     mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
+        msg=SucceedTask(
+            state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[], asset_type=""
+        ),
+        log=mock.ANY,
     )
 
 
@@ -442,7 +447,13 @@ def test_startup_and_run_dag_with_rtif(
             log=mock.ANY,
         ),
         mock.call.send_request(
-            msg=TaskState(end_date=instant, state=TerminalTIState.SUCCESS),
+            msg=SucceedTask(
+                end_date=instant,
+                state=TerminalTIState.SUCCESS,
+                task_outlets=[],
+                outlet_events=[],
+                asset_type="",
+            ),
             log=mock.ANY,
         ),
     ]
@@ -497,7 +508,10 @@ def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_co
 
     # Ensure the task is Successful
     mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
+        msg=SucceedTask(
+            state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[], asset_type=""
+        ),
+        log=mock.ANY,
     )
 
 
@@ -585,6 +599,79 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
     # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!
     # Check the dag file for the actual logic!
     assert ti.task.dag.task_dict.keys() == {"visible_task", "conditional_task"}
+
+
+@pytest.mark.parametrize(
+    ["task_outlets", "expected_msg"],
+    [
+        pytest.param(
+            [Asset(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[["s3://bucket/my-task", "s3://bucket/my-task"]],
+                outlet_events=[
+                    {
+                        "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                        "asset_alias_events": [],
+                    }
+                ],
+                asset_type="Asset",
+            ),
+            id="asset",
+        ),
+        pytest.param(
+            [AssetAlias(name="example-alias", group="asset")],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[],
+                outlet_events=[],
+                asset_type="AssetAlias",
+                type="SucceedTask",
+            ),
+            id="asset-alias",
+        ),
+        # pytest.param(
+        #     [
+        #         AssetNameRef(
+        #             name="s3://bucket/my-task",
+        #         )
+        #     ],
+        #     SucceedTask(state='success', end_date=timezone.datetime(2024, 12, 3, 10, 0)),
+        #     id="asset-name-ref"
+        # ),
+        # pytest.param(
+        #     [
+        #         AssetUriRef(
+        #             uri="s3://bucket/my-task",
+        #         )
+        #     ],
+        #     SucceedTask(state='success', end_date=timezone.datetime(2024, 12, 3, 10, 0)),
+        #     id="asset-uri-ref"
+        # ),
+    ],
+)
+def test_run_with_asset_outlets(
+    time_machine, create_runtime_ti, mock_supervisor_comms, task_outlets, expected_msg
+):
+    """Test running a basic task that contains asset outlets."""
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(
+        outlets=task_outlets,
+        task_id="asset-outlet-task",
+        bash_command="echo 'hi'",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+
+    mock_supervisor_comms.send_request.assert_any_call(msg=expected_msg, log=mock.ANY)
 
 
 class TestRuntimeTaskInstance:

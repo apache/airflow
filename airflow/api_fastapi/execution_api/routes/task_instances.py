@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
 from typing import Annotated
 from uuid import UUID
 
+import attrs
 from fastapi import Body, HTTPException, status
 from pydantic import JsonValue
-from sqlalchemy import update
+from sqlalchemy import tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.sql import select
 
@@ -37,13 +39,18 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIRescheduleStatePayload,
     TIRunContext,
     TIStateUpdate,
+    TISuccessStatePayload,
     TITerminalStatePayload,
 )
+from airflow.assets.manager import asset_manager
+from airflow.exceptions import AirflowInactiveAssetAddedToAssetAliasException
+from airflow.models.asset import AssetModel
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XCom
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TerminalTIState
 
@@ -225,7 +232,9 @@ def ti_update_state(
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
-    data = ti_patch_payload.model_dump(exclude_unset=True)
+    data = ti_patch_payload.model_dump(
+        exclude={"task_outlets", "outlet_events", "asset_type"}, exclude_unset=True
+    )
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
@@ -241,6 +250,19 @@ def ti_update_state(
                 updated_state = State.UP_FOR_RETRY
             else:
                 updated_state = State.FAILED
+        query = query.values(state=updated_state)
+    elif isinstance(ti_patch_payload, TISuccessStatePayload):
+        print("Got payload" * 10, ti_patch_payload)
+        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        updated_state = ti_patch_payload.state
+        task_instance = session.get(TI, ti_id_str)
+        register_asset_changes(
+            task_instance,
+            ti_patch_payload.task_outlets,
+            ti_patch_payload.outlet_events,
+            ti_patch_payload.asset_type,
+            session,
+        )
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
@@ -403,3 +425,103 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     # max_tries is initialised with the retries defined at task level, we do not need to explicitly ask for
     # retries from the task SDK now, we can handle using max_tries
     return max_tries != 0 and try_number <= max_tries
+
+
+def register_asset_changes(task_instance, task_outlets, outlet_events, asset_type, session):
+    # One task only triggers one asset event for each asset with the same extra.
+    # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
+    # there're assets with same uri but different extra that we need to emit more than one asset events.
+    asset_alias_names: dict[tuple[AssetUniqueKey, frozenset], set[str]] = defaultdict(set)
+    asset_name_refs: set[str] = set()
+    asset_uri_refs: set[str] = set()
+
+    for obj in task_outlets:
+        # Lineage can have other types of objects besides assets
+        if asset_type == "Asset":
+            asset_manager.register_asset_change(
+                task_instance=task_instance,
+                asset=Asset(name=obj.name, uri=obj.uri),
+                extra=outlet_events,
+                session=session,
+            )
+        elif asset_type == "AssetNameRef":
+            asset_name_refs.add(obj.name)
+        elif asset_type == "AssetUriRef":
+            asset_uri_refs.add(obj.uri)
+
+    if asset_type == "AssetAlias":
+        # deserialize to the expected type
+        outlet_events = list(
+            map(
+                lambda event: {**event, "dest_asset_key": AssetUniqueKey(**event["dest_asset_key"])},
+                outlet_events,
+            )
+        )
+
+        for asset_alias_event in outlet_events:
+            asset_alias_name = asset_alias_event["source_alias_name"]
+            asset_unique_key = asset_alias_event["dest_asset_key"]
+            frozen_extra = frozenset(asset_alias_event["extra"].items())
+            asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
+
+    asset_unique_keys = {key for key, _ in asset_alias_names}
+    existing_aliased_assets: set[AssetUniqueKey] = {
+        AssetUniqueKey.from_asset(asset_obj)
+        for asset_obj in session.scalars(
+            select(AssetModel).where(
+                tuple_(AssetModel.name, AssetModel.uri).in_(attrs.astuple(key) for key in asset_unique_keys)
+            )
+        )
+    }
+
+    inactive_asset_unique_keys = TI._get_inactive_asset_unique_keys(
+        asset_unique_keys={key for key in asset_unique_keys if key in existing_aliased_assets},
+        session=session,
+    )
+
+    if inactive_asset_unique_keys:
+        raise AirflowInactiveAssetAddedToAssetAliasException(inactive_asset_unique_keys)
+
+    if missing_assets := [
+        asset_unique_key.to_asset()
+        for asset_unique_key, _ in asset_alias_names
+        if asset_unique_key not in existing_aliased_assets
+    ]:
+        asset_manager.create_assets(missing_assets, session=session)
+        log.warning("Created new assets for alias reference: %s", missing_assets)
+        session.flush()  # Needed because we need the id for fk.
+
+    for (unique_key, extra_items), alias_names in asset_alias_names.items():
+        log.info(
+            'Creating event for %r through aliases "%s"',
+            unique_key,
+            ", ".join(alias_names),
+        )
+        asset_manager.register_asset_change(
+            task_instance=task_instance,
+            asset=unique_key,
+            aliases=[AssetAlias(name=name) for name in alias_names],
+            extra=dict(extra_items),
+            session=session,
+            source_alias_names=alias_names,
+        )
+
+    # Handle events derived from references.
+    asset_stmt = select(AssetModel).where(AssetModel.name.in_(asset_name_refs), AssetModel.active.has())
+    for asset_model in session.scalars(asset_stmt):
+        log.info("Creating event through asset name reference %r", asset_model.name)
+        asset_manager.register_asset_change(
+            task_instance=task_instance,
+            asset=asset_model,
+            extra=outlet_events[asset_model].extra,
+            session=session,
+        )
+    asset_stmt = select(AssetModel).where(AssetModel.uri.in_(asset_uri_refs), AssetModel.active.has())
+    for asset_model in session.scalars(asset_stmt):
+        log.info("Creating event for through asset URI reference %r", asset_model.uri)
+        asset_manager.register_asset_change(
+            task_instance=task_instance,
+            asset=asset_model,
+            extra=outlet_events[asset_model].extra,
+            session=session,
+        )

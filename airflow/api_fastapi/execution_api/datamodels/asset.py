@@ -34,3 +34,10 @@ class AssetAliasResponse(BaseModel):
 
     name: str
     group: str
+
+
+class AssetNameAndUri(BaseModel):
+    """Representation of an Asset."""
+
+    name: str | None
+    uri: str | None
