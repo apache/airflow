@@ -97,7 +97,7 @@ with DAG(
     environment_id = test_context[ENVIRONMENT_ID_KEY]
     s3_path = test_context[S3_PATH_KEY]
 
-    notebook_path = "tests/amazon/aws/operators/test_notebook.ipynb"
+    notebook_path = "test_notebook.ipynb"
 
     setup_mock_mwaa_environment = emulate_mwaa_environment(
         domain_id,
