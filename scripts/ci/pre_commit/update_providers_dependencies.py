@@ -238,9 +238,14 @@ if __name__ == "__main__":
             ALL_DEPENDENCIES[provider]["deps"].extend(
                 PYPROJECT_TOML_CONTENT[provider]["project"]["dependencies"]
             )
+            dependency_groups = PYPROJECT_TOML_CONTENT[provider].get("dependency-groups")
+            if dependency_groups and dependency_groups.get("dev"):
+                ALL_DEPENDENCIES[provider]["devel-deps"].extend(dependency_groups["dev"])
         else:
             ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
-        ALL_DEPENDENCIES[provider]["devel-deps"].extend(provider_yaml_content.get("devel-dependencies") or [])
+            ALL_DEPENDENCIES[provider]["devel-deps"].extend(
+                provider_yaml_content.get("devel-dependencies") or []
+            )
         ALL_DEPENDENCIES[provider]["plugins"].extend(provider_yaml_content.get("plugins") or [])
         STATES[provider] = provider_yaml_content["state"]
     if warnings:

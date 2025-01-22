@@ -1172,8 +1172,10 @@ def _regenerate_pyproject_toml(context: dict[str, Any], provider_details: Provid
     pyproject_toml_content = get_pyproject_toml_path.read_text()
     required_dependencies: list[str] = []
     optional_dependencies: list[str] = []
+    dependency_groups: list[str] = []
     in_required_dependencies = False
     in_optional_dependencies = False
+    in_dependency_groups = False
     for line in pyproject_toml_content.splitlines():
         if line == "dependencies = [":
             in_required_dependencies = True
@@ -1187,10 +1189,18 @@ def _regenerate_pyproject_toml(context: dict[str, Any], provider_details: Provid
         if in_optional_dependencies and line == "":
             in_optional_dependencies = False
             continue
+        if line == "[dependency-groups]":
+            in_dependency_groups = True
+            continue
+        if in_dependency_groups and line == "":
+            in_dependency_groups = False
+            continue
         if in_required_dependencies:
             required_dependencies.append(line)
         if in_optional_dependencies:
             optional_dependencies.append(line)
+        if in_dependency_groups:
+            dependency_groups.append(line)
 
     # For additional providers we want to load the dependencies and see if cross-provider-dependencies are
     # present and if not, add them to the optional dependencies
@@ -1204,6 +1214,7 @@ def _regenerate_pyproject_toml(context: dict[str, Any], provider_details: Provid
             optional_dependencies.append(f'    "{get_pip_package_name(module)}"')
             optional_dependencies.append("]")
     context["EXTRAS_REQUIREMENTS"] = "\n".join(optional_dependencies)
+    context["DEPENDENCY_GROUPS"] = "\n".join(dependency_groups)
 
     get_pyproject_toml_content = render_template(
         template_name="pyproject",
