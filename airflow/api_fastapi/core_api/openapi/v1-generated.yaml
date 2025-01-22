@@ -9635,6 +9635,12 @@ components:
             format: date-time
           - type: 'null'
           title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
         pid:
           anyOf:
           - type: integer
@@ -9669,6 +9675,7 @@ components:
       - priority_weight
       - operator
       - queued_when
+      - scheduled_when
       - pid
       - executor
       - executor_config
@@ -9762,6 +9769,12 @@ components:
             format: date-time
           - type: 'null'
           title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
         pid:
           anyOf:
           - type: integer
@@ -9820,6 +9833,7 @@ components:
       - priority_weight
       - operator
       - queued_when
+      - scheduled_when
       - pid
       - executor
       - executor_config
