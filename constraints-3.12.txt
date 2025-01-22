@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-21T19:59:01.764462
+# This constraints file was automatically generated on 2025-01-22T02:27:30.273037
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -233,7 +233,7 @@ blinker==1.9.0
 boto3==1.36.1
 botocore==1.36.1
 cachelib==0.9.0
-cachetools==5.5.0
+cachetools==5.5.1
 cassandra-driver==3.29.2
 cattrs==24.1.2
 celery==5.4.0
@@ -296,7 +296,7 @@ fastapi-cli==0.0.7
 fastapi==0.115.6
 fastavro==1.10.0
 fastjsonschema==2.21.1
-filelock==3.16.1
+filelock==3.17.0
 flower==2.0.1
 frozenlist==1.5.0
 fsspec==2024.12.0
@@ -315,7 +315,7 @@ google-api-python-client==2.159.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.37.0
-google-cloud-aiplatform==1.77.0
+google-cloud-aiplatform==1.78.0
 google-cloud-alloydb==0.4.1
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
@@ -662,7 +662,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
-sqlalchemy-bigquery==1.12.0
+sqlalchemy-bigquery==1.12.1
 sqlalchemy-spanner==1.8.0
 sqlalchemy_drill==1.1.5
 sqlparse==0.5.3
@@ -716,7 +716,7 @@ types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
 typing_extensions==4.12.2
-tzdata==2024.2
+tzdata==2025.1
 tzlocal==5.2
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
