@@ -95,7 +95,7 @@ def fastapi_api(args):
             )
         )
         ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
-        setproctitle(f"airflow-fastapi-{args.hostname}:{args.port}")
+        setproctitle(f"airflow fastapi-api -- host:{args.hostname} port:{args.port}")
         uvicorn.run(
             "airflow.api_fastapi.main:app",
             host=args.hostname,
