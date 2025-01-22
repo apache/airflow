@@ -19,15 +19,19 @@
 
 from __future__ import annotations
 
+import heapq
 import inspect
 import logging
 import os
 import warnings
+from collections.abc import Generator, Iterable
 from contextlib import suppress
 from enum import Enum
-from functools import cached_property
+from functools import cached_property, partial
+from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterable
+from types import GeneratorType
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import pendulum
@@ -54,6 +58,25 @@ if TYPE_CHECKING:
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 logger = logging.getLogger(__name__)
+
+CHUNK_SIZE = 1024 * 1024 * 5  # 5MB
+DEFAULT_SORT_DATETIME = pendulum.datetime(2000, 1, 1)
+SORT_KEY_OFFSET = 10000000
+HEAP_DUMP_SIZE = 500000
+HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
+
+_ParsedLogRecordType = Tuple[Optional[pendulum.DateTime], int, str]
+"""Tuple of timestamp, line number, and line."""
+_ParsedLogStreamType = Generator[_ParsedLogRecordType, None, None]
+"""Generator of parsed log streams, each yielding a tuple of timestamp, line number, and line."""
+_LogSourceType = Tuple[List[str], List[_ParsedLogStreamType], int]
+"""Tuple of messages, parsed log streams, total size of logs."""
+_OldLogSourceType = Tuple[List[str], List[str]]
+_OldGroupedByHostLogType = Tuple[List[Tuple[str, str]], dict]
+"""Elasticsearch and OpenSearch log reading return type, add this to avoid mypy error during migration."""
+"""Tuple of messages and list of log str, will be removed after all providers adapt to stream-based log reading."""
+_CompatibleLogSourceType = Union[_LogSourceType, _OldLogSourceType]
+"""Compatible type hint for stream-based log reading and old log reading."""
 
 
 class LogType(str, Enum):
@@ -102,6 +125,7 @@ def _fetch_logs_from_service(url, log_relative_path):
         url,
         timeout=timeout,
         headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
+        stream=True,
     )
     response.encoding = "utf-8"
     return response
@@ -116,30 +140,169 @@ if not _parse_timestamp:
         return pendulum.parse(timestamp_str.strip("[]"))
 
 
-def _parse_timestamps_in_log_file(lines: Iterable[str]):
-    timestamp = None
-    next_timestamp = None
-    for idx, line in enumerate(lines):
-        if line:
+def _get_parsed_log_stream(file_path: Path) -> _ParsedLogStreamType:
+    with open(file_path) as f:
+        line_num = 0  # line number for each log line
+        for file_chunk in iter(partial(f.read, CHUNK_SIZE), b""):
+            if not file_chunk:
+                break
+            # parse log lines
+            lines = file_chunk.splitlines()
+            timestamp = None
+            next_timestamp = None
+            for line in lines:
+                if line:
+                    with suppress(Exception):
+                        # next_timestamp unchanged if line can't be parsed
+                        next_timestamp = _parse_timestamp(line)
+                    if next_timestamp:
+                        timestamp = next_timestamp
+
+                    yield timestamp, line_num, line
+                    line_num += 1
+
+
+def _sort_key(timestamp: pendulum.DateTime | None, line_num: int) -> int:
+    """
+    Generate a sort key for log record, to be used in K-way merge.
+
+    :param timestamp: timestamp of the log line
+    :param line_num: line number of the log line
+    :return: a integer as sort key to avoid overhead of memory usage
+    """
+    return int((timestamp or DEFAULT_SORT_DATETIME).timestamp() * 1000) * SORT_KEY_OFFSET + line_num
+
+
+def _add_log_from_parsed_log_streams_to_heap(
+    heap: list[tuple[int, str]],
+    parsed_log_streams: list[_ParsedLogStreamType],
+) -> None:
+    """
+    Add one log record from each parsed log stream to the heap.
+
+    Remove any empty log stream from the list while iterating.
+    :param heap: heap to store log records
+    :param parsed_log_streams: list of parsed log streams
+    """
+    for log_stream in parsed_log_streams:
+        record: _ParsedLogRecordType | None = next(log_stream, None)
+        if record is None:
+            parsed_log_streams.remove(log_stream)
+            continue
+        timestamp, line_num, line = record
+        # take int as sort key to avoid overhead of memory usage
+        heapq.heappush(heap, (_sort_key(timestamp, line_num), line))
+
+
+def _interleave_logs(*parsed_log_streams: _ParsedLogStreamType) -> Generator[str, None, None]:
+    """
+    Merge parsed log streams using K-way merge.
+
+    By yielding HALF_CHUNK_SIZE records when heap size exceeds CHUNK_SIZE, we can reduce the chance of messing up the global order.
+    Since there are multiple log streams, we can't guarantee that the records are in global order.
+    e.g.
+    log_stream1: ----------
+    log_stream2:   ----
+    log_stream3:     --------
+    The first record of log_stream3 is later than the fourth record of log_stream1 !
+    :param parsed_log_streams: parsed log streams
+    :return: interleaved log stream
+    """
+    # don't need to push whole tuple into heap, which increases too much overhead
+    # push only sort_key and line into heap
+    heap: list[tuple[int, str]] = []
+    # to allow removing empty streams while iterating
+    log_streams: list[_ParsedLogStreamType] = [log_stream for log_stream in parsed_log_streams]
+
+    # keep adding records from logs until all logs are empty
+    last = None
+    while log_streams:
+        _add_log_from_parsed_log_streams_to_heap(heap, log_streams)
+
+        # yield HALF_HEAP_DUMP_SIZE records when heap size exceeds HEAP_DUMP_SIZE
+        if len(heap) >= HEAP_DUMP_SIZE:
+            for _ in range(HALF_HEAP_DUMP_SIZE):
+                _, line = heapq.heappop(heap)
+                if line == last:  # dedupe
+                    last = line
+                    continue
+                yield line
+                last = line
+
+    # yield remaining records
+    for _ in range(len(heap)):
+        _, line = heapq.heappop(heap)
+        if line == last:  # dedupe
+            last = line
+            continue
+        yield line
+        last = line
+    # free memory
+    del heap
+    del log_streams
+
+
+def _get_compatible_parse_log_streams(remote_logs: list[str]) -> list[_ParsedLogStreamType]:
+    """
+    Compatible utility for new log reading(stream-based + k-way merge log) and old log reading(read whole log in memory + sorting).
+
+    Turn old log reading into new stream-based log reading.
+    Will be removed after all providers adapt to stream-based log reading.
+    :param remote_logs: list of log lines
+    :return: parsed log streams if remote_logs is not empty, otherwise empty list
+    """
+    if not remote_logs:
+        # empty remote logs
+        return []
+
+    def _parse_log(logs: list[str]):
+        timestamp = None
+        next_timestamp = None
+        for line_num, line in enumerate(logs):
             with suppress(Exception):
                 # next_timestamp unchanged if line can't be parsed
                 next_timestamp = _parse_timestamp(line)
             if next_timestamp:
                 timestamp = next_timestamp
-            yield timestamp, idx, line
+            yield timestamp, line_num, line
+
+    return [_parse_log(remote_logs)]
 
 
-def _interleave_logs(*logs):
-    records = []
-    for log in logs:
-        records.extend(_parse_timestamps_in_log_file(log.splitlines()))
-    last = None
-    for _, _, v in sorted(
-        records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
-    ):
-        if v != last:  # dedupe
-            yield v
-        last = v
+def _get_compatible_read_for_providers(read_response: tuple) -> tuple[Iterable[str], dict[str, Any]]:
+    """
+    Compatible utility for transforming `_read` method return value for providers.
+
+    Providers methods return type might be:
+    - `tuple[str,dict[str,Any]]`
+        - alibaba.cloud.log.oss_task_handler.OssTaskHandler
+        - amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler
+        - redis.log.redis_task_handler.RedisTaskHandler
+    - `tuple[list[tuple[str,str]],dict[str,Any]]` ( tuple[list[host,log_documents],metadata] )
+        - For this case, we need to split host and log_documents and put host into metadata
+        - elasticsearch.log.es_task_handler.ElasticsearchTaskHandler
+        - opensearch.log.os_task_handler.OpenSearchTaskHandler
+    """
+    if len(read_response) != 2:
+        raise ValueError("Unexpected return value from _read")
+    # for tuple[str,dict[str,Any]]
+    if isinstance(read_response[0], str):
+        log_str, metadata = read_response
+        return (log_str.splitlines(), metadata)
+
+    # for tuple[list[tuple[str,str]],dict[str,Any]]
+    if isinstance(read_response[0], list):
+        host_by_logs, metadata = read_response
+        if len(host_by_logs) > 0:
+            metadata["host"] = host_by_logs[0][0]
+
+        def _host_by_logs_to_log_stream(host_by_logs):
+            for _, log in host_by_logs:
+                yield log
+
+        return (_host_by_logs_to_log_stream(host_by_logs), metadata)
+
+    raise ValueError("Unexpected return value from _read")
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
@@ -369,7 +532,7 @@ class FileTaskHandler(logging.Handler):
         ti: TaskInstance,
         try_number: int,
         metadata: dict[str, Any] | None = None,
-    ):
+    ) -> tuple[Iterable[str], dict[str, Any]] | _OldGroupedByHostLogType:
         """
         Template method that contains custom logic of reading logs given the try_number.
 
@@ -394,13 +557,27 @@ class FileTaskHandler(logging.Handler):
         # is needed to get correct log path.
         worker_log_rel_path = self._render_filename(ti, try_number)
         messages_list: list[str] = []
-        remote_logs: list[str] = []
-        local_logs: list[str] = []
-        executor_messages: list[str] = []
-        executor_logs: list[str] = []
-        served_logs: list[str] = []
+        remote_parsed_logs: list[_ParsedLogStreamType] = []
+        remote_logs_size = 0
+        local_parsed_logs: list[_ParsedLogStreamType] = []
+        local_logs_size = 0
+        executor_parsed_logs: list[_ParsedLogStreamType] = []
+        executor_logs_size = 0
+        served_parsed_logs: list[_ParsedLogStreamType] = []
+        served_logs_size = 0
         with suppress(NotImplementedError):
-            remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
+            remote_log_result = self._read_remote_logs(ti, try_number, metadata)
+            if len(remote_log_result) == 2:
+                # old log reading
+                remote_messages, remote_logs = remote_log_result
+                remote_logs_size = sum(len(log) for log in remote_logs)
+                remote_parsed_logs = _get_compatible_parse_log_streams(remote_logs)
+            elif len(remote_log_result) == 3:
+                # new stream-based log reading
+                remote_messages, remote_parsed_logs, remote_logs_size = remote_log_result
+            else:
+                raise ValueError("Unexpected return value from _read_remote_logs")
+            # common logic for both old and new log reading
             messages_list.extend(remote_messages)
         has_k8s_exec_pod = False
         if ti.state == TaskInstanceState.RUNNING:
@@ -408,33 +585,35 @@ class FileTaskHandler(logging.Handler):
             response = executor_get_task_log(ti, try_number)
             if response:
                 executor_messages, executor_logs = response
+                executor_logs_size = sum(len(log) for log in executor_logs)
+                executor_parsed_logs = _get_compatible_parse_log_streams(executor_logs)
+            elif response and len(response) == 3:
+                executor_messages, executor_parsed_logs, executor_logs_size = response
+            else:
+                raise ValueError("Unexpected return value from executor.get_task_log")
+            # common logic for both old and new log reading
             if executor_messages:
                 messages_list.extend(executor_messages)
                 has_k8s_exec_pod = True
-        if not (remote_logs and ti.state not in State.unfinished):
+        if not (remote_parsed_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
-            local_messages, local_logs = self._read_from_local(worker_log_full_path)
+            local_messages, local_parsed_logs, local_logs_size = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
         if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            served_messages, served_parsed_logs, served_logs_size = self._read_from_logs_server(
+                ti, worker_log_rel_path
+            )
             messages_list.extend(served_messages)
-        elif ti.state not in State.unfinished and not (local_logs or remote_logs):
+        elif ti.state not in State.unfinished and not (local_parsed_logs or remote_parsed_logs):
             # ordinarily we don't check served logs, with the assumption that users set up
             # remote logging or shared drive for logs for persistence, but that's not always true
             # so even if task is done, if no local logs or remote logs are found, we'll check the worker
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            served_messages, served_parsed_logs, served_logs_size = self._read_from_logs_server(
+                ti, worker_log_rel_path
+            )
             messages_list.extend(served_messages)
 
-        logs = "\n".join(
-            _interleave_logs(
-                *local_logs,
-                *remote_logs,
-                *(executor_logs or []),
-                *served_logs,
-            )
-        )
-        log_pos = len(logs)
         # Log message source details are grouped: they are not relevant for most users and can
         # distract them from finding the root cause of their errors
         messages = " INFO - ::group::Log message source details\n"
@@ -444,11 +623,28 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.RUNNING,
             TaskInstanceState.DEFERRED,
         )
+
+        current_total_logs_size = local_logs_size + remote_logs_size + executor_logs_size + served_logs_size
+        interleave_log_stream = _interleave_logs(
+            *local_parsed_logs,
+            *remote_parsed_logs,
+            *(executor_parsed_logs or []),
+            *served_parsed_logs,
+        )
+
         if metadata and "log_pos" in metadata:
-            previous_chars = metadata["log_pos"]
-            logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
-        out_message = logs if "log_pos" in (metadata or {}) else messages + logs
-        return out_message, {"end_of_log": end_of_log, "log_pos": log_pos}
+            offset = metadata["log_pos"]
+            for _ in range(offset):
+                next(interleave_log_stream, None)
+
+        out_stream: Iterable[str]
+        if "log_pos" in (metadata or {}):
+            # don't need to add messages, since we're in the middle of the log
+            out_stream = interleave_log_stream
+        else:
+            # first time reading log, add messages before interleaved log stream
+            out_stream = chain([messages], interleave_log_stream)
+        return out_stream, {"end_of_log": end_of_log, "log_pos": current_total_logs_size}
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -481,7 +677,9 @@ class FileTaskHandler(logging.Handler):
             log_relative_path,
         )
 
-    def read(self, task_instance, try_number=None, metadata=None):
+    def read(
+        self, task_instance, try_number=None, metadata=None
+    ) -> tuple[list[str], list[Generator[str, None, None]], list[dict[str, Any]]]:
         """
         Read logs of given task instance from local machine.
 
@@ -489,35 +687,50 @@ class FileTaskHandler(logging.Handler):
         :param try_number: task instance try_number to read logs from. If None
                            it returns all logs separated by try_number
         :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
-        :return: a list of listed tuples which order log string by host
+        :return: tuple of hosts, log streams, and metadata_array
         """
         # Task instance increments its try number when it starts to run.
         # So the log for a particular task try will only show up when
         # try number gets incremented in DB, i.e logs produced the time
         # after cli run and before try_number + 1 in DB will not be displayed.
+        try_numbers: list
         if try_number is None:
-            next_try = task_instance.next_try_number
+            next_try = task_instance.try_number + 1
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
-            logs = [
-                [("default_host", f"Error fetching the logs. Try number {try_number} is invalid.")],
-            ]
-            return logs, [{"end_of_log": True}]
+            error_logs = [(log for log in [f"Error fetching the logs. Try number {try_number} is invalid."])]
+            return ["default_host"], error_logs, [{"end_of_log": True}]
         else:
             try_numbers = [try_number]
 
-        logs = [""] * len(try_numbers)
-        metadata_array = [{}] * len(try_numbers)
+        hosts = [""] * len(try_numbers)
+        logs: list = [None] * len(try_numbers)
+        metadata_array: list[dict] = [{}] * len(try_numbers)
 
         # subclasses implement _read and may not have log_type, which was added recently
         for i, try_number_element in enumerate(try_numbers):
-            log, out_metadata = self._read(task_instance, try_number_element, metadata)
+            log_stream: Iterable[str]
+            out_metadata: dict[str, Any]
+            read_response = self._read(task_instance, try_number_element, metadata)
+            if len(read_response) != 2:
+                raise ValueError("Unexpected return value from _read")
+            if not (isinstance(read_response[0], GeneratorType) or isinstance(read_response[0], chain)):
+                # providers haven't adapted to stream-based log reading yet
+                log_stream, out_metadata = _get_compatible_read_for_providers(read_response)
+            else:
+                log_stream, out_metadata = read_response
             # es_task_handler return logs grouped by host. wrap other handler returning log string
             # with default/ empty host so that UI can render the response in the same way
-            logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
+            if not self._read_grouped_logs():
+                hosts[i] = task_instance.hostname
+            else:
+                # the host is stored in metadata
+                hosts[i] = out_metadata.get("host", "")
+
+            logs[i] = log_stream
             metadata_array[i] = out_metadata
 
-        return logs, metadata_array
+        return hosts, logs, metadata_array
 
     @staticmethod
     def _prepare_log_folder(directory: Path, new_folder_permissions: int):
@@ -583,18 +796,51 @@ class FileTaskHandler(logging.Handler):
         return full_path
 
     @staticmethod
-    def _read_from_local(worker_log_path: Path) -> tuple[list[str], list[str]]:
-        messages = []
-        paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        if paths:
-            messages.append("Found local files:")
-            messages.extend(f"  * {x}" for x in paths)
-        logs = [file.read_text() for file in paths]
-        return messages, logs
+    def _read_from_local(worker_log_path: Path) -> _LogSourceType:
+        """
+        Read logs from local file.
 
-    def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:
-        messages = []
-        logs = []
+        :param worker_log_path: Path to the worker log file
+        :return: Tuple of messages, log streams, total size of logs
+        """
+        total_log_size: int = 0
+        messages: list[str] = []
+        parsed_log_streams: list[_ParsedLogStreamType] = []
+        paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
+        if not paths:
+            return messages, parsed_log_streams, total_log_size
+
+        messages.append("Found local files:")
+        for path in paths:
+            total_log_size += path.stat().st_size
+            messages.append(f"  * {path}")
+            parsed_log_streams.append(_get_parsed_log_stream(path))
+
+        return messages, parsed_log_streams, total_log_size
+
+    def _read_from_logs_server(self, ti, worker_log_rel_path) -> _LogSourceType:
+        total_log_size: int = 0
+        messages: list[str] = []
+        parsed_log_streams: list[_ParsedLogStreamType] = []
+
+        def _get_parsed_log_stream_from_response(response):
+            line_num = 0
+            # read response in chunks instead of reading whole response text
+            for resp_chunk in response.iter_content(chunk_size=CHUNK_SIZE, decode_unicode=True):
+                if not resp_chunk:
+                    break
+                lines = resp_chunk.splitlines()
+                timestamp = None
+                next_timestamp = None
+                for line in lines:
+                    if line:
+                        with suppress(Exception):
+                            next_timestamp = _parse_timestamp(line)
+                        if next_timestamp:
+                            timestamp = next_timestamp
+                        yield timestamp, line_num, line
+                        line_num += 1
+
         try:
             log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
@@ -610,9 +856,12 @@ class FileTaskHandler(logging.Handler):
                 )
             # Check if the resource was properly fetched
             response.raise_for_status()
-            if response.text:
+            # get the total size of the logs
+            content_length = response.headers.get("Content-Length")
+            if content_length is not None:
+                total_log_size = int(content_length)
                 messages.append(f"Found logs served from host {url}")
-                logs.append(response.text)
+                parsed_log_streams.append(_get_parsed_log_stream_from_response(response))
         except Exception as e:
             from requests.exceptions import InvalidSchema
 
@@ -621,9 +870,9 @@ class FileTaskHandler(logging.Handler):
             else:
                 messages.append(f"Could not read served logs: {e}")
                 logger.exception("Could not read served logs")
-        return messages, logs
+        return messages, parsed_log_streams, total_log_size
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> _CompatibleLogSourceType:
         """
         Implement in subclasses to read from the remote service.
 
