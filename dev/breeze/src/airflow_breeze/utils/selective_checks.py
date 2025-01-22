@@ -886,7 +886,7 @@ class SelectiveChecks:
     def _get_providers_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
         if self._default_branch != "main":
             return []
-        if self.full_tests_needed:
+        if self.full_tests_needed or self.run_task_sdk_tests:
             if split_to_individual_providers:
                 return list(providers_test_type())
             else:
