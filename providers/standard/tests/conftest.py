@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,6 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from pathlib import Path
+import pathlib
 
-AIRFLOW_MAIN_FOLDER = Path(__file__).resolve().parents[2]
+import pytest
+
+pytest_plugins = "tests_common.pytest_plugin"
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:
+    deprecations_ignore_path = pathlib.Path(__file__).parent.joinpath("deprecations_ignore.yml")
+    dep_path = [deprecations_ignore_path] if deprecations_ignore_path.exists() else []
+    config.inicfg["airflow_deprecations_ignore"] = (
+        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
+    )

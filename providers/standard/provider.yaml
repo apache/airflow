@@ -28,10 +28,6 @@ versions:
   - 0.0.2
   - 0.0.1
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-
 integrations:
   - integration-name: Standard
     external-doc-url: https://airflow.apache.org/

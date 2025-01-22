@@ -63,9 +63,9 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
     "License :: OSI Approved :: Apache Software License",
-    {%- for python_version in SUPPORTED_PYTHON_VERSIONS %}
+    {% for python_version in SUPPORTED_PYTHON_VERSIONS %}
     "Programming Language :: Python :: {{ python_version }}",
-    {%- endfor %}
+    {% endfor %}
     "Topic :: System :: Monitoring",
 ]
 requires-python = "~=3.9"

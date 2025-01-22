@@ -4,3 +4,4 @@ apache-airflow-providers-airbyte
 apache-airflow-providers-apache-iceberg
 apache-airflow-providers-celery
 apache-airflow-providers-edge
+apache-airflow-providers-standard

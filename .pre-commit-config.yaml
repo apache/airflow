@@ -724,6 +724,8 @@ repos:
           ^airflow/operators/.*$|
           ^providers/src/airflow/providers/.*$|
           ^providers/src/airflow/providers/standard/sensors/.*$|
+          ^providers/.*/src/airflow/providers/.*$|
+          ^providers/.*/src/airflow/providers/standard/sensors/.*$|
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
@@ -733,8 +735,9 @@ repos:
         pass_filenames: true
         files: >
           (?x)
-          ^providers/src/airflow/providers/.*\.py$
-        exclude: providers/src/airflow/providers/standard/operators/bash.py|providers/src/airflow/providers/standard/operators/python.py|providers/src/airflow/providers/standard/sensors/external_task.py
+          ^providers/src/airflow/providers/.*\.py$|
+          ^providers/.*/src/airflow/providers/.*\.py$
+        exclude: providers/standard/.*/.*\.py$
       - id: check-get-lineage-collector-providers
         language: python
         name: Check providers import hook lineage code from compat
@@ -1206,9 +1209,11 @@ repos:
           ^airflow/utils/helpers.py$ |
           ^airflow/utils/log/secrets_masker.py$ |
           ^providers/src/airflow/providers/ |
-          ^(providers/)?tests/ |
-          task_sdk/src/airflow/sdk/definitions/dag.py$ |
-          task_sdk/src/airflow/sdk/definitions/_internal/node.py$ |
+          ^tests/ |
+          ^providers/tests/ |
+          ^providers/.*/tests/ |
+          ^task_sdk/src/airflow/sdk/definitions/dag.py$ |
+          ^task_sdk/src/airflow/sdk/definitions/_internal/node.py$ |
           ^dev/.*\.py$ |
           ^scripts/.*\.py$ |
           ^docker_tests/.*$ |
