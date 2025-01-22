@@ -1672,15 +1672,15 @@ export type BackfillServiceUnpauseBackfillMutationResult = Awaited<
 export type BackfillServiceCancelBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.cancelBackfill>
 >;
-export type ConnectionServicePutConnectionsMutationResult = Awaited<
-  ReturnType<typeof ConnectionService.putConnections>
->;
 export type PoolServicePutPoolsMutationResult = Awaited<ReturnType<typeof PoolService.putPools>>;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<
   ReturnType<typeof DagParsingService.reparseDagFile>
 >;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.patchConnection>
+>;
+export type ConnectionServiceBulkConnectionsMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.bulkConnections>
 >;
 export type DagRunServicePatchDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.patchDagRun>>;
 export type DagServicePatchDagsMutationResult = Awaited<ReturnType<typeof DagService.patchDags>>;
