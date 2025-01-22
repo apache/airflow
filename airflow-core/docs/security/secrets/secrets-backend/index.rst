@@ -39,9 +39,11 @@ When looking up a connection/variable, by default Airflow will search environmen
 database second.
 
 If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
-then metastore.  This search ordering is not configurable. Though, in some alternative secrets backend you might have
+then metastore. Though, in some alternative secrets backend you might have
 the option to filter which connection/variable/config is searched in the secret backend. Please look at the
 documentation of the secret backend you are using to see if such option is available.
+
+The secrets backends search ordering is also configurable via the configuration option ``[secrets]backends_order``.
 
 .. warning::
 

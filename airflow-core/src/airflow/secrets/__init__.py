@@ -27,15 +27,6 @@ The following sources are available:
 
 from __future__ import annotations
 
-__all__ = ["BaseSecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH", "DEFAULT_SECRETS_SEARCH_PATH_WORKERS"]
+__all__ = ["BaseSecretsBackend"]
 
 from airflow.secrets.base_secrets import BaseSecretsBackend
-
-DEFAULT_SECRETS_SEARCH_PATH = [
-    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
-    "airflow.secrets.metastore.MetastoreBackend",
-]
-
-DEFAULT_SECRETS_SEARCH_PATH_WORKERS = [
-    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
-]
