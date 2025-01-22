@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy import select, update
 
 from airflow.api_fastapi.common.db.common import (
@@ -205,34 +206,14 @@ def create_backfill(
             reprocess_behavior=backfill_request.reprocess_behavior,
         )
         return BackfillResponse.model_validate(backfill_obj)
-    except AlreadyRunningBackfill:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
-        )
-    except DagNoScheduleException:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"{backfill_request.dag_id} has no schedule",
-        )
-    except InvalidReprocessBehavior:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"{backfill_request.dag_id} has tasks for which depends_on_past=True. "
-            "You must set reprocess behavior to reprocess completed or reprocess failed.",
-        )
-
-    except InvalidBackfillDirection:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
-        )
-
-    except DagNotFound:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Could not find dag {backfill_request.dag_id}",
-        )
+    except (
+        AlreadyRunningBackfill,
+        InvalidReprocessBehavior,
+        InvalidBackfillDirection,
+        DagNoScheduleException,
+        DagNotFound,
+    ) as e:
+        raise RequestValidationError(str(e))
 
 
 @backfills_router.post(
@@ -260,25 +241,6 @@ def create_backfill_dry_run(
         backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
 
         return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
-    except DagNotFound:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Could not find dag {body.dag_id}",
-        )
-    except DagNoScheduleException:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"{body.dag_id} has no schedule",
-        )
 
-    except InvalidReprocessBehavior:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"{body.dag_id} has tasks for which depends_on_past=True. "
-            "You must set reprocess behavior to reprocess completed or reprocess failed.",
-        )
-    except InvalidBackfillDirection:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
-        )
+    except (InvalidReprocessBehavior, InvalidBackfillDirection, DagNoScheduleException, DagNotFound) as e:
+        raise RequestValidationError(str(e))
