@@ -172,7 +172,8 @@ class TestDagFileProcessorManager:
         # Mock that only one processor exists. This processor runs with 'file_1'
         manager._processors[file_1] = MagicMock()
         # Start New Processes
-        manager._start_new_processes()
+        with mock.patch.object(DagFileProcessorManager, "_create_process"):
+            manager._start_new_processes()
 
         # Because of the config: '[scheduler] parsing_processes = 2'
         # verify that only one extra process is created
