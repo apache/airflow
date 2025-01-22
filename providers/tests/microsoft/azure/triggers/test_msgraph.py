@@ -24,16 +24,15 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pendulum
+from msgraph_core import APIVersion
 
 from airflow.exceptions import AirflowException
+from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
 from airflow.triggers.base import TriggerEvent
-
-from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from msgraph_core import APIVersion
 
 from providers.tests.microsoft.azure.base import Base
 from providers.tests.microsoft.conftest import (

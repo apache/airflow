@@ -27,7 +27,6 @@ from urllib.parse import quote, urljoin, urlparse
 
 import httpx
 from azure.identity import CertificateCredential, ClientSecretCredential
-from azure.identity._internal.client_credential_base import ClientCredentialBase
 from httpx import AsyncHTTPTransport, Timeout
 from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
@@ -48,6 +47,8 @@ from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFo
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
+    from azure.identity._internal.client_credential_base import ClientCredentialBase
+
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.request_information import QueryParams
     from kiota_abstractions.response_handler import NativeResponseType

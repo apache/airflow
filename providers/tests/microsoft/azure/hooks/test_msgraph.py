@@ -100,7 +100,9 @@ class TestKiotaRequestAdapterHook:
             "airflow.hooks.base.BaseHook.get_connection",
             side_effect=get_airflow_connection,
         ):
-            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", scopes="https://microsoft.sharepoint.com/.default")
+            hook = KiotaRequestAdapterHook(
+                conn_id="msgraph_api", scopes="https://microsoft.sharepoint.com/.default"
+            )
 
             assert hook.scopes == ["https://microsoft.sharepoint.com/.default"]
 
@@ -109,7 +111,9 @@ class TestKiotaRequestAdapterHook:
             "airflow.hooks.base.BaseHook.get_connection",
             side_effect=get_airflow_connection,
         ):
-            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", scopes=["https://microsoft.sharepoint.com/.default"])
+            hook = KiotaRequestAdapterHook(
+                conn_id="msgraph_api", scopes=["https://microsoft.sharepoint.com/.default"]
+            )
 
             assert hook.scopes == ["https://microsoft.sharepoint.com/.default"]
 
