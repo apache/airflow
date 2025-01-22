@@ -448,7 +448,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                 {"key": "new_var1", "value": "new_value1", "description": "New variable 1"},
                                 {"key": "new_var2", "value": "new_value2", "description": "New variable 2"},
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         }
                     ]
                 },
@@ -468,7 +468,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                 },
                                 {"key": "new_var2", "value": "new_value2", "description": "New variable 2"},
                             ],
-                            "action_if_exists": "skip",
+                            "action_on_existence": "skip",
                         }
                     ]
                 },
@@ -488,7 +488,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                 },
                                 {"key": "new_var2", "value": "new_value2", "description": "New variable 2"},
                             ],
-                            "action_if_exists": "overwrite",
+                            "action_on_existence": "overwrite",
                         }
                     ]
                 },
@@ -507,7 +507,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "Should conflict",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         }
                     ]
                 },
@@ -536,7 +536,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "Updated variable 1",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_existence": "fail",
                         }
                     ]
                 },
@@ -555,7 +555,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "Updated variable 1",
                                 }
                             ],
-                            "action_if_not_exists": "skip",
+                            "action_on_existence": "skip",
                         }
                     ]
                 },
@@ -574,7 +574,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "Should fail",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_existence": "fail",
                         }
                     ]
                 },
@@ -594,7 +594,7 @@ class TestBulkVariables(TestVariableEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "keys": ["test_variable_key"], "action_if_not_exists": "skip"}
+                        {"action": "delete", "keys": ["test_variable_key"], "action_on_existence": "skip"}
                     ]
                 },
                 {"delete": {"success": ["test_variable_key"], "errors": []}},
@@ -603,7 +603,7 @@ class TestBulkVariables(TestVariableEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "keys": ["key_not_present"], "action_if_not_exists": "skip"}
+                        {"action": "delete", "keys": ["key_not_present"], "action_on_existence": "skip"}
                     ]
                 },
                 {"delete": {"success": [], "errors": []}},
@@ -612,7 +612,7 @@ class TestBulkVariables(TestVariableEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "keys": ["nonexistent_var"], "action_if_not_exists": "fail"}
+                        {"action": "delete", "keys": ["nonexistent_var"], "action_on_existence": "fail"}
                     ]
                 },
                 {
@@ -634,7 +634,7 @@ class TestBulkVariables(TestVariableEndpoint):
                         {
                             "action": "create",
                             "variables": [{"key": "new_var1", "value": "new_value1"}],
-                            "action_if_exists": "skip",
+                            "action_on_existence": "skip",
                         },
                         {
                             "action": "update",
@@ -645,9 +645,9 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "Updated variable 1",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_existence": "fail",
                         },
-                        {"action": "delete", "keys": ["dictionary_password"], "action_if_not_exists": "skip"},
+                        {"action": "delete", "keys": ["dictionary_password"], "action_on_existence": "skip"},
                     ]
                 },
                 {
@@ -669,7 +669,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "Should conflict",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
@@ -680,9 +680,9 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "Updated variable 2",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_existence": "fail",
                         },
-                        {"action": "delete", "keys": ["nonexistent_var"], "action_if_not_exists": "skip"},
+                        {"action": "delete", "keys": ["nonexistent_var"], "action_on_existence": "skip"},
                     ]
                 },
                 {
@@ -712,7 +712,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "Should be skipped",
                                 }
                             ],
-                            "action_if_exists": "skip",
+                            "action_on_existence": "skip",
                         },
                         {
                             "action": "update",
@@ -723,9 +723,9 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "Should be skipped",
                                 }
                             ],
-                            "action_if_not_exists": "skip",
+                            "action_on_existence": "skip",
                         },
-                        {"action": "delete", "keys": ["nonexistent_var"], "action_if_not_exists": "skip"},
+                        {"action": "delete", "keys": ["nonexistent_var"], "action_on_existence": "skip"},
                     ]
                 },
                 {
@@ -747,7 +747,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "test case description",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
@@ -758,9 +758,9 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "description updated",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_existence": "fail",
                         },
-                        {"action": "delete", "keys": ["new_variable_key"], "action_if_not_exists": "fail"},
+                        {"action": "delete", "keys": ["new_variable_key"], "action_on_existence": "fail"},
                     ]
                 },
                 {
@@ -782,7 +782,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "test case description",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
@@ -793,7 +793,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "description updated",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "create",
@@ -804,7 +804,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "test case description",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
@@ -815,9 +815,9 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "description updated",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_existence": "fail",
                         },
-                        {"action": "delete", "keys": ["dictionary_password"], "action_if_not_exists": "fail"},
+                        {"action": "delete", "keys": ["dictionary_password"], "action_on_existence": "fail"},
                         {
                             "action": "create",
                             "variables": [
@@ -827,7 +827,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "test case description",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
@@ -838,7 +838,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                     "description": "description updated",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                     ]
                 },
