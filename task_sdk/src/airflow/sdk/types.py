@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, BaseAssetUniqueKey
     from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     Operator = Union[BaseOperator, MappedOperator]
@@ -70,6 +71,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
     ) -> Any: ...
 
     def xcom_push(self, key: str, value: Any) -> None: ...
+
+    def get_template_context(self) -> Context: ...
 
 
 class OutletEventAccessorProtocol(Protocol):

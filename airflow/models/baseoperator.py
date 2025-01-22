@@ -85,6 +85,7 @@ from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -632,6 +633,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                     logical_date=info.logical_date,
                     data_interval=info.data_interval,
                     triggered_by=DagRunTriggeredByType.TEST,
+                    state=DagRunState.RUNNING,
                 )
                 ti = TaskInstance(self, run_id=dr.run_id)
                 ti.dag_run = dr

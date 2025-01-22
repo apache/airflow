@@ -44,7 +44,6 @@ import uuid6
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
-    DateTime,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -162,7 +161,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.types import OutletEventAccessorsProtocol, RuntimeTaskInstanceProtocol
-    from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
 
@@ -928,6 +926,11 @@ def _get_template_context(
     from airflow import macros
     from airflow.models.abstractoperator import NotMapped
     from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk.api.datamodels._generated import (
+        DagRun as DagRunSDK,
+        PrevSuccessfulDagRunResponse,
+        TIRunContext,
+    )
 
     integrate_macros_plugins()
 
@@ -938,50 +941,34 @@ def _get_template_context(
         assert task.dag
 
     dag_run = task_instance.get_dagrun(session)
-    data_interval = dag.get_run_data_interval(dag_run)
-
     validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
 
-    logical_date: DateTime = timezone.coerce_datetime(task_instance.logical_date)
-    ds = logical_date.strftime("%Y-%m-%d")
-    ds_nodash = ds.replace("-", "")
-    ts = logical_date.isoformat()
-    ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
-    ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
+    ti_context_from_server = TIRunContext(
+        dag_run=DagRunSDK.model_validate(dag_run, from_attributes=True),
+        max_tries=task_instance.max_tries,
+    )
+    runtime_ti = task_instance.to_runtime_ti(context_from_server=ti_context_from_server)
+
+    context: Context = runtime_ti.get_template_context()
 
     @cache  # Prevent multiple database access.
-    def _get_previous_dagrun_success() -> DagRun | None:
-        return task_instance.get_previous_dagrun(state=DagRunState.SUCCESS, session=session)
-
-    def _get_previous_dagrun_data_interval_success() -> DataInterval | None:
-        dagrun = _get_previous_dagrun_success()
-        if dagrun is None:
-            return None
-        return dag.get_run_data_interval(dagrun)
+    def _get_previous_dagrun_success() -> PrevSuccessfulDagRunResponse:
+        dr_from_db = task_instance.get_previous_dagrun(state=DagRunState.SUCCESS, session=session)
+        if dr_from_db:
+            return PrevSuccessfulDagRunResponse.model_validate(dr_from_db, from_attributes=True)
+        return PrevSuccessfulDagRunResponse()
 
     def get_prev_data_interval_start_success() -> pendulum.DateTime | None:
-        data_interval = _get_previous_dagrun_data_interval_success()
-        if data_interval is None:
-            return None
-        return data_interval.start
+        return timezone.coerce_datetime(_get_previous_dagrun_success().data_interval_start)
 
     def get_prev_data_interval_end_success() -> pendulum.DateTime | None:
-        data_interval = _get_previous_dagrun_data_interval_success()
-        if data_interval is None:
-            return None
-        return data_interval.end
+        return timezone.coerce_datetime(_get_previous_dagrun_success().data_interval_end)
 
     def get_prev_start_date_success() -> pendulum.DateTime | None:
-        dagrun = _get_previous_dagrun_success()
-        if dagrun is None:
-            return None
-        return timezone.coerce_datetime(dagrun.start_date)
+        return timezone.coerce_datetime(_get_previous_dagrun_success().start_date)
 
     def get_prev_end_date_success() -> pendulum.DateTime | None:
-        dagrun = _get_previous_dagrun_success()
-        if dagrun is None:
-            return None
-        return timezone.coerce_datetime(dagrun.end_date)
+        return timezone.coerce_datetime(_get_previous_dagrun_success().end_date)
 
     def get_triggering_events() -> dict[str, list[AssetEvent]]:
         if TYPE_CHECKING:
@@ -1005,41 +992,29 @@ def _get_template_context(
     # * Context in task_sdk/src/airflow/sdk/definitions/context.py
     # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
     # * Table in docs/apache-airflow/templates-ref.rst
-    context: Context = {
-        "dag": dag,
-        "dag_run": dag_run,
-        "data_interval_end": timezone.coerce_datetime(data_interval.end),
-        "data_interval_start": timezone.coerce_datetime(data_interval.start),
-        "outlet_events": OutletEventAccessors(),
-        "ds": ds,
-        "ds_nodash": ds_nodash,
-        "inlets": task.inlets,
-        "inlet_events": InletEventsAccessors(task.inlets, session=session),
-        "logical_date": logical_date,
-        "macros": macros,
-        "map_index_template": task.map_index_template,
-        "outlets": task.outlets,
-        "params": validated_params,
-        "prev_data_interval_start_success": get_prev_data_interval_start_success(),
-        "prev_data_interval_end_success": get_prev_data_interval_end_success(),
-        "prev_start_date_success": get_prev_start_date_success(),
-        "prev_end_date_success": get_prev_end_date_success(),
-        "run_id": task_instance.run_id,
-        "task": task,  # type: ignore[typeddict-item]
-        "task_instance": task_instance,
-        "task_instance_key_str": f"{task.dag_id}__{task.task_id}__{ds_nodash}",
-        "test_mode": task_instance.test_mode,
-        "ti": task_instance,
-        "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
-        "ts": ts,
-        "ts_nodash": ts_nodash,
-        "ts_nodash_with_tz": ts_nodash_with_tz,
-        "var": {
-            "json": VariableAccessor(deserialize_json=True),
-            "value": VariableAccessor(deserialize_json=False),
-        },
-        "conn": ConnectionAccessor(),
-    }
+
+    context.update(
+        {
+            "outlet_events": OutletEventAccessors(),
+            "inlet_events": InletEventsAccessors(task.inlets, session=session),
+            "macros": macros,
+            "params": validated_params,
+            "prev_data_interval_start_success": get_prev_data_interval_start_success(),
+            "prev_data_interval_end_success": get_prev_data_interval_end_success(),
+            "prev_start_date_success": get_prev_start_date_success(),
+            "prev_end_date_success": get_prev_end_date_success(),
+            "test_mode": task_instance.test_mode,
+            # ti/task_instance are added here for ti.xcom_{push,pull}
+            "task_instance": task_instance,
+            "ti": task_instance,
+            "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
+            "var": {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            },
+            "conn": ConnectionAccessor(),
+        }
+    )
 
     try:
         expanded_ti_count: int | None = BaseOperator.get_mapped_ti_count(
@@ -1058,8 +1033,6 @@ def _get_template_context(
     except NotMapped:
         pass
 
-    # Mypy doesn't like turning existing dicts in to a TypeDict -- and we "lie" in the type stub to say it
-    # is one, but in practice it isn't. See https://github.com/python/mypy/issues/8890
     return context
 
 
@@ -1901,6 +1874,24 @@ class TaskInstance(Base, LoggingMixin):
             assert ti
             assert isinstance(ti, TaskInstance)
         return ti
+
+    def to_runtime_ti(self, context_from_server) -> RuntimeTaskInstanceProtocol:
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            id=self.id,
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            try_numer=self.try_number,
+            map_index=self.map_index,
+            task=self.task,
+            max_tries=self.max_tries,
+            hostname=self.hostname,
+            _ti_context_from_server=context_from_server,
+        )
+
+        return runtime_ti
 
     @staticmethod
     def _command_as_list(
