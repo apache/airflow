@@ -1716,9 +1716,10 @@ class Airflow(AirflowBaseView):
                 ti.task = dag.get_task(ti.task_id)
 
             if response_format == "json":
-                logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
-                message = logs[0] if try_number is not None else logs
-                return {"message": message, "metadata": metadata}
+                hosts, log_streams, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
+                host = f"{hosts[0] or ''}\n"
+                log_stream = log_streams[0]
+                return {"message": host + "\n".join(log for log in log_stream), "metadata": metadata}
 
             metadata["download_logs"] = True
             attachment_filename = task_log_reader.render_log_filename(ti, try_number, session=session)
