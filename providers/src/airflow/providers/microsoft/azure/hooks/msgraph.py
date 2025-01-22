@@ -158,7 +158,7 @@ class KiotaRequestAdapterHook(BaseHook):
             "disable_instance_discovery": BooleanField(
                 lazy_gettext("Disable instance discovery"), default=False
             ),
-            "allowed_hosts": StringField(lazy_gettext("Allowed"), widget=BS3TextFieldWidget()),
+            "allowed_hosts": StringField(lazy_gettext("Allowed hosts"), widget=BS3TextFieldWidget()),
             "proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextAreaFieldWidget()),
             "stream": BooleanField(lazy_gettext("Stream"), default=False),
             "verify": BooleanField(lazy_gettext("Verify"), default=True),
