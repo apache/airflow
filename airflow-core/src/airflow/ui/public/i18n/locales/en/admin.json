@@ -122,6 +122,7 @@
   },
   "variables": {
     "add": "Add Variable",
+    "backendsOrder": "Secret backends order",
     "columns": {
       "isEncrypted": "Is Encrypted"
     },
