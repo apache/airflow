@@ -253,7 +253,6 @@ def ti_update_state(
                 updated_state = State.FAILED
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TISuccessStatePayload):
-        print("Got payload" * 10, ti_patch_payload)
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         updated_state = ti_patch_payload.state
         task_instance = session.get(TI, ti_id_str)

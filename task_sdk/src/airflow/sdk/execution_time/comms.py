@@ -305,9 +305,6 @@ class GetPrevSuccessfulDagRun(BaseModel):
 ToSupervisor = Annotated[
     Union[
         SucceedTask,
-        GetXCom,
-        GetConnection,
-        GetVariable,
         DeferTask,
         GetAssetByName,
         GetAssetByUri,
