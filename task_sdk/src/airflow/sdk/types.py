@@ -43,6 +43,7 @@ class DagRunProtocol(Protocol):
     end_date: datetime | None
     run_type: Any
     conf: dict[str, Any] | None
+    external_trigger: bool
 
 
 class RuntimeTaskInstanceProtocol(Protocol):

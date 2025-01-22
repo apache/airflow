@@ -85,6 +85,7 @@ class TestTIRunState:
                 "data_interval_end": instant_str,
                 "start_date": instant_str,
                 "end_date": None,
+                "external_trigger": False,
                 "run_type": "manual",
                 "conf": {},
             },

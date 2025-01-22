@@ -96,8 +96,6 @@ class RuntimeTaskInstance(TaskInstance):
             #   especially after removal of `conf` from Context.
             "ti": self,
             "outlet_events": OutletEventAccessors(),
-            # "expanded_ti_count": expanded_ti_count,
-            "expanded_ti_count": None,  # TODO: Implement this
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
             "macros": MacrosAccessor(),
             # "params": validated_params,
