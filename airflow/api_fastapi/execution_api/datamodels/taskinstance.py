@@ -199,3 +199,12 @@ class TIRunContext(BaseModel):
 
     connections: Annotated[list[ConnectionResponse], Field(default_factory=list)]
     """Connections that can be accessed by the task instance."""
+
+
+class PrevSuccessfulDagRunResponse(BaseModel):
+    """Schema for response with previous successful DagRun information for Task Template Context."""
+
+    data_interval_start: UtcDateTime | None = None
+    data_interval_end: UtcDateTime | None = None
+    start_date: UtcDateTime | None = None
+    end_date: UtcDateTime | None = None

@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
-import pendulum
 import pytest
 from sqlalchemy import select
 
@@ -31,16 +29,13 @@ from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.mappedoperator import MappedOperator
-from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests.models import DEFAULT_DATE
@@ -55,25 +50,6 @@ pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
-
-
-def test_task_mapping_with_dag():
-    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-        task1 = BaseOperator(task_id="op1")
-        literal = ["a", "b", "c"]
-        mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
-        finish = MockOperator(task_id="finish")
-
-        task1 >> mapped >> finish
-
-    assert task1.downstream_list == [mapped]
-    assert mapped in dag.tasks
-    assert mapped.task_group == dag.task_group
-    # At parse time there should only be three tasks!
-    assert len(dag.tasks) == 3
-
-    assert finish.upstream_list == [mapped]
-    assert mapped.downstream_list == [finish]
 
 
 @patch("airflow.models.abstractoperator.AbstractOperator.render_template")
@@ -105,66 +81,6 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
     mock_render_template.assert_called()
 
 
-def test_task_mapping_without_dag_context():
-    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-        task1 = BaseOperator(task_id="op1")
-    literal = ["a", "b", "c"]
-    mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
-
-    task1 >> mapped
-
-    assert isinstance(mapped, MappedOperator)
-    assert mapped in dag.tasks
-    assert task1.downstream_list == [mapped]
-    assert mapped in dag.tasks
-    # At parse time there should only be two tasks!
-    assert len(dag.tasks) == 2
-
-
-def test_task_mapping_default_args():
-    default_args = {"start_date": DEFAULT_DATE.now(), "owner": "test"}
-    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args):
-        task1 = BaseOperator(task_id="op1")
-        literal = ["a", "b", "c"]
-        mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
-
-        task1 >> mapped
-
-    assert mapped.partial_kwargs["owner"] == "test"
-    assert mapped.start_date == pendulum.instance(default_args["start_date"])
-
-
-def test_task_mapping_override_default_args():
-    default_args = {"retries": 2, "start_date": DEFAULT_DATE.now()}
-    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args):
-        literal = ["a", "b", "c"]
-        mapped = MockOperator.partial(task_id="task", retries=1).expand(arg2=literal)
-
-    # retries should be 1 because it is provided as a partial arg
-    assert mapped.partial_kwargs["retries"] == 1
-    # start_date should be equal to default_args["start_date"] because it is not provided as partial arg
-    assert mapped.start_date == pendulum.instance(default_args["start_date"])
-    # owner should be equal to Airflow default owner (airflow) because it is not provided at all
-    assert mapped.owner == "airflow"
-
-
-def test_map_unknown_arg_raises():
-    with pytest.raises(TypeError, match=r"argument 'file'"):
-        BaseOperator.partial(task_id="a").expand(file=[1, 2, {"a": "b"}])
-
-
-def test_map_xcom_arg():
-    """Test that dependencies are correct when mapping with an XComArg"""
-    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE):
-        task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
-        finish = MockOperator(task_id="finish")
-
-        mapped >> finish
-
-    assert task1.downstream_list == [mapped]
-
-
 def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):
     """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
 
@@ -189,48 +105,17 @@ def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):
     ti_1 = dr.get_task_instance("task_1", session)
     ti_1.run()
 
-    ti_2s, _ = task2.expand_mapped_task(dr.run_id, session=session)
+    ti_2s, _ = TaskMap.expand_mapped_task(task2, dr.run_id, session=session)
     for ti in ti_2s:
         ti.refresh_from_task(dag.get_task("task_2"))
         ti.run()
 
-    ti_3s, _ = task3.expand_mapped_task(dr.run_id, session=session)
+    ti_3s, _ = TaskMap.expand_mapped_task(task3, dr.run_id, session=session)
     for ti in ti_3s:
         ti.refresh_from_task(dag.get_task("task_3"))
         ti.run()
 
     assert len(ti_3s) == len(ti_2s) == len(upstream_return)
-
-
-def test_partial_on_instance() -> None:
-    """`.partial` on an instance should fail -- it's only designed to be called on classes"""
-    with pytest.raises(TypeError):
-        MockOperator(task_id="a").partial()
-
-
-def test_partial_on_class() -> None:
-    # Test that we accept args for superclasses too
-    op = MockOperator.partial(task_id="a", arg1="a", trigger_rule=TriggerRule.ONE_FAILED)
-    assert op.kwargs["arg1"] == "a"
-    assert op.kwargs["trigger_rule"] == TriggerRule.ONE_FAILED
-
-
-def test_partial_on_class_invalid_ctor_args() -> None:
-    """Test that when we pass invalid args to partial().
-
-    I.e. if an arg is not known on the class or any of its parent classes we error at parse time
-    """
-    with pytest.raises(TypeError, match=r"arguments 'foo', 'bar'"):
-        MockOperator.partial(task_id="a", foo="bar", bar=2)
-
-
-def test_partial_on_invalid_pool_slots_raises() -> None:
-    """Test that when we pass an invalid value to pool_slots in partial(),
-
-    i.e. if the value is not an integer, an error is raised at import time."""
-
-    with pytest.raises(TypeError, match="'<' not supported between instances of 'str' and 'int'"):
-        MockOperator.partial(task_id="pool_slots_test", pool="test", pool_slots="a").expand(arg1=[1, 2, 3])
 
 
 @pytest.mark.parametrize(
@@ -288,7 +173,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
         session.add(ti)
     session.flush()
 
-    mapped.expand_mapped_task(dr.run_id, session=session)
+    TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -339,7 +224,7 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     # Make sure we have the faulty state in the database
     assert indices == [(-1, None), (0, "success"), (1, "success")]
 
-    mapped.expand_mapped_task(dr.run_id, session=session)
+    TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -368,52 +253,6 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     )
 
     assert indices == [(-1, TaskInstanceState.SKIPPED)]
-
-
-def test_mapped_task_applies_default_args_classic(dag_maker):
-    with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
-        MockOperator(task_id="simple", arg1=None, arg2=0)
-        MockOperator.partial(task_id="mapped").expand(arg1=[1], arg2=[2, 3])
-
-    assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
-    assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
-
-
-def test_mapped_task_applies_default_args_taskflow(dag_maker):
-    with dag_maker(default_args={"execution_timeout": timedelta(minutes=30)}) as dag:
-
-        @dag.task
-        def simple(arg):
-            pass
-
-        @dag.task
-        def mapped(arg):
-            pass
-
-        simple(arg=0)
-        mapped.expand(arg=[1, 2])
-
-    assert dag.get_task("simple").execution_timeout == timedelta(minutes=30)
-    assert dag.get_task("mapped").execution_timeout == timedelta(minutes=30)
-
-
-@pytest.mark.parametrize(
-    "dag_params, task_params, expected_partial_params",
-    [
-        pytest.param(None, None, ParamsDict(), id="none"),
-        pytest.param({"a": -1}, None, ParamsDict({"a": -1}), id="dag"),
-        pytest.param(None, {"b": -2}, ParamsDict({"b": -2}), id="task"),
-        pytest.param({"a": -1}, {"b": -2}, ParamsDict({"a": -1, "b": -2}), id="merge"),
-    ],
-)
-def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expected_partial_params):
-    with dag_maker(params=dag_params) as dag:
-        MockOperator.partial(task_id="t", params=task_params).expand(params=[{"c": "x"}, {"d": 1}])
-
-    t = dag.get_task("t")
-    assert isinstance(t, MappedOperator)
-    assert t.params == expected_partial_params
-    assert t.expand_input.value == {"params": [{"c": "x"}, {"d": 1}]}
 
 
 def test_mapped_render_template_fields_validating_operator(dag_maker, session, tmp_path):
@@ -609,7 +448,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
         session.add(ti)
     session.flush()
 
-    mapped.expand_mapped_task(dr.run_id, session=session)
+    TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -785,29 +624,6 @@ def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, ses
         assert ti.task.arg2 == "a"
 
 
-def test_xcomarg_property_of_mapped_operator(dag_maker):
-    with dag_maker("test_xcomarg_property_of_mapped_operator"):
-        op_a = MockOperator.partial(task_id="a").expand(arg1=["x", "y", "z"])
-    dag_maker.create_dagrun()
-
-    assert op_a.output == XComArg(op_a)
-
-
-def test_set_xcomarg_dependencies_with_mapped_operator(dag_maker):
-    with dag_maker("test_set_xcomargs_dependencies_with_mapped_operator"):
-        op1 = MockOperator.partial(task_id="op1").expand(arg1=[1, 2, 3])
-        op2 = MockOperator.partial(task_id="op2").expand(arg2=["a", "b", "c"])
-        op3 = MockOperator(task_id="op3", arg1=op1.output)
-        op4 = MockOperator(task_id="op4", arg1=[op1.output, op2.output])
-        op5 = MockOperator(task_id="op5", arg1={"op1": op1.output, "op2": op2.output})
-
-    assert op1 in op3.upstream_list
-    assert op1 in op4.upstream_list
-    assert op2 in op4.upstream_list
-    assert op1 in op5.upstream_list
-    assert op2 in op5.upstream_list
-
-
 def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
     class PushXcomOperator(MockOperator):
         def __init__(self, arg1, **kwargs):
@@ -828,48 +644,6 @@ def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
     tis = dr.get_task_instances(session=session)
     for ti in tis:
         ti.run()
-
-
-def test_task_mapping_with_task_group_context():
-    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-        task1 = BaseOperator(task_id="op1")
-        finish = MockOperator(task_id="finish")
-
-        with TaskGroup("test-group") as group:
-            literal = ["a", "b", "c"]
-            mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
-
-            task1 >> group >> finish
-
-    assert task1.downstream_list == [mapped]
-    assert mapped.upstream_list == [task1]
-
-    assert mapped in dag.tasks
-    assert mapped.task_group == group
-
-    assert finish.upstream_list == [mapped]
-    assert mapped.downstream_list == [finish]
-
-
-def test_task_mapping_with_explicit_task_group():
-    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-        task1 = BaseOperator(task_id="op1")
-        finish = MockOperator(task_id="finish")
-
-        group = TaskGroup("test-group")
-        literal = ["a", "b", "c"]
-        mapped = MockOperator.partial(task_id="task_2", task_group=group).expand(arg2=literal)
-
-        task1 >> group >> finish
-
-    assert task1.downstream_list == [mapped]
-    assert mapped.upstream_list == [task1]
-
-    assert mapped in dag.tasks
-    assert mapped.task_group == group
-
-    assert finish.upstream_list == [mapped]
-    assert mapped.downstream_list == [finish]
 
 
 class TestMappedSetupTeardown:

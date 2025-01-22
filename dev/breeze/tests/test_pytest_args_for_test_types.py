@@ -26,9 +26,13 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
 # TODO(potiuk): rename to all_providers when we move all providers to the new structure
 def _all_new_providers() -> list[str]:
     all_new_providers: list[str] = []
-    for file in (AIRFLOW_SOURCES_ROOT / "providers").iterdir():
-        if file.is_dir() and not file.name.startswith(".") and file.name not in ["src", "tests"]:
-            all_new_providers.append(file.name)
+    providers_root = AIRFLOW_SOURCES_ROOT / "providers"
+    for file in providers_root.rglob("provider.yaml"):
+        # TODO: remove this check when all providers are moved to the new structure
+        if file.is_relative_to(providers_root / "src"):
+            continue
+        provider_path = file.parent.relative_to(providers_root)
+        all_new_providers.append(provider_path.as_posix())
     return sorted(all_new_providers)
 
 

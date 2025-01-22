@@ -82,6 +82,13 @@ dependencies = [
 {{ EXTRAS_REQUIREMENTS }}
 {%- endif %}
 
+{%- if DEPENDENCY_GROUPS %}
+# The dependency groups should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[dependency-groups]
+{{ DEPENDENCY_GROUPS }}
+{%- endif %}
+
 [project.urls]
 "Documentation" = "https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}"
 "Changelog" = "https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/changelog.html"

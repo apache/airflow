@@ -1576,6 +1576,7 @@ export type RecentDagRunsData = {
   owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;
+  tagsMatchMode?: "any" | "all" | null;
 };
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
@@ -1800,6 +1801,12 @@ export type GetDagStatsData = {
 
 export type GetDagStatsResponse = DagStatsCollectionResponse;
 
+export type GetDagReportData = {
+  subdir: string;
+};
+
+export type GetDagReportResponse = unknown;
+
 export type ListDagWarningsData = {
   dagId?: string | null;
   limit?: number;
@@ -1813,6 +1820,11 @@ export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
+  dagRunEndDateGte?: string | null;
+  dagRunEndDateLte?: string | null;
+  dagRunStartDateGte?: string | null;
+  dagRunStartDateLte?: string | null;
+  dagRunState?: Array<string>;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
@@ -1821,6 +1833,7 @@ export type GetDagsData = {
   owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;
+  tagsMatchMode?: "any" | "all" | null;
 };
 
 export type GetDagsResponse = DAGCollectionResponse;
@@ -1835,6 +1848,7 @@ export type PatchDagsData = {
   paused?: boolean | null;
   requestBody: DAGPatchBody;
   tags?: Array<string>;
+  tagsMatchMode?: "any" | "all" | null;
   updateMask?: Array<string> | null;
 };
 
@@ -3462,6 +3476,33 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dagReports": {
+    get: {
+      req: GetDagReportData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */

@@ -18,6 +18,7 @@
 #}
 
 {% set menu = appbuilder.menu %}
+{% set languages = appbuilder.languages %}
 
 <div class="navbar navbar-fixed-top" role="navigation" style="background-color: {{ navbar_color }};">
   <div class="container">
@@ -46,7 +47,13 @@
     </div>
     <div class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
+        {%- if disable_nav_bar is not defined or not disable_nav_bar -%}
         {% include 'appbuilder/navbar_menu.html' %}
+        {%- endif -%}
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="active">
+        {% include 'appbuilder/navbar_right.html' %}
       </ul>
     </div>
   </div>

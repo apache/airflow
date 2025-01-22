@@ -24,7 +24,7 @@ import copy
 import inspect
 import sys
 import warnings
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
@@ -37,6 +37,7 @@ from airflow.models.param import ParamsDict
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
+    DEFAULT_POOL_NAME,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
     DEFAULT_QUEUE,
@@ -47,10 +48,12 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
+    TaskStateChangeCallback,
 )
 from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
 from airflow.sdk.definitions._internal.node import validate_key
-from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_args
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, validate_instance_args
+from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -59,12 +62,13 @@ from airflow.task.priority_strategy import (
 from airflow.utils import timezone
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import AttributeRemoved
 from airflow.utils.weight_rule import db_safe_priority
 
 T = TypeVar("T", bound=FunctionType)
 
 if TYPE_CHECKING:
+    from types import ClassMethodDescriptorType
+
     import jinja2
 
     from airflow.models.xcom_arg import XComArg
@@ -72,6 +76,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
 
@@ -109,6 +114,189 @@ def get_merged_defaults(
         with contextlib.suppress(KeyError):
             params.update(task_default_args["params"] or {})
     return args, params
+
+
+class _PartialDescriptor:
+    """A descriptor that guards against ``.partial`` being called on Task objects."""
+
+    class_method: ClassMethodDescriptorType | None = None
+
+    def __get__(
+        self, obj: BaseOperator, cls: type[BaseOperator] | None = None
+    ) -> Callable[..., OperatorPartial]:
+        # Call this "partial" so it looks nicer in stack traces.
+        def partial(**kwargs):
+            raise TypeError("partial can only be called on Operator classes, not Tasks themselves")
+
+        if obj is not None:
+            return partial
+        return self.class_method.__get__(cls, cls)
+
+
+_PARTIAL_DEFAULTS: dict[str, Any] = {
+    "map_index_template": None,
+    "owner": DEFAULT_OWNER,
+    "trigger_rule": DEFAULT_TRIGGER_RULE,
+    "depends_on_past": False,
+    "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
+    "wait_for_downstream": False,
+    "retries": DEFAULT_RETRIES,
+    # "executor": DEFAULT_EXECUTOR,
+    "queue": DEFAULT_QUEUE,
+    "pool_slots": DEFAULT_POOL_SLOTS,
+    "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
+    "retry_delay": DEFAULT_RETRY_DELAY,
+    "retry_exponential_backoff": False,
+    "priority_weight": DEFAULT_PRIORITY_WEIGHT,
+    "weight_rule": DEFAULT_WEIGHT_RULE,
+    "inlets": [],
+    "outlets": [],
+    "allow_nested_operators": True,
+}
+
+
+# This is what handles the actual mapping.
+
+if TYPE_CHECKING:
+
+    def partial(
+        operator_class: type[BaseOperator],
+        *,
+        task_id: str,
+        dag: DAG | None = None,
+        task_group: TaskGroup | None = None,
+        start_date: datetime | ArgNotSet = NOTSET,
+        end_date: datetime | ArgNotSet = NOTSET,
+        owner: str | ArgNotSet = NOTSET,
+        email: None | str | Iterable[str] | ArgNotSet = NOTSET,
+        params: collections.abc.MutableMapping | None = None,
+        resources: dict[str, Any] | None | ArgNotSet = NOTSET,
+        trigger_rule: str | ArgNotSet = NOTSET,
+        depends_on_past: bool | ArgNotSet = NOTSET,
+        ignore_first_depends_on_past: bool | ArgNotSet = NOTSET,
+        wait_for_past_depends_before_skipping: bool | ArgNotSet = NOTSET,
+        wait_for_downstream: bool | ArgNotSet = NOTSET,
+        retries: int | None | ArgNotSet = NOTSET,
+        queue: str | ArgNotSet = NOTSET,
+        pool: str | ArgNotSet = NOTSET,
+        pool_slots: int | ArgNotSet = NOTSET,
+        execution_timeout: timedelta | None | ArgNotSet = NOTSET,
+        max_retry_delay: None | timedelta | float | ArgNotSet = NOTSET,
+        retry_delay: timedelta | float | ArgNotSet = NOTSET,
+        retry_exponential_backoff: bool | ArgNotSet = NOTSET,
+        priority_weight: int | ArgNotSet = NOTSET,
+        weight_rule: str | PriorityWeightStrategy | ArgNotSet = NOTSET,
+        sla: timedelta | None | ArgNotSet = NOTSET,
+        map_index_template: str | None | ArgNotSet = NOTSET,
+        max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
+        max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
+        on_execute_callback: None
+        | TaskStateChangeCallback
+        | list[TaskStateChangeCallback]
+        | ArgNotSet = NOTSET,
+        on_failure_callback: None
+        | TaskStateChangeCallback
+        | list[TaskStateChangeCallback]
+        | ArgNotSet = NOTSET,
+        on_success_callback: None
+        | TaskStateChangeCallback
+        | list[TaskStateChangeCallback]
+        | ArgNotSet = NOTSET,
+        on_retry_callback: None
+        | TaskStateChangeCallback
+        | list[TaskStateChangeCallback]
+        | ArgNotSet = NOTSET,
+        on_skipped_callback: None
+        | TaskStateChangeCallback
+        | list[TaskStateChangeCallback]
+        | ArgNotSet = NOTSET,
+        run_as_user: str | None | ArgNotSet = NOTSET,
+        executor: str | None | ArgNotSet = NOTSET,
+        executor_config: dict | None | ArgNotSet = NOTSET,
+        inlets: Any | None | ArgNotSet = NOTSET,
+        outlets: Any | None | ArgNotSet = NOTSET,
+        doc: str | None | ArgNotSet = NOTSET,
+        doc_md: str | None | ArgNotSet = NOTSET,
+        doc_json: str | None | ArgNotSet = NOTSET,
+        doc_yaml: str | None | ArgNotSet = NOTSET,
+        doc_rst: str | None | ArgNotSet = NOTSET,
+        task_display_name: str | None | ArgNotSet = NOTSET,
+        logger_name: str | None | ArgNotSet = NOTSET,
+        allow_nested_operators: bool = True,
+        **kwargs,
+    ) -> OperatorPartial: ...
+else:
+
+    def partial(
+        operator_class: type[BaseOperator],
+        *,
+        task_id: str,
+        dag: DAG | None = None,
+        task_group: TaskGroup | None = None,
+        params: collections.abc.MutableMapping | None = None,
+        **kwargs,
+    ):
+        from airflow.sdk.definitions._internal.contextmanager import DagContext, TaskGroupContext
+
+        validate_mapping_kwargs(operator_class, "partial", kwargs)
+
+        dag = dag or DagContext.get_current()
+        if dag:
+            task_group = task_group or TaskGroupContext.get_current(dag)
+        if task_group:
+            task_id = task_group.child_id(task_id)
+
+        # Merge DAG and task group level defaults into user-supplied values.
+        dag_default_args, partial_params = get_merged_defaults(
+            dag=dag,
+            task_group=task_group,
+            task_params=params,
+            task_default_args=kwargs.pop("default_args", None),
+        )
+
+        # Create partial_kwargs from args and kwargs
+        partial_kwargs: dict[str, Any] = {
+            "task_id": task_id,
+            "dag": dag,
+            "task_group": task_group,
+            **kwargs,
+        }
+
+        # Inject DAG-level default args into args provided to this function.
+        partial_kwargs.update(
+            (k, v) for k, v in dag_default_args.items() if partial_kwargs.get(k, NOTSET) is NOTSET
+        )
+
+        # Fill fields not provided by the user with default values.
+        for k, v in _PARTIAL_DEFAULTS.items():
+            partial_kwargs.setdefault(k, v)
+
+        # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
+        if "task_concurrency" in kwargs:  # Reject deprecated option.
+            raise TypeError("unexpected argument: task_concurrency")
+        if start_date := partial_kwargs.get("start_date", None):
+            partial_kwargs["start_date"] = timezone.convert_to_utc(start_date)
+        if end_date := partial_kwargs.get("end_date", None):
+            partial_kwargs["end_date"] = timezone.convert_to_utc(end_date)
+        if partial_kwargs["pool_slots"] < 1:
+            dag_str = ""
+            if dag:
+                dag_str = f" in dag {dag.dag_id}"
+            raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
+        if retries := partial_kwargs.get("retries"):
+            partial_kwargs["retries"] = BaseOperator._convert_retries(retries)
+        partial_kwargs["retry_delay"] = BaseOperator._convert_retry_delay(partial_kwargs["retry_delay"])
+        partial_kwargs["max_retry_delay"] = BaseOperator._convert_max_retry_delay(
+            partial_kwargs.get("max_retry_delay", None)
+        )
+        partial_kwargs.setdefault("executor_config", {})
+
+        return OperatorPartial(
+            operator_class=operator_class,
+            kwargs=partial_kwargs,
+            params=partial_params,
+        )
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -224,11 +412,9 @@ class BaseOperatorMeta(abc.ABCMeta):
         with contextlib.suppress(KeyError):
             # Update the partial descriptor with the class method, so it calls the actual function
             # (but let subclasses override it if they need to)
-            # TODO: Task-SDK
-            # partial_desc = vars(new_cls)["partial"]
-            # if isinstance(partial_desc, _PartialDescriptor):
-            #     partial_desc.class_method = classmethod(partial)
-            ...
+            partial_desc = vars(new_cls)["partial"]
+            if isinstance(partial_desc, _PartialDescriptor):
+                partial_desc.class_method = classmethod(partial)
 
         # We patch `__init__` only if the class defines it.
         if inspect.getmro(new_cls)[1].__init__ is not new_cls.__init__:
@@ -533,7 +719,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         default_factory=airflow_priority_weight_strategies[DEFAULT_WEIGHT_RULE]
     )
     queue: str = DEFAULT_QUEUE
-    pool: str = "default"
+    pool: str = DEFAULT_POOL_NAME
     pool_slots: int = DEFAULT_POOL_SLOTS
     execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT
     # on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
@@ -579,8 +765,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     ui_color: str = "#fff"
     ui_fgcolor: str = "#000"
 
-    # TODO: Task-SDK Mapping
-    # partial: Callable[..., OperatorPartial] = _PartialDescriptor()  # type: ignore
+    partial: Callable[..., OperatorPartial] = _PartialDescriptor()  # type: ignore
 
     _dag: DAG | None = field(init=False, default=None)
 
@@ -777,8 +962,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # self.retries = parse_retries(retries)
         self.retries = retries
         self.queue = queue
-        # TODO: Task-SDK: pull this default name from Pool constant?
-        self.pool = "default_pool" if pool is None else pool
+        self.pool = DEFAULT_POOL_NAME if pool is None else pool
         self.pool_slots = pool_slots
         if self.pool_slots < 1:
             dag_str = f" in dag {dag.dag_id}" if dag else ""
@@ -1006,24 +1190,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
 
     @dag.setter
-    def dag(self, dag: DAG | None | AttributeRemoved) -> None:
+    def dag(self, dag: DAG | None) -> None:
         """Operators can be assigned to one DAG, one time. Repeat assignments to that same DAG are ok."""
-        # TODO: Task-SDK: Remove the AttributeRemoved and this type ignore once we remove AIP-44 code
-        self._dag = dag  # type: ignore[assignment]
+        self._dag = dag
 
-    def _convert__dag(self, dag: DAG | None | AttributeRemoved) -> DAG | None | AttributeRemoved:
+    def _convert__dag(self, dag: DAG | None) -> DAG | None:
         # Called automatically by __setattr__ method
         from airflow.sdk.definitions.dag import DAG
 
         if dag is None:
             return dag
-
-        # if set to removed, then just set and exit
-        if type(self._dag) is AttributeRemoved:
-            return dag
-        # if setting to removed, then just set and exit
-        if type(dag) is AttributeRemoved:
-            return AttributeRemoved("_dag")  # type: ignore[assignment]
 
         if not isinstance(dag, DAG):
             raise TypeError(f"Expected DAG; received {dag.__class__.__name__}")
@@ -1033,8 +1209,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if self.__from_mapped:
             pass  # Don't add to DAG -- the mapped task takes the place.
         elif dag.task_dict.get(self.task_id) is not self:
-            # TODO: Task-SDK: Remove this type ignore
-            dag.add_task(self)  # type: ignore[arg-type]
+            dag.add_task(self)
         return dag
 
     @staticmethod
