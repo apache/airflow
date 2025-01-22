@@ -206,12 +206,22 @@ def create_backfill(
             reprocess_behavior=backfill_request.reprocess_behavior,
         )
         return BackfillResponse.model_validate(backfill_obj)
+
+    except AlreadyRunningBackfill:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
+        )
+
+    except DagNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find dag {backfill_request.dag_id}",
+        )
     except (
-        AlreadyRunningBackfill,
         InvalidReprocessBehavior,
         InvalidBackfillDirection,
         DagNoScheduleException,
-        DagNotFound,
     ) as e:
         raise RequestValidationError(str(e))
 
@@ -242,5 +252,11 @@ def create_backfill_dry_run(
 
         return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
 
-    except (InvalidReprocessBehavior, InvalidBackfillDirection, DagNoScheduleException, DagNotFound) as e:
+    except DagNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find dag {body.dag_id}",
+        )
+
+    except (InvalidReprocessBehavior, InvalidBackfillDirection, DagNoScheduleException) as e:
         raise RequestValidationError(str(e))

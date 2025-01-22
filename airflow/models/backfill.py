@@ -208,7 +208,7 @@ def _validate_backfill_params(dag, reverse, reprocess_behavior: ReprocessBehavio
     if depends_on_past:
         if reverse is True:
             raise InvalidBackfillDirection(
-                "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True"
+                "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True."
             )
         if reprocess_behavior in (None, ReprocessBehavior.NONE):
             raise InvalidReprocessBehavior(

@@ -312,7 +312,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             else:
                 assert (
                     response.json().get("detail")
-                    == f"{dag.dag_id} has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
+                    == "DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
 
 
@@ -447,7 +447,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             else:
                 assert (
                     response.json().get("detail")
-                    == f"{dag.dag_id} has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
+                    == "DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
 
 
