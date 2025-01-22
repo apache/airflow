@@ -30,6 +30,7 @@ on:  # yamllint disable-line rule:truthy
       - v[0-9]+-[0-9]+-test
       - v[0-9]+-[0-9]+-stable
       - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+    types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
 permissions:
   # All other permissions are set to none by default
