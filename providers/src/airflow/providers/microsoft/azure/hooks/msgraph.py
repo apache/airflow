@@ -339,7 +339,7 @@ class KiotaRequestAdapterHook(BaseHook):
         if certificate_path or certificate_data:
             return CertificateCredential(
                 tenant_id=tenant_id,  # type: ignore
-                client_id=login,
+                client_id=login,  # type: ignore
                 password=password,
                 certificate_path=certificate_path,
                 certificate_data=certificate_data.encode() if certificate_data else None,
@@ -350,8 +350,8 @@ class KiotaRequestAdapterHook(BaseHook):
             )
         return ClientSecretCredential(
             tenant_id=tenant_id,  # type: ignore
-            client_id=login,
-            client_secret=password,
+            client_id=login,  # type: ignore
+            client_secret=password,  # type: ignore
             authority=authority,
             proxies=msal_proxies,
             disable_instance_discovery=disable_instance_discovery,
