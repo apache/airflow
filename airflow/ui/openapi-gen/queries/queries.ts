@@ -7,6 +7,7 @@ import {
   ConfigService,
   ConnectionService,
   DagParsingService,
+  DagReportService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -32,7 +33,6 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
-  Body_import_variables,
   ClearTaskInstancesBody,
   ConnectionBody,
   ConnectionBulkBody,
@@ -466,6 +466,7 @@ export const useConfigServiceGetConfigValue = <
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIds
  * @param data.dagIdPattern
@@ -493,6 +494,7 @@ export const useDagsServiceRecentDagRuns = <
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
@@ -505,6 +507,7 @@ export const useDagsServiceRecentDagRuns = <
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -523,6 +526,7 @@ export const useDagsServiceRecentDagRuns = <
         owners,
         paused,
         tags,
+        tagsMatchMode,
       },
       queryKey,
     ),
@@ -539,6 +543,7 @@ export const useDagsServiceRecentDagRuns = <
         owners,
         paused,
         tags,
+        tagsMatchMode,
       }) as TData,
     ...options,
   });
@@ -1072,6 +1077,32 @@ export const useDagStatsServiceGetDagStats = <
     ...options,
   });
 /**
+ * Get Dag Report
+ * Get DAG report.
+ * @param data The data for the request.
+ * @param data.subdir
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagReportServiceGetDagReport = <
+  TData = Common.DagReportServiceGetDagReportDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    subdir,
+  }: {
+    subdir: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }, queryKey),
+    queryFn: () => DagReportService.getDagReport({ subdir }) as TData,
+    ...options,
+  });
+/**
  * List Dag Warnings
  * Get a list of DAG warnings.
  * @param data The data for the request.
@@ -1119,12 +1150,18 @@ export const useDagWarningServiceListDagWarnings = <
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.dagRunStartDateGte
+ * @param data.dagRunStartDateLte
+ * @param data.dagRunEndDateGte
+ * @param data.dagRunEndDateLte
+ * @param data.dagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -1137,6 +1174,11 @@ export const useDagServiceGetDags = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunEndDateGte,
+    dagRunEndDateLte,
+    dagRunStartDateGte,
+    dagRunStartDateLte,
+    dagRunState,
     lastDagRunState,
     limit,
     offset,
@@ -1145,9 +1187,15 @@ export const useDagServiceGetDags = <
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunEndDateGte?: string;
+    dagRunEndDateLte?: string;
+    dagRunStartDateGte?: string;
+    dagRunStartDateLte?: string;
+    dagRunState?: string[];
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -1156,6 +1204,7 @@ export const useDagServiceGetDags = <
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1165,6 +1214,11 @@ export const useDagServiceGetDags = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunEndDateGte,
+        dagRunEndDateLte,
+        dagRunStartDateGte,
+        dagRunStartDateLte,
+        dagRunState,
         lastDagRunState,
         limit,
         offset,
@@ -1173,6 +1227,7 @@ export const useDagServiceGetDags = <
         owners,
         paused,
         tags,
+        tagsMatchMode,
       },
       queryKey,
     ),
@@ -1180,6 +1235,11 @@ export const useDagServiceGetDags = <
       DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunEndDateGte,
+        dagRunEndDateLte,
+        dagRunStartDateGte,
+        dagRunStartDateLte,
+        dagRunState,
         lastDagRunState,
         limit,
         offset,
@@ -1188,6 +1248,7 @@ export const useDagServiceGetDags = <
         owners,
         paused,
         tags,
+        tagsMatchMode,
       }) as TData,
     ...options,
   });
@@ -2790,7 +2851,7 @@ export const useConnectionServicePostConnection = <
  *
  * This method first creates an in-memory transient conn_id & exports that to an env var,
  * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
- * It also deletes the conn id env variable after the test.
+ * It also deletes the conn id env connection after the test.
  * @param data The data for the request.
  * @param data.requestBody
  * @returns ConnectionTestResponse Successful Response
@@ -3125,46 +3186,6 @@ export const useVariableServicePostVariable = <
     ...options,
   });
 /**
- * Import Variables
- * Import variables from a JSON file.
- * @param data The data for the request.
- * @param data.formData
- * @param data.actionIfExists
- * @returns VariablesImportResponse Successful Response
- * @throws ApiError
- */
-export const useVariableServiceImportVariables = <
-  TData = Common.VariableServiceImportVariablesMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        actionIfExists?: "overwrite" | "fail" | "skip";
-        formData: Body_import_variables;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      actionIfExists?: "overwrite" | "fail" | "skip";
-      formData: Body_import_variables;
-    },
-    TContext
-  >({
-    mutationFn: ({ actionIfExists, formData }) =>
-      VariableService.importVariables({ actionIfExists, formData }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
  * Pause Backfill
  * @param data The data for the request.
  * @param data.backfillId
@@ -3270,44 +3291,6 @@ export const useBackfillServiceCancelBackfill = <
   >({
     mutationFn: ({ backfillId }) =>
       BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Put Connections
- * Create connection entry.
- * @param data The data for the request.
- * @param data.requestBody
- * @returns ConnectionCollectionResponse Created with overwrite
- * @returns ConnectionCollectionResponse Created
- * @throws ApiError
- */
-export const useConnectionServicePutConnections = <
-  TData = Common.ConnectionServicePutConnectionsMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: ConnectionBulkBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: ConnectionBulkBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) =>
-      ConnectionService.putConnections({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3432,6 +3415,43 @@ export const useConnectionServicePatchConnection = <
     ...options,
   });
 /**
+ * Bulk Connections
+ * Bulk create, update, and delete connections.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns ConnectionBulkResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceBulkConnections = <
+  TData = Common.ConnectionServiceBulkConnectionsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: ConnectionBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: ConnectionBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.bulkConnections({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Patch Dag Run
  * Modify a DAG Run.
  * @param data The data for the request.
@@ -3486,6 +3506,7 @@ export const useDagRunServicePatchDagRun = <
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.onlyActive
@@ -3513,6 +3534,7 @@ export const useDagServicePatchDags = <
         paused?: boolean;
         requestBody: DAGPatchBody;
         tags?: string[];
+        tagsMatchMode?: "any" | "all";
         updateMask?: string[];
       },
       TContext
@@ -3533,6 +3555,7 @@ export const useDagServicePatchDags = <
       paused?: boolean;
       requestBody: DAGPatchBody;
       tags?: string[];
+      tagsMatchMode?: "any" | "all";
       updateMask?: string[];
     },
     TContext
@@ -3547,6 +3570,7 @@ export const useDagServicePatchDags = <
       paused,
       requestBody,
       tags,
+      tagsMatchMode,
       updateMask,
     }) =>
       DagService.patchDags({
@@ -3559,6 +3583,7 @@ export const useDagServicePatchDags = <
         paused,
         requestBody,
         tags,
+        tagsMatchMode,
         updateMask,
       }) as unknown as Promise<TData>,
     ...options,

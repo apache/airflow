@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import ConfigDict, Field, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.common import BulkAction, BulkBaseAction
 from airflow.models.base import ID_LEN
 from airflow.typing_compat import Self
 from airflow.utils.log.secrets_masker import redact
@@ -76,28 +77,25 @@ class VariablesImportResponse(BaseModel):
     created_count: int
 
 
-class VariableBulkCreateAction(BaseModel):
+class VariableBulkCreateAction(BulkBaseAction):
     """Bulk Create Variable serializer for request bodies."""
 
-    action: Literal["create"] = "create"
+    action: BulkAction = BulkAction.CREATE
     variables: list[VariableBody] = Field(..., description="A list of variables to be created.")
-    action_if_exists: Literal["skip", "overwrite", "fail"] = "fail"
 
 
-class VariableBulkUpdateAction(BaseModel):
+class VariableBulkUpdateAction(BulkBaseAction):
     """Bulk Update Variable serializer for request bodies."""
 
-    action: Literal["update"] = "update"
+    action: BulkAction = BulkAction.UPDATE
     variables: list[VariableBody] = Field(..., description="A list of variables to be updated.")
-    action_if_not_exists: Literal["skip", "fail"] = "fail"
 
 
-class VariableBulkDeleteAction(BaseModel):
+class VariableBulkDeleteAction(BulkBaseAction):
     """Bulk Delete Variable serializer for request bodies."""
 
-    action: Literal["delete"] = "delete"
+    action: BulkAction = BulkAction.DELETE
     keys: list[str] = Field(..., description="A list of variable keys to be deleted.")
-    action_if_not_exists: Literal["skip", "fail"] = "fail"
 
 
 class VariableBulkBody(BaseModel):

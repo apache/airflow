@@ -1165,7 +1165,7 @@ def get_current_context() -> Mapping[str, Any]:
 def _get_current_context() -> Mapping[str, Any]:
     # Airflow 2.x
     # TODO: To be removed when Airflow 2 support is dropped
-    from airflow.models.taskinstance import _CURRENT_CONTEXT
+    from airflow.models.taskinstance import _CURRENT_CONTEXT  # type: ignore[attr-defined]
 
     if not _CURRENT_CONTEXT:
         raise RuntimeError(

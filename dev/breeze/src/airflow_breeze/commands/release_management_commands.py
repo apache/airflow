@@ -97,12 +97,14 @@ from airflow_breeze.prepare_providers.provider_packages import (
     PrepareReleasePackageErrorBuildingPackageException,
     PrepareReleasePackageTagExistException,
     PrepareReleasePackageWrongSetupException,
+    apply_version_suffix_to_pyproject_toml,
     build_provider_package,
     cleanup_build_remnants,
     copy_provider_sources_to_target,
     generate_build_files,
     get_packages_list_to_act_on,
     move_built_packages_and_cleanup,
+    restore_pyproject_toml,
     should_skip_the_package,
 )
 from airflow_breeze.utils.add_back_references import (
@@ -157,9 +159,9 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.version_utils import (
-    create_package_version,
     get_latest_airflow_version,
     get_latest_helm_chart_version,
+    get_package_version_suffix,
     is_local_package_version,
 )
 from airflow_breeze.utils.versions import is_pre_release
@@ -948,8 +950,8 @@ def prepare_provider_packages(
         include_removed=include_removed_providers,
         include_not_ready=include_not_ready_providers,
     )
-    package_version = create_package_version(version_suffix_for_pypi, version_suffix_for_local)
-    if not skip_tag_check and not is_local_package_version(package_version):
+    package_version_suffix = get_package_version_suffix(version_suffix_for_pypi, version_suffix_for_local)
+    if not skip_tag_check and not is_local_package_version(package_version_suffix):
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     success_packages = []
@@ -965,24 +967,32 @@ def prepare_provider_packages(
         try:
             basic_provider_checks(provider_id)
             if not skip_tag_check:
-                should_skip, package_version = should_skip_the_package(provider_id, package_version)
+                should_skip, package_version_suffix = should_skip_the_package(
+                    provider_id, package_version_suffix
+                )
                 if should_skip:
                     continue
             get_console().print()
             with ci_group(f"Preparing provider package [special]{provider_id}"):
                 get_console().print()
+                # TODO(potiuk) - rename when all providers are new-style
                 new_provider_root_dir = AIRFLOW_PROVIDERS_DIR.joinpath(*provider_id.split("."))
                 if (new_provider_root_dir / "provider.yaml").exists():
                     get_console().print(
-                        f"[info]Provider {provider_id} is a new-style provider. "
-                        f"Skipping package generation as it is not needed for new-style providers."
+                        f"[info]Provider {provider_id} is a new-style provider building in-place."
                     )
                     cleanup_build_remnants(new_provider_root_dir)
-                    build_provider_package(
-                        provider_id=provider_id,
-                        package_format=package_format,
-                        target_provider_root_sources_path=new_provider_root_dir,
+                    old_content = apply_version_suffix_to_pyproject_toml(
+                        provider_id, new_provider_root_dir, package_version_suffix
                     )
+                    try:
+                        build_provider_package(
+                            provider_id=provider_id,
+                            package_format=package_format,
+                            target_provider_root_sources_path=new_provider_root_dir,
+                        )
+                    finally:
+                        restore_pyproject_toml(new_provider_root_dir, old_content)
                     move_built_packages_and_cleanup(
                         new_provider_root_dir,
                         DIST_DIR,
@@ -994,7 +1004,7 @@ def prepare_provider_packages(
                     target_provider_root_sources_path = copy_provider_sources_to_target(provider_id)
                     generate_build_files(
                         provider_id=provider_id,
-                        version_suffix=package_version,
+                        version_suffix=package_version_suffix,
                         target_provider_root_sources_path=target_provider_root_sources_path,
                     )
                     cleanup_build_remnants(target_provider_root_sources_path)
@@ -1838,6 +1848,7 @@ def _add_chicken_egg_providers_to_build_args(
         python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
 
 
+# TODO(potiuk) - remove when all providers are new-style
 @release_management.command(
     name="clean-old-provider-artifacts",
     help="Cleans the old provider artifacts",

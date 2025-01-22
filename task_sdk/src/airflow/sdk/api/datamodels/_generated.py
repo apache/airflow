@@ -29,6 +29,17 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class AssetResponse(BaseModel):
+    """
+    Asset schema for responses with fields that are needed for Runtime.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    group: Annotated[str, Field(title="Group")]
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+
+
 class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.
@@ -67,6 +78,17 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
+
+
+class PrevSuccessfulDagRunResponse(BaseModel):
+    """
+    Schema for response with previous successful DagRun information for Task Template Context.
+    """
+
+    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    start_date: Annotated[datetime | None, Field(title="Start Date")] = None
+    end_date: Annotated[datetime | None, Field(title="End Date")] = None
 
 
 class TIDeferredStatePayload(BaseModel):

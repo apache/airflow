@@ -46,13 +46,19 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetXCom,
+    PrevSuccessfulDagRunResult,
     SetRenderedFields,
     StartupDetails,
     TaskState,
     VariableResult,
     XComResult,
 )
-from airflow.sdk.execution_time.context import ConnectionAccessor, MacrosAccessor, VariableAccessor
+from airflow.sdk.execution_time.context import (
+    ConnectionAccessor,
+    MacrosAccessor,
+    OutletEventAccessors,
+    VariableAccessor,
+)
 from airflow.sdk.execution_time.task_runner import (
     CommsDecoder,
     RuntimeTaskInstance,
@@ -63,7 +69,7 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.utils import timezone
 
-FAKE_BUNDLE = BundleInfo.model_construct(name="anything", version="any")
+FAKE_BUNDLE = BundleInfo(name="anything", version="any")
 
 
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:
@@ -109,7 +115,7 @@ class TestCommsDecoder:
         assert msg.ti.task_id == "a"
         assert msg.ti.dag_id == "c"
         assert msg.dag_rel_path == "/dev/null"
-        assert msg.bundle_info == BundleInfo.model_construct(name="any-name", version="any-version")
+        assert msg.bundle_info == BundleInfo(name="any-name", version="any-version")
 
         # Since this was a StartupDetails message, the decoder should open the other socket
         assert decoder.request_socket is not None
@@ -122,7 +128,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="a", dag_id="super_basic", run_id="c", try_number=1),
         dag_rel_path="super_basic.py",
-        bundle_info=BundleInfo.model_construct(name="my-bundle", version=None),
+        bundle_info=BundleInfo(name="my-bundle", version=None),
         requests_fd=0,
         ti_context=make_ti_context(),
     )
@@ -613,6 +619,7 @@ class TestRuntimeTaskInstance:
             "inlets": task.inlets,
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
+            "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
             "run_id": "test_run",
             "task": task,
@@ -620,7 +627,7 @@ class TestRuntimeTaskInstance:
             "ti": runtime_ti,
         }
 
-    def test_get_context_with_ti_context_from_server(self, create_runtime_ti):
+    def test_get_context_with_ti_context_from_server(self, create_runtime_ti, mock_supervisor_comms):
         """Test the context keys are added when sent from API server (mocked)"""
         from airflow.utils import timezone
 
@@ -632,6 +639,13 @@ class TestRuntimeTaskInstance:
         runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
 
         dr = runtime_ti._ti_context_from_server.dag_run
+
+        mock_supervisor_comms.get_message.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=dr.logical_date - timedelta(hours=1),
+            data_interval_start=dr.logical_date - timedelta(hours=2),
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+        )
 
         context = runtime_ti.get_template_context()
 
@@ -645,7 +659,12 @@ class TestRuntimeTaskInstance:
             "inlets": task.inlets,
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
+            "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
+            "prev_data_interval_end_success": timezone.datetime(2024, 12, 1, 0, 0, 0),
+            "prev_data_interval_start_success": timezone.datetime(2024, 11, 30, 23, 0, 0),
+            "prev_end_date_success": timezone.datetime(2024, 12, 1, 1, 0, 0),
+            "prev_start_date_success": timezone.datetime(2024, 12, 1, 0, 0, 0),
             "run_id": "test_run",
             "task": task,
             "task_instance": runtime_ti,
@@ -662,6 +681,29 @@ class TestRuntimeTaskInstance:
             "ts_nodash": "20241201T010000",
             "ts_nodash_with_tz": "20241201T010000+0000",
         }
+
+    def test_lazy_loading_not_triggered_until_accessed(self, create_runtime_ti, mock_supervisor_comms):
+        """Ensure lazy-loaded attributes are not resolved until accessed."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        mock_supervisor_comms.get_message.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=timezone.datetime(2025, 1, 1, 2, 0, 0),
+            data_interval_start=timezone.datetime(2025, 1, 1, 1, 0, 0),
+            start_date=timezone.datetime(2025, 1, 1, 1, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 2, 0, 0),
+        )
+
+        context = runtime_ti.get_template_context()
+
+        # Assert lazy attributes are not resolved initially
+        mock_supervisor_comms.get_message.assert_not_called()
+
+        # Access a lazy-loaded attribute to trigger computation
+        assert context["prev_data_interval_start_success"] == timezone.datetime(2025, 1, 1, 1, 0, 0)
+
+        # Now the lazy attribute should trigger the call
+        mock_supervisor_comms.get_message.assert_called_once()
 
     def test_get_connection_from_context(self, create_runtime_ti, mock_supervisor_comms):
         """Test that the connection is fetched from the API server via the Supervisor lazily when accessed"""

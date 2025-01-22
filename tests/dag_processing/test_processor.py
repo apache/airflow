@@ -262,7 +262,7 @@ def test_parse_file_with_task_callbacks(spy_agency):
     spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
 
     requests = [
-        TaskCallbackRequest.model_construct(
+        TaskCallbackRequest(
             full_filepath="A",
             msg="Message",
             ti=None,
