@@ -29,29 +29,28 @@ import airflow.sdk.definitions.taskgroup
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.operator import Operator
     from airflow.typing_compat import TypeAlias
 
 TaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.TaskGroup
 
 
-class MappedTaskGroup(airflow.sdk.definitions.taskgroup.MappedTaskGroup):
-    """
-    A mapped task group.
+class MappedTaskGroup(airflow.sdk.definitions.taskgroup.MappedTaskGroup):  # noqa: D101
+    # TODO: Rename this to SerializedMappedTaskGroup perhaps?
 
-    This doesn't really do anything special, just holds some additional metadata
-    for expansion later.
+    def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
+        """
+        Return mapped task groups in the hierarchy.
 
-    Don't instantiate this class directly; call *expand* or *expand_kwargs* on
-    a ``@task_group`` function instead.
-    """
+        Groups are returned from the closest to the outmost. If *self* is a
+        mapped task group, it is returned first.
 
-    def iter_mapped_dependencies(self) -> Iterator[Operator]:
-        """Upstream dependencies that provide XComs used by this mapped task group."""
-        from airflow.models.xcom_arg import XComArg
-
-        for op, _ in XComArg.iter_xcom_references(self._expand_input):
-            yield op
+        :meta private:
+        """
+        group: TaskGroup | None = self
+        while group is not None:
+            if isinstance(group, MappedTaskGroup):
+                yield group
+            group = group.parent_group
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
         """
@@ -79,9 +78,9 @@ class MappedTaskGroup(airflow.sdk.definitions.taskgroup.MappedTaskGroup):
 
 def task_group_to_dict(task_item_or_group):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
-    from airflow.models.abstractoperator import AbstractOperator
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.mappedoperator import MappedOperator
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):
         setup_teardown_type = {}

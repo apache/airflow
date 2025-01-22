@@ -93,6 +93,8 @@ import type {
   GetDagSourceResponse,
   GetDagStatsData,
   GetDagStatsResponse,
+  GetDagReportData,
+  GetDagReportResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
   GetDagsData,
@@ -662,6 +664,7 @@ export class DagsService {
    * @param data.limit
    * @param data.offset
    * @param data.tags
+   * @param data.tagsMatchMode
    * @param data.owners
    * @param data.dagIds
    * @param data.dagIdPattern
@@ -681,6 +684,7 @@ export class DagsService {
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
         owners: data.owners,
         dag_ids: data.dagIds,
         dag_id_pattern: data.dagIdPattern,
@@ -1520,6 +1524,32 @@ export class DagStatsService {
   }
 }
 
+export class DagReportService {
+  /**
+   * Get Dag Report
+   * Get DAG report.
+   * @param data The data for the request.
+   * @param data.subdir
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getDagReport(data: GetDagReportData): CancelablePromise<GetDagReportResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagReports",
+      query: {
+        subdir: data.subdir,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
 export class DagWarningService {
   /**
    * List Dag Warnings
@@ -1561,12 +1591,18 @@ export class DagService {
    * @param data.limit
    * @param data.offset
    * @param data.tags
+   * @param data.tagsMatchMode
    * @param data.owners
    * @param data.dagIdPattern
    * @param data.dagDisplayNamePattern
    * @param data.onlyActive
    * @param data.paused
    * @param data.lastDagRunState
+   * @param data.dagRunStartDateGte
+   * @param data.dagRunStartDateLte
+   * @param data.dagRunEndDateGte
+   * @param data.dagRunEndDateLte
+   * @param data.dagRunState
    * @param data.orderBy
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
@@ -1579,12 +1615,18 @@ export class DagService {
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
         owners: data.owners,
         dag_id_pattern: data.dagIdPattern,
         dag_display_name_pattern: data.dagDisplayNamePattern,
         only_active: data.onlyActive,
         paused: data.paused,
         last_dag_run_state: data.lastDagRunState,
+        dag_run_start_date_gte: data.dagRunStartDateGte,
+        dag_run_start_date_lte: data.dagRunStartDateLte,
+        dag_run_end_date_gte: data.dagRunEndDateGte,
+        dag_run_end_date_lte: data.dagRunEndDateLte,
+        dag_run_state: data.dagRunState,
         order_by: data.orderBy,
       },
       errors: {
@@ -1604,6 +1646,7 @@ export class DagService {
    * @param data.limit
    * @param data.offset
    * @param data.tags
+   * @param data.tagsMatchMode
    * @param data.owners
    * @param data.dagIdPattern
    * @param data.onlyActive
@@ -1621,6 +1664,7 @@ export class DagService {
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
         owners: data.owners,
         dag_id_pattern: data.dagIdPattern,
         only_active: data.onlyActive,

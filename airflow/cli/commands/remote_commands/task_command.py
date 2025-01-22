@@ -173,9 +173,11 @@ def _get_dag_run(
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_id=logical_date_or_run_id,
+            run_type=DagRunType.MANUAL,
             logical_date=dag_run_logical_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
             triggered_by=DagRunTriggeredByType.CLI,
+            state=DagRunState.RUNNING,
         )
         return dag_run, True
     elif create_if_necessary == "db":
@@ -186,7 +188,7 @@ def _get_dag_run(
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
             dag_version=None,
-            state=DagRunState.QUEUED,
+            state=DagRunState.RUNNING,
             session=session,
         )
         return dag_run, True
@@ -206,6 +208,11 @@ def _get_ti(
     dag = task.dag
     if dag is None:
         raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+    if not isinstance(dag, DAG):
+        # TODO: Task-SDK: Shouldn't really happen, and this command will go away before 3.0
+        raise ValueError(
+            f"We need a {DAG.__module__}.DAG, but we got {type(dag).__module__}.{type(dag).__name__}!"
+        )
 
     # this check is imperfect because diff dags could have tasks with same name
     # but in a task, dag_id is a property that accesses its dag, and we don't

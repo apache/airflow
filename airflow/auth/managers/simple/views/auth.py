@@ -18,13 +18,13 @@ from __future__ import annotations
 
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+import pytest
 from flask import redirect, request, session, url_for
 from flask_appbuilder import expose
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
-from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.state import State
 from airflow.www.app import csrf
 from airflow.www.views import AirflowBaseView
@@ -48,7 +48,6 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         """Start login process."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["no_status"] = state_color_mapping.pop(None)
-        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         return self.render_template(
             "airflow/login.html",
             disable_nav_bar=True,
@@ -57,7 +56,6 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
             ),
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
-            standalone_dag_processor=standalone_dag_processor,
         )
 
     @expose("/logout", methods=["GET", "POST"])
@@ -66,6 +64,9 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         session.clear()
         return redirect(url_for("SimpleAuthManagerAuthenticationViews.login"))
 
+    @pytest.mark.skip(
+        "This test will be deleted soon, meanwhile disabling it because it is flaky. See: https://github.com/apache/airflow/issues/45818"
+    )
     @csrf.exempt
     @expose("/login_submit", methods=("GET", "POST"))
     def login_submit(self):
@@ -90,12 +91,7 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         # Will be removed once Airflow uses the new UI
         session["user"] = user
 
-        signer = JWTSigner(
-            secret_key=conf.get("api", "auth_jwt_secret"),
-            expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
-            audience="front-apis",
-        )
-        token = signer.generate_signed_token(get_auth_manager().serialize_user(user))
+        token = get_auth_manager().get_jwt_token(user)
 
         if next_url:
             return redirect(self._get_redirect_url(next_url, token))

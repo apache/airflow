@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, Union
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -25,6 +25,10 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, BaseAssetUniqueKey
     from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+    Operator = Union[BaseOperator, MappedOperator]
 
 
 class DagRunProtocol(Protocol):
@@ -67,6 +71,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
     ) -> Any: ...
 
     def xcom_push(self, key: str, value: Any) -> None: ...
+
+    def get_template_context(self) -> Context: ...
 
 
 class OutletEventAccessorProtocol(Protocol):
