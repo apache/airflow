@@ -516,16 +516,16 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         ",mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk"
                         ",ts-compile-format-lint-ui,ts-compile-format-lint-www"
                     ),
-                    "skip-providers-tests": "true",
+                    "skip-providers-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": (
                         "API Always CLI Core Operators Other Serialization WWW"
                     ),
-                    "providers-test-types-list-as-string": "",
+                    "providers-test-types-list-as-string": "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]",
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-task-sdk']",
+                    "mypy-checks": "['mypy-providers', 'mypy-task-sdk']",
                 },
-                id="Task SDK source file changed - Task SDK & Core tests should run",
+                id="Task SDK source file changed - Task SDK, Core and provider tests should run",
             )
         ),
         (
@@ -2474,11 +2474,11 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("task_sdk/src/airflow/sdk/a_file.py",),
             {
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-task-sdk']",
+                "mypy-checks": "['mypy-providers', 'mypy-task-sdk']",
             },
             "main",
             (),
-            id="Airflow mypy checks on Task SDK files",
+            id="Airflow mypy checks on Task SDK files (implies providers)",
         ),
         pytest.param(
             ("docs/a_file.py",),

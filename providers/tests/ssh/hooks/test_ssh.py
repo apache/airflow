@@ -829,30 +829,28 @@ class TestSSHHook:
             )
             assert ret == (0, b"airflow\n", b"")
 
-    @pytest.mark.flaky(reruns=5)
     def test_command_timeout_success(self):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
             conn_timeout=30,
-            cmd_timeout=15,
+            cmd_timeout=2,
             banner_timeout=100,
         )
 
         with hook.get_conn() as client:
             ret = hook.exec_ssh_client_command(
                 client,
-                "sleep 10; echo airflow",
+                "sleep 0.1; echo airflow",
                 False,
                 None,
             )
             assert ret == (0, b"airflow\n", b"")
 
-    @pytest.mark.flaky(reruns=5)
     def test_command_timeout_fail(self):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
             conn_timeout=30,
-            cmd_timeout=5,
+            cmd_timeout=0.001,
             banner_timeout=100,
         )
 
@@ -860,12 +858,12 @@ class TestSSHHook:
             with pytest.raises(AirflowException):
                 hook.exec_ssh_client_command(
                     client,
-                    "sleep 10",
+                    "sleep 1",
                     False,
                     None,
                 )
 
-    def test_command_timeout_not_set(self):
+    def test_command_timeout_not_set(self, monkeypatch):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
             conn_timeout=30,
@@ -873,12 +871,15 @@ class TestSSHHook:
             banner_timeout=100,
         )
 
+        # Mock the timeout to not wait for that many seconds
+        monkeypatch.setattr("airflow.providers.ssh.hooks.ssh.CMD_TIMEOUT", 0.001)
+
         with hook.get_conn() as client:
-            # sleeping for 20 sec which is longer than default timeout of 10 seconds
+            # sleeping for more secs than default timeout
             # to validate that no timeout is applied
             hook.exec_ssh_client_command(
                 client,
-                "sleep 20",
+                "sleep 0.1",
                 environment=False,
                 get_pty=None,
             )
