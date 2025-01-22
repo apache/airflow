@@ -431,6 +431,16 @@ export const useConfigServiceGetConfigValue = <TData = Common.ConfigServiceGetCo
 */
 export const useConfigServiceGetConfigs = <TData = Common.ConfigServiceGetConfigsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConfigServiceGetConfigsKeyFn(queryKey), queryFn: () => ConfigService.getConfigs() as TData, ...options });
 /**
+* Get Backends Order Value
+* @param data The data for the request.
+* @param data.accept
+* @returns Config Successful Response
+* @throws ApiError
+*/
+export const useConfigServiceGetBackendsOrderValue = <TData = Common.ConfigServiceGetBackendsOrderValueDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ accept }: {
+  accept?: "application/json" | "text/plain" | "*/*";
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConfigServiceGetBackendsOrderValueKeyFn({ accept }, queryKey), queryFn: () => ConfigService.getBackendsOrderValue({ accept }) as TData, ...options });
+/**
 * List Dag Warnings
 * Get a list of DAG warnings.
 * @param data The data for the request.
