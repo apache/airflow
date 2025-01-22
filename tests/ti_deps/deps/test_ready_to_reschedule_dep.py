@@ -32,7 +32,6 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
-from tests_common.test_utils.executor_loader import clean_executor_loader
 
 pytestmark = pytest.mark.db_test
 
@@ -52,10 +51,9 @@ def not_expected_tr_db_call():
 
 class TestNotInReschedulePeriodDep:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, request, create_task_instance):
+    def setup_test_cases(self, request, create_task_instance, clean_executor_loader):
         db.clear_db_runs()
         db.clear_rendered_ti_fields()
-        clean_executor_loader()
 
         self.dag_id = f"dag_{slugify(request.cls.__name__)}"
         self.task_id = f"task_{slugify(request.node.name, max_length=40)}"
@@ -66,7 +64,6 @@ class TestNotInReschedulePeriodDep:
             yield
         db.clear_rendered_ti_fields()
         db.clear_db_runs()
-        clean_executor_loader()
 
     def _get_task_instance(self, state, *, map_index=-1):
         """Helper which create fake task_instance"""

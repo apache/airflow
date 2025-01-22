@@ -1567,6 +1567,16 @@ def clean_dags_and_dagruns():
     clear_db_runs()
 
 
+@pytest.fixture
+def clean_executor_loader():
+    from tests_common.test_utils.executor_loader import clean_executor_loader_module
+
+    """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
+    clean_executor_loader_module()
+    yield  # Test runs here
+    clean_executor_loader_module()
+
+
 @pytest.fixture(scope="session")
 def app():
     from tests_common.test_utils.config import conf_vars

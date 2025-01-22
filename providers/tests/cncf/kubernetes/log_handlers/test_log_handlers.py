@@ -43,7 +43,6 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.executor_loader import clean_executor_loader
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -75,9 +74,10 @@ class TestFileTaskLogHandler:
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_task_log"
     )
     @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
-    def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance, state):
+    def test__read_for_k8s_executor(
+        self, mock_k8s_get_task_log, create_task_instance, state, clean_executor_loader
+    ):
         """Test for k8s executor, the log is read from get_task_log method"""
-        clean_executor_loader()
         mock_k8s_get_task_log.return_value = ([], [])
         executor_name = "KubernetesExecutor"
         ti = create_task_instance(

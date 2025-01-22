@@ -55,7 +55,6 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.executor_loader import clean_executor_loader
 
 pytestmark = pytest.mark.db_test
 
@@ -217,9 +216,13 @@ class TestFileTaskLogHandler:
         wraps=executor_loader.ExecutorLoader.get_default_executor,
     )
     def test_file_task_handler_with_multiple_executors(
-        self, mock_get_default_executor, mock_load_executor, executor_name, create_task_instance
+        self,
+        mock_get_default_executor,
+        mock_load_executor,
+        executor_name,
+        create_task_instance,
+        clean_executor_loader,
     ):
-        clean_executor_loader()
         executors_mapping = executor_loader.ExecutorLoader.executors
         default_executor_name = executor_loader.ExecutorLoader.get_default_executor_name()
         path_to_executor_class: str

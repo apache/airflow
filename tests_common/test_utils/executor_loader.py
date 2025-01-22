@@ -25,8 +25,8 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
 
 
-def clean_executor_loader():
-    """Clean the executor loader state, as it stores global variables in the module, causing side effects for some tests."""
+def clean_executor_loader_module():
+    """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
     executor_loader._alias_to_executors: dict[str, ExecutorName] = {}
     executor_loader._module_to_executors: dict[str, ExecutorName] = {}
     executor_loader._team_id_to_executors: dict[str | None, ExecutorName] = {}
