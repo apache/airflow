@@ -256,13 +256,14 @@ def ti_update_state(
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         updated_state = ti_patch_payload.state
         task_instance = session.get(TI, ti_id_str)
-        register_asset_changes(
-            task_instance,
-            ti_patch_payload.task_outlets,
-            ti_patch_payload.outlet_events,
-            ti_patch_payload.asset_type,
-            session,
-        )
+        if ti_patch_payload.asset_type:
+            register_asset_changes(
+                task_instance,
+                ti_patch_payload.task_outlets,
+                ti_patch_payload.outlet_events,
+                ti_patch_payload.asset_type,
+                session,
+            )
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed

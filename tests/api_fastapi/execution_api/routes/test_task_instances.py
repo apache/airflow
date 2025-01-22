@@ -415,6 +415,7 @@ class TestTIUpdateState:
             "airflow.api_fastapi.common.db.common.Session.execute",
             side_effect=[
                 mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
+                mock.Mock(one=lambda: ("running", 1, 0)),  # Second call returns "queued"
                 SQLAlchemyError("Database error"),  # Second call raises an error
             ],
         ):

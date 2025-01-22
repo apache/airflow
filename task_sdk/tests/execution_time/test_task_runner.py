@@ -37,7 +37,7 @@ from airflow.exceptions import (
     AirflowTaskTerminated,
 )
 from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import AssetNameAndUri, TaskInstance, TerminalTIState
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
@@ -610,7 +610,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
             SucceedTask(
                 state="success",
                 end_date=timezone.datetime(2024, 12, 3, 10, 0),
-                task_outlets=[["s3://bucket/my-task", "s3://bucket/my-task"]],
+                task_outlets=[AssetNameAndUri(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
                 outlet_events=[
                     {
                         "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
@@ -630,7 +630,6 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                 task_outlets=[],
                 outlet_events=[],
                 asset_type="AssetAlias",
-                type="SucceedTask",
             ),
             id="asset-alias",
         ),
