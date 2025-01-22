@@ -80,6 +80,7 @@ def mocked_parse(spy_agency):
             task=t,
             _ti_context_from_server=what.ti_context,
             max_tries=what.ti_context.max_tries,
+            start_date=what.start_date,
         )
         spy_agency.spy_on(parse, call_fake=lambda _: ti)
         return ti
@@ -141,12 +142,17 @@ def create_runtime_ti(mocked_parse, make_ti_context):
 
         startup_details = StartupDetails(
             ti=TaskInstance(
-                id=ti_id, task_id=task.task_id, dag_id=dag_id, run_id=run_id, try_number=try_number
+                id=ti_id,
+                task_id=task.task_id,
+                dag_id=dag_id,
+                run_id=run_id,
+                try_number=try_number,
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),
             requests_fd=0,
             ti_context=ti_context,
+            start_date=start_date,  # type: ignore
         )
 
         ti = mocked_parse(startup_details, dag_id, task)

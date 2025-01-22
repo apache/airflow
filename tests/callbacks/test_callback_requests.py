@@ -64,6 +64,7 @@ class TestCallbackRequest:
                 run_id="fake_run",
                 state=State.RUNNING,
             )
+            ti.start_date = timezone.utcnow()
 
             input = TaskCallbackRequest(
                 full_filepath="filepath",

@@ -5470,6 +5470,7 @@ class TestSchedulerJob:
                 ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
 
                 ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
+                ti.start_date = timezone.utcnow() - timedelta(minutes=10)
                 ti.queued_by_job_id = 999
 
                 session.add(ti)
@@ -5584,6 +5585,7 @@ class TestSchedulerJob:
 
             ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
             ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
+            ti.start_date = timezone.utcnow() - timedelta(minutes=10)
 
             # TODO: If there was an actual Relationship between TI and Job
             # we wouldn't need this extra commit
