@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Iterable, Iterator
 from functools import cached_property
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
@@ -41,7 +42,7 @@ class TaskLogReader:
 
     def read_log_chunks(
         self, ti: TaskInstance, try_number: int | None, metadata
-    ) -> tuple[list[tuple[tuple[str, str]]], dict[str, str]]:
+    ) -> tuple[list[str], list[Iterable[str]], dict[str, Any]]:
         """
         Read chunks of Task Instance logs.
 
@@ -61,9 +62,12 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
-        metadata = metadatas[0]
-        return logs, metadata
+        hosts: list[str]
+        log_streams: list[Iterable[str]]
+        metadata_array: list[dict[str, Any]]
+        hosts, log_streams, metadata_array = self.log_handler.read(ti, try_number, metadata=metadata)
+        metadata = metadata_array[0]
+        return hosts, log_streams, metadata
 
     def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
         """
@@ -84,14 +88,19 @@ class TaskLogReader:
             metadata.pop("offset", None)
             metadata.pop("log_pos", None)
             while True:
-                logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
-                for host, log in logs[0]:
-                    yield "\n".join([host or "", log]) + "\n"
+                host: str
+                log_stream: Iterable[str]
+                hosts, log_streams, metadata = self.read_log_chunks(ti, current_try_number, metadata)
+                host = hosts[0]
+                log_stream = log_streams[0]
+                yield f"{host or ''}\n"
+                for log in log_stream:
+                    yield f"{log}\n"
                 if "end_of_log" not in metadata or (
                     not metadata["end_of_log"]
                     and ti.state not in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
                 ):
-                    if not logs[0]:
+                    if not log_stream:
                         # we did not receive any logs in this loop
                         # sleeping to conserve resources / limit requests on external services
                         time.sleep(self.STREAM_LOOP_SLEEP_SECONDS)
