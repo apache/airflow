@@ -39,12 +39,14 @@ When looking up a connection/variable, by default Airflow will search environmen
 database second.
 
 If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
-then metastore.  This search ordering is not configurable. Though, in some alternative secrets backend you might have
+then metastore. Though, in some alternative secrets backend you might have
 the option to filter which connection/variable/config is searched in the secret backend. Please look at the
 documentation of the secret backend you are using to see if such option is available.
 
 On the other hand, if a workers secrets backend is defined, the order of lookup has higher priority for the workers secrets
 backend and then the secrets backend.
+
+The secrets backends search ordering is also configurable via the configuration option ``[secrets]backends_order``.
 
 .. warning::
 
@@ -64,11 +66,20 @@ The ``[secrets]`` section has the following options:
     [secrets]
     backend =
     backend_kwargs =
+    backends_order =
 
 Set ``backend`` to the fully qualified class name of the backend you want to enable.
 
 You can provide ``backend_kwargs`` with json and it will be passed as kwargs to the ``__init__`` method of
 your secrets backend.
+
+``backends_order`` comma-separated list of secret backends. These backends will be used in the order they are specified.
+Please note that the ``environment_variable`` and ``metastore`` are required values and cannot be removed
+from the list. Supported values are:
+
+* ``custom``: Custom secret backend specified in the ``secrets[backend]`` configuration option.
+* ``environment_variable``: Standard environment variable backend ``airflow.secrets.environment_variables.EnvironmentVariablesBackend``.
+* ``metastore``: Standard metastore backend ``airflow.secrets.metastore.MetastoreBackend``.
 
 If you want to check which secret backend is currently set, you can use ``airflow config get-value secrets backend`` command as in
 the example below.

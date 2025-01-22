@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import ensure_secrets_loaded, initialize_secrets_backends
+from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection, Variable
 from airflow.sdk import SecretCache
 
@@ -118,6 +119,38 @@ class TestConnectionsFromSecrets:
         mock_get_connection.assert_called_once_with(conn_id="test_mysql")
 
         assert conn.get_uri() == "mysql://airflow:airflow@host:5432/airflow"
+
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+            ("secrets", "backends_order"): "custom,environment_variable,metastore",
+        }
+    )
+    def test_backends_order(self):
+        backends = ensure_secrets_loaded()
+        backend_classes = [backend.__class__.__name__ for backend in backends]
+        assert backend_classes == [
+            "SystemsManagerParameterStoreBackend",
+            "EnvironmentVariablesBackend",
+            "MetastoreBackend",
+        ]
+
+    @pytest.mark.parametrize(
+        "backends_order",
+        [
+            pytest.param("custom,metastore", id="no_environment_variable_backend"),
+            pytest.param("environment_variable", id="no_metastore_backend"),
+            pytest.param("metastore,environment_variable,unsupported", id="unsupported_backend"),
+        ],
+    )
+    def test_backends_order_invalid_cases(self, backends_order):
+        with conf_vars({("secrets", "backends_order"): backends_order}):
+            with pytest.raises(AirflowConfigException):
+                ensure_secrets_loaded()
 
 
 @skip_if_force_lowest_dependencies_marker
