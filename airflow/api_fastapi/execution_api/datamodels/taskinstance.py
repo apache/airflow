@@ -183,6 +183,7 @@ class DagRun(BaseModel):
     end_date: UtcDateTime | None
     run_type: DagRunType
     conf: Annotated[dict[str, Any], Field(default_factory=dict)]
+    external_trigger: bool = False
 
 
 class TIRunContext(BaseModel):
