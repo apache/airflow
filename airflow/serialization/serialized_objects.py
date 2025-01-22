@@ -318,13 +318,15 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
 
 
 def decode_asset(var: dict[str, Any]):
-    watchers = var.pop("watchers", [])
+    watchers = var.get("watchers", [])
     return Asset(
         name=var["name"],
         uri=var["uri"],
         group=var["group"],
         extra=var["extra"],
-        watchers=[AssetWatcher(name=watcher["name"], trigger=watcher["trigger"]) for watcher in watchers],
+        watchers=[
+            SerializedAssetWatcher(name=watcher["name"], trigger=watcher["trigger"]) for watcher in watchers
+        ],
     )
 
 
@@ -1841,6 +1843,12 @@ class TaskGroupSerialization(BaseSerialization):
         group.upstream_task_ids.update(cls.deserialize(encoded_group["upstream_task_ids"]))
         group.downstream_task_ids.update(cls.deserialize(encoded_group["downstream_task_ids"]))
         return group
+
+
+class SerializedAssetWatcher(AssetWatcher):
+    """JSON serializable representation of an asset watcher."""
+
+    trigger: dict
 
 
 def _has_kubernetes() -> bool:
