@@ -7,6 +7,7 @@ import {
   ConfigService,
   ConnectionService,
   DagParsingService,
+  DagReportService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -294,6 +295,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
@@ -306,6 +308,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -323,6 +326,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
       owners,
       paused,
       tags,
+      tagsMatchMode,
     },
   ]),
 ];
@@ -647,6 +651,22 @@ export const UseDagStatsServiceGetDagStatsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
+export type DagReportServiceGetDagReportDefaultResponse = Awaited<
+  ReturnType<typeof DagReportService.getDagReport>
+>;
+export type DagReportServiceGetDagReportQueryResult<
+  TData = DagReportServiceGetDagReportDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagReportServiceGetDagReportKey = "DagReportServiceGetDagReport";
+export const UseDagReportServiceGetDagReportKeyFn = (
+  {
+    subdir,
+  }: {
+    subdir: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagReportServiceGetDagReportKey, ...(queryKey ?? [{ subdir }])];
 export type DagWarningServiceListDagWarningsDefaultResponse = Awaited<
   ReturnType<typeof DagWarningService.listDagWarnings>
 >;
@@ -684,6 +704,11 @@ export const UseDagServiceGetDagsKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunEndDateGte,
+    dagRunEndDateLte,
+    dagRunStartDateGte,
+    dagRunStartDateLte,
+    dagRunState,
     lastDagRunState,
     limit,
     offset,
@@ -692,9 +717,15 @@ export const UseDagServiceGetDagsKeyFn = (
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunEndDateGte?: string;
+    dagRunEndDateLte?: string;
+    dagRunStartDateGte?: string;
+    dagRunStartDateLte?: string;
+    dagRunState?: string[];
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -703,6 +734,7 @@ export const UseDagServiceGetDagsKeyFn = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -711,6 +743,11 @@ export const UseDagServiceGetDagsKeyFn = (
     {
       dagDisplayNamePattern,
       dagIdPattern,
+      dagRunEndDateGte,
+      dagRunEndDateLte,
+      dagRunStartDateGte,
+      dagRunStartDateLte,
+      dagRunState,
       lastDagRunState,
       limit,
       offset,
@@ -719,6 +756,7 @@ export const UseDagServiceGetDagsKeyFn = (
       owners,
       paused,
       tags,
+      tagsMatchMode,
     },
   ]),
 ];

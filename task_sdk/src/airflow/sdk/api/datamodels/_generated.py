@@ -89,6 +89,17 @@ class IntermediateTIState(str, Enum):
     DEFERRED = "deferred"
 
 
+class PrevSuccessfulDagRunResponse(BaseModel):
+    """
+    Schema for response with previous successful DagRun information for Task Template Context.
+    """
+
+    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    start_date: Annotated[datetime | None, Field(title="Start Date")] = None
+    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+
+
 class TIDeferredStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a deferred state.
