@@ -68,8 +68,8 @@ import type {
   GetConnectionsResponse,
   PostConnectionData,
   PostConnectionResponse,
-  PutConnectionsData,
-  PutConnectionsResponse,
+  BulkConnectionsData,
+  BulkConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
   CreateDefaultConnectionsResponse,
@@ -664,6 +664,7 @@ export class DagsService {
    * @param data.limit
    * @param data.offset
    * @param data.tags
+   * @param data.tagsMatchMode
    * @param data.owners
    * @param data.dagIds
    * @param data.dagIdPattern
@@ -683,6 +684,7 @@ export class DagsService {
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
         owners: data.owners,
         dag_ids: data.dagIds,
         dag_id_pattern: data.dagIdPattern,
@@ -1138,24 +1140,22 @@ export class ConnectionService {
   }
 
   /**
-   * Put Connections
-   * Create connection entry.
+   * Bulk Connections
+   * Bulk create, update, and delete connections.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns ConnectionCollectionResponse Created with overwrite
-   * @returns ConnectionCollectionResponse Created
+   * @returns ConnectionBulkResponse Successful Response
    * @throws ApiError
    */
-  public static putConnections(data: PutConnectionsData): CancelablePromise<PutConnectionsResponse> {
+  public static bulkConnections(data: BulkConnectionsData): CancelablePromise<BulkConnectionsResponse> {
     return __request(OpenAPI, {
-      method: "PUT",
-      url: "/public/connections/bulk",
+      method: "PATCH",
+      url: "/public/connections",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
-        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -1167,7 +1167,7 @@ export class ConnectionService {
    *
    * This method first creates an in-memory transient conn_id & exports that to an env var,
    * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
-   * It also deletes the conn id env variable after the test.
+   * It also deletes the conn id env connection after the test.
    * @param data The data for the request.
    * @param data.requestBody
    * @returns ConnectionTestResponse Successful Response
@@ -1589,12 +1589,18 @@ export class DagService {
    * @param data.limit
    * @param data.offset
    * @param data.tags
+   * @param data.tagsMatchMode
    * @param data.owners
    * @param data.dagIdPattern
    * @param data.dagDisplayNamePattern
    * @param data.onlyActive
    * @param data.paused
    * @param data.lastDagRunState
+   * @param data.dagRunStartDateGte
+   * @param data.dagRunStartDateLte
+   * @param data.dagRunEndDateGte
+   * @param data.dagRunEndDateLte
+   * @param data.dagRunState
    * @param data.orderBy
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
@@ -1607,12 +1613,18 @@ export class DagService {
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
         owners: data.owners,
         dag_id_pattern: data.dagIdPattern,
         dag_display_name_pattern: data.dagDisplayNamePattern,
         only_active: data.onlyActive,
         paused: data.paused,
         last_dag_run_state: data.lastDagRunState,
+        dag_run_start_date_gte: data.dagRunStartDateGte,
+        dag_run_start_date_lte: data.dagRunStartDateLte,
+        dag_run_end_date_gte: data.dagRunEndDateGte,
+        dag_run_end_date_lte: data.dagRunEndDateLte,
+        dag_run_state: data.dagRunState,
         order_by: data.orderBy,
       },
       errors: {
@@ -1632,6 +1644,7 @@ export class DagService {
    * @param data.limit
    * @param data.offset
    * @param data.tags
+   * @param data.tagsMatchMode
    * @param data.owners
    * @param data.dagIdPattern
    * @param data.onlyActive
@@ -1649,6 +1662,7 @@ export class DagService {
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
+        tags_match_mode: data.tagsMatchMode,
         owners: data.owners,
         dag_id_pattern: data.dagIdPattern,
         only_active: data.onlyActive,

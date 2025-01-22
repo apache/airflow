@@ -295,6 +295,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
@@ -307,6 +308,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -324,6 +326,7 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
       owners,
       paused,
       tags,
+      tagsMatchMode,
     },
   ]),
 ];
@@ -701,6 +704,11 @@ export const UseDagServiceGetDagsKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunEndDateGte,
+    dagRunEndDateLte,
+    dagRunStartDateGte,
+    dagRunStartDateLte,
+    dagRunState,
     lastDagRunState,
     limit,
     offset,
@@ -709,9 +717,15 @@ export const UseDagServiceGetDagsKeyFn = (
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunEndDateGte?: string;
+    dagRunEndDateLte?: string;
+    dagRunStartDateGte?: string;
+    dagRunStartDateLte?: string;
+    dagRunState?: string[];
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -720,6 +734,7 @@ export const UseDagServiceGetDagsKeyFn = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -728,6 +743,11 @@ export const UseDagServiceGetDagsKeyFn = (
     {
       dagDisplayNamePattern,
       dagIdPattern,
+      dagRunEndDateGte,
+      dagRunEndDateLte,
+      dagRunStartDateGte,
+      dagRunStartDateLte,
+      dagRunState,
       lastDagRunState,
       limit,
       offset,
@@ -736,6 +756,7 @@ export const UseDagServiceGetDagsKeyFn = (
       owners,
       paused,
       tags,
+      tagsMatchMode,
     },
   ]),
 ];
@@ -1651,15 +1672,15 @@ export type BackfillServiceUnpauseBackfillMutationResult = Awaited<
 export type BackfillServiceCancelBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.cancelBackfill>
 >;
-export type ConnectionServicePutConnectionsMutationResult = Awaited<
-  ReturnType<typeof ConnectionService.putConnections>
->;
 export type PoolServicePutPoolsMutationResult = Awaited<ReturnType<typeof PoolService.putPools>>;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<
   ReturnType<typeof DagParsingService.reparseDagFile>
 >;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.patchConnection>
+>;
+export type ConnectionServiceBulkConnectionsMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.bulkConnections>
 >;
 export type DagRunServicePatchDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.patchDagRun>>;
 export type DagServicePatchDagsMutationResult = Awaited<ReturnType<typeof DagService.patchDags>>;

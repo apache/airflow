@@ -2301,7 +2301,7 @@ class TestTaskInstance:
         session.flush()
 
         run_id = str(uuid4())
-        dr = DagRun(dag1.dag_id, run_id=run_id, run_type="anything")
+        dr = DagRun(dag1.dag_id, run_id=run_id, run_type="manual", state=DagRunState.RUNNING)
         session.merge(dr)
         task = dag1.get_task("producing_task_1")
         task.bash_command = "echo 1"  # make it go faster
@@ -2360,7 +2360,7 @@ class TestTaskInstance:
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db("testing", None, session=session)
         run_id = str(uuid4())
-        dr = DagRun(dag_with_fail_task.dag_id, run_id=run_id, run_type="anything")
+        dr = DagRun(dag_with_fail_task.dag_id, run_id=run_id, run_type="manual", state=DagRunState.RUNNING)
         session.merge(dr)
         task = dag_with_fail_task.get_task("fail_task")
         ti = TaskInstance(task, run_id=run_id)
@@ -2419,7 +2419,7 @@ class TestTaskInstance:
         session.flush()
 
         run_id = str(uuid4())
-        dr = DagRun(dag_with_skip_task.dag_id, run_id=run_id, run_type="anything")
+        dr = DagRun(dag_with_skip_task.dag_id, run_id=run_id, run_type="manual", state=DagRunState.RUNNING)
         session.merge(dr)
         task = dag_with_skip_task.get_task("skip_task")
         ti = TaskInstance(task, run_id=run_id)
@@ -3262,7 +3262,7 @@ class TestTaskInstance:
             run_id="test2",
             run_type=DagRunType.ASSET_TRIGGERED,
             logical_date=logical_date,
-            state=None,
+            state=DagRunState.RUNNING,
             session=session,
             data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
@@ -3522,11 +3522,13 @@ class TestTaskInstance:
             run_id="test2",
             run_type=DagRunType.MANUAL,
             logical_date=logical_date,
-            state=None,
+            state=DagRunState.RUNNING,
+            start_date=logical_date - datetime.timedelta(hours=1),
             session=session,
             data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
+        dr.set_state(DagRunState.FAILED)
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
 
@@ -3669,11 +3671,12 @@ class TestTaskInstance:
             run_id="test_ff",
             run_type=DagRunType.MANUAL,
             logical_date=logical_date,
-            state=None,
+            state=DagRunState.RUNNING,
             session=session,
             data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
+        dr.set_state(DagRunState.SUCCESS)
 
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
