@@ -2851,7 +2851,7 @@ export const useConnectionServicePostConnection = <
  *
  * This method first creates an in-memory transient conn_id & exports that to an env var,
  * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
- * It also deletes the conn id env variable after the test.
+ * It also deletes the conn id env connection after the test.
  * @param data The data for the request.
  * @param data.requestBody
  * @returns ConnectionTestResponse Successful Response
@@ -3294,44 +3294,6 @@ export const useBackfillServiceCancelBackfill = <
     ...options,
   });
 /**
- * Put Connections
- * Create connection entry.
- * @param data The data for the request.
- * @param data.requestBody
- * @returns ConnectionCollectionResponse Created with overwrite
- * @returns ConnectionCollectionResponse Created
- * @throws ApiError
- */
-export const useConnectionServicePutConnections = <
-  TData = Common.ConnectionServicePutConnectionsMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: ConnectionBulkBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: ConnectionBulkBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) =>
-      ConnectionService.putConnections({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
  * Put Pools
  * Create multiple pools.
  * @param data The data for the request.
@@ -3450,6 +3412,43 @@ export const useConnectionServicePatchConnection = <
         requestBody,
         updateMask,
       }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Bulk Connections
+ * Bulk create, update, and delete connections.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns ConnectionBulkResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceBulkConnections = <
+  TData = Common.ConnectionServiceBulkConnectionsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: ConnectionBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: ConnectionBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.bulkConnections({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**

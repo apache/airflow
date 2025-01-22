@@ -68,8 +68,8 @@ import type {
   GetConnectionsResponse,
   PostConnectionData,
   PostConnectionResponse,
-  PutConnectionsData,
-  PutConnectionsResponse,
+  BulkConnectionsData,
+  BulkConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
   CreateDefaultConnectionsResponse,
@@ -1140,24 +1140,22 @@ export class ConnectionService {
   }
 
   /**
-   * Put Connections
-   * Create connection entry.
+   * Bulk Connections
+   * Bulk create, update, and delete connections.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns ConnectionCollectionResponse Created with overwrite
-   * @returns ConnectionCollectionResponse Created
+   * @returns ConnectionBulkResponse Successful Response
    * @throws ApiError
    */
-  public static putConnections(data: PutConnectionsData): CancelablePromise<PutConnectionsResponse> {
+  public static bulkConnections(data: BulkConnectionsData): CancelablePromise<BulkConnectionsResponse> {
     return __request(OpenAPI, {
-      method: "PUT",
-      url: "/public/connections/bulk",
+      method: "PATCH",
+      url: "/public/connections",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
-        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -1169,7 +1167,7 @@ export class ConnectionService {
    *
    * This method first creates an in-memory transient conn_id & exports that to an env var,
    * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
-   * It also deletes the conn id env variable after the test.
+   * It also deletes the conn id env connection after the test.
    * @param data The data for the request.
    * @param data.requestBody
    * @returns ConnectionTestResponse Successful Response
