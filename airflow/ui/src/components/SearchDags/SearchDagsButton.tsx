@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Box } from "@chakra-ui/react";
+import { Button, Box, Kbd } from "@chakra-ui/react";
 import { useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { MdSearch } from "react-icons/md";
 
 import { Dialog } from "src/components/ui";
@@ -31,10 +32,19 @@ export const SearchDagsButton = () => {
     setIsOpen(false);
   };
 
+  useHotkeys(
+    "mod+k",
+    () => {
+      setIsOpen(true);
+    },
+    [isOpen],
+    { preventDefault: true },
+  );
+
   return (
     <Box>
       <Button justifyContent="flex-start" onClick={() => setIsOpen(true)} variant="subtle" w={200}>
-        <MdSearch /> Search Dags
+        <MdSearch /> Search Dags <Kbd size="lg">⌘K</Kbd>
       </Button>
       <Dialog.Root onOpenChange={onOpenChange} open={isOpen} size="sm">
         <Dialog.Content>
