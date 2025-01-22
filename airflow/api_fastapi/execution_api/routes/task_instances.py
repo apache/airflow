@@ -23,7 +23,7 @@ from uuid import UUID
 
 from fastapi import Body, HTTPException, status
 from pydantic import JsonValue
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.sql import select
 
@@ -79,14 +79,23 @@ def ti_run(
     ti_id_str = str(task_instance_id)
 
     old = (
-        select(TI.state, TI.dag_id, TI.run_id, TI.task_id, TI.map_index, TI.next_method, TI.max_tries)
+        select(
+            TI.state,
+            TI.dag_id,
+            TI.run_id,
+            TI.task_id,
+            TI.map_index,
+            TI.next_method,
+            TI.try_number,
+            TI.max_tries,
+        )
         .where(TI.id == ti_id_str)
         .with_for_update()
     )
     try:
-        (previous_state, dag_id, run_id, task_id, map_index, next_method, max_tries) = session.execute(
-            old
-        ).one()
+        (previous_state, dag_id, run_id, task_id, map_index, next_method, try_number, max_tries) = (
+            session.execute(old).one()
+        )
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -147,6 +156,7 @@ def ti_run(
                 DR.run_after,
                 DR.start_date,
                 DR.end_date,
+                DR.clear_number,
                 DR.run_type,
                 DR.conf,
                 DR.logical_date,
@@ -171,8 +181,24 @@ def ti_run(
                 session=session,
             )
 
+        task_reschedule_count = (
+            session.query(
+                func.count(TaskReschedule.id)  # or any other primary key column
+            )
+            .filter(
+                TaskReschedule.dag_id == dag_id,
+                TaskReschedule.task_id == ti_id_str,
+                TaskReschedule.run_id == run_id,
+                #    TaskReschedule.map_index == ti.map_index,  # TODO: Handle mapped tasks
+                TaskReschedule.try_number == try_number,
+            )
+            .scalar()
+            or 0
+        )
+
         return TIRunContext(
             dag_run=dr,
+            task_reschedule_count=task_reschedule_count,
             max_tries=max_tries,
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],

@@ -165,9 +165,7 @@ For example if you want to implement a listener that uses the ``error`` field in
             ...
 
             @hookimpl
-            def on_task_instance_failed(
-                self, previous_state, task_instance, error: None | str | BaseException, session
-            ):
+            def on_task_instance_failed(self, previous_state, task_instance, error: None | str | BaseException):
                 # Handle error case here
                 pass
 
@@ -177,15 +175,19 @@ For example if you want to implement a listener that uses the ``error`` field in
             ...
 
             @hookimpl
-            def on_task_instance_failed(self, previous_state, task_instance, session):
+            def on_task_instance_failed(self, previous_state, task_instance):
                 # Handle no error case here
                 pass
 
 List of changes in the listener interfaces since 2.8.0 when they were introduced:
 
 
-+-----------------+-----------------------------+---------------------------------------+
-| Airflow Version | Affected method             | Change                                |
-+=================+=============================+=======================================+
-| 2.10.0          | ``on_task_instance_failed`` | An error field added to the interface |
-+-----------------+-----------------------------+---------------------------------------+
++-----------------+--------------------------------------------+-------------------------------------------------------------------------+
+| Airflow Version | Affected method                            | Change                                                                  |
++=================+============================================+=========================================================================+
+| 2.10.0          | ``on_task_instance_failed``                | An error field added to the interface                                   |
++-----------------+--------------------------------------------+-------------------------------------------------------------------------+
+| 3.0.0           | ``on_task_instance_running``,              | ``session`` argument removed from task instance listeners,              |
+|                 | ``on_task_instance_success``,              | ``task_instance`` object is now an instance of ``RuntimeTaskInstance``  |
+|                 | ``on_task_instance_failed``                |                                                                         |
++-----------------+--------------------------------------------+-------------------------------------------------------------------------+
