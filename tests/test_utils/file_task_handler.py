@@ -22,6 +22,7 @@ from airflow.utils.log.file_task_handler import (
     _parse_timestamp,
 )
 
+
 def log_str_to_parsed_log_stream(log_sample: str):
     lines = log_sample.splitlines()
     timestamp = None
@@ -39,6 +40,7 @@ def log_str_to_parsed_log_stream(log_sample: str):
 def mark_test_for_stream_based_read_log_method(func):
     """Test case for new stream-based read log method"""
     return func
+
 
 def mark_test_for_old_read_log_method(func):
     """Test case for old read log method"""
