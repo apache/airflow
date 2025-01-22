@@ -129,7 +129,7 @@ class TestMappedTaskInstanceEndpoint:
             self.app.dag_bag.sync_to_db("dags-folder", None)
             session.flush()
 
-            mapped.expand_mapped_task(dr.run_id, session=session)
+            TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
 
     @pytest.fixture
     def one_task_with_mapped_tis(self, dag_maker, session):

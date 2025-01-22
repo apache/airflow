@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 @cache
 def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Return an appbuilder instance for the given app."""
-    init_appbuilder(app)
+    init_appbuilder(app, enable_plugins=False)
     init_plugins(app)
     init_airflow_session_interface(app)
     return app.appbuilder  # type: ignore[attr-defined]

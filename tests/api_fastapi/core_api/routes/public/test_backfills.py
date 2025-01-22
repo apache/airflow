@@ -264,8 +264,56 @@ class TestCreateBackfill(TestBackfillEndpoint):
             url="/public/backfills",
             json=data,
         )
-        assert response.status_code == 409
+        assert response.status_code == 422
         assert response.json().get("detail") == f"{dag.dag_id} has no schedule"
+
+    @pytest.mark.parametrize(
+        "repro_act, repro_exp, run_backwards, status_code",
+        [
+            ("none", ReprocessBehavior.NONE, False, 422),
+            ("completed", ReprocessBehavior.COMPLETED, False, 200),
+            ("completed", ReprocessBehavior.COMPLETED, True, 422),
+        ],
+    )
+    def test_create_backfill_with_depends_on_past(
+        self, repro_act, repro_exp, run_backwards, status_code, session, dag_maker, test_client
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask", depends_on_past=True)
+        session.query(DagModel).all()
+        session.commit()
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-02-01")
+        to_date_iso = to_iso(to_date)
+        max_active_runs = 5
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": run_backwards,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+            "dry_run": False,
+            "reprocess_behavior": repro_act,
+        }
+        response = test_client.post(
+            url="/public/backfills",
+            json=data,
+        )
+        assert response.status_code == status_code
+
+        if response.status_code != 200:
+            if run_backwards:
+                assert (
+                    response.json().get("detail")
+                    == "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True."
+                )
+            else:
+                assert (
+                    response.json().get("detail")
+                    == "DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
+                )
 
 
 class TestCreateBackfillDryRun(TestBackfillEndpoint):
@@ -353,6 +401,54 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
         assert response.status_code == 200
         response_json = response.json()
         assert response_json["backfills"] == expected_dates
+
+    @pytest.mark.parametrize(
+        "repro_act, repro_exp, run_backwards, status_code",
+        [
+            ("none", ReprocessBehavior.NONE, False, 422),
+            ("completed", ReprocessBehavior.COMPLETED, False, 200),
+            ("completed", ReprocessBehavior.COMPLETED, True, 422),
+        ],
+    )
+    def test_create_backfill_dry_run_with_depends_on_past(
+        self, repro_act, repro_exp, run_backwards, status_code, session, dag_maker, test_client
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask", depends_on_past=True)
+        session.query(DagModel).all()
+        session.commit()
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-02-01")
+        to_date_iso = to_iso(to_date)
+        max_active_runs = 5
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": run_backwards,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+            "dry_run": False,
+            "reprocess_behavior": repro_act,
+        }
+        response = test_client.post(
+            url="/public/backfills/dry_run",
+            json=data,
+        )
+        assert response.status_code == status_code
+
+        if response.status_code != 200:
+            if run_backwards:
+                assert (
+                    response.json().get("detail")
+                    == "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True."
+                )
+            else:
+                assert (
+                    response.json().get("detail")
+                    == "DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
+                )
 
 
 class TestCancelBackfill(TestBackfillEndpoint):

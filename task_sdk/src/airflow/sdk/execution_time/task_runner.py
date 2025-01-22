@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
 
 import attrs
+import lazy_object_proxy
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
@@ -52,6 +53,7 @@ from airflow.sdk.execution_time.context import (
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
+    get_previous_dagrun_success,
     set_current_context,
 )
 from airflow.utils.net import get_hostname
@@ -94,16 +96,10 @@ class RuntimeTaskInstance(TaskInstance):
             #   especially after removal of `conf` from Context.
             "ti": self,
             "outlet_events": OutletEventAccessors(),
-            # "expanded_ti_count": expanded_ti_count,
-            "expanded_ti_count": None,  # TODO: Implement this
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
             "macros": MacrosAccessor(),
             # "params": validated_params,
             # TODO: Make this go through Public API longer term.
-            # "prev_data_interval_start_success": get_prev_data_interval_start_success(),
-            # "prev_data_interval_end_success": get_prev_data_interval_end_success(),
-            # "prev_start_date_success": get_prev_start_date_success(),
-            # "prev_end_date_success": get_prev_end_date_success(),
             # "test_mode": task_instance.test_mode,
             # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
             "var": {
@@ -134,6 +130,18 @@ class RuntimeTaskInstance(TaskInstance):
                 "ts": ts,
                 "ts_nodash": ts_nodash,
                 "ts_nodash_with_tz": ts_nodash_with_tz,
+                "prev_data_interval_start_success": lazy_object_proxy.Proxy(
+                    lambda: get_previous_dagrun_success(self.id).data_interval_start
+                ),
+                "prev_data_interval_end_success": lazy_object_proxy.Proxy(
+                    lambda: get_previous_dagrun_success(self.id).data_interval_end
+                ),
+                "prev_start_date_success": lazy_object_proxy.Proxy(
+                    lambda: get_previous_dagrun_success(self.id).start_date
+                ),
+                "prev_end_date_success": lazy_object_proxy.Proxy(
+                    lambda: get_previous_dagrun_success(self.id).end_date
+                ),
             }
             context.update(context_from_server)
 

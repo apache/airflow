@@ -47,7 +47,7 @@ from dateutil.relativedelta import relativedelta
 from airflow import settings
 from airflow.exceptions import (
     DuplicateTaskIdFound,
-    FailStopDagInvalidTriggerRule,
+    FailFastDagInvalidTriggerRule,
     ParamValidationError,
     TaskNotFound,
 )
@@ -74,7 +74,7 @@ if TYPE_CHECKING:
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
     from airflow.decorators import TaskDecoratorCollection
-    from airflow.models.operator import Operator
+    from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
 
@@ -346,7 +346,7 @@ class DAG:
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
-    :param fail_stop: Fails currently running tasks when task in DAG fails.
+    :param fail_fast: Fails currently running tasks when task in DAG fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
@@ -413,7 +413,7 @@ class DAG:
     tags: MutableSet[str] = attrs.field(factory=set, converter=_convert_tags)
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
-    fail_stop: bool = attrs.field(default=False, converter=bool)
+    fail_fast: bool = attrs.field(default=False, converter=bool)
     dag_display_name: str = attrs.field(
         default=attrs.Factory(_default_dag_display_name, takes_self=True),
         validator=attrs.validators.instance_of(str),
@@ -497,8 +497,7 @@ class DAG:
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, BaseAsset) for x in schedule):
                 raise ValueError(
-                    "All elements in 'schedule' should be either assets, "
-                    "asset references, or asset aliases"
+                    "All elements in 'schedule' should be either assets, asset references, or asset aliases"
                 )
             return AssetTriggeredTimetable(AssetAll(*schedule))
         else:
@@ -928,7 +927,7 @@ class DAG:
             # Add task_id to used_group_ids to prevent group_id and task_id collisions.
             self.task_group.used_group_ids.add(task_id)
 
-        FailStopDagInvalidTriggerRule.check(fail_stop=self.fail_stop, trigger_rule=task.trigger_rule)
+        FailFastDagInvalidTriggerRule.check(fail_fast=self.fail_fast, trigger_rule=task.trigger_rule)
 
     def add_tasks(self, tasks: Iterable[Operator]) -> None:
         """
@@ -1022,7 +1021,7 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
     "has_on_success_callback",
     "has_on_failure_callback",
     "auto_register",
-    "fail_stop",
+    "fail_fast",
     "schedule",
 }
 
@@ -1058,7 +1057,7 @@ if TYPE_CHECKING:
         tags: Collection[str] | None = None,
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
-        fail_stop: bool = False,
+        fail_fast: bool = False,
         dag_display_name: str | None = None,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """

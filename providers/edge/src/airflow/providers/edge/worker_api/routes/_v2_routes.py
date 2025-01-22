@@ -120,12 +120,19 @@ def rpcapi_v2(body: dict[str, Any]) -> APIResponse:
         return e.to_response()  # type: ignore[attr-defined]
 
 
+def jwt_token_authorization_v2(method: str, authorization: str):
+    """Proxy for v2 method path handling."""
+    PREFIX = "/edge_worker/v1/"
+    method_path = method[method.find(PREFIX) + len(PREFIX) :] if PREFIX in method else method
+    jwt_token_authorization(method_path, authorization)
+
+
 @provide_session
 def register_v2(worker_name: str, body: dict[str, Any], session=NEW_SESSION) -> Any:
     """Handle Edge Worker API `/edge_worker/v1/worker/{worker_name}` endpoint for Airflow 2.10."""
     try:
         auth = request.headers.get("Authorization", "")
-        jwt_token_authorization(request.path, auth)
+        jwt_token_authorization_v2(request.path, auth)
         request_obj = WorkerStateBody(
             state=body["state"], jobs_active=0, queues=body["queues"], sysinfo=body["sysinfo"]
         )
@@ -139,7 +146,7 @@ def set_state_v2(worker_name: str, body: dict[str, Any], session=NEW_SESSION) ->
     """Handle Edge Worker API `/edge_worker/v1/worker/{worker_name}` endpoint for Airflow 2.10."""
     try:
         auth = request.headers.get("Authorization", "")
-        jwt_token_authorization(request.path, auth)
+        jwt_token_authorization_v2(request.path, auth)
         request_obj = WorkerStateBody(
             state=body["state"],
             jobs_active=body["jobs_active"],
@@ -158,7 +165,7 @@ def job_fetch_v2(worker_name: str, body: dict[str, Any], session=NEW_SESSION) ->
 
     try:
         auth = request.headers.get("Authorization", "")
-        jwt_token_authorization(request.path, auth)
+        jwt_token_authorization_v2(request.path, auth)
         queues = body.get("queues")
         free_concurrency = body.get("free_concurrency", 1)
         request_obj = WorkerQueuesBody(queues=queues, free_concurrency=free_concurrency)
@@ -183,7 +190,7 @@ def job_state_v2(
 
     try:
         auth = request.headers.get("Authorization", "")
-        jwt_token_authorization(request.path, auth)
+        jwt_token_authorization_v2(request.path, auth)
         state_api(dag_id, task_id, run_id, try_number, int(map_index), state, session)
     except HTTPException as e:
         return e.to_response()  # type: ignore[attr-defined]
@@ -199,7 +206,7 @@ def logfile_path_v2(
     """Handle Edge Worker API `/edge_worker/v1/logs/logfile_path/{dag_id}/{task_id}/{run_id}/{try_number}/{map_index}` endpoint for Airflow 2.10."""
     try:
         auth = request.headers.get("Authorization", "")
-        jwt_token_authorization(request.path, auth)
+        jwt_token_authorization_v2(request.path, auth)
         return logfile_path(dag_id, task_id, run_id, try_number, int(map_index))
     except HTTPException as e:
         return e.to_response()  # type: ignore[attr-defined]
@@ -216,7 +223,7 @@ def push_logs_v2(
     """Handle Edge Worker API `/edge_worker/v1/logs/push/{dag_id}/{task_id}/{run_id}/{try_number}/{map_index}` endpoint for Airflow 2.10."""
     try:
         auth = request.headers.get("Authorization", "")
-        jwt_token_authorization(request.path, auth)
+        jwt_token_authorization_v2(request.path, auth)
         request_obj = PushLogsBody(
             log_chunk_data=body["log_chunk_data"], log_chunk_time=body["log_chunk_time"]
         )

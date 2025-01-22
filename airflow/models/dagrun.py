@@ -66,6 +66,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
+from airflow.models.taskmap import TaskMap
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -85,6 +86,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Query, Session
 
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.typing_compat import Literal
@@ -1134,15 +1136,15 @@ class DagRun(Base, LoggingMixin):
             if ti.map_index >= 0:  # Already expanded, we're good.
                 return None
 
-            from airflow.models.mappedoperator import MappedOperator
+            from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 
-            if isinstance(ti.task, MappedOperator):
+            if isinstance(ti.task, TaskSDKMappedOperator):
                 # If we get here, it could be that we are moving from non-mapped to mapped
                 # after task instance clearing or this ti is not yet expanded. Safe to clear
                 # the db references.
                 ti.clear_db_references(session=session)
             try:
-                expanded_tis, _ = ti.task.expand_mapped_task(self.run_id, session=session)
+                expanded_tis, _ = TaskMap.expand_mapped_task(ti.task, self.run_id, session=session)
             except NotMapped:  # Not a mapped task, nothing needed.
                 return None
             if expanded_tis:
@@ -1155,7 +1157,7 @@ class DagRun(Base, LoggingMixin):
         revised_map_index_task_ids = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             if TYPE_CHECKING:
-                assert schedulable.task
+                assert isinstance(schedulable.task, BaseOperator)
             old_state = schedulable.state
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
@@ -1327,6 +1329,8 @@ class DagRun(Base, LoggingMixin):
         :return: Task IDs in the DAG run
 
         """
+        from airflow.models.baseoperator import BaseOperator
+
         tis = self.get_task_instances(session=session)
 
         # check for removed or restored tasks
@@ -1362,7 +1366,7 @@ class DagRun(Base, LoggingMixin):
             except NotFullyPopulated:
                 # What if it is _now_ dynamically mapped, but wasn't before?
                 try:
-                    total_length = task.get_mapped_ti_count(self.run_id, session=session)
+                    total_length = BaseOperator.get_mapped_ti_count(task, self.run_id, session=session)
                 except NotFullyPopulated:
                     # Not all upstreams finished, so we can't tell what should be here. Remove everything.
                     if ti.map_index >= 0:
@@ -1462,10 +1466,12 @@ class DagRun(Base, LoggingMixin):
         :param tasks: Tasks to create jobs for in the DAG run
         :param task_creator: Function to create task instances
         """
+        from airflow.models.baseoperator import BaseOperator
+
         map_indexes: Iterable[int]
         for task in tasks:
             try:
-                count = task.get_mapped_ti_count(self.run_id, session=session)
+                count = BaseOperator.get_mapped_ti_count(task, self.run_id, session=session)
             except (NotMapped, NotFullyPopulated):
                 map_indexes = (-1,)
             else:
@@ -1531,10 +1537,11 @@ class DagRun(Base, LoggingMixin):
         we delay expansion to the "last resort". See comments at the call site
         for more details.
         """
+        from airflow.models.baseoperator import BaseOperator
         from airflow.settings import task_instance_mutation_hook
 
         try:
-            total_length = task.get_mapped_ti_count(self.run_id, session=session)
+            total_length = BaseOperator.get_mapped_ti_count(task, self.run_id, session=session)
         except NotMapped:
             return  # Not a mapped task, don't need to do anything.
         except NotFullyPopulated:
@@ -1613,7 +1620,7 @@ class DagRun(Base, LoggingMixin):
         schedulable_ti_ids = []
         for ti in schedulable_tis:
             if TYPE_CHECKING:
-                assert ti.task
+                assert isinstance(ti.task, BaseOperator)
             if (
                 ti.task.inherits_from_empty_operator
                 and not ti.task.on_execute_callback

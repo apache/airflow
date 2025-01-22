@@ -129,15 +129,13 @@ def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
             raise RuntimeError(msg)
         if provider["state"] == "suspended" and not include_suspended:
             continue
-        package_module = provider["package-name"].replace("-", ".")
-        package_module_path = package_module.replace(".", "/")
-        provider_yaml_dir_str = os.path.dirname(new_provider_yaml_path.parent / "src" / package_module_path)
-        provider["python-module"] = provider["package-name"].replace("-", ".")
-        provider["package-dir"] = provider_yaml_dir_str
+        provider_yaml_dir_str = os.path.dirname(new_provider_yaml_path)
+        module = provider["package-name"][len("apache-") :].replace("-", ".")
+        module_folder = module[len("airflow-providers-") :].replace(".", "/")
+        provider["python-module"] = module
+        provider["package-dir"] = f"{provider_yaml_dir_str}/src/{module.replace('.', '/')}"
         provider["docs-dir"] = os.path.dirname(new_provider_yaml_path.parent / "docs")
-        provider["system-tests-dir"] = (
-            (Path(provider_yaml_dir_str) / "tests" / "system").relative_to(AIRFLOW_PROVIDERS_DIR).as_posix()
-        )
+        provider["system-tests-dir"] = f"{provider_yaml_dir_str}/tests/system/{module_folder}"
         # TODO(potiuk) - remove when all providers are new-style
         provider["is_new_provider"] = True
         result.append(provider)

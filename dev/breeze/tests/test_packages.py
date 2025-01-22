@@ -173,7 +173,7 @@ def test_get_old_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow>=3.0.0.dev0",
-    "flask-appbuilder==4.5.2",
+    "flask-appbuilder==4.5.3",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -187,7 +187,7 @@ def test_get_old_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1.dev0",
     "apache-airflow>=3.0.0.dev0",
-    "flask-appbuilder==4.5.2",
+    "flask-appbuilder==4.5.3",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -201,7 +201,7 @@ def test_get_old_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1b0",
     "apache-airflow>=3.0.0b0",
-    "flask-appbuilder==4.5.2",
+    "flask-appbuilder==4.5.3",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
