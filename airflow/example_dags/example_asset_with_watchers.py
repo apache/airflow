@@ -26,7 +26,7 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.standard.triggers.file import FileTrigger
-from airflow.sdk.definitions.asset import Asset, AssetWatcher
+from airflow.sdk import Asset, AssetWatcher
 
 file_path = "/tmp/test"
 
