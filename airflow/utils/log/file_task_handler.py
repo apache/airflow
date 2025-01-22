@@ -180,7 +180,7 @@ class FileTaskHandler(logging.Handler):
         "Operator inherits from empty operator and thus does not have logs"
     )
     executor_instances: dict[str, BaseExecutor] = {}
-    default_executor_key = "_default_executor"
+    DEFAULT_EXECUTOR_KEY = "_default_executor"
 
     def __init__(
         self,
@@ -327,12 +327,12 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance object
         :return: get_task_log method of the executor
         """
-        executor_name = ti.executor or self.default_executor_key
+        executor_name = ti.executor or self.DEFAULT_EXECUTOR_KEY
         executor = self.executor_instances.get(executor_name)
         if executor is not None:
             return executor.get_task_log
 
-        if executor_name == self.default_executor_key:
+        if executor_name == self.DEFAULT_EXECUTOR_KEY:
             self.executor_instances[executor_name] = ExecutorLoader.get_default_executor()
         else:
             self.executor_instances[executor_name] = ExecutorLoader.load_executor(executor_name)
