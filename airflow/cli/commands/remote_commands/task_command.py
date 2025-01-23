@@ -174,6 +174,7 @@ def _get_dag_run(
             dag_id=dag.dag_id,
             run_id=logical_date_or_run_id,
             run_type=DagRunType.MANUAL,
+            external_trigger=True,
             logical_date=dag_run_logical_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
             triggered_by=DagRunTriggeredByType.CLI,

@@ -474,7 +474,7 @@ filterwarnings = [
     'error:Class.*will not make use of SQL compilation caching',
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
-    # FAB do not support SQLAclhemy 2
+    # FAB do not support SQLAlchemy 2
     "ignore::sqlalchemy.exc.MovedIn20Warning:flask_appbuilder",
     # https://github.com/dpgaspar/Flask-AppBuilder/issues/2194
     "ignore::DeprecationWarning:marshmallow_sqlalchemy.convert",

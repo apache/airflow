@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -44,14 +43,10 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: System :: Monitoring",
+    "License :: OSI Approved :: Apache Software License",    "Programming Language :: Python :: 3.9",    "Programming Language :: Python :: 3.10",    "Programming Language :: Python :: 3.11",    "Programming Language :: Python :: 3.12",    "Topic :: System :: Monitoring",
 ]
 requires-python = "~=3.9"
+
 # The dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 dependencies = [
@@ -71,6 +66,7 @@ dependencies = [
 
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.edge.get_provider_info:get_provider_info"
+
 [project.entry-points."airflow.plugins"]
 edge_executor = "airflow.providers.edge.plugins.edge_executor_plugin:EdgeExecutorPlugin"
 
