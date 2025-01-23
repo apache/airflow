@@ -21,7 +21,8 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow.api_fastapi.core_api.datamodels.common import BulkActionOnExistence
+from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.core_api.datamodels.common import BulkActionNotOnExistence, BulkActionOnExistence
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
     ConnectionBulkActionResponse,
@@ -32,7 +33,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
 from airflow.models.connection import Connection
 
 
-def categorize_connections(session, connection_ids: set) -> tuple[dict, set, set]:
+def categorize_connections(session: SessionDep, connection_ids: set) -> tuple[dict, set, set]:
     """
     Categorize the given connection_ids into matched_connection_ids and not_found_connection_ids based on existing connection_ids.
 
@@ -52,7 +53,7 @@ def categorize_connections(session, connection_ids: set) -> tuple[dict, set, set
 
 
 def handle_bulk_create(
-    session, action: ConnectionBulkCreateAction, results: ConnectionBulkActionResponse
+    session: SessionDep, action: ConnectionBulkCreateAction, results: ConnectionBulkActionResponse
 ) -> None:
     """Bulk create connections."""
     to_create_connection_ids = {connection.connection_id for connection in action.connections}
@@ -85,7 +86,7 @@ def handle_bulk_create(
 
 
 def handle_bulk_update(
-    session, action: ConnectionBulkUpdateAction, results: ConnectionBulkActionResponse
+    session: SessionDep, action: ConnectionBulkUpdateAction, results: ConnectionBulkActionResponse
 ) -> None:
     """Bulk Update connections."""
     to_update_connection_ids = {connection.connection_id for connection in action.connections}
@@ -94,12 +95,12 @@ def handle_bulk_update(
     )
 
     try:
-        if action.action_on_existence == BulkActionOnExistence.FAIL and not_found_connection_ids:
+        if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_connection_ids:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The connections with these connection_ids: {not_found_connection_ids} were not found.",
             )
-        elif action.action_on_existence == BulkActionOnExistence.SKIP:
+        elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
             update_connection_ids = matched_connection_ids
         else:
             update_connection_ids = to_update_connection_ids
@@ -122,7 +123,7 @@ def handle_bulk_update(
 
 
 def handle_bulk_delete(
-    session, action: ConnectionBulkDeleteAction, results: ConnectionBulkActionResponse
+    session: SessionDep, action: ConnectionBulkDeleteAction, results: ConnectionBulkActionResponse
 ) -> None:
     """Bulk delete connections."""
     to_delete_connection_ids = set(action.connection_ids)
@@ -131,12 +132,12 @@ def handle_bulk_delete(
     )
 
     try:
-        if action.action_on_existence == BulkActionOnExistence.FAIL and not_found_connection_ids:
+        if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_connection_ids:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The connections with these connection_ids: {not_found_connection_ids} were not found.",
             )
-        elif action.action_on_existence == BulkActionOnExistence.SKIP:
+        elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
             delete_connection_ids = matched_connection_ids
         else:
             delete_connection_ids = to_delete_connection_ids

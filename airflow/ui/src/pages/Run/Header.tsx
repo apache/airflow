@@ -22,6 +22,7 @@ import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { Stat } from "src/components/Stat";
 import Time from "src/components/Time";
@@ -52,6 +53,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
           />
         )}
         <ClearRunButton dagRun={dagRun} />
+        <MarkRunAsButton dagRun={dagRun} />
       </HStack>
     </Flex>
     <SimpleGrid columns={4} gap={4}>
