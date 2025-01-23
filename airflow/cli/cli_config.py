@@ -172,7 +172,14 @@ ARG_BUNDLE_NAME = Arg(
         "--bundle-name",
     ),
     help=("The name of the DAG bundle to use."),
+    type=str,
     default=None,
+)
+ARG_LATEST_BUNDLE_VERSION = Arg(
+    ("-bv", "--latest-bundle-version"), 
+    help=("The latest version of the bundle."),
+    type=str,
+    default=None
 )
 ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
 ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
@@ -1034,7 +1041,7 @@ DAGS_COMMANDS = (
         name="list-import-errors",
         help="List all the DAGs that have import errors",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_list_import_errors"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_BUNDLE_NAME, ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="report",

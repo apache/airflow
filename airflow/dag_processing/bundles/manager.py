@@ -99,17 +99,36 @@ class DagBundlesManager(LoggingMixin):
 
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
+        """
+        Synchronize the DAG bundles with the database.
+        
+        This method updates the database to reflect the current state of DAG bundles
+        as defined in the bundle configuration. It performs the following actions:
+        1. Retrieves all existing DAG bundles from the database.
+        2. Iterates through the bundle configuration:
+           - If a bundle exists in the database, it is marked as active.
+           - If a bundle does not exist in the database, it is added as a new entry.
+        3. Any bundles in the database that are not found in the current configuration
+           are marked as inactive and a warning is logged.
+        
+        :param session (Session, optional): The database session to use for the operation.
+        """
+        print("11")
         stored = {b.name: b for b in session.query(DagBundleModel).all()}
+        print("12")
         for name in self._bundle_config.keys():
             if bundle := stored.pop(name, None):
                 bundle.active = True
             else:
                 session.add(DagBundleModel(name=name))
                 self.log.info("Added new DAG bundle %s to the database", name)
+        print("13")
 
         for name, bundle in stored.items():
+            print("14")
             bundle.active = False
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
+        print("15")
 
     def get_bundle(self, name: str, version: str | None = None) -> BaseDagBundle:
         """

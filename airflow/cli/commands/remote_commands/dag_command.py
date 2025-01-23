@@ -33,6 +33,7 @@ from sqlalchemy import select
 from airflow.api.client import get_current_api_client
 from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
@@ -378,9 +379,36 @@ def dag_details(args, session=NEW_SESSION):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def dag_list_import_errors(args) -> None:
+@provide_session
+def dag_list_import_errors(args, session=NEW_SESSION) -> None:
     """Display dags with import errors on the command line."""
-    dagbag = DagBag(process_subdir(args.subdir))
+    
+    # Initialize bundle manager and sync bundles to the database
+    print("1")
+    manager = DagBundlesManager()
+    manager.sync_bundles_to_db(session=session)
+    session.commit()
+
+    print("2")
+
+    dagbag = None
+    if args.bundle_name:
+        print("3")
+        bundle = manager.get_bundle(name=args.bundle_name, version=args.latest_bundle_version)
+        if not bundle:
+            raise SystemExit(f"Bundle {args.bundle_name} not found")
+        dagbag = DagBag(bundle.path, include_examples=False)
+        dagbag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
+    else:
+        print("4")
+        # Default Case - Read all the configured bundles.
+        bundles = manager.get_all_dag_bundles()
+        for bundle in bundles:
+            dagbag = DagBag(bundle.path, include_examples=False)
+            dagbag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
+
+    # dagbag = DagBag(process_subdir(args.subdir))
+    print("5")
     data = []
     for filename, errors in dagbag.import_errors.items():
         data.append({"filepath": filename, "error": errors})
