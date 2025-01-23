@@ -281,11 +281,10 @@ class TestTIUpdateState:
         assert ti.end_date == end_date
 
     @pytest.mark.parametrize(
-        ("asset_type", "task_outlets", "outlet_events"),
+        ("task_outlets", "outlet_events"),
         [
             (
-                "Asset",
-                [{"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"}],
+                [{"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task", "asset_type": "Asset"}],
                 [
                     {
                         "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
@@ -295,8 +294,7 @@ class TestTIUpdateState:
                 ],
             ),
             (
-                "AssetAlias",
-                [],
+                [{"asset_type": "AssetAlias"}],
                 [
                     {
                         "source_alias_name": "example-alias",
@@ -308,7 +306,7 @@ class TestTIUpdateState:
         ],
     )
     def test_ti_update_state_to_success_with_asset_events(
-        self, client, session, create_task_instance, asset_type, task_outlets, outlet_events
+        self, client, session, create_task_instance, task_outlets, outlet_events
     ):
         clear_db_assets()
         clear_db_runs()
@@ -322,7 +320,7 @@ class TestTIUpdateState:
         )
         asset_active = AssetActive.for_asset(asset)
         session.add_all([asset, asset_active])
-
+        asset_type = task_outlets[0]["asset_type"]
         if asset_type == "AssetAlias":
             _create_asset_aliases(session, num=1)
             asset_alias = session.query(AssetAliasModel).all()
@@ -342,7 +340,6 @@ class TestTIUpdateState:
                 "state": "success",
                 "end_date": DEFAULT_END_DATE.isoformat(),
                 "task_outlets": task_outlets,
-                "asset_type": asset_type,
                 "outlet_events": outlet_events,
             },
         )

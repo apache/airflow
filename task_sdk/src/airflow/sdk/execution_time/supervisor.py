@@ -774,7 +774,6 @@ class ActivitySubprocess(WatchedSubprocess):
                 when=msg.end_date,
                 task_outlets=msg.task_outlets,
                 outlet_events=msg.outlet_events,
-                asset_type=msg.asset_type,
             )
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)

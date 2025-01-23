@@ -33,7 +33,7 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.sdk.api.datamodels._generated import AssetNameAndUri, TaskInstance, TerminalTIState, TIRunContext
+from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
 from airflow.sdk.definitions.baseoperator import BaseOperator
@@ -484,25 +484,25 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         task_outlets = []
         outlet_events = []
         events = context["outlet_events"]
-        asset_type = ""
 
         for obj in ti.task.outlets or []:
             # Lineage can have other types of objects besides assets
+            asset_type = type(obj).__name__
             if isinstance(obj, Asset):
-                task_outlets.append(AssetNameAndUri(name=obj.name, uri=obj.uri))
+                task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
                 outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
             elif isinstance(obj, AssetNameRef):
-                task_outlets.append(AssetNameAndUri(name=obj.name))
-                # send all as we do not know how to filter here yet
+                task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
+                # Send all events, filtering can be done in API server.
                 outlet_events.append(attrs.asdict(events))  # type: ignore
             elif isinstance(obj, AssetUriRef):
-                task_outlets.append(AssetNameAndUri(uri=obj.uri))
-                # send all as we do not know how to filter here yet
+                task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
+                # Send all events, filtering can be done in API server.
                 outlet_events.append(attrs.asdict(events))  # type: ignore
             elif isinstance(obj, AssetAlias):
+                task_outlets.append(AssetProfile(asset_type=asset_type))
                 for asset_alias_event in events[obj].asset_alias_events:
                     outlet_events.append(attrs.asdict(asset_alias_event))
-            asset_type = type(obj).__name__
 
         # TODO: Get things from _execute_task_with_callbacks
         #   - Clearing XCom
@@ -513,7 +513,6 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             end_date=datetime.now(tz=timezone.utc),
             task_outlets=task_outlets,
             outlet_events=outlet_events,
-            asset_type=asset_type,
         )
     except TaskDeferred as defer:
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?

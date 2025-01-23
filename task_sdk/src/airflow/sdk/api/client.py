@@ -139,9 +139,7 @@ class TaskInstanceOperations:
 
     def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, asset_type):
         """Tell the API server that this TI has to succeed."""
-        body = TISuccessStatePayload(
-            end_date=when, task_outlets=task_outlets, asset_type=asset_type, outlet_events=outlet_events
-        )
+        body = TISuccessStatePayload(end_date=when, task_outlets=task_outlets, outlet_events=outlet_events)
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def heartbeat(self, id: uuid.UUID, pid: int):

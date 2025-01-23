@@ -29,13 +29,18 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class AssetNameAndUri(BaseModel):
+class AssetProfile(BaseModel):
     """
-    Representation of an Asset.
+    Profile of an Asset.
+
+    Asset will have name, uri and asset_type defined.
+    AssetNameRef will have name and asset_type defined.
+    AssetUriRef will have uri and asset_type defined.
     """
 
     name: Annotated[str | None, Field(title="Name")] = None
     uri: Annotated[str | None, Field(title="Uri")] = None
+    asset_type: Annotated[str, Field(title="Asset Type")]
 
 
 class AssetResponse(BaseModel):
@@ -150,9 +155,8 @@ class TISuccessStatePayload(BaseModel):
 
     state: Annotated[Literal["success"] | None, Field(title="State")] = "success"
     end_date: Annotated[datetime, Field(title="End Date")]
-    task_outlets: Annotated[list[AssetNameAndUri] | None, Field(title="Task Outlets")] = None
+    task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
     outlet_events: Annotated[list | None, Field(title="Outlet Events")] = None
-    asset_type: Annotated[str | None, Field(title="Asset Type")] = None
 
 
 class TITargetStatePayload(BaseModel):

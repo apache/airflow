@@ -33,7 +33,7 @@ from pydantic import (
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.api_fastapi.execution_api.datamodels.asset import AssetNameAndUri
+from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
 from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
@@ -92,9 +92,8 @@ class TISuccessStatePayload(BaseModel):
     end_date: UtcDateTime
     """When the task completed executing"""
 
-    task_outlets: Annotated[list[AssetNameAndUri], Field(default_factory=list)]
+    task_outlets: Annotated[list[AssetProfile], Field(default_factory=list)]
     outlet_events: Annotated[list[Any], Field(default_factory=list)]
-    asset_type: str | None = None
 
 
 class TITargetStatePayload(BaseModel):

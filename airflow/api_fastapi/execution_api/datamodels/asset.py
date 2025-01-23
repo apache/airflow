@@ -36,8 +36,16 @@ class AssetAliasResponse(BaseModel):
     group: str
 
 
-class AssetNameAndUri(BaseModel):
-    """Representation of an Asset."""
+class AssetProfile(BaseModel):
+    """
+    Profile of an Asset.
 
-    name: str | None
-    uri: str | None
+    Asset will have name, uri and asset_type defined.
+    AssetNameRef will have name and asset_type defined.
+    AssetUriRef will have uri and asset_type defined.
+
+    """
+
+    name: str | None = None
+    uri: str | None = None
+    asset_type: str
