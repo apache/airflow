@@ -46,6 +46,7 @@ class TestRedisTaskHandler:
         else:
             dag_run = DagRun(dag_id=dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
 
+        dag_run.set_state(State.RUNNING)
         with create_session() as session:
             session.add(dag_run)
             session.commit()
