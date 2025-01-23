@@ -61,6 +61,8 @@ class TestDialect:
         assert dialect.unescape_word("schema.[t@ble]") == "schema.t@ble"
         assert dialect.unescape_word("[schema].[t@ble]") == "schema.t@ble"
         assert dialect.unescape_word("[schema].table") == "schema.table"
+        self.test_db_hook.escape_word_format = '"{}"'
+        assert dialect.unescape_word('"table"') == "table"
 
     def test_escape_word(self):
         dialect = Dialect(self.test_db_hook)
@@ -70,6 +72,8 @@ class TestDialect:
         assert dialect.escape_word("index") == "[index]"
         assert dialect.escape_word("User") == "[User]"
         assert dialect.escape_word("attributes.id") == "[attributes.id]"
+        self.test_db_hook.escape_word_format = '"{}"'
+        assert dialect.escape_word('"table"') == '"table"'
 
     def test_placeholder(self):
         assert Dialect(self.test_db_hook).placeholder == "?"
