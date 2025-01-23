@@ -45,6 +45,7 @@ from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationTerminalStatusTrigger,
 )
 from airflow.utils import timezone
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -298,6 +299,7 @@ class TestDmsDescribeTasksOperator:
                 logical_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
@@ -305,6 +307,7 @@ class TestDmsDescribeTasksOperator:
                 execution_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=describe_task)
         ti.dag_run = dag_run
@@ -491,6 +494,7 @@ class TestDmsDescribeReplicationConfigsOperator:
             dag_id=dag.dag_id,
             run_id="test",
             run_type=DagRunType.MANUAL,
+            state=DagRunState.RUNNING,
         )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run

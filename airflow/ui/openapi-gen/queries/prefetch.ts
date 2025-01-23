@@ -6,6 +6,7 @@ import {
   BackfillService,
   ConfigService,
   ConnectionService,
+  DagReportService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -370,6 +371,7 @@ export const prefetchUseConfigServiceGetConfigValue = (
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIds
  * @param data.dagIdPattern
@@ -394,6 +396,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
@@ -406,6 +409,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: "any" | "all";
   } = {},
 ) =>
   queryClient.prefetchQuery({
@@ -421,6 +425,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
       owners,
       paused,
       tags,
+      tagsMatchMode,
     }),
     queryFn: () =>
       DagsService.recentDagRuns({
@@ -435,6 +440,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
         owners,
         paused,
         tags,
+        tagsMatchMode,
       }),
   });
 /**
@@ -883,6 +889,26 @@ export const prefetchUseDagStatsServiceGetDagStats = (
     queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });
 /**
+ * Get Dag Report
+ * Get DAG report.
+ * @param data The data for the request.
+ * @param data.subdir
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagReportServiceGetDagReport = (
+  queryClient: QueryClient,
+  {
+    subdir,
+  }: {
+    subdir: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }),
+    queryFn: () => DagReportService.getDagReport({ subdir }),
+  });
+/**
  * List Dag Warnings
  * Get a list of DAG warnings.
  * @param data The data for the request.
@@ -921,12 +947,18 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.dagRunStartDateGte
+ * @param data.dagRunStartDateLte
+ * @param data.dagRunEndDateGte
+ * @param data.dagRunEndDateLte
+ * @param data.dagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -936,6 +968,11 @@ export const prefetchUseDagServiceGetDags = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunEndDateGte,
+    dagRunEndDateLte,
+    dagRunStartDateGte,
+    dagRunStartDateLte,
+    dagRunState,
     lastDagRunState,
     limit,
     offset,
@@ -944,9 +981,15 @@ export const prefetchUseDagServiceGetDags = (
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunEndDateGte?: string;
+    dagRunEndDateLte?: string;
+    dagRunStartDateGte?: string;
+    dagRunStartDateLte?: string;
+    dagRunState?: string[];
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -955,12 +998,18 @@ export const prefetchUseDagServiceGetDags = (
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: "any" | "all";
   } = {},
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseDagServiceGetDagsKeyFn({
       dagDisplayNamePattern,
       dagIdPattern,
+      dagRunEndDateGte,
+      dagRunEndDateLte,
+      dagRunStartDateGte,
+      dagRunStartDateLte,
+      dagRunState,
       lastDagRunState,
       limit,
       offset,
@@ -969,11 +1018,17 @@ export const prefetchUseDagServiceGetDags = (
       owners,
       paused,
       tags,
+      tagsMatchMode,
     }),
     queryFn: () =>
       DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunEndDateGte,
+        dagRunEndDateLte,
+        dagRunStartDateGte,
+        dagRunStartDateLte,
+        dagRunState,
         lastDagRunState,
         limit,
         offset,
@@ -982,6 +1037,7 @@ export const prefetchUseDagServiceGetDags = (
         owners,
         paused,
         tags,
+        tagsMatchMode,
       }),
   });
 /**

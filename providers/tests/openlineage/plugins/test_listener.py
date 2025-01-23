@@ -101,7 +101,7 @@ def test_listener_does_not_change_task_instance(render_mock, xcom_push_mock):
         run_id=run_id,
         data_interval=(date, date),
         run_type=types.DagRunType.MANUAL,
-        state=DagRunState.QUEUED,
+        state=DagRunState.RUNNING,
         **dagrun_kwargs,
     )
     ti = TaskInstance(t, run_id=run_id)
@@ -187,7 +187,7 @@ def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> 
         run_id=run_id,
         data_interval=(date, date),
         run_type=types.DagRunType.MANUAL,
-        state=DagRunState.QUEUED,
+        state=DagRunState.RUNNING,
         **dagrun_kwargs,
     )
     task_instance = TaskInstance(t, run_id=run_id)

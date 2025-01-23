@@ -16,31 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
-import { useState } from "react";
-import { FiBookOpen } from "react-icons/fi";
+import { Box, Heading, VStack } from "@chakra-ui/react";
+import { type ReactElement, useState } from "react";
 
 import { Button, Dialog } from "src/components/ui";
 
 import ReactMarkdown from "./ReactMarkdown";
 
-const DocumentationModal = ({ docMd, docType }: { readonly docMd: string; readonly docType: string }) => {
+const DisplayMarkdownButton = ({
+  header,
+  icon,
+  mdContent,
+  text,
+}: {
+  readonly header: string;
+  readonly icon?: ReactElement;
+  readonly mdContent: string;
+  readonly text: string;
+}) => {
   const [isDocsOpen, setIsDocsOpen] = useState(false);
 
   return (
     <Box>
       <Button onClick={() => setIsDocsOpen(true)} variant="outline">
-        <FiBookOpen height={5} width={5} />
-        {docType} Docs
+        {icon}
+        {text}
       </Button>
       <Dialog.Root onOpenChange={() => setIsDocsOpen(false)} open={isDocsOpen} size="md">
         <Dialog.Content backdrop>
           <Dialog.Header bg="blue.muted">
-            <Heading size="xl">{docType} Documentation</Heading>
+            <Heading size="xl">{header}</Heading>
             <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
           </Dialog.Header>
-          <Dialog.Body display="flex">
-            <ReactMarkdown>{docMd}</ReactMarkdown>
+          <Dialog.Body alignItems="flex-start" as={VStack} gap="0">
+            <ReactMarkdown>{mdContent}</ReactMarkdown>
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
@@ -48,4 +57,4 @@ const DocumentationModal = ({ docMd, docType }: { readonly docMd: string; readon
   );
 };
 
-export default DocumentationModal;
+export default DisplayMarkdownButton;
