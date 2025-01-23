@@ -974,7 +974,7 @@ def _get_template_context(
     context.update(
         {
             "outlet_events": OutletEventAccessors(),
-            "inlet_events": InletEventsAccessors(task.inlets, session=session),
+            "inlet_events": InletEventsAccessors(task.inlets),
             "macros": macros,
             "params": validated_params,
             "prev_data_interval_start_success": get_prev_data_interval_start_success(),

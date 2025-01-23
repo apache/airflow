@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Union
 import attrs
 import structlog
 
+from airflow.models.asset import AssetEvent
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -38,6 +39,12 @@ from airflow.sdk.definitions.asset import (
     BaseAssetUniqueKey,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time.comms import (
+    AssetEventResult,
+    ErrorResponse,
+    GetAssetEventByAliasName,
+    GetAssetEventByName,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -279,6 +286,84 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
         if TYPE_CHECKING:
             assert isinstance(msg, AssetResult)
         return Asset(**msg.model_dump(exclude={"type"}))
+
+
+@attrs.define(init=False)
+class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]):
+    _inlets: list[Any]
+    _assets: dict[AssetUniqueKey, Asset]
+    _asset_aliases: dict[AssetAliasUniqueKey, AssetAlias]
+
+    def __init__(self, inlets: list) -> None:
+        self._inlets = inlets
+        self._assets = {}
+        self._asset_aliases = {}
+
+        for inlet in inlets:
+            if isinstance(inlet, Asset):
+                self._assets[AssetUniqueKey.from_asset(inlet)] = inlet
+            elif isinstance(inlet, AssetAlias):
+                self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(inlet)] = inlet
+            elif isinstance(inlet, AssetNameRef):
+                asset = OutletEventAccessors._get_asset_from_db(name=inlet.name)
+                self._assets[AssetUniqueKey.from_asset(asset)] = asset
+            elif isinstance(inlet, AssetUriRef):
+                asset = OutletEventAccessors._get_asset_from_db(uri=inlet.uri)
+                self._assets[AssetUniqueKey.from_asset(asset)] = asset
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]:
+        return iter(self._inlets)
+
+            AssetEventCollectionResult,
+            ErrorResponse,
+            GetAssetEventByAliasName,
+            GetAssetEventByName,
+    def __len__(self) -> int:
+        return len(self._inlets)
+
+    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef):
+        from airflow.sdk.definitions.asset import Asset
+        from airflow.sdk.execution_time.comms import (
+            GetAssetEventByNameUri,
+            GetAssetEventByUri,
+        )
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        if isinstance(key, int):  # Support index access; it's easier for trivial cases.
+            obj = self._inlets[key]
+            if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
+                raise IndexError(key)
+        else:
+            obj = key
+
+        if isinstance(obj, Asset):
+            asset = self._assets[AssetUniqueKey.from_asset(obj)]
+            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByNameUri(name=asset.name, uri=asset.uri))
+        elif isinstance(obj, AssetAlias):
+            asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
+            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAliasName(alias_name=asset_alias.name))
+        elif isinstance(obj, AssetNameRef):
+            try:
+                asset = next(a for k, a in self._assets.items() if k.name == obj.name)
+            except StopIteration:
+                raise KeyError(obj) from None
+            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByName(name=asset.name))
+        elif isinstance(obj, AssetUriRef):
+            try:
+                asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
+            except StopIteration:
+                raise KeyError(obj) from None
+            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByUri(uri=asset.uri))
+        else:
+            raise ValueError(key)
+
+        msg = SUPERVISOR_COMMS.get_message()
+        if isinstance(msg, ErrorResponse):
+            raise AirflowRuntimeError(msg)
+
+        if TYPE_CHECKING:
+            assert isinstance(msg, AssetEventResult)
+        return AssetEvent(**msg.model_dump(excldue={"type"}))
 
 
 @cache  # Prevent multiple API access.

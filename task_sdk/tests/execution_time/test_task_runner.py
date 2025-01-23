@@ -66,6 +66,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
@@ -818,6 +819,7 @@ class TestRuntimeTaskInstance:
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
+            "inlet_events": InletEventsAccessors(inlets=[]),
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
             "outlet_events": OutletEventAccessors(),
@@ -860,6 +862,7 @@ class TestRuntimeTaskInstance:
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
+            "inlet_events": InletEventsAccessors(inlets=[]),
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
             "outlet_events": OutletEventAccessors(),

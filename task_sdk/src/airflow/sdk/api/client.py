@@ -35,6 +35,7 @@ from uuid6 import uuid7
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRuntimeCheckPayload
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
+    AssetEventResponse,
     AssetResponse,
     ConnectionResponse,
     DagRunType,
@@ -331,6 +332,30 @@ class AssetOperations:
         return AssetResponse.model_validate_json(resp.read())
 
 
+class AssetEventOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(
+        self, name: str | None = None, uri: str | None = None, alias_name: str | None = None
+    ) -> AssetResponse:
+        """Get Asset value from the API server."""
+        if name and uri:
+            resp = self.client.get("asset-events/by-asset-name-uri", params={"name": name, "uri": uri})
+        elif alias_name:
+            resp = self.client.get("asset-events/by-alias-name", params={"name": name})
+        elif name:
+            resp = self.client.get("asset-events/by-asset-name", params={"name": name})
+        elif uri:
+            resp = self.client.get("asset-events/by-asset-uri", params={"uri": uri})
+        else:
+            raise ValueError("Either `name`, `uri` or `alias_name` must be provided")
+
+        return AssetEventResponse.model_validate_json(resp.read())
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -444,6 +469,12 @@ class Client(httpx.Client):
     def assets(self) -> AssetOperations:
         """Operations related to Assets."""
         return AssetOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def asset_events(self) -> AssetEventOperations:
+        """Operations related to Asset Events."""
+        return AssetEventOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

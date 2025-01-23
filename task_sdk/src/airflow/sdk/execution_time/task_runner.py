@@ -64,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
@@ -141,7 +142,7 @@ class RuntimeTaskInstance(TaskInstance):
             "ti": self,
             "start_date": self.start_date,
             "outlet_events": OutletEventAccessors(),
-            # "inlet_events": InletEventsAccessors(task.inlets, session=session),
+            "inlet_events": InletEventsAccessors(self.task.inlets),
             "macros": MacrosAccessor(),
             "params": validated_params,
             # TODO: Make this go through Public API longer term.
