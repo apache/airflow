@@ -985,7 +985,6 @@ class TestHandleRequest:
                 "task_instances.succeed",
                 (),
                 {
-                    "asset_type": None,
                     "id": TI_ID,
                     "outlet_events": None,
                     "task_outlets": None,
