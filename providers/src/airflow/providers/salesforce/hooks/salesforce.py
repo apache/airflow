@@ -105,6 +105,7 @@ class SalesforceHook(BaseHook):
             "security_token": PasswordField(lazy_gettext("Security Token"), widget=BS3PasswordFieldWidget()),
             "domain": StringField(lazy_gettext("Domain"), widget=BS3TextFieldWidget()),
             "consumer_key": StringField(lazy_gettext("Consumer Key"), widget=BS3TextFieldWidget()),
+            "consumer_secret": PasswordField(lazy_gettext("Consumer Secret"), widget=BS3PasswordFieldWidget()),
             "private_key_file_path": PasswordField(
                 lazy_gettext("Private Key File Path"), widget=BS3PasswordFieldWidget()
             ),
