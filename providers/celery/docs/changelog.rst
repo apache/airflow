@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+3.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for custom celery configs (#45038)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Version Check for CLI Imports in Celery provider (#45255)``
+
+Misc
+~~~~
+
+* ``AIP-72: Support DAG parsing context in Task SDK (#45694)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``move Celery provider to new provider code structure (#45786)``
+   * ``Move new provider tests to "provider_tests" submodule (#45955)``
+   * ``Add script to move providers to the new directory structure (#45945)``
+
 3.9.0
 .....
 

@@ -77,8 +77,8 @@ def change_ownership_of_files(path: Path) -> None:
                 # another place
                 if os.environ.get("VERBOSE_COMMANDS", "false") == "true":
                     print(f"Could not change ownership of {file}")
-        if count_files:
-            print(f"Changed ownership of {count_files} files back to {host_user_id}:{host_group_id}.")
+    if count_files and os.environ.get("VERBOSE_COMMANDS", "false") == "true":
+        print(f"Changed ownership of {count_files} files back to {host_user_id}:{host_group_id}.")
 
 
 if __name__ == "__main__":

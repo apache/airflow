@@ -165,8 +165,8 @@ import type {
   GetPoolsResponse,
   PostPoolData,
   PostPoolResponse,
-  PutPoolsData,
-  PutPoolsResponse,
+  BulkPoolsData,
+  BulkPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
   GetXcomEntryData,
@@ -2790,24 +2790,22 @@ export class PoolService {
   }
 
   /**
-   * Put Pools
-   * Create multiple pools.
+   * Bulk Pools
+   * Bulk create, update, and delete pools.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns PoolCollectionResponse Created with overwriting
-   * @returns PoolCollectionResponse Created
+   * @returns PoolBulkResponse Successful Response
    * @throws ApiError
    */
-  public static putPools(data: PutPoolsData): CancelablePromise<PutPoolsResponse> {
+  public static bulkPools(data: BulkPoolsData): CancelablePromise<BulkPoolsResponse> {
     return __request(OpenAPI, {
-      method: "PUT",
-      url: "/public/pools/bulk",
+      method: "PATCH",
+      url: "/public/pools",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
-        409: "Conflict",
         422: "Validation Error",
       },
     });
