@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-23T07:54:04.598328
+# This constraints file was automatically generated on 2025-01-23T19:49:50.866241
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -134,7 +134,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2024.12.14
 cffi==1.17.1
-cfn-lint==1.22.6
+cfn-lint==1.22.7
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -178,7 +178,7 @@ docutils==0.21.2
 duckdb==1.1.3
 durationpy==0.9
 elastic-transport==8.17.0
-elasticsearch==8.17.0
+elasticsearch==8.17.1
 email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
