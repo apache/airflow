@@ -60,15 +60,17 @@ const ClearRunDialog = ({ affectedTasks, dagRun, isPending, mutate, onClose, ope
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } = usePatchDagRun({ dagId, dagRunId });
 
   useEffect(() => {
-    mutate({
-      dagId,
-      dagRunId,
-      requestBody: { dry_run: true, only_failed: onlyFailed },
-    });
-  }, [dagId, dagRunId, mutate, onlyFailed]);
+    if (open) {
+      mutate({
+        dagId,
+        dagRunId,
+        requestBody: { dry_run: true, only_failed: onlyFailed },
+      });
+    }
+  }, [dagId, dagRunId, mutate, onlyFailed, open]);
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -100,6 +102,7 @@ const ClearRunDialog = ({ affectedTasks, dagRun, isPending, mutate, onClose, ope
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
+              disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
               onClick={() => {
                 mutate({

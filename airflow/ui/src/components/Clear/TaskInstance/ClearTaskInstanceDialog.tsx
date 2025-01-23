@@ -71,23 +71,25 @@ const ClearTaskInstanceDialog = ({
   });
 
   useEffect(() => {
-    mutate({
-      dagId,
-      requestBody: {
-        dag_run_id: dagRunId,
-        dry_run: true,
-        include_downstream: downstream,
-        include_future: future,
-        include_past: past,
-        include_upstream: upstream,
-        only_failed: onlyFailed,
-        task_ids: [taskId],
-      },
-    });
-  }, [dagId, dagRunId, downstream, future, mutate, onlyFailed, past, taskId, upstream]);
+    if (open) {
+      mutate({
+        dagId,
+        requestBody: {
+          dag_run_id: dagRunId,
+          dry_run: true,
+          include_downstream: downstream,
+          include_future: future,
+          include_past: past,
+          include_upstream: upstream,
+          only_failed: onlyFailed,
+          task_ids: [taskId],
+        },
+      });
+    }
+  }, [dagId, dagRunId, downstream, future, mutate, onlyFailed, past, taskId, upstream, open]);
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -118,6 +120,7 @@ const ClearTaskInstanceDialog = ({
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
+              disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
               onClick={() => {
                 mutate({
