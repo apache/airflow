@@ -137,7 +137,7 @@ class TaskInstanceOperations:
         body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, asset_type):
+    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events):
         """Tell the API server that this TI has to succeed."""
         body = TISuccessStatePayload(end_date=when, task_outlets=task_outlets, outlet_events=outlet_events)
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
