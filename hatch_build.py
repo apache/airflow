@@ -189,7 +189,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pdbr>=0.8.9",
     ],
     "devel-devscripts": [
-        "click>=8.0",
+        "click>=8.1.8",
         "gitpython>=3.1.40",
         "incremental>=24.7.2",
         "pipdeptree>=2.13.1",

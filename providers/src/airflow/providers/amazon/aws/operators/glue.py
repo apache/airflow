@@ -87,6 +87,7 @@ class GlueJobOperator(BaseOperator):
         "script_location",
         "script_args",
         "create_job_kwargs",
+        "run_job_kwargs",
         "s3_bucket",
         "iam_role_name",
         "iam_role_arn",
@@ -95,6 +96,7 @@ class GlueJobOperator(BaseOperator):
     template_fields_renderers = {
         "script_args": "json",
         "create_job_kwargs": "json",
+        "run_job_kwargs": "json",
     }
     ui_color = "#ededed"
 
