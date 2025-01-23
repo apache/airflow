@@ -617,6 +617,9 @@ dev = [
   "apache-airflow-providers-celery",
   "apache-airflow-providers-edge",
 ]
+codegen = [
+    "datamodel-code-generator[http]>=0.26.4",
+]
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -644,11 +647,6 @@ members = [
 # TODO: Automate this in CI to validate the unit tests with newly generated API endpoint datamodels for compatibility
 # The FastAPI should be running in the background to serve the OpenAPI schema
 # uv run --group codegen --project apache-airflow --directory airflow/  datamodel-codegen
-[dependency-groups]
-codegen = [
-    "datamodel-code-generator[http]>=0.26.4",
-]
-
 [tool.datamodel-codegen]
 capitalise-enum-members=true # `State.RUNNING` not `State.running`
 disable-timestamp=true

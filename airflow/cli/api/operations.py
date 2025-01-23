@@ -34,6 +34,7 @@ from airflow.cli.api.datamodels._generated import (
     BackfillResponse,
     Config,
     ConnectionBody,
+    ConnectionBulkActionResponse,
     ConnectionBulkBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
@@ -43,14 +44,17 @@ from airflow.cli.api.datamodels._generated import (
     DAGRunCollectionResponse,
     DAGRunResponse,
     JobCollectionResponse,
+    PoolBulkActionResponse,
+    PoolBulkBody,
     PoolCollectionResponse,
     PoolPatchBody,
     PoolPostBody,
-    PoolPostBulkBody,
     PoolResponse,
     ProviderCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
+    VariableBulkActionResponse,
+    VariableBulkBody,
     VariableCollectionResponse,
     VariableResponse,
     VersionInfo,
@@ -284,16 +288,14 @@ class ConnectionsOperations(BaseOperations):
             )
             return e
 
-    def create_bulk(
-        self, connections: ConnectionBulkBody, overwrite: bool = False
-    ) -> ConnectionCollectionResponse | ServerResponseError:
-        """Create multiple connections."""
+    def bulk(self, connections: ConnectionBulkBody) -> ConnectionBulkActionResponse | ServerResponseError:
+        """CRUD multiple connections."""
         try:
-            self.response = self.client.put("connections/bulk", json=connections.model_dump())
-            return ConnectionCollectionResponse.model_validate_json(self.response.content)
+            self.response = self.client.patch("connections", json=connections.model_dump())
+            return ConnectionBulkActionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             log.error(
-                "Connection already exists",
+                "Failed to create connections",
                 detail=e,
                 status_code=e.response.status_code,
             )
@@ -524,11 +526,11 @@ class PoolsOperations(BaseOperations):
             )
             return e
 
-    def create_bulk(self, pools: PoolPostBulkBody) -> PoolCollectionResponse | ServerResponseError:
-        """Create multiple pools."""
+    def bulk(self, pools: PoolBulkBody) -> PoolBulkActionResponse | ServerResponseError:
+        """CRUD multiple pools."""
         try:
-            self.response = self.client.put("pools/bulk", json=pools.model_dump())
-            return PoolCollectionResponse.model_validate_json(self.response.content)
+            self.response = self.client.patch("pools", json=pools.model_dump())
+            return PoolBulkActionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             log.error(
                 "Failed to create pools",
@@ -624,18 +626,11 @@ class VariablesOperations(BaseOperations):
             )
             return e
 
-    def create_bulk(
-        self, variables: VariableCollectionResponse
-    ) -> VariableCollectionResponse | ServerResponseError:
-        """Create multiple variables."""
+    def bulk(self, variables: VariableBulkBody) -> VariableBulkActionResponse | ServerResponseError:
+        """CRUD multiple variables."""
         try:
-            response_variable_list = []
-            for variable_body in variables.variables:
-                self.response = self.client.post("variables", json=variable_body.model_dump())
-                response_variable_list.append(VariableResponse.model_validate_json(self.response.content))
-            return VariableCollectionResponse(
-                variables=response_variable_list, total_entries=len(response_variable_list)
-            )
+            self.response = self.client.patch("variables", json=variables.model_dump())
+            return VariableBulkActionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             log.error(
                 "Failed to create variables",

@@ -30,6 +30,7 @@ import yaml
 from airflow.cli import cli_parser
 from airflow.cli.api.datamodels._generated import (
     ConnectionBody,
+    ConnectionBulkActionResponse,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
@@ -76,6 +77,10 @@ class TestCliConnection:
             for connection in _expected_cons
         ],
         total_entries=len(_expected_cons),
+    )
+    connection_bulk_action_response = ConnectionBulkActionResponse(
+        success=[connection["connection_id"] for connection in _expected_cons],
+        errors=[],
     )
     expected_connections: dict = {}
     expected_connections_as_yaml = ()
@@ -845,7 +850,7 @@ class TestCliImportConnections(TestCliConnection):
         filepath = "/does/not/exist.json"
         cli_api_client = cli_api_client_maker(
             path="dummy",
-            response_json=self.connections.model_dump(),
+            response_json=self.connection_bulk_action_response.model_dump(),
             expected_http_status_code=201,
         )
         with pytest.raises(
@@ -882,8 +887,8 @@ class TestCliImportConnections(TestCliConnection):
         mock_parse_secret_file.return_value = self.expected_connections
 
         cli_api_client = cli_api_client_maker(
-            path="/public/connections/bulk",
-            response_json=self.connections.model_dump(),
+            path="/public/connections",
+            response_json=self.connection_bulk_action_response.model_dump(),
             expected_http_status_code=201,
         )
 
@@ -908,7 +913,7 @@ class TestCliImportConnections(TestCliConnection):
         mock_parse_secret_file.return_value = self.expected_connections
 
         cli_api_client = cli_api_client_maker(
-            path="/public/connections/bulk",
+            path="/public/connections",
             response_json={"detail": {"reason": "Unique constraint violation"}},
             expected_http_status_code=409,
         )
@@ -933,8 +938,8 @@ class TestCliImportConnections(TestCliConnection):
         mock_parse_secret_file.return_value = self.expected_connections
 
         cli_api_client = cli_api_client_maker(
-            path="/public/connections/bulk",
-            response_json=self.connections.model_dump(),
+            path="/public/connections",
+            response_json=self.connection_bulk_action_response.model_dump(),
             expected_http_status_code=201,
         )
 
