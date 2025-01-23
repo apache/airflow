@@ -16,13 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
 
-from providers.tests.system.openlineage.conftest import set_transport_variable  # noqa: F401
+def test_import():
+    from airflow.providers.common.compat.openlineage.utils.sql import get_openlineage_facets_with_sql
 
-REQUIRED_ENV_VARS = ("SYSTEM_TESTS_GCP_PROJECT",)
-
-
-@pytest.fixture
-def provider_env_vars():
-    return REQUIRED_ENV_VARS
+    assert get_openlineage_facets_with_sql is not None

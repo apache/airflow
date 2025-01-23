@@ -31,6 +31,7 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkAction
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
     VariableBulkActionResponse,
@@ -199,14 +200,14 @@ def bulk_variables(
     results: dict[str, VariableBulkActionResponse] = {}
 
     for action in request.actions:
-        if action.action not in results:
-            results[action.action] = VariableBulkActionResponse()
+        if action.action.value not in results:
+            results[action.action.value] = VariableBulkActionResponse()
 
-        if action.action == "create":
-            handle_bulk_create(session, action, results[action.action])
-        elif action.action == "update":
-            handle_bulk_update(session, action, results[action.action])
-        elif action.action == "delete":
-            handle_bulk_delete(session, action, results[action.action])
+        if action.action == BulkAction.CREATE:
+            handle_bulk_create(session, action, results[action.action.value])  # type: ignore
+        elif action.action == BulkAction.UPDATE:
+            handle_bulk_update(session, action, results[action.action.value])  # type: ignore
+        elif action.action == BulkAction.DELETE:
+            handle_bulk_delete(session, action, results[action.action.value])  # type: ignore
 
     return VariableBulkResponse(**results)

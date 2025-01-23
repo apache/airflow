@@ -37,7 +37,6 @@ from airflow.hooks.base import BaseHook
 from airflow.utils.platform import getuser
 from airflow.utils.types import NOTSET, ArgNotSet
 
-TIMEOUT_DEFAULT = 10
 CMD_TIMEOUT = 10
 
 
@@ -113,7 +112,7 @@ class SSHHook(BaseHook):
         key_file: str | None = None,
         port: int | None = None,
         conn_timeout: int | None = None,
-        cmd_timeout: int | ArgNotSet | None = NOTSET,
+        cmd_timeout: float | ArgNotSet | None = NOTSET,
         keepalive_interval: int = 30,
         banner_timeout: float = 30.0,
         disabled_algorithms: dict | None = None,
@@ -175,7 +174,7 @@ class SSHHook(BaseHook):
 
                 if "cmd_timeout" in extra_options and self.cmd_timeout is NOTSET:
                     if extra_options["cmd_timeout"]:
-                        self.cmd_timeout = int(extra_options["cmd_timeout"])
+                        self.cmd_timeout = float(extra_options["cmd_timeout"])
                     else:
                         self.cmd_timeout = None
 
@@ -427,11 +426,11 @@ class SSHHook(BaseHook):
         command: str,
         get_pty: bool,
         environment: dict | None,
-        timeout: int | ArgNotSet | None = NOTSET,
+        timeout: float | ArgNotSet | None = NOTSET,
     ) -> tuple[int, bytes, bytes]:
         self.log.info("Running command: %s", command)
 
-        cmd_timeout: int | None
+        cmd_timeout: float | None
         if not isinstance(timeout, ArgNotSet):
             cmd_timeout = timeout
         elif not isinstance(self.cmd_timeout, ArgNotSet):

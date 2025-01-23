@@ -2625,28 +2625,6 @@ sensors:
       type: float
       example: ~
       default: "604800"
-usage_data_collection:
-  description: |
-    Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic platform and usage data
-    during operation. This data assists Airflow maintainers in better understanding how Airflow is used.
-    Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
-    security fixes. Additionally, this information supports key decisions related to the development road map.
-    Check the FAQ doc for more information on what data is collected.
-
-    Deployments can opt-out of analytics by setting the ``enabled`` option
-    to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
-    Individual users can easily opt-out of analytics in various ways documented in the
-    `Scarf Do Not Track docs <https://docs.scarf.sh/gateway/#do-not-track>`__.
-
-  options:
-    enabled:
-      description: |
-        Enable or disable usage data collection and sending.
-      version_added: 2.10.0
-      type: boolean
-      example: ~
-      default: "True"
-      see_also: ":ref:`Usage data collection FAQ <usage-data-collection>`"
 dag_bundles:
   description: |
     Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
