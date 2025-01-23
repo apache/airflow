@@ -58,19 +58,19 @@ Tenant ID
 
 API Version
     Specify the ``api_version`` used for the initial connection.
-    Default value is 'v1.0'.
+    Default value is ``v1.0``.
 
 
 Authority
     The ``authority`` parameter defines the endpoint (or tenant) that MSAL uses to authenticate requests.
     It determines which identity provider will handle authentication.
-    Default value is 'login.microsoftonline.com'.
+    Default value is ``login.microsoftonline.com``.
 
 
 Scopes
     The ``scopes`` scopes parameter specifies the permissions or access rights that your application is requesting for a connection.
     These permissions define what resources or data your application can access on behalf of the user or application.
-    Default value is 'https://graph.microsoft.com/.default'.
+    Default value is ``https://graph.microsoft.com/.default``.
 
 
 Disable instance discovery
