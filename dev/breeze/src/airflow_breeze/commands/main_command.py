@@ -49,7 +49,7 @@ from airflow_breeze.configure_rich_click import click
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.docker_command_utils import remove_docker_networks
+from airflow_breeze.utils.docker_command_utils import remove_docker_networks, remove_docker_volumes
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_DIR, BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -275,6 +275,10 @@ def cleanup(all: bool):
     given_answer = user_confirm("Are you sure with the removal of unused docker networks?")
     if given_answer == Answer.YES:
         remove_docker_networks()
+    get_console().print("Removing unused volumes")
+    given_answer = user_confirm("Are you sure with the removal of unused docker volumes?")
+    if given_answer == Answer.YES:
+        remove_docker_volumes()
     get_console().print("Pruning docker images")
     given_answer = user_confirm("Are you sure with the removal of docker images?")
     if given_answer == Answer.YES:

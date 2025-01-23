@@ -613,6 +613,29 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
             )
 
 
+def remove_docker_volumes(volumes: list[str] | None = None) -> None:
+    """
+    Removes specified docker volumes. If no volumes are specified, it removes all unused volumes.
+    Errors are ignored (not even printed in the output), so you can safely call it without checking
+    if the volumes exist.
+
+    :param volumes: list of volumes to remove
+    """
+    if volumes is None:
+        run_command(
+            ["docker", "volume", "prune", "-f"],
+            check=False,
+            stderr=DEVNULL,
+        )
+    else:
+        for volume in volumes:
+            run_command(
+                ["docker", "volume", "rm", volume],
+                check=False,
+                stderr=DEVNULL,
+            )
+
+
 # When you are using Docker Desktop (specifically on MacOS). the preferred context is "desktop-linux"
 # because the docker socket to use is created in the .docker/ directory in the user's home directory
 # and it does not require the user to belong to the "docker" group.
