@@ -28,8 +28,11 @@ from urllib.parse import urlsplit, urlunsplit
 
 from airflow.cli.api.cli_api_client import NEW_CLI_API_CLIENT, provide_cli_api_client
 from airflow.cli.api.datamodels._generated import (
+    BulkAction,
+    BulkActionOnExistence,
     ConnectionBody,
     ConnectionBulkBody,
+    ConnectionBulkCreateAction,
     ConnectionResponse,
     ConnectionTestResponse,
 )
@@ -374,8 +377,18 @@ def _import_helper(file_path: str, overwrite: bool, cli_api_client: Client) -> N
             )
         )
 
-    cli_api_client.connections.create_bulk(
-        ConnectionBulkBody(connections=connections_to_create, overwrite=overwrite)
+    cli_api_client.connections.bulk(
+        connections=ConnectionBulkBody(
+            actions=[
+                ConnectionBulkCreateAction(
+                    action=BulkAction.CREATE,
+                    connections=connections_to_create,
+                    action_on_existence=BulkActionOnExistence.FAIL
+                    if not overwrite
+                    else BulkActionOnExistence.OVERWRITE,
+                )
+            ]
+        )
     )
     for conn_id in connections:
         print(f"Imported connection {conn_id}")
