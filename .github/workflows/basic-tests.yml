@@ -109,7 +109,7 @@ jobs:
         with:
           node-version: 21
           cache: 'pnpm'
-          cache-dependency-path: 'airflow/ui/pnpm-lock.yaml'
+          cache-dependency-path: 'airflow/**/pnpm-lock.yaml'
       - name: "Restore eslint cache (ui)"
         uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
         with:
