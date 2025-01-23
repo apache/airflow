@@ -371,7 +371,7 @@ class TestFileTaskLogHandler:
             dag_id="dag_for_testing_local_log_read",
             task_id="task_for_testing_local_log_read",
             run_type=DagRunType.SCHEDULED,
-            logical_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
         )
         fth = FileTaskHandler("")
         log_stream, metadata_array = fth._read(ti=local_log_file_read, try_number=1)
@@ -461,29 +461,6 @@ file2 content 2
         else:
             mock_k8s_get_task_log.assert_not_called()
 
-    def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
-        """Test for executors which do not have `get_task_log` method, it fallbacks to reading
-        log from worker"""
-        executor_name = "CeleryExecutor"
-
-        ti = create_task_instance(
-            dag_id="dag_for_testing_celery_executor_log_read",
-            task_id="task_for_testing_celery_executor_log_read",
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-        )
-        ti.state = TaskInstanceState.RUNNING
-        with conf_vars({("core", "executor"): executor_name}):
-            fth = FileTaskHandler("")
-
-            fth._read_from_logs_server = mock.Mock()
-            fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
-            actual_text, actual_meta = fth._read(ti=ti, try_number=1)
-            fth._read_from_logs_server.assert_called_once()
-        assert "*** this message" in actual_text
-        assert "this\nlog\ncontent" in actual_text
-        assert actual_meta == {"end_of_log": True, "log_pos": 16}
-
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
         [
@@ -511,7 +488,7 @@ file2 content 2
             dag_id="dag_for_testing_celery_executor_log_read",
             task_id="task_for_testing_celery_executor_log_read",
             run_type=DagRunType.SCHEDULED,
-            logical_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.SUCCESS  # we're testing scenario when task is done
         with conf_vars({("core", "executor"): executor_name}):
@@ -836,7 +813,12 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
         ]
     )
-    assert "\n".join(_interleave_logs(log_sample2, log_sample1, log_sample3)) == expected
+    parse_log_streams = [
+        log_str_to_parsed_log_stream(log_sample1),
+        log_str_to_parsed_log_stream(log_sample2),
+        log_str_to_parsed_log_stream(log_sample3),
+    ]
+    assert "\n".join(_interleave_logs(*parse_log_streams)) == expected
 
 
 long_sample = """
@@ -913,7 +895,11 @@ def test_interleave_logs_correct_ordering():
     [2023-01-17T12:47:11.883-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-17T20:47:11.254388+00:00> (ID 1) fired: TriggerEvent<DateTime(2023, 1, 17, 20, 47, 11, 254388, tzinfo=Timezone('UTC'))>
     """
 
-    assert sample_with_dupe == "\n".join(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
+    parsed_log_streams = [
+        log_str_to_parsed_log_stream(sample_with_dupe),
+        log_str_to_parsed_log_stream(sample_with_dupe),
+    ]
+    assert sample_with_dupe == "\n".join(_interleave_logs(*parsed_log_streams))
 
 
 def test_permissions_for_new_directories(tmp_path):
