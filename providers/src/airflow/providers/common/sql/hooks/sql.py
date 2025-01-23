@@ -47,6 +47,7 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.hooks import handlers
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -67,23 +68,17 @@ be removed in the future. Please import it from 'airflow.providers.common.sql.ho
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool | None):
     warnings.warn(WARNING_MESSAGE.format("return_single_query_results"), DeprecationWarning, stacklevel=2)
 
-    from airflow.providers.common.sql.hooks import handlers
-
     return handlers.return_single_query_results(sql, return_last, split_statements)
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
     warnings.warn(WARNING_MESSAGE.format("fetch_all_handler"), DeprecationWarning, stacklevel=2)
 
-    from airflow.providers.common.sql.hooks import handlers
-
     return handlers.fetch_all_handler(cursor)
 
 
 def fetch_one_handler(cursor) -> list[tuple] | None:
     warnings.warn(WARNING_MESSAGE.format("fetch_one_handler"), DeprecationWarning, stacklevel=2)
-
-    from airflow.providers.common.sql.hooks import handlers
 
     return handlers.fetch_one_handler(cursor)
 
@@ -434,7 +429,7 @@ class DbApiHook(BaseHook):
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
+        return self.run(sql=sql, parameters=parameters, handler=handlers.fetch_all_handler)
 
     def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
@@ -443,7 +438,7 @@ class DbApiHook(BaseHook):
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        return self.run(sql=sql, parameters=parameters, handler=fetch_one_handler)
+        return self.run(sql=sql, parameters=parameters, handler=handlers.fetch_one_handler)
 
     @staticmethod
     def strip_sql_string(sql: str) -> str:
@@ -578,7 +573,7 @@ class DbApiHook(BaseHook):
 
                     if handler is not None:
                         result = self._make_common_data_structure(handler(cur))
-                        if return_single_query_results(sql, return_last, split_statements):
+                        if handlers.return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
                         else:
@@ -593,7 +588,7 @@ class DbApiHook(BaseHook):
 
         if handler is None:
             return None
-        if return_single_query_results(sql, return_last, split_statements):
+        if handlers.return_single_query_results(sql, return_last, split_statements):
             self.descriptions = [_last_description]
             return _last_result
         else:
