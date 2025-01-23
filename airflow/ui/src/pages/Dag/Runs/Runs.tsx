@@ -35,6 +35,7 @@ import { ClearRunButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { Select, Status } from "src/components/ui";
@@ -92,6 +93,7 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     cell: ({ row }) => (
       <Flex justifyContent="end">
         <ClearRunButton dagRun={row.original} withText={false} />
+        <MarkRunAsButton dagRun={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
