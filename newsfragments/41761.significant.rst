@@ -29,7 +29,4 @@ Removed a set of deprecations in BaseOperator.
     * AIR302
 
       * [x] ``airflow.utils.trigger_rule.TriggerRule.NONE_FAILED_OR_SKIPPED``
-
-      * argument in ``BaseOperator`` and its subclassses
-
-        * [x] ``task_concurrency`` → ``max_active_tis_per_dag``
+      * [x] argument ``task_concurrency`` → ``max_active_tis_per_dag`` in ``BaseOperator`` and its subclassses

@@ -31,6 +31,4 @@ Example update:
 
     * AIR302
 
-      * arguments in ``airflow.operators.weekday.DayOfWeekSensor``
-
-          * [x] `use_task_execution_day` → `use_task_logical_date`
+      * [x] arguments ``use_task_execution_day`` → ``use_task_logical_date`` in ``airflow.operators.weekday.DayOfWeekSensor``

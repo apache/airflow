@@ -40,6 +40,4 @@ Example:
 
     * AIR302
 
-      * context key
-
-        * [ ] ``conf``
+      * [ ] context key ``conf``

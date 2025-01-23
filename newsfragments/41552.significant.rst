@@ -17,6 +17,4 @@ Removed deprecated ``filename_template`` argument from ``airflow.utils.log.file_
 
     * AIR302
 
-      * argument in ``airflow.utils.log.file_task_handler.FileTaskHandler`` and its subclassses
-
-        * [x] ``filename_template``
+      * [x] argument ``filename_template`` in ``airflow.utils.log.file_task_handler.FileTaskHandler`` and its subclassses

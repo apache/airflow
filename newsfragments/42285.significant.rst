@@ -23,8 +23,5 @@ The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in
 
     * AIR302
 
-      * argument in ``BaseOperator`` and its subclassses
-        * [x] ``sla``
-
-      * argument in ``DAG``
-        * [x] ``sla_miss_callback``
+      * [x] argument ``sla`` in ``BaseOperator`` and its subclassses
+      * [x] argument ``sla_miss_callback`` in ``DAG``

@@ -27,7 +27,5 @@ later will also no longer contain the field.
 
     * AIR302
 
-      * arguments in ``DAG``
-
-        * [x] ``schedule_interval``
-        * [x] ``timetable``
+      * [x] arguments ``schedule_interval`` in ``DAG``
+      * [x] arguments ``timetable`` in ``DAG``

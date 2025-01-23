@@ -19,4 +19,4 @@ All modules from ``airflow.contrib``, which were deprecated in Airflow 2, have b
 
     * AIR302
 
-      * [x] `airflow.contrib.*`
+      * [x] ``airflow.contrib.*``

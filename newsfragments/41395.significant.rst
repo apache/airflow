@@ -26,8 +26,8 @@ The following deprecated functions, constants, and classes have been removed as 
 
     * AIR302
 
-      * [x] `airflow.utils.file.TemporaryDirectory` → `tempfile.TemporaryDirectory`
-      * [x] `airflow.utils.file.mkdirs` → `pathlib.Path({path}).mkdir`
-      * [x] `airflow.utils.dag_cycle_tester.test_cycle`
-      * [x] `airflow.utils.state.SHUTDOWN`
-      * [x] `airflow.utils.state.terminating_states`
+      * [x] ``airflow.utils.file.TemporaryDirectory`` → ``tempfile.TemporaryDirectory``
+      * [x] ``airflow.utils.file.mkdirs`` → ``pathlib.Path({path}).mkdir``
+      * [x] ``airflow.utils.dag_cycle_tester.test_cycle``
+      * [x] ``airflow.utils.state.SHUTDOWN``
+      * [x] ``airflow.utils.state.terminating_states``

@@ -20,9 +20,6 @@ are just treated as plain Python classes by Airflow, so there is no need to regi
 
     * AIR302
 
-      * extension in ``airflow.plugins_manager.AirflowPlugin``
-
-        * [x] ``executors``
-        * [x] ``hooks`` (from #43291)
-        * [x] ``operators``
-        * [x] ``sensors``
+      * [x] extension ``executors`` in ``airflow.plugins_manager.AirflowPlugin``
+      * [x] extension ``operators`` in ``airflow.plugins_manager.AirflowPlugin``
+      * [x] extension ``sensors`` in ``airflow.plugins_manager.AirflowPlugin``

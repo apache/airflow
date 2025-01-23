@@ -23,14 +23,6 @@ Parameters removed:
 
     * AIR302
 
-      * argument in ``airflow.operators.trigger_dagrun.TriggerDagRunOperator``
-
-        * [x] ``execution_date``
-
-      * argument in ``airflow.operators.datetime.BranchDateTimeOperator``
-
-        * [x] ``use_task_execution_day`` → ``use_task_logical_date``
-
-      * argument in ``airflow.operators.weekday.BranchDayOfWeekOperator``
-
-        * [x] ``use_task_execution_day`` → ``use_task_logical_date``
+      * [x] argument ``execution_date`` in ``airflow.operators.trigger_dagrun.TriggerDagRunOperator``
+      * [x] argument ``use_task_execution_day`` → ``use_task_logical_date`` in ``airflow.operators.datetime.BranchDateTimeOperator``
+      * [x] argument ``use_task_execution_day`` → ``use_task_logical_date`` in ``airflow.operators.weekday.BranchDayOfWeekOperator``

@@ -32,6 +32,4 @@ You should instead import it as:
 
     * AIR302
 
-      * extension in ``airflow.plugins_manager.AirflowPlugin``
-
-        * [x] ``hooks``
+      * [x] extension ``hooks`` in ``airflow.plugins_manager.AirflowPlugin``
