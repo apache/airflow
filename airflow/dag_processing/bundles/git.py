@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import psutil
 from git import Repo
 from git.exc import BadName
 
@@ -132,12 +133,14 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         self.pid_tracking_path.mkdir(parents=True, exist_ok=True)
         self.pid_tracking_file = Path(self.pid_tracking_path, str(pid))
         self.pid_tracking_file.write_text(self.version)
+        print(f"wrote to pid file {self.pid_tracking_file}")
 
         self.ttl_tracking_path.mkdir(parents=True, exist_ok=True)
         ttl_tracking_file = Path(self.ttl_tracking_path, self.version)
         ttl_tracking_file.touch(exist_ok=True)
 
     def remove_in_use_marker(self):
+        print(f"removing pid file {self.pid_tracking_file}")
         if self.pid_tracking_file:
             os.remove(self.pid_tracking_file)
 
@@ -156,6 +159,15 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
                 ignore.append(version)
         print(f"REMOVAL CANDIDATES: {candidates}")
         print(f"RECENTLY USED VERSIONS: {ignore}")
+        pid_files = self.pid_tracking_path.iterdir()
+        actively_used = set()
+        for f in pid_files:
+            pid = f.name
+            if not psutil.pid_exists(pid):
+                os.remove(f)
+            else:
+                actively_used.add(f.read_text())
+        print(f"VERSIONS IN USE: {actively_used}")
 
     def _initialize(self):
         self._clone_bare_repo_if_required()

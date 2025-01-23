@@ -624,6 +624,8 @@ def main():
         exit(1)
     finally:
         try:
+            # note: if anything in here takes too long,
+            #  then supervisor will say `Process did not terminate in time`
             if ti:
                 ti.bundle_instance.remove_in_use_marker()
                 ti.bundle_instance.remove_stale_bundle_versions()
