@@ -62,6 +62,14 @@ def mock_remove_docker_networks():
         yield mck
 
 
+@pytest.fixture(autouse=True)
+def mock_remove_docker_volumes():
+    """We mock remove_docker_volumes to avoid making actual docker calls during these tests;
+    it returns nothing so mock training is unnecessary."""
+    with patch("airflow_breeze.commands.testing_commands.remove_docker_volumes") as mck:
+        yield mck
+
+
 @pytest.mark.parametrize(
     "mock_fixture",
     ["mock_get_suspended_provider_folders", "mock_get_excluded_provider_folders"],

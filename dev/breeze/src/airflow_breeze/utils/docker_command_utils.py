@@ -623,7 +623,7 @@ def remove_docker_volumes(volumes: list[str] | None = None) -> None:
     """
     if volumes is None:
         run_command(
-            ["docker", "volume", "prune", "-f"],
+            ["docker", "volume", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
             check=False,
             stderr=DEVNULL,
         )

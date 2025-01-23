@@ -275,8 +275,8 @@ def cleanup(all: bool):
     given_answer = user_confirm("Are you sure with the removal of unused docker networks?")
     if given_answer == Answer.YES:
         remove_docker_networks()
-    get_console().print("Removing unused volumes")
-    given_answer = user_confirm("Are you sure with the removal of unused docker volumes?")
+    get_console().print("Removing volumes created by breeze")
+    given_answer = user_confirm("Are you sure with the removal of docker volumes created by breeze?")
     if given_answer == Answer.YES:
         remove_docker_volumes()
     get_console().print("Pruning docker images")
