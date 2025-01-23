@@ -248,7 +248,7 @@ def ti_update_state(
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         updated_state = ti_patch_payload.state
         task_instance = session.get(TI, ti_id_str)
-        TI._register_asset_changes_int(
+        TI.register_asset_changes_in_db(
             task_instance,
             ti_patch_payload.task_outlets,  # type: ignore
             ti_patch_payload.outlet_events,

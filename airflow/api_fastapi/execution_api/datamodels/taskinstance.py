@@ -61,7 +61,7 @@ class TIEnterRunningPayload(BaseModel):
 
 
 class TITerminalStatePayload(BaseModel):
-    """Schema for updating TaskInstance to a terminal state (e.g., SUCCESS or FAILED)."""
+    """Schema for updating TaskInstance to a terminal state except SUCCESS state."""
 
     state: Literal[
         TerminalTIState.FAILED,

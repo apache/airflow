@@ -448,6 +448,36 @@ def _get_rendered_fields(task: BaseOperator) -> dict[str, JsonValue]:
     return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
 
 
+def _process_outlets(context: Context, outlets: list[AssetProfile]):
+    added_alias_to_task_outlet = False
+    task_outlets: list[AssetProfile] = []
+    outlet_events: list[Any] = []
+    events = context["outlet_events"]
+
+    for obj in outlets or []:
+        # Lineage can have other types of objects besides assets
+        asset_type = type(obj).__name__
+        if isinstance(obj, Asset):
+            task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
+            outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
+        elif isinstance(obj, AssetNameRef):
+            task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
+            # Send all events, filtering can be done in API server.
+            outlet_events.append(attrs.asdict(events))  # type: ignore
+        elif isinstance(obj, AssetUriRef):
+            task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
+            # Send all events, filtering can be done in API server.
+            outlet_events.append(attrs.asdict(events))  # type: ignore
+        elif isinstance(obj, AssetAlias):
+            if not added_alias_to_task_outlet:
+                task_outlets.append(AssetProfile(asset_type=asset_type))
+                added_alias_to_task_outlet = True
+            for asset_alias_event in events[obj].asset_alias_events:
+                outlet_events.append(attrs.asdict(asset_alias_event))
+
+    return task_outlets, outlet_events
+
+
 def run(ti: RuntimeTaskInstance, log: Logger):
     """Run the task in this process."""
     from airflow.exceptions import (
@@ -479,31 +509,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
 
         _push_xcom_if_needed(result, ti)
 
-        added_alias_to_task_outlet = False
-        task_outlets = []
-        outlet_events = []
-        events = context["outlet_events"]
-
-        for obj in ti.task.outlets or []:
-            # Lineage can have other types of objects besides assets
-            asset_type = type(obj).__name__
-            if isinstance(obj, Asset):
-                task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
-                outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
-            elif isinstance(obj, AssetNameRef):
-                task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
-                # Send all events, filtering can be done in API server.
-                outlet_events.append(attrs.asdict(events))  # type: ignore
-            elif isinstance(obj, AssetUriRef):
-                task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
-                # Send all events, filtering can be done in API server.
-                outlet_events.append(attrs.asdict(events))  # type: ignore
-            elif isinstance(obj, AssetAlias):
-                if not added_alias_to_task_outlet:
-                    task_outlets.append(AssetProfile(asset_type=asset_type))
-                    added_alias_to_task_outlet = True
-                for asset_alias_event in events[obj].asset_alias_events:
-                    outlet_events.append(attrs.asdict(asset_alias_event))
+        task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
 
         # TODO: Get things from _execute_task_with_callbacks
         #   - Clearing XCom

@@ -375,7 +375,7 @@ def _run_raw_task(
                             added_alias_to_task_outlet = True
                         for asset_alias_event in events[obj].asset_alias_events:
                             outlet_events.append(attrs.asdict(asset_alias_event))
-                TaskInstance._register_asset_changes_int(ti, task_outlets, outlet_events, session=session)
+                TaskInstance.register_asset_changes_in_db(ti, task_outlets, outlet_events, session=session)
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
@@ -2758,7 +2758,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def _register_asset_changes_int(
+    def register_asset_changes_in_db(
         ti: TaskInstance,
         task_outlets: list[AssetProfile],
         outlet_events: list[Any],
