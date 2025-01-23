@@ -24,7 +24,6 @@ import os
 from collections.abc import Iterable
 from contextlib import suppress
 from enum import Enum
-from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urljoin
@@ -314,11 +313,17 @@ class FileTaskHandler(logging.Handler):
     def _read_grouped_logs(self):
         return False
 
-    @cached_property
-    def _executor_get_task_log(self) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
-        """This cached property avoids loading executor repeatedly."""
-        executor = ExecutorLoader.get_default_executor()
-        return executor.get_task_log
+    def _executor_get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+        """
+        Helper method to load task_instance's executor (or default) and get
+        running task's logs.
+        """
+        executor = (
+            ExecutorLoader.load_executor(ti.executor)
+            if ti.executor
+            else ExecutorLoader.get_default_executor()
+        )
+        return executor.get_task_log(ti, try_number)
 
     def _read(
         self,
