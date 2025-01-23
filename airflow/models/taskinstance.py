@@ -353,6 +353,7 @@ def _run_raw_task(
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
+                added_alias_to_task_outlet = False
                 task_outlets = []
                 outlet_events = []
                 events = context["outlet_events"]
@@ -369,7 +370,9 @@ def _run_raw_task(
                         task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
                         outlet_events.append(attrs.asdict(events))  # type: ignore
                     elif isinstance(obj, AssetAlias):
-                        task_outlets.append(AssetProfile(asset_type=asset_type))
+                        if not added_alias_to_task_outlet:
+                            task_outlets.append(AssetProfile(asset_type=asset_type))
+                            added_alias_to_task_outlet = True
                         for asset_alias_event in events[obj].asset_alias_events:
                             outlet_events.append(attrs.asdict(asset_alias_event))
                 TaskInstance._register_asset_changes_int(ti, task_outlets, outlet_events, session=session)
@@ -2775,7 +2778,7 @@ class TaskInstance(Base, LoggingMixin):
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=Asset(name=obj.name, uri=obj.uri),  # type: ignore
-                    extra=outlet_events,
+                    extra=outlet_events[0]["extra"],
                     session=session,
                 )
             elif obj.asset_type == AssetNameRef.__name__:
