@@ -65,15 +65,20 @@ class Dialect(LoggingMixin):
     def escape_word_format(self) -> str:
         return self.hook.escape_word_format
 
+    @property
+    def escape_column_names(self) -> bool:
+        return self.hook.escape_column_names
+
     def escape_word(self, word: str) -> str:
         """
-        Escape the word if it's a reserved word or contains special characters.
+        Escape the word if it's a reserved word or contains special characters or if the ``escape_column_names``
+        property is set to True in connection extra field.
 
         :param word: Name of the column
         :return: The escaped word
         """
         if word != self.escape_word_format.format(self.unescape_word(word)) and (
-            word.casefold() in self.reserved_words or self.pattern.search(word)
+            self.escape_column_names or word.casefold() in self.reserved_words or self.pattern.search(word)
         ):
             return self.escape_word_format.format(word)
         return word

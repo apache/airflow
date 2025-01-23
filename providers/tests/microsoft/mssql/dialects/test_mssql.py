@@ -38,6 +38,7 @@ class TestMsSqlDialect:
         self.test_db_hook.run.side_effect = lambda *args: [("index",)]
         self.test_db_hook.reserved_words = {"index", "user"}
         self.test_db_hook.escape_word_format = "[{}]"
+        self.test_db_hook.escape_column_names = False
 
     def test_placeholder(self):
         assert MsSqlDialect(self.test_db_hook).placeholder == "?"
@@ -80,5 +81,29 @@ class TestMsSqlDialect:
                 UPDATE SET target.name = source.name, target.firstname = source.firstname, target.age = source.age
             WHEN NOT MATCHED THEN
                 INSERT ([index], name, firstname, age) VALUES (source.[index], source.name, source.firstname, source.age);
+        """.strip()
+        )
+
+    def test_generate_replace_sql_when_escape_column_names_is_enabled(self):
+        values = [
+            {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": "78"},
+            {"index": 2, "name": "Statham", "firstname": "Jason", "age": "57"},
+            {"index": 3, "name": "Li", "firstname": "Jet", "age": "61"},
+            {"index": 4, "name": "Lundgren", "firstname": "Dolph", "age": "66"},
+            {"index": 5, "name": "Norris", "firstname": "Chuck", "age": "84"},
+        ]
+        target_fields = ["index", "name", "firstname", "age"]
+        self.test_db_hook.escape_column_names = True
+        sql = MsSqlDialect(self.test_db_hook).generate_replace_sql("hollywood.actors", values, target_fields)
+        assert (
+            sql
+            == """
+            MERGE INTO hollywood.actors WITH (ROWLOCK) AS target
+            USING (SELECT ? AS [index], ? AS [name], ? AS [firstname], ? AS [age]) AS source
+            ON target.[index] = source.[index]
+            WHEN MATCHED THEN
+                UPDATE SET target.[name] = source.[name], target.[firstname] = source.[firstname], target.[age] = source.[age]
+            WHEN NOT MATCHED THEN
+                INSERT ([index], [name], [firstname], [age]) VALUES (source.[index], source.[name], source.[firstname], source.[age]);
         """.strip()
         )
