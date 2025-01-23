@@ -414,16 +414,20 @@ class TestTIUpdateState:
             "end_date": "2024-10-31T12:00:00Z",
         }
 
-        with mock.patch(
-            "airflow.api_fastapi.common.db.common.Session.execute",
-            side_effect=[
-                mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
-                mock.Mock(one=lambda: ("running", 1, 0)),  # Second call returns "queued"
-                mock.Mock(one=lambda: ("running", 1, 0)),  # Third call returns "queued"
-                mock.Mock(one=lambda: ("running", 1, 0)),  # Fourth call returns "queued"
-                SQLAlchemyError("Database error"),  # Last call raises an error
-            ],
+        with (
+            mock.patch(
+                "airflow.api_fastapi.common.db.common.Session.execute",
+                side_effect=[
+                    mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
+                    mock.Mock(one=lambda: ("running", 1, 0)),  # Second call returns "queued"
+                    SQLAlchemyError("Database error"),  # Last call raises an error
+                ],
+            ),
+            mock.patch(
+                "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
+            ) as mock_register_asset_changes_in_db,
         ):
+            mock_register_asset_changes_in_db.return_value = None
             response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
