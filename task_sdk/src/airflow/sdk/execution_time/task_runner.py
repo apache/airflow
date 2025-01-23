@@ -479,6 +479,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
 
         _push_xcom_if_needed(result, ti)
 
+        added_alias_to_task_outlet = False
         task_outlets = []
         outlet_events = []
         events = context["outlet_events"]
@@ -498,7 +499,9 @@ def run(ti: RuntimeTaskInstance, log: Logger):
                 # Send all events, filtering can be done in API server.
                 outlet_events.append(attrs.asdict(events))  # type: ignore
             elif isinstance(obj, AssetAlias):
-                task_outlets.append(AssetProfile(asset_type=asset_type))
+                if not added_alias_to_task_outlet:
+                    task_outlets.append(AssetProfile(asset_type=asset_type))
+                    added_alias_to_task_outlet = True
                 for asset_alias_event in events[obj].asset_alias_events:
                     outlet_events.append(attrs.asdict(asset_alias_event))
 
