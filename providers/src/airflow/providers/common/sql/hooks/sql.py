@@ -182,6 +182,7 @@ class DbApiHook(BaseHook):
         self._insert_statement_format: str | None = kwargs.get("insert_statement_format")
         self._replace_statement_format: str | None = kwargs.get("replace_statement_format")
         self._escape_word_format: str | None = kwargs.get("escape_word_format")
+        self._escape_column_names: bool | None = kwargs.get("escape_column_names")
         self._connection: Connection | None = kwargs.pop("connection", None)
 
     def get_conn_id(self) -> str:
@@ -230,7 +231,10 @@ class DbApiHook(BaseHook):
 
     @cached_property
     def escape_column_names(self) -> bool:
-        return self.connection_extra.get("escape_column_names", False)
+        """Return the escape column names flag."""
+        if not self._escape_column_names:
+            self._escape_column_names = self.connection_extra.get("escape_column_names", False)
+        return self._escape_column_names
 
     @property
     def connection(self) -> Connection:

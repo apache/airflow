@@ -40,6 +40,7 @@ class TestDialect:
         self.test_db_hook.insert_statement_format = "INSERT INTO {} {} VALUES ({})"
         self.test_db_hook.replace_statement_format = "REPLACE INTO {} {} VALUES ({})"
         self.test_db_hook.escape_word_format = "[{}]"
+        self.test_db_hook.escape_column_names = False
 
     def test_insert_statement_format(self):
         assert Dialect(self.test_db_hook).insert_statement_format == "INSERT INTO {} {} VALUES ({})"
@@ -61,8 +62,10 @@ class TestDialect:
         assert dialect.unescape_word("schema.[t@ble]") == "schema.t@ble"
         assert dialect.unescape_word("[schema].[t@ble]") == "schema.t@ble"
         assert dialect.unescape_word("[schema].table") == "schema.table"
+
+    def test_unescape_word_with_different_format(self):
         self.test_db_hook.escape_word_format = '"{}"'
-        assert dialect.unescape_word('"table"') == "table"
+        assert Dialect(self.test_db_hook).unescape_word('"table"') == "table"
 
     def test_escape_word(self):
         dialect = Dialect(self.test_db_hook)
@@ -72,8 +75,20 @@ class TestDialect:
         assert dialect.escape_word("index") == "[index]"
         assert dialect.escape_word("User") == "[User]"
         assert dialect.escape_word("attributes.id") == "[attributes.id]"
+
+    def test_escape_word_with_different_format(self):
         self.test_db_hook.escape_word_format = '"{}"'
-        assert dialect.escape_word('"table"') == '"table"'
+        assert Dialect(self.test_db_hook).escape_word('"table"') == '"table"'
+
+    def test_escape_word_when_all_column_names_must_be_escaped(self):
+        self.test_db_hook.escape_column_names = True
+        dialect = Dialect(self.test_db_hook)
+        assert dialect.escape_word("name") == "[name]"
+        assert dialect.escape_word("[name]") == "[name]"
+        assert dialect.escape_word("n@me") == "[n@me]"
+        assert dialect.escape_word("index") == "[index]"
+        assert dialect.escape_word("User") == "[User]"
+        assert dialect.escape_word("attributes.id") == "[attributes.id]"
 
     def test_placeholder(self):
         assert Dialect(self.test_db_hook).placeholder == "?"
