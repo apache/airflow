@@ -69,25 +69,26 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 requires-python = "~=3.9"
+
 # The dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 dependencies = [
 {{ INSTALL_REQUIREMENTS }}
 ]
+{% if EXTRAS_REQUIREMENTS %}
 
-{%- if EXTRAS_REQUIREMENTS %}
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 {{ EXTRAS_REQUIREMENTS }}
-{%- endif %}
+{% endif %}
+{% if DEPENDENCY_GROUPS %}
 
-{%- if DEPENDENCY_GROUPS %}
 # The dependency groups should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [dependency-groups]
 {{ DEPENDENCY_GROUPS }}
-{%- endif %}
+{% endif %}
 
 [project.urls]
 "Documentation" = "https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}"
@@ -100,13 +101,13 @@ dependencies = [
 
 [project.entry-points."apache_airflow_provider"]
 provider_info = "airflow.providers.{{ PROVIDER_ID }}.get_provider_info:get_provider_info"
+{% if PLUGINS %}
 
-{%- if PLUGINS %}
 [project.entry-points."airflow.plugins"]
-{%- for plugin in PLUGINS %}
+{% for plugin in PLUGINS %}
 {{ plugin.name }} = "{{ plugin.package_name }}:{{ plugin.class_name }}"
-{%- endfor %}
-{%- endif %}
+{% endfor %}
+{% endif %}
 
 [tool.flit.module]
 name = "airflow.providers.{{ PROVIDER_ID }}"
