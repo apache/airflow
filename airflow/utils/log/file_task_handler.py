@@ -24,8 +24,9 @@ import os
 from collections.abc import Iterable
 from contextlib import suppress
 from enum import Enum
+from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import pendulum
@@ -43,6 +44,7 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from pendulum import DateTime
 
+    from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -159,6 +161,12 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
         raise AirflowException(f"Could not find TaskInstance for {ti}")
     val.try_number = ti.try_number
     return val
+
+
+@cache
+def _load_executor(executor: str | None) -> BaseExecutor:
+    """Load and cache executor to avoid repeated loads."""
+    return ExecutorLoader.load_executor(executor) if executor else ExecutorLoader.get_default_executor()
 
 
 class FileTaskHandler(logging.Handler):
@@ -314,15 +322,8 @@ class FileTaskHandler(logging.Handler):
         return False
 
     def _executor_get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
-        """
-        Helper method to load task_instance's executor (or default) and get
-        running task's logs.
-        """
-        executor = (
-            ExecutorLoader.load_executor(ti.executor)
-            if ti.executor
-            else ExecutorLoader.get_default_executor()
-        )
+        """Load task_instance's executor task's logs."""
+        executor = _load_executor(ti.executor)
         return executor.get_task_log(ti, try_number)
 
     def _read(
