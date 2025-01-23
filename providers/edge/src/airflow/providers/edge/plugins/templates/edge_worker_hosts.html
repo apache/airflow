@@ -101,7 +101,7 @@
               </ul>
             </td>
             <td>
-              {%- if host.state == "idle" or host.state == "running -%}
+              {%- if host.state == "idle" or host.state == "running" -%}
                 <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/on" method="GET">
                   <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
                       Enable
