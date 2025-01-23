@@ -71,8 +71,10 @@ class Dialect(LoggingMixin):
 
     def escape_word(self, word: str) -> str:
         """
-        Escape the word if it's a reserved word or contains special characters or if the ``escape_column_names``
-        property is set to True in connection extra field.
+        Escape the word if necessary.
+
+        If the word is a reserved word or contains special characters or if the ``escape_column_names``
+        property is set to True in connection extra field, then the given word will be escaped.
 
         :param word: Name of the column
         :return: The escaped word
