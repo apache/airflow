@@ -79,6 +79,8 @@ def handle_bulk_create(
                     session.add(Pool(**pool.model_dump()))
                 results.success.append(pool.pool)
 
+        session.flush()
+
     except HTTPException as e:
         results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
 
