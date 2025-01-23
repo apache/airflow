@@ -33,11 +33,15 @@ from airflow.cli.api.datamodels._generated import (
     AssetResponse,
     BackfillPostBody,
     BackfillResponse,
+    BulkAction,
+    BulkActionOnExistence,
     Config,
     ConfigOption,
     ConfigSection,
     ConnectionBody,
+    ConnectionBulkActionResponse,
     ConnectionBulkBody,
+    ConnectionBulkCreateAction,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
@@ -50,15 +54,20 @@ from airflow.cli.api.datamodels._generated import (
     DagRunType,
     JobCollectionResponse,
     JobResponse,
+    PoolBulkActionResponse,
+    PoolBulkBody,
+    PoolBulkCreateAction,
     PoolCollectionResponse,
     PoolPostBody,
-    PoolPostBulkBody,
     PoolResponse,
     ProviderCollectionResponse,
     ProviderResponse,
     ReprocessBehavior,
     TriggerDAGRunPostBody,
     VariableBody,
+    VariableBulkActionResponse,
+    VariableBulkBody,
+    VariableBulkCreateAction,
     VariableCollectionResponse,
     VariableResponse,
     VersionInfo,
@@ -253,6 +262,21 @@ class TestConnectionsOperations:
         total_entries=1,
     )
 
+    connection_bulk_body = ConnectionBulkBody(
+        actions=[
+            ConnectionBulkCreateAction(
+                action=BulkAction.CREATE,
+                connections=[connection],
+                action_on_existence=BulkActionOnExistence.FAIL,
+            )
+        ]
+    )
+
+    connection_bulk_action_response = ConnectionBulkActionResponse(
+        success=[connection_id],
+        errors=[],
+    )
+
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/public/connections/{self.connection_id}"
@@ -280,16 +304,16 @@ class TestConnectionsOperations:
         response = client.connections.create(connection=self.connection)
         assert response == self.connection_response
 
-    def test_create_bulk(self):
-        connections = ConnectionBulkBody(connections=[self.connection])
-
+    def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/public/connections/bulk"
-            return httpx.Response(200, json=json.loads(self.connections_response.model_dump_json()))
+            assert request.url.path == "/public/connections"
+            return httpx.Response(
+                200, json=json.loads(self.connection_bulk_action_response.model_dump_json())
+            )
 
         client = make_cli_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.connections.create_bulk(connections=connections)
-        assert response == self.connections_response
+        response = client.connections.bulk(connections=self.connection_bulk_body)
+        assert response == self.connection_bulk_action_response
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -519,8 +543,14 @@ class TestPoolsOperations:
         description="description",
         include_deferred=True,
     )
-    pools = PoolPostBulkBody(
-        pools=[pool],
+    pools_bulk_body = PoolBulkBody(
+        actions=[
+            PoolBulkCreateAction(
+                action=BulkAction.CREATE,
+                pools=[pool],
+                action_on_existence=BulkActionOnExistence.FAIL,
+            )
+        ]
     )
     pool_response = PoolResponse(
         name=pool_name,
@@ -537,6 +567,10 @@ class TestPoolsOperations:
     pool_response_collection = PoolCollectionResponse(
         pools=[pool_response],
         total_entries=1,
+    )
+    pool_bulk_action_response = PoolBulkActionResponse(
+        success=[pool_name],
+        errors=[],
     )
 
     def test_get(self):
@@ -566,14 +600,14 @@ class TestPoolsOperations:
         response = client.pools.create(pool=self.pool)
         assert response == self.pool_response
 
-    def test_create_bulk(self):
+    def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/public/pools/bulk"
-            return httpx.Response(200, json=json.loads(self.pool_response_collection.model_dump_json()))
+            assert request.url.path == "/public/pools"
+            return httpx.Response(200, json=json.loads(self.pool_bulk_action_response.model_dump_json()))
 
         client = make_cli_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.pools.create_bulk(pools=self.pools)
-        assert response == self.pool_response_collection
+        response = client.pools.bulk(pools=self.pools_bulk_body)
+        assert response == self.pool_bulk_action_response
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -625,6 +659,19 @@ class TestVariablesOperations:
         variables=[variable_response],
         total_entries=1,
     )
+    variable_bulk = VariableBulkBody(
+        actions=[
+            VariableBulkCreateAction(
+                action=BulkAction.CREATE,
+                variables=[variable],
+                action_on_existence=BulkActionOnExistence.FAIL,
+            )
+        ]
+    )
+    variable_bulk_response = VariableBulkActionResponse(
+        success=[key],
+        errors=[],
+    )
 
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -653,14 +700,14 @@ class TestVariablesOperations:
         response = client.variables.create(variable=self.variable)
         assert response == self.variable_response
 
-    def test_create_bulk(self):
+    def test_bulk(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/public/variables"
-            return httpx.Response(200, json=json.loads(self.variable_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(self.variable_bulk_response.model_dump_json()))
 
         client = make_cli_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.variables.create_bulk(variables=self.variable_collection_response)
-        assert response == self.variable_collection_response
+        response = client.variables.bulk(variables=self.variable_bulk)
+        assert response == self.variable_bulk_response
 
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
