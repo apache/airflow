@@ -22,12 +22,10 @@ from __future__ import annotations
 from collections.abc import (
     Container,
     Iterator,
-    Mapping,
 )
 from typing import (
     TYPE_CHECKING,
     Any,
-    Union,
     cast,
 )
 
@@ -54,17 +52,15 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor as ConnectionAccessorSDK,
+    InletEventsAccessors as InletEventsAccessorsSDK,
     OutletEventAccessors as OutletEventAccessorsSDK,
     VariableAccessor as VariableAccessorSDK,
 )
-from airflow.utils.db import LazySelectSequence
 from airflow.utils.session import create_session
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
-    from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.expression import Select, TextClause
 
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.types import OutletEventAccessorsProtocol
@@ -170,65 +166,15 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
         return asset.to_public()
 
 
-class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
-    """
-    List-like interface to lazily access AssetEvent rows.
-
-    :meta private:
-    """
-
-    @staticmethod
-    def _rebuild_select(stmt: TextClause) -> Select:
-        return select(AssetEvent).from_statement(stmt)
-
-    @staticmethod
-    def _process_row(row: Row) -> AssetEvent:
-        return row[0]
-
-
 @attrs.define(init=False)
-class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], LazyAssetEventSelectSequence]):
+class InletEventsAccessors(InletEventsAccessorsSDK):
     """
     Lazy mapping for inlet asset events accessors.
 
     :meta private:
     """
 
-    _inlets: list[Any]
-    _assets: dict[AssetUniqueKey, Asset]
-    _asset_aliases: dict[AssetAliasUniqueKey, AssetAlias]
     _session: Session
-
-    def __init__(self, inlets: list, *, session: Session) -> None:
-        self._inlets = inlets
-        self._session = session
-        self._assets = {}
-        self._asset_aliases = {}
-
-        _asset_ref_names: list[str] = []
-        _asset_ref_uris: list[str] = []
-        for inlet in inlets:
-            if isinstance(inlet, Asset):
-                self._assets[AssetUniqueKey.from_asset(inlet)] = inlet
-            elif isinstance(inlet, AssetAlias):
-                self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(inlet)] = inlet
-            elif isinstance(inlet, AssetNameRef):
-                _asset_ref_names.append(inlet.name)
-            elif isinstance(inlet, AssetUriRef):
-                _asset_ref_uris.append(inlet.uri)
-
-        if _asset_ref_names:
-            for _, asset in fetch_active_assets_by_name(_asset_ref_names, self._session).items():
-                self._assets[AssetUniqueKey.from_asset(asset)] = asset
-        if _asset_ref_uris:
-            for _, asset in fetch_active_assets_by_uri(_asset_ref_uris, self._session).items():
-                self._assets[AssetUniqueKey.from_asset(asset)] = asset
-
-    def __iter__(self) -> Iterator[Asset | AssetAlias]:
-        return iter(self._inlets)
-
-    def __len__(self) -> int:
-        return len(self._inlets)
 
     def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> LazyAssetEventSelectSequence:
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
