@@ -19,7 +19,8 @@
  * under the License.
  */
 import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
-import { FiClock } from "react-icons/fi";
+import React from "react";
+import { FiActivity, FiCalendar, FiCheckCircle, FiClock, FiList, FiXCircle } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
@@ -27,12 +28,12 @@ import { capitalize } from "src/utils";
 import { stateColor } from "src/utils/stateColor";
 
 const slots = {
-  open_slots: stateColor.success,
-  occupied_slots: stateColor.up_for_retry,
-  running_slots: stateColor.running,
-  queued_slots: stateColor.queued,
-  scheduled_slots: stateColor.scheduled,
-  deferred_slots: stateColor.deferred,
+  open_slots: { color: stateColor.success, icon: FiCheckCircle },
+  occupied_slots: { color: stateColor.up_for_retry, icon: FiXCircle },
+  running_slots: { color: stateColor.running, icon: FiActivity },
+  queued_slots: { color: stateColor.queued, icon: FiList },
+  scheduled_slots: { color: stateColor.scheduled, icon: FiCalendar },
+  deferred_slots: { color: stateColor.deferred, icon: FiClock },
 };
 
 type PoolBarProps = {
@@ -63,14 +64,27 @@ const PoolBar = ({ pool }: PoolBarProps) => (
 
     <Box margin={4}>
       <Flex bg="gray.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
-        {Object.entries(slots).map(([slotKey, color]) => {
+        {Object.entries(slots).map(([slotKey, { color, icon }]) => {
           const rawSlotValue = pool[slotKey as keyof PoolResponse];
           const slotValue = typeof rawSlotValue === "number" ? rawSlotValue : 0;
           const flexValue = slotValue / pool.slots || 0;
 
+          if (flexValue === 0) {
+            return undefined; // Skip rendering if no value for this slot
+          }
+
           return (
             <Tooltip content={`${capitalize(slotKey.replace("_", " "))}: ${slotValue}`} key={slotKey}>
-              <Box bg={color} flex={flexValue} h="100%" />
+              <Flex
+                alignItems="center"
+                bg={color}
+                flex={flexValue}
+                h="100%"
+                justifyContent="center"
+                position="relative"
+              >
+                {React.createElement(icon, { size: 16, color: "white" })}
+              </Flex>
             </Tooltip>
           );
         })}
