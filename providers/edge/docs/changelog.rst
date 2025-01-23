@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.10.2pre0
+..........
+
+Misc
+~~~~
+
+* ``Fix authentication for cases where webserver.base_url is not defined and worker is not using localhost in 2.10.``
+
 0.10.1pre0
 ..........
 

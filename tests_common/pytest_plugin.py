@@ -784,6 +784,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dagbag = DagBag(os.devnull, include_examples=False, read_dags_from_db=False)
 
         def __enter__(self):
+            self.serialized_model = None
+
             self.dag.__enter__()
             if self.want_serialized:
                 return lazy_object_proxy.Proxy(self._serialized_dag)
@@ -927,8 +929,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
-                kwargs["dag_version"] = None
             else:
+                kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
 

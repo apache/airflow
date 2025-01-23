@@ -419,9 +419,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
-    :param fail_stop: Fails currently running tasks when task in DAG fails.
-        **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
-        An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
+    :param fail_fast: Fails currently running tasks when task in DAG fails.
+        **Warning**: A fail fast dag can only have tasks with the default trigger rule ("all_success").
+        An exception will be thrown if any task in a fail fast dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
     """
 
@@ -1600,6 +1600,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param mark_success_pattern: regex of task_ids to mark as success instead of running
         :param session: database connection (optional)
         """
+        from airflow.serialization.serialized_objects import SerializedDAG
 
         def add_logger_if_needed(ti: TaskInstance):
             """
@@ -1642,8 +1643,10 @@ class DAG(TaskSDKDag, LoggingMixin):
             self.log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
             data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
+
             dr: DagRun = _get_or_create_dagrun(
-                dag=self,
+                dag=scheduler_dag,
                 start_date=logical_date,
                 logical_date=logical_date,
                 run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),

@@ -21,7 +21,6 @@ import json
 from typing import TYPE_CHECKING, Any, cast
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.models import Connection, Operator
 from airflow.utils.helpers import prune_dict
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
@@ -60,6 +59,7 @@ except ImportError:
 
 
 if TYPE_CHECKING:
+    from airflow.models import Connection
     from airflow.models.asset import (
         AssetAliasModel,
         AssetDagRunQueue,
@@ -68,6 +68,7 @@ if TYPE_CHECKING:
         DagScheduleAssetReference,
         TaskOutletAssetReference,
     )
+    from airflow.sdk.types import Operator
 else:
     try:
         from airflow.models.asset import (
@@ -103,7 +104,7 @@ def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:
         # are updated to airflow 2.10+.
         from airflow.serialization.serialized_objects import BaseSerialization
 
-        return cast(Operator, BaseSerialization.deserialize(serialized_operator))
+        return BaseSerialization.deserialize(serialized_operator)
     else:
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
