@@ -110,7 +110,7 @@ class ConnectionBulkUpdateAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.UPDATE
     connections: list[ConnectionBody] = Field(..., description="A list of connections to be updated.")
-    action_not_on_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
 class ConnectionBulkDeleteAction(BulkBaseAction):
@@ -118,7 +118,7 @@ class ConnectionBulkDeleteAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.DELETE
     connection_ids: list[str] = Field(..., description="A list of connection IDs to be deleted.")
-    action_not_on_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
 class ConnectionBulkBody(BaseModel):

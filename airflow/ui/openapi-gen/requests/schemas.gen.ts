@@ -971,7 +971,7 @@ export const $ConnectionBulkDeleteAction = {
       title: "Connection Ids",
       description: "A list of connection IDs to be deleted.",
     },
-    action_not_on_existence: {
+    action_on_non_existence: {
       $ref: "#/components/schemas/BulkActionNotOnExistence",
       default: "fail",
     },
@@ -1041,7 +1041,7 @@ export const $ConnectionBulkUpdateAction = {
       title: "Connections",
       description: "A list of connections to be updated.",
     },
-    action_not_on_existence: {
+    action_on_non_existence: {
       $ref: "#/components/schemas/BulkActionNotOnExistence",
       default: "fail",
     },
@@ -3933,7 +3933,7 @@ export const $PoolBulkDeleteAction = {
       title: "Pool Names",
       description: "A list of pool names to be deleted.",
     },
-    action_not_on_existence: {
+    action_on_non_existence: {
       $ref: "#/components/schemas/BulkActionNotOnExistence",
       default: "fail",
     },
@@ -4003,7 +4003,7 @@ export const $PoolBulkUpdateAction = {
       title: "Pools",
       description: "A list of pools to be updated.",
     },
-    action_not_on_existence: {
+    action_on_non_existence: {
       $ref: "#/components/schemas/BulkActionNotOnExistence",
       default: "fail",
     },
@@ -5908,7 +5908,7 @@ export const $VariableBulkDeleteAction = {
       title: "Keys",
       description: "A list of variable keys to be deleted.",
     },
-    action_not_on_existence: {
+    action_on_non_existence: {
       $ref: "#/components/schemas/BulkActionNotOnExistence",
       default: "fail",
     },
@@ -5978,7 +5978,7 @@ export const $VariableBulkUpdateAction = {
       title: "Variables",
       description: "A list of variables to be updated.",
     },
-    action_not_on_existence: {
+    action_on_non_existence: {
       $ref: "#/components/schemas/BulkActionNotOnExistence",
       default: "fail",
     },

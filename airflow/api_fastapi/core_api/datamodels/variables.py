@@ -95,7 +95,7 @@ class VariableBulkUpdateAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.UPDATE
     variables: list[VariableBody] = Field(..., description="A list of variables to be updated.")
-    action_not_on_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
 class VariableBulkDeleteAction(BulkBaseAction):
@@ -103,7 +103,7 @@ class VariableBulkDeleteAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.DELETE
     keys: list[str] = Field(..., description="A list of variable keys to be deleted.")
-    action_not_on_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
 class VariableBulkBody(BaseModel):

@@ -21,6 +21,7 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import BulkActionNotOnExistence, BulkActionOnExistence
 from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolBulkActionResponse,
@@ -32,27 +33,29 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
 from airflow.models.pool import Pool
 
 
-def categorize_pools(session, pool_names: set) -> tuple[dict, set, set]:
+def categorize_pools(session: SessionDep, pool_names: set) -> tuple[dict, set, set]:
     """
     Categorize the given pool_names into matched_pool_names and not_found_pool_names based on existing pool_names.
 
-    Existed pools are returned as a dict of {pool_name : Pool}.
+    Existing pools are returned as a dict of {pool_name : Pool}.
 
     :param session: SQLAlchemy session
     :param pool_names: set of pool_names
     :return: tuple of dict of existed pools, set of matched pool_names, set of not found pool_names
     """
     existed_pools = session.execute(select(Pool).filter(Pool.pool.in_(pool_names))).scalars()
-    existed_pools_dict = {pool.pool: pool for pool in existed_pools}
-    matched_pool_names = set(existed_pools_dict.keys())
+    existing_pools_dict = {pool.pool: pool for pool in existed_pools}
+    matched_pool_names = set(existing_pools_dict.keys())
     not_found_pool_names = pool_names - matched_pool_names
-    return existed_pools_dict, matched_pool_names, not_found_pool_names
+    return existing_pools_dict, matched_pool_names, not_found_pool_names
 
 
-def handle_bulk_create(session, action: PoolBulkCreateAction, results: PoolBulkActionResponse) -> None:
+def handle_bulk_create(
+    session: SessionDep, action: PoolBulkCreateAction, results: PoolBulkActionResponse
+) -> None:
     """Bulk create pools."""
     to_create_pool_names = {pool.pool for pool in action.pools}
-    existed_pools_dict, matched_pool_names, not_found_pool_names = categorize_pools(
+    existing_pools_dict, matched_pool_names, not_found_pool_names = categorize_pools(
         session, to_create_pool_names
     )
     try:
@@ -69,30 +72,31 @@ def handle_bulk_create(session, action: PoolBulkCreateAction, results: PoolBulkA
         for pool in action.pools:
             if pool.pool in create_pool_names:
                 if pool.pool in matched_pool_names:
-                    existed_pool = existed_pools_dict[pool.pool]
+                    existed_pool = existing_pools_dict[pool.pool]
                     for key, val in pool.model_dump().items():
                         setattr(existed_pool, key, val)
                 else:
                     session.add(Pool(**pool.model_dump()))
                 results.success.append(pool.pool)
-        session.commit()
 
     except HTTPException as e:
         results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
 
 
-def handle_bulk_update(session, action: PoolBulkUpdateAction, results: PoolBulkActionResponse) -> None:
+def handle_bulk_update(
+    session: SessionDep, action: PoolBulkUpdateAction, results: PoolBulkActionResponse
+) -> None:
     """Bulk Update pools."""
     to_update_pool_names = {pool.name for pool in action.pools}
     _, matched_pool_names, not_found_pool_names = categorize_pools(session, to_update_pool_names)
 
     try:
-        if action.action_not_on_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
+        if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The pools with these pool names: {not_found_pool_names} were not found.",
             )
-        elif action.action_not_on_existence == BulkActionNotOnExistence.SKIP:
+        elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
             update_pool_names = matched_pool_names
         else:
             update_pool_names = to_update_pool_names
@@ -118,18 +122,20 @@ def handle_bulk_update(session, action: PoolBulkUpdateAction, results: PoolBulkA
         results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
 
 
-def handle_bulk_delete(session, action: PoolBulkDeleteAction, results: PoolBulkActionResponse) -> None:
+def handle_bulk_delete(
+    session: SessionDep, action: PoolBulkDeleteAction, results: PoolBulkActionResponse
+) -> None:
     """Bulk delete pools."""
     to_delete_pool_names = set(action.pool_names)
     _, matched_pool_names, not_found_pool_names = categorize_pools(session, to_delete_pool_names)
 
     try:
-        if action.action_not_on_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
+        if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The pools with these pool names: {not_found_pool_names} were not found.",
             )
-        elif action.action_not_on_existence == BulkActionNotOnExistence.SKIP:
+        elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
             delete_pool_names = matched_pool_names
         else:
             delete_pool_names = to_delete_pool_names

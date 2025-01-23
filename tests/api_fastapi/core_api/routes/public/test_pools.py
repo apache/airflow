@@ -464,7 +464,7 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "pools": [{"name": "pool2", "slots": 10, "description": "New Description"}],
-                            "action_not_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         }
                     ]
                 },
@@ -477,7 +477,7 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "pools": [{"name": "pool4", "slots": 20, "description": "New Description"}],
-                            "action_not_on_existence": "skip",
+                            "action_on_non_existence": "skip",
                         }
                     ]
                 },
@@ -490,7 +490,7 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "pools": [{"name": "pool4", "slots": 10, "description": "New Description"}],
-                            "action_not_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         }
                     ]
                 },
@@ -510,7 +510,7 @@ class TestBulkPools(TestPoolsEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "pool_names": ["pool1"], "action_not_on_existence": "skip"}
+                        {"action": "delete", "pool_names": ["pool1"], "action_on_non_existence": "skip"}
                     ]
                 },
                 {"delete": {"success": ["pool1"], "errors": []}},
@@ -519,7 +519,7 @@ class TestBulkPools(TestPoolsEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "pool_names": ["pool3"], "action_not_on_existence": "skip"}
+                        {"action": "delete", "pool_names": ["pool3"], "action_on_non_existence": "skip"}
                     ]
                 },
                 {"delete": {"success": [], "errors": []}},
@@ -528,7 +528,7 @@ class TestBulkPools(TestPoolsEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "pool_names": ["pool4"], "action_not_on_existence": "fail"}
+                        {"action": "delete", "pool_names": ["pool4"], "action_on_non_existence": "fail"}
                     ]
                 },
                 {
@@ -555,9 +555,9 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "pools": [{"name": "pool1", "slots": 10, "description": "New Description"}],
-                            "action_not_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "pool_names": ["pool2"], "action_not_on_existence": "skip"},
+                        {"action": "delete", "pool_names": ["pool2"], "action_on_non_existence": "skip"},
                     ]
                 },
                 {
@@ -578,9 +578,9 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "pools": [{"name": "pool1", "slots": 100, "description": "New Description"}],
-                            "action_not_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "pool_names": ["pool4"], "action_not_on_existence": "skip"},
+                        {"action": "delete", "pool_names": ["pool4"], "action_on_non_existence": "skip"},
                     ]
                 },
                 {
@@ -609,9 +609,9 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "pools": [{"name": "pool5", "slots": 10, "description": "New Description"}],
-                            "action_not_on_existence": "skip",
+                            "action_on_non_existence": "skip",
                         },
-                        {"action": "delete", "pool_names": ["pool5"], "action_not_on_existence": "skip"},
+                        {"action": "delete", "pool_names": ["pool5"], "action_on_non_existence": "skip"},
                     ]
                 },
                 {
@@ -632,9 +632,9 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "pools": [{"name": "pool5", "slots": 100, "description": "New test Description"}],
-                            "action_not_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "pool_names": ["pool5"], "action_not_on_existence": "fail"},
+                        {"action": "delete", "pool_names": ["pool5"], "action_on_non_existence": "fail"},
                     ]
                 },
                 {
@@ -655,7 +655,7 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "pools": [{"name": "pool1", "slots": 100, "description": "New test Description"}],
-                            "action_not_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         },
                         {
                             "action": "create",
@@ -665,9 +665,9 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "pools": [{"name": "pool8", "slots": 100, "description": "New test Description"}],
-                            "action_not_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "pool_names": ["pool2"], "action_not_on_existence": "fail"},
+                        {"action": "delete", "pool_names": ["pool2"], "action_on_non_existence": "fail"},
                         {
                             "action": "create",
                             "pools": [{"name": "pool6", "slots": 100, "description": "New test Description"}],
@@ -676,7 +676,7 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "pools": [{"name": "pool9", "slots": 100, "description": "New test Description"}],
-                            "action_not_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         },
                     ]
                 },

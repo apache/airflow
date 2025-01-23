@@ -7005,7 +7005,7 @@ components:
           type: array
           title: Connection Ids
           description: A list of connection IDs to be deleted.
-        action_not_on_existence:
+        action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
       type: object
@@ -7057,7 +7057,7 @@ components:
           type: array
           title: Connections
           description: A list of connections to be updated.
-        action_not_on_existence:
+        action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
       type: object
@@ -8958,7 +8958,7 @@ components:
           type: array
           title: Pool Names
           description: A list of pool names to be deleted.
-        action_not_on_existence:
+        action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
       type: object
@@ -9010,7 +9010,7 @@ components:
           type: array
           title: Pools
           description: A list of pools to be updated.
-        action_not_on_existence:
+        action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
       type: object
@@ -10223,7 +10223,7 @@ components:
           type: array
           title: Keys
           description: A list of variable keys to be deleted.
-        action_not_on_existence:
+        action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
       type: object
@@ -10275,7 +10275,7 @@ components:
           type: array
           title: Variables
           description: A list of variables to be updated.
-        action_not_on_existence:
+        action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
       type: object

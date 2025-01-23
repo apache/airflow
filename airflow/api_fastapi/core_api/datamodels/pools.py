@@ -105,7 +105,7 @@ class PoolBulkUpdateAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.UPDATE
     pools: list[PoolPatchBody] = Field(..., description="A list of pools to be updated.")
-    action_not_on_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
 class PoolBulkDeleteAction(BulkBaseAction):
@@ -113,7 +113,7 @@ class PoolBulkDeleteAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.DELETE
     pool_names: list[str] = Field(..., description="A list of pool names to be deleted.")
-    action_not_on_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
+    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
 class PoolBulkBody(BaseModel):

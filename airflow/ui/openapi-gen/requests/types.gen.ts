@@ -288,7 +288,7 @@ export type ConnectionBulkDeleteAction = {
    * A list of connection IDs to be deleted.
    */
   connection_ids: Array<string>;
-  action_not_on_existence?: BulkActionNotOnExistence;
+  action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -322,7 +322,7 @@ export type ConnectionBulkUpdateAction = {
    * A list of connections to be updated.
    */
   connections: Array<ConnectionBody>;
-  action_not_on_existence?: BulkActionNotOnExistence;
+  action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -1028,7 +1028,7 @@ export type PoolBulkDeleteAction = {
    * A list of pool names to be deleted.
    */
   pool_names: Array<string>;
-  action_not_on_existence?: BulkActionNotOnExistence;
+  action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -1062,7 +1062,7 @@ export type PoolBulkUpdateAction = {
    * A list of pools to be updated.
    */
   pools: Array<PoolPatchBody>;
-  action_not_on_existence?: BulkActionNotOnExistence;
+  action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -1501,7 +1501,7 @@ export type VariableBulkDeleteAction = {
    * A list of variable keys to be deleted.
    */
   keys: Array<string>;
-  action_not_on_existence?: BulkActionNotOnExistence;
+  action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -1535,7 +1535,7 @@ export type VariableBulkUpdateAction = {
    * A list of variables to be updated.
    */
   variables: Array<VariableBody>;
-  action_not_on_existence?: BulkActionNotOnExistence;
+  action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 /**
