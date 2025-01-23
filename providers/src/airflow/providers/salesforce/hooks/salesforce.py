@@ -151,6 +151,7 @@ class SalesforceHook(BaseHook):
             session=self.session,
             client_id=self._get_field(extras, "client_id") or None,
             consumer_key=self._get_field(extras, "consumer_key") or None,
+            consumer_secret=self._get_field(extras, "consumer_secret") or None,
             privatekey_file=self._get_field(extras, "private_key_file_path") or None,
             privatekey=self._get_field(extras, "private_key") or None,
         )
