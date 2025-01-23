@@ -355,9 +355,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_NO_REPO_URL,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
-        with pytest.raises(
-            AirflowException, match=f"Connection {CONN_NO_REPO_URL} doesn't have a git_repo_url"
-        ):
+        with pytest.raises(AirflowException, match=f"Connection {CONN_NO_REPO_URL} doesn't have a host url"):
             bundle.initialize()
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
@@ -431,6 +429,7 @@ class TestGitDagBundle:
             name="test",
             tracking_ref="main",
         )
+        bundle.initialize()
         view_url = bundle.view_url("0f0f0f")
         assert view_url == expected_url
 
@@ -440,5 +439,6 @@ class TestGitDagBundle:
             name="test",
             tracking_ref="main",
         )
+        bundle.initialize()
         view_url = bundle.view_url(None)
         assert view_url is None
