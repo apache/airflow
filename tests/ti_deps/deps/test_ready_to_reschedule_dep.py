@@ -49,9 +49,10 @@ def not_expected_tr_db_call():
         yield m
 
 
+@pytest.mark.usefixtures("clean_executor_loader")
 class TestNotInReschedulePeriodDep:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, request, create_task_instance, clean_executor_loader):
+    def setup_test_cases(self, request, create_task_instance):
         db.clear_db_runs()
         db.clear_rendered_ti_fields()
 

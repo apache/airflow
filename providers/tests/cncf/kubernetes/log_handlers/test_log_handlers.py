@@ -74,9 +74,8 @@ class TestFileTaskLogHandler:
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_task_log"
     )
     @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
-    def test__read_for_k8s_executor(
-        self, mock_k8s_get_task_log, create_task_instance, state, clean_executor_loader
-    ):
+    @pytest.mark.usefixtures("clean_executor_loader")
+    def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance, state):
         """Test for k8s executor, the log is read from get_task_log method"""
         mock_k8s_get_task_log.return_value = ([], [])
         executor_name = "KubernetesExecutor"
