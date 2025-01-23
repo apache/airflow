@@ -872,16 +872,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     task_log_reader = TaskLogReader()
                     if task_log_reader.supports_read:
+                        hosts: list[str] = []
+                        log_streams: list[Iterable[str]]
                         metadata: dict[str, Any] = {}
-                        logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number, metadata)
-                        if ti.hostname in dict(logs[0]):
-                            message = str(dict(logs[0])[ti.hostname]).replace("\\n", "\n")
+                        hosts, log_streams, metadata = task_log_reader.read_log_chunks(
+                            ti, ti.try_number, metadata
+                        )
+                        if ti.hostname in hosts:
+                            message = str(next(iter(log_streams[0])))
                             while metadata["end_of_log"] is False:
-                                logs, metadata = task_log_reader.read_log_chunks(
+                                hosts, log_streams, metadata = task_log_reader.read_log_chunks(
                                     ti, ti.try_number - 1, metadata
                                 )
-                                if ti.hostname in dict(logs[0]):
-                                    message = message + str(dict(logs[0])[ti.hostname]).replace("\\n", "\n")
+                                if ti.hostname in hosts:
+                                    message = message + str(next(iter(log_streams[0])))
                             if span.is_recording():
                                 span.add_event(
                                     name="task_log",
