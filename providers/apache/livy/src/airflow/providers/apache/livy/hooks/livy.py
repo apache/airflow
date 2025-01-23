@@ -506,7 +506,7 @@ class LivyAsyncHook(HttpAsyncHook):
         self.http_conn_id = livy_conn_id
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
-        self.endpoint_prefix = endpoint_prefix
+        self.endpoint_prefix = sanitize_endpoint_prefix(endpoint_prefix)
 
     async def _do_api_call_async(
         self,
