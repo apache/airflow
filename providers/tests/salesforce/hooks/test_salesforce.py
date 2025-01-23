@@ -70,6 +70,7 @@ class TestSalesforceHook:
                 "client_id": "my_client",
                 "domain": "test",
                 "security_token": "token",
+                "consumer_secret": "consumer_secret"
                 "version": "42.0"
             }
             """,
@@ -94,6 +95,7 @@ class TestSalesforceHook:
             session=None,
             client_id=extras["client_id"],
             consumer_key=None,
+            consumer_secret=extras["consumer_secret"],
             privatekey_file=None,
             privatekey=None,
         )
