@@ -358,16 +358,9 @@ class TestTIUpdateState:
         assert len(event) == 1
         assert event[0].asset_id == 1
         assert event[0].asset == AssetModel(name="s3://bucket/my-task", uri="s3://bucket/my-task", extra={})
+        assert event[0].extra == {}
         if asset_type == "AssetAlias":
             assert event[0].source_aliases == [AssetAliasModel(name="example-alias")]
-        else:
-            assert event[0].extra == [
-                {
-                    "asset_alias_events": [],
-                    "extra": {},
-                    "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
-                }
-            ]
 
     def test_ti_update_state_not_found(self, client, session):
         """
@@ -426,7 +419,9 @@ class TestTIUpdateState:
             side_effect=[
                 mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
                 mock.Mock(one=lambda: ("running", 1, 0)),  # Second call returns "queued"
-                SQLAlchemyError("Database error"),  # Second call raises an error
+                mock.Mock(one=lambda: ("running", 1, 0)),  # Third call returns "queued"
+                mock.Mock(one=lambda: ("running", 1, 0)),  # Fourth call returns "queued"
+                SQLAlchemyError("Database error"),  # Last call raises an error
             ],
         ):
             response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
