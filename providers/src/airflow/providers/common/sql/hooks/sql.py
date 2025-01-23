@@ -229,7 +229,7 @@ class DbApiHook(BaseHook):
             self._escape_word_format = self.connection_extra.get("escape_word_format", '"{}"')
         return self._escape_word_format
 
-    @cached_property
+    @property
     def escape_column_names(self) -> bool:
         """Return the escape column names flag."""
         if not self._escape_column_names:
