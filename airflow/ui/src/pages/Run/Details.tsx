@@ -20,6 +20,7 @@ import { Box, Flex, HStack, Table, Text } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun } from "openapi/queries";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton, Status } from "src/components/ui";
@@ -120,6 +121,12 @@ export const Details = () => {
                 <Table.Cell>{dagRun.triggered_by}</Table.Cell>
               </Table.Row>
             ) : undefined}
+            <Table.Row>
+              <Table.Cell>Run Config</Table.Cell>
+              <Table.Cell>
+                <RenderedJsonField content={dagRun.conf} />
+              </Table.Cell>
+            </Table.Row>
           </Table.Body>
         </Table.Root>
       )}
