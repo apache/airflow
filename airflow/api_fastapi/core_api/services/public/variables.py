@@ -21,7 +21,8 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow.api_fastapi.core_api.datamodels.common import BulkActionOnExistence
+from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.core_api.datamodels.common import BulkActionNotOnExistence, BulkActionOnExistence
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
     VariableBulkActionResponse,
@@ -32,7 +33,7 @@ from airflow.api_fastapi.core_api.datamodels.variables import (
 from airflow.models.variable import Variable
 
 
-def categorize_keys(session, keys: set) -> tuple[set, set]:
+def categorize_keys(session: SessionDep, keys: set) -> tuple[set, set]:
     """Categorize the given keys into matched_keys and not_found_keys based on existing keys."""
     existing_keys = {variable for variable in session.execute(select(Variable.key)).scalars()}
     matched_keys = existing_keys & keys
@@ -41,7 +42,7 @@ def categorize_keys(session, keys: set) -> tuple[set, set]:
 
 
 def handle_bulk_create(
-    session, action: VariableBulkCreateAction, results: VariableBulkActionResponse
+    session: SessionDep, action: VariableBulkCreateAction, results: VariableBulkActionResponse
 ) -> None:
     """Bulk create variables."""
     to_create_keys = {variable.key for variable in action.variables}
@@ -70,19 +71,19 @@ def handle_bulk_create(
 
 
 def handle_bulk_update(
-    session, action: VariableBulkUpdateAction, results: VariableBulkActionResponse
+    session: SessionDep, action: VariableBulkUpdateAction, results: VariableBulkActionResponse
 ) -> None:
     """Bulk Update variables."""
     to_update_keys = {variable.key for variable in action.variables}
     matched_keys, not_found_keys = categorize_keys(session, to_update_keys)
 
     try:
-        if action.action_on_existence == BulkActionOnExistence.FAIL and not_found_keys:
+        if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The variables with these keys: {not_found_keys} were not found.",
             )
-        elif action.action_on_existence == BulkActionOnExistence.SKIP:
+        elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
             update_keys = matched_keys
         else:
             update_keys = to_update_keys
@@ -105,19 +106,19 @@ def handle_bulk_update(
 
 
 def handle_bulk_delete(
-    session, action: VariableBulkDeleteAction, results: VariableBulkActionResponse
+    session: SessionDep, action: VariableBulkDeleteAction, results: VariableBulkActionResponse
 ) -> None:
     """Bulk delete variables."""
     to_delete_keys = set(action.keys)
     matched_keys, not_found_keys = categorize_keys(session, to_delete_keys)
 
     try:
-        if action.action_on_existence == BulkActionOnExistence.FAIL and not_found_keys:
+        if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"The variables with these keys: {not_found_keys} were not found.",
             )
-        elif action.action_on_existence == BulkActionOnExistence.SKIP:
+        elif action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
             delete_keys = matched_keys
         else:
             delete_keys = to_delete_keys
