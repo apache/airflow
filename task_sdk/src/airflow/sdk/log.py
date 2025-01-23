@@ -26,7 +26,7 @@ from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, Callable, Generic, TextIO, TypeVar
 
-import msgspec
+import orjson
 import structlog
 
 if TYPE_CHECKING:
@@ -196,13 +196,11 @@ def logging_processors(
         else:
             exc_group_processor = None
 
-        encoder = msgspec.json.Encoder()
-
         def json_dumps(msg, default):
-            return encoder.encode(msg)
+            return orjson.dumps(msg, default=default)
 
         def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-            return encoder.encode(event_dict).decode("utf-8")
+            return orjson.dumps(event_dict).decode("utf-8")
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 
