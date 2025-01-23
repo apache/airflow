@@ -52,6 +52,13 @@ class BatchState(Enum):
     SUCCESS = "success"
 
 
+def sanitize_endpoint_prefix(endpoint_prefix) -> str:
+    """
+    Ensure that the endpoint prefix is prefixed with a slash.
+    """
+    return f"/{endpoint_prefix.strip('/')}" if endpoint_prefix else ""
+
+
 class LivyHook(HttpHook):
     """
     Hook for Apache Livy through the REST API.
@@ -93,7 +100,7 @@ class LivyHook(HttpHook):
         self.http_conn_id = livy_conn_id
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
-        self.endpoint_prefix = endpoint_prefix or ""
+        self.endpoint_prefix = sanitize_endpoint_prefix(endpoint_prefix)
         if auth_type:
             self.auth_type = auth_type
 
