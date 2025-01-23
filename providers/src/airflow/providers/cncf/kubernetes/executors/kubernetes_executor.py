@@ -160,6 +160,7 @@ class KubernetesExecutor(BaseExecutor):
         }
         dynamic_client = DynamicClient(self.kube_client.api_client)
         pod_resource = dynamic_client.resources.get(api_version="v1", kind="Pod")
+        print("log line to test fix")
         if self.kube_config.multi_namespace_mode:
             if self.kube_config.multi_namespace_mode_namespace_list:
                 namespaces = self.kube_config.multi_namespace_mode_namespace_list
