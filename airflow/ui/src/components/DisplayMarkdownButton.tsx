@@ -38,12 +38,12 @@ const DisplayMarkdownButton = ({
 
   return (
     <Box>
-      <Button data-testid="documentation-button" onClick={() => setIsDocsOpen(true)} variant="outline">
-        <FiBookOpen height={5} width={5} />
-        {docType} Docs
+      <Button data-testid="markdown-button" onClick={() => setIsDocsOpen(true)} variant="outline">
+        {icon}
+        {text}
       </Button>
       <Dialog.Root
-        data-testid="documentation-modal"
+        data-testid="markdown-modal"
         onOpenChange={() => setIsDocsOpen(false)}
         open={isDocsOpen}
         size="md"

@@ -38,8 +38,8 @@ describe("Dag Documentation Modal", () => {
   it("Display documentation button only when docs_md is present", async () => {
     render(<AppWrapper initialEntries={["/dags/tutorial_taskflow_api"]} />);
 
-    await waitFor(() => expect(screen.getByTestId("documentation-button")).toBeInTheDocument());
-    await waitFor(() => screen.getByTestId("documentation-button").click());
+    await waitFor(() => expect(screen.getByTestId("markdown-button")).toBeInTheDocument());
+    await waitFor(() => screen.getByTestId("markdown-button").click());
     await waitFor(() =>
       expect(screen.getByText(/taskflow api tutorial documentation/iu)).toBeInTheDocument(),
     );

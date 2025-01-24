@@ -67,6 +67,10 @@ export const routerConfig = [
         path: "variables",
       },
       {
+        element: <Pools />,
+        path: "pools",
+      },
+      {
         children: [
           { element: <Overview />, index: true },
           { element: <Runs />, path: "runs" },
@@ -82,6 +86,7 @@ export const routerConfig = [
           { element: <TaskInstances />, index: true },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
+          { element: <DagRunDetails />, path: "details" },
         ],
         element: <Run />,
         path: "dags/:dagId/runs/:runId",
