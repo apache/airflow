@@ -59,6 +59,7 @@ export const useClearTaskInstances = ({
     if (variables.requestBody.dry_run) {
       onSuccessDryRun(data);
     } else {
+      // deduplication using set as user can clear multiple map index of the same task_id.
       const taskInstanceKeys = [
         ...new Set(
           (variables.requestBody.task_ids ?? [])
