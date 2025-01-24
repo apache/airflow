@@ -17,58 +17,59 @@
  * under the License.
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
-import type {
-  DAGRunClearBody,
-  DAGRunResponse,
-  TaskInstanceCollectionResponse,
-} from "openapi/requests/types.gen";
+import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { Button, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
+import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
+import { useClearDagRun } from "src/queries/useClearRun";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 
 import ClearAccordion from "../ClearAccordion";
 
 type Props = {
-  readonly affectedTasks: TaskInstanceCollectionResponse;
   readonly dagRun: DAGRunResponse;
-  readonly isPending: boolean;
-  readonly mutate: ({
-    dagId,
-    dagRunId,
-    requestBody,
-  }: {
-    dagId: string;
-    dagRunId: string;
-    requestBody: DAGRunClearBody;
-  }) => void;
   readonly onClose: () => void;
   readonly open: boolean;
 };
 
-const ClearRunDialog = ({ affectedTasks, dagRun, isPending, mutate, onClose, open }: Props) => {
+const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
-
-  const onlyFailed = selectedOptions.includes("onlyFailed");
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
 
+  const { isPending, mutate } = useClearDagRun({
+    dagId,
+    dagRunId,
+    onSuccessConfirm: onClose,
+  });
+
+  const onlyFailed = selectedOptions.includes("onlyFailed");
+
   const [note, setNote] = useState<string | null>(dagRun.note);
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchDagRun } = usePatchDagRun({ dagId, dagRunId });
 
-  useEffect(() => {
-    mutate({
-      dagId,
-      dagRunId,
-      requestBody: { dry_run: true, only_failed: onlyFailed },
-    });
-  }, [dagId, dagRunId, mutate, onlyFailed]);
+  const { data } = useClearDagRunDryRun({
+    dagId,
+    dagRunId,
+    options: {
+      enabled: open,
+    },
+    requestBody: {
+      only_failed: onlyFailed,
+    },
+  });
+
+  const affectedTasks = data ?? {
+    task_instances: [],
+    total_entries: 0,
+  };
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -100,6 +101,7 @@ const ClearRunDialog = ({ affectedTasks, dagRun, isPending, mutate, onClose, ope
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
+              disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
               onClick={() => {
                 mutate({
@@ -107,11 +109,13 @@ const ClearRunDialog = ({ affectedTasks, dagRun, isPending, mutate, onClose, ope
                   dagRunId,
                   requestBody: { dry_run: false, only_failed: onlyFailed },
                 });
-                mutatePatchDagRun({
-                  dagId,
-                  dagRunId,
-                  requestBody: { note },
-                });
+                if (note !== dagRun.note) {
+                  mutatePatchDagRun({
+                    dagId,
+                    dagRunId,
+                    requestBody: { note },
+                  });
+                }
               }}
             >
               <FiRefreshCw /> Confirm

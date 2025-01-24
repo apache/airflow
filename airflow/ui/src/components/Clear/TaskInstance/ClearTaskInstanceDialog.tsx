@@ -17,42 +17,37 @@
  * under the License.
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
-import type {
-  ClearTaskInstancesBody,
-  TaskInstanceCollectionResponse,
-  TaskInstanceResponse,
-} from "openapi/requests/types.gen";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Button, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
+import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
+import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 
 import ClearAccordion from "../ClearAccordion";
 
 type Props = {
-  readonly affectedTasks: TaskInstanceCollectionResponse;
-  readonly isPending: boolean;
-  readonly mutate: ({ dagId, requestBody }: { dagId: string; requestBody: ClearTaskInstancesBody }) => void;
   readonly onClose: () => void;
   readonly open: boolean;
   readonly taskInstance: TaskInstanceResponse;
 };
 
-const ClearTaskInstanceDialog = ({
-  affectedTasks,
-  isPending,
-  mutate,
-  onClose,
-  open,
-  taskInstance,
-}: Props) => {
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
+const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
+
+  const dagId = taskInstance.dag_id;
+  const dagRunId = taskInstance.dag_run_id;
+
+  const { isPending, mutate } = useClearTaskInstances({
+    dagId,
+    dagRunId,
+    onSuccessConfirm: onClose,
+  });
 
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
 
@@ -70,24 +65,29 @@ const ClearTaskInstanceDialog = ({
     taskId,
   });
 
-  useEffect(() => {
-    mutate({
-      dagId,
-      requestBody: {
-        dag_run_id: dagRunId,
-        dry_run: true,
-        include_downstream: downstream,
-        include_future: future,
-        include_past: past,
-        include_upstream: upstream,
-        only_failed: onlyFailed,
-        task_ids: [taskId],
-      },
-    });
-  }, [dagId, dagRunId, downstream, future, mutate, onlyFailed, past, taskId, upstream]);
+  const { data } = useClearTaskInstancesDryRun({
+    dagId,
+    options: {
+      enabled: open,
+    },
+    requestBody: {
+      dag_run_id: dagRunId,
+      include_downstream: downstream,
+      include_future: future,
+      include_past: past,
+      include_upstream: upstream,
+      only_failed: onlyFailed,
+      task_ids: [taskId],
+    },
+  });
+
+  const affectedTasks = data ?? {
+    task_instances: [],
+    total_entries: 0,
+  };
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -118,6 +118,7 @@ const ClearTaskInstanceDialog = ({
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
+              disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
               onClick={() => {
                 mutate({
@@ -133,13 +134,15 @@ const ClearTaskInstanceDialog = ({
                     task_ids: [taskId],
                   },
                 });
-                mutatePatchTaskInstance({
-                  dagId,
-                  dagRunId,
-                  mapIndex,
-                  requestBody: { note },
-                  taskId,
-                });
+                if (note !== taskInstance.note) {
+                  mutatePatchTaskInstance({
+                    dagId,
+                    dagRunId,
+                    mapIndex,
+                    requestBody: { note },
+                    taskId,
+                  });
+                }
               }}
             >
               <FiRefreshCw /> Confirm
