@@ -32,23 +32,45 @@ export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const [error, setError] = useState<unknown>(undefined);
+  // Determine the expected type based on schema
+  const expectedType = param.schema.items?.type ?? "object";
 
   const handleChange = (value: string) => {
     setError(undefined);
-    try {
-      const parsedValue = JSON.parse(value) as JSON;
-
-      if (!Array.isArray(parsedValue)) {
-        throw new TypeError("Value must be an array");
-      }
-
+    if (value === "") {
       if (paramsDict[name]) {
-        paramsDict[name].value = parsedValue;
+        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+        // eslint-disable-next-line unicorn/no-null
+        paramsDict[name].value = null;
       }
-
       setParamsDict(paramsDict);
-    } catch (_error) {
-      setError(_error);
+    } else {
+      try {
+        const parsedValue = JSON.parse(value) as unknown;
+
+        if (!Array.isArray(parsedValue)) {
+          throw new TypeError("Value must be an array.");
+        }
+
+        if (expectedType === "number" && !parsedValue.every((item) => typeof item === "number")) {
+          // Ensure all elements in the array are numbers
+          throw new TypeError("All elements in the array must be numbers.");
+        } else if (
+          expectedType === "object" &&
+          !parsedValue.every((item) => typeof item === "object" && item !== null)
+        ) {
+          // Ensure all elements in the array are objects
+          throw new TypeError("All elements in the array must be objects.");
+        }
+
+        if (paramsDict[name]) {
+          paramsDict[name].value = parsedValue;
+        }
+
+        setParamsDict(paramsDict);
+      } catch (_error) {
+        setError(expectedType === "number" ? String(_error).replace("JSON", "Array") : _error);
+      }
     }
   };
 
@@ -75,7 +97,11 @@ export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
         theme={colorMode === "dark" ? githubDark : githubLight}
         value={JSON.stringify(param.value ?? [], undefined, 2)}
       />
-      {Boolean(error) ? <Text color="red">{String(error)}</Text> : undefined}
+      {Boolean(error) ? (
+        <Text color="red.solid" fontSize="xs">
+          {String(error)}
+        </Text>
+      ) : undefined}
     </>
   );
 };

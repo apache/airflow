@@ -31,7 +31,7 @@ export type FlexibleFormProps = {
 };
 
 export const FlexibleForm = ({ initialParamsDict }: FlexibleFormProps) => {
-  const { paramsDict: params, setParamsDict } = useParamStore();
+  const { paramsDict: params, setinitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
 
   useEffect(() => {
@@ -39,14 +39,16 @@ export const FlexibleForm = ({ initialParamsDict }: FlexibleFormProps) => {
       const paramsCopy = structuredClone(initialParamsDict.paramsDict);
 
       setParamsDict(paramsCopy);
+      setinitialParamDict(initialParamsDict.paramsDict);
     }
-  }, [initialParamsDict, params, setParamsDict]);
+  }, [initialParamsDict, params, setParamsDict, setinitialParamDict]);
 
   useEffect(
     () => () => {
       setParamsDict({});
+      setinitialParamDict({});
     },
-    [setParamsDict],
+    [setParamsDict, setinitialParamDict],
   );
 
   return Object.entries(params).some(([, param]) => typeof param.schema.section !== "string")

@@ -43,8 +43,12 @@ export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
   );
 
   useEffect(() => {
+    // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+    // eslint-disable-next-line unicorn/no-null
+    const newValue = selectedOptions.length ? selectedOptions.map((option) => option.value) : null;
+
     if (paramsDict[name]) {
-      paramsDict[name].value = selectedOptions.map((option) => option.value);
+      paramsDict[name].value = newValue;
     }
     setParamsDict(paramsDict);
   }, [selectedOptions, paramsDict, setParamsDict, name]);

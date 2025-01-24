@@ -24,8 +24,18 @@ export const FieldNumber = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
-    if (paramsDict[name]) {
-      paramsDict[name].value = Number(value);
+    if (value === "") {
+      // If input is cleared, set the value to null or undefined
+      if (paramsDict[name]) {
+        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+        // eslint-disable-next-line unicorn/no-null
+        paramsDict[name].value = null;
+      }
+    } else {
+      // Convert the string to a number if a valid value is entered
+      if (paramsDict[name]) {
+        paramsDict[name].value = Number(value);
+      }
     }
 
     setParamsDict(paramsDict);

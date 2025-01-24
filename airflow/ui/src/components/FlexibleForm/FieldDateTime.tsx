@@ -26,7 +26,9 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name]) {
-      paramsDict[name].value = value.slice(0, 16);
+      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+      // eslint-disable-next-line unicorn/no-null
+      paramsDict[name].value = value === "" ? null : value.slice(0, 16);
     }
 
     setParamsDict(paramsDict);
@@ -39,7 +41,7 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
       onChange={(event) => handleChange(event.target.value)}
       size="sm"
       type={rest.type}
-      value={typeof param.value === "string" ? param.value.slice(0, 16) : undefined}
+      value={param.value !== null && param.value !== undefined ? String(param.value).slice(0, 16) : ""}
     />
   );
 };

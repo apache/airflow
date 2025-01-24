@@ -89,8 +89,8 @@ const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
 
 export const FieldSelector = ({ name }: FlexibleFormElementProps) => {
   // FUTURE: Add support for other types as described in AIP-68 via Plugins
-  const { paramsDict } = useParamStore();
-  const param = paramsDict[name] ?? paramPlaceholder;
+  const { initialParamDict } = useParamStore();
+  const param = initialParamDict[name] ?? paramPlaceholder;
   const fieldType = inferType(param);
 
   if (isFieldBool(fieldType)) {

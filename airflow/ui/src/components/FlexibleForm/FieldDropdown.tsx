@@ -49,7 +49,9 @@ export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
 
   const handleChange = ([value]: Array<string>) => {
     if (paramsDict[name]) {
-      paramsDict[name].value = value;
+      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+      // eslint-disable-next-line unicorn/no-null
+      paramsDict[name].value = value ?? null;
     }
 
     setParamsDict(paramsDict);
@@ -65,7 +67,7 @@ export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
       size="sm"
       value={enumTypes.includes(typeof param.value) ? [param.value as string] : undefined}
     >
-      <Select.Trigger>
+      <Select.Trigger clearable>
         <Select.ValueText placeholder="Select Value" />
       </Select.Trigger>
       <Select.Content portalRef={contentRef}>

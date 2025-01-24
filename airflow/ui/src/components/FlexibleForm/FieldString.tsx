@@ -26,7 +26,9 @@ export const FieldString = ({ name }: FlexibleFormElementProps) => {
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name]) {
-      paramsDict[name].value = value === "" ? undefined : value;
+      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+      // eslint-disable-next-line unicorn/no-null
+      paramsDict[name].value = value === "" ? null : value;
     }
 
     setParamsDict(paramsDict);

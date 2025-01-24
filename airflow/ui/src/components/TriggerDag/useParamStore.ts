@@ -43,13 +43,16 @@ export const paramPlaceholder: ParamSpec = {
 
 type FormStore = {
   conf: string;
+  initialParamDict: DagParamsSpec;
   paramsDict: DagParamsSpec;
   setConf: (confString: string) => void;
+  setinitialParamDict: (newParamsDict: DagParamsSpec) => void;
   setParamsDict: (newParamsDict: DagParamsSpec) => void;
 };
 
 export const useParamStore = create<FormStore>((set) => ({
   conf: "{}",
+  initialParamDict: {},
   paramsDict: {},
 
   setConf: (confString: string) =>
@@ -77,6 +80,8 @@ export const useParamStore = create<FormStore>((set) => ({
 
       return { conf: confString, paramsDict: updatedParamsDict };
     }),
+
+  setinitialParamDict: (newParamsDict: DagParamsSpec) => set(() => ({ initialParamDict: newParamsDict })),
 
   setParamsDict: (newParamsDict: DagParamsSpec) =>
     set((state) => {

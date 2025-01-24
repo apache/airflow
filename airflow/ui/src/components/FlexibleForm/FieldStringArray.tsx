@@ -24,6 +24,7 @@ import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 export const FieldStringArray = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
+
   const handleChange = (newValue: string) => {
     const newValueArray = newValue.split("\n");
 
@@ -34,12 +35,27 @@ export const FieldStringArray = ({ name }: FlexibleFormElementProps) => {
     setParamsDict(paramsDict);
   };
 
-  const value = Array.isArray(param.value) ? param.value.join("\n") : "";
+  const handleBlur = () => {
+    const currentValue = paramsDict[name]?.value;
+
+    if (Array.isArray(currentValue) && currentValue.length === 1 && currentValue[0] === "") {
+      if (paramsDict[name]) {
+        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+        // eslint-disable-next-line unicorn/no-null
+        paramsDict[name].value = null;
+      }
+
+      setParamsDict(paramsDict);
+    }
+  };
+
+  const value = Array.isArray(param.value) ? param.value.join("\n") : [];
 
   return (
     <Textarea
       id={`element_${name}`}
       name={`element_${name}`}
+      onBlur={handleBlur}
       onChange={(event) => handleChange(event.target.value)}
       placeholder="Enter each string on a new line"
       rows={6}
