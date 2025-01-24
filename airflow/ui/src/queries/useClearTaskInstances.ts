@@ -59,26 +59,25 @@ export const useClearTaskInstances = ({
     if (variables.requestBody.dry_run) {
       onSuccessDryRun(data);
     } else {
-      const taskInstanceKeys = (variables.requestBody.task_ids ?? [])
-        .filter(
-          (taskId): taskId is string | [string, number] =>
-            typeof taskId === "string" || Array.isArray(taskId),
-        )
-        .map((taskId) => {
-          // Determine the actual task_id
-          const actualTaskId = Array.isArray(taskId) ? taskId[0] : taskId;
+      const taskInstanceKeys = [
+        ...new Set(
+          (variables.requestBody.task_ids ?? [])
+            .filter((taskId) => typeof taskId === "string" || Array.isArray(taskId))
+            .map((taskId) => {
+              const actualTaskId = Array.isArray(taskId) ? taskId[0] : taskId;
+              const runId = variables.requestBody.dag_run_id;
 
-          const runId = variables.requestBody.dag_run_id;
+              if (runId === null || runId === undefined) {
+                return undefined;
+              }
 
-          if (runId === null || runId === undefined) {
-            return undefined;
-          }
+              const params = { dagId, dagRunId: runId, taskId: actualTaskId };
 
-          const params = { dagId, dagRunId: runId, taskId: actualTaskId };
-
-          return UseTaskInstanceServiceGetTaskInstanceKeyFn(params);
-        })
-        .filter((key) => key !== undefined);
+              return UseTaskInstanceServiceGetTaskInstanceKeyFn(params);
+            })
+            .filter((key) => key !== undefined),
+        ),
+      ];
 
       const queryKeys = [
         [useTaskInstanceServiceGetTaskInstancesKey],
