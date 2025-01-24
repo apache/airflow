@@ -33,7 +33,7 @@ Connect your project to Gitpod
             alt="Forking Apache Airflow project">
      </div>
 
-2. Goto your github account's fork of airflow click on ``Code`` and copy the clone link.
+2. Goto your github account's fork of airflow click on `Code and copy the clone link.
 
    .. raw:: html
 
@@ -51,28 +51,27 @@ Connect your project to Gitpod
              alt="Open personal airflow clone with Gitpod">
       </div>
 
-
 Installing Breeze
----------------
+-----------------
 
-Gitpod's default image includes the required packages. You can install Breeze using either uv or pipx:
+Gitpod's default image includes the required packages. You can install Breeze using either `uv` or `pipx`:
 
-Using uv (recommended):
+### Using `uv` (recommended):
 
-.. code-block:: bash
+   .. code-block:: bash
 
-   pip install uv
-   uv tool install -e ./dev/breeze
+      pip install uv
+      uv tool install -e ./dev/breeze
 
-Using pipx (alternative):
+### Using `pipx` (alternative):
 
-.. code-block:: bash
+   .. code-block:: bash
 
-   pip install pipx
-   pipx install -e ./dev/breeze
+      pip install pipx
+      pipx install -e ./dev/breeze
 
 Initializing the Database
------------------------
+------------------------
 
 Before running the webserver, you need to initialize the database:
 
@@ -95,31 +94,30 @@ Before running the webserver, you need to initialize the database:
          --lastname bar
 
 Starting Airflow
---------------
+----------------
 
 To start Airflow using Breeze:
 
-.. image:: images/airflow-gitpod.png
-   :alt: Open personal airflow clone with Gitpod
-   :align: center
-   :width: 600px
+   .. image:: images/airflow-gitpod.png
+      :alt: Open personal airflow clone with Gitpod
+      :align: center
+      :width: 600px
 
-.. code-block:: bash
+   .. code-block:: bash
 
-   breeze start-airflow
+      breeze start-airflow
 
-to start the airflow in development mode 
+To start Airflow in development mode:
 
-.. code-block:: bash
- 
-   breeze start-airflow --dev-mode
+   .. code-block:: bash
+
+      breeze start-airflow --dev-mode
 
 .. note::
    The database initialization step is required only when you plan to use the webserver.
    When running tests, the database will be initialized automatically on the first run.
 
 Next Steps
----------
+----------
 
 For typical development tasks, refer to the `Quick Start Guide <../03_contributors_quick_start.rst>`_.
-
