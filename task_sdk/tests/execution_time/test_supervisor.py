@@ -55,6 +55,7 @@ from airflow.sdk.execution_time.comms import (
     RescheduleTask,
     SetRenderedFields,
     SetXCom,
+    SucceedTask,
     TaskState,
     VariableResult,
     XComResult,
@@ -979,6 +980,20 @@ class TestHandleRequest:
                 id="get_asset_by_uri",
             ),
             pytest.param(
+                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                b"",
+                "task_instances.succeed",
+                (),
+                {
+                    "id": TI_ID,
+                    "outlet_events": None,
+                    "task_outlets": None,
+                    "when": timezone.parse("2024-10-31T12:00:00Z"),
+                },
+                "",
+                id="succeed_task",
+            ),
+            pytest.param(
                 GetPrevSuccessfulDagRun(ti_id=TI_ID),
                 (
                     b'{"data_interval_start":"2025-01-10T12:00:00Z","data_interval_end":"2025-01-10T14:00:00Z",'
@@ -1002,6 +1017,7 @@ class TestHandleRequest:
         self,
         watched_subprocess,
         mocker,
+        time_machine,
         message,
         expected_buffer,
         client_attr_path,
@@ -1030,6 +1046,7 @@ class TestHandleRequest:
         next(generator)
         msg = message.model_dump_json().encode() + b"\n"
         generator.send(msg)
+        time_machine.move_to(timezone.datetime(2024, 10, 31), tick=False)
 
         # Verify the correct client method was called
         if client_attr_path:

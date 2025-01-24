@@ -44,7 +44,6 @@ import uuid6
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
-    DateTime,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -106,6 +105,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
+from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
@@ -161,8 +161,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.types import OutletEventAccessorsProtocol, RuntimeTaskInstanceProtocol
-    from airflow.timetables.base import DataInterval
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
 
@@ -354,7 +353,29 @@ def _run_raw_task(
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                ti._register_asset_changes(events=context["outlet_events"], session=session)
+                added_alias_to_task_outlet = False
+                task_outlets = []
+                outlet_events = []
+                events = context["outlet_events"]
+                for obj in ti.task.outlets or []:
+                    # Lineage can have other types of objects besides assets
+                    asset_type = type(obj).__name__
+                    if isinstance(obj, Asset):
+                        task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
+                        outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
+                    elif isinstance(obj, AssetNameRef):
+                        task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
+                        outlet_events.append(attrs.asdict(events))  # type: ignore
+                    elif isinstance(obj, AssetUriRef):
+                        task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
+                        outlet_events.append(attrs.asdict(events))  # type: ignore
+                    elif isinstance(obj, AssetAlias):
+                        if not added_alias_to_task_outlet:
+                            task_outlets.append(AssetProfile(asset_type=asset_type))
+                            added_alias_to_task_outlet = True
+                        for asset_alias_event in events[obj].asset_alias_events:
+                            outlet_events.append(attrs.asdict(asset_alias_event))
+                TaskInstance.register_asset_changes_in_db(ti, task_outlets, outlet_events, session=session)
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
@@ -928,6 +949,11 @@ def _get_template_context(
     from airflow import macros
     from airflow.models.abstractoperator import NotMapped
     from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk.api.datamodels._generated import (
+        DagRun as DagRunSDK,
+        PrevSuccessfulDagRunResponse,
+        TIRunContext,
+    )
 
     integrate_macros_plugins()
 
@@ -938,50 +964,34 @@ def _get_template_context(
         assert task.dag
 
     dag_run = task_instance.get_dagrun(session)
-    data_interval = dag.get_run_data_interval(dag_run)
-
     validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
 
-    logical_date: DateTime = timezone.coerce_datetime(task_instance.logical_date)
-    ds = logical_date.strftime("%Y-%m-%d")
-    ds_nodash = ds.replace("-", "")
-    ts = logical_date.isoformat()
-    ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
-    ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
+    ti_context_from_server = TIRunContext(
+        dag_run=DagRunSDK.model_validate(dag_run, from_attributes=True),
+        max_tries=task_instance.max_tries,
+    )
+    runtime_ti = task_instance.to_runtime_ti(context_from_server=ti_context_from_server)
+
+    context: Context = runtime_ti.get_template_context()
 
     @cache  # Prevent multiple database access.
-    def _get_previous_dagrun_success() -> DagRun | None:
-        return task_instance.get_previous_dagrun(state=DagRunState.SUCCESS, session=session)
-
-    def _get_previous_dagrun_data_interval_success() -> DataInterval | None:
-        dagrun = _get_previous_dagrun_success()
-        if dagrun is None:
-            return None
-        return dag.get_run_data_interval(dagrun)
+    def _get_previous_dagrun_success() -> PrevSuccessfulDagRunResponse:
+        dr_from_db = task_instance.get_previous_dagrun(state=DagRunState.SUCCESS, session=session)
+        if dr_from_db:
+            return PrevSuccessfulDagRunResponse.model_validate(dr_from_db, from_attributes=True)
+        return PrevSuccessfulDagRunResponse()
 
     def get_prev_data_interval_start_success() -> pendulum.DateTime | None:
-        data_interval = _get_previous_dagrun_data_interval_success()
-        if data_interval is None:
-            return None
-        return data_interval.start
+        return timezone.coerce_datetime(_get_previous_dagrun_success().data_interval_start)
 
     def get_prev_data_interval_end_success() -> pendulum.DateTime | None:
-        data_interval = _get_previous_dagrun_data_interval_success()
-        if data_interval is None:
-            return None
-        return data_interval.end
+        return timezone.coerce_datetime(_get_previous_dagrun_success().data_interval_end)
 
     def get_prev_start_date_success() -> pendulum.DateTime | None:
-        dagrun = _get_previous_dagrun_success()
-        if dagrun is None:
-            return None
-        return timezone.coerce_datetime(dagrun.start_date)
+        return timezone.coerce_datetime(_get_previous_dagrun_success().start_date)
 
     def get_prev_end_date_success() -> pendulum.DateTime | None:
-        dagrun = _get_previous_dagrun_success()
-        if dagrun is None:
-            return None
-        return timezone.coerce_datetime(dagrun.end_date)
+        return timezone.coerce_datetime(_get_previous_dagrun_success().end_date)
 
     def get_triggering_events() -> dict[str, list[AssetEvent]]:
         if TYPE_CHECKING:
@@ -1005,41 +1015,29 @@ def _get_template_context(
     # * Context in task_sdk/src/airflow/sdk/definitions/context.py
     # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
     # * Table in docs/apache-airflow/templates-ref.rst
-    context: Context = {
-        "dag": dag,
-        "dag_run": dag_run,
-        "data_interval_end": timezone.coerce_datetime(data_interval.end),
-        "data_interval_start": timezone.coerce_datetime(data_interval.start),
-        "outlet_events": OutletEventAccessors(),
-        "ds": ds,
-        "ds_nodash": ds_nodash,
-        "inlets": task.inlets,
-        "inlet_events": InletEventsAccessors(task.inlets, session=session),
-        "logical_date": logical_date,
-        "macros": macros,
-        "map_index_template": task.map_index_template,
-        "outlets": task.outlets,
-        "params": validated_params,
-        "prev_data_interval_start_success": get_prev_data_interval_start_success(),
-        "prev_data_interval_end_success": get_prev_data_interval_end_success(),
-        "prev_start_date_success": get_prev_start_date_success(),
-        "prev_end_date_success": get_prev_end_date_success(),
-        "run_id": task_instance.run_id,
-        "task": task,  # type: ignore[typeddict-item]
-        "task_instance": task_instance,
-        "task_instance_key_str": f"{task.dag_id}__{task.task_id}__{ds_nodash}",
-        "test_mode": task_instance.test_mode,
-        "ti": task_instance,
-        "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
-        "ts": ts,
-        "ts_nodash": ts_nodash,
-        "ts_nodash_with_tz": ts_nodash_with_tz,
-        "var": {
-            "json": VariableAccessor(deserialize_json=True),
-            "value": VariableAccessor(deserialize_json=False),
-        },
-        "conn": ConnectionAccessor(),
-    }
+
+    context.update(
+        {
+            "outlet_events": OutletEventAccessors(),
+            "inlet_events": InletEventsAccessors(task.inlets, session=session),
+            "macros": macros,
+            "params": validated_params,
+            "prev_data_interval_start_success": get_prev_data_interval_start_success(),
+            "prev_data_interval_end_success": get_prev_data_interval_end_success(),
+            "prev_start_date_success": get_prev_start_date_success(),
+            "prev_end_date_success": get_prev_end_date_success(),
+            "test_mode": task_instance.test_mode,
+            # ti/task_instance are added here for ti.xcom_{push,pull}
+            "task_instance": task_instance,
+            "ti": task_instance,
+            "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
+            "var": {
+                "json": VariableAccessor(deserialize_json=True),
+                "value": VariableAccessor(deserialize_json=False),
+            },
+            "conn": ConnectionAccessor(),
+        }
+    )
 
     try:
         expanded_ti_count: int | None = BaseOperator.get_mapped_ti_count(
@@ -1058,8 +1056,6 @@ def _get_template_context(
     except NotMapped:
         pass
 
-    # Mypy doesn't like turning existing dicts in to a TypeDict -- and we "lie" in the type stub to say it
-    # is one, but in practice it isn't. See https://github.com/python/mypy/issues/8890
     return context
 
 
@@ -1902,6 +1898,24 @@ class TaskInstance(Base, LoggingMixin):
             assert isinstance(ti, TaskInstance)
         return ti
 
+    def to_runtime_ti(self, context_from_server) -> RuntimeTaskInstanceProtocol:
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            id=self.id,
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            try_numer=self.try_number,
+            map_index=self.map_index,
+            task=self.task,
+            max_tries=self.max_tries,
+            hostname=self.hostname,
+            _ti_context_from_server=context_from_server,
+        )
+
+        return runtime_ti
+
     @staticmethod
     def _command_as_list(
         ti: TaskInstance,
@@ -2742,49 +2756,46 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
         )
 
-    def _register_asset_changes(
-        self, *, events: OutletEventAccessorsProtocol, session: Session | None = None
-    ) -> None:
-        if session:
-            TaskInstance._register_asset_changes_int(ti=self, events=events, session=session)
-        else:
-            TaskInstance._register_asset_changes_int(ti=self, events=events)
-
     @staticmethod
     @provide_session
-    def _register_asset_changes_int(
-        ti: TaskInstance, *, events: OutletEventAccessorsProtocol, session: Session = NEW_SESSION
+    def register_asset_changes_in_db(
+        ti: TaskInstance,
+        task_outlets: list[AssetProfile],
+        outlet_events: list[Any],
+        session: Session = NEW_SESSION,
     ) -> None:
-        if TYPE_CHECKING:
-            assert ti.task
-
         # One task only triggers one asset event for each asset with the same extra.
         # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
         # there're assets with same uri but different extra that we need to emit more than one asset events.
         asset_alias_names: dict[tuple[AssetUniqueKey, frozenset], set[str]] = defaultdict(set)
-
         asset_name_refs: set[str] = set()
         asset_uri_refs: set[str] = set()
 
-        for obj in ti.task.outlets or []:
+        for obj in task_outlets:
             ti.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides assets
-            if isinstance(obj, Asset):
+            if obj.asset_type == Asset.__name__:
                 asset_manager.register_asset_change(
                     task_instance=ti,
-                    asset=obj,
-                    extra=events[obj].extra,
+                    asset=Asset(name=obj.name, uri=obj.uri),  # type: ignore
+                    extra=outlet_events[0]["extra"],
                     session=session,
                 )
-            elif isinstance(obj, AssetNameRef):
-                asset_name_refs.add(obj.name)
-            elif isinstance(obj, AssetUriRef):
-                asset_uri_refs.add(obj.uri)
-            elif isinstance(obj, AssetAlias):
-                for asset_alias_event in events[obj].asset_alias_events:
-                    asset_alias_name = asset_alias_event.source_alias_name
-                    asset_unique_key = asset_alias_event.dest_asset_key
-                    frozen_extra = frozenset(asset_alias_event.extra.items())
+            elif obj.asset_type == AssetNameRef.__name__:
+                asset_name_refs.add(obj.name)  # type: ignore
+            elif obj.asset_type == AssetUriRef.__name__:
+                asset_uri_refs.add(obj.uri)  # type: ignore
+            elif obj.asset_type == AssetAlias.__name__:
+                outlet_events = list(
+                    map(
+                        lambda event: {**event, "dest_asset_key": AssetUniqueKey(**event["dest_asset_key"])},
+                        outlet_events,
+                    )
+                )
+                for asset_alias_event in outlet_events:
+                    asset_alias_name = asset_alias_event["source_alias_name"]
+                    asset_unique_key = asset_alias_event["dest_asset_key"]
+                    frozen_extra = frozenset(asset_alias_event["extra"].items())
                     asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
         asset_unique_keys = {key for key, _ in asset_alias_names}
@@ -2836,7 +2847,7 @@ class TaskInstance(Base, LoggingMixin):
             asset_manager.register_asset_change(
                 task_instance=ti,
                 asset=asset_model,
-                extra=events[asset_model].extra,
+                extra=outlet_events[asset_model].extra,
                 session=session,
             )
         asset_stmt = select(AssetModel).where(AssetModel.uri.in_(asset_uri_refs), AssetModel.active.has())
@@ -2845,7 +2856,7 @@ class TaskInstance(Base, LoggingMixin):
             asset_manager.register_asset_change(
                 task_instance=ti,
                 asset=asset_model,
-                extra=events[asset_model].extra,
+                extra=outlet_events[asset_model].extra,
                 session=session,
             )
 

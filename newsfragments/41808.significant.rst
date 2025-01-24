@@ -6,3 +6,14 @@ Removed methods:
 - ``find_for_task_instance()``
 
 Note: there are no replacements. Direct access to DB is discouraged and will not be possible in Airflow 3 for tasks. The public REST API is the future way to interact with Airflow
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes

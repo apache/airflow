@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
-from airflow.utils import timezone
+from airflow.utils import state, timezone
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -177,6 +177,7 @@ class TestKylinCubeOperator:
                 run_id="kylin_test",
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.MANUAL,
+                state=state.DagRunState.RUNNING,
             )
         else:
             ti.dag_run = DagRun(
@@ -184,6 +185,7 @@ class TestKylinCubeOperator:
                 run_id="kylin_test",
                 execution_date=DEFAULT_DATE,
                 run_type=DagRunType.MANUAL,
+                state=state.DagRunState.RUNNING,
             )
         session.add(ti)
         session.commit()

@@ -69,7 +69,7 @@ class BashOperator(BaseOperator):
     :param cwd: Working directory to execute the command in (templated).
         If None (default), the command is run in a temporary directory.
         To use current DAG folder as the working directory,
-        you might set template ``{{ dag_run.dag.folder }}``.
+        you might set template ``{{ task.dag.folder }}``.
         When bash_command is a '.sh' or '.bash' file, Airflow must have write
         access to the working directory. The script will be rendered (Jinja
         template) into a new temporary file in this directory.

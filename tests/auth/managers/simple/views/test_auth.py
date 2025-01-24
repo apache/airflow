@@ -55,6 +55,9 @@ class TestSimpleAuthManagerAuthenticationViews:
             assert response.location == "/login"
             assert session.get("user") is None
 
+    @pytest.mark.skip(
+        "This test will be deleted soon, meanwhile disabling it because it is flaky. See: https://github.com/apache/airflow/issues/45818"
+    )
     @pytest.mark.parametrize(
         "username, password, is_successful, query_params, expected_redirect",
         [
