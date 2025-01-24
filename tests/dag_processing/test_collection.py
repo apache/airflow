@@ -266,7 +266,11 @@ class TestUpdateDagParsingResults:
         mock_s10n_write_dag.assert_has_calls(
             [
                 mock.call(
-                    mock_dag, bundle_name="testing", min_update_interval=mock.ANY, session=mock_session
+                    mock_dag,
+                    bundle_name="testing",
+                    bundle_version=None,
+                    min_update_interval=mock.ANY,
+                    session=mock_session,
                 ),
             ]
         )
