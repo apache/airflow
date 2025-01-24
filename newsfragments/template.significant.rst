@@ -3,20 +3,29 @@
 .. Provide additional contextual information
 
 .. Check the type of change that applies to this change
+.. Dag changes: requires users to change their dag code
+.. Config changes: requires users to change their airflow config
+.. API changes: requires users to change their Airflow REST API calls
+.. CLI changes: requires users to change their Airflow CLI usage
+.. Behaviour changes: the existing code won't break, but the behavior is different
+.. Plugin changes: requires users to change their Airflow plugin implementation
+.. Dependency changes: requires users to change their dependencies (e.g., Postgres 12)
+.. Code interface changes: requires users to change other implementations (e.g., auth manager)
 
 * Types of change
 
-  * [ ] DAG changes
+  * [ ] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 .. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
 
-* [ ] Migration rules needed
+* Migration rules needed
 
 .. e.g.,
 .. * Remove context key ``execution_date``

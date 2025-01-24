@@ -17,6 +17,6 @@ Move Airflow core triggers to standard provider
 
     * AIR303
 
-      * [ ] ``airflow.triggers.external_task.*`` → ``airflow.providers.standard.triggers.external_task.*``
-      * [ ] ``airflow.triggers.file.*`` → ``airflow.providers.standard.triggers.file.*``
-      * [ ] ``airflow.triggers.temporal.*`` → ``airflow.providers.standard.triggers.temporal.*``
+      * [x] ``airflow.triggers.external_task.*`` → ``airflow.providers.standard.triggers.external_task.*``
+      * [x] ``airflow.triggers.file.*`` → ``airflow.providers.standard.triggers.file.*``
+      * [x] ``airflow.triggers.temporal.*`` → ``airflow.providers.standard.triggers.temporal.*``

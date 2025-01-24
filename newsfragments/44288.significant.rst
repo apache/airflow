@@ -17,5 +17,5 @@
 
     * AIR303
 
-      * [ ] ``airflow.sensors.external_task.ExternalTaskMarker`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskMarker``
-      * [ ] ``airflow.sensors.external_task.ExternalTaskSensor`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskSensor``
+      * [x] ``airflow.sensors.external_task.ExternalTaskMarker`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskMarker``
+      * [x] ``airflow.sensors.external_task.ExternalTaskSensor`` → ``airflow.providers.standard.sensors.external_task.ExternalTaskSensor``
