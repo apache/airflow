@@ -35,6 +35,7 @@ export const FlexibleForm = ({ initialParamsDict }: FlexibleFormProps) => {
   const processedSections = new Map();
 
   useEffect(() => {
+    // Initialize paramsDict and initialParamDict when modal opens
     if (Object.keys(initialParamsDict.paramsDict).length > 0 && Object.keys(params).length === 0) {
       const paramsCopy = structuredClone(initialParamsDict.paramsDict);
 
@@ -45,6 +46,7 @@ export const FlexibleForm = ({ initialParamsDict }: FlexibleFormProps) => {
 
   useEffect(
     () => () => {
+      // Clear paramsDict and initialParamDict when the component is unmounted or modal closes
       setParamsDict({});
       setinitialParamDict({});
     },

@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Select as ReactSelect } from "chakra-react-select";
-import { useEffect, useState } from "react";
+import { type MultiValue, Select as ReactSelect } from "chakra-react-select";
+import { useState } from "react";
 
 import type { FlexibleFormElementProps } from ".";
 import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
@@ -33,6 +33,8 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
 export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
+
+  // Initialize `selectedOptions` directly from `paramsDict`
   const [selectedOptions, setSelectedOptions] = useState(
     Array.isArray(param.value)
       ? (param.value as Array<string>).map((value) => ({
@@ -42,16 +44,26 @@ export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
       : [],
   );
 
-  useEffect(() => {
+  // Handle changes to the select field
+  const handleChange = (
+    newValue: MultiValue<{
+      label: string;
+      value: string;
+    }>,
+  ) => {
+    const updatedOptions = [...newValue];
+
+    setSelectedOptions(updatedOptions);
+
     // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
     // eslint-disable-next-line unicorn/no-null
-    const newValue = selectedOptions.length ? selectedOptions.map((option) => option.value) : null;
+    const newValueArray = updatedOptions.length ? updatedOptions.map((option) => option.value) : null;
 
     if (paramsDict[name]) {
-      paramsDict[name].value = newValue;
+      paramsDict[name].value = newValueArray;
     }
     setParamsDict(paramsDict);
-  }, [selectedOptions, paramsDict, setParamsDict, name]);
+  };
 
   return (
     <ReactSelect
@@ -60,7 +72,7 @@ export const FieldMultiSelect = ({ name }: FlexibleFormElementProps) => {
       isClearable
       isMulti
       name={`element_${name}`}
-      onChange={(newValue) => setSelectedOptions([...newValue])}
+      onChange={handleChange}
       options={
         param.schema.examples?.map((value) => ({
           label: labelLookup(value, param.schema.values_display),
