@@ -43,7 +43,7 @@
     :caption: References
 
     Python API <_api/airflow/providers/postgres/index>
-    Dialects <_api/airflow/providers/common/sql/dialects>
+    Dialects <dialects>
 
 .. toctree::
     :hidden:
