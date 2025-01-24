@@ -38,6 +38,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIRescheduleStatePayload,
     TIRunContext,
     TIStateUpdate,
+    TISuccessStatePayload,
     TITerminalStatePayload,
 )
 from airflow.models.dagrun import DagRun as DR
@@ -226,7 +227,7 @@ def ti_update_state(
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
-    data = ti_patch_payload.model_dump(exclude_unset=True)
+    data = ti_patch_payload.model_dump(exclude={"task_outlets", "outlet_events"}, exclude_unset=True)
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
@@ -242,6 +243,17 @@ def ti_update_state(
                 updated_state = State.UP_FOR_RETRY
             else:
                 updated_state = State.FAILED
+        query = query.values(state=updated_state)
+    elif isinstance(ti_patch_payload, TISuccessStatePayload):
+        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        updated_state = ti_patch_payload.state
+        task_instance = session.get(TI, ti_id_str)
+        TI.register_asset_changes_in_db(
+            task_instance,
+            ti_patch_payload.task_outlets,  # type: ignore
+            ti_patch_payload.outlet_events,
+            session,
+        )
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
