@@ -16,23 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import "@testing-library/jest-dom/vitest";
-import type { HttpHandler } from "msw";
+import "@testing-library/jest-dom";
+import { render, screen, waitFor } from "@testing-library/react";
 import { setupServer, type SetupServerApi } from "msw/node";
-import { afterEach, expect, beforeAll, afterAll } from "vitest";
+import { afterEach, describe, it, expect, beforeAll, afterAll } from "vitest";
 
 import { handlers } from "src/mocks/handlers";
+import { AppWrapper } from "src/utils/AppWrapper";
 
 let server: SetupServerApi;
 
-// extends vitest matchers with react-testing-library's ones
-expect.extend(matchers);
-
 beforeAll(() => {
-  server = setupServer(...(handlers as Array<HttpHandler>));
+  server = setupServer(...handlers);
   server.listen({ onUnhandledRequest: "bypass" });
 });
 
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
+
+describe("Dag Documentation Modal", () => {
+  it("Display documentation button only when docs_md is present", async () => {
+    render(<AppWrapper initialEntries={["/dags/tutorial_taskflow_api"]} />);
+
+    await waitFor(() => expect(screen.getByTestId("markdown-button")).toBeInTheDocument());
+    await waitFor(() => screen.getByTestId("markdown-button").click());
+    await waitFor(() =>
+      expect(screen.getByText(/taskflow api tutorial documentation/iu)).toBeInTheDocument(),
+    );
+  });
+});
