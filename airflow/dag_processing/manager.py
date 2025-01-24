@@ -101,6 +101,7 @@ class DagFileInfo(NamedTuple):
     """Information about a DAG file."""
 
     path: str  # absolute path of the file
+    bundle_path: Path
     bundle_name: str
 
 
@@ -256,17 +257,25 @@ class DagFileProcessorManager:
         """Detect and deactivate DAGs which are no longer present in files."""
         to_deactivate = set()
         query = select(
-            DagModel.dag_id, DagModel.bundle_name, DagModel.fileloc, DagModel.last_parsed_time
+            DagModel.dag_id,
+            DagModel.bundle_name,
+            DagModel.fileloc,
+            DagModel.last_parsed_time,
+            DagModel.relative_fileloc,
         ).where(DagModel.is_active)
         # TODO: AIP-66 by bundle!
         dags_parsed = session.execute(query)
+        from pathlib import Path
 
         for dag in dags_parsed:
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
-            dag_file_path = DagFileInfo(path=dag.fileloc, bundle_name=dag.bundle_name)
+            bundle_path = Path(dag.fileloc[: -len(str(dag.relative_fileloc))])
+            dag_file_path = DagFileInfo(
+                path=dag.fileloc, bundle_path=bundle_path, bundle_name=dag.bundle_name
+            )
             if (
                 dag_file_path in last_parsed
                 and (dag.last_parsed_time + timedelta(seconds=stale_dag_threshold))
@@ -484,7 +493,8 @@ class DagFileProcessorManager:
 
             new_file_paths = [f for f in self._file_paths if f.bundle_name != bundle.name]
             new_file_paths.extend(
-                DagFileInfo(path=path, bundle_name=bundle.name) for path in bundle_file_paths
+                DagFileInfo(path=path, bundle_path=bundle.path, bundle_name=bundle.name)
+                for path in bundle_file_paths
             )
             self.set_file_paths(new_file_paths)
 
@@ -765,6 +775,7 @@ class DagFileProcessorManager:
         return DagFileProcessorProcess.start(
             id=id,
             path=dag_file.path,
+            bundle_path=dag_file.bundle_path,
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
             logger=self._get_logger_for_dag_file(dag_file),

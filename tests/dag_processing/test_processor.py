@@ -77,7 +77,12 @@ class TestDagFileProcessor:
         self, file_path, callback_requests: list[CallbackRequest] | None = None
     ) -> DagFileParsingResult:
         return _parse_file(
-            DagFileParseRequest(file=file_path, requests_fd=1, callback_requests=callback_requests or []),
+            DagFileParseRequest(
+                file=file_path,
+                bundle_path=TEST_DAG_FOLDER,
+                requests_fd=1,
+                callback_requests=callback_requests or [],
+            ),
             log=structlog.get_logger(),
         )
 
