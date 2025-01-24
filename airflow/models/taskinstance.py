@@ -2708,8 +2708,6 @@ class TaskInstance(Base, LoggingMixin):
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.scheduled_dttm is None:
-                # TODO: Change the level to WARNING once it's viable.
-                # see #30612 #34493 and #34771 for more details
                 self.log.warning(
                     "cannot record %s for task %s because previous state change time has not been saved",
                     metric_name,
@@ -2722,7 +2720,11 @@ class TaskInstance(Base, LoggingMixin):
 
         # send metric twice, once (legacy) with tags in the name and once with tags as tags
         Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
-        Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
+        Stats.timing(
+            f"task.{metric_name}",
+            timing,
+            tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+        )
 
     def clear_next_method_args(self) -> None:
         """Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them."""
