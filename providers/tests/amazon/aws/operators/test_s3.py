@@ -55,6 +55,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     PreviousIdentifier,
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
+from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime, utcnow
 from airflow.utils.types import DagRunType
 
@@ -654,11 +655,19 @@ class TestS3DeleteObjectsOperator:
         )
         if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
             dag_run = DagRun(
-                dag_id=dag.dag_id, execution_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+                dag_id=dag.dag_id,
+                execution_date=logical_date,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
-                dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+                dag_id=dag.dag_id,
+                logical_date=logical_date,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run

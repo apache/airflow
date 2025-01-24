@@ -24,7 +24,12 @@ from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction, BulkBaseAction
+from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkAction,
+    BulkActionNotOnExistence,
+    BulkActionOnExistence,
+    BulkBaseAction,
+)
 from airflow.utils.log.secrets_masker import redact
 
 
@@ -97,6 +102,7 @@ class ConnectionBulkCreateAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.CREATE
     connections: list[ConnectionBody] = Field(..., description="A list of connections to be created.")
+    action_on_existence: BulkActionOnExistence = BulkActionOnExistence.FAIL
 
 
 class ConnectionBulkUpdateAction(BulkBaseAction):
@@ -104,6 +110,7 @@ class ConnectionBulkUpdateAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.UPDATE
     connections: list[ConnectionBody] = Field(..., description="A list of connections to be updated.")
+    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
 class ConnectionBulkDeleteAction(BulkBaseAction):
@@ -111,6 +118,7 @@ class ConnectionBulkDeleteAction(BulkBaseAction):
 
     action: BulkAction = BulkAction.DELETE
     connection_ids: list[str] = Field(..., description="A list of connection IDs to be deleted.")
+    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
 class ConnectionBulkBody(BaseModel):
