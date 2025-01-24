@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
-from sqlalchemy import or_, select, update
+from sqlalchemy import select
 
 try:
     from airflow.cli.cli_config import ARG_LOGICAL_DATE
@@ -60,7 +60,6 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.executor_constants import KUBERNETES_EXECUTOR
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
@@ -69,7 +68,6 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
 from airflow.stats import Stats
-from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -145,7 +143,6 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_scheduler: AirflowKubernetesScheduler | None = None
         self.kube_client: client.CoreV1Api | None = None
         self.scheduler_job_id: str | None = None
-        self.event_scheduler: EventScheduler | None = None
         self.last_handled: dict[TaskInstanceKey, float] = {}
         self.kubernetes_queue: str | None = None
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
@@ -218,96 +215,6 @@ class KubernetesExecutor(BaseExecutor):
                 pod_combined_search_str_to_pod_map[search_str] = pod
         return pod_combined_search_str_to_pod_map
 
-    @provide_session
-    def clear_not_launched_queued_tasks(self, session: Session = NEW_SESSION) -> None:
-        """
-        Clear tasks that were not yet launched, but were previously queued.
-
-        Tasks can end up in a "Queued" state when a rescheduled/deferred operator
-        comes back up for execution (with the same try_number) before the
-        pod of its previous incarnation has been fully removed (we think).
-
-        It's also possible when an executor abruptly shuts down (leaving a non-empty
-        task_queue on that executor), but that scenario is handled via normal adoption.
-
-        This method checks each of our queued tasks to see if the corresponding pod
-        is around, and if not, and there's no matching entry in our own
-        task_queue, marks it for re-execution.
-        """
-        if TYPE_CHECKING:
-            assert self.kube_client
-        from airflow.models.taskinstance import TaskInstance
-
-        hybrid_executor_enabled = hasattr(TaskInstance, "executor")
-        default_executor_alias = None
-        if hybrid_executor_enabled:
-            from airflow.executors.executor_loader import ExecutorLoader
-
-            default_executor_name = ExecutorLoader.get_default_executor_name()
-            default_executor_alias = default_executor_name.alias
-
-        with Stats.timer("kubernetes_executor.clear_not_launched_queued_tasks.duration"):
-            self.log.debug("Clearing tasks that have not been launched")
-            query = select(TaskInstance).where(
-                TaskInstance.state == TaskInstanceState.QUEUED,
-                TaskInstance.queued_by_job_id == self.job_id,
-            )
-            if self.kubernetes_queue:
-                query = query.where(TaskInstance.queue == self.kubernetes_queue)
-            # KUBERNETES_EXECUTOR is the string name/alias of the "core" executor represented by this
-            # module. The ExecutorName for "core" executors always contains an alias and cannot be modified
-            # to be different from the constant (in this case KUBERNETES_EXECUTOR).
-            elif hybrid_executor_enabled and default_executor_alias == KUBERNETES_EXECUTOR:
-                query = query.where(
-                    or_(
-                        TaskInstance.executor == KUBERNETES_EXECUTOR,
-                        TaskInstance.executor.is_(None),
-                    ),
-                )
-            elif hybrid_executor_enabled:
-                query = query.where(TaskInstance.executor == KUBERNETES_EXECUTOR)
-            queued_tis: list[TaskInstance] = session.scalars(query).all()
-            self.log.info("Found %s queued task instances", len(queued_tis))
-
-            # Go through the "last seen" dictionary and clean out old entries
-            allowed_age = self.kube_config.worker_pods_queued_check_interval * 3
-            for key, timestamp in list(self.last_handled.items()):
-                if time.time() - timestamp > allowed_age:
-                    del self.last_handled[key]
-
-            if not queued_tis:
-                return
-
-            pod_combined_search_str_to_pod_map = self.get_pod_combined_search_str_to_pod_map()
-
-            for ti in queued_tis:
-                self.log.debug("Checking task instance %s", ti)
-
-                # Check to see if we've handled it ourselves recently
-                if ti.key in self.last_handled:
-                    continue
-
-                # Build the pod selector
-                base_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"
-                if ti.map_index >= 0:
-                    # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
-                    base_selector += f",map_index={ti.map_index}"
-
-                search_str = f"{base_selector},run_id={ti.run_id}"
-                if search_str in pod_combined_search_str_to_pod_map:
-                    continue
-                self.log.info("TaskInstance: %s found in queued state but was not launched, rescheduling", ti)
-                session.execute(
-                    update(TaskInstance)
-                    .where(
-                        TaskInstance.dag_id == ti.dag_id,
-                        TaskInstance.task_id == ti.task_id,
-                        TaskInstance.run_id == ti.run_id,
-                        TaskInstance.map_index == ti.map_index,
-                    )
-                    .values(state=TaskInstanceState.SCHEDULED)
-                )
-
     def start(self) -> None:
         """Start the executor."""
         self.log.info("Start Kubernetes executor")
@@ -325,15 +232,6 @@ class KubernetesExecutor(BaseExecutor):
             kube_client=self.kube_client,
             scheduler_job_id=self.scheduler_job_id,
         )
-        self.event_scheduler = EventScheduler()
-
-        self.event_scheduler.call_regular_interval(
-            self.kube_config.worker_pods_queued_check_interval,
-            self.clear_not_launched_queued_tasks,
-        )
-        # We also call this at startup as that's the most likely time to see
-        # stuck queued tasks
-        self.clear_not_launched_queued_tasks()
 
     def execute_async(
         self,
@@ -378,7 +276,6 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_config
             assert self.result_queue
             assert self.task_queue
-            assert self.event_scheduler
 
         if self.running:
             self.log.debug("self.running: %s", self.running)
@@ -465,10 +362,6 @@ class KubernetesExecutor(BaseExecutor):
                     self.fail(key, e)
                 finally:
                     self.task_queue.task_done()
-
-        # Run any pending timed events
-        next_event = self.event_scheduler.run(blocking=False)
-        self.log.debug("Next timed event is in %f", next_event)
 
     @provide_session
     def _change_state(
