@@ -185,6 +185,9 @@ def test_submit_event(session, create_task_instance):
     # Check that the asset has received an event
     assert session.query(AssetEvent).filter_by(asset_id=asset.id).count() == 1
 
+    event = session.query(AssetEvent).filter_by(asset_id=asset.id).first()
+    assert event.extra == {"from_trigger": True}
+
 
 def test_submit_failure(session, create_task_instance):
     """
