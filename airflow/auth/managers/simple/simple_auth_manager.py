@@ -22,15 +22,22 @@ import os
 import random
 from collections import namedtuple
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from fastapi import FastAPI
 from flask import session, url_for
+from starlette.requests import Request
+from starlette.responses import HTMLResponse
+from starlette.staticfiles import StaticFiles
+from starlette.templating import Jinja2Templates
 from termcolor import colored
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
 from airflow.configuration import AIRFLOW_HOME, conf
+from airflow.settings import AIRFLOW_PATH
 
 if TYPE_CHECKING:
     from flask_appbuilder.menu import MenuItem
@@ -79,9 +86,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     This auth manager is very basic and only intended for development and testing purposes.
     """
 
-    # Cache containing the password associated to a username
-    passwords: dict[str, str] = {}
-
     # TODO: Needs to be deleted when Airflow 2 legacy UI is gone
     appbuilder: AirflowAppBuilder | None = None
 
@@ -97,31 +101,36 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         users = [u.split(":") for u in conf.getlist("core", "simple_auth_manager_users")]
         return [{"username": username, "role": role} for username, role in users]
 
-    def init(self) -> None:
+    @staticmethod
+    def get_passwords(users: list[dict[str, str]]) -> dict[str, str]:
         user_passwords_from_file = {}
 
         # Read passwords from file
-        if os.path.isfile(self.get_generated_password_file()):
-            with open(self.get_generated_password_file()) as file:
+        password_file = SimpleAuthManager.get_generated_password_file()
+        if os.path.isfile(password_file):
+            with open(password_file) as file:
                 passwords_str = file.read().strip()
                 user_passwords_from_file = json.loads(passwords_str)
 
-        users = self.get_users()
         usernames = {user["username"] for user in users}
-        self.passwords = {
+        return {
             username: password
             for username, password in user_passwords_from_file.items()
             if username in usernames
         }
-        for user in users:
-            if user["username"] not in self.passwords:
-                # User dot not exist in the file, adding it
-                self.passwords[user["username"]] = self._generate_password()
 
-            self._print_output(f"Password for user '{user['username']}': {self.passwords[user['username']]}")
+    def init(self) -> None:
+        users = self.get_users()
+        passwords = self.get_passwords(users)
+        for user in users:
+            if user["username"] not in passwords:
+                # User dot not exist in the file, adding it
+                passwords[user["username"]] = self._generate_password()
+
+            self._print_output(f"Password for user '{user['username']}': {passwords[user['username']]}")
 
         with open(self.get_generated_password_file(), "w") as file:
-            file.write(json.dumps(self.passwords))
+            file.write(json.dumps(passwords))
 
     def is_logged_in(self) -> bool:
         return "user" in session or conf.getboolean("core", "simple_auth_manager_all_admins")
@@ -233,12 +242,53 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     def register_views(self) -> None:
         if not self.appbuilder:
             return
+        users = self.get_users()
         self.appbuilder.add_view_no_menu(
             SimpleAuthManagerAuthenticationViews(
-                users=self.get_users(),
-                passwords=self.passwords,
+                users=users,
+                passwords=self.get_passwords(users),
             )
         )
+
+    def get_fastapi_app(self) -> FastAPI | None:
+        """
+        Specify a sub FastAPI application specific to the auth manager.
+
+        This sub application, if specified, is mounted in the main FastAPI application.
+        """
+        from airflow.auth.managers.simple.router.login import login_router
+
+        dev_mode = os.environ.get("DEV_MODE", False) == "true"
+        directory = Path(AIRFLOW_PATH) / (
+            "airflow/auth/managers/simple/ui/dev" if dev_mode else "airflow/auth/managers/simple/ui/dist"
+        )
+        Path(directory).mkdir(exist_ok=True)
+
+        templates = Jinja2Templates(directory=directory)
+
+        app = FastAPI(
+            title="Simple auth manager sub application",
+            description=(
+                "This is the simple auth manager fastapi sub application. This API is only available if the "
+                "auth manager used in the Airflow environment is simple auth manager. "
+                "This sub application provides the login form for users to log in."
+            ),
+        )
+        app.include_router(login_router)
+        app.mount(
+            "/static",
+            StaticFiles(
+                directory=directory,
+                html=True,
+            ),
+            name="simple_auth_manager_ui_folder",
+        )
+
+        @app.get("/webapp/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
+        def webapp(request: Request, rest_of_path: str):
+            return templates.TemplateResponse("/index.html", {"request": request}, media_type="text/html")
+
+        return app
 
     def _is_authorized(
         self,

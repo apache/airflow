@@ -2,6 +2,27 @@ Removed deprecated parameters from core-operators.
 
 Parameters removed:
 
-- airflow.operators.datetime.BranchDateTimeOperator: use_task_execution_date
-- airflow.operators.trigger_dagrun.TriggerDagRunOperator: execution_date
-- airflow.operators.weekday.BranchDayOfWeekOperator: use_task_execution_day
+- ``airflow.operators.datetime.BranchDateTimeOperator``: ``use_task_execution_date``
+- ``airflow.operators.trigger_dagrun.TriggerDagRunOperator``: ``execution_date``
+- ``airflow.operators.weekday.BranchDayOfWeekOperator``: ``use_task_execution_day``
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] argument ``execution_date`` in ``airflow.operators.trigger_dagrun.TriggerDagRunOperator``
+      * [x] argument ``use_task_execution_day`` → ``use_task_logical_date`` in ``airflow.operators.datetime.BranchDateTimeOperator``
+      * [x] argument ``use_task_execution_day`` → ``use_task_logical_date`` in ``airflow.operators.weekday.BranchDayOfWeekOperator``

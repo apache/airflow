@@ -1,3 +1,14 @@
 Removed backfill job command cli option ``ignore-first-depends-on-past``. Its value always set to True. No replcaement cli option.
 
 Removed backfill job command cli option ``treat-dag-as-regex``. Please use ``treat-dag-id-as-regex`` instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

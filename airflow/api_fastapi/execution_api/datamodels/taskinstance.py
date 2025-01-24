@@ -21,10 +21,19 @@ import uuid
 from datetime import timedelta
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import AwareDatetime, Discriminator, Field, Tag, TypeAdapter, WithJsonSchema, field_validator
+from pydantic import (
+    AwareDatetime,
+    Discriminator,
+    Field,
+    Tag,
+    TypeAdapter,
+    WithJsonSchema,
+    field_validator,
+)
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
 from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
@@ -52,12 +61,39 @@ class TIEnterRunningPayload(BaseModel):
 
 
 class TITerminalStatePayload(BaseModel):
-    """Schema for updating TaskInstance to a terminal state (e.g., SUCCESS or FAILED)."""
+    """Schema for updating TaskInstance to a terminal state except SUCCESS state."""
 
-    state: TerminalTIState
+    state: Literal[
+        TerminalTIState.FAILED,
+        TerminalTIState.SKIPPED,
+        TerminalTIState.REMOVED,
+        TerminalTIState.FAIL_WITHOUT_RETRY,
+    ]
 
     end_date: UtcDateTime
     """When the task completed executing"""
+
+
+class TISuccessStatePayload(BaseModel):
+    """Schema for updating TaskInstance to success state."""
+
+    state: Annotated[
+        Literal[TerminalTIState.SUCCESS],
+        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
+        WithJsonSchema(
+            {
+                "type": "string",
+                "enum": [TerminalTIState.SUCCESS],
+                "default": TerminalTIState.SUCCESS,
+            }
+        ),
+    ]
+
+    end_date: UtcDateTime
+    """When the task completed executing"""
+
+    task_outlets: Annotated[list[AssetProfile], Field(default_factory=list)]
+    outlet_events: Annotated[list[Any], Field(default_factory=list)]
 
 
 class TITargetStatePayload(BaseModel):
@@ -123,7 +159,10 @@ def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
         state = v.get("state")
     else:
         state = getattr(v, "state", None)
-    if state in set(TerminalTIState):
+
+    if state == TIState.SUCCESS:
+        return "success"
+    elif state in set(TerminalTIState):
         return "_terminal_"
     elif state == TIState.DEFERRED:
         return "deferred"
@@ -137,6 +176,7 @@ def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
 TIStateUpdate = Annotated[
     Union[
         Annotated[TITerminalStatePayload, Tag("_terminal_")],
+        Annotated[TISuccessStatePayload, Tag("success")],
         Annotated[TITargetStatePayload, Tag("_other_")],
         Annotated[TIDeferredStatePayload, Tag("deferred")],
         Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")],
