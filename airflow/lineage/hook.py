@@ -38,6 +38,11 @@ if TYPE_CHECKING:
 _hook_lineage_collector: HookLineageCollector | None = None
 
 
+# Maximum number of assets input or output that can be collected in a single hook execution.
+# Input assets and output assets are collected separately.
+MAX_COLLECTED_ASSETS = 100
+
+
 @attr.define
 class AssetLineageInfo:
     """
@@ -81,6 +86,7 @@ class HookLineageCollector(LoggingMixin):
         self._outputs: dict[str, tuple[Asset, LineageContext]] = {}
         self._input_counts: dict[str, int] = defaultdict(int)
         self._output_counts: dict[str, int] = defaultdict(int)
+        self._asset_factories = ProvidersManager().asset_factories
 
     def _generate_key(self, asset: Asset, context: LineageContext) -> str:
         """
@@ -136,7 +142,7 @@ class HookLineageCollector(LoggingMixin):
             )
             return None
 
-        asset_factory = ProvidersManager().asset_factories.get(scheme)
+        asset_factory = self._asset_factories.get(scheme)
         if not asset_factory:
             self.log.debug("Unsupported scheme: %s. Please provide a valid URI to create an asset.", scheme)
             return None
@@ -159,6 +165,9 @@ class HookLineageCollector(LoggingMixin):
         asset_extra: dict | None = None,
     ):
         """Add the input asset and its corresponding hook execution context to the collector."""
+        if len(self._inputs) >= MAX_COLLECTED_ASSETS:
+            self.log.debug("Maximum number of asset inputs exceeded. Skipping.")
+            return
         asset = self.create_asset(
             scheme=scheme, uri=uri, name=name, group=group, asset_kwargs=asset_kwargs, asset_extra=asset_extra
         )
@@ -167,6 +176,8 @@ class HookLineageCollector(LoggingMixin):
             if key not in self._inputs:
                 self._inputs[key] = (asset, context)
             self._input_counts[key] += 1
+        if len(self._inputs) == MAX_COLLECTED_ASSETS:
+            self.log.warning("Maximum number of asset inputs exceeded. Skipping subsequent inputs.")
 
     def add_output_asset(
         self,
@@ -179,6 +190,9 @@ class HookLineageCollector(LoggingMixin):
         asset_extra: dict | None = None,
     ):
         """Add the output asset and its corresponding hook execution context to the collector."""
+        if len(self._outputs) >= MAX_COLLECTED_ASSETS:
+            self.log.debug("Maximum number of asset outputs exceeded. Skipping.")
+            return
         asset = self.create_asset(
             scheme=scheme, uri=uri, name=name, group=group, asset_kwargs=asset_kwargs, asset_extra=asset_extra
         )
@@ -187,6 +201,8 @@ class HookLineageCollector(LoggingMixin):
             if key not in self._outputs:
                 self._outputs[key] = (asset, context)
             self._output_counts[key] += 1
+        if len(self._outputs) == MAX_COLLECTED_ASSETS:
+            self.log.warning("Maximum number of asset outputs exceeded. Skipping subsequent inputs.")
 
     @property
     def collected_assets(self) -> HookLineage:
@@ -225,7 +241,7 @@ class NoOpCollector(HookLineageCollector):
     def collected_assets(
         self,
     ) -> HookLineage:
-        self.log.warning(
+        self.log.debug(
             "Data lineage tracking is disabled. Register a hook lineage reader to start tracking hook lineage."
         )
         return HookLineage([], [])

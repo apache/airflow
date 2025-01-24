@@ -181,7 +181,7 @@ class FabAuthManager(BaseAuthManager[User]):
         if not flask_blueprint:
             return None
 
-        flask_app = create_app()
+        flask_app = create_app(enable_plugins=False)
         flask_app.register_blueprint(flask_blueprint)
 
         app = FastAPI(

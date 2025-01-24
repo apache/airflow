@@ -26,16 +26,14 @@ import pytest
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
 from airflow.models.expandinput import DictOfListsExpandInput
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom_arg import PlainXComArg, XComArg
+from airflow.models.xcom_arg import PlainXComArg
+from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType

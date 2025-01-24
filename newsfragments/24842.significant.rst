@@ -4,3 +4,14 @@ When a *schedule* parameter is not passed to the ``DAG`` constructor, Airflow
 now defaults to never automatically schedule the DAG at all. The created DAG
 can still be manually triggered, either by the user directly, or from another
 DAG with ``TriggerDagRunOperator``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

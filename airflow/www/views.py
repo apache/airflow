@@ -440,7 +440,8 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 "id": item.task_id,
                 "instances": instances,
                 "label": item.label,
-                "extra_links": item.extra_links,
+                # TODO: Task-SDK: MappedOperator doesn't support extra links right now
+                "extra_links": getattr(item, "extra_links", []),
                 "is_mapped": item_is_mapped,
                 "has_outlet_assets": any(isinstance(i, (Asset, AssetAlias)) for i in (item.outlets or [])),
                 "operator": item.operator_name,

@@ -137,6 +137,8 @@ def _prepare_pyproject_toml_file(context: dict[str, Any], target_path: Path):
         context=context,
         extension=".toml",
         autoescape=False,
+        lstrip_blocks=True,
+        trim_blocks=True,
         keep_trailing_newline=True,
     )
     (target_path / "pyproject.toml").write_text(manifest_content)

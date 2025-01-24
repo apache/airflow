@@ -1600,6 +1600,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param mark_success_pattern: regex of task_ids to mark as success instead of running
         :param session: database connection (optional)
         """
+        from airflow.serialization.serialized_objects import SerializedDAG
 
         def add_logger_if_needed(ti: TaskInstance):
             """
@@ -1642,8 +1643,10 @@ class DAG(TaskSDKDag, LoggingMixin):
             self.log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
             data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
+
             dr: DagRun = _get_or_create_dagrun(
-                dag=self,
+                dag=scheduler_dag,
                 start_date=logical_date,
                 logical_date=logical_date,
                 run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),

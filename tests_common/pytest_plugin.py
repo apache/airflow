@@ -784,6 +784,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dagbag = DagBag(os.devnull, include_examples=False, read_dags_from_db=False)
 
         def __enter__(self):
+            self.serialized_model = None
+
             self.dag.__enter__()
             if self.want_serialized:
                 return lazy_object_proxy.Proxy(self._serialized_dag)
@@ -1563,6 +1565,19 @@ def clean_dags_and_dagruns():
     yield  # Test runs here
     clear_db_dags()
     clear_db_runs()
+
+
+@pytest.fixture
+def clean_executor_loader():
+    """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
+    from airflow.executors.executor_loader import ExecutorLoader
+
+    from tests_common.test_utils.executor_loader import clean_executor_loader_module
+
+    clean_executor_loader_module()
+    yield  # Test runs here
+    clean_executor_loader_module()
+    ExecutorLoader.init_executors()
 
 
 @pytest.fixture(scope="session")
