@@ -109,7 +109,7 @@ def dag_zip_maker(testing_dag_bundle):
     return DagZipMaker()
 
 
-@pytest.mark.usefixture("testing_dag_bundle")
+@pytest.mark.usefixtures("testing_dag_bundle")
 class TestExternalTaskSensor:
     def setup_method(self):
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)

@@ -227,7 +227,7 @@ class TestGetTask(TestTaskEndpoint):
     def test_should_respond_200_serialized(self, test_client, testing_dag_bundle):
         # Get the dag out of the dagbag before we patch it to an empty one
         dag = test_client.app.state.dag_bag.get_dag(self.dag_id)
-        dag.ync_to_db()
+        dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
