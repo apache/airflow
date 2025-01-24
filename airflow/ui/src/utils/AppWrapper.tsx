@@ -16,23 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import "@testing-library/jest-dom/vitest";
-import type { HttpHandler } from "msw";
-import { setupServer, type SetupServerApi } from "msw/node";
-import { afterEach, expect, beforeAll, afterAll } from "vitest";
+import { RouterProvider, createMemoryRouter } from "react-router-dom";
 
-import { handlers } from "src/mocks/handlers";
+import { TimezoneProvider } from "src/context/timezone";
+import { routerConfig } from "src/router";
+import { BaseWrapper } from "src/utils/Wrapper";
 
-let server: SetupServerApi;
+type Props = {
+  readonly initialEntries: Array<string>;
+};
 
-// extends vitest matchers with react-testing-library's ones
-expect.extend(matchers);
+export const AppWrapper = ({ initialEntries }: Props) => {
+  const router = createMemoryRouter(routerConfig, { basename: "/", initialEntries });
 
-beforeAll(() => {
-  server = setupServer(...(handlers as Array<HttpHandler>));
-  server.listen({ onUnhandledRequest: "bypass" });
-});
-
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+  return (
+    <BaseWrapper>
+      <TimezoneProvider>
+        <RouterProvider router={router} />
+      </TimezoneProvider>
+    </BaseWrapper>
+  );
+};

@@ -74,6 +74,7 @@
     "eslint-plugin-unicorn": "^55.0.0",
     "globals": "^15.9.0",
     "happy-dom": "^15.10.2",
+    "msw": "^2.7.0",
     "prettier": "^3.3.3",
     "typescript": "~5.5.4",
     "typescript-eslint": "^8.5.0",

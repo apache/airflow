@@ -16,23 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import "@testing-library/jest-dom/vitest";
-import type { HttpHandler } from "msw";
-import { setupServer, type SetupServerApi } from "msw/node";
-import { afterEach, expect, beforeAll, afterAll } from "vitest";
+import { handlers as configHandlers } from "./config";
+import { handlers as dagHandlers } from "./dag";
+import { handlers as dagsHandlers } from "./dags";
 
-import { handlers } from "src/mocks/handlers";
-
-let server: SetupServerApi;
-
-// extends vitest matchers with react-testing-library's ones
-expect.extend(matchers);
-
-beforeAll(() => {
-  server = setupServer(...(handlers as Array<HttpHandler>));
-  server.listen({ onUnhandledRequest: "bypass" });
-});
-
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+export const handlers = [...configHandlers, ...dagHandlers, ...dagsHandlers];
