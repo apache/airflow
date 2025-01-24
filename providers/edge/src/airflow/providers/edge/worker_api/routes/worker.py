@@ -115,7 +115,7 @@ _worker_queue_doc = Body(
 def redefine_state_if_maintenance(
     worker_state: EdgeWorkerState, body_state: EdgeWorkerState
 ) -> EdgeWorkerState:
-    """Redefine the state of the worker based on maintenenace request."""
+    """Redefine the state of the worker based on maintenance request."""
     if worker_state == EdgeWorkerState.MAINTENANCE_REQUEST and body_state not in (
         EdgeWorkerState.MAINTENANCE_PENDING,
         EdgeWorkerState.MAINTENANCE_MODE,

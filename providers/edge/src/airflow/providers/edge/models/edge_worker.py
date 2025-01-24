@@ -55,7 +55,7 @@ class EdgeWorkerState(str, Enum):
     MAINTENANCE_REQUEST = "maintenance request"
     """Maintenance mode was requested by user."""
     MAINTENANCE_PENDING = "maintenance pending"
-    """Edge worerker received the request for maintenance, waiting for jobs to finish."""
+    """Edge worker received the request for maintenance, waiting for jobs to finish."""
     MAINTENANCE_MODE = "maintenance mode"
     """Edge worker is in maintenance mode."""
     MAINTENANCE_EXIT = "maintenance exit"
