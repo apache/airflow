@@ -38,6 +38,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils import timezone
+from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
@@ -239,6 +240,7 @@ class TestAthenaOperator:
                 logical_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
@@ -246,6 +248,7 @@ class TestAthenaOperator:
                 execution_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=self.athena)
         ti.dag_run = dag_run

@@ -161,6 +161,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/.*\.[jt]sx?",
             r"^airflow/.*\.lock",
             r"^airflow/ui/.*\.yaml$",
+            r"^airflow/auth/managers/simple/ui/.*\.yaml$",
         ],
         FileGroupForCi.API_TEST_FILES: [
             r"^airflow/api/",
@@ -198,7 +199,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
         ],
-        FileGroupForCi.UI_FILES: [r"^airflow/ui/"],
+        FileGroupForCi.UI_FILES: [r"^airflow/ui/", r"^airflow/auth/managers/simple/ui/"],
         FileGroupForCi.LEGACY_WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",
@@ -886,7 +887,7 @@ class SelectiveChecks:
     def _get_providers_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
         if self._default_branch != "main":
             return []
-        if self.full_tests_needed:
+        if self.full_tests_needed or self.run_task_sdk_tests:
             if split_to_individual_providers:
                 return list(providers_test_type())
             else:

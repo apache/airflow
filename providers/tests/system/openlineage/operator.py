@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import uuid
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
@@ -63,6 +64,15 @@ def is_uuid(result: Any) -> str:
     return "false"
 
 
+def regex_match(result: Any, pattern: str) -> str:
+    try:
+        if re.match(pattern=pattern, string=result):
+            return "true"
+    except Exception:
+        pass
+    return "false"
+
+
 def env_var(var: str, default: str | None = None) -> str:
     """
     Use this jinja method to access the environment variable named 'var'.
@@ -97,6 +107,7 @@ def setup_jinja() -> Environment:
     env.globals["any"] = any
     env.globals["is_datetime"] = is_datetime
     env.globals["is_uuid"] = is_uuid
+    env.globals["regex_match"] = regex_match
     env.globals["env_var"] = env_var
     env.globals["not_match"] = not_match
     env.filters["url_scheme_authority"] = url_scheme_authority
@@ -151,7 +162,7 @@ def match(expected, result, env: Environment) -> bool:
             except ValueError as e:
                 log.error("Error rendering jinja template %s: %s", expected, e)
                 return False
-            if rendered == "true" or rendered == result:
+            if str(rendered).lower() == "true" or rendered == result:
                 return True
             log.error("Rendered value %s does not equal 'true' or %s", rendered, result)
             return False

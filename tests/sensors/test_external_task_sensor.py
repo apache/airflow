@@ -1595,6 +1595,7 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
         logical_date = DEFAULT_DATE + timedelta(days=delta)
         dagrun = DagRun(
             dag_id=dag.dag_id,
+            start_date=logical_date,
             state=DagRunState.SUCCESS,
             logical_date=logical_date,
             run_type=DagRunType.MANUAL,
@@ -1607,10 +1608,31 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
             ti.state = TaskInstanceState.SUCCESS
     session.flush()
 
-    # The next two lines are doing the same thing. Clearing the first "head" with "Future"
-    # selected is the same as not selecting "Future". They should take similar amount of
-    # time too because dag.clear() uses visited_external_tis to keep track of visited ExternalTaskMarker.
     assert dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail, session=session) == 30
+
+
+@provide_session
+def test_clear_overlapping_external_task_marker_with_end_date(dag_bag_head_tail, session):
+    dag: DAG = dag_bag_head_tail.get_dag("head_tail")
+
+    # "Run" 10 times.
+    for delta in range(10):
+        logical_date = DEFAULT_DATE + timedelta(days=delta)
+        dagrun = DagRun(
+            dag_id=dag.dag_id,
+            start_date=logical_date,
+            state=DagRunState.SUCCESS,
+            logical_date=logical_date,
+            run_type=DagRunType.MANUAL,
+            run_id=f"test_{delta}",
+        )
+        session.add(dagrun)
+        for task in dag.tasks:
+            ti = TaskInstance(task=task)
+            dagrun.task_instances.append(ti)
+            ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
     assert (
         dag.clear(
             start_date=DEFAULT_DATE,
@@ -1678,6 +1700,7 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         logical_date = DEFAULT_DATE + timedelta(days=delta)
         dagrun = DagRun(
             dag_id=dag.dag_id,
+            start_date=logical_date,
             state=DagRunState.SUCCESS,
             logical_date=logical_date,
             run_type=DagRunType.MANUAL,
