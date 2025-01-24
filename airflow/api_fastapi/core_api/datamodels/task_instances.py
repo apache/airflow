@@ -198,8 +198,7 @@ class ClearTaskInstancesBody(BaseModel):
 class PatchTaskInstanceBody(BaseModel):
     """Request body for Clear Task Instances endpoint."""
 
-    dry_run: bool = True
-    new_state: str | None = None
+    new_state: TaskInstanceState | None = None
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None
     include_upstream: bool = False
     include_downstream: bool = False
