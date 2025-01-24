@@ -382,7 +382,7 @@ class _EdgeWorkerCli:
         sysinfo = self._get_sysinfo()
         try:
             worker_info = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
-            self.queues = worker_info["queues"]
+            self.queues = worker_info["queues"] if isinstance(worker_info["queues"], list) else None
             if worker_info["state"] in (
                 EdgeWorkerState.MAINTENANCE_REQUEST,
                 EdgeWorkerState.MAINTENANCE_PENDING,
