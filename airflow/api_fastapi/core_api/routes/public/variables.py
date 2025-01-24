@@ -45,6 +45,7 @@ from airflow.api_fastapi.core_api.services.public.variables import (
     handle_bulk_delete,
     handle_bulk_update,
 )
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
@@ -169,6 +170,7 @@ def patch_variable(
     "",
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+    dependencies=[Depends(action_logging())],
 )
 def post_variable(
     post_body: VariableBody,

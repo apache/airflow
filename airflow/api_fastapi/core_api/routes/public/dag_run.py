@@ -332,7 +332,7 @@ def get_dag_runs(
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(action_logging("trigger_dag_run"))],
+    dependencies=[Depends(action_logging())],
 )
 def trigger_dag_run(
     dag_id,

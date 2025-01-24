@@ -79,6 +79,11 @@ def action_logging(event: str | None = None):
         user: Annotated[BaseUser, Depends(get_user_with_exception_handling)],
     ):
         """Log user actions."""
+        request_body = await request.json()
+        masked_body_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
+
+        event_name = event or request.url.path.strip("/").replace("/", ".")
+
         if not user:
             user_name = "anonymous"
             user_display = ""
@@ -104,25 +109,30 @@ def action_logging(event: str | None = None):
             for k, v in itertools.chain(request.query_params.items(), request.path_params.items())
             if k not in fields_skip_logging
         }
-        if event and event.startswith("variable."):
-            extra_fields = _mask_variable_fields(request.json if hasJsonBody else extra_fields)
-        elif event and event.startswith("connection."):
-            extra_fields = _mask_connection_fields(request.json if hasJsonBody else extra_fields)
+        if event_name and event_name.split(".")[-1] == "variables":
+            extra_fields = _mask_variable_fields(
+                {k: v for k, v in request_body.items()} if hasJsonBody else extra_fields
+            )
+        elif event_name and event_name.split(".")[-1] == "connections":
+            extra_fields = _mask_connection_fields(
+                {k: v for k, v in request_body.items()} if hasJsonBody else extra_fields
+            )
         elif hasJsonBody:
-            request_body = await request.json()
-            masked_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
-            extra_fields = {**extra_fields, **masked_json}
+            extra_fields = {**extra_fields, **masked_body_json}
 
-        params = {**request.query_params, **request.path_params}
+        params = {
+            **request.query_params,
+            **request.path_params,
+        }
+        params.update(masked_body_json)
         if params and "is_paused" in params:
             extra_fields["is_paused"] = params["is_paused"] == "false"
 
-        if params and "is_paused" in params:
-            extra_fields["is_paused"] = params["is_paused"] == "false"
+        extra_fields["method"] = request.method
 
         # Create log entry
         log = Log(
-            event=event,
+            event=event_name,
             task_instance=None,
             owner=user_name,
             owner_display_name=user_display,
@@ -141,11 +151,6 @@ def action_logging(event: str | None = None):
                     logger.exception("Failed to parse logical_date from the request: %s", logical_date_value)
             else:
                 logger.warning("Logical date is missing or empty")
-        try:
-            session.add(log)
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            raise e
+        session.add(log)
 
     return log_action
