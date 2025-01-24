@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-24T07:58:03.084459
+# This constraints file was automatically generated on 2025-01-24T13:58:37.203379
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -625,7 +625,7 @@ s3fs==2024.12.0
 s3transfer==0.11.2
 scramp==1.4.5
 scrapbook==0.5.0
-semver==3.0.2
+semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.0.0
 sentry-sdk==2.20.0
@@ -669,7 +669,7 @@ sqlparse==0.5.3
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.45.2
+starlette==0.45.3
 statsd==4.0.1
 std-uritemplate==2.0.1
 strictyaml==1.7.3
