@@ -17,15 +17,19 @@
  * under the License.
  */
 import { Badge, type BadgeProps } from "@chakra-ui/react";
+import React from "react";
+import type { IconType } from "react-icons";
 
 type MetricBadgeProps = {
   readonly backgroundColor: string;
   readonly color?: string;
+  readonly icon?: IconType;
   readonly runs?: number;
 } & BadgeProps;
 
-export const MetricsBadge = ({ backgroundColor, color = "fg.inverted", runs }: MetricBadgeProps) => (
+export const MetricsBadge = ({ backgroundColor, color = "fg.inverted", icon, runs }: MetricBadgeProps) => (
   <Badge bg={backgroundColor} borderRadius={15} color={color} minWidth={10} mr={1} px={4} py={1} size="md">
+    {icon ? React.createElement(icon, { size: 16 }) : undefined}
     {runs}
   </Badge>
 );

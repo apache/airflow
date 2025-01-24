@@ -30,11 +30,11 @@ export type StatusProps = {
 
 export const Status = React.forwardRef<HTMLDivElement, StatusProps>(({ children, state, ...rest }, ref) => {
   // "null" is actually a string on stateColor
-  const colorPalette = stateColor[state ?? "null"];
+  const { color, icon } = stateColor[state ?? "null"];
 
   return (
     <ChakraStatus.Root ref={ref} {...rest}>
-      <ChakraStatus.Indicator bg={colorPalette} />
+      {React.createElement(icon, { color, size: 16 })}
       {children}
     </ChakraStatus.Root>
   );

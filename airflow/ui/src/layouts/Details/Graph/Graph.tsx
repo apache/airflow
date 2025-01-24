@@ -42,7 +42,7 @@ const nodeColor = (
   }
 
   if (taskInstance?.state !== undefined && !isOpen) {
-    return stateColor[taskInstance.state ?? "null"];
+    return stateColor[taskInstance.state ?? "null"].color;
   }
 
   if (isOpen && depth !== undefined && depth % 2 === 0) {

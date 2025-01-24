@@ -58,7 +58,7 @@ export const TaskRecentRuns = ({
             <Link to={getTaskInstanceLink(taskInstance)}>
               <Box p={1}>
                 <Box
-                  bg={stateColor[taskInstance.state]}
+                  bg={stateColor[taskInstance.state].color}
                   borderRadius="4px"
                   height={`${(taskInstance.duration / max) * BAR_HEIGHT}px`}
                   minHeight={1}

@@ -16,22 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-// TODO: replace this with Airflow config values
+import {
+  FiActivity,
+  FiAlertCircle,
+  FiAlertTriangle,
+  FiCalendar,
+  FiCheckCircle,
+  FiCircle,
+  FiClock,
+  FiList,
+  FiRefreshCw,
+  FiRepeat,
+  FiSkipForward,
+  FiSlash,
+} from "react-icons/fi";
+import { LuCalendarSync } from "react-icons/lu";
 
 export const stateColor = {
-  deferred: "mediumpurple",
-  failed: "red",
-  none: "lightblue",
-  null: "lightblue",
-  queued: "gray",
-  removed: "lightgrey",
-  restarting: "violet",
-  running: "lime",
-  scheduled: "tan",
-  skipped: "hotpink",
-  success: "green",
-  up_for_reschedule: "turquoise",
-  up_for_retry: "gold",
-  upstream_failed: "orange",
+  deferred: { color: "purple", icon: FiClock },
+  failed: { color: "red", icon: FiAlertTriangle },
+  none: { color: "lightblue", icon: FiCircle },
+  null: { color: "lightblue", icon: FiCircle },
+  queued: { color: "gray", icon: FiList },
+  removed: { color: "lightgrey", icon: FiSlash },
+  restarting: { color: "violet", icon: FiRepeat },
+  running: { color: "lime", icon: FiActivity },
+  scheduled: { color: "tan", icon: FiCalendar },
+  skipped: { color: "pink", icon: FiSkipForward },
+  success: { color: "green", icon: FiCheckCircle },
+  up_for_reschedule: { color: "cyan", icon: LuCalendarSync },
+  up_for_retry: { color: "yellow", icon: FiRefreshCw },
+  upstream_failed: { color: "orange", icon: FiAlertCircle },
 };

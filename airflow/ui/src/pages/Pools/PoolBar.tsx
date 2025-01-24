@@ -20,7 +20,7 @@
  */
 import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
 import React from "react";
-import { FiActivity, FiCalendar, FiCheckCircle, FiClock, FiList, FiXCircle } from "react-icons/fi";
+import { FiClock, FiXCircle } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
@@ -28,12 +28,12 @@ import { capitalize } from "src/utils";
 import { stateColor } from "src/utils/stateColor";
 
 const slots = {
-  open_slots: { color: stateColor.success, icon: FiCheckCircle },
-  occupied_slots: { color: stateColor.up_for_retry, icon: FiXCircle },
-  running_slots: { color: stateColor.running, icon: FiActivity },
-  queued_slots: { color: stateColor.queued, icon: FiList },
-  scheduled_slots: { color: stateColor.scheduled, icon: FiCalendar },
-  deferred_slots: { color: stateColor.deferred, icon: FiClock },
+  open_slots: stateColor.success,
+  occupied_slots: { color: stateColor.up_for_retry.color, icon: FiXCircle },
+  running_slots: stateColor.running,
+  queued_slots: stateColor.queued,
+  scheduled_slots: stateColor.scheduled,
+  deferred_slots: stateColor.deferred,
 };
 
 type PoolBarProps = {

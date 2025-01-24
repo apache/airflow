@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Text, Button } from "@chakra-ui/react";
+import type { IconType } from "react-icons";
 import { FiChevronRight } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -28,16 +29,18 @@ import { capitalize } from "src/utils";
 export const DagFilterButton = ({
   badgeColor,
   filter,
+  icon,
   link,
 }: {
   readonly badgeColor: string;
   readonly filter: string;
+  readonly icon?: IconType;
   readonly link: string;
 }) => (
   <RouterLink to={link}>
     <Button alignItems="center" borderRadius="md" display="flex" gap={2} variant="outline">
       <Box alignItems="center" display="flex" gap={1}>
-        <MetricsBadge backgroundColor={badgeColor} />
+        <MetricsBadge backgroundColor={badgeColor} icon={icon} />
         <Text fontWeight="bold">{capitalize(filter)} Dags</Text>
         <FiChevronRight />
       </Box>

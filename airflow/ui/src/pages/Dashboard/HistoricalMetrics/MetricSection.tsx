@@ -38,18 +38,20 @@ export const MetricSection = ({ runs, state, total }: MetricSectionProps) => {
   const stateWidth = total === 0 ? 0 : (runs / total) * BAR_WIDTH;
   const remainingWidth = BAR_WIDTH - stateWidth;
 
+  const { color, icon } = stateColor[state as keyof typeof stateColor];
+
   return (
     <VStack align="left" gap={1} mb={4} ml={0} pl={0}>
       <Flex justify="space-between">
         <HStack>
-          <MetricsBadge backgroundColor={stateColor[state as keyof typeof stateColor]} runs={runs} />
+          <MetricsBadge backgroundColor={color} icon={icon} runs={runs} />
           <Text> {capitalize(state)} </Text>
         </HStack>
         <Text color="fg.muted"> {statePercent}% </Text>
       </Flex>
       <HStack gap={0} mt={2}>
         <Box
-          bg={stateColor[state as keyof typeof stateColor]}
+          bg={color}
           borderLeftRadius={5}
           height={`${BAR_HEIGHT}px`}
           minHeight={2}
