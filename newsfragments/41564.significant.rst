@@ -17,9 +17,9 @@ Move all time operators and sensors from airflow core to standard provider
 
     * AIR303
 
-      * [ ] ``airflow.operators.datetime.*`` → ``airflow.providers.standard.time.operators.datetime.*``
-      * [ ] ``airflow.operators.weekday.*`` → ``airflow.providers.standard.time.operators.weekday.*``
-      * [ ] ``airflow.sensors.date_time.*`` → ``airflow.providers.standard.time.sensors.date_time.*``
-      * [ ] ``airflow.sensors.time_sensor.*`` → ``airflow.providers.standard.time.sensors.time.*``
-      * [ ] ``airflow.sensors.time_delta.*`` → ``airflow.providers.standard.time.sensors.time_delta.*``
-      * [ ] ``airflow.sensors.weekday.*`` → ``airflow.providers.standard.time.sensors.weekday.*``
+      * [x] ``airflow.operators.datetime.*`` → ``airflow.providers.standard.time.operators.datetime.*``
+      * [x] ``airflow.operators.weekday.*`` → ``airflow.providers.standard.time.operators.weekday.*``
+      * [x] ``airflow.sensors.date_time.*`` → ``airflow.providers.standard.time.sensors.date_time.*``
+      * [x] ``airflow.sensors.time_sensor.*`` → ``airflow.providers.standard.time.sensors.time.*``
+      * [x] ``airflow.sensors.time_delta.*`` → ``airflow.providers.standard.time.sensors.time_delta.*``
+      * [x] ``airflow.sensors.weekday.*`` → ``airflow.providers.standard.time.sensors.weekday.*``

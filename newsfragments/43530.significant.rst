@@ -19,3 +19,29 @@ After:
     from airflow.configuration import conf
 
     value = conf.get("section", "key")
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.configuration.getboolean`` → ``airflow.configuration.conf.getboolean``
+      * [x] ``airflow.configuration.getfloat`` → ``airflow.configuration.conf.getfloat``
+      * [x] ``airflow.configuration.getint`` → ``airflow.configuration.conf.getint``
+      * [x] ``airflow.configuration.has_option`` → ``airflow.configuration.conf.has_option``
+      * [x] ``airflow.configuration.remove_option`` → ``airflow.configuration.conf.remove_option``
+      * [x] ``airflow.configuration.as_dict`` → ``airflow.configuration.conf.as_dict``
+      * [x] ``airflow.configuration.set`` → ``airflow.configuration.conf.set``
+      * [x] ``airflow.configuration.get`` → ``airflow.configuration.conf.get``
