@@ -1487,3 +1487,15 @@ def clean_dags_and_dagruns():
     yield  # Test runs here
     clear_db_dags()
     clear_db_runs()
+
+
+@pytest.fixture
+def clean_executor_loader():
+    """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
+    from airflow.executors.executor_loader import ExecutorLoader
+    from tests.test_utils.executor_loader import clean_executor_loader_module
+
+    clean_executor_loader_module()
+    yield  # Test runs here
+    clean_executor_loader_module()
+    ExecutorLoader.init_executors()
