@@ -21,3 +21,6 @@
 #
 # This is a temporary solution until https://github.com/apache/airflow/issues/42632
 # is done
+from __future__ import annotations
+
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore

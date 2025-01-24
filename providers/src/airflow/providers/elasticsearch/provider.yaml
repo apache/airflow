@@ -22,9 +22,10 @@ description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 state: ready
-source-date-epoch: 1731570065
+source-date-epoch: 1734533734
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 6.0.0
   - 5.5.3
   - 5.5.2
   - 5.5.1
@@ -70,7 +71,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - apache-airflow-providers-common-sql>=1.20.0
   - elasticsearch>=8.10,<9
 
@@ -135,6 +136,20 @@ config:
         type: string
         example: ~
         default: "False"
+      write_to_es:
+        description: |
+          Write the task logs to the ElasticSearch
+        version_added: 5.5.4
+        type: string
+        example: ~
+        default: "False"
+      target_index:
+        description: |
+          Name of the index to write to, when enabling writing the task logs to the ElasticSearch
+        version_added: 5.5.4
+        type: string
+        example: ~
+        default: "airflow-logs"
       json_format:
         description: |
           Instead of the default log formatter, write the log lines as JSON

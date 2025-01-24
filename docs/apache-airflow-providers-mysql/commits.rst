@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.0.0
+.....
+
+Latest change: 2024-12-19
+
+=================================================================================================  ===========  ======================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================================
+`35b927fe17 <https://github.com/apache/airflow/commit/35b927fe177065dad0e00c49d72b494e58b27ca8>`_  2024-12-19   ``Update path of example dags in docs (#45069)``
+`4b38bed76c <https://github.com/apache/airflow/commit/4b38bed76c1ea5fe84a6bc678ce87e20d563adc0>`_  2024-12-16   ``Bump min version of Providers to 2.9 (#44956)``
+`3c0915c75b <https://github.com/apache/airflow/commit/3c0915c75b6f1285e79a9d260a109cf085b14171>`_  2024-12-06   ``Remove Provider Deprecations in MySQL (#44665)``
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`8c91fcec50 <https://github.com/apache/airflow/commit/8c91fcec50ab18ddabaaf97d2461a32f8ce4fb44>`_  2024-11-19   ``Fix error file not found. tmp file is deleted before inserting rows to DB in VerticaToMySQLOperator bulk  (#44028)``
+`4dfae23532 <https://github.com/apache/airflow/commit/4dfae23532d26ed838069c49d48f28c185e954c6>`_  2024-11-15   ``Update DAG example links in multiple providers documents (#44034)``
+`0393c1ffc8 <https://github.com/apache/airflow/commit/0393c1ffc8bb6b9513865e5b2c73a3b8eef29915>`_  2024-11-14   ``Add basic asyncio support (#43944)``
+=================================================================================================  ===========  ======================================================================================================================
+
 5.7.4
 .....
 
-Latest change: 2024-11-13
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `229c6a3e46 <https://github.com/apache/airflow/commit/229c6a3e4673db03119c78828e546ebae272ef75>`_  2024-11-02   ``Explain how to use uv with airflow virtualenv and make it works (#43604)``
 `d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``

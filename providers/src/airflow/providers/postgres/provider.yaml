@@ -22,9 +22,10 @@ description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
 state: ready
-source-date-epoch: 1731570750
+source-date-epoch: 1734536300
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 6.0.0
   - 5.14.0
   - 5.13.1
   - 5.13.0
@@ -67,9 +68,9 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
+  - apache-airflow>=2.9.0
   - apache-airflow-providers-common-sql>=1.20.0
-  - psycopg2-binary>=2.9.4
+  - psycopg2-binary>=2.9.7
   - asyncpg>=0.30.0
 
 additional-extras:
@@ -84,6 +85,10 @@ integrations:
       - /docs/apache-airflow-providers-postgres/operators/postgres_operator_howto_guide.rst
     logo: /integration-logos/postgres/Postgres.png
     tags: [software]
+
+dialects:
+  - dialect-type: postgresql
+    dialect-class-name: airflow.providers.postgres.dialects.postgres.PostgresDialect
 
 hooks:
   - integration-name: PostgreSQL

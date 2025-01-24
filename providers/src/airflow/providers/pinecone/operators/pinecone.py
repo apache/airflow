@@ -23,12 +23,15 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.pinecone.hooks.pinecone import PineconeHook
-from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from pinecone import Vector
 
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class PineconeIngestOperator(BaseOperator):

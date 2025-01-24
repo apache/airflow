@@ -21,7 +21,8 @@ import urllib.parse
 
 import pytest
 
-from airflow.providers.google.assets.bigquery import sanitize_uri
+from airflow.providers.common.compat.assets import Asset
+from airflow.providers.google.assets.bigquery import convert_asset_to_openlineage, create_asset, sanitize_uri
 
 
 def test_sanitize_uri_pass() -> None:
@@ -43,3 +44,16 @@ def test_sanitize_uri_fail(value: str) -> None:
     uri_i = urllib.parse.urlsplit(value)
     with pytest.raises(ValueError):
         sanitize_uri(uri_i)
+
+
+def test_create_asset():
+    assert create_asset(project_id="project", dataset_id="dataset", table_id="table") == Asset(
+        uri="bigquery://project/dataset/table"
+    )
+
+
+def test_convert_asset_to_openlineage():
+    uri = "bigquery://project/dataset/table"
+    ol_dataset = convert_asset_to_openlineage(asset=Asset(uri=uri), lineage_context=None)
+    assert ol_dataset.namespace == "bigquery"
+    assert ol_dataset.name == "project.dataset.table"

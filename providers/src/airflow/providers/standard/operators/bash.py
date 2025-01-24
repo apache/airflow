@@ -34,8 +34,11 @@ from airflow.utils.types import ArgNotSet
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession
 
-    from airflow.models.taskinstance import TaskInstance
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class BashOperator(BaseOperator):
@@ -66,7 +69,7 @@ class BashOperator(BaseOperator):
     :param cwd: Working directory to execute the command in (templated).
         If None (default), the command is run in a temporary directory.
         To use current DAG folder as the working directory,
-        you might set template ``{{ dag_run.dag.folder }}``.
+        you might set template ``{{ task.dag.folder }}``.
         When bash_command is a '.sh' or '.bash' file, Airflow must have write
         access to the working directory. The script will be rendered (Jinja
         template) into a new temporary file in this directory.
@@ -198,7 +201,7 @@ class BashOperator(BaseOperator):
     # TODO: This should be replaced with Task SDK API call
     @staticmethod
     @provide_session
-    def refresh_bash_command(ti: TaskInstance, session: SASession = NEW_SESSION) -> None:
+    def refresh_bash_command(ti, session: SASession = NEW_SESSION) -> None:
         """
         Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
 
@@ -211,11 +214,6 @@ class BashOperator(BaseOperator):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         """Update rendered task instance fields for cases where runtime evaluated, not templated."""
-        # Note: Need lazy import to break the partly loaded class loop
-        from airflow.models.taskinstance import TaskInstance
-
-        # If called via remote API the DAG needs to be re-loaded
-        TaskInstance.ensure_dag(ti, session=session)
 
         rtif = RenderedTaskInstanceFields(ti)
         RenderedTaskInstanceFields.write(rtif, session=session)

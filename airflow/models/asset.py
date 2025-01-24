@@ -43,17 +43,29 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from typing import Any
 
     from sqlalchemy.orm import Session
 
 
 def fetch_active_assets_by_name(names: Iterable[str], session: Session) -> dict[str, Asset]:
     return {
-        asset_model[0].name: asset_model[0].to_public()
-        for asset_model in session.execute(
+        asset_model.name: asset_model.to_public()
+        for asset_model in session.scalars(
             select(AssetModel)
             .join(AssetActive, AssetActive.name == AssetModel.name)
-            .where(AssetActive.name.in_(name for name in names))
+            .where(AssetActive.name.in_(names))
+        )
+    }
+
+
+def fetch_active_assets_by_uri(uris: Iterable[str], session: Session) -> dict[str, Asset]:
+    return {
+        asset_model.uri: asset_model.to_public()
+        for asset_model in session.scalars(
+            select(AssetModel)
+            .join(AssetActive, AssetActive.uri == AssetModel.uri)
+            .where(AssetActive.uri.in_(uris))
         )
     }
 
@@ -66,6 +78,22 @@ def expand_alias_to_assets(alias_name: str, session: Session) -> Iterable[AssetM
     if asset_alias_obj:
         return list(asset_alias_obj.assets)
     return []
+
+
+def resolve_ref_to_asset(
+    *,
+    name: str | None = None,
+    uri: str | None = None,
+    session: Session,
+) -> AssetModel | None:
+    if name is None and uri is None:
+        raise TypeError("either name or uri is required")
+    stmt = select(AssetModel).where(AssetModel.active.has())
+    if name is not None:
+        stmt = stmt.where(AssetModel.name == name)
+    if uri is not None:
+        stmt = stmt.where(AssetModel.uri == uri)
+    return session.scalar(stmt)
 
 
 alias_association_table = Table(
@@ -321,6 +349,98 @@ class AssetActive(Base):
     @classmethod
     def for_asset(cls, asset: AssetModel) -> AssetActive:
         return cls(name=asset.name, uri=asset.uri)
+
+
+class DagScheduleAssetNameReference(Base):
+    """Reference from a DAG to an asset name reference of which it is a consumer."""
+
+    name = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        primary_key=True,
+        nullable=False,
+    )
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    dag = relationship("DagModel", back_populates="schedule_asset_name_references")
+
+    __tablename__ = "dag_schedule_asset_name_reference"
+    __table_args__ = (
+        PrimaryKeyConstraint(name, dag_id, name="dsanr_pkey"),
+        ForeignKeyConstraint(
+            columns=(dag_id,),
+            refcolumns=["dag.dag_id"],
+            name="dsanr_dag_id_fkey",
+            ondelete="CASCADE",
+        ),
+        Index("idx_dag_schedule_asset_name_reference_dag_id", dag_id),
+    )
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, self.__class__):
+            return self.name == other.name and self.dag_id == other.dag_id
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.__mapper__.primary_key)
+
+    def __repr__(self):
+        args = [f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key]
+        return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class DagScheduleAssetUriReference(Base):
+    """Reference from a DAG to an asset URI reference of which it is a consumer."""
+
+    uri = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        primary_key=True,
+        nullable=False,
+    )
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    dag = relationship("DagModel", back_populates="schedule_asset_uri_references")
+
+    __tablename__ = "dag_schedule_asset_uri_reference"
+    __table_args__ = (
+        PrimaryKeyConstraint(uri, dag_id, name="dsaur_pkey"),
+        ForeignKeyConstraint(
+            columns=(dag_id,),
+            refcolumns=["dag.dag_id"],
+            name="dsaur_dag_id_fkey",
+            ondelete="CASCADE",
+        ),
+        Index("idx_dag_schedule_asset_uri_reference_dag_id", dag_id),
+    )
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, self.__class__):
+            return self.uri == other.uri and self.dag_id == other.dag_id
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.__mapper__.primary_key)
+
+    def __repr__(self):
+        args = [f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key]
+        return f"{self.__class__.__name__}({', '.join(args)})"
 
 
 class DagScheduleAssetAliasReference(Base):
@@ -593,6 +713,14 @@ class AssetEvent(Base):
     @property
     def uri(self):
         return self.asset.uri
+
+    @property
+    def group(self):
+        return self.asset.group
+
+    @property
+    def name(self):
+        return self.asset.name
 
     def __repr__(self) -> str:
         args = []

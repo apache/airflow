@@ -26,16 +26,14 @@ import pytest
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
 from airflow.models.expandinput import DictOfListsExpandInput
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom_arg import PlainXComArg, XComArg
+from airflow.models.xcom_arg import PlainXComArg
+from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -79,15 +77,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
         "annotation",
         [
             "dict",
-            pytest.param(
-                "dict[str, int]",
-                marks=pytest.mark.skipif(
-                    sys.version_info < (3, 9),
-                    reason="PEP 585 is implemented in Python 3.9",
-                ),
-            ),
-            "typing.Dict",
             "dict[str, int]",
+            "typing.Dict",
+            "typing.Dict[str, int]",
         ],
     )
     def test_infer_multiple_outputs_using_dict_typing(self, resolve, annotation):
@@ -450,7 +442,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = self.dag_non_serialized.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
@@ -514,7 +507,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = self.dag_non_serialized.create_dagrun(
-            run_id=DagRunType.MANUAL,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,

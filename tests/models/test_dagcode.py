@@ -41,8 +41,17 @@ pytestmark = pytest.mark.db_test
 
 def make_example_dags(module):
     """Loads DAGs from a module for test."""
+    # TODO: AIP-66 dedup with tests/models/test_serdag
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            testing = DagBundleModel(name="testing")
+            session.add(testing)
+
     dagbag = DagBag(module.__path__[0])
-    DAG.bulk_write_to_db(dagbag.dags.values())
+    DAG.bulk_write_to_db("testing", None, dagbag.dags.values())
     return dagbag.dags
 
 
@@ -127,7 +136,7 @@ class TestDagCode:
                 assert test_string in dag_code
 
     def test_db_code_created_on_serdag_change(self, session):
-        """Test new DagCode is created in DB when DAG file is changed"""
+        """Test new DagCode is created in DB when ser dag is changed"""
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
         SDM.write_dag(example_dag)
 
@@ -139,26 +148,24 @@ class TestDagCode:
             .one()
         )
 
-        assert result.fileloc == example_dag.fileloc
         assert result.source_code is not None
 
-        example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        SDM.write_dag(example_dag, processor_subdir="/tmp")
+        example_dag.doc_md = "new doc"
         with patch("airflow.models.dagcode.DagCode.get_code_from_file") as mock_code:
             mock_code.return_value = "# dummy code"
             SDM.write_dag(example_dag)
 
-            new_result = (
-                session.query(DagCode)
-                .filter(DagCode.fileloc == example_dag.fileloc)
-                .order_by(DagCode.last_updated.desc())
-                .limit(1)
-                .one()
-            )
+        new_result = (
+            session.query(DagCode)
+            .filter(DagCode.fileloc == example_dag.fileloc)
+            .order_by(DagCode.last_updated.desc())
+            .limit(1)
+            .one()
+        )
 
-            assert new_result.fileloc == example_dag.fileloc
-            assert new_result.source_code != result.source_code
-            assert new_result.last_updated > result.last_updated
+        assert new_result.source_code != result.source_code
+        assert new_result.last_updated > result.last_updated
+        assert session.query(DagCode).count() == 2
 
     def test_has_dag(self, dag_maker):
         """Test has_dag method."""
@@ -192,6 +199,6 @@ class TestDagCode:
         session.commit()
         dagcode2 = DagCode.get_latest_dagcode(dag.dag_id)
         assert dagcode2.source_code_hash == 2
-        DagCode.update_source_code(dag)
+        DagCode.update_source_code(dag.dag_id, dag.fileloc)
         dag_code3 = DagCode.get_latest_dagcode(dag.dag_id)
         assert dag_code3.source_code_hash != 2

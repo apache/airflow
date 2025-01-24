@@ -18,12 +18,31 @@
 #}
 Core operators
 ==============
-At the moment, two core operators supports OpenLineage. These operators function as a 'black box,'
+At the moment, two core operators support OpenLineage. These operators function as a 'black box,'
 capable of running any code, which might limit the extent of lineage extraction. To enhance the extraction
 of lineage information, operators can utilize the hooks listed below that support OpenLineage.
 
 - :class:`~airflow.providers.standard.operators.python.PythonOperator` (via :class:`airflow.providers.openlineage.extractors.python.PythonExtractor`)
 - :class:`~airflow.providers.standard.operators.bash.BashOperator` (via :class:`airflow.providers.openlineage.extractors.bash.BashExtractor`)
+
+Spark operators
+===============
+The OpenLineage integration can automatically inject information into Spark application properties when its being submitted from Airflow.
+The following is a list of supported operators along with the corresponding information that can be injected.
+See :ref:`automatic injection of parent job information <options:spark_inject_parent_job_info>` for more details.
+
+apache-airflow-providers-google
+"""""""""""""""""""""""""""""""
+
+- :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`
+    - Parent Job Information
+    - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
+- :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`
+    - Parent Job Information
+    - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
+- :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`
+    - Parent Job Information
+    - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
 
 
 :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`

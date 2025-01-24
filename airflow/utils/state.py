@@ -39,6 +39,7 @@ class TerminalTIState(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"  # A user can raise a AirflowSkipException from a task & it will be marked as skipped
     REMOVED = "removed"
+    FAIL_WITHOUT_RETRY = "fail_without_retry"
 
     def __str__(self) -> str:
         return self.value

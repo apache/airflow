@@ -623,6 +623,7 @@ def params_for_test_container_is_running():
         e = RemotePodMock()
         e.status = RemotePodMock()
         e.status.container_statuses = []
+        e.status.init_container_statuses = []
         for r in not_running or []:
             e.status.container_statuses.append(container(r, False))
         for r in running or []:
@@ -643,6 +644,7 @@ def params_for_test_container_is_running():
     p = RemotePodMock()
     p.status = RemotePodMock()
     p.status.container_statuses = []
+    p.status.init_container_statuses = []
     pod_mock_list.append(pytest.param(p, False, id="empty remote_pod.status.container_statuses"))
     pod_mock_list.append(pytest.param(remote_pod(), False, id="filter empty"))
     pod_mock_list.append(pytest.param(remote_pod(None, ["base"]), False, id="filter 0 running"))
@@ -858,6 +860,7 @@ def params_for_test_container_is_succeeded():
         e = RemotePodMock()
         e.status = RemotePodMock()
         e.status.container_statuses = []
+        e.status.init_container_statuses = []
         for r in not_succeeded or []:
             e.status.container_statuses.append(container(r, False))
         for r in succeeded or []:
@@ -878,6 +881,7 @@ def params_for_test_container_is_succeeded():
     p = RemotePodMock()
     p.status = RemotePodMock()
     p.status.container_statuses = []
+    p.status.init_container_statuses = []
     pod_mock_list.append(pytest.param(p, False, id="empty remote_pod.status.container_statuses"))
     pod_mock_list.append(pytest.param(remote_pod(), False, id="filter empty"))
     pod_mock_list.append(pytest.param(remote_pod(None, ["base"]), False, id="filter 0 succeeded"))

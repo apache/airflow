@@ -61,6 +61,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import ParamValidationError
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.timetables.base import DataInterval
@@ -159,10 +160,13 @@ def patch_dag_run(
             attr_value = getattr(patch_body, "state")
             if attr_value == DAGRunPatchStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+                get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
             elif attr_value == DAGRunPatchStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+                # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler
             elif attr_value == DAGRunPatchStates.FAILED:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+                get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
         elif attr_name == "note":
             # Once Authentication is implemented in this FastAPI app,
             # user id will be added when updating dag run note
@@ -234,7 +238,7 @@ def clear_dag_run(
             start_date=start_date,
             end_date=end_date,
             task_ids=None,
-            only_failed=False,
+            only_failed=body.only_failed,
             dry_run=True,
             session=session,
         )
@@ -245,10 +249,10 @@ def clear_dag_run(
         )
     else:
         dag.clear(
-            start_date=dag_run.start_date,
-            end_date=dag_run.end_date,
+            start_date=start_date,
+            end_date=end_date,
             task_ids=None,
-            only_failed=False,
+            only_failed=body.only_failed,
             session=session,
         )
         dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
@@ -342,7 +346,6 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    run_id = body.dag_run_id
     logical_date = pendulum.instance(body.logical_date)
 
     try:
@@ -355,18 +358,27 @@ def trigger_dag_run(
             )
         else:
             data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+        if body.dag_run_id:
+            run_id = body.dag_run_id
+        else:
+            run_id = dag.timetable.generate_run_id(
+                run_type=DagRunType.MANUAL,
+                logical_date=logical_date,
+                data_interval=data_interval,
+            )
+
         dag_run = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
             run_id=run_id,
             logical_date=logical_date,
             data_interval=data_interval,
-            state=DagRunState.QUEUED,
             conf=body.conf,
-            external_trigger=True,
-            dag_version=dag_version,
-            session=session,
+            run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,
+            external_trigger=True,
+            dag_version=DagVersion.get_latest_version(dag.dag_id),
+            state=DagRunState.QUEUED,
+            session=session,
         )
         dag_run_note = body.note
         if dag_run_note:

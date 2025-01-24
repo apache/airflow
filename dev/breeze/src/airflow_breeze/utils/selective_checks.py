@@ -23,7 +23,7 @@ import re
 import sys
 from collections import defaultdict
 from enum import Enum
-from functools import cache, cached_property
+from functools import cached_property
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -60,14 +60,16 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_NS_PACKAGE,
+    AIRFLOW_PROVIDERS_DIR,
     AIRFLOW_SOURCES_ROOT,
     DOCS_DIR,
-    SYSTEM_TESTS_PROVIDERS_ROOT,
-    TESTS_PROVIDERS_ROOT,
+    OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
+    OLD_SYSTEM_TESTS_PROVIDERS_ROOT,
+    OLD_TESTS_PROVIDERS_ROOT,
 )
 from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
@@ -151,6 +153,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow/.*\.py",
+            r"^providers/.*\.py",
             r"^pyproject.toml",
             r"^hatch_build.py",
         ],
@@ -158,6 +161,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/.*\.[jt]sx?",
             r"^airflow/.*\.lock",
             r"^airflow/ui/.*\.yaml$",
+            r"^airflow/auth/managers/simple/ui/.*\.yaml$",
         ],
         FileGroupForCi.API_TEST_FILES: [
             r"^airflow/api/",
@@ -186,6 +190,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/.*\.py$",
             r"^chart",
             r"^providers/src/",
+            r"^providers/.*/src/",
             r"^task_sdk/src/",
             r"^tests/system",
             r"^CHANGELOG\.txt",
@@ -194,7 +199,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
         ],
-        FileGroupForCi.UI_FILES: [r"^airflow/ui/"],
+        FileGroupForCi.UI_FILES: [r"^airflow/ui/", r"^airflow/auth/managers/simple/ui/"],
         FileGroupForCi.LEGACY_WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",
@@ -207,21 +212,19 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^providers/src/airflow/providers/cncf/kubernetes/",
             r"^providers/tests/cncf/kubernetes/",
             r"^providers/tests/system/cncf/kubernetes/",
+            r"^providers/cncf/kubernetes/",
         ],
         FileGroupForCi.ALL_PYTHON_FILES: [
             r".*\.py$",
         ],
         FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
-            r".*\.py$",
+            r"airflow/.*\.py$",
+            r"tests/.*\.py$",
         ],
         FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES: [
-            r"^providers/src/airflow/providers/.*\.py$",
-            r"^providers/tests/.*\.py$",
-            r"^providers/tests/system/.*\.py$",
+            r"^providers/.*\.py$",
         ],
-        FileGroupForCi.ALL_DOCS_PYTHON_FILES: [
-            r"^docs/.*\.py$",
-        ],
+        FileGroupForCi.ALL_DOCS_PYTHON_FILES: [r"^docs/.*\.py$", r"^providers/.*/docs/.*\.py"],
         FileGroupForCi.ALL_DEV_PYTHON_FILES: [
             r"^dev/.*\.py$",
         ],
@@ -231,6 +234,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^providers/src/",
             r"^providers/tests/",
+            r"^providers/.*/src/",
+            r"^providers/.*/tests/",
             r"^task_sdk/src/",
             r"^task_sdk/tests/",
             r"^tests",
@@ -269,11 +274,11 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
             r"^.*/.*_vendor/.*",
             r"^airflow/migrations/.*",
             r"^providers/src/airflow/providers/.*",
+            r"^providers/.*/src/airflow/providers/.*",
             r"^dev/.*",
             r"^docs/.*",
-            r"^provider_packages/.*",
             r"^providers/tests/.*",
-            r"^providers/tests/system/.*",
+            r"^providers/.*/tests/.*",
             r"^tests/dags/test_imports.py",
             r"^task_sdk/src/airflow/sdk/.*\.py$",
             r"^task_sdk/tests/.*\.py$",
@@ -306,8 +311,9 @@ TEST_TYPE_MATCHES = HashableDict(
         ],
         SelectiveProvidersTestType.PROVIDERS: [
             r"^providers/src/airflow/providers/",
-            r"^providers/tests/system/",
             r"^providers/tests/",
+            r"^providers/.*/src/airflow/providers/",
+            r"^providers/.*/tests/",
         ],
         SelectiveTaskSdkTestType.TASK_SDK: [
             r"^task_sdk/src/",
@@ -326,30 +332,46 @@ TEST_TYPE_EXCLUDES = HashableDict({})
 
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
-    # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
-    for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_NS_PACKAGE):
-        try:
-            file_path.relative_to(provider_root)
-            relative_base_path = provider_root
+    # Check providers in SRC/SYSTEM_TESTS/TESTS/(optionally) DOCS
+    # TODO(potiuk) - this should be removed once we have all providers in the new structure (OLD + docs)
+    for provider_root in (
+        OLD_SYSTEM_TESTS_PROVIDERS_ROOT,
+        OLD_TESTS_PROVIDERS_ROOT,
+        OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
+        AIRFLOW_PROVIDERS_DIR,
+    ):
+        if file_path.is_relative_to(provider_root):
+            provider_base_path = provider_root
             break
-        except ValueError:
-            pass
     else:
-        if include_docs:
-            try:
-                relative_path = file_path.relative_to(DOCS_DIR)
-                if relative_path.parts[0].startswith("apache-airflow-providers-"):
-                    return relative_path.parts[0].replace("apache-airflow-providers-", "").replace("-", ".")
-            except ValueError:
-                pass
+        if include_docs and file_path.is_relative_to(DOCS_DIR):
+            relative_path = file_path.relative_to(DOCS_DIR)
+            if relative_path.parts[0].startswith("apache-airflow-providers-"):
+                return relative_path.parts[0].replace("apache-airflow-providers-", "").replace("-", ".")
+        # This is neither providers nor provider docs files - not a provider change
         return None
 
+    if not include_docs:
+        for parent_dir_path in file_path.parents:
+            if parent_dir_path.name == "docs" and (parent_dir_path.parent / "provider.yaml").exists():
+                # Skip Docs changes if include_docs is not set
+                return None
+
+    # Find if the path under src/system tests/tests belongs to provider or is a common code across
+    # multiple providers
     for parent_dir_path in file_path.parents:
-        if parent_dir_path == relative_base_path:
+        if parent_dir_path == provider_base_path:
+            # We have not found any provider specific path up to the root of the provider base folder
             break
-        relative_path = parent_dir_path.relative_to(relative_base_path)
-        if (AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
-            return str(parent_dir_path.relative_to(relative_base_path)).replace(os.sep, ".")
+        relative_path = parent_dir_path.relative_to(provider_base_path)
+        # check if this path belongs to a specific provider
+        # TODO(potiuk) - this should be removed once we have all providers in the new structure
+        if (OLD_AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
+            return str(parent_dir_path.relative_to(provider_base_path)).replace(os.sep, ".")
+        if (parent_dir_path / "provider.yaml").exists():
+            # new providers structure
+            return str(relative_path).replace(os.sep, ".")
+
     # If we got here it means that some "common" files were modified. so we need to test all Providers
     return "Providers"
 
@@ -367,7 +389,7 @@ def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_r
                 matched_files.remove(file)
 
 
-@cache
+@clearable_cache
 def _matching_files(
     files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
 ) -> list[str]:
@@ -618,13 +640,17 @@ class SelectiveChecks:
         return " ".join(self.kubernetes_versions)
 
     @cached_property
-    def kubernetes_combos_list_as_string(self) -> str:
+    def kubernetes_combos(self) -> list[str]:
         python_version_array: list[str] = self.python_versions_list_as_string.split(" ")
         kubernetes_version_array: list[str] = self.kubernetes_versions_list_as_string.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
             kubernetes_version_array, python_version_array
         )
-        return " ".join(short_combo_titles)
+        return short_combo_titles
+
+    @cached_property
+    def kubernetes_combos_list_as_string(self) -> str:
+        return " ".join(self.kubernetes_combos)
 
     def _matching_files(
         self, match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
@@ -744,6 +770,8 @@ class SelectiveChecks:
 
     @cached_property
     def run_tests(self) -> bool:
+        if self._is_canary_run():
+            return True
         if self.only_new_ui_files:
             return False
         # we should run all test
@@ -852,15 +880,14 @@ class SelectiveChecks:
             )
         # sort according to predefined order
         sorted_candidate_test_types = sorted(candidate_test_types)
-        get_console().print("[warning]Selected test type candidates to run:[/]")
+        get_console().print("[warning]Selected core test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
 
     def _get_providers_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
         if self._default_branch != "main":
             return []
-        affected_providers: AllProvidersSentinel | list[str] | None = ALL_PROVIDERS_SENTINEL
-        if self.full_tests_needed:
+        if self.full_tests_needed or self.run_task_sdk_tests:
             if split_to_individual_providers:
                 return list(providers_test_type())
             else:
@@ -885,18 +912,20 @@ class SelectiveChecks:
                     include_docs=False,
                 )
         candidate_test_types: set[str] = set()
-        if affected_providers and not isinstance(affected_providers, AllProvidersSentinel):
+        if isinstance(affected_providers, AllProvidersSentinel):
+            if split_to_individual_providers:
+                for provider in get_available_packages():
+                    candidate_test_types.add(f"Providers[{provider}]")
+            else:
+                candidate_test_types.add("Providers")
+        elif affected_providers:
             if split_to_individual_providers:
                 for provider in affected_providers:
                     candidate_test_types.add(f"Providers[{provider}]")
             else:
                 candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
-        elif split_to_individual_providers:
-            candidate_test_types.discard("Providers")
-            for provider in get_available_packages():
-                candidate_test_types.add(f"Providers[{provider}]")
         sorted_candidate_test_types = sorted(candidate_test_types)
-        get_console().print("[warning]Selected test type candidates to run:[/]")
+        get_console().print("[warning]Selected providers test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
 
@@ -1200,11 +1229,7 @@ class SelectiveChecks:
 
     @cached_property
     def docker_cache(self) -> str:
-        return (
-            "disabled"
-            if (self._github_event == GithubEvents.SCHEDULE or DISABLE_IMAGE_CACHE_LABEL in self._pr_labels)
-            else "registry"
-        )
+        return "disabled" if DISABLE_IMAGE_CACHE_LABEL in self._pr_labels else "registry"
 
     @cached_property
     def debug_resources(self) -> bool:
@@ -1442,7 +1467,7 @@ class SelectiveChecks:
         return self._github_actor in COMMITTERS
 
     def _find_all_providers_affected(self, include_docs: bool) -> list[str] | AllProvidersSentinel | None:
-        all_providers: set[str] = set()
+        affected_providers: set[str] = set()
 
         all_providers_affected = False
         suspended_providers: set[str] = set()
@@ -1454,11 +1479,11 @@ class SelectiveChecks:
                 if provider not in DEPENDENCIES:
                     suspended_providers.add(provider)
                 else:
-                    all_providers.add(provider)
+                    affected_providers.add(provider)
         if self.needs_api_tests:
-            all_providers.add("fab")
+            affected_providers.add("fab")
         if self.needs_ol_tests:
-            all_providers.add("openlineage")
+            affected_providers.add("openlineage")
         if all_providers_affected:
             return ALL_PROVIDERS_SENTINEL
         if suspended_providers:
@@ -1490,14 +1515,14 @@ class SelectiveChecks:
                 get_console().print(
                     "[info]This PR had `allow suspended provider changes` label set so it will continue"
                 )
-        if not all_providers:
+        if not affected_providers:
             return None
 
-        for provider in list(all_providers):
-            all_providers.update(
+        for provider in list(affected_providers):
+            affected_providers.update(
                 get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
             )
-        return sorted(all_providers)
+        return sorted(affected_providers)
 
     def _is_canary_run(self):
         return (

@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Collection
 from datetime import timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     from collections.abc import Sized
 
     from airflow.models import DagRun
+    from airflow.sdk.definitions.asset import AssetUniqueKey
 
 
 class AirflowException(Exception):
@@ -111,6 +113,35 @@ class AirflowFailException(AirflowException):
     """Raise when the task should be failed without retrying."""
 
 
+class AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
+    """Raise when the task is executed with inactive assets."""
+
+    def __init__(self, inactive_asset_unikeys: Collection[AssetUniqueKey]) -> None:
+        self.inactive_asset_unique_keys = inactive_asset_unikeys
+
+    @property
+    def inactive_assets_error_msg(self):
+        return ", ".join(
+            f'Asset(name="{key.name}", uri="{key.uri}")' for key in self.inactive_asset_unique_keys
+        )
+
+
+class AirflowInactiveAssetInInletOrOutletException(AirflowExecuteWithInactiveAssetExecption):
+    """Raise when the task is executed with inactive assets in its inlet or outlet."""
+
+    def __str__(self) -> str:
+        return f"Task has the following inactive assets in its inlets or outlets: {self.inactive_assets_error_msg}"
+
+
+class AirflowInactiveAssetAddedToAssetAliasException(AirflowExecuteWithInactiveAssetExecption):
+    """Raise when inactive assets are added to an asset alias."""
+
+    def __str__(self) -> str:
+        return (
+            f"The following assets accessed by an AssetAlias are inactive: {self.inactive_assets_error_msg}"
+        )
+
+
 class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
 
@@ -144,10 +175,6 @@ class XComNotFound(AirflowException):
             (),
             {"dag_id": self.dag_id, "task_id": self.task_id, "key": self.key},
         )
-
-
-class UnmappableOperator(AirflowException):
-    """Raise when an operator is not implemented to be mappable."""
 
 
 class XComForMappingNotPushed(AirflowException):
@@ -262,23 +289,23 @@ class DagFileExists(AirflowBadRequest):
         warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
 
 
-class FailStopDagInvalidTriggerRule(AirflowException):
-    """Raise when a dag has 'fail_stop' enabled yet has a non-default trigger rule."""
+class FailFastDagInvalidTriggerRule(AirflowException):
+    """Raise when a dag has 'fail_fast' enabled yet has a non-default trigger rule."""
 
     _allowed_rules = (TriggerRule.ALL_SUCCESS, TriggerRule.ALL_DONE_SETUP_SUCCESS)
 
     @classmethod
-    def check(cls, *, fail_stop: bool, trigger_rule: TriggerRule):
+    def check(cls, *, fail_fast: bool, trigger_rule: TriggerRule):
         """
-        Check that fail_stop dag tasks have allowable trigger rules.
+        Check that fail_fast dag tasks have allowable trigger rules.
 
         :meta private:
         """
-        if fail_stop and trigger_rule not in cls._allowed_rules:
+        if fail_fast and trigger_rule not in cls._allowed_rules:
             raise cls()
 
     def __str__(self) -> str:
-        return f"A 'fail-stop' dag can only have {TriggerRule.ALL_SUCCESS} trigger rule"
+        return f"A 'fail_fast' dag can only have {TriggerRule.ALL_SUCCESS} trigger rule"
 
 
 class DuplicateTaskIdFound(AirflowException):
@@ -434,7 +461,7 @@ class TaskDeferralTimeout(AirflowException):
 # 2) if you have new provider, both provider and pod generator will throw the
 #    "airflow.providers.cncf.kubernetes" as it will be imported here from the provider.
 try:
-    from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException
+    from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException
 except ImportError:
 
     class PodMutationHookException(AirflowException):  # type: ignore[no-redef]
@@ -442,7 +469,7 @@ except ImportError:
 
 
 try:
-    from airflow.providers.cncf.kubernetes.pod_generator import PodReconciliationError
+    from airflow.providers.cncf.kubernetes.exceptions import PodReconciliationError
 except ImportError:
 
     class PodReconciliationError(AirflowException):  # type: ignore[no-redef]

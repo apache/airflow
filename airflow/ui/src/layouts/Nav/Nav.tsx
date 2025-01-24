@@ -50,17 +50,8 @@ export const Nav = () => {
           <AirflowPin height="35px" width="35px" />
         </Box>
         <NavButton icon={<FiHome size="1.75rem" />} title="Home" to="/" />
-        <NavButton
-          icon={<DagIcon height="1.75rem" width="1.75rem" />}
-          title="Dags"
-          to="dags"
-        />
-        <NavButton
-          disabled
-          icon={<FiDatabase size="1.75rem" />}
-          title="Assets"
-          to="assets"
-        />
+        <NavButton icon={<DagIcon height="1.75rem" width="1.75rem" />} title="Dags" to="dags" />
+        <NavButton disabled icon={<FiDatabase size="1.75rem" />} title="Assets" to="assets" />
         <BrowseButton />
         <AdminButton />
       </Flex>

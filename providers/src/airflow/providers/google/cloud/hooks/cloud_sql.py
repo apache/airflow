@@ -67,6 +67,8 @@ if TYPE_CHECKING:
     from google.cloud.secretmanager_v1 import AccessSecretVersionResponse
     from requests import Session
 
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
+
 UNIX_PATH_MAX = 108
 
 # Time to sleep between active checks of the operation results
@@ -573,6 +575,8 @@ class CloudSqlProxyRunner(LoggingMixin):
         processor = os.uname().machine
         if processor == "x86_64":
             processor = "amd64"
+        elif processor == "aarch64":
+            processor = "arm64"
         if not self.sql_proxy_version:
             download_url = CLOUD_SQL_PROXY_DOWNLOAD_URL.format(system, processor)
         else:
@@ -1146,7 +1150,7 @@ class CloudSQLDatabaseHook(BaseHook):
             gcp_conn_id=self.gcp_conn_id,
         )
 
-    def get_database_hook(self, connection: Connection) -> BaseHook:
+    def get_database_hook(self, connection: Connection) -> DbApiHook:
         """
         Retrieve database hook.
 
@@ -1156,7 +1160,7 @@ class CloudSQLDatabaseHook(BaseHook):
         if self.database_type == "postgres":
             from airflow.providers.postgres.hooks.postgres import PostgresHook
 
-            db_hook: BaseHook = PostgresHook(connection=connection, database=self.database)
+            db_hook: DbApiHook = PostgresHook(connection=connection, database=self.database)
         else:
             from airflow.providers.mysql.hooks.mysql import MySqlHook
 

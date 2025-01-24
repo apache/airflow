@@ -40,14 +40,32 @@ class BaseDagBundle(ABC):
     multiple versions of the same bundle in use at the same time. The DAG processor will always use the latest version.
 
     :param name: String identifier for the DAG bundle
+    :param refresh_interval: How often the bundle should be refreshed from the source (in seconds)
     :param version: Version of the DAG bundle (Optional)
     """
 
     supports_versioning: bool = False
 
-    def __init__(self, *, name: str, version: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        name: str,
+        refresh_interval: int = conf.getint("dag_bundles", "refresh_interval"),
+        version: str | None = None,
+    ) -> None:
         self.name = name
         self.version = version
+        self.refresh_interval = refresh_interval
+        self.is_initialized: bool = False
+
+    def initialize(self) -> None:
+        """
+        Initialize the bundle.
+
+        This method is called by the DAG processor before the bundle is used,
+        and allows for deferring expensive operations until that point in time.
+        """
+        self.is_initialized = True
 
     @property
     def _dag_bundle_root_storage_path(self) -> Path:
@@ -56,7 +74,7 @@ class BaseDagBundle(ABC):
 
         This is the root path, shared by various bundles. Each bundle should have its own subdirectory.
         """
-        if configured_location := conf.get("core", "dag_bundle_storage_path", fallback=None):
+        if configured_location := conf.get("dag_bundles", "dag_bundle_storage_path", fallback=None):
             return Path(configured_location)
         return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
@@ -80,3 +98,11 @@ class BaseDagBundle(ABC):
     @abstractmethod
     def refresh(self) -> None:
         """Retrieve the latest version of the files in the bundle."""
+
+    def view_url(self, version: str | None = None) -> str | None:
+        """
+        URL to view the bundle.
+
+        :param version: Version to view
+        :return: URL to view the bundle
+        """

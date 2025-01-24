@@ -167,7 +167,7 @@ class ClearTaskInstancesBody(BaseModel):
     end_date: AwareDatetime | None = None
     only_failed: bool = True
     only_running: bool = False
-    reset_dag_runs: bool = False
+    reset_dag_runs: bool = True
     task_ids: list[str] | None = None
     dag_run_id: str | None = None
     include_upstream: bool = False
@@ -220,18 +220,3 @@ class PatchTaskInstanceBody(BaseModel):
         if ns not in valid_states:
             raise ValueError(f"'{ns}' is not one of {valid_states}")
         return ns
-
-
-class TaskInstanceReferenceResponse(BaseModel):
-    """Task Instance Reference serializer for responses."""
-
-    task_id: str
-    dag_run_id: str = Field(validation_alias="run_id")
-    dag_id: str
-
-
-class TaskInstanceReferenceCollectionResponse(BaseModel):
-    """Task Instance Reference collection serializer for responses."""
-
-    task_instances: list[TaskInstanceReferenceResponse]
-    total_entries: int

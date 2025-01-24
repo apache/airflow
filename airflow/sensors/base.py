@@ -46,12 +46,11 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
-
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
+    from airflow.typing_compat import Self
 
 # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
 _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
@@ -81,30 +80,6 @@ class PokeReturnValue:
 
     def __bool__(self) -> bool:
         return self.is_done
-
-
-@provide_session
-def _orig_start_date(
-    dag_id: str, task_id: str, run_id: str, map_index: int, try_number: int, session: Session = NEW_SESSION
-):
-    """
-    Get the original start_date for a rescheduled task.
-
-    :meta private:
-    """
-    return session.scalar(
-        select(TaskReschedule)
-        .where(
-            TaskReschedule.dag_id == dag_id,
-            TaskReschedule.task_id == task_id,
-            TaskReschedule.run_id == run_id,
-            TaskReschedule.map_index == map_index,
-            TaskReschedule.try_number == try_number,
-        )
-        .order_by(TaskReschedule.id.asc())
-        .with_only_columns(TaskReschedule.start_date)
-        .limit(1)
-    )
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):
@@ -154,6 +129,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     ui_color: str = "#e6f1f2"
     valid_modes: Iterable[str] = ["poke", "reschedule"]
+
+    _is_sensor: bool = True
 
     # Adds one additional dependency for all sensor operators that checks if a
     # sensor task instance can be rescheduled.
@@ -245,8 +222,12 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             ti = context["ti"]
             max_tries: int = ti.max_tries or 0
             retries: int = self.retries or 0
+
             # If reschedule, use the start date of the first try (first try can be either the very
-            # first execution of the task, or the first execution after the task was cleared.)
+            # first execution of the task, or the first execution after the task was cleared).
+            # If the first try's record was not saved due to the Exception occurred and the following
+            # transaction rollback, the next available attempt should be taken
+            # to prevent falling in the endless rescheduling
             first_try_number = max_tries - retries + 1
             with create_session() as session:
                 start_date = session.scalar(
@@ -256,7 +237,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                         TaskReschedule.task_id == ti.task_id,
                         TaskReschedule.run_id == ti.run_id,
                         TaskReschedule.map_index == ti.map_index,
-                        TaskReschedule.try_number == first_try_number,
+                        TaskReschedule.try_number >= first_try_number,
                     )
                     .order_by(TaskReschedule.id.asc())
                     .with_only_columns(TaskReschedule.start_date)
@@ -408,7 +389,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.log.info("new %s interval is %s", self.mode, new_interval)
         return new_interval
 
-    def prepare_for_execution(self) -> BaseOperator:
+    def prepare_for_execution(self) -> Self:
         task = super().prepare_for_execution()
 
         # Sensors in `poke` mode can block execution of DAGs when running
@@ -427,7 +408,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     @classmethod
     def get_serialized_fields(cls):
-        return super().get_serialized_fields() | {"reschedule"}
+        return super().get_serialized_fields() | {"reschedule", "_is_sensor"}
 
 
 def poke_mode_only(cls):

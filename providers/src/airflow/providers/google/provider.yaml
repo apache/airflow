@@ -32,7 +32,7 @@ state: ready
 source-date-epoch: 1732429547
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 11.1.0
+  - 12.0.0
   - 11.0.0
   - 10.26.0
   - 10.25.0
@@ -100,8 +100,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-compat>=1.2.1
+  - apache-airflow>=2.9.0
+  - apache-airflow-providers-common-compat>=1.4.0
   - apache-airflow-providers-common-sql>=1.20.0
   - asgiref>=3.5.2
   - dill>=0.2.3
@@ -118,7 +118,8 @@ dependencies:
   - google-api-python-client>=2.0.2
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.70.0
+  - google-cloud-aiplatform>=1.73.0
+  - google-cloud-alloydb>=0.4.0
   - google-cloud-automl>=2.12.0
   # Excluded versions contain bug https://github.com/apache/airflow/issues/39541 which is resolved in 3.24.0
   - google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*
@@ -130,7 +131,7 @@ dependencies:
   - google-cloud-datacatalog>=3.23.0
   - google-cloud-dataflow-client>=0.8.6
   - google-cloud-dataform>=0.5.0
-  - google-cloud-dataplex>=1.10.0
+  - google-cloud-dataplex>=2.6.0
   - google-cloud-dataproc>=5.12.0
   - google-cloud-dataproc-metastore>=1.12.0
   - google-cloud-dlp>=3.12.0
@@ -169,8 +170,7 @@ dependencies:
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
   # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
   # In addition FAB also limit sqlalchemy to < 2.0
-  - pandas>=2.1.2,<2.2;python_version>="3.9"
-  - pandas>=1.5.3,<2.2;python_version<"3.9"
+  - pandas>=2.1.2,<2.2
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
@@ -239,6 +239,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/bigtable.rst
     external-doc-url: https://cloud.google.com/bigtable/
     logo: /integration-logos/gcp/Cloud-Bigtable.png
+    tags: [gcp]
+  - integration-name: Google Cloud AlloyDB
+    external-doc-url: https://cloud.google.com/alloydb
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/alloy_db.rst
     tags: [gcp]
   - integration-name: Google Cloud Build
     external-doc-url: https://cloud.google.com/build/
@@ -404,11 +409,6 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/dataflow.rst
     logo: /integration-logos/gcp/Cloud-Dataflow.png
     tags: [gcp]
-  - integration-name: Google Data Pipelines
-    external-doc-url: https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest
-    how-to-guide:
-      - /docs/apache-airflow-providers-google/operators/cloud/datapipeline.rst
-    tags: [gcp]
   - integration-name: Google Data Fusion
     external-doc-url: https://cloud.google.com/data-fusion/
     how-to-guide:
@@ -548,6 +548,9 @@ operators:
   - integration-name: Google Cloud Common
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_base
+  - integration-name: Google Cloud AlloyDB
+    python-modules:
+      - airflow.providers.google.cloud.operators.alloy_db
   - integration-name: Google AutoML
     python-modules:
       - airflow.providers.google.cloud.operators.automl
@@ -587,9 +590,6 @@ operators:
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.operators.dataflow
-  - integration-name: Google Data Pipelines
-    python-modules:
-      - airflow.providers.google.cloud.operators.datapipeline
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.operators.datafusion
@@ -693,6 +693,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.model_service
       - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.operators.vertex_ai.generative_model
+      - airflow.providers.google.cloud.operators.vertex_ai.feature_store
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -743,6 +744,9 @@ sensors:
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.sensors.pubsub
+  - integration-name: Google Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.sensors.vertex_ai.feature_store
   - integration-name: Google Cloud Workflows
     python-modules:
       - airflow.providers.google.cloud.sensors.workflows
@@ -773,6 +777,8 @@ asset-uris:
     handler: null
   - schemes: [bigquery]
     handler: airflow.providers.google.assets.bigquery.sanitize_uri
+    factory: airflow.providers.google.assets.bigquery.create_asset
+    to_openlineage_converter: airflow.providers.google.assets.bigquery.convert_asset_to_openlineage
   - schemes: [gs]
     handler: airflow.providers.google.assets.gcs.sanitize_uri
     factory: airflow.providers.google.assets.gcs.create_asset
@@ -785,6 +791,8 @@ dataset-uris:
     handler: null
   - schemes: [bigquery]
     handler: airflow.providers.google.assets.bigquery.sanitize_uri
+    factory: airflow.providers.google.assets.bigquery.create_asset
+    to_openlineage_converter: airflow.providers.google.assets.bigquery.convert_asset_to_openlineage
   - schemes: [gs]
     handler: airflow.providers.google.assets.gcs.sanitize_uri
     factory: airflow.providers.google.assets.gcs.create_asset
@@ -806,6 +814,9 @@ hooks:
   - integration-name: Google Bigtable
     python-modules:
       - airflow.providers.google.cloud.hooks.bigtable
+  - integration-name: Google Cloud AlloyDB
+    python-modules:
+      - airflow.providers.google.cloud.hooks.alloy_db
   - integration-name: Google Cloud Build
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_build
@@ -834,9 +845,6 @@ hooks:
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.hooks.dataflow
-  - integration-name: Google Data Pipelines
-    python-modules:
-      - airflow.providers.google.cloud.hooks.datapipeline
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.hooks.datafusion
@@ -963,6 +971,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
       - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
+      - airflow.providers.google.cloud.hooks.vertex_ai.feature_store
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
@@ -1180,6 +1189,9 @@ connection-types:
     connection-type: leveldb
 
 extra-links:
+  - airflow.providers.google.cloud.links.alloy_db.AlloyDBBackupsLink
+  - airflow.providers.google.cloud.links.alloy_db.AlloyDBClusterLink
+  - airflow.providers.google.cloud.links.alloy_db.AlloyDBUsersLink
   - airflow.providers.google.cloud.links.dataform.DataformRepositoryLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkspaceLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkflowInvocationLink
@@ -1191,8 +1203,13 @@ extra-links:
   - airflow.providers.google.cloud.links.dataplex.DataplexTaskLink
   - airflow.providers.google.cloud.links.dataplex.DataplexTasksLink
   - airflow.providers.google.cloud.links.dataplex.DataplexLakeLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupsLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryTypeLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryTypesLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryTableLink
+  - airflow.providers.google.cloud.links.bigquery.BigQueryJobDetailLink
   - airflow.providers.google.cloud.links.bigquery_dts.BigQueryDataTransferConfigLink
   - airflow.providers.google.cloud.links.compute.ComputeInstanceDetailsLink
   - airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink
@@ -1298,6 +1315,8 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationDatasetsListLink
   - airflow.providers.google.cloud.links.translate.TranslationModelLink
   - airflow.providers.google.cloud.links.translate.TranslationModelsListLink
+  - airflow.providers.google.cloud.links.translate.TranslateResultByOutputConfigLink
+  - airflow.providers.google.cloud.links.translate.TranslationGlossariesListLink
 
 
 secrets-backends:

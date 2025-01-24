@@ -30,7 +30,7 @@ import {
 } from "@tanstack/react-table";
 import React, { type ReactNode, useCallback, useRef } from "react";
 
-import { ProgressBar, Pagination } from "../ui";
+import { ProgressBar, Pagination, Toaster } from "../ui";
 import { CardList } from "./CardList";
 import { TableList } from "./TableList";
 import { createSkeletonMock } from "./skeleton";
@@ -49,9 +49,7 @@ type DataTableProps<TData> = {
   readonly modelName?: string;
   readonly noRowsMessage?: ReactNode;
   readonly onStateChange?: (state: TableState) => void;
-  readonly renderSubComponent?: (props: {
-    row: Row<TData>;
-  }) => React.ReactElement;
+  readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
   readonly skeletonCount?: number;
   readonly total?: number;
 };
@@ -95,9 +93,7 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
-  const rest = Boolean(isLoading)
-    ? createSkeletonMock(displayMode, skeletonCount, columns)
-    : {};
+  const rest = Boolean(isLoading) ? createSkeletonMock(displayMode, skeletonCount, columns) : {};
 
   const table = useReactTable({
     columns,
@@ -119,37 +115,34 @@ export const DataTable = <TData,>({
   const { rows } = table.getRowModel();
 
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
+  const hasRows = rows.length > 0;
 
   return (
     <>
-      <ProgressBar
-        size="xs"
-        visibility={
-          Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"
-        }
-      />
+      <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
+      <Toaster />
       {errorMessage}
-      {!Boolean(isLoading) && !rows.length && (
-        <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>
-      )}
-      {display === "table" && <TableList table={table} />}
-      {display === "card" && cardDef !== undefined && (
+      {hasRows && display === "table" ? <TableList table={table} /> : undefined}
+      {hasRows && display === "card" && cardDef !== undefined ? (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
-      )}
-      <Pagination.Root
-        count={table.getRowCount()}
-        my={2}
-        onPageChange={(page) => table.setPageIndex(page.page - 1)}
-        page={table.getState().pagination.pageIndex + 1}
-        pageSize={table.getState().pagination.pageSize}
-        siblingCount={1}
-      >
-        <HStack>
-          <Pagination.PrevTrigger data-testid="prev" />
-          <Pagination.Items />
-          <Pagination.NextTrigger data-testid="next" />
-        </HStack>
-      </Pagination.Root>
+      ) : undefined}
+      {!hasRows && !Boolean(isLoading) && <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>}
+      {hasRows ? (
+        <Pagination.Root
+          count={table.getRowCount()}
+          my={2}
+          onPageChange={(page) => table.setPageIndex(page.page - 1)}
+          page={table.getState().pagination.pageIndex + 1}
+          pageSize={table.getState().pagination.pageSize}
+          siblingCount={1}
+        >
+          <HStack>
+            <Pagination.PrevTrigger data-testid="prev" />
+            <Pagination.Items />
+            <Pagination.NextTrigger data-testid="next" />
+          </HStack>
+        </Pagination.Root>
+      ) : undefined}
     </>
   );
 };

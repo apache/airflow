@@ -18,25 +18,26 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Container, Sequence
-from functools import cached_property
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from flask_appbuilder.menu import MenuItem
 from sqlalchemy import select
 
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import (
-    DagDetails,
-)
+from airflow.auth.managers.models.resource_details import DagDetails
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
-from airflow.security.permissions import ACTION_CAN_ACCESS_MENU
+from airflow.typing_compat import Literal
+from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Container, Sequence
+
+    from fastapi import FastAPI
     from flask import Blueprint
+    from flask_appbuilder.menu import MenuItem
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.batch_apis import (
@@ -55,9 +56,9 @@ if TYPE_CHECKING:
         VariableDetails,
     )
     from airflow.cli.cli_config import CLICommand
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
-    from airflow.www.security_manager import AirflowSecurityManagerV2
 
+# This cannot be in the TYPE_CHECKING block since some providers import it globally.
+# TODO: Move this inside once all providers drop Airflow 2.x support.
 ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 T = TypeVar("T", bound=BaseUser)
@@ -68,13 +69,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     Class to derive in order to implement concrete auth managers.
 
     Auth managers are responsible for any user management related operation such as login, logout, authz, ...
-
-    :param appbuilder: the flask app builder
     """
-
-    def __init__(self, appbuilder: AirflowAppBuilder | None = None) -> None:
-        super().__init__()
-        self.appbuilder = appbuilder
 
     def init(self) -> None:
         """
@@ -106,6 +101,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     @abstractmethod
     def serialize_user(self, user: T) -> dict[str, Any]:
         """Create a dict from a user object."""
+
+    def get_jwt_token(self, user: T) -> str:
+        """Return the JWT token from a user object."""
+        signer = JWTSigner(
+            secret_key=conf.get("api", "auth_jwt_secret"),
+            expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
+            audience="front-apis",
+        )
+        return signer.generate_signed_token(self.serialize_user(user))
 
     def get_user_id(self) -> str | None:
         """Return the user ID associated to the user in session."""
@@ -269,6 +273,14 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
+    @abstractmethod
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+        """
+        Filter menu items based on user permissions.
+
+        :param menu_items: list of all menu items
+        """
+
     def batch_is_authorized_connection(
         self,
         requests: Sequence[IsAuthorizedConnectionRequest],
@@ -401,47 +413,6 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
         }
 
-    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
-        """
-        Filter menu items based on user permissions.
-
-        :param menu_items: list of all menu items
-        """
-        items = filter(
-            lambda item: self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, item.name), menu_items
-        )
-        accessible_items = []
-        for menu_item in items:
-            menu_item_copy = MenuItem(
-                **{
-                    **menu_item.__dict__,
-                    "childs": [],
-                }
-            )
-            if menu_item.childs:
-                accessible_children = []
-                for child in menu_item.childs:
-                    if self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, child.name):
-                        accessible_children.append(child)
-                menu_item_copy.childs = accessible_children
-            accessible_items.append(menu_item_copy)
-        return accessible_items
-
-    @cached_property
-    def security_manager(self) -> AirflowSecurityManagerV2:
-        """
-        Return the security manager.
-
-        By default, Airflow comes with the default security manager
-        ``airflow.www.security_manager.AirflowSecurityManagerV2``. The auth manager might need to extend this
-        default security manager for its own purposes.
-
-        By default, return the default AirflowSecurityManagerV2.
-        """
-        from airflow.www.security_manager import AirflowSecurityManagerV2
-
-        return AirflowSecurityManagerV2(self.appbuilder)
-
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """
@@ -453,6 +424,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
 
     def get_api_endpoints(self) -> None | Blueprint:
         """Return API endpoint(s) definition for the auth manager."""
+        # TODO: Remove this method when legacy Airflow 2 UI is gone
+        return None
+
+    def get_fastapi_app(self) -> FastAPI | None:
+        """
+        Specify a sub FastAPI application specific to the auth manager.
+
+        This sub application, if specified, is mounted in the main FastAPI application.
+        """
         return None
 
     def register_views(self) -> None:

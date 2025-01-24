@@ -43,16 +43,17 @@ from airflow_breeze.commands.common_image_options import (
     option_dev_apt_deps,
     option_disable_airflow_repo_cache,
     option_docker_cache,
-    option_image_tag_for_building,
-    option_image_tag_for_pulling,
-    option_image_tag_for_verifying,
+    option_from_pr,
+    option_from_run,
+    option_github_token_for_images,
+    option_image_file_dir,
     option_install_mysql_client_type,
     option_platform_multiple,
     option_prepare_buildx_cache,
     option_pull,
     option_push,
     option_python_image,
-    option_tag_as_latest,
+    option_skip_image_file_deletion,
     option_verify,
     option_wait_for_image,
 )
@@ -68,6 +69,7 @@ from airflow_breeze.commands.common_options import (
     option_image_name,
     option_include_success_outputs,
     option_parallelism,
+    option_platform_single,
     option_python,
     option_python_versions,
     option_run_in_parallel,
@@ -94,8 +96,9 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     warm_up_docker_builder,
 )
-from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
-from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
+from airflow_breeze.utils.github import download_artifact_from_pr, download_artifact_from_run_id
+from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel
+from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_rebuilt
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
 from airflow_breeze.utils.parallel import (
     DockerBuildxProgressMatcher,
@@ -129,7 +132,7 @@ def ci_image():
 def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Output | None) -> bool:
     """Starts building attempt. Returns false if we should not continue"""
     result = run_command(
-        ["docker", "inspect", ci_image_params.airflow_image_name_with_tag],
+        ["docker", "inspect", ci_image_params.airflow_image_name],
         capture_output=True,
         text=True,
         check=False,
@@ -277,6 +280,25 @@ option_version_suffix_for_pypi_ci = click.option(
     envvar="VERSION_SUFFIX_FOR_PYPI",
 )
 
+option_ci_image_file_to_save = click.option(
+    "--image-file",
+    required=False,
+    type=click.Path(exists=False, dir_okay=False, writable=True, path_type=Path),
+    envvar="IMAGE_FILE",
+    help="Optional file to save the image to.",
+)
+
+option_ci_image_file_to_load = click.option(
+    "--image-file",
+    required=False,
+    type=click.Path(dir_okay=False, readable=True, path_type=Path, resolve_path=True),
+    envvar="IMAGE_FILE",
+    help="Optional file name to load the image from - name must follow the convention:"
+    "`ci-image-save-{escaped_platform}-*-{python_version}.tar`. where escaped_platform is one of "
+    "linux_amd64 or linux_arm64. If it does not exist in current working dir and if you do not specify "
+    "absolute file, it will be searched for in the --image-file-dir.",
+)
+
 
 @ci_image.command(name="build")
 @option_additional_airflow_extras
@@ -305,7 +327,6 @@ option_version_suffix_for_pypi_ci = click.option(
 @option_github_repository
 @option_github_token
 @option_install_mysql_client_type
-@option_image_tag_for_building
 @option_include_success_outputs
 @option_parallelism
 @option_platform_multiple
@@ -316,7 +337,6 @@ option_version_suffix_for_pypi_ci = click.option(
 @option_python_versions
 @option_run_in_parallel
 @option_skip_cleanup
-@option_tag_as_latest
 @option_upgrade_on_failure
 @option_upgrade_to_newer_dependencies
 @option_use_uv
@@ -347,7 +367,6 @@ def build(
     eager_upgrade_additional_requirements: str | None,
     github_repository: str,
     github_token: str | None,
-    image_tag: str,
     include_success_outputs,
     install_mysql_client_type: str,
     parallelism: int,
@@ -359,7 +378,6 @@ def build(
     python_versions: str,
     run_in_parallel: bool,
     skip_cleanup: bool,
-    tag_as_latest: bool,
     upgrade_on_failure: bool,
     upgrade_to_newer_dependencies: bool,
     use_uv: bool,
@@ -423,13 +441,11 @@ def build(
         force_build=True,
         github_repository=github_repository,
         github_token=github_token,
-        image_tag=image_tag,
         install_mysql_client_type=install_mysql_client_type,
         prepare_buildx_cache=prepare_buildx_cache,
         push=push,
         python=python,
         python_image=python_image,
-        tag_as_latest=tag_as_latest,
         upgrade_on_failure=upgrade_on_failure,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         use_uv=use_uv,
@@ -489,8 +505,6 @@ def build(
 @option_github_token
 @option_verify
 @option_wait_for_image
-@option_image_tag_for_pulling
-@option_tag_as_latest
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -504,9 +518,7 @@ def pull(
     skip_cleanup: bool,
     debug_resources: bool,
     include_success_outputs: bool,
-    image_tag: str,
     wait_for_image: bool,
-    tag_as_latest: bool,
     verify: bool,
     github_repository: str,
     extra_pytest_args: tuple,
@@ -518,7 +530,6 @@ def pull(
         python_version_list = get_python_version_list(python_versions)
         ci_image_params_list = [
             BuildCiParams(
-                image_tag=image_tag,
                 python=python,
                 github_repository=github_repository,
                 github_token=github_token,
@@ -534,12 +545,10 @@ def pull(
             python_version_list=python_version_list,
             verify=verify,
             wait_for_image=wait_for_image,
-            tag_as_latest=tag_as_latest,
             extra_pytest_args=extra_pytest_args if extra_pytest_args is not None else (),
         )
     else:
         image_params = BuildCiParams(
-            image_tag=image_tag,
             python=python,
             github_repository=github_repository,
             github_token=github_token,
@@ -548,7 +557,6 @@ def pull(
             image_params=image_params,
             output=None,
             wait_for_image=wait_for_image,
-            tag_as_latest=tag_as_latest,
         )
         if return_code != 0:
             get_console().print(f"[error]There was an error when pulling CI image: {info}[/]")
@@ -576,7 +584,7 @@ def run_verify_in_parallel(
                 pool.apply_async(
                     verify_an_image,
                     kwds={
-                        "image_name": image_params.airflow_image_name_with_tag,
+                        "image_name": image_params.airflow_image_name,
                         "image_type": "CI",
                         "slim_image": False,
                         "extra_pytest_args": extra_pytest_args,
@@ -594,6 +602,117 @@ def run_verify_in_parallel(
     )
 
 
+@ci_image.command(name="save")
+@option_ci_image_file_to_save
+@option_github_repository
+@option_image_file_dir
+@option_platform_single
+@option_python
+@option_verbose
+@option_dry_run
+def save(
+    python: str,
+    platform: str,
+    github_repository: str,
+    image_file: Path | None,
+    image_file_dir: Path,
+):
+    """Save CI image to a file."""
+    perform_environment_checks()
+    image_name = BuildCiParams(
+        python=python,
+        github_repository=github_repository,
+    ).airflow_image_name
+    with ci_group("Buildx disk usage"):
+        run_command(["docker", "buildx", "du", "--verbose"], check=False)
+    escaped_platform = platform.replace("/", "_")
+    if not image_file:
+        image_file_to_store = image_file_dir / f"ci-image-save-{escaped_platform}-{python}.tar"
+    elif image_file.is_absolute():
+        image_file_to_store = image_file
+    else:
+        image_file_to_store = image_file_dir / image_file
+    get_console().print(f"[info]Saving Python CI image {image_name} to {image_file_to_store}[/]")
+    result = run_command(
+        ["docker", "image", "save", "-o", image_file_to_store.as_posix(), image_name], check=False
+    )
+    if result.returncode != 0:
+        get_console().print(f"[error]Error when saving image: {result.stdout}[/]")
+        sys.exit(result.returncode)
+
+
+@ci_image.command(name="load")
+@option_ci_image_file_to_load
+@option_dry_run
+@option_from_run
+@option_from_pr
+@option_github_repository
+@option_github_token_for_images
+@option_image_file_dir
+@option_platform_single
+@option_python
+@option_skip_image_file_deletion
+@option_verbose
+def load(
+    from_run: str | None,
+    from_pr: str | None,
+    github_repository: str,
+    github_token: str,
+    image_file: Path | None,
+    image_file_dir: Path,
+    platform: str,
+    python: str,
+    skip_image_file_deletion: bool,
+):
+    """Load CI image from a file."""
+    perform_environment_checks()
+    build_ci_params = BuildCiParams(
+        python=python,
+        github_repository=github_repository,
+    )
+    escaped_platform = platform.replace("/", "_")
+
+    if not image_file:
+        image_file_to_load = image_file_dir / f"ci-image-save-{escaped_platform}-{python}.tar"
+    elif image_file.is_absolute() or image_file.exists():
+        image_file_to_load = image_file
+    else:
+        image_file_to_load = image_file_dir / image_file
+
+    if not image_file_to_load.name.endswith(f"-{python}.tar"):
+        get_console().print(
+            f"[error]The image file {image_file_to_load} does not end with '-{python}.tar'. Exiting.[/]"
+        )
+        sys.exit(1)
+    if not image_file_to_load.name.startswith(f"ci-image-save-{escaped_platform}"):
+        get_console().print(
+            f"[error]The image file {image_file_to_load} does not start with "
+            f"'ci-image-save-{escaped_platform}'. Exiting.[/]"
+        )
+        sys.exit(1)
+
+    if from_run:
+        download_artifact_from_run_id(from_run, image_file_to_load, github_repository, github_token)
+    elif from_pr:
+        download_artifact_from_pr(from_pr, image_file_to_load, github_repository, github_token)
+
+    if not image_file_to_load.exists():
+        get_console().print(f"[error]The image {image_file_to_load} does not exist.[/]")
+        sys.exit(1)
+
+    get_console().print(f"[info]Loading Python CI image from {image_file_to_load}[/]")
+    result = run_command(["docker", "image", "load", "-i", image_file_to_load.as_posix()], check=False)
+    if result.returncode != 0:
+        get_console().print(f"[error]Error when loading image: {result.stdout}[/]")
+        sys.exit(result.returncode)
+    if not skip_image_file_deletion:
+        get_console().print(f"[info]Deleting image file {image_file_to_load}[/]")
+        image_file_to_load.unlink()
+    if get_verbose():
+        run_command(["docker", "images", "-a"])
+    mark_image_as_rebuilt(ci_image_params=build_ci_params)
+
+
 @ci_image.command(
     name="verify",
     context_settings=dict(
@@ -604,7 +723,6 @@ def run_verify_in_parallel(
 @option_python
 @option_python_versions
 @option_github_repository
-@option_image_tag_for_verifying
 @option_image_name
 @option_pull
 @option_github_token
@@ -620,7 +738,6 @@ def verify(
     python: str,
     python_versions: str,
     image_name: str,
-    image_tag: str | None,
     pull: bool,
     github_token: str,
     github_repository: str,
@@ -643,7 +760,6 @@ def verify(
         base_build_params = BuildCiParams(
             python=python,
             github_repository=github_repository,
-            image_tag=image_tag,
         )
         python_version_list = get_python_version_list(python_versions)
         params_list: list[BuildCiParams] = []
@@ -664,11 +780,10 @@ def verify(
         if image_name is None:
             build_params = BuildCiParams(
                 python=python,
-                image_tag=image_tag,
                 github_repository=github_repository,
                 github_token=github_token,
             )
-            image_name = build_params.airflow_image_name_with_tag
+            image_name = build_params.airflow_image_name
         if pull:
             check_remote_ghcr_io_commands()
             command_to_run = ["docker", "pull", image_name]
@@ -730,7 +845,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
                     get_console().print(
                         f"[info]Please rebase your code to latest {build_ci_params.airflow_branch} "
                         "before continuing.[/]\nCheck this link to find out how "
-                        "https://github.com/apache/airflow/blob/main/contributing-docs/11_working_with_git.rst\n"
+                        "https://github.com/apache/airflow/blob/main/contributing-docs/10_working_with_git.rst\n"
                     )
                     get_console().print("[error]Exiting the process[/]\n")
                     sys.exit(1)
@@ -842,15 +957,7 @@ def run_build_ci_image(
                     "[info]Run `breeze ci-image build --upgrade-to-newer-dependencies` to upgrade them.\n"
                 )
         if build_command_result.returncode == 0:
-            if ci_image_params.tag_as_latest:
-                build_command_result = tag_image_as_latest(image_params=ci_image_params, output=output)
-            if ci_image_params.preparing_latest_image():
-                if get_dry_run():
-                    get_console(output=output).print(
-                        "[info]Not updating build hash because we are in `dry_run` mode.[/]"
-                    )
-                else:
-                    mark_image_as_refreshed(ci_image_params)
+            mark_image_as_rebuilt(ci_image_params=ci_image_params)
     return build_command_result.returncode, f"Image build: {param_description}"
 
 
@@ -868,7 +975,6 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         docker_host=command_params.docker_host,
         force_build=command_params.force_build,
         github_repository=command_params.github_repository,
-        image_tag=command_params.image_tag,
         platform=command_params.platform,
         python=command_params.python,
         skip_image_upgrade_check=command_params.skip_image_upgrade_check,
@@ -879,17 +985,6 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         # accidentally upgrading dependencies on CI
         upgrade_on_failure=not os.environ.get("CI", ""),
     )
-    if command_params.image_tag is not None and command_params.image_tag != "latest":
-        return_code, message = run_pull_image(
-            image_params=ci_image_params,
-            output=None,
-            wait_for_image=True,
-            tag_as_latest=False,
-        )
-        if return_code != 0:
-            get_console().print(f"[error]Pulling image with {command_params.image_tag} failed! {message}[/]")
-            sys.exit(return_code)
-        return
     if build_ci_image_check_cache.exists():
         if get_verbose():
             get_console().print(f"[info]{command_params.image_type} image already built locally.[/]")
@@ -903,6 +998,144 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         ci_image_params=ci_image_params,
         output=None,
     ):
-        run_build_ci_image(
+        return_code, info = run_build_ci_image(
             ci_image_params=ci_image_params, param_description=ci_image_params.python, output=None
         )
+        if return_code != 0:
+            get_console().print(f"[error]Error when building image! {info}")
+            sys.exit(return_code)
+
+
+@ci_image.command(name="export-mount-cache")
+@click.option(
+    "--cache-file",
+    required=True,
+    type=click.Path(exists=False, dir_okay=False, file_okay=True, path_type=Path),
+    help="Path to the file where cache is going to be exported",
+)
+@option_builder
+@option_dry_run
+@option_verbose
+def export_mount_cache(
+    builder: str,
+    cache_file: Path,
+):
+    """
+    Export content of the the mount cache to a directory.
+    """
+    perform_environment_checks()
+    make_sure_builder_configured(params=BuildCiParams(builder=builder))
+    dockerfile = """
+    # syntax=docker/dockerfile:1.4
+    FROM python:3.9-slim-bookworm
+    ARG TARGETARCH
+    ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
+    RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \\
+    tar -C /root/.cache/ -czf /root/.cache.tar.gz .
+    """
+
+    dockerfile_ci_content = (AIRFLOW_SOURCES_ROOT / "Dockerfile.ci").read_text()
+    dependency_cache_epoch = dockerfile_ci_content.split("DEPENDENCY_CACHE_EPOCH=")[1].split("\n")[0]
+    get_console().print(f"[info]Dependency cache epoch from Dockerfile.ci = {dependency_cache_epoch}[/]")
+    dockerfile = dockerfile.replace("<REPLACE_FROM_DOCKER_CI>", dependency_cache_epoch)
+    get_console().print("[info]Building temporary image including copying cache content to the image[/]")
+    builder_opt: list[str] = []
+    if builder != "autodetect":
+        builder_opt = ["--builder", builder]
+    run_command(
+        ["docker", "buildx", "build", *builder_opt, "--load", "-t", "airflow-export-cache", "-f", "-", "."],
+        input=dockerfile,
+        text=True,
+        check=True,
+    )
+    get_console().print("[info]Built temporary image[/]")
+    get_console().print("[info]Creating temporary container[/]")
+    run_command(
+        ["docker", "create", "--name", "airflow-export-cache-container", "airflow-export-cache"], check=True
+    )
+    get_console().print("[info]Created temporary container[/]")
+    get_console().print(f"[info]Copying exported cache from the container to {cache_file}[/]")
+    run_command(
+        ["docker", "cp", "airflow-export-cache-container:/root/.cache.tar.gz", cache_file.as_posix()],
+        check=True,
+    )
+    get_console().print("[info]Copied exported cache from the container[/]")
+    get_console().print("[info]Removing the temporary container[/]")
+    run_command(["docker", "rm", "airflow-export-cache-container"], check=True)
+    get_console().print("[info]Removed the temporary container[/]")
+    get_console().print("[info]Removing the temporary image[/]")
+    run_command(["docker", "rmi", "airflow-export-cache"], check=True)
+    get_console().print("[info]Removed the temporary image[/]")
+    get_console().print(f"[success]Exported mount cache to {cache_file}[/]")
+
+
+@ci_image.command(name="import-mount-cache")
+@click.option(
+    "--cache-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, path_type=Path),
+    help="Path to the file where cache is stored",
+)
+@option_builder
+@option_dry_run
+@option_verbose
+def import_mount_cache(
+    builder: str,
+    cache_file: Path,
+):
+    """
+    Export content of the the mount cache to a directory.
+    """
+    perform_environment_checks()
+    make_sure_builder_configured(params=BuildCiParams(builder=builder))
+    dockerfile = """
+    # syntax=docker/dockerfile:1.4
+    FROM python:3.9-slim-bookworm
+    ARG TARGETARCH
+    ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
+    COPY cache.tar.gz /root/.cache.tar.gz
+    RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \\
+    tar -C /root/.cache/ -xzf /root/.cache.tar.gz .
+    """
+    import tempfile
+
+    context = Path(tempfile.mkdtemp())
+    get_console().print(f"[info]Context: {context}[/]")
+    context_cache_file = context / "cache.tar.gz"
+    get_console().print(f"[info]Copying cache file to context: {context_cache_file}[/]")
+    cache_file.rename(context_cache_file)
+    get_console().print(f"[info]Copied cache file to context: {context_cache_file}[/]")
+    dockerfile_ci_content = (AIRFLOW_SOURCES_ROOT / "Dockerfile.ci").read_text()
+    dependency_cache_epoch = dockerfile_ci_content.split("DEPENDENCY_CACHE_EPOCH=")[1].split("\n")[0]
+    get_console().print(f"[info]Dependency cache epoch from Dockerfile.ci = {dependency_cache_epoch}[/]")
+    dockerfile = dockerfile.replace("<REPLACE_FROM_DOCKER_CI>", dependency_cache_epoch)
+    get_console().print("[info]Building temporary image and copying cache to mount cache[/]")
+    builder_opt: list[str] = []
+    if builder != "autodetect":
+        builder_opt = ["--builder", builder]
+    run_command(
+        [
+            "docker",
+            "buildx",
+            "build",
+            *builder_opt,
+            "--load",
+            "-t",
+            "airflow-import-cache",
+            "-f",
+            "-",
+            context.as_posix(),
+        ],
+        input=dockerfile,
+        text=True,
+        check=True,
+    )
+    get_console().print("[info]Built temporary image and copied cache[/]")
+    get_console().print("[info]Removing temporary image[/]")
+    run_command(["docker", "rmi", "airflow-import-cache"], check=True)
+    get_console().print("[info]Built temporary image and copying context[/]")
+    get_console().print(f"[info]Removing context: {context}[/]")
+    context_cache_file.unlink()
+    context.rmdir()
+    get_console().print(f"[info]Removed context: {context}[/]")
+    get_console().print(f"[success]Imported mount cache from {cache_file}[/]")

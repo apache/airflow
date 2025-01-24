@@ -1,0 +1,43 @@
+Removed ``conf`` from the Task template context
+
+The ``conf`` variable, which provided access to the full Airflow configuration (``airflow.cfg``), has been
+removed from the Task (Jinja2) template context for security and simplicity. If you
+need specific configuration values in your tasks, retrieve them explicitly in your DAG or task code
+using the ``airflow.configuration.conf`` module.
+
+For users retrieving the webserver URL (e.g., to include log links in task or callbacks), one of the
+most common use-case, use the ``ti.log_url`` property available in the ``TaskInstance`` context instead.
+
+Example:
+
+.. code-block:: python
+
+        PythonOperator(
+            task_id="my_task",
+            python_callable=my_task_callable,
+            on_failure_callback=SmtpNotifier(
+                from_email="example@example.com",
+                to="example@example.com",
+                subject="Task {{ ti.task_id }} failed",
+                html_content="Task <b>{{ ti.task_id }}</b> failed. Log URL: {{ ti.log_url }}",
+            ),
+        )
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [ ] context key ``conf``

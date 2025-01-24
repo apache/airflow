@@ -16,8 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import re
 import sys
+import tempfile
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -177,3 +180,119 @@ def get_tag_date(tag: str) -> str | None:
         tag_object.committed_date if hasattr(tag_object, "committed_date") else tag_object.tagged_date
     )
     return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def download_artifact_from_run_id(run_id: str, output_file: Path, github_repository: str, github_token: str):
+    """
+    Downloads a file from GitHub Actions artifact
+
+    :param run_id: run_id of the workflow
+    :param output_file: Path where the file should be downloaded
+    :param github_repository: GitHub repository
+    :param github_token: GitHub token
+    """
+    import requests
+    from tqdm import tqdm
+
+    url = f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/artifacts"
+    headers = {"Accept": "application/vnd.github.v3+json"}
+
+    session = requests.Session()
+    headers["Authorization"] = f"Bearer {github_token}"
+    artifact_response = requests.get(url, headers=headers)
+
+    if artifact_response.status_code != 200:
+        get_console().print(
+            "[error]Describing artifacts failed with status code "
+            f"{artifact_response.status_code}: {artifact_response.text}",
+        )
+        sys.exit(1)
+
+    download_url = None
+    file_name = os.path.splitext(os.path.basename(output_file))[0]
+    for artifact in artifact_response.json()["artifacts"]:
+        if artifact["name"].startswith(file_name):
+            download_url = artifact["archive_download_url"]
+            break
+
+    if not download_url:
+        get_console().print(f"[error]No artifact found for {file_name}")
+        sys.exit(1)
+
+    get_console().print(f"[info]Downloading artifact from {download_url} to {output_file}")
+
+    response = session.get(download_url, stream=True, headers=headers)
+
+    if response.status_code != 200:
+        get_console().print(
+            "[error]Downloading artifacts failed with status code "
+            f"{response.status_code}: {response.text}",
+        )
+        sys.exit(1)
+
+    total_size = int(response.headers.get("content-length", 0))
+    temp_file = tempfile.NamedTemporaryFile().name + "/file.zip"
+    os.makedirs(os.path.dirname(temp_file), exist_ok=True)
+
+    with tqdm(total=total_size, unit="B", unit_scale=True, desc=temp_file, ascii=True) as progress_bar:
+        with open(temp_file, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1 * 1024 * 1024):
+                if chunk:
+                    f.write(chunk)
+                    progress_bar.update(len(chunk))
+
+    with zipfile.ZipFile(temp_file, "r") as zip_ref:
+        zip_ref.extractall("/tmp/")
+
+    os.remove(temp_file)
+
+
+def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str, github_token: str):
+    import requests
+
+    pr_number = pr.lstrip("#")
+    pr_url = f"https://api.github.com/repos/{github_repository}/pulls/{pr_number}"
+    workflow_run_url = f"https://api.github.com/repos/{github_repository}/actions/runs"
+
+    headers = {"Accept": "application/vnd.github.v3+json"}
+
+    session = requests.Session()
+    headers["Authorization"] = f"Bearer {github_token}"
+
+    pull_response = session.get(pr_url, headers=headers)
+
+    if pull_response.status_code != 200:
+        get_console().print(
+            "[error]Fetching PR failed with status codee "
+            f"{pull_response.status_code}: {pull_response.text}",
+        )
+        sys.exit(1)
+
+    ref = pull_response.json()["head"]["ref"]
+
+    workflow_runs = session.get(
+        workflow_run_url, headers=headers, params={"event": "pull_request", "branch": ref}
+    )
+
+    if workflow_runs.status_code != 200:
+        get_console().print(
+            "[error]Fetching workflow runs failed with status code %s, %s, "
+            "you might need to provide GITHUB_TOKEN, set it as environment variable",
+            workflow_runs.status_code,
+            workflow_runs.content,
+        )
+        sys.exit(1)
+
+    data = workflow_runs.json()["workflow_runs"]
+    sorted_data = sorted(data, key=lambda x: datetime.fromisoformat(x["created_at"]), reverse=True)
+    run_id = None
+    # Filter only workflow with ci.yml, we may get multiple workflows for a PR ex: codeql-analysis.yml, news-fragment.yml
+
+    for run in sorted_data:
+        if run.get("path").endswith("ci.yml"):
+            run_id = run["id"]
+            break
+
+    get_console().print(f"[info]Found run id {run_id} for PR {pr}")
+
+    download_artifact_from_run_id(str(run_id), output_file, github_repository, github_token)

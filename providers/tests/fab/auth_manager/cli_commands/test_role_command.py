@@ -33,7 +33,7 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.cli_commands import role_command
     from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 
 pytestmark = pytest.mark.db_test
 

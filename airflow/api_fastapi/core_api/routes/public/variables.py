@@ -31,12 +31,21 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkAction
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
+    VariableBulkActionResponse,
+    VariableBulkBody,
+    VariableBulkResponse,
     VariableCollectionResponse,
     VariableResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.variables import (
+    handle_bulk_create,
+    handle_bulk_delete,
+    handle_bulk_update,
+)
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
@@ -87,7 +96,7 @@ def get_variables(
         SortParam,
         Depends(
             SortParam(
-                ["key", "id", "_val", "description"],
+                ["key", "id", "_val", "description", "is_encrypted"],
                 Variable,
             ).dynamic_depends()
         ),
@@ -160,14 +169,45 @@ def patch_variable(
 @variables_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
 )
 def post_variable(
     post_body: VariableBody,
     session: SessionDep,
 ) -> VariableResponse:
     """Create a variable."""
+    # Check if the key already exists
+    existing_variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
+    if existing_variable:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"The Variable with key: `{post_body.key}` already exists",
+        )
+
     Variable.set(**post_body.model_dump(), session=session)
 
     variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
 
     return variable
+
+
+@variables_router.patch("")
+def bulk_variables(
+    request: VariableBulkBody,
+    session: SessionDep,
+) -> VariableBulkResponse:
+    """Bulk create, update, and delete variables."""
+    results: dict[str, VariableBulkActionResponse] = {}
+
+    for action in request.actions:
+        if action.action.value not in results:
+            results[action.action.value] = VariableBulkActionResponse()
+
+        if action.action == BulkAction.CREATE:
+            handle_bulk_create(session, action, results[action.action.value])  # type: ignore
+        elif action.action == BulkAction.UPDATE:
+            handle_bulk_update(session, action, results[action.action.value])  # type: ignore
+        elif action.action == BulkAction.DELETE:
+            handle_bulk_delete(session, action, results[action.action.value])  # type: ignore
+
+    return VariableBulkResponse(**results)

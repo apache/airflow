@@ -717,7 +717,6 @@ class DagMaker(Protocol):
         serialized: bool = ...,
         activate_assets: bool = ...,
         fileloc: str | None = None,
-        processor_subdir: str | None = None,
         session: Session | None = None,
         **kwargs,
     ) -> Self: ...
@@ -785,6 +784,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dagbag = DagBag(os.devnull, include_examples=False, read_dags_from_db=False)
 
         def __enter__(self):
+            self.serialized_model = None
+
             self.dag.__enter__()
             if self.want_serialized:
                 return lazy_object_proxy.Proxy(self._serialized_dag)
@@ -833,7 +834,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 return
 
             dag.clear(session=self.session)
-            dag.sync_to_db(processor_subdir=self.processor_subdir, session=self.session)
+            if AIRFLOW_V_3_0_PLUS:
+                dag.bulk_write_to_db(self.bundle_name, None, [dag], session=self.session)
+            else:
+                dag.sync_to_db(session=self.session)
 
             if dag.access_control:
                 from airflow.www.security_appless import ApplessAirflowSecurityManager
@@ -843,9 +847,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
-                self.serialized_model = SerializedDagModel(
-                    dag, processor_subdir=self.dag_model.processor_subdir
-                )
+                self.serialized_model = SerializedDagModel(dag)
                 sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
 
                 if AIRFLOW_V_3_0_PLUS and not sdm:
@@ -892,32 +894,43 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 "session": self.session,
                 **kwargs,
             }
-            # Need to provide run_id if the user does not either provide one
-            # explicitly, or pass run_type for inference in dag.create_dagrun().
-            if "run_id" not in kwargs and "run_type" not in kwargs:
-                kwargs["run_id"] = "test"
 
-            if "run_type" not in kwargs:
-                kwargs["run_type"] = DagRunType.from_run_id(kwargs["run_id"])
+            run_type = kwargs.get("run_type", DagRunType.MANUAL)
+            if not isinstance(run_type, DagRunType):
+                run_type = DagRunType(run_type)
 
             if logical_date is None:
-                if kwargs["run_type"] == DagRunType.MANUAL:
+                if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
                     logical_date = dag.next_dagrun_info(None).logical_date
             logical_date = timezone.coerce_datetime(logical_date)
 
-            if "data_interval" not in kwargs:
-                if kwargs["run_type"] == DagRunType.MANUAL:
+            try:
+                data_interval = kwargs["data_interval"]
+            except KeyError:
+                if run_type == DagRunType.MANUAL:
                     data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
                 else:
                     data_interval = dag.infer_automated_data_interval(logical_date)
                 kwargs["data_interval"] = data_interval
 
+            if "run_id" not in kwargs:
+                if "run_type" not in kwargs:
+                    kwargs["run_id"] = "test"
+                else:
+                    kwargs["run_id"] = dag.timetable.generate_run_id(
+                        run_type=run_type,
+                        logical_date=logical_date,
+                        data_interval=data_interval,
+                    )
+            kwargs["run_type"] = run_type
+
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
             else:
+                kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
 
@@ -938,6 +951,16 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 **kwargs,
             )
 
+        def sync_dagbag_to_db(self):
+            if not AIRFLOW_V_3_0_PLUS:
+                self.dagbag.sync_to_db()
+                return
+
+            self.dagbag.sync_to_db(
+                self.bundle_name,
+                None,
+            )
+
         def __call__(
             self,
             dag_id="test_dag",
@@ -945,7 +968,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             serialized=want_serialized,
             activate_assets=want_activate_assets,
             fileloc=None,
-            processor_subdir=None,
+            bundle_name=None,
             session=None,
             **kwargs,
         ):
@@ -977,7 +1000,16 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
-            self.processor_subdir = processor_subdir
+            self.bundle_name = bundle_name or "dag_maker"
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dagbundle import DagBundleModel
+
+                if (
+                    self.session.query(DagBundleModel).filter(DagBundleModel.name == self.bundle_name).count()
+                    == 0
+                ):
+                    self.session.add(DagBundleModel(name=self.bundle_name))
+                    self.session.commit()
 
             return self
 
@@ -1108,10 +1140,7 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
         **kwargs,
     ):
         op_kwargs = {}
-        from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
-        if AIRFLOW_V_2_9_PLUS:
-            op_kwargs["task_display_name"] = task_display_name
+        op_kwargs["task_display_name"] = task_display_name
         with dag_maker(dag_id, **kwargs) as dag:
             op = EmptyOperator(
                 task_id=task_id,
@@ -1174,8 +1203,6 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
     """
     from airflow.operators.empty import EmptyOperator
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
     def maker(
         logical_date=None,
         dagrun_state=None,
@@ -1209,8 +1236,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
             logical_date = timezone.utcnow()
         with dag_maker(dag_id, **kwargs):
             op_kwargs = {}
-            if AIRFLOW_V_2_9_PLUS:
-                op_kwargs["task_display_name"] = task_display_name
+            op_kwargs["task_display_name"] = task_display_name
             task = EmptyOperator(
                 task_id=task_id,
                 max_active_tis_per_dag=max_active_tis_per_dag,
@@ -1390,17 +1416,11 @@ def reset_logging_config():
 def suppress_info_logs_for_dag_and_fab():
     import logging
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_2_9_PLUS
-
     dag_logger = logging.getLogger("airflow.models.dag")
     dag_logger.setLevel(logging.WARNING)
 
-    if AIRFLOW_V_2_9_PLUS:
-        fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
-        fab_logger.setLevel(logging.WARNING)
-    else:
-        fab_logger = logging.getLogger("airflow.www.fab_security")
-        fab_logger.setLevel(logging.WARNING)
+    fab_logger = logging.getLogger("airflow.providers.fab.auth_manager.security_manager.override")
+    fab_logger.setLevel(logging.WARNING)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -1545,6 +1565,19 @@ def clean_dags_and_dagruns():
     yield  # Test runs here
     clear_db_dags()
     clear_db_runs()
+
+
+@pytest.fixture
+def clean_executor_loader():
+    """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
+    from airflow.executors.executor_loader import ExecutorLoader
+
+    from tests_common.test_utils.executor_loader import clean_executor_loader_module
+
+    clean_executor_loader_module()
+    yield  # Test runs here
+    clean_executor_loader_module()
+    ExecutorLoader.init_executors()
 
 
 @pytest.fixture(scope="session")

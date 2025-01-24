@@ -90,14 +90,13 @@ the versions of Airflow that are not applicable anymore.
 searching and replacing old version occurrences with newer one. For example 2.8.0 to 2.9.0
 
 3. Update minimum airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
-in `src/airflow_breeze/utils/packages.py` and run the `prepare-provider-documentation`
-command with the `--only-min-version-update` flag. This will only update the min version in
-the `__init__.py` files and package documentation without bumping the provider versions.
+in `src/airflow_breeze/utils/packages.py` and run the `breeze release-management prepare-provider-documentation --only-min-version-update`
+This will only update the min version in  the `__init__.py` files and package documentation without bumping the provider versions.
 
 4. Remove `AIRFLOW_V_2_X_PLUS` in all tests (review and update skipif and other conditional
    behaviour and test_compat.py, where X is the TARGET version we change to. For example
-   when we update min Airflow version to 2.9.0, we should remove all references to AIRFLOW_V_2_9_PLUS
-   simply because "everything" in our tests is already 2.9.0+ and there is no need to exclude or
+   when we update min Airflow version to 2.10.0, we should remove all references to AIRFLOW_V_2_10_PLUS
+   simply because "everything" in our tests is already 2.10.0+ and there is no need to exclude or
    modify tests for earlier versions of Airflow.
 
 Note: Sometimes we are releasing a subset of providers and would not want to add the
@@ -232,7 +231,8 @@ To set provider as removed do the following:
 First thing that release manager has to do is to change version of the provider to a target
 version. Each provider has a `provider.yaml` file that, among others, stores information
 about provider versions. When you attempt to release a provider you should update that
-information based on the changes for the provider, and its `CHANGELOG.rst`. It might be that
+information based on the changes for the provider, and its `CHANGELOG.rst` (or `changelog.rst` in the
+new provider's structure). It might be that
 `CHANGELOG.rst` already contains the right target version. This will be especially true if some
 changes in the provider add new features (then minor version is increased) or when the changes
 introduce backwards-incompatible, breaking change in the provider (then major version is

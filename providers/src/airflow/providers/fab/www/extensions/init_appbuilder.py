@@ -39,8 +39,10 @@ from flask_appbuilder.menu import Menu
 from flask_appbuilder.views import IndexView
 
 from airflow import settings
+from airflow.api_fastapi.app import create_auth_manager, get_auth_manager
 from airflow.configuration import conf
-from airflow.www.extensions.init_auth_manager import init_auth_manager
+from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
+from airflow.providers.fab.www.views import FabIndexView
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -108,6 +110,7 @@ class AirflowAppBuilder:
         base_template="airflow/main.html",
         static_folder="static/appbuilder",
         static_url_path="/appbuilder",
+        enable_plugins: bool = False,
     ):
         """
         App-builder constructor.
@@ -124,6 +127,15 @@ class AirflowAppBuilder:
             optional, your override for the global static folder
         :param static_url_path:
             optional, your override for the global static url path
+        :param enable_plugins:
+            optional, whether plugins are enabled for this app. AirflowAppBuilder from FAB provider can be
+            instantiated in two modes:
+             - Plugins enabled. The Flask application is responsible to execute Airflow 2 plugins.
+               This application is only running if there are Airflow 2 plugins defined as part of the Airflow
+               environment
+             - Plugins disabled. The Flask application is responsible to execute the FAB auth manager login
+               process. This application is only running if FAB auth manager is the auth manager configured
+               in the Airflow environment
         """
         from airflow.providers_manager import ProvidersManager
 
@@ -138,6 +150,7 @@ class AirflowAppBuilder:
         self.static_folder = static_folder
         self.static_url_path = static_url_path
         self.app = app
+        self.enable_plugins = enable_plugins
         self.update_perms = conf.getboolean("fab", "UPDATE_FAB_PERMS")
         self.auth_rate_limited = conf.getboolean("fab", "AUTH_RATE_LIMITED")
         self.auth_rate_limit = conf.get("fab", "AUTH_RATE_LIMIT")
@@ -171,8 +184,10 @@ class AirflowAppBuilder:
         _index_view = app.config.get("FAB_INDEX_VIEW", None)
         if _index_view is not None:
             self.indexview = dynamic_class_import(_index_view)
+        elif not self.enable_plugins:
+            self.indexview = FabIndexView
         else:
-            self.indexview = self.indexview or IndexView
+            self.indexview = IndexView
         _menu = app.config.get("FAB_MENU", None)
         if _menu is not None:
             self.menu = dynamic_class_import(_menu)
@@ -181,8 +196,13 @@ class AirflowAppBuilder:
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
-        auth_manager = init_auth_manager(self)
-        self.sm = auth_manager.security_manager
+        auth_manager = create_auth_manager()
+        auth_manager.appbuilder = self
+        auth_manager.init()
+        if hasattr(auth_manager, "security_manager"):
+            self.sm = auth_manager.security_manager
+        else:
+            self.sm = AirflowSecurityManagerV2(self)
         self.bm = BabelManager(self)
         self._add_global_static()
         self._add_global_filters()
@@ -276,6 +296,7 @@ class AirflowAppBuilder:
         """Register indexview, utilview (back function), babel views and Security views."""
         self.indexview = self._check_and_init(self.indexview)
         self.add_view_no_menu(self.indexview)
+        get_auth_manager().register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""
@@ -494,7 +515,6 @@ class AirflowAppBuilder:
 
     @property
     def get_url_for_index(self):
-        # TODO: Return the fast api application homepage
         return url_for(f"{self.indexview.endpoint}.{self.indexview.default_view}")
 
     def get_url_for_locale(self, lang):
@@ -514,6 +534,12 @@ class AirflowAppBuilder:
             except Exception as e:
                 log.exception(e)
                 log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW, e)
+
+    def add_permissions(self, update_perms=False):
+        if self.update_perms or update_perms:
+            for baseview in self.baseviews:
+                self._add_permission(baseview, update_perms=update_perms)
+            self._add_menu_permissions(update_perms=update_perms)
 
     def _add_permissions_menu(self, name, update_perms=False):
         if self.update_perms or update_perms:
@@ -548,10 +574,11 @@ class AirflowAppBuilder:
                         view.get_init_inner_views().append(v)
 
 
-def init_appbuilder(app: Flask) -> AirflowAppBuilder:
+def init_appbuilder(app: Flask, enable_plugins: bool) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
     return AirflowAppBuilder(
         app=app,
         session=settings.Session,
         base_template="airflow/main.html",
+        enable_plugins=enable_plugins,
     )

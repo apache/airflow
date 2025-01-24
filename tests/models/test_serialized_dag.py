@@ -49,8 +49,16 @@ pytestmark = pytest.mark.db_test
 # To move it to a shared module.
 def make_example_dags(module):
     """Loads DAGs from a module for test."""
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            testing = DagBundleModel(name="testing")
+            session.add(testing)
+
     dagbag = DagBag(module.__path__[0])
-    DAG.bulk_write_to_db(dagbag.dags.values())
+    DAG.bulk_write_to_db("testing", None, dagbag.dags.values())
     return dagbag.dags
 
 
@@ -153,33 +161,6 @@ class TestSerializedDagModel:
         assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
         assert dag_updated is True
 
-    def test_serialized_dag_is_updated_if_processor_subdir_changed(self):
-        """Test Serialized DAG is updated if processor_subdir is changed"""
-        example_dags = make_example_dags(example_dags_module)
-        example_bash_op_dag = example_dags.get("example_bash_operator")
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/test")
-        assert dag_updated is True
-
-        with create_session() as session:
-            s_dag = SDM.get(example_bash_op_dag.dag_id)
-
-            # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
-            # column is not updated
-            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/test")
-            s_dag_1 = SDM.get(example_bash_op_dag.dag_id)
-
-            assert s_dag_1.dag_hash == s_dag.dag_hash
-            assert s_dag.created_at == s_dag_1.created_at
-            assert dag_updated is False
-            session.flush()
-
-            # Update DAG
-            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/other")
-            s_dag_2 = SDM.get(example_bash_op_dag.dag_id)
-
-            assert s_dag.processor_subdir != s_dag_2.processor_subdir
-            assert dag_updated is True
-
     def test_read_dags(self):
         """DAGs can be read from database."""
         example_dags = self._write_example_dags()
@@ -196,20 +177,21 @@ class TestSerializedDagModel:
         serialized_dags = SDM.read_all_dags()
         assert len(example_dags) == len(serialized_dags)
 
-        ex_dags = make_example_dags(example_dags_module)
-        SDM.write_dag(ex_dags.get("example_bash_operator"), processor_subdir="/tmp/")
+        dag = example_dags.get("example_bash_operator")
+        dag.doc_md = "new doc string"
+        SDM.write_dag(dag)
         serialized_dags2 = SDM.read_all_dags()
         sdags = session.query(SDM).all()
         # assert only the latest SDM is returned
         assert len(sdags) != len(serialized_dags2)
 
-    def test_bulk_sync_to_db(self):
+    def test_bulk_sync_to_db(self, testing_dag_bundle):
         dags = [
             DAG("dag_1", schedule=None),
             DAG("dag_2", schedule=None),
             DAG("dag_3", schedule=None),
         ]
-        DAG.bulk_write_to_db(dags)
+        DAG.bulk_write_to_db("testing", None, dags)
         # we also write to dag_version and dag_code tables
         # in dag_version.
         with assert_queries_count(24):

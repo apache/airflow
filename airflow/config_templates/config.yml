@@ -28,14 +28,6 @@ core:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/dags"
-    dag_bundle_storage_path:
-      description: |
-        The folder where Airflow bundles can store files locally (if required).
-        By default, this is ``tempfile.gettempdir()/airflow``. This path must be absolute.
-      version_added: 3.0.0
-      type: string
-      example: "`tempfile.gettempdir()/dag_bundles"
-      default: ~
     hostname_callable:
       description: |
         Hostname by providing a path to a callable, which will resolve the hostname.
@@ -92,6 +84,24 @@ core:
       type: string
       example: ~
       default: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+    simple_auth_manager_users:
+      description: |
+        The list of users and their associated role in simple auth manager. If the simple auth manager is
+        used in your environment, this list controls who can access the environment.
+
+        List of user-role delimited with a space. Each user-role is a comma delimited couple of username and
+        role. Roles are predefined in simple auth managers: viewer, user, op, admin.
+      version_added: 3.0.0
+      type: string
+      example: "bob:admin,peter:viewer"
+      default: "admin:admin"
+    simple_auth_manager_all_admins:
+      description: |
+        Whether to disable authentication and allow everyone as admin in the environment.
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "False"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -2268,13 +2278,6 @@ scheduler:
       type: integer
       example: ~
       default: "50"
-    dag_dir_list_interval:
-      description: |
-        How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
-      version_added: ~
-      type: integer
-      example: ~
-      default: "300"
     print_stats_interval:
       description: |
         How often should stats be printed to the logs. Setting to 0 will disable printing stats
@@ -2444,25 +2447,15 @@ scheduler:
       type: string
       example: ~
       default: "modified_time"
-    standalone_dag_processor:
-      description: |
-        Whether the dag processor is running as a standalone process or it is a subprocess of a scheduler
-        job.
-      version_added: 2.3.0
-      type: boolean
-      example: ~
-      default: "False"
     max_callbacks_per_loop:
       description: |
-        Only applicable if ``[scheduler] standalone_dag_processor`` is true and  callbacks are stored
-        in database. Contains maximum number of callbacks that are fetched during a single loop.
+        The maximum number of callbacks that are fetched during a single loop.
       version_added: 2.3.0
       type: integer
       example: ~
       default: "20"
     dag_stale_not_seen_duration:
       description: |
-        Only applicable if ``[scheduler] standalone_dag_processor`` is true.
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
       version_added: 2.4.0
       type: integer
@@ -2632,25 +2625,59 @@ sensors:
       type: float
       example: ~
       default: "604800"
-usage_data_collection:
+dag_bundles:
   description: |
-    Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic platform and usage data
-    during operation. This data assists Airflow maintainers in better understanding how Airflow is used.
-    Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
-    security fixes. Additionally, this information supports key decisions related to the development road map.
-    Check the FAQ doc for more information on what data is collected.
-
-    Deployments can opt-out of analytics by setting the ``enabled`` option
-    to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
-    Individual users can easily opt-out of analytics in various ways documented in the
-    `Scarf Do Not Track docs <https://docs.scarf.sh/gateway/#do-not-track>`__.
+    Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
 
   options:
-    enabled:
+    dag_bundle_storage_path:
       description: |
-        Enable or disable usage data collection and sending.
-      version_added: 2.10.0
-      type: boolean
+        String path to folder where Airflow bundles can store files locally. Not templated.
+        If no path is provided, Airflow will use ``Path(tempfile.gettempdir()) / "airflow"``.
+        This path must be absolute.
+      version_added: 3.0.0
+      type: string
+      example: "/tmp/some-place"
+      default: ~
+
+    config_list:
+      description: |
+        List of backend configs.  Must supply name, classpath, and kwargs for each backend.
+
+        By default, ``refresh_interval`` is set to ``[dag_bundles] refresh_interval``, but that can
+        also be overridden in kwargs if desired.
+
+        The default is the dags folder dag bundle.
+
+        Note: As shown below, you can split your json config over multiple lines by indenting.
+        See configparser documentation for an example:
+        https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
+      version_added: 3.0.0
+      type: string
+      example: >
+        [
+            {
+                "name": "my-git-repo",
+                "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+                "kwargs": {
+                    "subdir": "dags",
+                    "repo_url": "git@github.com:example.com/my-dags.git",
+                    "tracking_ref": "main",
+                    "refresh_interval": 0
+            }
+            ]
+      default: >
+        [
+            {{
+              "name": "dags-folder",
+              "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+              "kwargs": {{}}
+            }}
+            ]
+    refresh_interval:
+      description: |
+        How often (in seconds) to refresh, or look for new files, in a DAG bundle.
+      version_added: ~
+      type: integer
       example: ~
-      default: "True"
-      see_also: ":ref:`Usage data collection FAQ <usage-data-collection>`"
+      default: "300"

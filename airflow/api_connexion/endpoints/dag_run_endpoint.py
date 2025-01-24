@@ -59,6 +59,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     task_instance_reference_collection_schema,
 )
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun
@@ -71,7 +72,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.www.decorators import action_logging
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -347,18 +347,17 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 )
             else:
                 data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-            dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = dag.create_dagrun(
-                run_type=DagRunType.MANUAL,
                 run_id=run_id,
                 logical_date=logical_date,
                 data_interval=data_interval,
-                state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
-                external_trigger=True,
-                dag_version=dag_version,
-                session=session,
+                run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.REST_API,
+                external_trigger=True,
+                dag_version=DagVersion.get_latest_version(dag.dag_id),
+                state=DagRunState.QUEUED,
+                session=session,
             )
             dag_run_note = post_body.get("note")
             if dag_run_note:

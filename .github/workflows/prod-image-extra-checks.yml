@@ -40,9 +40,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
-      image-tag:
-        required: true
-        type: string
       build-provider-packages:
         description: "Whether to build provider packages (true/false). If false providers are from PyPI"
         required: true
@@ -67,14 +64,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Disable airflow repo cache read from main."
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   myssql-client-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       build-type: "MySQL Client"
+      upload-image-artifact: "false"
       upload-package-artifact: "false"
-      image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
       default-python-version: ${{ inputs.default-python-version }}
@@ -89,6 +88,7 @@ jobs:
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
+      prod-image-build: "true"
 
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
@@ -97,8 +97,8 @@ jobs:
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       build-type: "pip"
+      upload-image-artifact: "false"
       upload-package-artifact: "false"
-      image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
       default-python-version: ${{ inputs.default-python-version }}
@@ -113,3 +113,4 @@ jobs:
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
+      prod-image-build: "true"

@@ -126,6 +126,14 @@ In a project like airflow it's important to have a consistent set of dependencie
 You can use ``uv sync`` to install dependencies from ``pyproject.toml`` file. This will install all dependencies
 from the ``pyproject.toml`` file in the current directory.
 
+.. note::
+
+   We are currently in the process of moving providers from old structure (where all providers were under
+   ``providers/src`` directory in a package structure shared between Providers) to a new structure
+   where each provider is a separate python package in ``providers`` directory. The "old" providers support
+   will be removed once we move all the providers to the new structure.
+
+
 .. code:: bash
 
     uv sync
@@ -144,6 +152,13 @@ dependencies - including their runtime dependencies.
     uv sync --all-extras
 
 This will synchronize all extras of airflow (this might require some system dependencies to be installed).
+
+.. note::
+
+   For the providers that are already moved to the new structure (i.e. have separate folder in
+   ``providers`` directory), you do not need to add ``extras`` - they provider dependencies are
+   automatically installed when you run ``uv sync``
+
 
 
 Creating and installing airflow with other build-frontends
@@ -164,11 +179,34 @@ run tests is to use ``pip`` to install airflow dependencies:
 
 .. code:: bash
 
+    pip install -e "./providers"
     pip install -e ".[devel,devel-tests,<OTHER EXTRAS>]" # for example: pip install -e ".[devel,devel-tests,google,postgres]"
 
-This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
-code rather than moved to the installation directory. You need to run this command in the virtualenv you
-want to install Airflow in - and you need to have the virtualenv activated.
+This will install:
+
+* old structure provider sources in ``editabl`e` mode - where sources are read from ``providers`` folder.
+* airflow in ``editable`` mode - where sources of Airflow are taken directly from ``airflow`` source code.
+
+You need to run this command in the virtualenv you want to install Airflow in -
+and you need to have the virtualenv activated.
+
+.. note::
+
+   For the providers that are already moved (i.e. have separate folder in ``providers`` directory), instead
+   of adding extra in airflow command you need to separately install the provider in the same venv. For example
+   to install ``airbyte`` provider you can run:
+
+   .. code:: bash
+
+       pip install -e "./providers"
+       pip install -e ".[devel,devel-tests,<OTHER EXTRAS>]" # for example: pip install -e ".[devel,devel-tests,google,postgres]"
+       pip install -e "./providers/airbyte[devel]"
+
+   This will install:
+
+       * old structure provider sources in ``editable`` mode - where sources are read from ``providers/src`` folder
+       * airflow in ``editable`` mode - where sources of Airflow are taken directly from ``airflow`` source code.
+       * airbyte provider in ``editable`` mode - where sources are read from ``providers/airbyte`` folder
 
 Extras (optional dependencies)
 ..............................
@@ -295,18 +333,32 @@ install multiple extra dependencies at a time:
 
     pip install -e ".[devel,apache-beam,dbt-cloud]"
 
-The dependencies for providers are configured in ``airflow/providers/PROVIDERS_FOLDER/provider.yaml`` file -
+.. note::
+
+   We are currently in the process of separating out providers to separate subprojects. This means that
+   "old" providers related code is split across multiple directories "providers", "docs" and that the
+   ``pyproject.toml`` files for them are dynamically generated when provider is built. The "new" providers
+   have all the files stored in the same "subfolder" of "providers" folder (for example all "airbyte" related
+   code is stored in "providers/airbyte" and there is an airbyte "pyproject.toml" stored in that folder and
+   the project is effectively a separate python project. It will take a while to migrate all the providers
+   to the new structure, so you might see both structures in the repository for some time.
+
+The dependencies for providers are configured in ``providers/src/*/provider.yaml`` files for new file
+structure and in ``providers/*/pyproject.toml`` in case of new structure for providers -
 separately for each provider. You can find there two types of ``dependencies`` - production runtime
-dependencies, and sometimes ``devel-dependencies`` which are needed to run tests. While ``provider.yaml``
-file is the single source of truth for the dependencies, eventually they need to find its way to Airflow`s
-``pyproject.toml``. This is done by running:
+dependencies, and sometimes ``devel-dependencies`` which are needed to run tests.
+
+In case of old provider structure - while ``provider.yaml`` file is the single source of truth for the
+dependencies, eventually they need to find its way to Airflow`s ``pyproject.toml``.
+This is done by running:
 
 .. code:: bash
 
     pre-commit run update-providers-dependencies --all-files
 
-This will update ``pyproject.toml`` with the dependencies from ``provider.yaml`` files and from there
-it will be used automatically when you install Airflow in editable mode.
+This will update ``generated/provider_dependencies.json`` file with the dependencies from ``provider.yaml``
+files and from there it will be used automatically used when you install Airflow in editable mode, and
+it is used to dynamically generate ``pyproject.toml`` for providers in the old structure of providers.
 
 If you want to add another dependency to a provider, you should add it to corresponding ``provider.yaml``,
 run the command above and commit the changes to ``pyproject.toml``. Then running

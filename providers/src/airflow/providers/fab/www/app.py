@@ -31,7 +31,7 @@ from airflow.logging_config import configure_logging
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
-from airflow.providers.fab.www.extensions.init_security import init_xframe_protection
+from airflow.providers.fab.www.extensions.init_security import init_api_auth, init_xframe_protection
 from airflow.providers.fab.www.extensions.init_views import init_error_handlers, init_plugins
 
 app: Flask | None = None
@@ -41,7 +41,7 @@ app: Flask | None = None
 csrf = CSRFProtect()
 
 
-def create_app(config=None, testing=False):
+def create_app(enable_plugins: bool):
     """Create a new instance of Airflow WWW app."""
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
@@ -63,21 +63,23 @@ def create_app(config=None, testing=False):
 
     configure_logging()
     configure_manifest_files(flask_app)
+    init_api_auth(flask_app)
 
     with flask_app.app_context():
-        init_appbuilder(flask_app)
-        init_plugins(flask_app)
+        init_appbuilder(flask_app, enable_plugins=enable_plugins)
+        if enable_plugins:
+            init_plugins(flask_app)
         init_error_handlers(flask_app)
-        init_jinja_globals(flask_app)
+        init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_xframe_protection(flask_app)
     return flask_app
 
 
-def cached_app(config=None, testing=False):
+def cached_app():
     """Return cached instance of Airflow WWW app."""
     global app
     if not app:
-        app = create_app(config=config, testing=testing)
+        app = create_app()
     return app
 
 

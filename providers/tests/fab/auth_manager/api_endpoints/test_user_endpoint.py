@@ -21,8 +21,8 @@ import unittest.mock
 import pytest
 from sqlalchemy.sql.functions import count
 
-from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.security import permissions
+from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.providers.fab.www.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 

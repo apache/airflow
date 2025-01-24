@@ -39,8 +39,8 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
+from airflow.sdk.definitions.context import Context
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
 from kubernetes_tests.test_base import BaseK8STest, StringContainingId
@@ -1306,7 +1306,101 @@ class TestKubernetesPodOperatorSystem:
         )
         assert MyK8SPodOperator(task_id=str(uuid4())).base_container_name == "tomato-sauce"
 
+    def test_init_container_logs(self, mock_get_connection):
+        marker_from_init_container = f"{uuid4()}"
+        marker_from_main_container = f"{uuid4()}"
+        callback = MagicMock()
+        init_container = k8s.V1Container(
+            name="init-container",
+            image="busybox",
+            command=["sh", "-cx"],
+            args=[f"echo {marker_from_init_container}"],
+        )
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="busybox",
+            cmds=["sh", "-cx"],
+            arguments=[f"echo {marker_from_main_container}"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            startup_timeout_seconds=60,
+            init_containers=[init_container],
+            init_container_logs=True,
+            callbacks=callback,
+        )
+        context = create_context(k)
+        k.execute(context)
 
+        calls_args = "\n".join(["".join(c.kwargs["line"]) for c in callback.progress_callback.call_args_list])
+        assert marker_from_init_container in calls_args
+        assert marker_from_main_container in calls_args
+
+    def test_init_container_logs_filtered(self, mock_get_connection):
+        marker_from_init_container_to_log_1 = f"{uuid4()}"
+        marker_from_init_container_to_log_2 = f"{uuid4()}"
+        marker_from_init_container_to_ignore = f"{uuid4()}"
+        marker_from_main_container = f"{uuid4()}"
+        callback = MagicMock()
+        init_container_to_log_1 = k8s.V1Container(
+            name="init-container-to-log-1",
+            image="busybox",
+            command=["sh", "-cx"],
+            args=[f"echo {marker_from_init_container_to_log_1}"],
+        )
+        init_container_to_log_2 = k8s.V1Container(
+            name="init-container-to-log-2",
+            image="busybox",
+            command=["sh", "-cx"],
+            args=[f"echo {marker_from_init_container_to_log_2}"],
+        )
+        init_container_to_ignore = k8s.V1Container(
+            name="init-container-to-ignore",
+            image="busybox",
+            command=["sh", "-cx"],
+            args=[f"echo {marker_from_init_container_to_ignore}"],
+        )
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="busybox",
+            cmds=["sh", "-cx"],
+            arguments=[f"echo {marker_from_main_container}"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            startup_timeout_seconds=60,
+            init_containers=[
+                init_container_to_log_1,
+                init_container_to_log_2,
+                init_container_to_ignore,
+            ],
+            init_container_logs=[
+                # not same order as defined in init_containers
+                "init-container-to-log-2",
+                "init-container-to-log-1",
+            ],
+            callbacks=callback,
+        )
+        context = create_context(k)
+        k.execute(context)
+
+        calls_args = "\n".join(["".join(c.kwargs["line"]) for c in callback.progress_callback.call_args_list])
+        assert marker_from_init_container_to_log_1 in calls_args
+        assert marker_from_init_container_to_log_2 in calls_args
+        assert marker_from_init_container_to_ignore not in calls_args
+        assert marker_from_main_container in calls_args
+
+        assert (
+            calls_args.find(marker_from_init_container_to_log_1)
+            < calls_args.find(marker_from_init_container_to_log_2)
+            < calls_args.find(marker_from_main_container)
+        )
+
+
+# TODO: Task SDK: https://github.com/apache/airflow/issues/45438
+@pytest.mark.skip(reason="AIP-72: Secret Masking yet to be implemented")
 def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
     logger = logging.getLogger("airflow.task")
     monkeypatch.setattr(logger, "propagate", True)
