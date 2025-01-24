@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Status as ChakraStatus } from "@chakra-ui/react";
+import { Status as ChakraStatus, chakra } from "@chakra-ui/react";
 import * as React from "react";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
-import { stateColor } from "src/utils/stateColor";
+
+import { StateIcon } from "../StateIcon";
 
 type StatusValue = DagRunState | TaskInstanceState | null;
 
@@ -28,14 +29,11 @@ export type StatusProps = {
   state: StatusValue;
 } & ChakraStatus.RootProps;
 
-export const Status = React.forwardRef<HTMLDivElement, StatusProps>(({ children, state, ...rest }, ref) => {
-  // "null" is actually a string on stateColor
-  const { color, icon } = stateColor[state ?? "null"];
-
-  return (
-    <ChakraStatus.Root ref={ref} {...rest}>
-      {React.createElement(icon, { color, size: 16 })}
-      {children}
-    </ChakraStatus.Root>
-  );
-});
+export const Status = React.forwardRef<HTMLDivElement, StatusProps>(({ children, state, ...rest }, ref) => (
+  <ChakraStatus.Root ref={ref} {...rest}>
+    <chakra.span color={`${state}.solid`}>
+      <StateIcon state={state} />
+    </chakra.span>
+    {children}
+  </ChakraStatus.Root>
+));

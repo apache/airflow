@@ -19,21 +19,20 @@
  * under the License.
  */
 import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
-import React from "react";
-import { FiClock, FiXCircle } from "react-icons/fi";
+import { FiXCircle } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
+import { StateIcon } from "src/components/StateIcon";
 import { Tooltip } from "src/components/ui";
 import { capitalize } from "src/utils";
-import { stateColor } from "src/utils/stateColor";
 
 const slots = {
-  open_slots: stateColor.success,
-  occupied_slots: { color: stateColor.up_for_retry.color, icon: FiXCircle },
-  running_slots: stateColor.running,
-  queued_slots: stateColor.queued,
-  scheduled_slots: stateColor.scheduled,
-  deferred_slots: stateColor.deferred,
+  open_slots: { color: "success", icon: <StateIcon state="success" /> },
+  occupied_slots: { color: "up_for_retry", icon: <FiXCircle /> },
+  running_slots: { color: "running", icon: <StateIcon state="running" /> },
+  queued_slots: { color: "queued", icon: <StateIcon state="queued" /> },
+  scheduled_slots: { color: "scheduled", icon: <StateIcon state="scheduled" /> },
+  deferred_slots: { color: "deferred", icon: <StateIcon state="deferred" /> },
 };
 
 type PoolBarProps = {
@@ -50,7 +49,7 @@ const PoolBar = ({ pool }: PoolBarProps) => (
           </Text>
           {pool.include_deferred ? (
             <Tooltip content="Deferred Slots Included">
-              <FiClock size={18} />
+              <StateIcon size={18} state="deferred" />
             </Tooltip>
           ) : undefined}
         </HStack>
@@ -77,13 +76,13 @@ const PoolBar = ({ pool }: PoolBarProps) => (
             <Tooltip content={`${capitalize(slotKey.replace("_", " "))}: ${slotValue}`} key={slotKey}>
               <Flex
                 alignItems="center"
-                bg={color}
+                colorPalette={color}
                 flex={flexValue}
                 h="100%"
                 justifyContent="center"
                 position="relative"
               >
-                {React.createElement(icon, { size: 16, color: "white" })}
+                {icon}
               </Flex>
             </Tooltip>
           );

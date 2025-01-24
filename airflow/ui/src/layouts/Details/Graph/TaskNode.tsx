@@ -24,7 +24,6 @@ import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { Status } from "src/components/ui";
 import { useOpenGroups } from "src/context/openGroups";
 import { pluralize } from "src/utils";
-import { stateColor } from "src/utils/stateColor";
 
 import { NodeWrapper } from "./NodeWrapper";
 import { TaskName } from "./TaskName";
@@ -67,9 +66,7 @@ export const TaskNode = ({
           <Flex
             // Alternate background color for nested open groups
             bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
-            borderColor={
-              taskInstance?.state === undefined ? "border" : stateColor[taskInstance.state ?? "null"].color
-            }
+            borderColor={taskInstance?.state ?? "border"}
             borderRadius={5}
             borderWidth={isSelected ? 6 : 2}
             height={`${height}px`}

@@ -17,12 +17,11 @@
  * under the License.
  */
 import { Skeleton, TagLabel, Text, HStack } from "@chakra-ui/react";
-import React from "react";
 
+import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tag, Tooltip } from "src/components/ui";
 import { capitalize } from "src/utils";
-import { stateColor } from "src/utils/stateColor";
 
 export const HealthTag = ({
   isLoading,
@@ -39,7 +38,7 @@ export const HealthTag = ({
     return <Skeleton borderRadius="full" height={8} width={24} />;
   }
 
-  const state = status === "healthy" ? stateColor.success : stateColor.failed;
+  const state = status === "healthy" ? "success" : "failed";
 
   return (
     <Tooltip
@@ -53,9 +52,9 @@ export const HealthTag = ({
       }
       disabled={!Boolean(latestHeartbeat)}
     >
-      <Tag borderRadius="full" colorPalette={state.color} size="lg">
+      <Tag borderRadius="full" colorPalette={state} size="lg">
         <HStack>
-          {React.createElement(state.icon)}
+          <StateIcon state={state} />
           <TagLabel>{title}</TagLabel>
         </HStack>
       </Tag>
