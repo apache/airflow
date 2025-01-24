@@ -443,7 +443,7 @@ each parameter by following the links):
 
 * :ref:`config:scheduler__scheduler_idle_sleep_time`
 * :ref:`config:scheduler__min_file_process_interval`
-* :ref:`config:dag_bundles__refresh_interval`
+* :ref:`config:dag_processor__refresh_interval`
 * :ref:`config:scheduler__parsing_processes`
 * :ref:`config:scheduler__file_parsing_sort_mode`
 

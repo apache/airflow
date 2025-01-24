@@ -80,7 +80,7 @@ def lineno():
 
 def local_dag_bundle_cfg(path, name="my-bundle"):
     return {
-        "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
+        "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
             [
                 {
                     "name": name,

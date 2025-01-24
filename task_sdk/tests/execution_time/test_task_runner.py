@@ -138,7 +138,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     with patch.dict(
         os.environ,
         {
-            "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
                 [
                     {
                         "name": "my-bundle",
@@ -589,7 +589,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
         ]
     )
 
-    monkeypatch.setenv("AIRFLOW__DAG_BUNDLES__CONFIG_LIST", dag_bundle_val)
+    monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", dag_bundle_val)
     ti, _ = startup()
 
     # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!
