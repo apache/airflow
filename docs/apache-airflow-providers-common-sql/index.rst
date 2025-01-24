@@ -43,6 +43,7 @@
 
     Python API <_api/airflow/providers/common/sql/index>
     Supported Database Types </supported-database-types>
+    Dialects <dialects>
 
 .. toctree::
     :hidden:
