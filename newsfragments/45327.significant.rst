@@ -18,6 +18,4 @@ Renamed DAG argument ``fail_stop`` to ``fail_fast`` across the codebase to align
 
     * AIR302
 
-      * arguments in ``DAG``
-
-          * [ ] ``fail_stop`` → ``fail_fast``
+      * [x] arguments ``fail_stop`` → ``fail_fast`` in ``DAG``

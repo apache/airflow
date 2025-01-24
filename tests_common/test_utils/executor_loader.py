@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,38 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from typing import TYPE_CHECKING
+
+import airflow.executors.executor_loader as executor_loader
+
+if TYPE_CHECKING:
+    from airflow.executors.executor_utils import ExecutorName
 
 
-class AssetResponse(BaseModel):
-    """Asset schema for responses with fields that are needed for Runtime."""
-
-    name: str
-    uri: str
-    group: str
-    extra: dict | None = None
-
-
-class AssetAliasResponse(BaseModel):
-    """Asset alias schema with fields that are needed for Runtime."""
-
-    name: str
-    group: str
-
-
-class AssetProfile(BaseModel):
-    """
-    Profile of an Asset.
-
-    Asset will have name, uri and asset_type defined.
-    AssetNameRef will have name and asset_type defined.
-    AssetUriRef will have uri and asset_type defined.
-
-    """
-
-    name: str | None = None
-    uri: str | None = None
-    asset_type: str
+def clean_executor_loader_module():
+    """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
+    executor_loader._alias_to_executors: dict[str, ExecutorName] = {}
+    executor_loader._module_to_executors: dict[str, ExecutorName] = {}
+    executor_loader._team_id_to_executors: dict[str | None, ExecutorName] = {}
+    executor_loader._classname_to_executors: dict[str, ExecutorName] = {}
+    executor_loader._executor_names: list[ExecutorName] = []

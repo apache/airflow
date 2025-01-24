@@ -32,10 +32,11 @@ import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { Run } from "src/pages/Run";
-import { Details } from "src/pages/Run/Details";
+import { Details as DagRunDetails } from "src/pages/Run/Details";
 import { TaskInstances } from "src/pages/Run/TaskInstances";
 import { Task, Instances } from "src/pages/Task";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
+import { Details } from "src/pages/TaskInstance/Details";
 import { XCom } from "src/pages/XCom";
 
 import { Pools } from "./pages/Pools";
@@ -86,6 +87,7 @@ export const router = createBrowserRouter(
             { element: <TaskInstances />, index: true },
             { element: <Events />, path: "events" },
             { element: <Code />, path: "code" },
+            { element: <DagRunDetails />, path: "details" },
           ],
           element: <Run />,
           path: "dags/:dagId/runs/:runId",

@@ -60,6 +60,9 @@ export type AssetEventCollectionResponse = {
 export type AssetEventResponse = {
   id: number;
   asset_id: number;
+  uri?: string | null;
+  name?: string | null;
+  group?: string | null;
   extra?: {
     [key: string]: unknown;
   } | null;
