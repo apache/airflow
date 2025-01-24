@@ -365,9 +365,7 @@ FILEFORMAT = {self._file_format}
         self.log.info("Executing SQL: %s", self._sql)
 
         hook = self._get_hook()
-        result = hook.run(self._sql, handler=lambda cur: cur.fetchall())
-        # Convert to list, handling the case where result might be None
-        self._result = list(result) if result is not None else []
+        hook.run(self._sql)
 
     def on_kill(self) -> None:
         # NB: on_kill isn't required for this operator since query cancelling gets
@@ -387,7 +385,6 @@ FILEFORMAT = {self._file_format}
         from airflow.providers.common.compat.openlineage.facet import (
             Dataset,
             Error,
-            ExternalQueryRunFacet,
             ExtractionErrorRunFacet,
             SQLJobFacet,
         )
@@ -486,11 +483,12 @@ FILEFORMAT = {self._file_format}
                     )
                 )
 
-        # Add external query facet if we have run results
-        if hasattr(self, "_result") and self._result:
-            run_facets["externalQuery"] = ExternalQueryRunFacet(
-                externalQueryId=str(id(self._result)),
-                source=output_dataset.namespace if output_dataset else "databricks",
+        # Add extraction error facet if there are any errors in constructing output dataset
+        if extraction_errors:
+            run_facets["extractionError"] = ExtractionErrorRunFacet(
+                totalTasks=1,
+                failedTasks=len(extraction_errors),
+                errors=extraction_errors,
             )
 
         return OperatorLineage(
@@ -499,94 +497,3 @@ FILEFORMAT = {self._file_format}
             job_facets=job_facets,
             run_facets=run_facets,
         )
-
-    @staticmethod
-    def _extract_openlineage_unique_dataset_paths(
-        query_result: list[dict[str, Any]],
-    ) -> tuple[list[tuple[str, str]], list[str]]:
-        """
-        Extract unique (namespace, name) pairs from query results.
-
-        Extract unique (namespace, name) pairs from a query result that includes a
-        'file' field in each row. This method is used internally for extended lineage
-        if needed (for example, if multiple distinct files lead to a single table).
-
-        The recognized schemes are:
-        - azure:// (converted to wasbs://)
-        - abfss://
-        - wasbs://
-        - s3://
-        - s3a://
-        - s3n://
-        - gs://
-        Others will be flagged as extraction errors.
-        """
-        import re
-        from pathlib import Path
-        from urllib.parse import urlparse
-
-        azure_regex = r"azure:\/\/([^.]+)\.blob\.core\.windows\.net\/([^/]+)\/?(.*)?"
-        abfss_regex = r"abfss:\/\/([^@]+)@([^.]+)\.dfs\.core\.windows\.net\/?(.*)?"
-        wasbs_regex = r"wasbs:\/\/([^@]+)@([^.]+)\.blob\.core\.windows\.net\/?(.*)?"
-
-        extraction_error_files = []
-        unique_dataset_paths = set()
-
-        for row in query_result:
-            file_uri = row.get("file")
-            if not file_uri:
-                extraction_error_files.append(str(row))
-                continue
-
-            uri = urlparse(file_uri)
-            try:
-                # First validate that we have a valid URI with both scheme and netloc
-                if not uri.scheme or not uri.netloc:
-                    extraction_error_files.append(file_uri)
-                    continue
-
-                if uri.scheme == "azure":
-                    match = re.fullmatch(azure_regex, file_uri)
-                    if not match:
-                        extraction_error_files.append(file_uri)
-                        continue
-                    account_name, container_name, path = match.groups()
-                    namespace = f"wasbs://{container_name}@{account_name}"
-                elif uri.scheme == "abfss":
-                    match = re.fullmatch(abfss_regex, file_uri)
-                    if not match:
-                        extraction_error_files.append(file_uri)
-                        continue
-                    container_name, account_name, path = match.groups()
-                    namespace = f"abfss://{container_name}@{account_name}"
-                elif uri.scheme == "wasbs":
-                    match = re.fullmatch(wasbs_regex, file_uri)
-                    if not match:
-                        extraction_error_files.append(file_uri)
-                        continue
-                    container_name, account_name, path = match.groups()
-                    namespace = f"wasbs://{container_name}@{account_name}"
-                elif uri.scheme in ("s3", "s3a", "s3n", "gs"):
-                    # Normalize s3a and s3n to s3
-                    scheme = "s3" if uri.scheme.startswith("s3") else uri.scheme
-                    namespace = f"{scheme}://{uri.netloc}"
-                    path = uri.path.lstrip("/")
-                else:
-                    # unknown scheme
-                    extraction_error_files.append(file_uri)
-                    continue
-
-                # Validate path
-                if not path and uri.scheme != "gs":  # GCS allows empty paths
-                    extraction_error_files.append(file_uri)
-                    continue
-
-                # keep only the parent directory for the path
-                parent_dir = Path(path or "").parent.as_posix()
-                if parent_dir in ("", "."):
-                    parent_dir = "/"
-                unique_dataset_paths.add((namespace, parent_dir))
-            except Exception:
-                extraction_error_files.append(file_uri)
-
-        return sorted(unique_dataset_paths), sorted(extraction_error_files)
