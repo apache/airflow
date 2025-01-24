@@ -90,6 +90,19 @@ class LogGroomerTestBase:
         )
         assert jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0]) == "15"
 
+    def test_log_groomer_collector_custom_env(self):
+        env = {"name": "ENABLE_KUBE_MUTATION_TYPE", "value": "upsert"}
+        if self.obj_name == "dag-processor":
+            values = {"dagProcessor": {"enabled": True, "env": env}}
+        else:
+            values = None
+
+        docs = render_chart(
+            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+        )
+
+        assert env in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_log_groomer_command_and_args_overrides(self, command, args):
