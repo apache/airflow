@@ -40,57 +40,48 @@ export const useClearTaskInstances = ({
   dagId,
   dagRunId,
   onSuccessConfirm,
-  onSuccessDryRun,
 }: {
   dagId: string;
   dagRunId: string;
   onSuccessConfirm: () => void;
-  onSuccessDryRun: (date: TaskInstanceCollectionResponse) => void;
 }) => {
   const queryClient = useQueryClient();
 
   const onSuccess = async (
-    data: TaskInstanceCollectionResponse,
-    variables: {
-      dagId: string;
-      requestBody: ClearTaskInstancesBody;
-    },
+    _: TaskInstanceCollectionResponse,
+    variables: { dagId: string; requestBody: ClearTaskInstancesBody },
   ) => {
-    if (variables.requestBody.dry_run) {
-      onSuccessDryRun(data);
-    } else {
-      // deduplication using set as user can clear multiple map index of the same task_id.
-      const taskInstanceKeys = [
-        ...new Set(
-          (variables.requestBody.task_ids ?? [])
-            .filter((taskId) => typeof taskId === "string" || Array.isArray(taskId))
-            .map((taskId) => {
-              const actualTaskId = Array.isArray(taskId) ? taskId[0] : taskId;
-              const runId = variables.requestBody.dag_run_id;
+    // deduplication using set as user can clear multiple map index of the same task_id.
+    const taskInstanceKeys = [
+      ...new Set(
+        (variables.requestBody.task_ids ?? [])
+          .filter((taskId) => typeof taskId === "string" || Array.isArray(taskId))
+          .map((taskId) => {
+            const actualTaskId = Array.isArray(taskId) ? taskId[0] : taskId;
+            const runId = variables.requestBody.dag_run_id;
 
-              if (runId === null || runId === undefined) {
-                return undefined;
-              }
+            if (runId === null || runId === undefined) {
+              return undefined;
+            }
 
-              const params = { dagId, dagRunId: runId, taskId: actualTaskId };
+            const params = { dagId, dagRunId: runId, taskId: actualTaskId };
 
-              return UseTaskInstanceServiceGetTaskInstanceKeyFn(params);
-            })
-            .filter((key) => key !== undefined),
-        ),
-      ];
+            return UseTaskInstanceServiceGetTaskInstanceKeyFn(params);
+          })
+          .filter((key) => key !== undefined),
+      ),
+    ];
 
-      const queryKeys = [
-        [useTaskInstanceServiceGetTaskInstancesKey],
-        ...taskInstanceKeys,
-        UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
-        [useDagRunServiceGetDagRunsKey],
-      ];
+    const queryKeys = [
+      [useTaskInstanceServiceGetTaskInstancesKey],
+      ...taskInstanceKeys,
+      UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+      [useDagRunServiceGetDagRunsKey],
+    ];
 
-      await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
-      onSuccessConfirm();
-    }
+    onSuccessConfirm();
   };
 
   return useTaskInstanceServicePostClearTaskInstances({
