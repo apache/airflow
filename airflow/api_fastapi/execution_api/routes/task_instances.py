@@ -21,7 +21,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Body, HTTPException, status
+from fastapi import Body, HTTPException, Response, status
 from pydantic import JsonValue
 from sqlalchemy import update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -37,10 +37,12 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
     TIRunContext,
+    TIRuntimeCheckPayload,
     TIStateUpdate,
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
+from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
@@ -440,6 +442,49 @@ def get_previous_successful_dagrun(
         return PrevSuccessfulDagRunResponse()
 
     return PrevSuccessfulDagRunResponse.model_validate(dag_run)
+
+
+@router.post(
+    "/{task_instance_id}/runtime-checks",
+    status_code=status.HTTP_200_OK,
+    # TODO: Add description to the operation
+    # TODO: Add Operation ID to control the function name in the OpenAPI spec
+    # TODO: Do we need to use create_openapi_http_exception_doc here?
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "Task Instance doesn't pass the required runtime checks"
+        },
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Task Instance is not in a running state, cannot perform runtime checks."
+        },
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+            "description": "Invalid payload for requested runtime checks on the Task Instance."
+        },
+    },
+)
+def ti_runtime_checks(
+    task_instance_id: UUID,
+    payload: TIRuntimeCheckPayload,
+    session: SessionDep,
+):
+    ti_id_str = str(task_instance_id)
+    task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
+    if task_instance.state != State.RUNNING:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    else:
+        try:
+            TI.validate_inlet_outlet_assets_activeness(payload.inlet, payload.outlet, session)  # type: ignore
+        except AirflowInactiveAssetInInletOrOutletException as e:
+            log.error("Task Instance %s doesn't pass the runtime checks.", ti_id_str)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "reason": "validation_failed",
+                    "message": "Task Instance fails the runtime checks",
+                    "error": str(e),
+                },
+            )
+    return {"message": "Runtime checks passed successfully."}
 
 
 def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:

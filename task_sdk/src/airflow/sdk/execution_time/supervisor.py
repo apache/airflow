@@ -73,6 +73,7 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     StartupDetails,
@@ -767,6 +768,14 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+        elif isinstance(msg, RuntimeCheckOnTask):
+            runtime_check_resp = self.client.task_instances.runtime_checks(id=self.id, msg=msg)
+            resp = runtime_check_resp.model_dump_json().encode()
+            if not runtime_check_resp.ok:
+                log.debug("Runtime checks failed on task %s, marking task as failed..", self.id)
+                self.client.task_instances.finish(
+                    id=self.id, state=TerminalTIState.FAILED, when=datetime.now(tz=timezone.utc)
+                )
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self.client.task_instances.succeed(

@@ -40,7 +40,9 @@ from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     GetXCom,
+    OKResponse,
     RescheduleTask,
+    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     StartupDetails,
@@ -501,6 +503,20 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO: Get a real context object
         ti.hostname = get_hostname()
         ti.task = ti.task.prepare_for_execution()
+        if ti.task.inlets or ti.task.outlets:
+            inlets = [
+                AssetProfile(name=x.name or None, uri=x.uri or None, asset_type=type(x).__name__)
+                for x in ti.task.inlets
+            ]
+            outlets = [
+                AssetProfile(name=x.name or None, uri=x.uri or None, asset_type=type(x).__name__)
+                for x in ti.task.outlets
+            ]
+            SUPERVISOR_COMMS.send_request(log, msg=RuntimeCheckOnTask(inlet=inlets, outlet=outlets))  # type: ignore
+            msg = SUPERVISOR_COMMS.get_message()  # type: ignore
+        if isinstance(msg, OKResponse) and not msg.ok:
+            log.info("Runtime checks failed for task, marking task as failed..")
+            return
         context = ti.get_template_context()
         with set_current_context(context):
             jinja_env = ti.task.dag.get_template_env()

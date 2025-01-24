@@ -148,6 +148,15 @@ class TIRescheduleStatePayload(BaseModel):
     end_date: Annotated[datetime, Field(title="End Date")]
 
 
+class TIRuntimeCheckPayload(BaseModel):
+    """
+    Payload for performing Runtime checks on the TaskInstance model as requested by the SDK.
+    """
+
+    inlet: Annotated[list[AssetProfile] | None, Field(title="Inlet")] = None
+    outlet: Annotated[list[AssetProfile] | None, Field(title="Outlet")] = None
+
+
 class TISuccessStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to success state.

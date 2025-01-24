@@ -47,6 +47,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetXCom,
+    OKResponse,
     PrevSuccessfulDagRunResult,
     SetRenderedFields,
     StartupDetails,
@@ -649,6 +650,40 @@ def test_run_with_asset_outlets(
     run(ti, log=mock.MagicMock())
 
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_msg, log=mock.ANY)
+
+
+def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
+    """Test running a basic tasks with inlets and outlets."""
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(
+        outlets=[
+            Asset(name="name", uri="s3://bucket/my-task"),
+            Asset(name="new-name", uri="s3://bucket/my-task"),
+        ],
+        inlets=[
+            Asset(name="name", uri="s3://bucket/my-task"),
+            Asset(name="new-name", uri="s3://bucket/my-task"),
+        ],
+        task_id="inlets-and-outlets",
+        bash_command="echo 'hi'",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_inlets_and_outlets")
+    mock_supervisor_comms.get_message.return_value = OKResponse(
+        ok=False,
+    )
+
+    run(ti, log=mock.MagicMock())
+
+    assert mock_supervisor_comms.send_request.call_args_list[0].kwargs["msg"].inlet == [
+        AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
+        AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+    ]
+    assert mock_supervisor_comms.send_request.call_args_list[0].kwargs["msg"].outlet == [
+        AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
+        AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+    ]
 
 
 class TestRuntimeTaskInstance:
