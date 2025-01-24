@@ -10,3 +10,14 @@ tasks are executed. Teardown tasks are skipped  if the setup was also skipped.
 As a side effect this means if the DAG contains teardown tasks, then the manual marking of DAG as "failed" or "success"
 will need to keep the DAG in running state to ensure that teardown tasks will be scheduled. They would not be scheduled
 if the DAG is diorectly set to "failed" or "success".
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
