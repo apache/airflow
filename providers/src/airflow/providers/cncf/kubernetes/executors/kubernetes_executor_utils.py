@@ -231,12 +231,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             )
         elif status == "Pending":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
-            # since kube server have received request to delete pod set TI state failed
             if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
-                self.watcher_queue.put(
-                    (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
-                )
             elif (
                 self.kube_config.worker_pod_pending_fatal_container_state_reasons
                 and "status" in event["raw_object"]
