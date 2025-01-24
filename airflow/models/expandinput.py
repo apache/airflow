@@ -25,17 +25,16 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Union
 
 import attr
 
-from airflow.utils.mixins import ResolveMixin
+from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.operator import Operator
     from airflow.models.xcom_arg import XComArg
+    from airflow.sdk.types import Operator
     from airflow.serialization.serialized_objects import _ExpandInputRef
     from airflow.typing_compat import TypeGuard
-    from airflow.utils.context import Context
 
 ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
@@ -60,16 +59,13 @@ class MappedArgument(ResolveMixin):
     _input: ExpandInput
     _key: str
 
-    def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        # TODO (AIP-42): Implement run-time task map length inspection. This is
-        # needed when we implement task mapping inside a mapped task group.
-        raise NotImplementedError()
-
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         yield from self._input.iter_references()
 
     @provide_session
-    def resolve(self, context: Context, *, include_xcom: bool = True, session: Session = NEW_SESSION) -> Any:
+    def resolve(
+        self, context: Mapping[str, Any], *, include_xcom: bool = True, session: Session = NEW_SESSION
+    ) -> Any:
         data, _ = self._input.resolve(context, session=session, include_xcom=include_xcom)
         return data[self._key]
 
@@ -144,8 +140,11 @@ class DictOfListsExpandInput(NamedTuple):
         # TODO: This initiates one database call for each XComArg. Would it be
         # more efficient to do one single db call and unpack the value here?
         def _get_length(v: OperatorExpandArgument) -> int | None:
+            from airflow.models.xcom_arg import get_task_map_length
+
             if _needs_run_time_resolution(v):
-                return v.get_task_map_length(run_id, session=session)
+                return get_task_map_length(v, run_id, session=session)
+
             # Unfortunately a user-defined TypeGuard cannot apply negative type
             # narrowing. https://github.com/python/typing/discussions/1013
             if TYPE_CHECKING:
@@ -166,7 +165,7 @@ class DictOfListsExpandInput(NamedTuple):
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
     def _expand_mapped_field(
-        self, key: str, value: Any, context: Context, *, session: Session, include_xcom: bool
+        self, key: str, value: Any, context: Mapping[str, Any], *, session: Session, include_xcom: bool
     ) -> Any:
         if _needs_run_time_resolution(value):
             value = (
@@ -210,7 +209,7 @@ class DictOfListsExpandInput(NamedTuple):
                 yield from x.iter_references()
 
     def resolve(
-        self, context: Context, session: Session, *, include_xcom: bool = True
+        self, context: Mapping[str, Any], session: Session, *, include_xcom: bool = True
     ) -> tuple[Mapping[str, Any], set[int]]:
         data = {
             k: self._expand_mapped_field(k, v, context, session=session, include_xcom=include_xcom)
@@ -242,9 +241,11 @@ class ListOfDictsExpandInput(NamedTuple):
         raise NotFullyPopulated({"expand_kwargs() argument"})
 
     def get_total_map_length(self, run_id: str, *, session: Session) -> int:
+        from airflow.models.xcom_arg import get_task_map_length
+
         if isinstance(self.value, collections.abc.Sized):
             return len(self.value)
-        length = self.value.get_task_map_length(run_id, session=session)
+        length = get_task_map_length(self.value, run_id, session=session)
         if length is None:
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
@@ -260,7 +261,7 @@ class ListOfDictsExpandInput(NamedTuple):
                     yield from x.iter_references()
 
     def resolve(
-        self, context: Context, session: Session, *, include_xcom: bool = True
+        self, context: Mapping[str, Any], session: Session, *, include_xcom: bool = True
     ) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
         if map_index < 0:

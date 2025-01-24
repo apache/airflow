@@ -24,6 +24,7 @@ import pytest
 import time_machine
 from sqlalchemy import select
 
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.param import Param
@@ -141,7 +142,7 @@ def setup(request, dag_maker, session=None):
         logical_date=LOGICAL_DATE4,
     )
 
-    dag_maker.dagbag.sync_to_db()
+    dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model
     dag_maker.dag_model.has_task_concurrency_limits = True
     session.merge(ti1)
@@ -943,6 +944,29 @@ class TestPatchDagRun:
         body = response.json()
         assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
 
+    @pytest.fixture(autouse=True)
+    def clean_listener_manager(self):
+        get_listener_manager().clear()
+        yield
+        get_listener_manager().clear()
+
+    @pytest.mark.parametrize(
+        "state, listener_state",
+        [
+            ("queued", []),
+            ("success", [DagRunState.SUCCESS]),
+            ("failed", [DagRunState.FAILED]),
+        ],
+    )
+    def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state):
+        from tests.listeners.class_listener import ClassBasedListener
+
+        listener = ClassBasedListener()
+        get_listener_manager().add_listener(listener)
+        response = test_client.patch(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
+        assert response.status_code == 200
+        assert listener.state == listener_state
+
 
 class TestDeleteDagRun:
     def test_delete_dag_run(self, test_client):
@@ -992,8 +1016,11 @@ class TestGetDagRunAssetTriggerEvents:
                 {
                     "timestamp": from_datetime_to_zulu(event.timestamp),
                     "asset_id": asset1_id,
+                    "uri": "file:///da1",
                     "extra": {},
                     "id": event.id,
+                    "group": "asset",
+                    "name": "ds1",
                     "source_dag_id": ti.dag_id,
                     "source_map_index": ti.map_index,
                     "source_run_id": ti.run_id,

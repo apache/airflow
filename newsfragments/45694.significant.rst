@@ -1,0 +1,52 @@
+``get_parsing_context`` have been moved to Task SDK
+
+As part of AIP-72: Task SDK, the function ``get_parsing_context`` has been moved to ``airflow.sdk`` module.
+Previously, it was located in ``airflow.utils.dag_parsing_context`` module.
+
+This function is used to optimize DAG parsing during execution when DAGs are generated dynamically.
+
+Before:
+
+.. code-block:: python
+
+    from airflow.models.dag import DAG
+    from airflow.utils.dag_parsing_context import get_parsing_context
+
+    current_dag_id = get_parsing_context().dag_id
+
+    for thing in list_of_things:
+        dag_id = f"generated_dag_{thing}"
+        if current_dag_id is not None and current_dag_id != dag_id:
+            continue  # skip generation of non-selected DAG
+
+        with DAG(dag_id=dag_id, ...):
+            ...
+
+After:
+
+.. code-block:: python
+
+    from airflow.sdk import get_parsing_context
+
+    current_dag_id = get_parsing_context().dag_id
+
+    # The rest of the code remains the same
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.dag_parsing_context.get_parsing_context`` -> ``airflow.sdk.get_parsing_context``

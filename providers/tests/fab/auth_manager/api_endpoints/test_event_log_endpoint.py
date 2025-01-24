@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.models import Log
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 from airflow.utils import timezone
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user

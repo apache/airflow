@@ -31,10 +31,11 @@ import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse, DagRunState } from "openapi/requests/types.gen";
-import ClearRunButton from "src/components/ClearRun/ClearRunButton";
+import { ClearRunButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { Select, Status } from "src/components/ui";
@@ -88,14 +89,18 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     header: "Duration",
   },
   {
-    accessorKey: "clear_dag_run",
+    accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearRunButton dagId={row.original.dag_id} dagRunId={row.original.dag_run_id} withText={false} />
+        <ClearRunButton dagRun={row.original} withText={false} />
+        <MarkRunAsButton dagRun={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
     header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
 ];
 
@@ -144,11 +149,11 @@ export const Runs = () => {
       } else {
         searchParams.set(STATE_PARAM, val);
       }
-      setSearchParams(searchParams);
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );

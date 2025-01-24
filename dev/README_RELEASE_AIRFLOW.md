@@ -892,7 +892,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     # and finally open a PR
     ```
 
-The `--run-in-parallell` switch allows to speed up SBOM generation significantly, but it might take a lot
+The `--run-in-parallel` switch allows to speed up SBOM generation significantly, but it might take a lot
 of memory - if you are running into memory issues you can limit parallelism by setting `--parallelism N`
 where N is a number of parallel `cdxgen` servers that should be started.
 
@@ -923,7 +923,7 @@ Dear Airflow community,
 
 I'm happy to announce that Airflow ${VERSION} was just released.
 
-The released sources and packages can be downloaded via https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html
+The released sources and packages can be downloaded via https://airflow.apache.org/docs/apache-airflow/${VERSION}/installation/installing-from-sources.html
 
 Other installation methods are described in https://airflow.apache.org/docs/apache-airflow/stable/installation/
 

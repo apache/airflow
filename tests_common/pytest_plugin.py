@@ -784,6 +784,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dagbag = DagBag(os.devnull, include_examples=False, read_dags_from_db=False)
 
         def __enter__(self):
+            self.serialized_model = None
+
             self.dag.__enter__()
             if self.want_serialized:
                 return lazy_object_proxy.Proxy(self._serialized_dag)
@@ -832,7 +834,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 return
 
             dag.clear(session=self.session)
-            dag.sync_to_db(session=self.session)
+            if AIRFLOW_V_3_0_PLUS:
+                dag.bulk_write_to_db(self.bundle_name, None, [dag], session=self.session)
+            else:
+                dag.sync_to_db(session=self.session)
 
             if dag.access_control:
                 from airflow.www.security_appless import ApplessAirflowSecurityManager
@@ -889,32 +894,43 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 "session": self.session,
                 **kwargs,
             }
-            # Need to provide run_id if the user does not either provide one
-            # explicitly, or pass run_type for inference in dag.create_dagrun().
-            if "run_id" not in kwargs and "run_type" not in kwargs:
-                kwargs["run_id"] = "test"
 
-            if "run_type" not in kwargs:
-                kwargs["run_type"] = DagRunType.from_run_id(kwargs["run_id"])
+            run_type = kwargs.get("run_type", DagRunType.MANUAL)
+            if not isinstance(run_type, DagRunType):
+                run_type = DagRunType(run_type)
 
             if logical_date is None:
-                if kwargs["run_type"] == DagRunType.MANUAL:
+                if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
                     logical_date = dag.next_dagrun_info(None).logical_date
             logical_date = timezone.coerce_datetime(logical_date)
 
-            if "data_interval" not in kwargs:
-                if kwargs["run_type"] == DagRunType.MANUAL:
+            try:
+                data_interval = kwargs["data_interval"]
+            except KeyError:
+                if run_type == DagRunType.MANUAL:
                     data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
                 else:
                     data_interval = dag.infer_automated_data_interval(logical_date)
                 kwargs["data_interval"] = data_interval
 
+            if "run_id" not in kwargs:
+                if "run_type" not in kwargs:
+                    kwargs["run_id"] = "test"
+                else:
+                    kwargs["run_id"] = dag.timetable.generate_run_id(
+                        run_type=run_type,
+                        logical_date=logical_date,
+                        data_interval=data_interval,
+                    )
+            kwargs["run_type"] = run_type
+
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
             else:
+                kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
 
@@ -935,6 +951,16 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 **kwargs,
             )
 
+        def sync_dagbag_to_db(self):
+            if not AIRFLOW_V_3_0_PLUS:
+                self.dagbag.sync_to_db()
+                return
+
+            self.dagbag.sync_to_db(
+                self.bundle_name,
+                None,
+            )
+
         def __call__(
             self,
             dag_id="test_dag",
@@ -942,6 +968,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             serialized=want_serialized,
             activate_assets=want_activate_assets,
             fileloc=None,
+            bundle_name=None,
             session=None,
             **kwargs,
         ):
@@ -973,6 +1000,16 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
+            self.bundle_name = bundle_name or "dag_maker"
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dagbundle import DagBundleModel
+
+                if (
+                    self.session.query(DagBundleModel).filter(DagBundleModel.name == self.bundle_name).count()
+                    == 0
+                ):
+                    self.session.add(DagBundleModel(name=self.bundle_name))
+                    self.session.commit()
 
             return self
 
@@ -1528,6 +1565,19 @@ def clean_dags_and_dagruns():
     yield  # Test runs here
     clear_db_dags()
     clear_db_runs()
+
+
+@pytest.fixture
+def clean_executor_loader():
+    """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
+    from airflow.executors.executor_loader import ExecutorLoader
+
+    from tests_common.test_utils.executor_loader import clean_executor_loader_module
+
+    clean_executor_loader_module()
+    yield  # Test runs here
+    clean_executor_loader_module()
+    ExecutorLoader.init_executors()
 
 
 @pytest.fixture(scope="session")

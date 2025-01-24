@@ -41,7 +41,7 @@ export const DagCard = ({ dag }: Props) => {
     <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden">
       <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" px={3} py={2}>
         <HStack>
-          <Tooltip content={dag.description} disabled={!Boolean(dag.description)} showArrow>
+          <Tooltip content={dag.description} disabled={!Boolean(dag.description)}>
             <Link asChild color="fg.info" fontWeight="bold">
               <RouterLink to={`/dags/${dag.dag_id}`}>{dag.dag_display_name}</RouterLink>
             </Link>
@@ -53,13 +53,13 @@ export const DagCard = ({ dag }: Props) => {
           <TriggerDAGButton dag={dag} withText={false} />
         </HStack>
       </Flex>
-      <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
+      <SimpleGrid columns={4} gap={1} height={20} px={3}>
         <Stat label="Schedule">
           <Schedule dag={dag} />
         </Stat>
         <Stat label="Latest Run">
           {latestRun ? (
-            <Link asChild color="fg.info" fontSize="sm">
+            <Link asChild color="fg.info">
               <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
                 <DagRunInfo
                   dataIntervalEnd={latestRun.data_interval_end}

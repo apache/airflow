@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack, Text, HStack } from "@chakra-ui/react";
+import { VStack, Text, Box } from "@chakra-ui/react";
 import dayjs from "dayjs";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -71,12 +71,11 @@ const DagRunInfo = ({
           </Text>
         </VStack>
       }
-      showArrow
     >
-      <HStack fontSize="sm">
-        <Time datetime={dataIntervalStart} showTooltip={false} />
+      <Box>
+        <Time datetime={dataIntervalStart} mr={2} showTooltip={false} />
         {state === undefined ? undefined : <Status state={state}>{state}</Status>}
-      </HStack>
+      </Box>
     </Tooltip>
   ) : undefined;
 

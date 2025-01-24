@@ -21,7 +21,7 @@
 {% from 'airflow/_messages.html' import show_message %}
 
 {% block page_title -%}
-  Airflow - Airflow 2 plugins compatibility view
+  Airflow
 {% endblock %}
 
 {% block head_css %}
@@ -53,12 +53,14 @@
 {% endblock %}
 
 {% block messages %}
-  {% call show_message(category='warning', dismissible=false) %}
-    <p>
-      You have a plugin that is using a FAB view or Flask Blueprint, which was used for the Airflow 2 UI, and is now
-      deprecated. Please update your plugin to be compatible with the Airflow 3 UI.
-    </p>
-  {% endcall %}
+  {% if show_plugin_message %}
+    {% call show_message(category='warning', dismissible=false) %}
+      <p>
+        You have a plugin that is using a FAB view or Flask Blueprint, which was used for the Airflow 2 UI, and is now
+        deprecated. Please update your plugin to be compatible with the Airflow 3 UI.
+      </p>
+    {% endcall %}
+  {% endif %}
 {% endblock %}
 
 {% block tail_js %}
@@ -66,10 +68,6 @@
   <script>
     // below variables are used in main.js
     // keep as var, changing to const or let breaks other code
-    var Airflow = {
-      serverTimezone: '{{ server_timezone }}',
-      defaultUITimezone: '{{ default_ui_timezone }}',
-    };
     var hostName = '{{ hostname }}';
     $('time[title]').tooltip();
   </script>

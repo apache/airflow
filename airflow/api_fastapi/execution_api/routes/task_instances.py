@@ -31,20 +31,23 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
+    PrevSuccessfulDagRunResponse,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
     TIRunContext,
     TIStateUpdate,
+    TISuccessStatePayload,
     TITerminalStatePayload,
 )
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
+from airflow.models.xcom import XCom
 from airflow.utils import timezone
-from airflow.utils.state import State, TerminalTIState
+from airflow.utils.state import DagRunState, State, TerminalTIState
 
 # TODO: Add dependency on JWT token
 router = AirflowRouter()
@@ -73,9 +76,15 @@ def ti_run(
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
 
-    old = select(TI.state, TI.dag_id, TI.run_id).where(TI.id == ti_id_str).with_for_update()
+    old = (
+        select(TI.state, TI.dag_id, TI.run_id, TI.task_id, TI.map_index, TI.next_method, TI.max_tries)
+        .where(TI.id == ti_id_str)
+        .with_for_update()
+    )
     try:
-        (previous_state, dag_id, run_id) = session.execute(old).one()
+        (previous_state, dag_id, run_id, task_id, map_index, next_method, max_tries) = session.execute(
+            old
+        ).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -144,8 +153,23 @@ def ti_run(
         if not dr:
             raise ValueError(f"DagRun with dag_id={dag_id} and run_id={run_id} not found.")
 
+        # Clear XCom data for the task instance since we are certain it is executing
+        # However, do not clear it for deferral
+        if not next_method:
+            if map_index < 0:
+                map_index = None
+            log.info("Clearing xcom data for task id: %s", ti_id_str)
+            XCom.clear(
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+                session=session,
+            )
+
         return TIRunContext(
             dag_run=DagRun.model_validate(dr, from_attributes=True),
+            max_tries=max_tries,
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],
             connections=[],
@@ -203,7 +227,7 @@ def ti_update_state(
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
-    data = ti_patch_payload.model_dump(exclude_unset=True)
+    data = ti_patch_payload.model_dump(exclude={"task_outlets", "outlet_events"}, exclude_unset=True)
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
@@ -219,6 +243,17 @@ def ti_update_state(
                 updated_state = State.UP_FOR_RETRY
             else:
                 updated_state = State.FAILED
+        query = query.values(state=updated_state)
+    elif isinstance(ti_patch_payload, TISuccessStatePayload):
+        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        updated_state = ti_patch_payload.state
+        task_instance = session.get(TI, ti_id_str)
+        TI.register_asset_changes_in_db(
+            task_instance,
+            ti_patch_payload.task_outlets,  # type: ignore
+            ti_patch_payload.outlet_events,
+            session,
+        )
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TIDeferredStatePayload):
         # Calculate timeout if it was passed
@@ -369,6 +404,42 @@ def ti_put_rtif(
     _update_rtif(task_instance, put_rtif_payload, session)
 
     return {"message": "Rendered task instance fields successfully set"}
+
+
+@router.get(
+    "/{task_instance_id}/previous-successful-dagrun",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Task Instance or Dag Run not found"},
+    },
+)
+def get_previous_successful_dagrun(
+    task_instance_id: UUID, session: SessionDep
+) -> PrevSuccessfulDagRunResponse:
+    """
+    Get the previous successful DagRun for a TaskInstance.
+
+    The data from this endpoint is used to get values for Task Context.
+    """
+    ti_id_str = str(task_instance_id)
+    task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
+    if not task_instance:
+        return PrevSuccessfulDagRunResponse()
+
+    dag_run = session.scalar(
+        select(DR)
+        .where(
+            DR.dag_id == task_instance.dag_id,
+            DR.logical_date < task_instance.logical_date,
+            DR.state == DagRunState.SUCCESS,
+        )
+        .order_by(DR.logical_date.desc())
+        .limit(1)
+    )
+    if not dag_run:
+        return PrevSuccessfulDagRunResponse()
+
+    return PrevSuccessfulDagRunResponse.model_validate(dag_run)
 
 
 def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:

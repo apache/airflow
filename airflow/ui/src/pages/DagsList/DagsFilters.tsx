@@ -81,11 +81,11 @@ export const DagsFilters = () => {
       } else {
         searchParams.set(PAUSED_PARAM, val);
       }
-      setSearchParams(searchParams);
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
@@ -97,11 +97,11 @@ export const DagsFilters = () => {
       } else {
         searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
       }
-      setSearchParams(searchParams);
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
@@ -148,13 +148,28 @@ export const DagsFilters = () => {
           <QuickFilterButton isActive={isAll} onClick={handleStateChange} value="all">
             All
           </QuickFilterButton>
-          <QuickFilterButton isActive={isFailed} onClick={handleStateChange} value="failed">
+          <QuickFilterButton
+            data-testid="dags-failed-filter"
+            isActive={isFailed}
+            onClick={handleStateChange}
+            value="failed"
+          >
             <Status state="failed">Failed</Status>
           </QuickFilterButton>
-          <QuickFilterButton isActive={isRunning} onClick={handleStateChange} value="running">
+          <QuickFilterButton
+            data-testid="dags-running-filter"
+            isActive={isRunning}
+            onClick={handleStateChange}
+            value="running"
+          >
             <Status state="running">Running</Status>
           </QuickFilterButton>
-          <QuickFilterButton isActive={isSuccess} onClick={handleStateChange} value="success">
+          <QuickFilterButton
+            data-testid="dags-success-filter"
+            isActive={isSuccess}
+            onClick={handleStateChange}
+            value="success"
+          >
             <Status state="success">Success</Status>
           </QuickFilterButton>
         </HStack>

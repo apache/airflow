@@ -17,11 +17,12 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
-import { FiBarChart } from "react-icons/fi";
-import { MdOutlineModeComment } from "react-icons/md";
+import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
-import ClearRunButton from "src/components/ClearRun";
+import { ClearRunButton } from "src/components/Clear";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { Stat } from "src/components/Stat";
 import Time from "src/components/Time";
@@ -43,17 +44,18 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
         </Flex>
       </HStack>
       <HStack>
-        <ClearRunButton dagId={dagRun.dag_id} dagRunId={dagRun.dag_run_id} />
+        {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
+          <DisplayMarkdownButton
+            header="Dag Run Note"
+            icon={<FiMessageSquare color="black" />}
+            mdContent={dagRun.note}
+            text="Note"
+          />
+        )}
+        <ClearRunButton dagRun={dagRun} />
+        <MarkRunAsButton dagRun={dagRun} />
       </HStack>
     </Flex>
-    {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
-      <Flex alignItems="flex-start" justifyContent="space-between" mr={16}>
-        <MdOutlineModeComment size="3rem" />
-        <Text fontSize="sm" ml={3}>
-          {dagRun.note}
-        </Text>
-      </Flex>
-    )}
     <SimpleGrid columns={4} gap={4}>
       <Stat label="Run Type">
         <HStack>

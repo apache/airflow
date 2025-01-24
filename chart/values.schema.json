@@ -887,7 +887,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2024.09.19-1.22.1"
+                            "default": "airflow-pgbouncer-2025.01.10-1.24.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -1790,7 +1790,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -3161,7 +3161,7 @@
                             "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -3586,8 +3586,11 @@
             "properties": {
                 "enabled": {
                     "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
-                    "type": "boolean",
-                    "default": false
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
@@ -7026,6 +7029,14 @@
                         "additionalProperties": false
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the PgBouncer objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "enabled": {
                     "description": "Enable PgBouncer.",
                     "type": "boolean",
@@ -7080,6 +7091,12 @@
                         "type": "string"
                     },
                     "default": null
+                },
+                "mountConfigSecret": {
+                    "description": "Whether to mount the config secret files under `/etc/pgbouncer/` by default.",
+                    "type": "boolean",
+                    "x-docsSection": "Common",
+                    "default": true
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
@@ -7619,6 +7636,14 @@
                                     "default": 1
                                 }
                             }
+                        },
+                        "extraVolumeMounts": {
+                            "description": "Mount additional volumes into PgBouncer Metrics Exporter.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                            }
                         }
                     }
                 }
@@ -7689,7 +7714,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8621,7 +8646,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here.",
+                            "description": "If using a custom StorageClass, pass name here (can be templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8930,7 +8955,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here.",
+                            "description": "If using a custom StorageClass, pass name here (can be templated).",
                             "type": [
                                 "string",
                                 "null"

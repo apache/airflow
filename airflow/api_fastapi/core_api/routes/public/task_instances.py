@@ -55,8 +55,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceCollectionResponse,
     TaskInstanceHistoryCollectionResponse,
     TaskInstanceHistoryResponse,
-    TaskInstanceReferenceCollectionResponse,
-    TaskInstanceReferenceResponse,
     TaskInstanceResponse,
     TaskInstancesBatchBody,
 )
@@ -128,8 +126,25 @@ def get_mapped_task_instances(
         SortParam,
         Depends(
             SortParam(
-                ["id", "state", "duration", "start_date", "end_date", "map_index", "rendered_map_index"],
+                [
+                    "id",
+                    "state",
+                    "duration",
+                    "start_date",
+                    "end_date",
+                    "map_index",
+                    "try_number",
+                    "logical_date",
+                    "data_interval_start",
+                    "data_interval_end",
+                    "rendered_map_index",
+                ],
                 TI,
+                to_replace={
+                    "logical_date": DagRun.logical_date,
+                    "data_interval_start": DagRun.data_interval_start,
+                    "data_interval_end": DagRun.data_interval_end,
+                },
             ).dynamic_depends(default="map_index")
         ),
     ],
@@ -351,8 +366,25 @@ def get_task_instances(
         SortParam,
         Depends(
             SortParam(
-                ["id", "state", "duration", "start_date", "end_date", "map_index"],
+                [
+                    "id",
+                    "state",
+                    "duration",
+                    "start_date",
+                    "end_date",
+                    "map_index",
+                    "try_number",
+                    "logical_date",
+                    "data_interval_start",
+                    "data_interval_end",
+                    "rendered_map_index",
+                ],
                 TI,
+                to_replace={
+                    "logical_date": DagRun.logical_date,
+                    "data_interval_start": DagRun.data_interval_start,
+                    "data_interval_end": DagRun.data_interval_end,
+                },
             ).dynamic_depends(default="map_index")
         ),
     ],
@@ -401,6 +433,7 @@ def get_task_instances(
         limit=limit,
         session=session,
     )
+
     task_instances = session.scalars(task_instance_select)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
@@ -550,7 +583,7 @@ def post_clear_task_instances(
     request: Request,
     body: ClearTaskInstancesBody,
     session: SessionDep,
-) -> TaskInstanceReferenceCollectionResponse:
+) -> TaskInstanceCollectionResponse:
     """Clear task instances."""
     dag = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
@@ -597,6 +630,7 @@ def post_clear_task_instances(
         dry_run=True,
         task_ids=task_ids,
         dag_bag=request.app.state.dag_bag,
+        session=session,
         **body.model_dump(
             include={
                 "start_date",
@@ -615,9 +649,9 @@ def post_clear_task_instances(
             DagRunState.QUEUED if reset_dag_runs else False,
         )
 
-    return TaskInstanceReferenceCollectionResponse(
+    return TaskInstanceCollectionResponse(
         task_instances=[
-            TaskInstanceReferenceResponse.model_validate(
+            TaskInstanceResponse.model_validate(
                 ti,
                 from_attributes=True,
             )

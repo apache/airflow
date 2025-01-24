@@ -182,7 +182,7 @@ def get_tag_date(tag: str) -> str | None:
     return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def download_artifact_from_run_id(run_id: str, output_file: str, github_repository: str, github_token: str):
+def download_artifact_from_run_id(run_id: str, output_file: Path, github_repository: str, github_token: str):
     """
     Downloads a file from GitHub Actions artifact
 
@@ -247,7 +247,7 @@ def download_artifact_from_run_id(run_id: str, output_file: str, github_reposito
     os.remove(temp_file)
 
 
-def download_artifact_from_pr(pr: str, output_file: str, github_repository: str, github_token: str):
+def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str, github_token: str):
     import requests
 
     pr_number = pr.lstrip("#")

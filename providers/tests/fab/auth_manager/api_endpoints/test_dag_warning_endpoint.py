@@ -20,7 +20,7 @@ import pytest
 
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 from airflow.utils.session import create_session
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user

@@ -28,7 +28,11 @@ if TYPE_CHECKING:
     import pandas as pd
     from weaviate.types import UUID
 
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class WeaviateIngestOperator(BaseOperator):

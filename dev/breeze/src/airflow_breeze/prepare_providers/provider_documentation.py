@@ -21,6 +21,7 @@ import difflib
 import os
 import random
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -35,6 +36,7 @@ import jinja2
 import semver
 from rich.syntax import Syntax
 
+from airflow_breeze.global_constants import PROVIDER_DEPENDENCIES
 from airflow_breeze.utils.black_utils import black_format
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
@@ -42,14 +44,14 @@ from airflow_breeze.utils.packages import (
     HTTPS_REMOTE,
     ProviderPackageDetails,
     clear_cache_for_provider_metadata,
+    get_pip_package_name,
     get_provider_details,
     get_provider_jinja_context,
-    get_source_package_path,
+    get_provider_yaml,
     refresh_provider_metadata_from_yaml_file,
-    refresh_provider_metadata_with_provider_id,
     render_template,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BREEZE_SOURCES_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
 from airflow_breeze.utils.versions import get_version_tag
@@ -318,10 +320,11 @@ def _get_all_changes_for_package(
         stderr=subprocess.DEVNULL,
         check=False,
     )
-    providers_folder_paths = [
-        provider_details.source_provider_package_path,
+    providers_folder_paths_for_git_commit_retrieval = [
+        provider_details.root_provider_path,
         provider_details.old_source_provider_package_path,
-        provider_details.documentation_provider_package_path,
+        provider_details.old_documentation_provider_package_path,
+        provider_details.original_source_provider_package_path,
     ]
     if not reapply_templates_only and result.returncode == 0:
         if get_verbose():
@@ -329,7 +332,9 @@ def _get_all_changes_for_package(
         # The tag already exists
         result = run_command(
             _get_git_log_command(
-                providers_folder_paths, f"{HTTPS_REMOTE}/{base_branch}", current_tag_no_suffix
+                providers_folder_paths_for_git_commit_retrieval,
+                f"{HTTPS_REMOTE}/{base_branch}",
+                current_tag_no_suffix,
             ),
             cwd=AIRFLOW_SOURCES_ROOT,
             capture_output=True,
@@ -339,15 +344,22 @@ def _get_all_changes_for_package(
         changes = result.stdout.strip()
         if changes:
             provider_details = get_provider_details(provider_package_id)
-            doc_only_change_file = (
-                provider_details.source_provider_package_path / ".latest-doc-only-change.txt"
-            )
+            if provider_details.is_new_structure:
+                doc_only_change_file = (
+                    provider_details.root_provider_path / "docs" / ".latest-doc-only-change.txt"
+                )
+            else:
+                doc_only_change_file = (
+                    provider_details.base_provider_package_path / ".latest-doc-only-change.txt"
+                )
             if doc_only_change_file.exists():
                 last_doc_only_hash = doc_only_change_file.read_text().strip()
                 try:
                     result = run_command(
                         _get_git_log_command(
-                            providers_folder_paths, f"{HTTPS_REMOTE}/{base_branch}", last_doc_only_hash
+                            providers_folder_paths_for_git_commit_retrieval,
+                            f"{HTTPS_REMOTE}/{base_branch}",
+                            last_doc_only_hash,
                         ),
                         cwd=AIRFLOW_SOURCES_ROOT,
                         capture_output=True,
@@ -402,7 +414,9 @@ def _get_all_changes_for_package(
     for version in provider_details.versions[1:]:
         version_tag = get_version_tag(version, provider_package_id)
         result = run_command(
-            _get_git_log_command(providers_folder_paths, next_version_tag, version_tag),
+            _get_git_log_command(
+                providers_folder_paths_for_git_commit_retrieval, next_version_tag, version_tag
+            ),
             cwd=AIRFLOW_SOURCES_ROOT,
             capture_output=True,
             text=True,
@@ -417,8 +431,8 @@ def _get_all_changes_for_package(
         next_version_tag = version_tag
         current_version = version
     result = run_command(
-        _get_git_log_command(providers_folder_paths, next_version_tag),
-        cwd=provider_details.source_provider_package_path,
+        _get_git_log_command(providers_folder_paths_for_git_commit_retrieval, next_version_tag),
+        cwd=provider_details.root_provider_path,
         capture_output=True,
         text=True,
         check=True,
@@ -471,23 +485,30 @@ def _mark_latest_changes_as_documentation_only(
         f"[special]Marking last change: {latest_change.short_hash} and all above "
         f"changes since the last release as doc-only changes!"
     )
-    (provider_details.source_provider_package_path / ".latest-doc-only-change.txt").write_text(
-        latest_change.full_hash + "\n"
-    )
+    if provider_details.is_new_structure:
+        latest_doc_onl_change_file = (
+            provider_details.root_provider_path / "docs" / ".latest-doc-only-change.txt"
+        )
+    else:
+        latest_doc_onl_change_file = (
+            provider_details.base_provider_package_path / ".latest-doc-only-change.txt"
+        )
+
+    latest_doc_onl_change_file.write_text(latest_change.full_hash + "\n")
     raise PrepareReleaseDocsChangesOnlyException()
 
 
 def _update_version_in_provider_yaml(
-    provider_package_id: str,
+    provider_id: str,
     type_of_change: TypeOfChange,
 ) -> tuple[bool, bool, str]:
     """
     Updates provider version based on the type of change selected by the user
     :param type_of_change: type of change selected
-    :param provider_package_id: provider package
+    :param provider_id: provider package
     :return: tuple of two bools: (with_breaking_change, maybe_with_new_features, original_text)
     """
-    provider_details = get_provider_details(provider_package_id)
+    provider_details = get_provider_details(provider_id)
     version = provider_details.versions[0]
     v = semver.VersionInfo.parse(version)
     with_breaking_changes = False
@@ -504,38 +525,42 @@ def _update_version_in_provider_yaml(
         v = v.bump_patch()
     elif type_of_change == TypeOfChange.MISC:
         v = v.bump_patch()
-    provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
+    provider_yaml_path, is_new_structure = get_provider_yaml(provider_id)
     original_provider_yaml_content = provider_yaml_path.read_text()
-    new_provider_yaml_content = re.sub(
+    updated_provider_yaml_content = re.sub(
         r"^versions:", f"versions:\n  - {v}", original_provider_yaml_content, 1, re.MULTILINE
     )
-    provider_yaml_path.write_text(new_provider_yaml_content)
+    provider_yaml_path.write_text(updated_provider_yaml_content)
     get_console().print(f"[special]Bumped version to {v}\n")
     return with_breaking_changes, maybe_with_new_features, original_provider_yaml_content
 
 
 def _update_source_date_epoch_in_provider_yaml(
-    provider_package_id: str,
+    provider_id: str,
 ) -> None:
     """
     Updates source date epoch in provider yaml that then can be used to generate reproducible packages.
 
-    :param provider_package_id: provider package
+    :param provider_id: provider package
     """
-    provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
+    provider_yaml_path, is_new_structure = get_provider_yaml(provider_id)
     original_text = provider_yaml_path.read_text()
     source_date_epoch = int(time())
     new_text = re.sub(
         r"source-date-epoch: [0-9]*", f"source-date-epoch: {source_date_epoch}", original_text, 1
     )
     provider_yaml_path.write_text(new_text)
-    refresh_provider_metadata_with_provider_id(provider_package_id)
+    refresh_provider_metadata_from_yaml_file(provider_yaml_path)
     get_console().print(f"[special]Updated source-date-epoch to {source_date_epoch}\n")
 
 
 def _verify_changelog_exists(package: str) -> Path:
     provider_details = get_provider_details(package)
-    changelog_path = Path(provider_details.source_provider_package_path) / "CHANGELOG.rst"
+    changelog_path = (
+        Path(provider_details.root_provider_path) / "docs" / "changelog.rst"
+        if provider_details.is_new_structure
+        else Path(provider_details.root_provider_path) / "CHANGELOG.rst"
+    )
     if not os.path.isfile(changelog_path):
         get_console().print(f"\n[error]ERROR: Missing {changelog_path}[/]\n")
         get_console().print("[info]Please add the file with initial content:")
@@ -797,7 +822,7 @@ def update_release_notes(
             ]:
                 with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
                     _update_version_in_provider_yaml(
-                        provider_package_id=provider_package_id, type_of_change=type_of_change
+                        provider_id=provider_package_id, type_of_change=type_of_change
                     )
                 )
                 _update_source_date_epoch_in_provider_yaml(provider_package_id)
@@ -820,13 +845,12 @@ def update_release_notes(
     else:
         answer = Answer.YES
 
+    provider_yaml_path, is_new_structure = get_provider_yaml(provider_package_id)
     if answer == Answer.NO:
         if original_provider_yaml_content is not None:
             # Restore original content of the provider.yaml
-            (get_source_package_path(provider_package_id) / "provider.yaml").write_text(
-                original_provider_yaml_content
-            )
-            clear_cache_for_provider_metadata(provider_package_id)
+            provider_yaml_path.write_text(original_provider_yaml_content)
+            clear_cache_for_provider_metadata(provider_yaml_path=provider_yaml_path)
 
         type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=False)
         if type_of_change == TypeOfChange.SKIP:
@@ -845,7 +869,7 @@ def update_release_notes(
             TypeOfChange.MISC,
         ]:
             with_breaking_changes, maybe_with_new_features, _ = _update_version_in_provider_yaml(
-                provider_package_id=provider_package_id,
+                provider_id=provider_package_id,
                 type_of_change=type_of_change,
             )
             _update_source_date_epoch_in_provider_yaml(provider_package_id)
@@ -868,12 +892,13 @@ def update_release_notes(
     )
     jinja_context["DETAILED_CHANGES_RST"] = changes_as_table
     jinja_context["DETAILED_CHANGES_PRESENT"] = bool(changes_as_table)
-    _update_changelog_rst(
-        jinja_context,
-        provider_package_id,
-        provider_details.documentation_provider_package_path,
-        regenerate_missing_docs,
-    )
+    if not provider_details.is_new_structure:
+        _update_changelog_rst(
+            jinja_context,
+            provider_package_id,
+            provider_details.documentation_provider_package_path,
+            regenerate_missing_docs,
+        )
     _update_commits_rst(
         jinja_context,
         provider_package_id,
@@ -1051,7 +1076,7 @@ def get_provider_documentation_jinja_context(
     jinja_context["MAYBE_WITH_NEW_FEATURES"] = maybe_with_new_features
 
     jinja_context["ADDITIONAL_INFO"] = (
-        _get_additional_package_info(provider_package_path=provider_details.source_provider_package_path),
+        _get_additional_package_info(provider_package_path=provider_details.root_provider_path),
     )
     return jinja_context
 
@@ -1106,9 +1131,115 @@ def update_changelog(
     _update_index_rst(jinja_context, package_id, provider_details.documentation_provider_package_path)
 
 
-def _generate_init_py_file_for_provider(
+def _generate_get_provider_info_py(context: dict[str, Any], provider_details: ProviderPackageDetails):
+    get_provider_info_content = black_format(
+        render_template(
+            template_name="get_provider_info",
+            context=context,
+            extension=".py",
+            autoescape=False,
+            keep_trailing_newline=True,
+        )
+    )
+    get_provider_info_path = provider_details.base_provider_package_path / "get_provider_info.py"
+    get_provider_info_path.write_text(get_provider_info_content)
+    get_console().print(
+        f"[info]Generated {get_provider_info_path} for the {provider_details.provider_id} provider\n"
+    )
+
+
+def _generate_readme_rst(context: dict[str, Any], provider_details: ProviderPackageDetails):
+    get_provider_readme_content = render_template(
+        template_name="PROVIDER_README",
+        context=context,
+        extension=".rst",
+        keep_trailing_newline=True,
+    )
+    get_provider_readme_path = provider_details.root_provider_path / "README.rst"
+    get_provider_readme_path.write_text(get_provider_readme_content)
+    get_console().print(
+        f"[info]Generated {get_provider_readme_path} for the {provider_details.provider_id} provider\n"
+    )
+
+
+def _regenerate_pyproject_toml(context: dict[str, Any], provider_details: ProviderPackageDetails):
+    get_pyproject_toml_path = provider_details.root_provider_path / "pyproject.toml"
+    # we want to preserve comments in dependencies - both required and additional,
+    # so we should not really parse the toml file but extract dependencies "as is" in text form and pass
+    # them to context. While this is not "generic toml" perfect, for provider pyproject.toml files it is
+    # good enough, because we fully control the pyproject.toml content for providers as they are generated
+    # from our templates (Except the dependencies section that is manually updated)
+    pyproject_toml_content = get_pyproject_toml_path.read_text()
+    required_dependencies: list[str] = []
+    optional_dependencies: list[str] = []
+    dependency_groups: list[str] = []
+    in_required_dependencies = False
+    in_optional_dependencies = False
+    in_dependency_groups = False
+    for line in pyproject_toml_content.splitlines():
+        if line == "dependencies = [":
+            in_required_dependencies = True
+            continue
+        if in_required_dependencies and line == "]":
+            in_required_dependencies = False
+            continue
+        if line == "[dependency-groups]":
+            in_dependency_groups = True
+            continue
+        if in_dependency_groups and line == "":
+            in_dependency_groups = False
+            continue
+        if in_dependency_groups and line.startswith("["):
+            in_dependency_groups = False
+        if line == "[project.optional-dependencies]":
+            in_optional_dependencies = True
+            continue
+        if in_optional_dependencies and line == "":
+            in_optional_dependencies = False
+            continue
+        if in_optional_dependencies and line.startswith("["):
+            in_optional_dependencies = False
+        if in_required_dependencies:
+            required_dependencies.append(line)
+        if in_optional_dependencies:
+            optional_dependencies.append(line)
+        if in_dependency_groups:
+            dependency_groups.append(line)
+
+    # For additional providers we want to load the dependencies and see if cross-provider-dependencies are
+    # present and if not, add them to the optional dependencies
+
+    context["INSTALL_REQUIREMENTS"] = "\n".join(required_dependencies)
+
+    # Add cross-provider dependencies to the optional dependencies if they are missing
+    for module in PROVIDER_DEPENDENCIES.get(provider_details.provider_id)["cross-providers-deps"]:
+        if f'"{module}" = [' not in optional_dependencies and get_pip_package_name(module) not in "\n".join(
+            required_dependencies
+        ):
+            optional_dependencies.append(f'"{module}" = [')
+            optional_dependencies.append(f'    "{get_pip_package_name(module)}"')
+            optional_dependencies.append("]")
+    context["EXTRAS_REQUIREMENTS"] = "\n".join(optional_dependencies)
+    context["DEPENDENCY_GROUPS"] = "\n".join(dependency_groups)
+
+    get_pyproject_toml_content = render_template(
+        template_name="pyproject",
+        context=context,
+        extension=".toml",
+        autoescape=False,
+        lstrip_blocks=True,
+        trim_blocks=True,
+        keep_trailing_newline=True,
+    )
+    get_pyproject_toml_path.write_text(get_pyproject_toml_content)
+    get_console().print(
+        f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
+    )
+
+
+def _generate_build_files_for_provider(
     context: dict[str, Any],
-    target_path: Path,
+    provider_details: ProviderPackageDetails,
 ):
     init_py_content = black_format(
         render_template(
@@ -1118,15 +1249,23 @@ def _generate_init_py_file_for_provider(
             keep_trailing_newline=True,
         )
     )
-    init_py_path = target_path / "__init__.py"
+    init_py_path = provider_details.base_provider_package_path / "__init__.py"
     init_py_path.write_text(init_py_content)
+    # TODO(potiuk) - remove this if when we move all providers to new structure
+    if provider_details.is_new_structure:
+        _generate_readme_rst(context, provider_details)
+        _regenerate_pyproject_toml(context, provider_details)
+        _generate_get_provider_info_py(context, provider_details)
+        shutil.copy(
+            BREEZE_SOURCES_DIR / "airflow_breeze" / "templates" / "PROVIDER_LICENSE.txt",
+            provider_details.base_provider_package_path / "LICENSE",
+        )
 
 
 def _replace_min_airflow_version_in_provider_yaml(
     context: dict[str, Any],
-    target_path: Path,
+    provider_yaml_path: Path,
 ):
-    provider_yaml_path = target_path / "provider.yaml"
     provider_yaml_txt = provider_yaml_path.read_text()
     provider_yaml_txt = re.sub(
         r" {2}- apache-airflow>=.*",
@@ -1137,7 +1276,7 @@ def _replace_min_airflow_version_in_provider_yaml(
     refresh_provider_metadata_from_yaml_file(provider_yaml_path)
 
 
-def update_min_airflow_version(
+def update_min_airflow_version_and_build_files(
     provider_package_id: str, with_breaking_changes: bool, maybe_with_new_features: bool
 ):
     """Updates min airflow version in provider yaml and __init__.py
@@ -1155,10 +1294,10 @@ def update_min_airflow_version(
         with_breaking_changes=with_breaking_changes,
         maybe_with_new_features=maybe_with_new_features,
     )
-    _generate_init_py_file_for_provider(
+    _generate_build_files_for_provider(
         context=jinja_context,
-        target_path=provider_details.source_provider_package_path,
+        provider_details=provider_details,
     )
     _replace_min_airflow_version_in_provider_yaml(
-        context=jinja_context, target_path=provider_details.source_provider_package_path
+        context=jinja_context, provider_yaml_path=provider_details.provider_yaml_path
     )

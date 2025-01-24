@@ -115,7 +115,7 @@ class TestAirflowSecurityManagerV2:
             ),
         ],
     )
-    @mock.patch("airflow.www.security_manager.get_auth_manager")
+    @mock.patch("airflow.providers.fab.www.security_manager.get_auth_manager")
     def test_has_access(
         self,
         mock_get_auth_manager,
@@ -138,7 +138,7 @@ class TestAirflowSecurityManagerV2:
                 getattr(auth_manager, method_name).assert_called()
 
     @mock.patch("airflow.utils.session.create_session")
-    @mock.patch("airflow.www.security_manager.get_auth_manager")
+    @mock.patch("airflow.providers.fab.www.security_manager.get_auth_manager")
     def test_manager_does_not_create_extra_db_sessions(
         self,
         _,
