@@ -52,10 +52,8 @@ class BatchState(Enum):
     SUCCESS = "success"
 
 
-def sanitize_endpoint_prefix(endpoint_prefix) -> str:
-    """
-    Ensure that the endpoint prefix is prefixed with a slash.
-    """
+def sanitize_endpoint_prefix(endpoint_prefix: str | None) -> str:
+    """ Ensure that the endpoint prefix is prefixed with a slash. """
     return f"/{endpoint_prefix.strip('/')}" if endpoint_prefix else ""
 
 
@@ -499,7 +497,7 @@ class LivyAsyncHook(HttpAsyncHook):
         livy_conn_id: str = default_conn_name,
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
-        endpoint_prefix: str = "",
+        endpoint_prefix: str | None = None,
     ) -> None:
         super().__init__()
         self.method = "POST"
