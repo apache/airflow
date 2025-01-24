@@ -372,55 +372,45 @@ FILEFORMAT = {self._file_format}
         # handled in `DatabricksSqlHook.run()` method which is called in `execute()`
         ...
 
-    def get_openlineage_facets_on_complete(self, task_instance):
-        """
-        Compute OpenLineage facets for the COPY INTO command.
-
-        Attempts to parse input files (from S3, GCS, Azure Blob, etc.) and build an
-        input dataset list and an output dataset (the Delta table).
-        """
-        import re
-        from urllib.parse import urlparse
-
-        from airflow.providers.common.compat.openlineage.facet import (
-            Dataset,
-            Error,
-            ExtractionErrorRunFacet,
-            SQLJobFacet,
-        )
-        from airflow.providers.openlineage.extractors import OperatorLineage
-        from airflow.providers.openlineage.sqlparser import SQLParser
-
-        if not self._sql:
-            self.log.warning("No SQL query found, returning empty OperatorLineage.")
-            return OperatorLineage()
+    def _parse_input_dataset(self) -> tuple[list[Any], list[Any]]:
+        """Parse file_location to build the input dataset."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset, Error
 
         input_datasets = []
         extraction_errors = []
-        job_facets = {}
-        run_facets = {}
 
-        # Parse file_location to build the input dataset (if possible).
-        if self.file_location:
-            try:
-                parsed_uri = urlparse(self.file_location)
-                # Only process known schemes
-                if parsed_uri.scheme not in ("s3", "s3a", "s3n", "gs", "azure", "abfss", "wasbs"):
-                    raise ValueError(f"Unsupported scheme: {parsed_uri.scheme}")
+        if not self.file_location:
+            return input_datasets, extraction_errors
 
-                # Keep original scheme for s3/s3a/s3n
-                scheme = parsed_uri.scheme
-                namespace = f"{scheme}://{parsed_uri.netloc}"
-                path = parsed_uri.path.lstrip("/") or "/"
-                input_datasets.append(Dataset(namespace=namespace, name=path))
-            except Exception as e:
-                self.log.error("Failed to parse file_location: %s, error: %s", self.file_location, str(e))
-                extraction_errors.append(
-                    Error(errorMessage=str(e), stackTrace=None, task=self.file_location, taskNumber=None)
-                )
-
-        # Build SQLJobFacet
         try:
+            from urllib.parse import urlparse
+            parsed_uri = urlparse(self.file_location)
+            # Only process known schemes
+            if parsed_uri.scheme not in ("s3", "s3a", "s3n", "gs", "azure", "abfss", "wasbs"):
+                raise ValueError(f"Unsupported scheme: {parsed_uri.scheme}")
+
+            scheme = parsed_uri.scheme
+            namespace = f"{scheme}://{parsed_uri.netloc}"
+            path = parsed_uri.path.lstrip("/") or "/"
+            input_datasets.append(Dataset(namespace=namespace, name=path))
+        except Exception as e:
+            self.log.error("Failed to parse file_location: %s, error: %s", self.file_location, str(e))
+            extraction_errors.append(
+                Error(errorMessage=str(e), stackTrace=None, task=self.file_location, taskNumber=None)
+            )
+
+        return input_datasets, extraction_errors
+
+    def _create_sql_job_facet(self) -> tuple[dict, list[Any]]:
+        """Create SQL job facet from the SQL query."""
+        from airflow.providers.common.compat.openlineage.facet import Error, SQLJobFacet
+        from airflow.providers.openlineage.sqlparser import SQLParser
+
+        job_facets = {}
+        extraction_errors = []
+
+        try:
+            import re
             normalized_sql = SQLParser.normalize_sql(self._sql)
             normalized_sql = re.sub(r"\n+", "\n", re.sub(r" +", " ", normalized_sql))
             job_facets["sql"] = SQLJobFacet(query=normalized_sql)
@@ -430,7 +420,77 @@ FILEFORMAT = {self._file_format}
                 Error(errorMessage=str(e), stackTrace=None, task="sql_facet_creation", taskNumber=None)
             )
 
-        # Add extraction error facet if there are any errors
+        return job_facets, extraction_errors
+
+    def _build_output_dataset(self) -> tuple[Any, list[Any]]:
+        """Build output dataset from table information."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset, Error
+
+        output_dataset = None
+        extraction_errors = []
+
+        if not self.table_name:
+            return output_dataset, extraction_errors
+
+        try:
+            table_parts = self.table_name.split(".")
+            if len(table_parts) == 3:  # catalog.schema.table
+                catalog, schema, table = table_parts
+            elif len(table_parts) == 2:  # schema.table
+                catalog = None
+                schema, table = table_parts
+            else:
+                catalog = None
+                schema = None
+                table = self.table_name
+
+            hook = self._get_hook()
+            conn = hook.get_connection(hook.databricks_conn_id)
+            output_namespace = f"databricks://{conn.host}"
+
+            # Combine schema/table with optional catalog for final dataset name
+            fq_name = table
+            if schema:
+                fq_name = f"{schema}.{fq_name}"
+            if catalog:
+                fq_name = f"{catalog}.{fq_name}"
+
+            output_dataset = Dataset(namespace=output_namespace, name=fq_name)
+        except Exception as e:
+            self.log.error("Failed to construct output dataset: %s", str(e))
+            extraction_errors.append(
+                Error(
+                    errorMessage=str(e),
+                    stackTrace=None,
+                    task="output_dataset_construction",
+                    taskNumber=None,
+                )
+            )
+
+        return output_dataset, extraction_errors
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """
+        Compute OpenLineage facets for the COPY INTO command.
+
+        Attempts to parse input files (from S3, GCS, Azure Blob, etc.) and build an
+        input dataset list and an output dataset (the Delta table).
+        """
+        from airflow.providers.common.compat.openlineage.facet import ExtractionErrorRunFacet
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        if not self._sql:
+            self.log.warning("No SQL query found, returning empty OperatorLineage.")
+            return OperatorLineage()
+
+        # Get input datasets and any parsing errors
+        input_datasets, extraction_errors = self._parse_input_dataset()
+
+        # Create SQL job facet
+        job_facets, sql_errors = self._create_sql_job_facet()
+        extraction_errors.extend(sql_errors)
+
+        run_facets = {}
         if extraction_errors:
             run_facets["extractionError"] = ExtractionErrorRunFacet(
                 totalTasks=1,
@@ -445,46 +505,10 @@ FILEFORMAT = {self._file_format}
                 run_facets=run_facets,
             )
 
-        # Only proceed with output dataset if input was valid
-        output_dataset = None
-        if self.table_name:
-            try:
-                table_parts = self.table_name.split(".")
-                if len(table_parts) == 3:  # catalog.schema.table
-                    catalog, schema, table = table_parts
-                elif len(table_parts) == 2:  # schema.table
-                    catalog = None
-                    schema, table = table_parts
-                else:
-                    catalog = None
-                    schema = None
-                    table = self.table_name
-
-                hook = self._get_hook()
-                conn = hook.get_connection(hook.databricks_conn_id)
-                output_namespace = f"databricks://{conn.host}"
-
-                # Combine schema/table with optional catalog for final dataset name
-                fq_name = table
-                if schema:
-                    fq_name = f"{schema}.{fq_name}"
-                if catalog:
-                    fq_name = f"{catalog}.{fq_name}"
-
-                output_dataset = Dataset(namespace=output_namespace, name=fq_name)
-            except Exception as e:
-                self.log.error("Failed to construct output dataset: %s", str(e))
-                extraction_errors.append(
-                    Error(
-                        errorMessage=str(e),
-                        stackTrace=None,
-                        task="output_dataset_construction",
-                        taskNumber=None,
-                    )
-                )
-
-        # Add extraction error facet if there are any errors in constructing output dataset
-        if extraction_errors:
+        # Build output dataset
+        output_dataset, output_errors = self._build_output_dataset()
+        if output_errors:
+            extraction_errors.extend(output_errors)
             run_facets["extractionError"] = ExtractionErrorRunFacet(
                 totalTasks=1,
                 failedTasks=len(extraction_errors),
