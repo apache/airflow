@@ -103,7 +103,7 @@ def worker_register(
 
 def worker_set_state(
     hostname: str, state: EdgeWorkerState, jobs_active: int, queues: list[str] | None, sysinfo: dict
-) -> list[str] | None:
+) -> dict[str, str | Optional[list[str]]] | None:
     """Update the state of the worker in the central site and thereby implicitly heartbeat."""
     return _make_generic_request(
         "PATCH",
