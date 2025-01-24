@@ -105,6 +105,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
+from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
@@ -160,7 +161,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.types import OutletEventAccessorsProtocol, RuntimeTaskInstanceProtocol
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
 
@@ -352,7 +353,29 @@ def _run_raw_task(
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                ti._register_asset_changes(events=context["outlet_events"], session=session)
+                added_alias_to_task_outlet = False
+                task_outlets = []
+                outlet_events = []
+                events = context["outlet_events"]
+                for obj in ti.task.outlets or []:
+                    # Lineage can have other types of objects besides assets
+                    asset_type = type(obj).__name__
+                    if isinstance(obj, Asset):
+                        task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
+                        outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
+                    elif isinstance(obj, AssetNameRef):
+                        task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
+                        outlet_events.append(attrs.asdict(events))  # type: ignore
+                    elif isinstance(obj, AssetUriRef):
+                        task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
+                        outlet_events.append(attrs.asdict(events))  # type: ignore
+                    elif isinstance(obj, AssetAlias):
+                        if not added_alias_to_task_outlet:
+                            task_outlets.append(AssetProfile(asset_type=asset_type))
+                            added_alias_to_task_outlet = True
+                        for asset_alias_event in events[obj].asset_alias_events:
+                            outlet_events.append(attrs.asdict(asset_alias_event))
+                TaskInstance.register_asset_changes_in_db(ti, task_outlets, outlet_events, session=session)
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
@@ -2733,49 +2756,46 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
         )
 
-    def _register_asset_changes(
-        self, *, events: OutletEventAccessorsProtocol, session: Session | None = None
-    ) -> None:
-        if session:
-            TaskInstance._register_asset_changes_int(ti=self, events=events, session=session)
-        else:
-            TaskInstance._register_asset_changes_int(ti=self, events=events)
-
     @staticmethod
     @provide_session
-    def _register_asset_changes_int(
-        ti: TaskInstance, *, events: OutletEventAccessorsProtocol, session: Session = NEW_SESSION
+    def register_asset_changes_in_db(
+        ti: TaskInstance,
+        task_outlets: list[AssetProfile],
+        outlet_events: list[Any],
+        session: Session = NEW_SESSION,
     ) -> None:
-        if TYPE_CHECKING:
-            assert ti.task
-
         # One task only triggers one asset event for each asset with the same extra.
         # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
         # there're assets with same uri but different extra that we need to emit more than one asset events.
         asset_alias_names: dict[tuple[AssetUniqueKey, frozenset], set[str]] = defaultdict(set)
-
         asset_name_refs: set[str] = set()
         asset_uri_refs: set[str] = set()
 
-        for obj in ti.task.outlets or []:
+        for obj in task_outlets:
             ti.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides assets
-            if isinstance(obj, Asset):
+            if obj.asset_type == Asset.__name__:
                 asset_manager.register_asset_change(
                     task_instance=ti,
-                    asset=obj,
-                    extra=events[obj].extra,
+                    asset=Asset(name=obj.name, uri=obj.uri),  # type: ignore
+                    extra=outlet_events[0]["extra"],
                     session=session,
                 )
-            elif isinstance(obj, AssetNameRef):
-                asset_name_refs.add(obj.name)
-            elif isinstance(obj, AssetUriRef):
-                asset_uri_refs.add(obj.uri)
-            elif isinstance(obj, AssetAlias):
-                for asset_alias_event in events[obj].asset_alias_events:
-                    asset_alias_name = asset_alias_event.source_alias_name
-                    asset_unique_key = asset_alias_event.dest_asset_key
-                    frozen_extra = frozenset(asset_alias_event.extra.items())
+            elif obj.asset_type == AssetNameRef.__name__:
+                asset_name_refs.add(obj.name)  # type: ignore
+            elif obj.asset_type == AssetUriRef.__name__:
+                asset_uri_refs.add(obj.uri)  # type: ignore
+            elif obj.asset_type == AssetAlias.__name__:
+                outlet_events = list(
+                    map(
+                        lambda event: {**event, "dest_asset_key": AssetUniqueKey(**event["dest_asset_key"])},
+                        outlet_events,
+                    )
+                )
+                for asset_alias_event in outlet_events:
+                    asset_alias_name = asset_alias_event["source_alias_name"]
+                    asset_unique_key = asset_alias_event["dest_asset_key"]
+                    frozen_extra = frozenset(asset_alias_event["extra"].items())
                     asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
         asset_unique_keys = {key for key, _ in asset_alias_names}
@@ -2827,7 +2847,7 @@ class TaskInstance(Base, LoggingMixin):
             asset_manager.register_asset_change(
                 task_instance=ti,
                 asset=asset_model,
-                extra=events[asset_model].extra,
+                extra=outlet_events[asset_model].extra,
                 session=session,
             )
         asset_stmt = select(AssetModel).where(AssetModel.uri.in_(asset_uri_refs), AssetModel.active.has())
@@ -2836,7 +2856,7 @@ class TaskInstance(Base, LoggingMixin):
             asset_manager.register_asset_change(
                 task_instance=ti,
                 asset=asset_model,
-                extra=events[asset_model].extra,
+                extra=outlet_events[asset_model].extra,
                 session=session,
             )
 

@@ -34,3 +34,18 @@ class AssetAliasResponse(BaseModel):
 
     name: str
     group: str
+
+
+class AssetProfile(BaseModel):
+    """
+    Profile of an Asset.
+
+    Asset will have name, uri and asset_type defined.
+    AssetNameRef will have name and asset_type defined.
+    AssetUriRef will have uri and asset_type defined.
+
+    """
+
+    name: str | None = None
+    uri: str | None = None
+    asset_type: str

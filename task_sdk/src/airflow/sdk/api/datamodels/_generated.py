@@ -29,6 +29,20 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class AssetProfile(BaseModel):
+    """
+    Profile of an Asset.
+
+    Asset will have name, uri and asset_type defined.
+    AssetNameRef will have name and asset_type defined.
+    AssetUriRef will have uri and asset_type defined.
+    """
+
+    name: Annotated[str | None, Field(title="Name")] = None
+    uri: Annotated[str | None, Field(title="Uri")] = None
+    asset_type: Annotated[str, Field(title="Asset Type")]
+
+
 class AssetResponse(BaseModel):
     """
     Asset schema for responses with fields that are needed for Runtime.
@@ -132,6 +146,17 @@ class TIRescheduleStatePayload(BaseModel):
     state: Annotated[Literal["up_for_reschedule"] | None, Field(title="State")] = "up_for_reschedule"
     reschedule_date: Annotated[datetime, Field(title="Reschedule Date")]
     end_date: Annotated[datetime, Field(title="End Date")]
+
+
+class TISuccessStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to success state.
+    """
+
+    state: Annotated[Literal["success"] | None, Field(title="State")] = "success"
+    end_date: Annotated[datetime, Field(title="End Date")]
+    task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
+    outlet_events: Annotated[list | None, Field(title="Outlet Events")] = None
 
 
 class TITargetStatePayload(BaseModel):
@@ -243,7 +268,7 @@ class TIRunContext(BaseModel):
 
 class TITerminalStatePayload(BaseModel):
     """
-    Schema for updating TaskInstance to a terminal state (e.g., SUCCESS or FAILED).
+    Schema for updating TaskInstance to a terminal state except SUCCESS state.
     """
 
     state: TerminalTIState
