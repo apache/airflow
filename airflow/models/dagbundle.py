@@ -36,7 +36,7 @@ class DagBundleModel(Base):
     __tablename__ = "dag_bundle"
     name = Column(StringID(), primary_key=True)
     active = Column(Boolean, default=True)
-    # version = Column(String(200), nullable=True)
+    version = Column(String(200), nullable=True)
     last_refreshed = Column(UtcDateTime, nullable=True)
 
     def __init__(self, *, name: str):

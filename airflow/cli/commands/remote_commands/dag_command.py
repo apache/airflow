@@ -394,7 +394,7 @@ def dag_list_import_errors(args, session=NEW_SESSION) -> None:
     dagbag = None
     if args.bundle_name:
         print("3")
-        bundle = manager.get_bundle(name=args.bundle_name, version=args.latest_bundle_version)
+        bundle = manager.get_bundle(name=args.bundle_name, version=None)
         if not bundle:
             raise SystemExit(f"Bundle {args.bundle_name} not found")
         dagbag = DagBag(bundle.path, include_examples=False)
