@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.11.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Enable maintenance mode for edge worker.``
+
 0.10.2pre0
 ..........
 
