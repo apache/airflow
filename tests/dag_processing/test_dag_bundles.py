@@ -429,7 +429,6 @@ class TestGitDagBundle:
             name="test",
             tracking_ref="main",
         )
-        bundle.initialize()
         view_url = bundle.view_url("0f0f0f")
         assert view_url == expected_url
 
@@ -439,6 +438,5 @@ class TestGitDagBundle:
             name="test",
             tracking_ref="main",
         )
-        bundle.initialize()
         view_url = bundle.view_url(None)
         assert view_url is None
