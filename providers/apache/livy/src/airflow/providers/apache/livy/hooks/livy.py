@@ -53,7 +53,7 @@ class BatchState(Enum):
 
 
 def sanitize_endpoint_prefix(endpoint_prefix: str | None) -> str:
-    """ Ensure that the endpoint prefix is prefixed with a slash. """
+    """Ensure that the endpoint prefix is prefixed with a slash."""
     return f"/{endpoint_prefix.strip('/')}" if endpoint_prefix else ""
 
 
@@ -170,7 +170,10 @@ class LivyHook(HttpHook):
         self.log.info("Submitting job %s to %s", batch_submit_body, self.base_url)
 
         response = self.run_method(
-            method="POST", endpoint=f"{self.endpoint_prefix}/batches", data=batch_submit_body, headers=self.extra_headers
+            method="POST",
+            endpoint=f"{self.endpoint_prefix}/batches",
+            data=batch_submit_body,
+            headers=self.extra_headers,
         )
         self.log.debug("Got response: %s", response.text)
 
@@ -199,7 +202,9 @@ class LivyHook(HttpHook):
         self._validate_session_id(session_id)
 
         self.log.debug("Fetching info for batch session %s", session_id)
-        response = self.run_method(endpoint=f"{self.endpoint_prefix}/batches/{session_id}", headers=self.extra_headers)
+        response = self.run_method(
+            endpoint=f"{self.endpoint_prefix}/batches/{session_id}", headers=self.extra_headers
+        )
 
         try:
             response.raise_for_status()
@@ -224,7 +229,9 @@ class LivyHook(HttpHook):
 
         self.log.debug("Fetching info for batch session %s", session_id)
         response = self.run_method(
-            endpoint=f"{self.endpoint_prefix}/batches/{session_id}/state", retry_args=retry_args, headers=self.extra_headers
+            endpoint=f"{self.endpoint_prefix}/batches/{session_id}/state",
+            retry_args=retry_args,
+            headers=self.extra_headers,
         )
 
         try:
@@ -251,7 +258,9 @@ class LivyHook(HttpHook):
 
         self.log.info("Deleting batch session %s", session_id)
         response = self.run_method(
-            method="DELETE", endpoint=f"{self.endpoint_prefix}/batches/{session_id}", headers=self.extra_headers
+            method="DELETE",
+            endpoint=f"{self.endpoint_prefix}/batches/{session_id}",
+            headers=self.extra_headers,
         )
 
         try:
@@ -277,7 +286,9 @@ class LivyHook(HttpHook):
         self._validate_session_id(session_id)
         log_params = {"from": log_start_position, "size": log_batch_size}
         response = self.run_method(
-            endpoint=f"{self.endpoint_prefix}/batches/{session_id}/log", data=log_params, headers=self.extra_headers
+            endpoint=f"{self.endpoint_prefix}/batches/{session_id}/log",
+            data=log_params,
+            headers=self.extra_headers,
         )
         try:
             response.raise_for_status()
@@ -668,7 +679,9 @@ class LivyAsyncHook(HttpAsyncHook):
         """
         self._validate_session_id(session_id)
         log_params = {"from": log_start_position, "size": log_batch_size}
-        result = await self.run_method(endpoint=f"{self.endpoint_prefix}/batches/{session_id}/log", data=log_params)
+        result = await self.run_method(
+            endpoint=f"{self.endpoint_prefix}/batches/{session_id}/log", data=log_params
+        )
         if result["status"] == "error":
             self.log.info(result)
             return {"response": result["response"], "status": "error"}

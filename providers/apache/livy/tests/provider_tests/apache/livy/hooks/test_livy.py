@@ -479,13 +479,8 @@ class TestLivyDbHook:
 
     @pytest.mark.parametrize(
         "prefix",
-        [
-            "/livy/",
-            "livy",
-            "/livy",
-            "livy/"
-        ],
-        ids=["leading_and_trailing_slashes", "no_slashes", "leading_slash", "trailing_slash"]
+        ["/livy/", "livy", "/livy", "livy/"],
+        ids=["leading_and_trailing_slashes", "no_slashes", "leading_slash", "trailing_slash"],
     )
     def test_endpoint_prefix_is_sanitized_simple(self, requests_mock, prefix):
         requests_mock.register_uri(
@@ -502,6 +497,7 @@ class TestLivyDbHook:
         resp = LivyHook(endpoint_prefix="/livy/foo/bar/").get_batch(BATCH_ID)
         assert isinstance(resp, dict)
         assert "id" in resp
+
 
 class TestLivyAsyncHook:
     @pytest.mark.asyncio
