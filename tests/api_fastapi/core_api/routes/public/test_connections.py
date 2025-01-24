@@ -760,7 +760,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "description": "new_description",
                                 }
                             ],
-                            "action_on_existence": "skip",
+                            "action_on_non_existence": "skip",
                         }
                     ]
                 },
@@ -783,7 +783,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
                                 }
                             ],
-                            "action_on_existence": "skip",
+                            "action_on_non_existence": "skip",
                         }
                     ]
                 },
@@ -806,7 +806,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
                                 }
                             ],
-                            "action_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         }
                     ]
                 },
@@ -846,7 +846,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                         {
                             "action": "delete",
                             "connection_ids": ["NOT_EXISTING_CONN_ID"],
-                            "action_on_existence": "skip",
+                            "action_on_non_existence": "skip",
                         }
                     ]
                 },
@@ -864,7 +864,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                         {
                             "action": "delete",
                             "connection_ids": ["NOT_EXISTING_CONN_ID"],
-                            "action_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         }
                     ]
                 },
@@ -903,12 +903,12 @@ class TestBulkConnections(TestConnectionEndpoint):
                                     "description": "new_description",
                                 }
                             ],
-                            "action_on_existence": "skip",
+                            "action_on_non_existence": "skip",
                         },
                         {
                             "action": "delete",
                             "connection_ids": [TEST_CONN_ID],
-                            "action_on_existence": "skip",
+                            "action_on_non_existence": "skip",
                         },
                     ]
                 },

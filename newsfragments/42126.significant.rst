@@ -12,3 +12,32 @@ Removed deprecated database configuration.
   * Removed deprecated configuration ``sql_alchemy_connect_args`` from ``core``. Please use ``sql_alchemy_connect_args`` from ``database`` instead.
   * Removed deprecated configuration ``load_default_connections`` from ``core``. Please use ``load_default_connections`` from ``database`` instead.
   * Removed deprecated configuration ``max_db_retries`` from ``core``. Please use ``max_db_retries`` from ``database`` instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+
+  * ``airflow config lint``
+
+    * [x] ``core.sql_alchemy_conn`` → ``database.sql_alchemy_conn``
+    * [x] ``core.sql_engine_encoding`` → ``database.sql_engine_encoding``
+    * [x] ``core.sql_engine_collation_for_ids`` → ``database.sql_engine_collation_for_ids``
+    * [x] ``core.sql_alchemy_pool_enabled`` → ``database.sql_alchemy_pool_enabled``
+    * [x] ``core.sql_alchemy_pool_size`` → ``database.sql_alchemy_pool_size``
+    * [x] ``core.sql_alchemy_max_overflow`` → ``database.sql_alchemy_max_overflow``
+    * [x] ``core.sql_alchemy_pool_recycle`` → ``database.sql_alchemy_pool_recycle``
+    * [x] ``core.sql_alchemy_pool_pre_ping`` → ``database.sql_alchemy_pool_pre_ping``
+    * [x] ``core.sql_alchemy_schema`` → ``database.sql_alchemy_schema``
+    * [x] ``core.sql_alchemy_connect_args`` → ``database.sql_alchemy_connect_args``
+    * [x] ``core.load_default_connections`` → ``database.load_default_connections``
+    * [x] ``core.max_db_retries`` → ``database.max_db_retries``

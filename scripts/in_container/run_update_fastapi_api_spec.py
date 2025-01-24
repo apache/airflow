@@ -16,33 +16,53 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import yaml
 from fastapi.openapi.utils import get_openapi
 
 from airflow.api_fastapi.app import create_app
+from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 
-app = create_app()
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 OPENAPI_SPEC_FILE = "airflow/api_fastapi/core_api/openapi/v1-generated.yaml"
+SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE = "airflow/auth/managers/simple/openapi/v1-generated.yaml"
 
 
-# The persisted openapi spec will list all endpoints (public and ui), this
-# is used for code generation.
-for route in app.routes:
-    if getattr(route, "name") == "webapp":
-        continue
-    route.__setattr__("include_in_schema", True)
+def generate_file(app: FastAPI, file_path: str, prefix: str = ""):
+    # The persisted openapi spec will list all endpoints (public and ui), this
+    # is used for code generation.
+    for route in app.routes:
+        if getattr(route, "name") == "webapp":
+            continue
+        route.__setattr__("include_in_schema", True)
 
-with open(OPENAPI_SPEC_FILE, "w+") as f:
-    yaml.dump(
-        get_openapi(
+    with open(file_path, "w+") as f:
+        openapi_schema = get_openapi(
             title=app.title,
             version=app.version,
             openapi_version=app.openapi_version,
             description=app.description,
             routes=app.routes,
-        ),
-        f,
-        default_flow_style=False,
-        sort_keys=False,
-    )
+        )
+        if prefix:
+            openapi_schema["paths"] = {
+                prefix + path: path_dict for path, path_dict in openapi_schema["paths"].items()
+            }
+        yaml.dump(
+            openapi_schema,
+            f,
+            default_flow_style=False,
+            sort_keys=False,
+        )
+
+
+# Generate main application openapi spec
+generate_file(create_app(), OPENAPI_SPEC_FILE)
+
+# Generate simple auth manager openapi spec
+simple_auth_manager_app = SimpleAuthManager().get_fastapi_app()
+if simple_auth_manager_app:
+    generate_file(simple_auth_manager_app, SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE, "/auth")
