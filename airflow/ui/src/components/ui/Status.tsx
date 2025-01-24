@@ -26,7 +26,7 @@ import { StateIcon } from "../StateIcon";
 type StatusValue = DagRunState | TaskInstanceState | null;
 
 export type StatusProps = {
-  state: StatusValue;
+  state?: StatusValue;
 } & ChakraStatus.RootProps;
 
 export const Status = React.forwardRef<HTMLDivElement, StatusProps>(({ children, state, ...rest }, ref) => (

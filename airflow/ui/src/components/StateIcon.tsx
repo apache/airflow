@@ -35,7 +35,7 @@ import { PiQueue } from "react-icons/pi";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 type Props = {
-  readonly state: TaskInstanceState | null;
+  readonly state?: TaskInstanceState | null;
 } & IconBaseProps;
 
 export const StateIcon = ({ state, ...rest }: Props) => {

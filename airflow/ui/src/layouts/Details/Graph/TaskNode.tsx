@@ -66,7 +66,7 @@ export const TaskNode = ({
           <Flex
             // Alternate background color for nested open groups
             bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
-            borderColor={taskInstance?.state ?? "border"}
+            borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border"}
             borderRadius={5}
             borderWidth={isSelected ? 6 : 2}
             height={`${height}px`}
@@ -84,12 +84,12 @@ export const TaskNode = ({
                 label={label}
                 setupTeardownType={setupTeardownType}
               />
-              <Text color="fg.muted" fontSize="xs" mb={-1} mt={2} textTransform="capitalize">
+              <Text color="fg.muted" fontSize="sm" mt={1} textTransform="capitalize">
                 {isGroup ? "Task Group" : operator}
               </Text>
               {taskInstance === undefined ? undefined : (
                 <HStack>
-                  <Status fontSize="xs" state={taskInstance.state}>
+                  <Status fontSize="sm" state={taskInstance.state}>
                     {taskInstance.state}
                   </Status>
                   {taskInstance.try_number > 1 ? <MdRefresh /> : undefined}

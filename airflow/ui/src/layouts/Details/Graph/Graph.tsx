@@ -41,7 +41,7 @@ const nodeColor = (
   }
 
   if (taskInstance?.state !== undefined && !isOpen) {
-    return `var(--chakra-colors-${taskInstance.state})`;
+    return `var(--chakra-colors-${taskInstance.state}-solid)`;
   }
 
   if (isOpen && depth !== undefined && depth % 2 === 0) {
