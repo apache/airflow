@@ -160,7 +160,6 @@ class KiotaRequestAdapterHook(BaseHook):
             ),
             "allowed_hosts": StringField(lazy_gettext("Allowed hosts"), widget=BS3TextFieldWidget()),
             "proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextAreaFieldWidget()),
-            "stream": BooleanField(lazy_gettext("Stream"), default=False),
             "verify": BooleanField(lazy_gettext("Verify"), default=True),
             "trust_env": BooleanField(lazy_gettext("Trust environment"), default=True),
             "base_url": StringField(lazy_gettext("Base URL"), widget=BS3TextFieldWidget()),
