@@ -898,11 +898,7 @@ class TestLivyAsyncHook:
             "status": "success",
         }
         mock_run_method.assert_called_once_with(
-            method="GET",
             endpoint=f"/livy/batches/{BATCH_ID}/state",
-            data=None,
-            headers=None,
-            extra_options=None,
         )
 
     @pytest.mark.asyncio
@@ -914,9 +910,6 @@ class TestLivyAsyncHook:
         assert state["status"] == "success"
 
         mock_run_method.assert_called_once_with(
-            method="GET",
             endpoint=f"/livy/batches/{BATCH_ID}/log",
             data={"from": 0, "size": 100},
-            headers=None,
-            extra_options=None,
         )
