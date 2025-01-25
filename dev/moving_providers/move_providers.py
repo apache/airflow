@@ -78,12 +78,13 @@ is_dry_run = False
 
 def _do_stuff(
     *,
-    syntax: str,
+    syntax: str | None,
     from_path: Path | None = None,
     to_path: Path | None = None,
     from_content: list[str] | None = None,
     updated_content: list[str] | None = None,
     delete_from: bool = False,
+    remove_empty_parent_dir: bool = False,
 ):
     if not to_path:
         # in place update
@@ -91,7 +92,7 @@ def _do_stuff(
     updated_str = ""
     if updated_content:
         updated_str = "\n".join(updated_content) + "\n"
-        if is_verbose:
+        if is_verbose and syntax:
             console.print(Syntax(updated_str, syntax, theme="ansi_dark"))
             console.rule()
     if not is_quiet:
@@ -99,18 +100,23 @@ def _do_stuff(
             diff = difflib.unified_diff(
                 from_content, updated_content, fromfile=from_path.as_posix(), tofile=to_path.as_posix()
             )
-            console.print(Syntax("\n".join(diff), "diff", theme="ansi_dark"))
-            console.print()
+            if syntax:
+                console.print(Syntax("\n".join(diff), "diff", theme="ansi_dark"))
+                console.print()
         elif updated_content and not from_content and to_path:
-            console.print(Syntax(updated_str, syntax, theme="ansi_dark"))
-        elif updated_content and to_path:
-            console.print(f"\n[yellow]Creating {to_path}\n")
+            console.print(f"\n[yellow]Creating {to_path}:\n")
+            if syntax:
+                console.print(Syntax(updated_str, syntax, theme="ansi_dark"))
         elif not from_content and not updated_content and from_path and to_path and delete_from:
             console.print(f"\n[yellow]Moving[/] {from_path} -> {to_path}\n")
+            if remove_empty_parent_dir and len([path for path in from_path.parent.iterdir()]) == 1:
+                console.print(f"\n[yellow]Removing also empty parent dir {from_path.parent}\n")
         elif not from_content and not updated_content and from_path and to_path and not delete_from:
             console.print(f"\n[yellow]Copying[/] {from_path} -> {to_path}\n")
         elif delete_from and from_path:
             console.print(f"\n[yellow]Deleting {from_path}\n")
+            if remove_empty_parent_dir and len([path for path in from_path.parent.iterdir()]) == 1:
+                console.print(f"\n[yellow]Removing also empty parent dir {from_path.parent}\n")
     if not is_dry_run:
         if updated_content and to_path:
             to_path.parent.mkdir(parents=True, exist_ok=True)
@@ -123,6 +129,9 @@ def _do_stuff(
                     shutil.rmtree(to_path)
                 shutil.move(from_path, to_path)
                 console.print(f"\n[yellow]Moved {from_path} -> {to_path}\n")
+                if remove_empty_parent_dir and len([path for path in from_path.parent.iterdir()]) == 0:
+                    console.print(f"\n[yellow]Removed also empty parent dir {from_path.parent}\n")
+                    from_path.parent.rmdir()
                 return
             else:
                 to_path.parent.mkdir(parents=True, exist_ok=True)
@@ -138,13 +147,25 @@ def _do_stuff(
             console.print(f"\n[yellow]Deleted {from_path}\n")
 
 
+def _replace_string(path: Path, old: str, new: str):
+    content = path.read_text()
+    count_occurrences = content.count(old)
+    if count_occurrences:
+        new_content = content.replace(old, new)
+        console.print(
+            f"\n[bright_blue]Replacing `{old}` with `{new}` in `{path}`: "
+            f"{count_occurrences} occurrences found\n"
+        )
+        if not is_dry_run:
+            path.write_text(new_content)
+
+
 @click.command()
 @click.argument("provider_ids", type=click.Choice(_get_all_old_providers()), required=True, nargs=-1)
 @click.option(
-    "--dry-run/--no-dry-run",
-    default=True,
-    help="Whether to run the command without making changes.",
-    show_default=True,
+    "--perform-update",
+    help="By default the command performs dry-run, explaining what will happen. With `--perform-update` "
+    "it will actually do the job.",
     is_flag=True,
 )
 @click.option(
@@ -163,17 +184,24 @@ def _do_stuff(
     is_flag=True,
 )
 def move_providers(
-    provider_ids: tuple[str, ...], dry_run: bool, skip_build_file_generation: bool, verbose: bool, quiet: bool
+    provider_ids: tuple[str, ...],
+    perform_update: bool,
+    skip_build_file_generation: bool,
+    verbose: bool,
+    quiet: bool,
 ):
     if quiet and verbose:
         console.print("\n[red]Cannot use --quiet and --verbose at the same time\n")
         sys.exit(1)
-    if dry_run:
-        console.print("\n[yellow]Running in dry-run mode, no changes will be made\n")
     global is_quiet, is_verbose, is_dry_run
     is_quiet = quiet
     is_verbose = verbose
-    is_dry_run = dry_run
+    is_dry_run = not perform_update
+    if is_dry_run:
+        console.print(
+            "\n[yellow]Running in dry-run mode, no changes will be made.[/]\n\n"
+            "Add `--perform-update`  flag to actually make the change.\n"
+        )
 
     console.print("\n[blue]Moving providers:[/]\n")
     console.print("* " + "\n *".join(provider_ids))
@@ -186,22 +214,28 @@ def move_providers(
         console.print()
 
     count_providers = len(_get_all_old_providers())
-    if not dry_run:
+    if perform_update:
         subprocess.run("git add .", shell=True, check=True)
         if not skip_build_file_generation:
             subprocess.run("pre-commit run update-providers-build-files", shell=True, check=False)
-            subprocess.run("breeze ci-image build --python 3.9 --answer yes", shell=True, check=True)
-            subprocess.run("git add . ", shell=True, check=False)
+            subprocess.run("git add . ", shell=True, check=True)
             subprocess.run("git diff HEAD", shell=True, check=False)
+            subprocess.run("uv sync --all-extras", shell=True, check=False)
+            subprocess.run("breeze static-checks --force-build", shell=True, check=False)
+            subprocess.run("git add . ", shell=True, check=True)
         console.print("\n[bright_green]First part of migration is complete[/].\n")
-        console.print("[yellow]Next steps:")
-        console.print("* run `pre-commit run`")
-        console.print("* fix all remaining errors, ")
-        console.print("* create branch, commit the changes and create a PR!\n")
         console.print(
-            f"\nAfter the PR is merged there will be {count_providers - len(provider_ids)} providers "
+            f"\nAfter you create PR and it will be merged there will be {count_providers - len(provider_ids)} providers "
             f"left in the old location.\n"
         )
+        console.print("[yellow]Next steps:[/]\n")
+        console.print("   1) Fix all the static check errors, add them to git")
+        console.print(
+            f"   2) run `breeze testing providers-tests --test-type "
+            rf"'Providers\[{','.join(provider_ids)}]'` and fix all tests."
+        )
+        console.print("   3) Add changes to git, create branch, commit the changes and create a PR!")
+        console.print("\nGood luck!\n")
     else:
         console.print("\n[yellow]Dry-run mode, no changes were made.\n")
     console.print(f"\nThere are currently {count_providers} providers left in the old structure.\n")
@@ -209,7 +243,7 @@ def move_providers(
 
 def fix_boring_cyborg(provider_id: str):
     boring_cyborg_file_path = ROOT_PROJECT_DIR_PATH / ".github" / "boring-cyborg.yml"
-    console.print(f"\n[bright_blue]Updating {boring_cyborg_file_path}\n")
+    console.rule(f"Updating {boring_cyborg_file_path}", style="bright_blue")
     original_content = boring_cyborg_file_path.read_text().splitlines()
     updated_content = []
     in_provider = False
@@ -228,17 +262,29 @@ def fix_boring_cyborg(provider_id: str):
         from_content=original_content,
         updated_content=updated_content,
     )
+    provider_only_path = _get_provider_only_path(provider_id)
+    _replace_string(
+        boring_cyborg_file_path,
+        f"providers/src/airflow/providers/{provider_only_path}",
+        f"providers/{provider_only_path}/src/airflow/providers/{provider_only_path}",
+    )
+    _replace_string(
+        boring_cyborg_file_path,
+        f"providers/tests/{provider_only_path}",
+        f"providers/{provider_only_path}/tests/provider_tests/{provider_only_path}",
+    )
+    console.rule(style="bright_blue")
 
 
 def add_docs_to_gitignore(provider_id: str):
     gitignore_path = DOCS_DIR_PATH / ".gitignore"
-    console.print(f"\n[bright_blue]Updating {gitignore_path}\n")
+    console.rule(f"Updating {gitignore_path}", style="bright_blue")
     original_content = gitignore_path.read_text().splitlines()
     provider_line = f"apache-airflow-providers-{provider_id.replace('.', '-')}"
     if provider_line in original_content:
         console.print(f"\n[yellow]Provider {provider_id} already in .gitignore\n")
         return
-    updated_content = []
+    updated_content: list[str] = []
     updated = False
     for line in original_content:
         if not line.startswith("#") and line > provider_line and not updated:
@@ -253,33 +299,27 @@ def add_docs_to_gitignore(provider_id: str):
         from_content=original_content,
         updated_content=updated_content,
     )
-
-
-def _replace_string(path: Path, old: str, new: str):
-    content = path.read_text()
-    new_content = content.replace(old, new)
-    if content != new_content:
-        console.print(f"\n[bright_blue]Replacing {old} with {new} in {path}\n")
-    if not is_dry_run:
-        path.write_text(new_content)
+    console.rule(style="bright_blue")
 
 
 def remove_changelog(provider_id: str):
     changelog_path = DOCS_DIR_PATH / _get_provider_distribution_name(provider_id) / "changelog.rst"
-    console.print(f"\n[bright_blue]Deleting {changelog_path}\n")
+    console.rule(f"Deleting {changelog_path}", style="bright_blue")
     _do_stuff(syntax="gitignore", from_path=changelog_path, delete_from=True)
+    console.rule(style="bright_blue")
 
 
 def create_readme(provider_id: str):
     readme_path = PROVIDERS_DIR_PATH / _get_provider_only_path(provider_id) / "README.rst"
-    console.print(f"\n[bright_blue]Creating {readme_path}\n")
+    console.rule(f"Creating {readme_path}", style="bright_blue")
     _do_stuff(syntax="rst", to_path=readme_path, updated_content=CONTENT_OVERRIDE)
+    console.rule(style="bright_blue")
 
 
 def move_docs(provider_id: str):
     source_doc_dir = DOCS_DIR_PATH / _get_provider_distribution_name(provider_id)
     dest_doc_dir = PROVIDERS_DIR_PATH / _get_provider_only_path(provider_id) / "docs"
-    console.print(f"\n[bright_blue]Moving docs to {dest_doc_dir}\n")
+    console.rule(f"Moving docs to {dest_doc_dir}", style="bright_blue")
     _do_stuff(syntax="rst", from_path=source_doc_dir, to_path=dest_doc_dir, delete_from=True)
     provider_package_source_dir = OLD_PROVIDERS_AIRFLOW_PROVIDERS_SRC_PACKAGE_PATH / _get_provider_only_path(
         provider_id
@@ -290,12 +330,14 @@ def move_docs(provider_id: str):
         to_path=dest_doc_dir / "changelog.rst",
         delete_from=True,
     )
-    _do_stuff(
-        syntax="txt",
-        from_path=provider_package_source_dir / ".latest-doc-only-change.txt",
-        to_path=dest_doc_dir / ".latest-doc-only-change.txt",
-        delete_from=True,
-    )
+    if (provider_package_source_dir / ".latest-doc-only-change.txt").exists():
+        _do_stuff(
+            syntax="txt",
+            from_path=provider_package_source_dir / ".latest-doc-only-change.txt",
+            to_path=dest_doc_dir / ".latest-doc-only-change.txt",
+            delete_from=True,
+        )
+    console.rule(style="bright_blue")
 
 
 def move_provider_yaml(provider_id: str) -> tuple[list[str], list[str], list[str]]:
@@ -305,7 +347,7 @@ def move_provider_yaml(provider_id: str) -> tuple[list[str], list[str], list[str
         / "provider.yaml"
     )
     target_provider_yaml_path = PROVIDERS_DIR_PATH / _get_provider_only_path(provider_id) / "provider.yaml"
-    console.print(f"\n[bright_blue]Moving {source_provider_yaml_path} to {target_provider_yaml_path}\n")
+    console.rule(f"Moving {source_provider_yaml_path} to {target_provider_yaml_path}", style="bright_blue")
     original_content = source_provider_yaml_path.read_text().splitlines()
     in_dependencies = False
     in_optional_dependencies = False
@@ -316,6 +358,21 @@ def move_provider_yaml(provider_id: str) -> tuple[list[str], list[str], list[str
     optional_dependencies = []
     devel_dependencies = []
     for line in original_content:
+        if line.startswith("    logo: "):
+            logo_path = line[len("    logo: ") :]
+            logo_name = logo_path.split("/")[-1]
+            new_logo_dir = (
+                PROVIDERS_DIR_PATH / _get_provider_only_path(provider_id) / "docs" / "integration-logos"
+            )
+            new_logo_path = new_logo_dir / logo_name
+            _do_stuff(
+                syntax="none",
+                from_path=DOCS_DIR_PATH / Path(logo_path[1:]),
+                to_path=new_logo_path,
+                delete_from=True,
+                remove_empty_parent_dir=True,
+            )
+            line = f"    logo: /docs/integration-logos/{logo_name}"
         if line == "dependencies:" and not in_dependencies:
             in_dependencies = True
             continue
@@ -352,7 +409,6 @@ def move_provider_yaml(provider_id: str) -> tuple[list[str], list[str], list[str
                 in_optional_dependencies = False
         if not in_dependencies and not in_optional_dependencies and not in_devel_dependencies:
             updated_content.append(line)
-
     _do_stuff(
         syntax="yml",
         from_path=source_provider_yaml_path,
@@ -384,6 +440,7 @@ def move_provider_yaml(provider_id: str) -> tuple[list[str], list[str], list[str
         optional_dependencies_processed.append("]")
     else:
         optional_dependencies_processed = []
+    console.rule(style="bright_blue")
     return (
         dependencies,
         devel_dependencies,
@@ -429,8 +486,8 @@ dev = [
 [project.urls]
 """
     pyproject_toml_path = PROVIDERS_DIR_PATH / _get_provider_only_path(provider_id) / "pyproject.toml"
-    console.print(
-        f"\n[bright_blue]Creating basic pyproject.toml for {provider_id} in {pyproject_toml_path}\n"
+    console.rule(
+        f"Creating basic pyproject.toml for {provider_id} in {pyproject_toml_path}", style="bright_blue"
     )
 
     pyproject_toml_content = start_pyproject_toml
@@ -440,6 +497,7 @@ dev = [
         pyproject_toml_content += devel_dependencies_toml
 
     _do_stuff(syntax="toml", to_path=pyproject_toml_path, updated_content=pyproject_toml_content.splitlines())
+    console.rule(style="bright_blue")
 
 
 def move_sources(provider_id: str):
@@ -454,41 +512,119 @@ def move_sources(provider_id: str):
         / "providers"
         / _get_provider_only_path(provider_id)
     )
-    console.print(f"\n[bright_blue]Moving sources from {source_provider_dir} to {dest_provider_dir}\n")
+    console.rule(f"Moving sources from {source_provider_dir} to {dest_provider_dir}", style="bright_blue")
     _do_stuff(syntax="bash", from_path=source_provider_dir, to_path=dest_provider_dir, delete_from=True)
+    console.rule(style="bright_blue")
 
 
 def move_tests(provider_id: str):
     source_test_dir = OLD_PROVIDERS_TEST_DIR_PATH / _get_provider_only_path(provider_id)
-    dest_test_dir = (
-        PROVIDERS_DIR_PATH
-        / _get_provider_only_path(provider_id)
-        / "tests"
-        / "providers"
-        / _get_provider_only_path(provider_id)
-    )
-    console.print(f"\n[bright_blue]Moving tests from {source_test_dir} to {dest_test_dir}\n")
+    airflow_tests_dir = ROOT_PROJECT_DIR_PATH / "tests"
+    root_dest_test_dir = PROVIDERS_DIR_PATH / _get_provider_only_path(provider_id) / "tests"
+    dest_test_dir = root_dest_test_dir / "provider_tests" / _get_provider_only_path(provider_id)
+    console.rule(f"Moving tests from {source_test_dir} to {dest_test_dir}", style="bright_blue")
+
+    for test_file_path in source_test_dir.rglob("*.py"):
+        _replace_string(
+            test_file_path, f"from providers.tests.{provider_id}", f"from provider_tests.{provider_id}"
+        )
+    for test_file_path in airflow_tests_dir.rglob("*.py"):
+        _replace_string(
+            test_file_path, f"from providers.tests.{provider_id}", f"from provider_tests.{provider_id}"
+        )
     _do_stuff(syntax="bash", from_path=source_test_dir, to_path=dest_test_dir, delete_from=True)
 
+    conftest_py_content = """
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
 
-def move_system_tests(provider_id: str):
+import pathlib
+
+import pytest
+
+pytest_plugins = "tests_common.pytest_plugin"
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:
+    deprecations_ignore_path = pathlib.Path(__file__).parent.joinpath("deprecations_ignore.yml")
+    dep_path = [deprecations_ignore_path] if deprecations_ignore_path.exists() else []
+    config.inicfg["airflow_deprecations_ignore"] = (
+        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
+    )
+"""[1:]
+
+    conftest_py_path = root_dest_test_dir / "conftest.py"
+    _do_stuff(syntax="python", to_path=conftest_py_path, updated_content=conftest_py_content.splitlines())
+    init_content = """
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
+"""[1:]
+    for parent in dest_test_dir.parents:
+        if parent.name == "tests":
+            break
+        init_file = parent / "__init__.py"
+        if not init_file.exists():
+            _do_stuff(syntax="python", to_path=init_file, updated_content=init_content.splitlines())
+
+    console.rule(style="bright_blue")
+
+
+def move_system_tests(provider_id: str) -> bool:
     source_system_test_dir = OLD_PROVIDERS_SYSTEM_TEST_DIR_PATH / _get_provider_only_path(provider_id)
-    dest_system_test_dir = (
-        PROVIDERS_DIR_PATH
-        / _get_provider_only_path(provider_id)
-        / "tests"
-        / "system"
-        / _get_provider_only_path(provider_id)
-    )
-    console.print(
-        f"\n[bright_blue]Moving system tests from {source_system_test_dir} to {dest_system_test_dir}\n"
-    )
-    _do_stuff(syntax="bash", from_path=source_system_test_dir, to_path=dest_system_test_dir, delete_from=True)
+    if source_system_test_dir.exists():
+        dest_system_test_dir = (
+            PROVIDERS_DIR_PATH
+            / _get_provider_only_path(provider_id)
+            / "tests"
+            / "system"
+            / _get_provider_only_path(provider_id)
+        )
+        console.rule(
+            f"Moving system tests from {source_system_test_dir} to {dest_system_test_dir}",
+            style="bright_blue",
+        )
+        _do_stuff(
+            syntax="bash", from_path=source_system_test_dir, to_path=dest_system_test_dir, delete_from=True
+        )
+        console.rule(style="bright_blue")
+        return True
+    return False
 
 
 def replace_system_test_example_includes(provider_id: str):
     target_doc_providers_dir = PROVIDERS_DIR_PATH / _get_provider_only_path(provider_id) / "docs"
-    console.print(f"\n[bright_blue]Replacing system test example includes in {target_doc_providers_dir}\n")
+    console.rule(f"Replacing system test example includes in {target_doc_providers_dir}", style="bright_blue")
     for rst_file in target_doc_providers_dir.rglob("*.rst"):
         provider_only_path = _get_provider_only_path(provider_id)
         _replace_string(
@@ -496,10 +632,93 @@ def replace_system_test_example_includes(provider_id: str):
             f"../providers/tests/system/{provider_only_path}/",
             f"../providers/{provider_only_path}/tests/system/{provider_only_path}/",
         )
+    console.rule(style="bright_blue")
+
+
+def update_airflow_pyproject_toml(provider_id):
+    pyproject_toml_path = ROOT_PROJECT_DIR_PATH / "pyproject.toml"
+    console.rule(f"Updating {pyproject_toml_path}", style="bright_blue")
+    content = pyproject_toml_path.read_text().splitlines()
+    updated_content: list[str] = []
+    distribution_name = _get_provider_distribution_name(provider_id)
+    only_provider_path = _get_provider_only_path(provider_id)
+    in_dependency_groups = False
+    in_tool_uv_sources = False
+    in_tool_uv_workspace = False
+
+    dependency_line_to_add = f'  "{distribution_name}",'
+    sources_line_to_add = f"{distribution_name} = {{ workspace = true }}"
+    workspace_line_to_add = f'    "providers/{only_provider_path}",'
+
+    for line in content:
+        if line.startswith("[dependency-groups]"):
+            in_dependency_groups = True
+        elif in_dependency_groups and (
+            line.startswith("]") or (line.startswith('  "apache') and dependency_line_to_add < line)
+        ):
+            updated_content.append(dependency_line_to_add)
+            in_dependency_groups = False
+        if line.startswith("[tool.uv.sources]"):
+            in_tool_uv_sources = True
+        elif in_tool_uv_sources and (
+            line.strip() == ""
+            or line.startswith("[")
+            or (line.startswith("apache") and sources_line_to_add < line)
+        ):
+            updated_content.append(sources_line_to_add)
+            in_tool_uv_sources = False
+        if line.startswith("[tool.uv.workspace]"):
+            in_tool_uv_workspace = True
+        elif in_tool_uv_workspace and (
+            line.startswith("]") or (line.startswith(" ") and workspace_line_to_add < line)
+        ):
+            updated_content.append(workspace_line_to_add)
+            in_tool_uv_workspace = False
+        updated_content.append(line)
+    _do_stuff(
+        syntax="toml",
+        from_path=pyproject_toml_path,
+        from_content=content,
+        updated_content=updated_content,
+    )
+    console.rule(style="bright_blue")
+
+
+def fix_selective_checks_test(provider_id: str):
+    selective_checks_test_path = (
+        ROOT_PROJECT_DIR_PATH / "dev" / "breeze" / "tests" / "test_selective_checks.py"
+    )
+    provider_only_path = _get_provider_only_path(provider_id)
+    console.rule(f"Updating {selective_checks_test_path}", style="bright_blue")
+    _replace_string(
+        selective_checks_test_path,
+        f"providers/src/airflow/providers/{provider_only_path}",
+        f"providers/{provider_only_path}/src/airflow/providers/{provider_only_path}",
+    )
+    console.rule(style="bright_blue")
+
+
+def update_pre_commit_config(provider_id: str):
+    pre_commit_config_file = ROOT_PROJECT_DIR_PATH / ".pre-commit-config.yaml"
+    console.rule(f"Updating {pre_commit_config_file}", style="bright_blue")
+    _replace_string(
+        pre_commit_config_file,
+        f"providers/src/airflow/providers/{provider_id.replace('.', '/')}",
+        f"providers/{provider_id.replace('.', '/')}/src/airflow/providers/{provider_id.replace('.', '/')}",
+    )
+    _replace_string(
+        pre_commit_config_file,
+        f"providers/tests/{provider_id.replace('.', '/')}",
+        f"providers/{provider_id.replace('.', '/')}/tests/provider_tests/{provider_id.replace('.', '/')}",
+    )
+    console.rule(style="bright_blue")
 
 
 def move_provider(provider_id: str):
+    fix_selective_checks_test(provider_id)
+    update_pre_commit_config(provider_id)
     fix_boring_cyborg(provider_id)
+    update_airflow_pyproject_toml(provider_id)
     add_docs_to_gitignore(provider_id)
     remove_changelog(provider_id)
     create_readme(provider_id)
@@ -508,8 +727,9 @@ def move_provider(provider_id: str):
     create_pyproject_toml(provider_id, dependencies, devel_dependencies, optional_dependencies)
     move_sources(provider_id)
     move_tests(provider_id)
-    move_system_tests(provider_id)
-    replace_system_test_example_includes(provider_id)
+    has_system_test = move_system_tests(provider_id)
+    if has_system_test:
+        replace_system_test_example_includes(provider_id)
 
 
 if __name__ == "__main__":

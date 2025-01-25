@@ -32,7 +32,7 @@ def get_provider_info():
         "integrations": [
             {
                 "integration-name": "Iceberg",
-                "logo": "/docs/integration-logo/iceberg.png",
+                "logo": "/docs/integration-logos/iceberg.png",
                 "external-doc-url": "https://iceberg.apache.org/",
                 "tags": ["software"],
             }
