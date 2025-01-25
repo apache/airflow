@@ -203,7 +203,7 @@ class TaskInstance(BaseModel):
     dag_id: str
     run_id: str
     try_number: int
-    map_index: int = -1
+    map_index: int | None = None
     hostname: str | None = None
 
 

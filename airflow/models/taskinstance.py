@@ -3322,6 +3322,8 @@ class TaskInstance(Base, LoggingMixin):
         # able to access the unmapped task instead.
         original_task.render_template_fields(context, jinja_env)
         if isinstance(self.task, MappedOperator):
+            if not self.task.is_mapped:
+                breakpoint()
             self.task = context["ti"].task  # type: ignore[assignment]
 
         return original_task

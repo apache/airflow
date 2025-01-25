@@ -940,7 +940,7 @@ class TestRuntimeTaskInstance:
                     dag_id="test_dag",
                     run_id="test_run",
                     task_id=task_id,
-                    map_index=-1,
+                    map_index=None,
                 ),
             )
 

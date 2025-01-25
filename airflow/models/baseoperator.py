@@ -847,11 +847,20 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         @get_mapped_ti_count.register(MappedOperator)
         @classmethod
         def _(cls, task: MappedOperator, run_id: str, *, session: Session) -> int:
-            from airflow.serialization.serialized_objects import _ExpandInputRef
+            from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
             exp_input = task._get_specified_expand_input()
             if isinstance(exp_input, _ExpandInputRef):
                 exp_input = exp_input.deref(task.dag)
+            # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over ot use the
+            # task sdk runner.
+            if not hasattr(exp_input, "get_total_map_length"):
+                exp_input = _ExpandInputRef(
+                    type(exp_input).EXPAND_INPUT_TYPE,
+                    BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
+                )
+                exp_input = exp_input.deref(task.dag)
+
             current_count = exp_input.get_total_map_length(run_id, session=session)
 
             group = task.get_closest_mapped_task_group()

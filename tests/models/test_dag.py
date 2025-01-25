@@ -141,13 +141,13 @@ def clear_assets():
 def _create_dagrun(
     dag: DAG,
     *,
-    logical_date: DateTime,
+    logical_date: DateTime | datetime.datetime,
     data_interval: DataInterval,
     run_type: DagRunType,
     state: DagRunState = DagRunState.RUNNING,
     start_date: datetime.datetime | None = None,
+    **kwargs,
 ) -> DagRun:
-    triggered_by_kwargs: dict = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     run_id = dag.timetable.generate_run_id(
         run_type=run_type,
         logical_date=logical_date,
@@ -160,7 +160,8 @@ def _create_dagrun(
         run_type=run_type,
         state=state,
         start_date=start_date,
-        **triggered_by_kwargs,
+        triggered_by=DagRunTriggeredByType.TEST,
+        **kwargs,
     )
 
 
@@ -1532,15 +1533,14 @@ class TestDag:
             PythonOperator.partial(task_id=task_id, python_callable=consumer).expand(op_args=make_arg_lists())
 
         session = dag_maker.session
-        dagrun_1 = dag.create_dagrun(
-            run_id="backfill",
+        dagrun_1 = _create_dagrun(
+            dag,
             run_type=DagRunType.BACKFILL_JOB,
-            state=State.FAILED,
+            state=DagRunState.FAILED,
             start_date=DEFAULT_DATE,
             logical_date=DEFAULT_DATE,
-            session=session,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
         )
         # Get the (de)serialized MappedOperator
         mapped = dag.get_task(task_id)

@@ -45,11 +45,11 @@ from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
     EXPAND_INPUT_EMPTY,
     create_expand_input,
-    get_map_type_key,
 )
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import (
     Asset,
@@ -65,7 +65,7 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
-from airflow.sdk.definitions.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
+from airflow.sdk.definitions.xcom_arg import XComArg, serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -458,7 +458,7 @@ class _XComRef(NamedTuple):
 
     data: dict
 
-    def deref(self, dag: DAG) -> XComArg:
+    def deref(self, dag: DAG) -> SchedulerXComArg:
         return deserialize_xcom_arg(self.data, dag)
 
 
@@ -1160,7 +1160,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if TYPE_CHECKING:  # Let Mypy check the input type for us!
             _ExpandInputRef.validate_expand_input_value(expansion_kwargs.value)
         serialized_op[op._expand_input_attr] = {
-            "type": get_map_type_key(expansion_kwargs),
+            "type": type(expansion_kwargs).EXPAND_INPUT_TYPE,
             "value": cls.serialize(expansion_kwargs.value),
         }
 
@@ -1757,7 +1757,7 @@ class TaskGroupSerialization(BaseSerialization):
         if isinstance(task_group, MappedTaskGroup):
             expand_input = task_group._expand_input
             encoded["expand_input"] = {
-                "type": get_map_type_key(expand_input),
+                "type": type(expand_input).EXPAND_INPUT_TYPE,
                 "value": cls.serialize(expand_input.value),
             }
             encoded["is_mapped"] = True

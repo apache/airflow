@@ -63,7 +63,6 @@ from airflow.models.abstractoperator import NotMapped
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
-from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -1330,6 +1329,7 @@ class DagRun(Base, LoggingMixin):
 
         """
         from airflow.models.baseoperator import BaseOperator
+        from airflow.models.expandinput import NotFullyPopulated
 
         tis = self.get_task_instances(session=session)
 
@@ -1467,6 +1467,7 @@ class DagRun(Base, LoggingMixin):
         :param task_creator: Function to create task instances
         """
         from airflow.models.baseoperator import BaseOperator
+        from airflow.models.expandinput import NotFullyPopulated
 
         map_indexes: Iterable[int]
         for task in tasks:
@@ -1538,6 +1539,7 @@ class DagRun(Base, LoggingMixin):
         for more details.
         """
         from airflow.models.baseoperator import BaseOperator
+        from airflow.models.expandinput import NotFullyPopulated
         from airflow.settings import task_instance_mutation_hook
 
         try:

@@ -215,6 +215,7 @@ def test_expand_kwargs_create_mapped():
 
 
 @pytest.mark.db_test
+@pytest.mark.need_serialized_dag
 def test_task_group_expand_kwargs_with_upstream(dag_maker, session, caplog):
     with dag_maker() as dag:
 
@@ -239,6 +240,7 @@ def test_task_group_expand_kwargs_with_upstream(dag_maker, session, caplog):
 
 
 @pytest.mark.db_test
+@pytest.mark.need_serialized_dag
 def test_task_group_expand_with_upstream(dag_maker, session, caplog):
     with dag_maker() as dag:
 

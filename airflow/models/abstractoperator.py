@@ -27,7 +27,6 @@ from sqlalchemy import select
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models.expandinput import NotFullyPopulated
 from airflow.sdk.definitions._internal.abstractoperator import (
     AbstractOperator as TaskSDKAbstractOperator,
     NotMapped as NotMapped,  # Re-export this for compat
@@ -237,6 +236,7 @@ class AbstractOperator(LoggingMixin, TaskSDKAbstractOperator):
             )
 
         from airflow.models.baseoperator import BaseOperator as DBBaseOperator
+        from airflow.models.expandinput import NotFullyPopulated
 
         try:
             total_length: int | None = DBBaseOperator.get_mapped_ti_count(self, run_id, session=session)

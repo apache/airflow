@@ -54,7 +54,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     dag_id: str
     run_id: str
     try_number: int
-    map_index: int
+    map_index: int | None
     max_tries: int
     hostname: str | None = None
 
