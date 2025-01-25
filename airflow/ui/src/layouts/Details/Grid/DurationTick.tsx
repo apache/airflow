@@ -16,19 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ParamSchema } from "src/queries/useDagParams";
+import { Text, type TextProps } from "@chakra-ui/react";
 
-import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
-import { FieldRow } from "./FieldRow";
-import { HiddenInput } from "./HiddenInput";
-
-const isHidden = (fieldSchema: ParamSchema) => Boolean(fieldSchema.const);
-
-/** Generates a form row */
-export const Row = ({ name }: FlexibleFormElementProps) => {
-  const { paramsDict } = useParamStore();
-  const param = paramsDict[name] ?? paramPlaceholder;
-
-  return isHidden(param.schema) ? <HiddenInput name={name} /> : <FieldRow name={name} />;
-};
+export const DurationTick = ({ children, ...rest }: TextProps) => (
+  <Text color="border.emphasized" fontSize="xs" position="absolute" right={1} whiteSpace="nowrap" {...rest}>
+    {children}
+  </Text>
+);

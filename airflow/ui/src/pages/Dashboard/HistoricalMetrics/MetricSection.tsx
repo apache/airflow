@@ -20,7 +20,6 @@ import { Box, Flex, HStack, VStack, Text } from "@chakra-ui/react";
 
 import { MetricsBadge } from "src/components/MetricsBadge";
 import { capitalize } from "src/utils";
-import { stateColor } from "src/utils/stateColor";
 
 const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
@@ -42,14 +41,14 @@ export const MetricSection = ({ runs, state, total }: MetricSectionProps) => {
     <VStack align="left" gap={1} mb={4} ml={0} pl={0}>
       <Flex justify="space-between">
         <HStack>
-          <MetricsBadge backgroundColor={stateColor[state as keyof typeof stateColor]} runs={runs} />
+          <MetricsBadge colorPalette={state} runs={runs} />
           <Text> {capitalize(state)} </Text>
         </HStack>
         <Text color="fg.muted"> {statePercent}% </Text>
       </Flex>
       <HStack gap={0} mt={2}>
         <Box
-          bg={stateColor[state as keyof typeof stateColor]}
+          bg={`${state}.solid`}
           borderLeftRadius={5}
           height={`${BAR_HEIGHT}px`}
           minHeight={2}
