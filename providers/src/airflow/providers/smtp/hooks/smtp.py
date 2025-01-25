@@ -160,6 +160,12 @@ class SmtpHook(BaseHook):
             ),
             "disable_tls": BooleanField(lazy_gettext("Disable TLS"), default=False),
             "disable_ssl": BooleanField(lazy_gettext("Disable SSL"), default=False),
+            "subject_template": StringField(
+                lazy_gettext("Path to the subject template"), widget=BS3TextFieldWidget()
+            ),
+            "html_content_template": StringField(
+                lazy_gettext("Path to the html content template"), widget=BS3TextFieldWidget()
+            ),
         }
 
     def test_connection(self) -> tuple[bool, str]:
@@ -381,6 +387,14 @@ class SmtpHook(BaseHook):
     @property
     def use_ssl(self) -> bool:
         return not bool(self.conn.extra_dejson.get("disable_ssl", False))
+
+    @property
+    def subject_template(self) -> str | None:
+        return self.conn.extra_dejson.get("subject_template")
+
+    @property
+    def html_content_template(self) -> str | None:
+        return self.conn.extra_dejson.get("html_content_template")
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:

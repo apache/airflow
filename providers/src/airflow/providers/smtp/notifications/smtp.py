@@ -20,11 +20,17 @@ from __future__ import annotations
 from collections.abc import Iterable
 from functools import cached_property
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.smtp.hooks.smtp import SmtpHook
+from airflow.providers.smtp.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    import jinja2
+
+    from airflow.sdk.definitions.context import Context
 
 
 class SmtpNotifier(BaseNotifier):
@@ -70,10 +76,8 @@ class SmtpNotifier(BaseNotifier):
 
     def __init__(
         self,
-        # TODO: Move from_email to keyword parameter in next major release so that users do not
-        # need to specify from_email. No argument here will lead to defaults from conf being used.
-        from_email: str | None,
         to: str | Iterable[str],
+        from_email: str | None = None,
         subject: str | None = None,
         html_content: str | None = None,
         files: list[str] | None = None,
@@ -88,7 +92,7 @@ class SmtpNotifier(BaseNotifier):
     ):
         super().__init__()
         self.smtp_conn_id = smtp_conn_id
-        self.from_email = from_email or conf.get("smtp", "smtp_mail_from")
+        self.from_email = from_email
         self.to = to
         self.files = files
         self.cc = cc
@@ -96,37 +100,94 @@ class SmtpNotifier(BaseNotifier):
         self.mime_subtype = mime_subtype
         self.mime_charset = mime_charset
         self.custom_headers = custom_headers
-
-        smtp_default_templated_subject_path = conf.get(
-            "smtp",
-            "templated_email_subject_path",
-            fallback=(Path(__file__).parent / "templates" / "email_subject.jinja2").as_posix(),
-        )
-        self.subject = (
-            subject or Path(smtp_default_templated_subject_path).read_text().replace("\n", "").strip()
-        )
+        self.subject = subject
         # If html_content is passed, prioritize it. Otherwise, if template is passed, use
         # it to populate html_content. Else, fall back to defaults defined in settings
+        self.html_content: str | None = None
         if html_content is not None:
             self.html_content = html_content
         elif template is not None:
             self.html_content = Path(template).read_text()
-        else:
-            smtp_default_templated_html_content_path = conf.get(
+        elif not AIRFLOW_V_3_0_PLUS:
+            self.html_content = conf.get(
                 "smtp",
                 "templated_html_content_path",
-                fallback=(Path(__file__).parent / "templates" / "email.html").as_posix(),
+                fallback=None,
             )
-            self.html_content = Path(smtp_default_templated_html_content_path).read_text()
+
+        if self.from_email is None and not AIRFLOW_V_3_0_PLUS:
+            self.from_email = conf.get("smtp", "smtp_mail_from", fallback=None)
+
+        if self.subject is None and not AIRFLOW_V_3_0_PLUS:
+            self.subject = conf.get("smtp", "templated_email_subject_path", fallback=None)
 
     @cached_property
     def hook(self) -> SmtpHook:
         """Smtp Events Hook."""
         return SmtpHook(smtp_conn_id=self.smtp_conn_id)
 
+    @cached_property
+    def _connection_from_email(self) -> str | None:
+        return self.hook.from_email
+
+    @cached_property
+    def _connection_subject_template(self) -> str | None:
+        return self.hook.subject_template
+
+    @cached_property
+    def _connection_html_content_template(self) -> str | None:
+        return self.hook.html_content_template
+
+    def _render_fields(
+        self,
+        fields: Iterable[str],
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        dag = context["dag"]
+        if not jinja_env:
+            jinja_env = self.get_template_env(dag=dag)
+        self._do_render_template_fields(self, fields, context, jinja_env, set())
+
     def notify(self, context):
         """Send a email via smtp server."""
         with self.hook as smtp:
+            fields_to_re_render = []
+            if self.from_email is None:
+                if self._connection_from_email:
+                    self.from_email = self._connection_from_email
+                else:
+                    if AIRFLOW_V_3_0_PLUS:
+                        raise ValueError(
+                            "you must provide from_email argument, or set a default one in the connection"
+                        )
+                    else:
+                        raise ValueError(
+                            "you must provide from_email argument, or set a default one in the configuration or the connection"
+                        )
+                fields_to_re_render.append("from_email")
+            if self.subject is None:
+                if self._connection_subject_template:
+                    self.subject = self._connection_subject_template
+                else:
+                    smtp_default_templated_subject_path = (
+                        Path(__file__).parent / "templates" / "email_subject.jinja2"
+                    ).as_posix()
+                    self.subject = (
+                        Path(smtp_default_templated_subject_path).read_text().replace("\n", "").strip()
+                    )
+                fields_to_re_render.append("subject")
+            if self.html_content is None:
+                if self._connection_html_content_template:
+                    self.html_content = self._connection_html_content_template
+                else:
+                    smtp_default_templated_html_content_path = (
+                        Path(__file__).parent / "templates" / "email.html"
+                    ).as_posix()
+                    self.html_content = Path(smtp_default_templated_html_content_path).read_text()
+                fields_to_re_render.append("html_content")
+            if fields_to_re_render:
+                self._render_fields(fields_to_re_render, context)
             smtp.send_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,
                 from_email=self.from_email,

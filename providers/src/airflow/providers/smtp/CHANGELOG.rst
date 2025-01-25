@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+The argument ``from_email`` is now an optional kwarg in ``SmtpNotifier``, and the ``to`` argument became the first positional argument.
+
 1.9.0
 .....
 
