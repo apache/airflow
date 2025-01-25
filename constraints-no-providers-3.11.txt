@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-24T19:48:49.276381
+# This constraints file was automatically generated on 2025-01-25T13:48:51.892450
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -48,7 +48,7 @@ apispec==6.8.1
 argcomplete==3.5.3
 asgiref==3.8.1
 atlasclient==1.0.0
-attrs==24.3.0
+attrs==25.1.0
 babel==2.16.0
 bcrypt==4.2.1
 blinker==1.9.0
@@ -152,7 +152,7 @@ python-multipart==0.0.20
 python-nvd3==0.16.0
 python-slugify==8.0.4
 pytz==2024.2
-referencing==0.36.1
+referencing==0.36.2
 requests-kerberos==0.15.0
 requests-toolbelt==1.0.0
 requests==2.32.3
