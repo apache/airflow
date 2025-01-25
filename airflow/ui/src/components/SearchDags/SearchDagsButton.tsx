@@ -22,11 +22,13 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { MdSearch } from "react-icons/md";
 
 import { Dialog } from "src/components/ui";
+import { getMetaKey } from "src/utils";
 
 import { SearchDags } from "./SearchDags";
 
 export const SearchDagsButton = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const metaKey = getMetaKey();
 
   const onOpenChange = () => {
     setIsOpen(false);
@@ -44,7 +46,7 @@ export const SearchDagsButton = () => {
   return (
     <Box>
       <Button justifyContent="flex-start" onClick={() => setIsOpen(true)} variant="subtle" w={200}>
-        <MdSearch /> Search Dags <Kbd size="lg">⌘K</Kbd>
+        <MdSearch /> Search Dags <Kbd size="sm">{metaKey}+K</Kbd>
       </Button>
       <Dialog.Root onOpenChange={onOpenChange} open={isOpen} size="sm">
         <Dialog.Content>
