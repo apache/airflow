@@ -33,7 +33,6 @@ class TestOperatorHelpers:
         self.logical_date = "2017-05-21T00:00:00"
         self.dag_run_id = "dag_run_id"
         self.owner = ["owner1", "owner2"]
-        self.email = ["email1@test.com"]
         self.context = {
             "dag_run": mock.MagicMock(
                 name="dag_run",
@@ -47,7 +46,7 @@ class TestOperatorHelpers:
                 try_number=self.try_number,
                 logical_date=datetime.strptime(self.logical_date, "%Y-%m-%dT%H:%M:%S"),
             ),
-            "task": mock.MagicMock(name="task", owner=self.owner, email=self.email),
+            "task": mock.MagicMock(name="task", owner=self.owner),
         }
 
     def test_context_to_airflow_vars_empty_context(self):
@@ -61,7 +60,6 @@ class TestOperatorHelpers:
             "airflow.ctx.dag_run_id": self.dag_run_id,
             "airflow.ctx.try_number": str(self.try_number),
             "airflow.ctx.dag_owner": "owner1,owner2",
-            "airflow.ctx.dag_email": "email1@test.com",
         }
 
         assert operator_helpers.context_to_airflow_vars(self.context, in_env_var_format=True) == {
@@ -71,7 +69,6 @@ class TestOperatorHelpers:
             "AIRFLOW_CTX_TRY_NUMBER": str(self.try_number),
             "AIRFLOW_CTX_DAG_RUN_ID": self.dag_run_id,
             "AIRFLOW_CTX_DAG_OWNER": "owner1,owner2",
-            "AIRFLOW_CTX_DAG_EMAIL": "email1@test.com",
         }
 
     def test_context_to_airflow_vars_with_default_context_vars(self):
