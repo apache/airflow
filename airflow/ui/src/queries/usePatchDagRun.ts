@@ -49,7 +49,8 @@ export const usePatchDagRun = ({
     const queryKeys = [
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
-      [useTaskInstanceServiceGetTaskInstancesKey],
+      [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
+      ["clearDagRun", dagId],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
