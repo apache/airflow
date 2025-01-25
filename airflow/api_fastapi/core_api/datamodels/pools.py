@@ -77,17 +77,3 @@ class PoolBody(BasePool):
     pool: str = Field(alias="name", max_length=256)
     description: str | None = None
     include_deferred: bool = False
-
-
-#
-# def _pool_body_discriminator(pool_body: Any) -> str:
-#     return "post" if "pool" in pool_body else "patch"
-#
-#
-# class PoolBody:
-#     """Pool serializer for request bodies."""
-#
-#     pool: Annotated[
-#         Union[Annotated[PoolPostBody, Tag("post")], Annotated[PoolPatchBody, Tag("patch")]],
-#         Discriminator(_pool_body_discriminator),
-#     ]
