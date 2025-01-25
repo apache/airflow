@@ -39,7 +39,7 @@ class TestComprehendPiiEntitiesDetectionLink(BaseAwsLinksTestCase):
         )
 
 
-class ComprehendDocumentClassifierLink(BaseAwsLinksTestCase):
+class TestComprehendDocumentClassifierLink(BaseAwsLinksTestCase):
     link_class = ComprehendDocumentClassifierLink
 
     def test_extra_link(self):
@@ -48,9 +48,9 @@ class ComprehendDocumentClassifierLink(BaseAwsLinksTestCase):
         )
         self.assert_extra_link_url(
             expected_url=(
-                f"https://console.aws.amazon.com/comprehend/home?region=us-east-1#classifier-details/{test_job_id}"
+                f"https://console.aws.amazon.com/comprehend/home?region=us-east-1#classifier-version-details/{test_job_id}"
             ),
             region_name="us-east-1",
             aws_partition="aws",
-            job_id=test_job_id,
+            arn=test_job_id,
         )

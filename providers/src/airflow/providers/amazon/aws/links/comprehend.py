@@ -37,5 +37,5 @@ class ComprehendDocumentClassifierLink(BaseAwsLink):
     name = "Document Classifier"
     key = "comprehend_document_classifier"
     format_str = (
-        BASE_AWS_CONSOLE_LINK + "/comprehend/home?region={region_name}#" + "/classifier-version-details/{arn}"
+        BASE_AWS_CONSOLE_LINK + "/comprehend/home?region={region_name}#" + "classifier-version-details/{arn}"
     )
