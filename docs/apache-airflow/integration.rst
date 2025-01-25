@@ -21,7 +21,6 @@ Integration
 Airflow has a mechanism that allows you to expand its functionality and integrate with other systems.
 
 * :doc:`API Authentication backends </security/api>`
-* :doc:`Email backends </howto/email-config>`
 * :doc:`Executor </core-concepts/executor/index>`
 * :doc:`Kerberos </security/kerberos>`
 * :doc:`Logging </administration-and-deployment/logging-monitoring/logging-tasks>`

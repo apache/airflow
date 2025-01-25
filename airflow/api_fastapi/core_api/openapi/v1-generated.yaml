@@ -2672,13 +2672,6 @@ paths:
 
                   base_log_folder = /opt/airflow/logs
 
-
-                  [smtp]
-
-                  smtp_host = localhost
-
-                  smtp_mail_from = airflow@example.com
-
                   '
         '401':
           content:

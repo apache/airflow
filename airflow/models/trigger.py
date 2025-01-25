@@ -261,7 +261,7 @@ class Trigger(Base):
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
 
-        TODO: Once we have shifted callback (and email) handling to run on
+        TODO: Once we have shifted callback handling to run on
         workers as first-class concepts, we can run the failure code here
         in-process, but we can't do that right now.
         """

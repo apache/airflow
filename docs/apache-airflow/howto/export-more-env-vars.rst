@@ -28,7 +28,7 @@ which are available as environment variables when running tasks. Note, both key 
 value are must be string.
 
 ``dag_id``, ``task_id``, ``execution_date``, ``dag_run_id``,
-``dag_owner``, ``dag_email`` are reserved keys.
+``dag_owner`` are reserved keys.
 
 For example, in your ``airflow_local_settings.py`` file:
 

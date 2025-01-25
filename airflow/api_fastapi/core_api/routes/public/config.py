@@ -56,10 +56,6 @@ text_example_response_for_get_config = {
     [core]
     dags_folder = /opt/airflow/dags
     base_log_folder = /opt/airflow/logs
-
-    [smtp]
-    smtp_host = localhost
-    smtp_mail_from = airflow@example.com
     """
             ),
         },

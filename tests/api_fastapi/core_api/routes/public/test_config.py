@@ -33,16 +33,11 @@ HEADERS_TEXT = {"Accept": "text/plain"}
 HEADERS_INVALID = {"Accept": "invalid"}
 HEADERS_JSON_UTF8 = {"Accept": "application/json; charset=utf-8"}
 SECTION_CORE = "core"
-SECTION_SMTP = "smtp"
 SECTION_DATABASE = "database"
 SECTION_NOT_EXIST = "not_exist_section"
 OPTION_KEY_PARALLELISM = "parallelism"
-OPTION_KEY_SMTP_HOST = "smtp_host"
-OPTION_KEY_SMTP_MAIL_FROM = "smtp_mail_from"
 OPTION_KEY_SQL_ALCHEMY_CONN = "sql_alchemy_conn"
 OPTION_VALUE_PARALLELISM = "1024"
-OPTION_VALUE_SMTP_HOST = "smtp.example.com"
-OPTION_VALUE_SMTP_MAIL_FROM = "airflow@example.com"
 OPTION_VALUE_SQL_ALCHEMY_CONN = "sqlite:///example.db"
 OPTION_NOT_EXIST = "not_exist_option"
 OPTION_VALUE_SENSITIVE_HIDDEN = "< hidden >"
@@ -50,10 +45,6 @@ OPTION_VALUE_SENSITIVE_HIDDEN = "< hidden >"
 MOCK_CONFIG_DICT = {
     SECTION_CORE: {
         OPTION_KEY_PARALLELISM: OPTION_VALUE_PARALLELISM,
-    },
-    SECTION_SMTP: {
-        OPTION_KEY_SMTP_HOST: OPTION_VALUE_SMTP_HOST,
-        OPTION_KEY_SMTP_MAIL_FROM: OPTION_VALUE_SMTP_MAIL_FROM,
     },
     SECTION_DATABASE: {
         OPTION_KEY_SQL_ALCHEMY_CONN: OPTION_VALUE_SQL_ALCHEMY_CONN,
@@ -63,18 +54,12 @@ MOCK_CONFIG_DICT_SENSITIVE_HIDDEN = {
     SECTION_CORE: {
         OPTION_KEY_PARALLELISM: OPTION_VALUE_PARALLELISM,
     },
-    SECTION_SMTP: {
-        OPTION_KEY_SMTP_HOST: OPTION_VALUE_SMTP_HOST,
-        OPTION_KEY_SMTP_MAIL_FROM: OPTION_VALUE_SMTP_MAIL_FROM,
-    },
     SECTION_DATABASE: {
         OPTION_KEY_SQL_ALCHEMY_CONN: OPTION_VALUE_SENSITIVE_HIDDEN,
     },
 }
 MOCK_CONFIG_OVERRIDE = {
     (SECTION_CORE, OPTION_KEY_PARALLELISM): OPTION_VALUE_PARALLELISM,
-    (SECTION_SMTP, OPTION_KEY_SMTP_HOST): OPTION_VALUE_SMTP_HOST,
-    (SECTION_SMTP, OPTION_KEY_SMTP_MAIL_FROM): OPTION_VALUE_SMTP_MAIL_FROM,
 }
 
 AIRFLOW_CONFIG_ENABLE_EXPOSE_CONFIG = {("webserver", "expose_config"): "True"}
@@ -93,13 +78,6 @@ GET_CONFIG_ALL_JSON_RESPONSE = {
             ],
         },
         {
-            "name": SECTION_SMTP,
-            "options": [
-                {"key": OPTION_KEY_SMTP_HOST, "value": OPTION_VALUE_SMTP_HOST},
-                {"key": OPTION_KEY_SMTP_MAIL_FROM, "value": OPTION_VALUE_SMTP_MAIL_FROM},
-            ],
-        },
-        {
             "name": SECTION_DATABASE,
             "options": [
                 {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SQL_ALCHEMY_CONN},
@@ -113,13 +91,6 @@ GET_CONFIG_NON_SENSITIVE_ONLY_JSON_RESPONSE = {
             "name": SECTION_CORE,
             "options": [
                 {"key": OPTION_KEY_PARALLELISM, "value": OPTION_VALUE_PARALLELISM},
-            ],
-        },
-        {
-            "name": SECTION_SMTP,
-            "options": [
-                {"key": OPTION_KEY_SMTP_HOST, "value": OPTION_VALUE_SMTP_HOST},
-                {"key": OPTION_KEY_SMTP_MAIL_FROM, "value": OPTION_VALUE_SMTP_MAIL_FROM},
             ],
         },
         {
@@ -201,10 +172,6 @@ class TestGetConfig(TestConfigEndpoint):
                     [{SECTION_CORE}]
                     {OPTION_KEY_PARALLELISM} = {OPTION_VALUE_PARALLELISM}
 
-                    [{SECTION_SMTP}]
-                    {OPTION_KEY_SMTP_HOST} = {OPTION_VALUE_SMTP_HOST}
-                    {OPTION_KEY_SMTP_MAIL_FROM} = {OPTION_VALUE_SMTP_MAIL_FROM}
-
                     [{SECTION_DATABASE}]
                     {OPTION_KEY_SQL_ALCHEMY_CONN} = {OPTION_VALUE_SQL_ALCHEMY_CONN}
                     """
@@ -230,18 +197,6 @@ class TestGetConfig(TestConfigEndpoint):
                         },
                     ],
                 },
-            ),
-            (
-                SECTION_SMTP,
-                HEADERS_TEXT,
-                200,
-                textwrap.dedent(
-                    f"""\
-                    [{SECTION_SMTP}]
-                    {OPTION_KEY_SMTP_HOST} = {OPTION_VALUE_SMTP_HOST}
-                    {OPTION_KEY_SMTP_MAIL_FROM} = {OPTION_VALUE_SMTP_MAIL_FROM}
-                    """
-                ),
             ),
             (
                 SECTION_DATABASE,
@@ -286,10 +241,6 @@ class TestGetConfig(TestConfigEndpoint):
                     f"""\
                     [{SECTION_CORE}]
                     {OPTION_KEY_PARALLELISM} = {OPTION_VALUE_PARALLELISM}
-
-                    [{SECTION_SMTP}]
-                    {OPTION_KEY_SMTP_HOST} = {OPTION_VALUE_SMTP_HOST}
-                    {OPTION_KEY_SMTP_MAIL_FROM} = {OPTION_VALUE_SMTP_MAIL_FROM}
 
                     [{SECTION_DATABASE}]
                     {OPTION_KEY_SQL_ALCHEMY_CONN} = {OPTION_VALUE_SENSITIVE_HIDDEN}
@@ -337,34 +288,6 @@ class TestGetConfigValue(TestConfigEndpoint):
                 HEADERS_NONE,
                 200,
                 GET_CONFIG_VALUE_CORE_PARALLELISM_JSON_RESPONSE,
-            ),
-            (
-                SECTION_SMTP,
-                OPTION_KEY_SMTP_HOST,
-                HEADERS_TEXT,
-                200,
-                textwrap.dedent(
-                    f"""\
-                    [{SECTION_SMTP}]
-                    {OPTION_KEY_SMTP_HOST} = {OPTION_VALUE_SMTP_HOST}
-                    """
-                ),
-            ),
-            (
-                SECTION_SMTP,
-                OPTION_KEY_SMTP_MAIL_FROM,
-                HEADERS_JSON,
-                200,
-                {
-                    "sections": [
-                        {
-                            "name": SECTION_SMTP,
-                            "options": [
-                                {"key": OPTION_KEY_SMTP_MAIL_FROM, "value": OPTION_VALUE_SMTP_MAIL_FROM},
-                            ],
-                        },
-                    ],
-                },
             ),
             (
                 SECTION_DATABASE,

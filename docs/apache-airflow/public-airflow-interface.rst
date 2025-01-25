@@ -386,11 +386,6 @@ by extending them:
 
 You can read more about creating custom Decorators in :doc:`howto/create-custom-decorator`.
 
-Email notifications
--------------------
-
-Airflow has a built-in way of sending email notifications and it allows to extend it by adding custom
-email notification classes. You can read more about email notifications in :doc:`howto/email-config`.
 
 Notifications
 -------------

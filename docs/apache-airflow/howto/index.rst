@@ -49,7 +49,6 @@ configuring an Airflow environment.
     run-behind-proxy
     run-with-systemd
     define-extra-link
-    email-config
     dynamic-dag-generation
     docker-compose/index
     upgrading-from-1-10/index

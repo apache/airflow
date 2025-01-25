@@ -35,8 +35,6 @@ SDK_MAPPEDOPERATOR_PY = ROOT_DIR.joinpath(
 IGNORED = {
     # These are only used in the worker and thus mappable.
     "do_xcom_push",
-    "email_on_failure",
-    "email_on_retry",
     "post_execute",
     "pre_execute",
     "multiple_outputs",

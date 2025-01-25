@@ -24,7 +24,7 @@ import pendulum
 
 from airflow.decorators import dag, task
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.email import EmailOperator
+from airflow.providers.smtp.operators.smtp import EmailOperator
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -48,11 +48,12 @@ class GetRequestOperator(BaseOperator):
     catchup=False,
     tags=["example"],
 )
-def example_dag_decorator(email: str = "example@example.com"):
+def example_dag_decorator(to_email: str = "example1@example.com", from_email: str = "example2@example.com"):
     """
     DAG to send server IP to email.
 
-    :param email: Email to send IP to. Defaults to example@example.com.
+    :param to_email: Email to send IP to. Defaults to exampl1e@example.com.
+    :param from_email: Email to send IP from. Defaults to example2@example.com
     """
     get_ip = GetRequestOperator(task_id="get_ip", url="http://httpbin.org/get")
 
@@ -67,7 +68,11 @@ def example_dag_decorator(email: str = "example@example.com"):
     email_info = prepare_email(get_ip.output)
 
     EmailOperator(
-        task_id="send_email", to=email, subject=email_info["subject"], html_content=email_info["body"]
+        task_id="send_email",
+        to=to_email,
+        from_email=from_email,
+        subject=email_info["subject"],
+        html_content=email_info["body"],
     )
 
 

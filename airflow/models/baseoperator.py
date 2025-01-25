@@ -212,13 +212,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
     :param task_id: a unique, meaningful id for the task
     :param owner: the owner of the task. Using a meaningful description
         (e.g. user/person/team/role name) to clarify ownership is recommended.
-    :param email: the 'to' email address(es) used in email alerts. This can be a
-        single email or multiple ones. Multiple addresses can be specified as a
-        comma or semicolon separated string or by passing a list of strings.
-    :param email_on_retry: Indicates whether email alerts should be sent when a
-        task is retried
-    :param email_on_failure: Indicates whether email alerts should be sent when
-        a task failed
     :param retries: the number of retries that should be performed before
         failing the task
     :param retry_delay: delay between retries, can be set as ``timedelta`` or

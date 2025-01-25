@@ -29,7 +29,7 @@ import urllib
 from traceback import format_exception
 from typing import cast
 from unittest import mock
-from unittest.mock import call, mock_open, patch
+from unittest.mock import call, patch
 from uuid import uuid4
 
 import pendulum
@@ -2148,109 +2148,8 @@ class TestTaskInstance:
         params = process_params(ti.task.dag, ti.task, dag_run.conf, suppress_exception=False)
         assert params["override"] is False
 
-    @pytest.mark.parametrize("use_native_obj", [True, False])
-    @patch("airflow.models.taskinstance.send_email")
-    def test_email_alert(self, mock_send_email, dag_maker, use_native_obj):
-        with dag_maker(dag_id="test_failure_email", render_template_as_native_obj=use_native_obj):
-            task = BashOperator(task_id="test_email_alert", bash_command="exit 1", email="to")
-        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-        ti.task = task
-
-        with contextlib.suppress(AirflowException):
-            ti.run()
-
-        (email, title, body), _ = mock_send_email.call_args
-        assert email == "to"
-        assert "test_email_alert" in title
-        assert "test_email_alert" in body
-        assert "Try 0" in body
-
-    @conf_vars(
-        {
-            ("email", "subject_template"): "/subject/path",
-            ("email", "html_content_template"): "/html_content/path",
-        }
-    )
-    @patch("airflow.models.taskinstance.send_email")
-    def test_email_alert_with_config(self, mock_send_email, dag_maker):
-        with dag_maker(dag_id="test_failure_email"):
-            task = BashOperator(
-                task_id="test_email_alert_with_config",
-                bash_command="exit 1",
-                email="to",
-            )
-        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-        ti.task = task
-
-        opener = mock_open(read_data="template: {{ti.task_id}}")
-        with patch("airflow.models.taskinstance.open", opener, create=True):
-            with contextlib.suppress(AirflowException):
-                ti.run()
-
-        (email, title, body), _ = mock_send_email.call_args
-        assert email == "to"
-        assert title == "template: test_email_alert_with_config"
-        assert body == "template: test_email_alert_with_config"
-
-    @patch("airflow.models.taskinstance.send_email")
-    def test_email_alert_with_filenotfound_config(self, mock_send_email, dag_maker):
-        with dag_maker(dag_id="test_failure_email"):
-            task = BashOperator(
-                task_id="test_email_alert_with_config",
-                bash_command="exit 1",
-                email="to",
-            )
-        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-        ti.task = task
-
-        # Run test when the template file is not found
-        opener = mock_open(read_data="template: {{ti.task_id}}")
-        opener.side_effect = FileNotFoundError
-        with patch("airflow.models.taskinstance.open", opener, create=True):
-            with contextlib.suppress(AirflowException):
-                ti.run()
-
-        (email_error, title_error, body_error), _ = mock_send_email.call_args
-
-        # Rerun task without any error and no template file
-        with contextlib.suppress(AirflowException):
-            ti.run()
-
-        (email_default, title_default, body_default), _ = mock_send_email.call_args
-
-        assert email_error == email_default == "to"
-        assert title_default == title_error
-        assert body_default == body_error
-
-    @pytest.mark.parametrize("task_id", ["test_email_alert", "test_email_alert__1"])
-    @patch("airflow.models.taskinstance.send_email")
-    def test_failure_mapped_taskflow(self, mock_send_email, dag_maker, session, task_id):
-        with dag_maker(session=session) as dag:
-
-            @dag.task(email="to")
-            def test_email_alert(x):
-                raise RuntimeError("Fail please")
-
-            test_email_alert.expand(x=["a", "b"])  # This is 'test_email_alert'.
-            test_email_alert.expand(x=[1, 2, 3])  # This is 'test_email_alert__1'.
-
-        dr: DagRun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-
-        ti = dr.get_task_instance(task_id, map_index=0, session=session)
-        assert ti is not None
-
-        # The task will fail and trigger email reporting.
-        with pytest.raises(RuntimeError, match=r"^Fail please$"):
-            ti.run(session=session)
-
-        (email, title, body), _ = mock_send_email.call_args
-        assert email == "to"
-        assert title == f"Airflow alert: <TaskInstance: test_dag.{task_id} test map_index=0 [failed]>"
-        assert body.startswith("Try 0")  # try number only incremented by the scheduler
-        assert "test_email_alert" in body
-
     def test_set_duration(self):
-        task = EmptyOperator(task_id="op", email="test@test.test")
+        task = EmptyOperator(task_id="op")
         ti = TI(task=task)
         ti.start_date = datetime.datetime(2018, 10, 1, 1)
         ti.end_date = datetime.datetime(2018, 10, 1, 2)
@@ -2258,7 +2157,7 @@ class TestTaskInstance:
         assert ti.duration == 3600
 
     def test_set_duration_empty_dates(self):
-        task = EmptyOperator(task_id="op", email="test@test.test")
+        task = EmptyOperator(task_id="op")
         ti = TI(task=task)
         ti.set_duration()
         assert ti.duration is None
