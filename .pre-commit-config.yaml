@@ -574,7 +574,8 @@ repos:
         language: pygrep
         name: No providers imports in core example DAGs
         description: The core example DAGs have no dependencies other than standard provider or core Airflow
-        entry: "^\\s*from airflow\\.providers.(?!standard.)"
+        # TODO: rewrite airflow/example_dags/example_dag_decorator.py and remove `smtp` provider exception
+        entry: "^\\s*from airflow\\.providers\\.(?!standard|smtp)"
         pass_filenames: true
         files: ^airflow/example_dags/.*\.py$
       - id: check-no-airflow-deprecation-in-providers
