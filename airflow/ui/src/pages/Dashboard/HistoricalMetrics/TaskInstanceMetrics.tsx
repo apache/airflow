@@ -39,7 +39,7 @@ const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
 export const TaskInstanceMetrics = ({ taskInstanceStates, total }: TaskInstanceMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} mt={2} p={2}>
     <HStack mb={4}>
-      <MetricsBadge backgroundColor="blue.solid" runs={total} />
+      <MetricsBadge colorPalette="blue" runs={total} />
       <Heading size="md">Task Instances</Heading>
     </HStack>
 

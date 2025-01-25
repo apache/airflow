@@ -22,7 +22,6 @@ import { FiChevronRight } from "react-icons/fi";
 import { useImportErrorServiceGetImportErrors } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MetricsBadge } from "src/components/MetricsBadge";
-import { stateColor } from "src/utils/stateColor";
 
 import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 
@@ -49,7 +48,7 @@ export const DAGImportErrors = () => {
           onClick={onOpen}
           variant="outline"
         >
-          <MetricsBadge backgroundColor={stateColor.failed} runs={importErrorsCount} />
+          <MetricsBadge colorPalette="failed" runs={importErrorsCount} />
           <Box alignItems="center" display="flex" gap={1}>
             <Text fontWeight="bold">Dag Import Errors</Text>
             <FiChevronRight />

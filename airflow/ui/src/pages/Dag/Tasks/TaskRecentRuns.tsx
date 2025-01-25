@@ -24,7 +24,6 @@ import { Link } from "react-router-dom";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { getTaskInstanceLink } from "src/utils/links";
-import { stateColor } from "src/utils/stateColor";
 
 dayjs.extend(duration);
 
@@ -58,7 +57,7 @@ export const TaskRecentRuns = ({
             <Link to={getTaskInstanceLink(taskInstance)}>
               <Box p={1}>
                 <Box
-                  bg={stateColor[taskInstance.state]}
+                  bg={`${taskInstance.state}.solid`}
                   borderRadius="4px"
                   height={`${(taskInstance.duration / max) * BAR_HEIGHT}px`}
                   minHeight={1}

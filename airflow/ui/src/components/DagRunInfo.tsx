@@ -74,7 +74,7 @@ const DagRunInfo = ({
     >
       <Box>
         <Time datetime={dataIntervalStart} mr={2} showTooltip={false} />
-        {state === undefined ? undefined : <Status state={state}>{state}</Status>}
+        {state === undefined ? undefined : <Status state={state} />}
       </Box>
     </Tooltip>
   ) : undefined;

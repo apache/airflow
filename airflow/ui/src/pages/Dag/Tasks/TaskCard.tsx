@@ -63,9 +63,7 @@ export const TaskCard = ({ dagId, task, taskInstances }: Props) => (
             <Link asChild color="fg.info" fontSize="sm">
               <RouterLink to={getTaskInstanceLink(taskInstances[0])}>
                 <Time datetime={taskInstances[0].start_date} />
-                {taskInstances[0].state === null ? undefined : (
-                  <Status state={taskInstances[0].state}>{taskInstances[0].state}</Status>
-                )}
+                {taskInstances[0].state === null ? undefined : <Status state={taskInstances[0].state} />}
               </RouterLink>
             </Link>
           </TaskInstanceTooltip>

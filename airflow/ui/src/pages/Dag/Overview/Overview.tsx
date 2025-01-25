@@ -24,7 +24,6 @@ import { useParams } from "react-router-dom";
 import { useDagRunServiceGetDagRuns, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
-import { stateColor } from "src/utils/stateColor";
 
 const defaultHour = "168";
 
@@ -64,7 +63,7 @@ export const Overview = () => {
       </Box>
       <HStack>
         <TrendCountButton
-          colorPalette={stateColor.failed}
+          colorPalette="failed"
           count={failedTasks?.total_entries ?? 0}
           endDate={endDate}
           events={(failedTasks?.task_instances ?? []).map((ti) => ({
@@ -79,7 +78,7 @@ export const Overview = () => {
           startDate={startDate}
         />
         <TrendCountButton
-          colorPalette={stateColor.failed}
+          colorPalette="failed"
           count={failedRuns?.total_entries ?? 0}
           endDate={endDate}
           events={(failedRuns?.dag_runs ?? []).map((dr) => ({

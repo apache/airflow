@@ -51,7 +51,7 @@ export const AssetEvents = ({ assetSortBy, endDate, setAssetSortBy, startDate }:
     <Box borderRadius={5} borderWidth={1} ml={2} pb={2}>
       <Flex justify="space-between" mr={1} mt={0} pl={3} pt={1}>
         <HStack>
-          <MetricsBadge backgroundColor="blue.solid" runs={isLoading ? 0 : data?.total_entries} />
+          <MetricsBadge colorPalette="blue" runs={isLoading ? 0 : data?.total_entries} />
           <Heading marginEnd="auto" size="md">
             Asset Events
           </Heading>
