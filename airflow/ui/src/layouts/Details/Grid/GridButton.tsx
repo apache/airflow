@@ -20,7 +20,6 @@ import { Flex, type FlexProps } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
-import { stateColor } from "src/utils/stateColor";
 
 type Props = {
   readonly dagId: string;
@@ -45,7 +44,7 @@ export const GridButton = ({
 }: Props) =>
   isGroup ? (
     <Flex
-      background={stateColor[state ?? "null"]}
+      background={`${state}.solid`}
       borderRadius={2}
       height="10px"
       minW="10px"
@@ -65,7 +64,7 @@ export const GridButton = ({
       }}
     >
       <Flex
-        background={stateColor[state ?? "null"]}
+        background={`${state}.solid`}
         borderRadius={2}
         height="10px"
         pb="2px"
