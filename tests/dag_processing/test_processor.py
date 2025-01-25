@@ -107,7 +107,7 @@ class TestDagFileProcessor:
             session.add(ti)
 
             if has_serialized_dag:
-                assert SerializedDagModel.write_dag(dag, session=session) is True
+                assert SerializedDagModel.write_dag(dag, bundle_name="testing", session=session) is True
                 session.flush()
 
         requests = [TaskCallbackRequest(full_filepath="A", ti=ti, msg="Message")]

@@ -177,7 +177,9 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
     )
 
 
-def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session):
+def _serialize_dag_capturing_errors(
+    dag: MaybeSerializedDAG, bundle_name, session: Session, bundle_version: str | None
+):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
 
@@ -192,6 +194,8 @@ def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session):
         # We can't use bulk_write_to_db as we want to capture each error individually
         dag_was_updated = SerializedDagModel.write_dag(
             dag,
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
             min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
         )
@@ -333,7 +337,11 @@ def update_dag_parsing_results_in_db(
                 DAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
-                    serialize_errors.extend(_serialize_dag_capturing_errors(dag, session))
+                    serialize_errors.extend(
+                        _serialize_dag_capturing_errors(
+                            dag=dag, bundle_name=bundle_name, bundle_version=bundle_version, session=session
+                        )
+                    )
             except OperationalError:
                 session.rollback()
                 raise
