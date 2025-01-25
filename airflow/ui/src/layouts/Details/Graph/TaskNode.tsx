@@ -26,7 +26,7 @@ import { useOpenGroups } from "src/context/openGroups";
 import { pluralize } from "src/utils";
 
 import { NodeWrapper } from "./NodeWrapper";
-import { TaskName } from "./TaskName";
+import { TaskLink } from "./TaskLink";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const TaskNode = ({
@@ -76,7 +76,7 @@ export const TaskNode = ({
             width={`${width}px`}
           >
             <Box>
-              <TaskName
+              <TaskLink
                 id={id}
                 isGroup={isGroup}
                 isMapped={isMapped}
