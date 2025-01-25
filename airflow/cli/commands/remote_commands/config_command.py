@@ -329,7 +329,7 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "dag_dir_list_interval"),
-        renamed_to=ConfigParameter("dag_bundles", "refresh_interval"),
+        renamed_to=ConfigParameter("dag_processor", "refresh_interval"),
     ),
     # celery
     ConfigChange(

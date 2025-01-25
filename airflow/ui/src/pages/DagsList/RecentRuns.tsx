@@ -28,7 +28,7 @@ import { stateColor } from "src/utils/stateColor";
 
 dayjs.extend(duration);
 
-const BAR_HEIGHT = 60;
+const BAR_HEIGHT = 65;
 
 export const RecentRuns = ({
   latestRuns,
@@ -50,7 +50,7 @@ export const RecentRuns = ({
   );
 
   return (
-    <Flex alignItems="flex-end" flexDirection="row-reverse">
+    <Flex alignItems="flex-end" flexDirection="row-reverse" pb={1}>
       {runsWithDuration.map((run) => (
         <Tooltip
           content={
@@ -72,7 +72,7 @@ export const RecentRuns = ({
           }}
         >
           <Link to={`/dags/${run.dag_id}/runs/${run.dag_run_id}/`}>
-            <Box p={1}>
+            <Box px={1}>
               <Box
                 bg={stateColor[run.state]}
                 borderRadius="4px"
