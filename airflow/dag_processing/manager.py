@@ -47,6 +47,7 @@ import airflow.models
 from airflow.configuration import conf
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
+from airflow.exceptions import AirflowException
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
@@ -433,7 +434,11 @@ class DagFileProcessorManager:
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
             #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
             if not bundle.is_initialized:
-                bundle.initialize()
+                try:
+                    bundle.initialize()
+                except AirflowException as e:
+                    self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
+                    continue
             # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             with create_session() as session:
                 bundle_model: DagBundleModel = session.get(DagBundleModel, bundle.name)

@@ -115,8 +115,12 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
         )
         self.git_conn_id = git_conn_id
-        self.hook = GitHook(git_conn_id=self.git_conn_id)
-        self.repo_url = self.hook.repo_url
+        self.repo_url: str | None = None
+        try:
+            self.hook = GitHook(git_conn_id=self.git_conn_id)
+            self.repo_url = self.hook.repo_url
+        except AirflowException as e:
+            self.log.error("Error creating GitHook: %s", e)
 
     def _initialize(self):
         self._clone_bare_repo_if_required()
@@ -133,7 +137,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
 
     def initialize(self) -> None:
         if not self.repo_url:
-            raise AirflowException(f"Connection {self.git_conn_id} doesn't have a git_repo_url")
+            raise AirflowException(f"Connection {self.git_conn_id} doesn't have a host url")
         if isinstance(self.repo_url, os.PathLike):
             self._initialize()
         elif not self.repo_url.startswith("git@") or not self.repo_url.endswith(".git"):
@@ -155,6 +159,8 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         self.repo = Repo(self.repo_path)
 
     def _clone_bare_repo_if_required(self) -> None:
+        if not self.repo_url:
+            raise AirflowException(f"Connection {self.git_conn_id} doesn't have a host url")
         if not os.path.exists(self.bare_repo_path):
             self.log.info("Cloning bare repository to %s", self.bare_repo_path)
             Repo.clone_from(
@@ -213,10 +219,11 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         self._fetch_bare_repo()
         self.repo.remotes.origin.pull()
 
-    def _convert_git_ssh_url_to_https(self) -> str:
-        if not self.repo_url.startswith("git@"):
-            raise ValueError(f"Invalid git SSH URL: {self.repo_url}")
-        parts = self.repo_url.split(":")
+    @staticmethod
+    def _convert_git_ssh_url_to_https(url: str) -> str:
+        if not url.startswith("git@"):
+            raise ValueError(f"Invalid git SSH URL: {url}")
+        parts = url.split(":")
         domain = parts[0].replace("git@", "https://")
         repo_path = parts[1].replace(".git", "")
         return f"{domain}/{repo_path}"
@@ -225,8 +232,10 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         if not version:
             return None
         url = self.repo_url
+        if not url:
+            return None
         if url.startswith("git@"):
-            url = self._convert_git_ssh_url_to_https()
+            url = self._convert_git_ssh_url_to_https(url)
         parsed_url = urlparse(url)
         host = parsed_url.hostname
         if not host:
