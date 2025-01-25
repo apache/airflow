@@ -17,6 +17,8 @@
 # under the License.
 """Airflow module for email backend using sendgrid."""
 
+# TODO: remove this module once minimum Airflow version is >=3
+
 from __future__ import annotations
 
 import base64
@@ -26,6 +28,7 @@ import os
 from collections.abc import Iterable
 from typing import Union
 
+import re2
 import sendgrid
 from sendgrid.helpers.mail import (
     Attachment,
@@ -40,7 +43,6 @@ from sendgrid.helpers.mail import (
 )
 
 from airflow.hooks.base import BaseHook
-from airflow.utils.email import get_email_address_list
 
 log = logging.getLogger(__name__)
 
@@ -79,15 +81,15 @@ def send_email(
 
     # Add the recipient list of to emails.
     personalization = Personalization()
-    to = get_email_address_list(to)
+    to = _get_email_address_list(to)
     for to_address in to:
         personalization.add_to(Email(to_address))
     if cc:
-        cc = get_email_address_list(cc)
+        cc = _get_email_address_list(cc)
         for cc_address in cc:
             personalization.add_cc(Email(cc_address))
     if bcc:
-        bcc = get_email_address_list(bcc)
+        bcc = _get_email_address_list(bcc)
         for bcc_address in bcc:
             personalization.add_bcc(Email(bcc_address))
 
@@ -141,3 +143,19 @@ def _post_sendgrid_mail(mail_data: dict, conn_id: str = "sendgrid_default") -> N
             mail_data["subject"],
             response.status_code,
         )
+
+
+def _get_email_list_from_str(addresses: str) -> list[str]:
+    pattern = r"\s*[,;]\s*"
+    return re2.split(pattern, addresses)
+
+
+def _get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
+    if isinstance(addresses, str):
+        return _get_email_list_from_str(addresses)
+    elif isinstance(addresses, Iterable):
+        if not all(isinstance(item, str) for item in addresses):
+            raise TypeError("The items in your iterable must be strings.")
+        return list(addresses)
+    else:
+        raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
