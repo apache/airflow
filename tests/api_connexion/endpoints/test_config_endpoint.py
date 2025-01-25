@@ -37,12 +37,12 @@ MOCK_CONF = {
     },
 }
 
+MOCK_CONF_TUPLES = {
+    (section, option): value for section, options in MOCK_CONF.items() for option, value in options.items()
+}
+
 MOCK_CONF_WITH_SENSITIVE_VALUE = {
-    "core": {"parallelism": "1024"},
-    "operators": {
-        "default_deferrable": "true",
-        "default_queue": "queue",
-    },
+    **MOCK_CONF,
     "database": {
         "sql_alchemy_conn": "mock_conn",
     },
@@ -73,6 +73,7 @@ class TestGetConfig:
         self.client = self.app.test_client()  # type:ignore
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @conf_vars(MOCK_CONF_TUPLES)
     def test_should_respond_200_text_plain(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config", headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
@@ -83,12 +84,16 @@ class TestGetConfig:
             """\
         [core]
         parallelism = 1024
+
+        [operators]
+        default_deferrable = true
+        default_queue = queue
         """
         )
         assert expected == response.data.decode()
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
-    @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
+    @conf_vars({**MOCK_CONF_TUPLES, ("webserver", "expose_config"): "non-sensitive-only"})
     def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config", headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
@@ -99,11 +104,16 @@ class TestGetConfig:
             """\
         [core]
         parallelism = 1024
+
+        [operators]
+        default_deferrable = true
+        default_queue = queue
         """
         )
         assert expected == response.data.decode()
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @conf_vars(MOCK_CONF_TUPLES)
     def test_should_respond_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
@@ -121,9 +131,10 @@ class TestGetConfig:
                     ],
                 },
                 {
-                    "name": "sensors",
+                    "name": "operators",
                     "options": [
-                        {"key": "default_timeout", "value": "86400"},
+                        {"key": "default_deferrable", "value": "true"},
+                        {"key": "default_queue", "value": "queue"},
                     ],
                 },
             ]
@@ -131,6 +142,7 @@ class TestGetConfig:
         assert expected == response.json
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @conf_vars(MOCK_CONF_TUPLES)
     def test_should_respond_200_single_section_as_text_plain(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config?section=operators",
@@ -149,6 +161,7 @@ class TestGetConfig:
         assert expected == response.data.decode()
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @conf_vars(MOCK_CONF_TUPLES)
     def test_should_respond_200_single_section_as_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config?section=operators",
@@ -171,6 +184,7 @@ class TestGetConfig:
         assert expected == response.json
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @conf_vars(MOCK_CONF_TUPLES)
     def test_should_respond_404_when_section_not_exist(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config?section=operators1",
@@ -182,6 +196,7 @@ class TestGetConfig:
         assert "section=operators1 not found." in response.json["detail"]
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @conf_vars(MOCK_CONF_TUPLES)
     def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
@@ -222,6 +237,7 @@ class TestGetValue:
         self.client = self.app.test_client()  # type:ignore
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @conf_vars(MOCK_CONF_TUPLES)
     def test_should_respond_200_text_plain(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/operators/option/default_queue",
@@ -267,6 +283,7 @@ class TestGetValue:
         assert expected == response.data.decode()
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @conf_vars(MOCK_CONF_TUPLES)
     def test_should_respond_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/operators/option/default_queue",
@@ -287,6 +304,7 @@ class TestGetValue:
         assert expected == response.json
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @conf_vars(MOCK_CONF_TUPLES)
     def test_should_respond_404_when_option_not_exist(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/operators/option/default_queue1",
@@ -298,6 +316,7 @@ class TestGetValue:
         assert "The option [operators/default_queue1] is not found in config." in response.json["detail"]
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
+    @conf_vars(MOCK_CONF_TUPLES)
     def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/operators/option/default_queue",
