@@ -26,9 +26,15 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
     if (paramsDict[name]) {
-      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-      // eslint-disable-next-line unicorn/no-null
-      paramsDict[name].value = value === "" ? null : value.slice(0, 16);
+      if (rest.type === "datetime-local") {
+        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+        // eslint-disable-next-line unicorn/no-null
+        paramsDict[name].value = value === "" ? null : `${value}:00+00:00`; // Need to suffix to make it UTC like
+      } else {
+        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+        // eslint-disable-next-line unicorn/no-null
+        paramsDict[name].value = value === "" ? null : value;
+      }
     }
 
     setParamsDict(paramsDict);
