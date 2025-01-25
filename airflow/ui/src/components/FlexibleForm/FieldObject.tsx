@@ -37,7 +37,9 @@ export const FieldObject = ({ name }: FlexibleFormElementProps) => {
   const handleChange = (value: string) => {
     setError(undefined);
     try {
-      const parsedValue = JSON.parse(value) as JSON;
+      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+      // eslint-disable-next-line unicorn/no-null
+      const parsedValue = value === "" ? null : (JSON.parse(value) as JSON);
 
       if (paramsDict[name]) {
         paramsDict[name].value = parsedValue;
