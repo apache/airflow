@@ -16,22 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Box, type BoxProps } from "@chakra-ui/react";
 
-// TODO: replace this with Airflow config values
-
-export const stateColor = {
-  deferred: "mediumpurple",
-  failed: "red",
-  none: "lightblue",
-  null: "lightblue",
-  queued: "gray",
-  removed: "lightgrey",
-  restarting: "violet",
-  running: "lime",
-  scheduled: "tan",
-  skipped: "hotpink",
-  success: "green",
-  up_for_reschedule: "turquoise",
-  up_for_retry: "gold",
-  upstream_failed: "orange",
-};
+export const DurationAxis = (props: BoxProps) => (
+  <Box borderBottomWidth={1} left="30px" position="absolute" right="25px" zIndex={0} {...props} />
+);
