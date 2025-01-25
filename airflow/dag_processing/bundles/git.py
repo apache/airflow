@@ -219,7 +219,8 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         self._fetch_bare_repo()
         self.repo.remotes.origin.pull()
 
-    def _convert_git_ssh_url_to_https(self, url) -> str:
+    @staticmethod
+    def _convert_git_ssh_url_to_https(url: str) -> str:
         if not url.startswith("git@"):
             raise ValueError(f"Invalid git SSH URL: {url}")
         parts = url.split(":")
