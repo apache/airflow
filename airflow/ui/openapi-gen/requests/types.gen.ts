@@ -1576,6 +1576,29 @@ export type XComCollection = {
 };
 
 /**
+ * Request body for creating an XCom entry.
+ */
+export type XComCreateRequest = {
+  key: string;
+  value: unknown;
+  map_index?: number;
+};
+
+/**
+ * Serializer for a xcom create response.
+ */
+export type XComCreateResponse = {
+  key: string;
+  dag_run_id: number;
+  timestamp: string;
+  map_index: number;
+  task_id: string;
+  dag_id: string;
+  run_id: string;
+  value: string | null;
+};
+
+/**
  * Serializer for a xcom item.
  */
 export type XComResponse = {
@@ -2378,6 +2401,15 @@ export type GetXcomEntriesData = {
 };
 
 export type GetXcomEntriesResponse = XComCollection;
+
+export type CreateXcomEntryData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: XComCreateRequest;
+  taskId: string;
+};
+
+export type CreateXcomEntryResponse = XComCreateResponse;
 
 export type GetTasksData = {
   dagId: string;
@@ -4706,6 +4738,35 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: XComCollection;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: CreateXcomEntryData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: XComCreateResponse;
         /**
          * Bad Request
          */

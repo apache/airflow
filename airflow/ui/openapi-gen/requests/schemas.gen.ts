@@ -6118,6 +6118,76 @@ export const $XComCollection = {
   description: "List of XCom items.",
 } as const;
 
+export const $XComCreateRequest = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    value: {
+      title: "Value",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+      default: -1,
+    },
+  },
+  type: "object",
+  required: ["key", "value"],
+  title: "XComCreateRequest",
+  description: "Request body for creating an XCom entry.",
+} as const;
+
+export const $XComCreateResponse = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    dag_run_id: {
+      type: "integer",
+      title: "Dag Run Id",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    run_id: {
+      type: "string",
+      title: "Run Id",
+    },
+    value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Value",
+    },
+  },
+  type: "object",
+  required: ["key", "dag_run_id", "timestamp", "map_index", "task_id", "dag_id", "run_id", "value"],
+  title: "XComCreateResponse",
+  description: "Serializer for a xcom create response.",
+} as const;
+
 export const $XComResponse = {
   properties: {
     key: {

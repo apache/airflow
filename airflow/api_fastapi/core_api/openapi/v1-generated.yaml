@@ -4457,6 +4457,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - XCom
+      summary: Create Xcom Entry
+      description: Create an XCom entry.
+      operationId: create_xcom_entry
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XComCreateRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XComCreateResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}:
     get:
       tags:
@@ -10370,6 +10438,64 @@ components:
       - total_entries
       title: XComCollection
       description: List of XCom items.
+    XComCreateRequest:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          title: Value
+        map_index:
+          type: integer
+          title: Map Index
+          default: -1
+      type: object
+      required:
+      - key
+      - value
+      title: XComCreateRequest
+      description: Request body for creating an XCom entry.
+    XComCreateResponse:
+      properties:
+        key:
+          type: string
+          title: Key
+        dag_run_id:
+          type: integer
+          title: Dag Run Id
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        map_index:
+          type: integer
+          title: Map Index
+        task_id:
+          type: string
+          title: Task Id
+        dag_id:
+          type: string
+          title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
+        value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Value
+      type: object
+      required:
+      - key
+      - dag_run_id
+      - timestamp
+      - map_index
+      - task_id
+      - dag_id
+      - run_id
+      - value
+      title: XComCreateResponse
+      description: Serializer for a xcom create response.
     XComResponse:
       properties:
         key:
