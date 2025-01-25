@@ -55,7 +55,7 @@ from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import MockOperator
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 if TYPE_CHECKING:
@@ -329,7 +329,7 @@ class TestDagRun:
         assert dr.state == DagRunState.RUNNING
 
         ti_op2.set_state(state=None, session=session)
-        op2.trigger_rule = "invalid"  # type: ignore
+        ti_op2.task.trigger_rule = "invalid"  # type: ignore
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
@@ -759,7 +759,6 @@ class TestDagRun:
             (None, False),
         ],
     )
-    @pytest.mark.need_serialized_dag
     def test_depends_on_past(self, dag_maker, session, prev_ti_state, is_ti_schedulable):
         # DAG tests depends_on_past dependencies
         with dag_maker(
@@ -802,7 +801,6 @@ class TestDagRun:
             (None, False),
         ],
     )
-    @pytest.mark.need_serialized_dag
     def test_wait_for_downstream(self, dag_maker, session, prev_ti_state, is_ti_schedulable):
         dag_id = "test_wait_for_downstream"
 
@@ -1090,7 +1088,6 @@ def test_expand_mapped_task_instance_at_create(is_noop, dag_maker, session):
         assert indices == [(0,), (1,), (2,), (3,)]
 
 
-@pytest.mark.need_serialized_dag
 @pytest.mark.parametrize("is_noop", [True, False])
 def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session):
     with mock.patch("airflow.settings.task_instance_mutation_hook") as mock_mut:
@@ -1114,7 +1111,6 @@ def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session)
         assert indices == [(0,), (1,), (2,), (3,)]
 
 
-@pytest.mark.need_serialized_dag
 def test_mapped_literal_verify_integrity(dag_maker, session):
     """Test that when the length of a mapped literal changes we remove extra TIs"""
 
@@ -1147,7 +1143,6 @@ def test_mapped_literal_verify_integrity(dag_maker, session):
     assert indices == [(0, None), (1, None), (2, TaskInstanceState.REMOVED), (3, TaskInstanceState.REMOVED)]
 
 
-@pytest.mark.need_serialized_dag
 def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
     """Test that when we change from literal to a XComArg the TIs are removed"""
 
@@ -1181,7 +1176,6 @@ def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
     ]
 
 
-@pytest.mark.need_serialized_dag
 def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     """Test that when the length of mapped literal increases, additional ti is added"""
 
@@ -1224,7 +1218,6 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     ]
 
 
-@pytest.mark.need_serialized_dag
 def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     """Test that when the length of mapped literal reduces, removed state is added"""
 
@@ -1265,7 +1258,6 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     ]
 
 
-@pytest.mark.need_serialized_dag
 def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, session):
     """Test that when the length of mapped literal increases at runtime, additional ti is added"""
     # Variable.set(key="arg1", value=[1, 2, 3])
@@ -1317,7 +1309,6 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
     ]
 
 
-@pytest.mark.need_serialized_dag
 def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker, session):
     """
     Test that when the length of mapped literal reduces at runtime, the missing task instances
@@ -1405,7 +1396,6 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
     assert len(decision.schedulable_tis) == 2
 
 
-@pytest.mark.need_serialized_dag
 def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_maker, session, caplog):
     """
     Test zero length reduction in mapped task at runtime with calls to dagrun.verify_integrity
@@ -1468,7 +1458,6 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
     )
 
 
-@pytest.mark.need_serialized_dag
 def test_mapped_mixed_literal_not_expanded_at_create(dag_maker, session):
     literal = [1, 2, 3, 4]
     with dag_maker(session=session):
@@ -1645,8 +1634,6 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
 
 
 def test_mapped_task_all_finish_before_downstream(dag_maker, session):
-    result = None
-
     with dag_maker(session=session) as dag:
 
         @dag.task
@@ -1659,8 +1646,8 @@ def test_mapped_task_all_finish_before_downstream(dag_maker, session):
 
         @dag.task
         def consumer(value):
-            nonlocal result
-            result = list(value)
+            ...
+            # result = list(value)
 
         consumer(value=double.expand(value=make_list()))
 
@@ -1674,25 +1661,28 @@ def test_mapped_task_all_finish_before_downstream(dag_maker, session):
     assert _task_ids(decision.schedulable_tis) == ["make_list"]
 
     # After make_list is run, double is expanded.
-    decision.schedulable_tis[0].run(verbose=False, session=session)
+    ti = decision.schedulable_tis[0]
+    ti.state = TaskInstanceState.SUCCESS
+    session.add(TaskMap.from_task_instance_xcom(ti, [1, 2]))
+    session.flush()
+
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert _task_ids(decision.schedulable_tis) == ["double", "double"]
 
     # Running just one of the mapped tis does not make downstream schedulable.
-    decision.schedulable_tis[0].run(verbose=False, session=session)
+    ti = decision.schedulable_tis[0]
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert _task_ids(decision.schedulable_tis) == ["double"]
 
-    # Downstream is schedulable after all mapped tis are run.
-    decision.schedulable_tis[0].run(verbose=False, session=session)
+    # Downstream is scheduleable after all mapped tis are run.
+    ti = decision.schedulable_tis[0]
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert _task_ids(decision.schedulable_tis) == ["consumer"]
-
-    # We should be able to get all values aggregated from mapped upstreams.
-    decision.schedulable_tis[0].run(verbose=False, session=session)
-    decision = dr.task_instance_scheduling_decisions(session=session)
-    assert decision.schedulable_tis == []
-    assert result == [2, 4]
 
 
 def test_schedule_tis_map_index(dag_maker, session):
@@ -1771,6 +1761,7 @@ def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):
     assert empty_ti.try_number == 1
 
 
+@pytest.mark.xfail(reason="We can't keep this bevaviour with remote workers where scheduler can't reach xcom")
 def test_schedule_tis_start_trigger_through_expand(dag_maker, session):
     """
     Test that an operator with start_trigger_args set can be directly deferred during scheduling.
@@ -1925,28 +1916,18 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
 @pytest.mark.parametrize(
     "partial_params, mapped_params, expected",
     [
-        pytest.param(None, [{"a": 1}], [[("a", 1)]], id="simple"),
-        pytest.param({"b": 2}, [{"a": 1}], [[("a", 1), ("b", 2)]], id="merge"),
-        pytest.param({"b": 2}, [{"a": 1, "b": 3}], [[("a", 1), ("b", 3)]], id="override"),
+        pytest.param(None, [{"a": 1}], 1, id="simple"),
+        pytest.param({"b": 2}, [{"a": 1}], 1, id="merge"),
+        pytest.param({"b": 2}, [{"a": 1, "b": 3}], 1, id="override"),
     ],
 )
 def test_mapped_expand_against_params(dag_maker, partial_params, mapped_params, expected):
-    results = []
-
-    class PullOperator(BaseOperator):
-        def execute(self, context):
-            results.append(sorted(context["params"].items()))
-
     with dag_maker():
-        PullOperator.partial(task_id="t", params=partial_params).expand(params=mapped_params)
+        BaseOperator.partial(task_id="t", params=partial_params).expand(params=mapped_params)
 
     dr: DagRun = dag_maker.create_dagrun()
     decision = dr.task_instance_scheduling_decisions()
-
-    for ti in decision.schedulable_tis:
-        ti.run()
-
-    assert sorted(results) == expected
+    assert len(decision.schedulable_tis) == expected
 
 
 def test_mapped_task_group_expands(dag_maker, session):
@@ -1991,9 +1972,7 @@ def test_operator_mapped_task_group_receives_value(dag_maker, session):
     with dag_maker(session=session):
 
         @task
-        def t(value, *, ti=None):
-            results[(ti.task_id, ti.map_index)] = value
-            return value
+        def t(value): ...
 
         @task_group
         def tg(va):
@@ -2015,24 +1994,29 @@ def test_operator_mapped_task_group_receives_value(dag_maker, session):
 
     dr: DagRun = dag_maker.create_dagrun()
 
-    results = {}
+    results = set()
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
-    assert results == {("tg.t1", 0): ["a", "b"], ("tg.t1", 1): [4], ("tg.t1", 2): ["z"]}
+        results.add((ti.task_id, ti.map_index))
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+    assert results == {("tg.t1", 0), ("tg.t1", 1), ("tg.t1", 2)}
 
-    results = {}
+    results.clear()
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
-    assert results == {("tg.t2", 0): ["a", "b"], ("tg.t2", 1): [4], ("tg.t2", 2): ["z"]}
+        results.add((ti.task_id, ti.map_index))
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+    assert results == {("tg.t2", 0), ("tg.t2", 1), ("tg.t2", 2)}
 
-    results = {}
+    results.clear()
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
-    assert len(results) == 1
-    assert list(results[("t3", -1)]) == [["a", "b"], [4], ["z"]]
+        results.add((ti.task_id, ti.map_index))
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+    assert results == {("t3", -1)}
 
 
 def test_mapping_against_empty_list(dag_maker, session):
@@ -2100,19 +2084,84 @@ def test_mapped_task_depends_on_past(dag_maker, session):
     decision = dr1.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 2
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
 
     # Now print_value in dr2 can run
     decision = dr2.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 2
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
 
     # Both runs are finished now.
     decision = dr1.task_instance_scheduling_decisions(session=session)
     assert len(decision.unfinished_tis) == 0
     decision = dr2.task_instance_scheduling_decisions(session=session)
     assert len(decision.unfinished_tis) == 0
+
+
+def test_xcom_map_skip_raised(dag_maker, session):
+    result = None
+
+    with dag_maker(session=session) as dag:
+        # Note: this doesn't actually run this dag, the callbacks are for reference only.
+
+        @dag.task()
+        def push():
+            return ["a", "b", "c"]
+
+        @dag.task()
+        def forward(value):
+            return value
+
+        @dag.task(trigger_rule=TriggerRule.ALL_DONE)
+        def collect(value):
+            nonlocal result
+            result = list(value)
+
+        def skip_c(v):
+            ...
+            # if v == "c":
+            #     raise AirflowSkipException
+            # return {"value": v}
+
+        collect(value=forward.expand_kwargs(push().map(skip_c)))
+
+    dr: DagRun = dag_maker.create_dagrun(session=session)
+
+    def _task_ids(tis):
+        return [(ti.task_id, ti.map_index) for ti in tis]
+
+    # Check that when forward w/ map_index=2 ends up skipping, that the collect task can still be
+    # scheduled!
+
+    # Run "push".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("push", -1)]
+    ti = decision.schedulable_tis[0]
+    ti.state = TaskInstanceState.SUCCESS
+    session.add(TaskMap.from_task_instance_xcom(ti, push.function()))
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [
+        ("forward", 0),
+        ("forward", 1),
+        ("forward", 2),
+    ]
+    # Run "forward". "c"/index 2 is skipped. Runtime behaviour checked in test_xcom_map_raise_to_skip in
+    # TaskSDK
+    for ti, state in zip(
+        decision.schedulable_tis,
+        [TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED],
+    ):
+        ti.state = state
+    session.flush()
+
+    # Now "collect" should only get "a" and "b".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("collect", -1)]
 
 
 def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
@@ -2386,7 +2435,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
 
     with dag_maker() as dag:
         for line in input:
-            tasks = [make_task(x, dag) for x in line.split(" >> ")]
+            tasks = [make_task(x, dag_maker.dag) for x in line.split(" >> ")]
             reduce(lambda x, y: x >> y, tasks)
 
     dr = dag_maker.create_dagrun()

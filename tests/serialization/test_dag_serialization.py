@@ -40,7 +40,7 @@ from textwrap import dedent
 from typing import TYPE_CHECKING
 from unittest import mock
 
-import attr
+import attrs
 import pendulum
 import pytest
 from dateutil.relativedelta import FR, relativedelta
@@ -694,7 +694,7 @@ class TestStringifiedDAGs:
             }
         else:  # Promised to be mapped by the assert above.
             assert isinstance(serialized_task, MappedOperator)
-            fields_to_check = {f.name for f in attr.fields(MappedOperator)}
+            fields_to_check = {f.name for f in attrs.fields(MappedOperator)}
             fields_to_check -= {
                 "map_index_template",
                 # Matching logic in BaseOperator.get_serialized_fields().
@@ -707,6 +707,7 @@ class TestStringifiedDAGs:
                 # Checked separately.
                 "operator_class",
                 "partial_kwargs",
+                "expand_input",
             }
 
         fields_to_check |= {"deps"}
@@ -752,6 +753,9 @@ class TestStringifiedDAGs:
             }
             original_partial_kwargs = {**default_partial_kwargs, **task.partial_kwargs}
             assert serialized_partial_kwargs == original_partial_kwargs
+
+            # ExpandInputs have different classes between scheduler and definition
+            assert attrs.asdict(serialized_task.expand_input) == attrs.asdict(task.expand_input)
 
     @pytest.mark.parametrize(
         "dag_start_date, task_start_date, expected_task_start_date",

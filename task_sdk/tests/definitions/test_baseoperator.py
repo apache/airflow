@@ -621,26 +621,3 @@ def test_render_template_fields_logging(
         assert expected_log in caplog.text
     if not_expected_log:
         assert not_expected_log not in caplog.text
-
-
-def test_find_mapped_dependants_in_another_group():
-    from airflow.decorators import task as task_decorator
-    from airflow.sdk import TaskGroup
-
-    @task_decorator
-    def gen(x):
-        return list(range(x))
-
-    @task_decorator
-    def add(x, y):
-        return x + y
-
-    with DAG(dag_id="test"):
-        with TaskGroup(group_id="g1"):
-            gen_result = gen(3)
-        with TaskGroup(group_id="g2"):
-            add_result = add.partial(y=1).expand(x=gen_result)
-
-    # breakpoint()
-    dependants = list(gen_result.operator.iter_mapped_dependants())
-    assert dependants == [add_result.operator]

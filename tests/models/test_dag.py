@@ -150,6 +150,7 @@ def _create_dagrun(
     run_type: DagRunType,
     state: DagRunState = DagRunState.RUNNING,
     start_date: datetime.datetime | None = None,
+    **kwargs,
 ) -> DagRun:
     logical_date = timezone.coerce_datetime(logical_date)
     if not isinstance(data_interval, DataInterval):
@@ -168,6 +169,7 @@ def _create_dagrun(
         state=state,
         start_date=start_date,
         triggered_by=DagRunTriggeredByType.TEST,
+        **kwargs,
     )
 
 
@@ -1536,16 +1538,14 @@ class TestDag:
             PythonOperator.partial(task_id=task_id, python_callable=consumer).expand(op_args=make_arg_lists())
 
         session = dag_maker.session
-        dagrun_1 = dag.create_dagrun(
-            run_id="backfill",
+        dagrun_1 = _create_dagrun(
+            dag,
             run_type=DagRunType.BACKFILL_JOB,
-            state=State.FAILED,
+            state=DagRunState.FAILED,
             start_date=DEFAULT_DATE,
             logical_date=DEFAULT_DATE,
-            session=session,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            run_after=DEFAULT_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
         )
         # Get the (de)serialized MappedOperator
         mapped = dag.get_task(task_id)
@@ -1662,26 +1662,6 @@ class TestDag:
         mock_handle_object_2.assert_called_with("dag test_local_testing_conn_file run failed...")
         mock_task_object_1.assert_called()
         mock_task_object_2.assert_not_called()
-
-    def test_dag_test_with_task_mapping(self):
-        dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        mock_object = mock.MagicMock()
-
-        @task_decorator()
-        def get_index(current_val, ti=None):
-            return ti.map_index
-
-        @task_decorator
-        def check_task(my_input):
-            # we call a mock object with the combined map to ensure all expected indexes are called
-            mock_object(list(my_input))
-
-        with dag:
-            mapped_task = get_index.expand(current_val=[1, 1, 1, 1, 1])
-            check_task(mapped_task)
-
-        dag.test()
-        mock_object.assert_called_with([0, 1, 2, 3, 4])
 
     def test_dag_connection_file(self, tmp_path):
         test_connections_string = """
@@ -2569,35 +2549,6 @@ class TestDagDecorator:
         dag = markdown_docs()
         assert dag.dag_id == "test-dag"
         assert dag.doc_md == raw_content
-
-    def test_dag_param_resolves(self):
-        """Test that dag param is correctly resolved by operator"""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def xcom_pass_to_op(value=self.VALUE):
-            @task_decorator
-            def return_num(num):
-                return num
-
-            xcom_arg = return_num(value)
-            self.operator = xcom_arg.operator
-
-        dag = xcom_pass_to_op()
-
-        dr = dag.create_dagrun(
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-            start_date=timezone.utcnow(),
-            logical_date=self.DEFAULT_DATE,
-            data_interval=(self.DEFAULT_DATE, self.DEFAULT_DATE),
-            run_after=self.DEFAULT_DATE,
-            state=State.RUNNING,
-            triggered_by=DagRunTriggeredByType.TEST,
-        )
-
-        self.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull() == self.VALUE
 
     def test_dag_param_dagrun_parameterized(self):
         """Test that dag param is correctly overwritten when set in dag run"""

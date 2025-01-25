@@ -35,8 +35,10 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
 from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     DeferTask,
@@ -67,6 +69,7 @@ if TYPE_CHECKING:
     import jinja2
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
 
 
@@ -82,6 +85,16 @@ class RuntimeTaskInstance(TaskInstance):
 
     max_tries: int = 0
     """The maximum number of retries for the task."""
+
+    def __rich_repr__(self):
+        yield "id", self.id
+        yield "task_id", self.task_id
+        yield "dag_id", self.dag_id
+        yield "run_id", self.run_id
+        yield "max_tries", self.max_tries
+        yield "task", type(self.task)
+
+    __rich_repr__.angular = True  # type: ignore[attr-defined]
 
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
@@ -123,8 +136,8 @@ class RuntimeTaskInstance(TaskInstance):
             },
             "conn": ConnectionAccessor(),
         }
-        if self._ti_context_from_server:
-            dag_run = self._ti_context_from_server.dag_run
+        if from_server := self._ti_context_from_server:
+            dag_run = from_server.dag_run
 
             logical_date = dag_run.logical_date
             ds = logical_date.strftime("%Y-%m-%d")
@@ -160,6 +173,11 @@ class RuntimeTaskInstance(TaskInstance):
             }
             context.update(context_from_server)
 
+            if from_server.upstream_map_indexes is not None:
+                # We stash this in here for later use, but we purposefully don't want to document it's
+                # existence. Should this be a private attribute on RuntimeTI instead perhaps?
+                context["_upstream_map_indexes"] = from_server.upstream_map_indexes  # type: ignore [typeddict-unknown-key]
+
         return context
 
     def render_templates(
@@ -190,10 +208,7 @@ class RuntimeTaskInstance(TaskInstance):
         # unmapped BaseOperator created by this function! This is because the
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
-        original_task.render_template_fields(context, jinja_env)
-        # TODO: Add support for rendering templates in the MappedOperator
-        # if isinstance(self.task, MappedOperator):
-        #     self.task = context["ti"].task
+        self.task.render_template_fields(context, jinja_env)
 
         return original_task
 
@@ -204,7 +219,7 @@ class RuntimeTaskInstance(TaskInstance):
         key: str = "return_value",  # TODO: Make this a constant (``XCOM_RETURN_KEY``)
         include_prior_dates: bool = False,  # TODO: Add support for this
         *,
-        map_indexes: int | Iterable[int] | None = None,
+        map_index: int | None | ArgNotSet = NOTSET,
         default: Any = None,
         run_id: str | None = None,
     ) -> Any:
@@ -251,9 +266,9 @@ class RuntimeTaskInstance(TaskInstance):
             task_ids = self.task_id
         elif isinstance(task_ids, str):
             task_ids = [task_ids]
-        if map_indexes is None:
-            map_indexes = self.map_index
-        elif isinstance(map_indexes, Iterable):
+        if isinstance(map_index, ArgNotSet):
+            map_index = self.map_index
+        elif isinstance(map_index, Iterable):
             # TODO: Handle multiple map_indexes or remove support
             raise NotImplementedError("Multiple map_indexes are not supported yet")
 
@@ -268,7 +283,7 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     task_id=t,
                     run_id=run_id,
-                    map_index=map_indexes,
+                    map_index=map_index,
                 ),
             )
 
@@ -359,8 +374,10 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
 
     # TODO: Handle task not found
     task = dag.task_dict[what.ti.task_id]
-    if not isinstance(task, BaseOperator):
-        raise TypeError(f"task is of the wrong type, got {type(task)}, wanted {BaseOperator}")
+    if not isinstance(task, (BaseOperator, MappedOperator)):
+        raise TypeError(
+            f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
+        )
 
     return RuntimeTaskInstance.model_construct(
         **what.ti.model_dump(exclude_unset=True),
@@ -431,7 +448,7 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 3. Shutdown and report status
 
 
-def startup() -> tuple[RuntimeTaskInstance, Logger]:
+def startup() -> tuple[RuntimeTaskInstance, Logger, Context]:
     msg = SUPERVISOR_COMMS.get_message()
 
     if isinstance(msg, StartupDetails):
@@ -446,22 +463,13 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
     else:
         raise RuntimeError(f"Unhandled  startup message {type(msg)} {msg}")
 
-    # TODO: Render fields here
-    # 1. Implementing the part where we pull in the logic to render fields and add that here
-    # for all operators, we should do setattr(task, templated_field, rendered_templated_field)
-    # task.templated_fields should give all the templated_fields and each of those fields should
-    # give the rendered values. task.templated_fields should already be in a JSONable format and
-    # we should not have to handle that here.
-
-    # 2. Once rendered, we call the `set_rtif` API to store the rtif in the metadata DB
-
-    # so that we do not call the API unnecessarily
-    if rendered_fields := _get_rendered_fields(ti.task):
-        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
-    return ti, log
+    context = _prepare(ti, log)
+    if not context:
+        raise SystemExit("Pre-execute checks failed")
+    return ti, log, context
 
 
-def _get_rendered_fields(task: BaseOperator) -> dict[str, JsonValue]:
+def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     # TODO: Port one of the following to Task SDK
     #   airflow.serialization.helpers.serialize_template_field or
     #   airflow.models.renderedtifields.get_serialized_template_fields
@@ -500,7 +508,39 @@ def _process_outlets(context: Context, outlets: list[AssetProfile]):
     return task_outlets, outlet_events
 
 
-def run(ti: RuntimeTaskInstance, log: Logger):
+def _prepare(ti: RuntimeTaskInstance, log: Logger) -> Context | None:
+    ti.hostname = get_hostname()
+    ti.task = ti.task.prepare_for_execution()
+    if ti.task.inlets or ti.task.outlets:
+        inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+        outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
+        SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlets=inlets, outlets=outlets), log=log)  # type: ignore
+        ok_response = SUPERVISOR_COMMS.get_message()  # type: ignore
+        if not isinstance(ok_response, OKResponse) or not ok_response.ok:
+            log.info("Runtime checks failed for task, marking task as failed..")
+            msg = TaskState(
+                state=TerminalTIState.FAILED,
+                end_date=datetime.now(tz=timezone.utc),
+            )
+            SUPERVISOR_COMMS.send_request(msg=msg, log=log)
+            return None
+
+    context = ti.get_template_context()
+    with set_current_context(context):
+        jinja_env = ti.task.dag.get_template_env()
+        ti.render_templates(context=context, jinja_env=jinja_env)
+
+        if rendered_fields := _serialize_rendered_fields(ti.task):
+            # so that we do not call the API unnecessarily
+            SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
+
+        # TODO: Call pre execute etc.
+
+    # We need to return the context, as it might have been updated to have the unmapped task in it
+    return context
+
+
+def run(ti: RuntimeTaskInstance, log: Logger, context: Context):
     """Run the task in this process."""
     from airflow.exceptions import (
         AirflowException,
@@ -519,31 +559,10 @@ def run(ti: RuntimeTaskInstance, log: Logger):
 
     msg: ToSupervisor | None = None
     try:
-        # TODO: pre execute etc.
-        # TODO: Get a real context object
-        ti.hostname = get_hostname()
-        ti.task = ti.task.prepare_for_execution()
-        if ti.task.inlets or ti.task.outlets:
-            inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
-            outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
-            SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlets=inlets, outlets=outlets), log=log)  # type: ignore
-            ok_response = SUPERVISOR_COMMS.get_message()  # type: ignore
-            if not isinstance(ok_response, OKResponse) or not ok_response.ok:
-                log.info("Runtime checks failed for task, marking task as failed..")
-                msg = TaskState(
-                    state=TerminalTIState.FAILED,
-                    end_date=datetime.now(tz=timezone.utc),
-                )
-                return
-        context = ti.get_template_context()
         with set_current_context(context):
-            jinja_env = ti.task.dag.get_template_env()
-            ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
-            # TODO: Get things from _execute_task_with_callbacks
-            #   - Pre Execute
-            #   etc
-            result = _execute_task(context, ti.task)
+            result = _execute_task(context, ti)
 
+        log.info("Pushing xcom", ti=ti)
         _push_xcom_if_needed(result, ti)
 
         task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
@@ -622,10 +641,11 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             SUPERVISOR_COMMS.send_request(msg=msg, log=log)
 
 
-def _execute_task(context: Context, task: BaseOperator):
+def _execute_task(context: Context, ti: RuntimeTaskInstance):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
 
+    task = ti.task
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral
         from airflow.utils.timeout import timeout
@@ -700,8 +720,8 @@ def main():
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
     try:
-        ti, log = startup()
-        run(ti, log)
+        ti, log, context = startup()
+        run(ti, log, context)
         finalize(log)
     except KeyboardInterrupt:
         log = structlog.get_logger(logger_name="task")

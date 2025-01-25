@@ -17,10 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
-import copy
-from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import attrs
 
@@ -51,49 +48,6 @@ if TYPE_CHECKING:
 class MappedOperator(TaskSDKMappedOperator, AbstractOperator):  # type: ignore[misc] # It complains about weight_rule being different
     """Object representing a mapped operator in a DAG."""
 
-    def _expand_mapped_kwargs(
-        self, context: Mapping[str, Any], session: Session, *, include_xcom: bool
-    ) -> tuple[Mapping[str, Any], set[int]]:
-        """
-        Get the kwargs to create the unmapped operator.
-
-        This exists because taskflow operators expand against op_kwargs, not the
-        entire operator kwargs dict.
-        """
-        return self._get_specified_expand_input().resolve(context, session, include_xcom=include_xcom)
-
-    def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
-        """
-        Get init kwargs to unmap the underlying operator class.
-
-        :param mapped_kwargs: The dict returned by ``_expand_mapped_kwargs``.
-        """
-        if strict:
-            prevent_duplicates(
-                self.partial_kwargs,
-                mapped_kwargs,
-                fail_reason="unmappable or already specified",
-            )
-
-        # If params appears in the mapped kwargs, we need to merge it into the
-        # partial params, overriding existing keys.
-        params = copy.copy(self.params)
-        with contextlib.suppress(KeyError):
-            params.update(mapped_kwargs["params"])
-
-        # Ordering is significant; mapped kwargs should override partial ones,
-        # and the specially handled params should be respected.
-        return {
-            "task_id": self.task_id,
-            "dag": self.dag,
-            "task_group": self.task_group,
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-            **self.partial_kwargs,
-            **mapped_kwargs,
-            "params": params,
-        }
-
     def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
         """
         Get the start_from_trigger value of the current abstract operator.
@@ -107,7 +61,7 @@ class MappedOperator(TaskSDKMappedOperator, AbstractOperator):  # type: ignore[m
         if not self.start_trigger_args:
             return False
 
-        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context)
         if self._disallow_kwargs_override:
             prevent_duplicates(
                 self.partial_kwargs,
@@ -129,7 +83,7 @@ class MappedOperator(TaskSDKMappedOperator, AbstractOperator):  # type: ignore[m
         if not self.start_trigger_args:
             return None
 
-        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context)
         if self._disallow_kwargs_override:
             prevent_duplicates(
                 self.partial_kwargs,

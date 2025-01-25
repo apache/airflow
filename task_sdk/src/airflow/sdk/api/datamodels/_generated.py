@@ -239,7 +239,7 @@ class TaskInstance(BaseModel):
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     try_number: Annotated[int, Field(title="Try Number")]
-    map_index: Annotated[int, Field(title="Map Index")] = -1
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
     hostname: Annotated[str | None, Field(title="Hostname")] = None
 
 
@@ -273,6 +273,7 @@ class TIRunContext(BaseModel):
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
+    upstream_map_indexes: Annotated[dict[str, int] | None, Field(title="Upstream Max Indexes")] = None
 
 
 class TITerminalStatePayload(BaseModel):

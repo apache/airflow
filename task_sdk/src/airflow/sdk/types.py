@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol, Union
 
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import datetime
@@ -54,7 +56,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     dag_id: str
     run_id: str
     try_number: int
-    map_index: int
+    map_index: int | None
     max_tries: int
     hostname: str | None = None
 
@@ -66,7 +68,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
         # TODO: `include_prior_dates` isn't yet supported in the SDK
         # include_prior_dates: bool = False,
         *,
-        map_indexes: int | list[int] | None = None,
+        map_index: int | None | ArgNotSet = NOTSET,
         default: Any = None,
         run_id: str | None = None,
     ) -> Any: ...
