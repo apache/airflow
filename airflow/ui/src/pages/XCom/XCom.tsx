@@ -83,9 +83,10 @@ export const XCom = () => {
         isLoading={isLoading}
         modelName="XCom"
         onStateChange={setTableURLState}
-        skeletonCount={undefined}
+        skeletonCount={5}  // Adjust skeleton count based on expected number of rows
         total={data ? data.total_entries : 0}
       />
     </Box>
   );
 };
+

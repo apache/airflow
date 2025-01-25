@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, HStack, Text } from "@chakra-ui/react";
-
+import { Skeleton, HStack, Text, useToast } from "@chakra-ui/react";
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
 import type { XComResponseString } from "openapi/requests/types.gen";
 import { ClipboardIconButton, ClipboardRoot } from "src/components/ui";
@@ -31,7 +30,7 @@ type XComEntryProps = {
 };
 
 export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntryProps) => {
-  const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseString>({
+  const { data, error, isLoading } = useXcomServiceGetXcomEntry<XComResponseString>({
     dagId,
     dagRunId: runId,
     mapIndex,
@@ -40,21 +39,37 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
     xcomKey,
   });
 
-  return isLoading ? (
-    <Skeleton
-      data-testid="skeleton"
-      display="inline-block"
-      height="10px"
-      width={200} // TODO: Make Skeleton take style from column definition
-    />
-  ) : (data?.value?.length ?? 0) > 0 ? (
+  const toast = useToast();
+
+  if (isLoading) {
+    return (
+      <Skeleton data-testid="skeleton" display="inline-block" height="10px" width={200} />
+    );
+  }
+
+  if (error) {
+    return <Text color="red.500">Error: {error.message}</Text>;
+  }
+
+  const handleCopy = () => {
+    toast({
+      title: "Copied to clipboard",
+      description: "XCom value has been copied.",
+      status: "success",
+      duration: 2000,
+      isClosable: true,
+    });
+  };
+
+  return data?.value?.length ? (
     <HStack>
       <Text>{data?.value}</Text>
-      {Boolean(data?.value) ? (
-        <ClipboardRoot value={data?.value ?? ""}>
-          <ClipboardIconButton />
-        </ClipboardRoot>
-      ) : undefined}
+      <ClipboardRoot value={data?.value ?? ""}>
+        <ClipboardIconButton onClick={handleCopy} />
+      </ClipboardRoot>
     </HStack>
-  ) : undefined;
+  ) : (
+    <Text>No XCom data available</Text>
+  );
 };
+
