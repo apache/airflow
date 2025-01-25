@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,30 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from datetime import datetime
-
-from airflow.api_fastapi.core_api.base import BaseModel
-
-
-class JobResponse(BaseModel):
-    """Job serializer for responses."""
-
-    id: int
-    dag_id: str | None
-    state: str | None
-    job_type: str | None
-    start_date: datetime | None
-    end_date: datetime | None
-    latest_heartbeat: datetime | None
-    executor_class: str | None
-    hostname: str | None
-    unixname: str | None
+from airflow.cli.api.cli_api_client import Credentials
+from airflow.utils import cli as cli_utils
 
 
-class JobCollectionResponse(BaseModel):
-    """Job Collection Response."""
+@cli_utils.action_cli
+def login(args) -> None:
+    """Login to a provider."""
+    Credentials(api_url=args.api_url).save()
 
-    jobs: list[JobResponse]
-    total_entries: int
+
+@cli_utils.action_cli
+def configure(args) -> None:
+    """Configure authentication."""
+    Credentials(api_url=args.api_url, api_token=args.api_token).save()
