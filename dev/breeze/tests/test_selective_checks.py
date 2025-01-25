@@ -253,7 +253,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/src/airflow/providers/standard/operators/python.py",),
+                ("providers/standard/src/airflow/providers/standard/operators/python.py",),
                 {
                     "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
@@ -823,7 +823,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Only Always and common providers tests should run when only common.io and tests/always changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/standard/operators/bash.py",),
+            ("providers/standard/src/airflow/providers/standard/operators/bash.py",),
             {
                 "selected-providers-list-as-string": "common.compat standard",
                 "all-python-versions": "['3.9']",
@@ -848,7 +848,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers standard tests and Serialization tests to run when airflow bash.py changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/standard/operators/bash.py",),
+            ("providers/standard/src/airflow/providers/standard/operators/bash.py",),
             {
                 "selected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",
@@ -1946,7 +1946,7 @@ def test_upgrade_to_newer_dependencies(
             id="Google provider docs changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/common/sql/common_sql_python.py",),
+            ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
                 "docs-list-as-string": "amazon apache.drill apache.druid apache.hive "
                 "apache.impala apache.pinot common.sql databricks elasticsearch "

@@ -180,14 +180,6 @@ repos:
         additional_dependencies: ['rich>=12.4.4', "ruff==0.8.1"]
         files: ^providers/src/airflow/providers/.*\.py$
         require_serial: true
-      - id: update-common-sql-api-stubs
-        name: Check and update common.sql API stubs
-        entry: ./scripts/ci/pre_commit/update_common_sql_api_stubs.py
-        language: python
-        files: ^scripts/ci/pre_commit/update_common_sql_api\.py|^providers/src/airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.9.0', 'black==24.10.0', 'jinja2']
-        pass_filenames: false
-        require_serial: true
       - id: update-black-version
         name: Update black versions everywhere (manual)
         entry: ./scripts/ci/pre_commit/update_black_version.py
@@ -475,9 +467,7 @@ repos:
         language: python
         files: |
           (?x)
-          ^providers/src/airflow/providers/.*\.py$ |
-          ^providers/src/airflow/providers/.*/provider\.yaml$ |
-          ^providers/tests/.*\.py$ |
+          ^providers/.*/provider\.yaml$|
           ^scripts/ci/pre_commit/update_providers_dependencies\.py$
         pass_filenames: false
         additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml', 'tomli']
@@ -517,6 +507,14 @@ repos:
         files: ^docs/.*/diagram_[^/]*\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4', "diagrams>=0.23.4"]
+      - id: generate-volumes-for-sources
+        name: Generate volumes for docker compose
+        entry: ./scripts/ci/pre_commit/generate_volumes_for_sources.py
+        language: python
+        files: ^providers/.*/provider.yaml$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-supported-versions
         name: Updates supported versions in documentation
         entry: ./scripts/ci/pre_commit/supported_versions.py
@@ -623,6 +621,8 @@ repos:
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
+          ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute.py$|
+          ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/src/airflow/providers/amazon/aws/hooks/emr.py$|
           ^providers/src/airflow/providers/amazon/aws/operators/emr.py$|
           ^providers/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
@@ -672,8 +672,11 @@ repos:
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint.sh$|
           ^tests/|
           ^providers/tests/|
+          ^providers/.*/tests/|
           ^.pre-commit-config\.yaml$|
           ^.*CHANGELOG\.(rst|txt)$|
+          ^.*changelog\.(rst|txt)$|
+          ^.*commits\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
           ^contributing-docs/03_contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
@@ -724,6 +727,8 @@ repos:
           ^airflow/operators/.*$|
           ^providers/src/airflow/providers/.*$|
           ^providers/src/airflow/providers/standard/sensors/.*$|
+          ^providers/.*/src/airflow/providers/.*$|
+          ^providers/.*/src/airflow/providers/standard/sensors/.*$|
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
@@ -733,8 +738,9 @@ repos:
         pass_filenames: true
         files: >
           (?x)
-          ^providers/src/airflow/providers/.*\.py$
-        exclude: providers/src/airflow/providers/standard/operators/bash.py|providers/src/airflow/providers/standard/operators/python.py|providers/src/airflow/providers/standard/sensors/external_task.py
+          ^providers/src/airflow/providers/.*\.py$|
+          ^providers/.*/src/airflow/providers/.*\.py$
+        exclude: providers/standard/.*/.*\.py$
       - id: check-get-lineage-collector-providers
         language: python
         name: Check providers import hook lineage code from compat
@@ -1205,10 +1211,12 @@ repos:
           ^airflow/utils/file.py$ |
           ^airflow/utils/helpers.py$ |
           ^airflow/utils/log/secrets_masker.py$ |
-          ^providers/src/airflow/providers/ |
-          ^(providers/)?tests/ |
-          task_sdk/src/airflow/sdk/definitions/dag.py$ |
-          task_sdk/src/airflow/sdk/definitions/_internal/node.py$ |
+          ^providers/ |
+          ^tests/ |
+          ^providers/tests/ |
+          ^providers/.*/tests/ |
+          ^task_sdk/src/airflow/sdk/definitions/dag.py$ |
+          ^task_sdk/src/airflow/sdk/definitions/_internal/node.py$ |
           ^dev/.*\.py$ |
           ^scripts/.*\.py$ |
           ^docker_tests/.*$ |
@@ -1343,7 +1351,7 @@ repos:
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
-        files: ^providers/src/airflow/providers/.*\.py$|^providers/tests//.*\.py$|^providers/.*/src/.*\.py$|^providers/.*/tests/.*\.py$
+        files: ^providers/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
@@ -1392,7 +1400,7 @@ repos:
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/check_provider_yaml_files.py
         language: python
-        files: ^providers/src/airflow/providers/.*/provider\.yaml$|^providers/.*/src/provider\.yaml$
+        files: ^providers/.*/provider\.yaml$
         additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: check-template-fields-valid
