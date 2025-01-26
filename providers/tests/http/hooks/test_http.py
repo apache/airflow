@@ -40,6 +40,8 @@ from airflow.models import Connection
 from airflow.providers import http
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+
 DEFAULT_HEADERS_AS_STRING = '{\r\n "Content-Type": "application/json",\r\n  "X-Requested-By": "Airflow"\r\n}'
 DEFAULT_HEADERS = json.loads(DEFAULT_HEADERS_AS_STRING)
 
@@ -723,6 +725,7 @@ class TestHttpHook:
                 session.adapters["https://"], type(custom_adapter)
             ), "Custom HTTPS adapter not correctly mounted"
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Lambda parameters works in Airflow >= 2.10.0")
     def test_airflow_dependency_version(self):
         if airflow_dependency_version() >= packaging.version.parse("2.10.0"):
             raise RuntimeError(
