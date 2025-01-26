@@ -636,6 +636,7 @@ dev = [
   "apache-airflow-providers-common-compat",
   "apache-airflow-providers-common-io",
   "apache-airflow-providers-common-sql",
+  "apache-airflow-providers-docker",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-discord",
   "apache-airflow-providers-edge",
@@ -698,6 +699,7 @@ apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
+apache-airflow-providers-docker = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
 apache-airflow-providers-exasol = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
@@ -756,6 +758,7 @@ members = [
     "providers/common/sql",
     "providers/datadog",
     "providers/discord",
+    "providers/docker",
     "providers/edge",
     "providers/exasol",
     "providers/facebook",
