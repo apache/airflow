@@ -341,7 +341,6 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/tests/apache/beam/file.py",),
                 {
                     "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": "['3.9']",
@@ -371,7 +370,6 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/tests/system/apache/beam/file.py",),
                 {
                     "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": "['3.9']",
@@ -402,7 +400,6 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/tests/system/apache/beam/file.py", "providers/tests/apache/beam/file.py"),
                 {
                     "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": "['3.9']",
@@ -433,12 +430,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                (
-                    "providers/tests/system/zendesk/file.py",
-                    "providers/tests/zendesk/file.py",
-                ),
                 {
-                    "selected-providers-list-as-string": "common.compat google zendesk",
+                    "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -456,8 +449,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[common.compat,zendesk] Providers[google]",
-                    "individual-providers-test-types-list-as-string": "Providers[common.compat] Providers[google] Providers[zendesk]",
+                    "providers-test-types-list-as-string": "Providers[common.compat] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[common.compat] Providers[google]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
@@ -1613,7 +1606,7 @@ def test_expected_output_push(
                 "providers/tests/google/file.py",
             ),
             {
-                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra "
+                "selected-providers-list-as-string": "amazon apache.cassandra "
                 "cncf.kubernetes common.compat common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh trino",
@@ -1626,7 +1619,7 @@ def test_expected_output_push(
                 "skip-providers-tests": "false",
                 "test-groups": "['core', 'providers']",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
+                "docs-list-as-string": "apache-airflow helm-chart amazon apache.cassandra "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
@@ -1634,7 +1627,7 @@ def test_expected_output_push(
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always CLI",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.compat,common.sql,facebook,"
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.cassandra,cncf.kubernetes,common.compat,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
                 "salesforce,samba,sftp,ssh,trino] Providers[google]",
                 "needs-mypy": "true",
@@ -1936,7 +1929,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("docs/apache-airflow-providers-google/docs.rst",),
             {
-                "docs-list-as-string": "amazon apache.beam apache.cassandra "
+                "docs-list-as-string": "amazon apache.cassandra "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh trino",
