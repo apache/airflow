@@ -204,6 +204,14 @@ option_parallelism_cluster = click.option(
     envvar="PARALLELISM",
     show_default=True,
 )
+option_num_retries = click.option(
+    "--num-retries",
+    help="Number of times to retry the complete test run in case of failure.",
+    default=2,
+    type=click.IntRange(0),
+    envvar="NUM_RETRIES",
+    show_default=True,
+)
 option_all = click.option("--all", help="Apply it to all created clusters", is_flag=True, envvar="ALL")
 
 K8S_CLUSTER_CREATE_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*|.*Connecting to localhost.*"
@@ -1676,12 +1684,7 @@ def _run_complete_tests(
 @option_use_uv
 @option_verbose
 @option_wait_time_in_seconds
-@click.option(
-    "--num-retries",
-    default=2,
-    show_default=True,
-    help="Number of times to retry the complete test run in case of failure.",
-)
+@option_num_retries
 @click.argument("test_args", nargs=-1, type=click.Path())
 def run_complete_tests(
     copy_local_sources: bool,
