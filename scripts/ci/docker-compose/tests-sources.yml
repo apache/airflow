@@ -45,6 +45,7 @@ services:
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
+      - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
