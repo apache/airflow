@@ -154,10 +154,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/cncf/kubernetes/**/*
 
   provider:cohere:
-    - providers/src/airflow/providers/cohere/**/*
-    - docs/apache-airflow-providers-cohere/**/*
-    - providers/tests/cohere/**/*
-    - providers/tests/system/cohere/**/*
+    - providers/cohere/**
 
   provider:common-compat:
     - providers/src/airflow/providers/common/compat/**/*
