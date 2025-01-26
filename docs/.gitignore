@@ -12,3 +12,4 @@ apache-airflow-providers-openlineage
 apache-airflow-providers-pinecone
 apache-airflow-providers-standard
 apache-airflow-providers-weaviate
+apache-airflow-providers-zendesk
