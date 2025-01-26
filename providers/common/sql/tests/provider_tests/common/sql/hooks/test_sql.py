@@ -265,7 +265,7 @@ class TestDbApiHook:
 
     @pytest.mark.db_test
     def test_escape_column_names(self):
-        dbapi_hook = mock_hook(DbApiHook)
+        dbapi_hook = mock_db_hook(DbApiHook)
         assert not dbapi_hook.escape_column_names
 
     @pytest.mark.db_test
