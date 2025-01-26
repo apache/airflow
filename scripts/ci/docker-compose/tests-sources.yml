@@ -46,7 +46,9 @@ services:
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
+      - ../../../providers/pgvector/tests:/opt/airflow/providers/pgvector/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
+      - ../../../providers/postgres/tests:/opt/airflow/providers/postgres/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
       - ../../../providers/telegram/tests:/opt/airflow/providers/telegram/tests
       - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests

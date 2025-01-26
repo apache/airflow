@@ -17,9 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from pgvector.psycopg2 import register_vector
-
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from pgvector.psycopg2 import register_vector
 
 
 class PgVectorIngestOperator(SQLExecuteQueryOperator):

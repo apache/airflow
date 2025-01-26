@@ -39,7 +39,9 @@ services:
       - ../../../empty:/opt/airflow/providers/cohere/src
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/edge/src
+      - ../../../empty:/opt/airflow/providers/pgvector/src
       - ../../../empty:/opt/airflow/providers/pinecone/src
+      - ../../../empty:/opt/airflow/providers/postgres/src
       - ../../../empty:/opt/airflow/providers/standard/src
       - ../../../empty:/opt/airflow/providers/telegram/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
