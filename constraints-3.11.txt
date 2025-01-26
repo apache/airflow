@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-26T13:56:20.796524
+# This constraints file was automatically generated on 2025-01-26T19:58:32.131661
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -177,7 +177,6 @@ apache-airflow-providers-trino==6.0.0
 apache-airflow-providers-vertica==4.0.0
 apache-airflow-providers-yandex==4.0.0
 apache-airflow-providers-ydb==2.1.0
-apache-airflow-providers-zendesk==4.9.0
 apache-beam==2.59.0
 apispec==6.8.1
 apprise==1.9.2
@@ -360,7 +359,7 @@ google-crc32c==1.6.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
 googleapis-common-protos==1.66.0
-graphql-core==3.2.5
+graphql-core==3.2.6
 graphviz==0.20.3
 greenlet==3.1.1
 grpc-google-iam-v1==0.14.0
@@ -728,7 +727,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.5.23
+uv==0.5.24
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
