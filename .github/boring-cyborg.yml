@@ -316,10 +316,7 @@ labelPRBasedOnFilePath:
     - providers/tests/mongo/**/*
 
   provider:mysql:
-    - providers/src/airflow/providers/mysql/**/*
-    - docs/apache-airflow-providers-mysql/**/*
-    - providers/tests/mysql/**/*
-    - providers/tests/system/mysql/**/*
+    - providers/mysql/**
 
   provider:neo4j:
     - providers/src/airflow/providers/neo4j/**/*
