@@ -699,7 +699,6 @@ class TestSparkKubernetesOperator:
             follow_logs=True,
         )
 
-
     def test_find_custom_pod_labels(
         self,
         mock_create_namespaced_crd,
