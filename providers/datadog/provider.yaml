@@ -47,14 +47,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - datadog>=0.14.0
-
 integrations:
   - integration-name: Datadog
     external-doc-url: https://www.datadoghq.com/
-    logo: /integration-logos/datadog/datadog.png
+    logo: /docs/integration-logos/datadog.png
     tags: [service]
 
 sensors:
