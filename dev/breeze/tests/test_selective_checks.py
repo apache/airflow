@@ -313,7 +313,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ),
                 {
                     "selected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
-                    "pgvector postgres",
+                    "pgvector",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -533,8 +533,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/tests/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon common.sql google openlineage "
-                    "pgvector postgres",
+                    "selected-providers-list-as-string": "amazon common.sql google openlineage pgvector",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
