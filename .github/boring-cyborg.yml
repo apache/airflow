@@ -423,9 +423,7 @@ labelPRBasedOnFilePath:
     - providers/segment/**
 
   provider:sendgrid:
-    - providers/segment/src/airflow/providers/segment/**/*
-    - docs/apache-airflow-providers-segment/**/*
-    - providers/segment/tests/provider_tests/segment/**/*
+    - providers/segment/**
 
   provider:sftp:
     - providers/src/airflow/providers/sftp/**/*
