@@ -342,6 +342,10 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TC001"]
 
+# The FastAPI models are not parsed well with Pydantic when __future__.annotations is used
+# It is forcing for Union to replace with `|` pipe instead
+"airflow/api_fastapi/core_api/datamodels/common.py" = ["UP007"]
+
 # Provider's get_provider_info.py files are generated and do not need "from __future__ import annotations"
 "providers/**/get_provider_info.py" = ["I002"]
 
@@ -621,10 +625,14 @@ dev = [
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-pgvector",
   "apache-airflow-providers-pinecone",
+  "apache-airflow-providers-postgres",
   "apache-airflow-providers-ssh",
   "apache-airflow-providers-standard",
+  "apache-airflow-providers-telegram",
   "apache-airflow-providers-weaviate",
+  "apache-airflow-providers-zendesk",
   "apache-airflow-task-sdk",
 ]
 
@@ -640,9 +648,13 @@ apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
 apache-airflow-providers-pinecone = { workspace = true }
+apache-airflow-providers-postgres = { workspace = true }
+apache-airflow-providers-pgvector = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
+apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
+apache-airflow-providers-zendesk = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 
 [tool.uv.workspace]
@@ -656,8 +668,12 @@ members = [
     "providers/common/sql",
     "providers/edge",
     "providers/pinecone",
+    "providers/postgres",
+    "providers/pgvector",
     "providers/ssh",
     "providers/standard",
+    "providers/telegram",
     "providers/weaviate",
+    "providers/zendesk",
     "task_sdk",
 ]

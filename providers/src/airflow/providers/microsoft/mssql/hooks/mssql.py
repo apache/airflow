@@ -55,7 +55,7 @@ class MsSqlHook(DbApiHook):
         sqlalchemy_scheme: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **{**kwargs, **{"escape_word_format": "[{}]"}})
         self.schema = kwargs.pop("schema", None)
         self._sqlalchemy_scheme = sqlalchemy_scheme
 
