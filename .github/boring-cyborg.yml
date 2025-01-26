@@ -366,9 +366,7 @@ labelPRBasedOnFilePath:
     - providers/tests/oracle/**/*
 
   provider:pagerduty:
-    - providers/src/airflow/providers/pagerduty/**/*
-    - docs/apache-airflow-providers-pagerduty/**/*
-    - providers/tests/pagerduty/**/*
+    - providers/pagerduty/**
 
   provider:papermill:
     - providers/src/airflow/providers/papermill/**/*

@@ -621,6 +621,7 @@ dev = [
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-pagerduty",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-standard",
   "apache-airflow-providers-weaviate",
@@ -639,6 +640,7 @@ apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
@@ -655,6 +657,7 @@ members = [
     "providers/cohere",
     "providers/common/sql",
     "providers/edge",
+    "providers/pagerduty",
     "providers/pinecone",
     "providers/standard",
     "providers/weaviate",

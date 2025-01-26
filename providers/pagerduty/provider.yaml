@@ -51,14 +51,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - pdpyras>=4.2.0
-
 integrations:
   - integration-name: Pagerduty
     external-doc-url: https://www.pagerduty.com/
-    logo: /integration-logos/pagerduty/PagerDuty.png
+    logo: /docs/integration-logos/PagerDuty.png
     tags: [service]
 
 connection-types:
