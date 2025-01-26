@@ -264,10 +264,12 @@ def _run_raw_task(
                 inlets = [
                     AssetProfile(name=x.name or None, uri=x.uri or None, asset_type=type(x).__name__)
                     for x in ti.task.inlets
+                    if isinstance(x, Asset)
                 ]
                 outlets = [
                     AssetProfile(name=x.name or None, uri=x.uri or None, asset_type=type(x).__name__)
                     for x in ti.task.outlets
+                    if isinstance(x, Asset)
                 ]
                 TaskInstance.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
             if not mark_success:
@@ -3734,7 +3736,6 @@ class TaskInstance(Base, LoggingMixin):
         all_asset_unique_keys = {
             AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
             for inlet_or_outlet in itertools.chain(inlets, outlets)
-            if inlet_or_outlet.asset_type == Asset.__name__
         }
         inactive_asset_unique_keys = TaskInstance._get_inactive_asset_unique_keys(
             all_asset_unique_keys, session

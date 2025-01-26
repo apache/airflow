@@ -49,6 +49,7 @@ from airflow.sdk.execution_time.comms import (
     GetXCom,
     OKResponse,
     PrevSuccessfulDagRunResult,
+    RuntimeCheckOnTask,
     SetRenderedFields,
     StartupDetails,
     SucceedTask,
@@ -676,14 +677,17 @@ def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
 
     run(ti, log=mock.MagicMock())
 
-    assert mock_supervisor_comms.send_request.call_args_list[0].kwargs["msg"].inlet == [
-        AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
-        AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
-    ]
-    assert mock_supervisor_comms.send_request.call_args_list[0].kwargs["msg"].outlet == [
-        AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
-        AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
-    ]
+    expected = RuntimeCheckOnTask(
+        inlet=[
+            AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
+            AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+        ],
+        outlet=[
+            AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
+            AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+        ],
+    )
+    mock_supervisor_comms.send_request.assert_called_with(msg=expected, log=mock.ANY)
 
 
 class TestRuntimeTaskInstance:
