@@ -125,10 +125,7 @@ labelPRBasedOnFilePath:
     - providers/tests/arangodb/**/*
 
   provider:asana:
-    - providers/src/airflow/providers/asana/**/*
-    - docs/apache-airflow-providers-asana/**/*
-    - providers/tests/asana/**/*
-    - providers/tests/system/asana/**/*
+    - providers/asana/**
 
   provider:atlassian-jira:
     - providers/src/airflow/providers/atlassian/jira/**/*
