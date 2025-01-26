@@ -838,7 +838,7 @@ class TestScheduler:
             "CeleryExecutor",
             "KubernetesExecutor",
             "CeleryKubernetesExecutor",
-            "CeleryExecutor,KubernetesExecutor"
+            "CeleryExecutor,KubernetesExecutor",
         ],
     )
     def test_scheduler_deployment_has_executor_label(self, executor):
