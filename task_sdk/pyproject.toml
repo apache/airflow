@@ -30,7 +30,6 @@ dependencies = [
     "psutil>=6.1.0",
     "structlog>=24.4.0",
     "retryhttp>=1.2.0",
-    "orjson>=3.10.11",
     "msgspec>=0.19.0",
 ]
 classifiers = [
