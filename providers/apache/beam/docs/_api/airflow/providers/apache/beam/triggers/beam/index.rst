@@ -54,7 +54,7 @@ Classes
    :param variables: Variables passed to the pipeline.
    :param py_file: Path to the python file to execute.
    :param py_options: Additional options.
-   :param py_interpreter: Python version of the Apache Beam pipeline. If `None`, this defaults to the
+   :param py_interpreter: Python version of the Apache Beam pipeline. If ``None``, this defaults to the
        python3. To track python versions supported by beam and related issues
        check: https://issues.apache.org/jira/browse/BEAM-1251
    :param py_requirements: Additional python package(s) to install.

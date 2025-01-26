@@ -63,13 +63,6 @@ versions:
   - 1.0.1
   - 1.0.0
 
-# Apache Beam currently does not support Python 3.12
-# There is an issue tracking it https://github.com/apache/beam/issues/29149.
-# While the original issue above is closed, Apache Beam still does not support Python 3.12
-# because the dill version used by them break our PythonVirtualenvOperator when dill is enabled
-# See https://github.com/apache/beam/issues/32617
-excluded-python-versions: ['3.12']
-
 integrations:
   - integration-name: Apache Beam
     external-doc-url: https://beam.apache.org/

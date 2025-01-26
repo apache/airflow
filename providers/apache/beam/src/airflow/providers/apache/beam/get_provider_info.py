@@ -67,7 +67,6 @@ def get_provider_info():
             "1.0.1",
             "1.0.0",
         ],
-        "excluded-python-versions": ["3.12"],
         "integrations": [
             {
                 "integration-name": "Apache Beam",
