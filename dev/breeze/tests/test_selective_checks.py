@@ -436,11 +436,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "providers/tests/system/apache/beam/file.py",
                     "providers/tests/apache/beam/file.py",
-                    "providers/tests/system/zendesk/file.py",
-                    "providers/tests/zendesk/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google zendesk",
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -458,8 +456,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat,zendesk] Providers[google]",
-                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google] Providers[zendesk]",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
