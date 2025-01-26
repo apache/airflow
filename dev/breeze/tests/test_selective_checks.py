@@ -253,7 +253,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/src/airflow/providers/standard/operators/python.py",),
+                ("providers/standard/src/airflow/providers/standard/operators/python.py",),
                 {
                     "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
@@ -436,11 +436,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "providers/tests/system/apache/beam/file.py",
                     "providers/tests/apache/beam/file.py",
-                    "providers/tests/system/zendesk/file.py",
-                    "providers/tests/zendesk/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google zendesk",
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -458,8 +456,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat,zendesk] Providers[google]",
-                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google] Providers[zendesk]",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
@@ -823,7 +821,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Only Always and common providers tests should run when only common.io and tests/always changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/standard/operators/bash.py",),
+            ("providers/standard/src/airflow/providers/standard/operators/bash.py",),
             {
                 "selected-providers-list-as-string": "common.compat standard",
                 "all-python-versions": "['3.9']",
@@ -848,7 +846,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers standard tests and Serialization tests to run when airflow bash.py changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/standard/operators/bash.py",),
+            ("providers/standard/src/airflow/providers/standard/operators/bash.py",),
             {
                 "selected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",
@@ -1946,7 +1944,7 @@ def test_upgrade_to_newer_dependencies(
             id="Google provider docs changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/common/sql/common_sql_python.py",),
+            ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
                 "docs-list-as-string": "amazon apache.drill apache.druid apache.hive "
                 "apache.impala apache.pinot common.sql databricks elasticsearch "
