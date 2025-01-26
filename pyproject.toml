@@ -621,6 +621,7 @@ dev = [
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-pinecone",
   "apache-airflow-providers-standard",
   "apache-airflow-task-sdk",
 ]
@@ -636,6 +637,7 @@ apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 
@@ -649,6 +651,7 @@ members = [
     "providers/cohere",
     "providers/common/sql",
     "providers/edge",
+    "providers/pinecone",
     "providers/standard",
     "task_sdk",
 ]

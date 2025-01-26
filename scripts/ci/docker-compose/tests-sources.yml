@@ -46,6 +46,7 @@ services:
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
+      - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
       # END automatically generated volumes by generate-volumes-for-sources pre-commit
       # and entrypoint and in_container scripts for testing
