@@ -94,6 +94,7 @@ class TestSalesforceHook:
             session=None,
             client_id=extras["client_id"],
             consumer_key=None,
+            consumer_secret=None,
             privatekey_file=None,
             privatekey=None,
         )
@@ -146,6 +147,7 @@ class TestSalesforceHook:
             session=self.salesforce_hook.session,
             client_id=extras["client_id"],
             consumer_key=None,
+            consumer_secret=None,
             privatekey_file=None,
             privatekey=None,
         )
@@ -242,6 +244,7 @@ class TestSalesforceHook:
             session=None,
             client_id=None,
             consumer_key=None,
+            consumer_secret=None,
             privatekey_file=None,
             privatekey=None,
         )
@@ -484,6 +487,7 @@ class TestSalesforceHook:
             mock_client.assert_called_with(
                 client_id=None,
                 consumer_key=None,
+                consumer_secret=None,
                 domain="domain",
                 instance=None,
                 instance_url=None,
@@ -513,6 +517,7 @@ class TestSalesforceHook:
             mock_client.assert_called_with(
                 client_id=None,
                 consumer_key=None,
+                consumer_secret=None,
                 domain=None,
                 instance=None,
                 instance_url=None,
