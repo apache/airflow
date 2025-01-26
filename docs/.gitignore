@@ -10,6 +10,7 @@ apache-airflow-providers-edge
 apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
 apache-airflow-providers-postgres
+apache-airflow-providers-ssh
 apache-airflow-providers-standard
 apache-airflow-providers-telegram
 apache-airflow-providers-weaviate
