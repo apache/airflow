@@ -25,8 +25,8 @@ import os
 from http import HTTPStatus
 from unittest import mock
 
-import packaging.version
 import aiohttp
+import packaging.version
 import pytest
 import requests
 import tenacity
