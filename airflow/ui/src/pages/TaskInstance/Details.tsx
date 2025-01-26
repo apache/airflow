@@ -29,6 +29,9 @@ import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
+import { ExtraLinks } from "./ExtraLinks";
+import { TriggererInfo } from "./TriggererInfo";
+
 export const Details = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -82,6 +85,8 @@ export const Details = () => {
           taskInstance={taskInstance}
         />
       )}
+      <ExtraLinks />
+      {taskInstance?.state === "deferred" && <TriggererInfo taskInstance={taskInstance} />}
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
