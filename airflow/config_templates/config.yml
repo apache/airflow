@@ -2625,10 +2625,13 @@ sensors:
       type: float
       example: ~
       default: "604800"
-dag_bundles:
+dag_processor:
   description: |
-    Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
-
+    Configuration for the Airflow DAG processor. This includes, for example:
+      - DAG bundles, which allows Airflow to load DAGs from different sources
+      - Parsing configuration, like:
+         - how often to refresh DAGs from those sources
+         - how many files to parse concurrently
   options:
     dag_bundle_storage_path:
       description: |
@@ -2640,11 +2643,11 @@ dag_bundles:
       example: "/tmp/some-place"
       default: ~
 
-    config_list:
+    dag_bundle_config_list:
       description: |
         List of backend configs.  Must supply name, classpath, and kwargs for each backend.
 
-        By default, ``refresh_interval`` is set to ``[dag_bundles] refresh_interval``, but that can
+        By default, ``refresh_interval`` is set to ``[dag_processor] refresh_interval``, but that can
         also be overridden in kwargs if desired.
 
         The default is the dags folder dag bundle.

@@ -48,6 +48,11 @@ Consumer Key (optional)
 
     Use for OAuth 2.0 JWT authentication.
 
+Consumer Secret (optional)
+    the consumer secret generated for the user.
+
+    Use for OAuth 2.0 JWT authentication.
+
 Private Key (optional)
     The private key to use for signing the JWT. Provide this or a Private Key File Path (both are not necessary).
 

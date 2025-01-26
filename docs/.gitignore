@@ -1,6 +1,12 @@
 # TODO(potiuk): change it to apache-airflow-providers-* after all providers are migrated to the new structure
 # Eventually when we swtich to individually build docs for each provider, we should remove this altogether
 apache-airflow-providers-airbyte
+apache-airflow-providers-alibaba
 apache-airflow-providers-apache-iceberg
 apache-airflow-providers-celery
+apache-airflow-providers-cohere
+apache-airflow-providers-common-sql
 apache-airflow-providers-edge
+apache-airflow-providers-pinecone
+apache-airflow-providers-standard
+apache-airflow-providers-weaviate
