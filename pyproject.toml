@@ -342,6 +342,10 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TC001"]
 
+# The FastAPI models are not parsed well with Pydantic when __future__.annotations is used
+# It is forcing for Union to replace with `|` pipe instead
+"airflow/api_fastapi/core_api/datamodels/common.py" = ["UP007"]
+
 # Provider's get_provider_info.py files are generated and do not need "from __future__ import annotations"
 "providers/**/get_provider_info.py" = ["I002"]
 

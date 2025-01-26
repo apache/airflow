@@ -26,23 +26,16 @@ from sqlalchemy import delete, select
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.pools import (
     BasePool,
-    PoolBulkActionResponse,
-    PoolBulkBody,
-    PoolBulkResponse,
+    PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
-    PoolPostBody,
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.services.public.pools import (
-    handle_bulk_create,
-    handle_bulk_delete,
-    handle_bulk_update,
-)
+from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -175,7 +168,7 @@ def patch_pool(
     ),  # handled by global exception handler
 )
 def post_pool(
-    body: PoolPostBody,
+    body: PoolBody,
     session: SessionDep,
 ) -> PoolResponse:
     """Create a Pool."""
@@ -186,21 +179,8 @@ def post_pool(
 
 @pools_router.patch("")
 def bulk_pools(
-    request: PoolBulkBody,
+    request: BulkBody[PoolBody],
     session: SessionDep,
-) -> PoolBulkResponse:
+) -> BulkResponse:
     """Bulk create, update, and delete pools."""
-    results: dict[str, PoolBulkActionResponse] = {}
-
-    for action in request.actions:
-        if action.action.value not in results:
-            results[action.action.value] = PoolBulkActionResponse()
-
-        if action.action == BulkAction.CREATE:
-            handle_bulk_create(session, action, results[action.action.value])  # type: ignore
-        elif action.action == BulkAction.UPDATE:
-            handle_bulk_update(session, action, results[action.action.value])  # type: ignore
-        elif action.action == BulkAction.DELETE:
-            handle_bulk_delete(session, action, results[action.action.value])  # type: ignore
-
-    return PoolBulkResponse(**results)
+    return BulkPoolService(session=session, request=request).handle_request()
