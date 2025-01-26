@@ -264,6 +264,11 @@ class TestDbApiHook:
         assert dbapi_hook.connection_invocations == 1
 
     @pytest.mark.db_test
+    def test_escape_column_names(self):
+        dbapi_hook = mock_db_hook(DbApiHook)
+        assert not dbapi_hook.escape_column_names
+
+    @pytest.mark.db_test
     def test_dialect_name(self):
         dbapi_hook = mock_db_hook(DbApiHook)
         assert dbapi_hook.dialect_name == "default"

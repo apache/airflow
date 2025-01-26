@@ -51,7 +51,7 @@ class PostgresDialect(Dialect):
             and kcu.table_name = %s
         """
         pk_columns = [
-            row[0] for row in self.get_records(sql, (self.remove_quotes(schema), self.remove_quotes(table)))
+            row[0] for row in self.get_records(sql, (self.unescape_word(schema), self.unescape_word(table)))
         ]
         return pk_columns or None
 
@@ -79,8 +79,8 @@ class PostgresDialect(Dialect):
             replace_index = [replace_index]
 
         sql = self.generate_insert_sql(table, values, target_fields, **kwargs)
-        on_conflict_str = f" ON CONFLICT ({', '.join(map(self.escape_column_name, replace_index))})"
-        replace_target = [self.escape_column_name(f) for f in target_fields if f not in replace_index]
+        on_conflict_str = f" ON CONFLICT ({', '.join(map(self.escape_word, replace_index))})"
+        replace_target = [self.escape_word(f) for f in target_fields if f not in replace_index]
 
         if replace_target:
             replace_target_str = ", ".join(f"{col} = excluded.{col}" for col in replace_target)
