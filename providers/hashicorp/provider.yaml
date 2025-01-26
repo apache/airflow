@@ -56,14 +56,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - hvac>=1.1.0
-
 integrations:
   - integration-name: Hashicorp Vault
     external-doc-url: https://www.vaultproject.io/
-    logo: /integration-logos/hashicorp/Hashicorp-Vault.png
+    logo: /docs/integration-logos/Hashicorp-Vault.png
     tags: [software]
 
 hooks:
@@ -77,9 +73,3 @@ connection-types:
 
 secrets-backends:
   - airflow.providers.hashicorp.secrets.vault.VaultBackend
-
-additional-extras:
-  - name: boto3
-    dependencies:
-      # Require for AWS assume role authentication
-      - boto3>=1.33.0
