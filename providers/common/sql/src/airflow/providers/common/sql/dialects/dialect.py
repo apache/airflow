@@ -33,7 +33,7 @@ T = TypeVar("T")
 class Dialect(LoggingMixin):
     """Generic dialect implementation."""
 
-    pattern = re.compile(r'"([a-zA-Z0-9_]+)"')
+    pattern = re.compile(r"[^\w]")
 
     def __init__(self, hook, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -45,12 +45,6 @@ class Dialect(LoggingMixin):
 
         self.hook: DbApiHook = hook
 
-    @classmethod
-    def remove_quotes(cls, value: str | None) -> str | None:
-        if value:
-            return cls.pattern.sub(r"\1", value)
-        return value
-
     @property
     def placeholder(self) -> str:
         return self.hook.placeholder
@@ -60,16 +54,56 @@ class Dialect(LoggingMixin):
         return self.hook.inspector
 
     @property
-    def _insert_statement_format(self) -> str:
-        return self.hook._insert_statement_format  # type: ignore
+    def insert_statement_format(self) -> str:
+        return self.hook.insert_statement_format
 
     @property
-    def _replace_statement_format(self) -> str:
-        return self.hook._replace_statement_format  # type: ignore
+    def replace_statement_format(self) -> str:
+        return self.hook.replace_statement_format
 
     @property
-    def _escape_column_name_format(self) -> str:
-        return self.hook._escape_column_name_format  # type: ignore
+    def escape_word_format(self) -> str:
+        return self.hook.escape_word_format
+
+    @property
+    def escape_column_names(self) -> bool:
+        return self.hook.escape_column_names
+
+    def escape_word(self, word: str) -> str:
+        """
+        Escape the word if necessary.
+
+        If the word is a reserved word or contains special characters or if the ``escape_column_names``
+        property is set to True in connection extra field, then the given word will be escaped.
+
+        :param word: Name of the column
+        :return: The escaped word
+        """
+        if word != self.escape_word_format.format(self.unescape_word(word)) and (
+            self.escape_column_names or word.casefold() in self.reserved_words or self.pattern.search(word)
+        ):
+            return self.escape_word_format.format(word)
+        return word
+
+    def unescape_word(self, word: str | None) -> str | None:
+        """
+        Remove escape characters from each part of a dotted identifier (e.g., schema.table).
+
+        :param word: Escaped schema, table, or column name, potentially with multiple segments.
+        :return: The word without escaped characters.
+        """
+        if not word:
+            return word
+
+        escape_char_start = self.escape_word_format[0]
+        escape_char_end = self.escape_word_format[-1]
+
+        def unescape_part(part: str) -> str:
+            if part.startswith(escape_char_start) and part.endswith(escape_char_end):
+                return part[1:-1]
+            return part
+
+        return ".".join(map(unescape_part, word.split(".")))
 
     @classmethod
     def extract_schema_from_table(cls, table: str) -> tuple[str, str | None]:
@@ -87,8 +121,8 @@ class Dialect(LoggingMixin):
             for column in filter(
                 predicate,
                 self.inspector.get_columns(
-                    table_name=self.remove_quotes(table),
-                    schema=self.remove_quotes(schema) if schema else None,
+                    table_name=self.unescape_word(table),
+                    schema=self.unescape_word(schema) if schema else None,
                 ),
             )
         )
@@ -110,8 +144,8 @@ class Dialect(LoggingMixin):
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
         primary_keys = self.inspector.get_pk_constraint(
-            table_name=self.remove_quotes(table),
-            schema=self.remove_quotes(schema) if schema else None,
+            table_name=self.unescape_word(table),
+            schema=self.unescape_word(schema) if schema else None,
         ).get("constrained_columns", [])
         self.log.debug("Primary keys for table '%s': %s", table, primary_keys)
         return primary_keys
@@ -138,20 +172,6 @@ class Dialect(LoggingMixin):
     def reserved_words(self) -> set[str]:
         return self.hook.reserved_words
 
-    def escape_column_name(self, column_name: str) -> str:
-        """
-        Escape the column name if it's a reserved word.
-
-        :param column_name: Name of the column
-        :return: The escaped column name if needed
-        """
-        if (
-            column_name != self._escape_column_name_format.format(column_name)
-            and column_name.casefold() in self.reserved_words
-        ):
-            return self._escape_column_name_format.format(column_name)
-        return column_name
-
     def _joined_placeholders(self, values) -> str:
         placeholders = [
             self.placeholder,
@@ -160,7 +180,7 @@ class Dialect(LoggingMixin):
 
     def _joined_target_fields(self, target_fields) -> str:
         if target_fields:
-            target_fields = ", ".join(map(self.escape_column_name, target_fields))
+            target_fields = ", ".join(map(self.escape_word, target_fields))
             return f"({target_fields})"
         return ""
 
@@ -173,7 +193,7 @@ class Dialect(LoggingMixin):
         :param target_fields: The names of the columns to fill in the table
         :return: The generated INSERT SQL statement
         """
-        return self._insert_statement_format.format(
+        return self.insert_statement_format.format(
             table, self._joined_target_fields(target_fields), self._joined_placeholders(values)
         )
 
@@ -186,6 +206,6 @@ class Dialect(LoggingMixin):
         :param target_fields: The names of the columns to fill in the table
         :return: The generated REPLACE SQL statement
         """
-        return self._replace_statement_format.format(
+        return self.replace_statement_format.format(
             table, self._joined_target_fields(target_fields), self._joined_placeholders(values)
         )

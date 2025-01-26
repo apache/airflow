@@ -11,3 +11,4 @@ apache-airflow-providers-pinecone
 apache-airflow-providers-standard
 apache-airflow-providers-teradata
 apache-airflow-providers-weaviate
+apache-airflow-providers-zendesk
