@@ -133,7 +133,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
         """Return an instance of the OpenAIHook."""
         return OpenAIHook(conn_id=self.conn_id)
 
-    def execute(self, context: Context) -> str:
+    def execute(self, context: Context) -> str | None:
         batch = self.hook.create_batch(file_id=self.file_id, endpoint=self.endpoint)
         self.batch_id = batch.id
         if self.wait_for_completion:

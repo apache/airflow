@@ -328,10 +328,7 @@ labelPRBasedOnFilePath:
     - providers/tests/odbc/**/*
 
   provider:openai:
-    - providers/src/airflow/providers/openai/**/*
-    - docs/apache-airflow-providers-openai/**/*
-    - providers/tests/openai/**/*
-    - providers/tests/system/openai/**/*
+    - providers/openai/**
 
   provider:openfaas:
     - providers/src/airflow/providers/openfaas/**/*

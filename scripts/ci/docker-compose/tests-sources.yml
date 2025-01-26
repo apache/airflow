@@ -48,6 +48,7 @@ services:
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
+      - ../../../providers/openai/tests:/opt/airflow/providers/openai/tests
       - ../../../providers/pgvector/tests:/opt/airflow/providers/pgvector/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
       - ../../../providers/postgres/tests:/opt/airflow/providers/postgres/tests
