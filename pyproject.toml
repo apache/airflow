@@ -631,6 +631,7 @@ dev = [
   "apache-airflow-providers-pgvector",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
+  "apache-airflow-providers-segment",
   "apache-airflow-providers-ssh",
   "apache-airflow-providers-standard",
   "apache-airflow-providers-telegram",
@@ -656,6 +657,7 @@ apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-postgres = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
+apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
 apache-airflow-providers-telegram = { workspace = true }
@@ -679,6 +681,7 @@ members = [
     "providers/pinecone",
     "providers/postgres",
     "providers/pgvector",
+    "providers/segment",
     "providers/ssh",
     "providers/standard",
     "providers/telegram",

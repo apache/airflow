@@ -13,6 +13,7 @@ apache-airflow-providers-openai
 apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
 apache-airflow-providers-postgres
+apache-airflow-providers-segment
 apache-airflow-providers-ssh
 apache-airflow-providers-standard
 apache-airflow-providers-telegram
