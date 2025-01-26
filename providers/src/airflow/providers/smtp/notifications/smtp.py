@@ -168,23 +168,23 @@ class SmtpNotifier(BaseNotifier):
                 fields_to_re_render.append("from_email")
             if self.subject is None:
                 if self._connection_subject_template:
-                    self.subject = self._connection_subject_template
+                    subject_template_path = Path(self._connection_subject_template).as_posix()
                 else:
-                    smtp_default_templated_subject_path = (
+                    subject_template_path = (
                         Path(__file__).parent / "templates" / "email_subject.jinja2"
                     ).as_posix()
-                    self.subject = (
-                        Path(smtp_default_templated_subject_path).read_text().replace("\n", "").strip()
-                    )
+                self.subject = Path(subject_template_path).read_text().replace("\n", "").strip()
                 fields_to_re_render.append("subject")
             if self.html_content is None:
                 if self._connection_html_content_template:
-                    self.html_content = self._connection_html_content_template
+                    default_html_content_template_path = Path(
+                        self._connection_html_content_template
+                    ).as_posix()
                 else:
-                    smtp_default_templated_html_content_path = (
+                    default_html_content_template_path = (
                         Path(__file__).parent / "templates" / "email.html"
                     ).as_posix()
-                    self.html_content = Path(smtp_default_templated_html_content_path).read_text()
+                self.html_content = Path(default_html_content_template_path).read_text()
                 fields_to_re_render.append("html_content")
             if fields_to_re_render:
                 self._render_fields(fields_to_re_render, context)
