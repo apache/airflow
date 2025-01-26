@@ -176,9 +176,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/databricks/**/*
 
   provider:datadog:
-    - providers/src/airflow/providers/datadog/**/*
-    - docs/apache-airflow-providers-datadog/**/*
-    - providers/tests/datadog/**/*
+    - providers/datadog/**
 
   provider:dbt-cloud:
     - providers/src/airflow/providers/dbt/cloud/**/*

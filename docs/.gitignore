@@ -7,6 +7,7 @@ apache-airflow-providers-asana
 apache-airflow-providers-celery
 apache-airflow-providers-cohere
 apache-airflow-providers-common-sql
+apache-airflow-providers-datadog
 apache-airflow-providers-edge
 apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
