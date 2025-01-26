@@ -9,4 +9,5 @@ apache-airflow-providers-common-sql
 apache-airflow-providers-edge
 apache-airflow-providers-pinecone
 apache-airflow-providers-standard
+apache-airflow-providers-tableau
 apache-airflow-providers-weaviate
