@@ -386,10 +386,7 @@ labelPRBasedOnFilePath:
     - providers/pinecone/**
 
   provider:postgres:
-    - providers/src/airflow/providers/postgres/**/*
-    - docs/apache-airflow-providers-postgres/**/*
-    - providers/tests/postgres/**/*
-    - providers/tests/system/postgres/**/*
+    - providers/postgres/**
 
   provider:presto:
     - providers/src/airflow/providers/presto/**/*
