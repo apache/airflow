@@ -22,6 +22,27 @@ services:
       - type: bind
         source: ./empty
         target: /opt/airflow/airflow
+      # Removes task_sdk sources from container
+      - type: bind
+        source: ./empty
+        target: /opt/airflow/task_sdk
+      # Removes providers sources from container (but not tests)
+      - type: bind
+        source: ./empty
+        target: /opt/airflow/providers/src
+      # Remove all provider sources from container
+      # START automatically generated volumes by generate-volumes-for-sources pre-commit
+      - ../../../empty:/opt/airflow/providers/airbyte/src
+      - ../../../empty:/opt/airflow/providers/alibaba/src
+      - ../../../empty:/opt/airflow/providers/apache/iceberg/src
+      - ../../../empty:/opt/airflow/providers/celery/src
+      - ../../../empty:/opt/airflow/providers/cohere/src
+      - ../../../empty:/opt/airflow/providers/common/sql/src
+      - ../../../empty:/opt/airflow/providers/edge/src
+      - ../../../empty:/opt/airflow/providers/pinecone/src
+      - ../../../empty:/opt/airflow/providers/standard/src
+      - ../../../empty:/opt/airflow/providers/weaviate/src
+      # END automatically generated volumes by generate-volumes-for-sources pre-commit
       # However we keep in_container scripts in order to be able to debug easily the scripts that
       # are run with --mount-sources removed flag - such as installing airflow and providers
       - type: bind

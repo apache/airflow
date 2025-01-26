@@ -322,12 +322,20 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/__init__.py" = ["F401", "TC004", "I002"]
 "airflow/models/__init__.py" = ["F401", "TC004"]
 "airflow/models/sqla_models.py" = ["F401"]
+
+# Those are needed so that __init__.py chaining of packages properly works for IDEs
+# the first non-comment line of such empty __init__.py files should be:
+# __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 "providers/src/airflow/providers/__init__.py" = ["I002"]
 "providers/src/airflow/__init__.py" = ["I002"]
+"providers/*/tests/*/__init__.py" = ["I002"]
+"providers/*/*/tests/*/*/__init__.py" = ["I002"]
+"providers/tests/__init__.py" = ["I002"]
+"providers/__init__.py" = ["I002"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
-"tests/decorators/test_python.py" = ["I002"]
+"providers/standard/tests/provider_tests/standard/decorators/test_python.py" = ["I002"]
 
 # The Pydantic representations of SqlAlchemy Models are not parsed well with Pydantic
 # when __future__.annotations is used so we need to skip them from upgrading
@@ -606,29 +614,47 @@ ignore_errors = true
 dev = [
   # TODO(potiuk): remove me when all providers are moved to new structure
   "local-providers",
-  "apache-airflow-task-sdk",
   "apache-airflow-providers-airbyte",
+  "apache-airflow-providers-alibaba",
   "apache-airflow-providers-apache-iceberg",
   "apache-airflow-providers-celery",
+  "apache-airflow-providers-cohere",
+  "apache-airflow-providers-common-sql",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-pinecone",
+  "apache-airflow-providers-standard",
+  "apache-airflow-providers-weaviate",
+  "apache-airflow-task-sdk",
 ]
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
 local-providers = { workspace = true }
-apache-airflow-task-sdk = { workspace = true }
 apache-airflow-providers-airbyte = {workspace = true}
+apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
 apache-airflow-providers-celery = {workspace = true}
+apache-airflow-providers-cohere = { workspace = true }
+apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-pinecone = { workspace = true }
+apache-airflow-providers-standard = { workspace = true }
+apache-airflow-providers-weaviate = { workspace = true }
+apache-airflow-task-sdk = { workspace = true }
 
 [tool.uv.workspace]
 members = [
     "providers",
-    "task_sdk",
     "providers/airbyte",
+    "providers/alibaba",
     "providers/apache/iceberg",
     "providers/celery",
-    "providers/edge"
+    "providers/cohere",
+    "providers/common/sql",
+    "providers/edge",
+    "providers/pinecone",
+    "providers/standard",
+    "providers/weaviate",
+    "task_sdk",
 ]

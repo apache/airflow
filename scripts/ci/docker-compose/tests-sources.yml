@@ -28,8 +28,28 @@ services:
       - ../../../.inputrc:/root/.inputrc:cached
       # Remove airflow sources from container
       - ../../../empty:/opt/airflow/airflow
-      # but keep tests
+      # Remove all provider sources from container
+      - ../../../empty:/opt/airflow/providers/airbyte/src
+      - ../../../empty:/opt/airflow/providers/alibaba/src
+      - ../../../empty:/opt/airflow/providers/apache/iceberg/src
+      - ../../../empty:/opt/airflow/providers/celery/src
+      - ../../../empty:/opt/airflow/providers/common/sql/src
+      - ../../../empty:/opt/airflow/providers/edge/src
+      - ../../../empty:/opt/airflow/providers/standard/src
+      # but keep providers tests
       - ../../../tests/:/opt/airflow/tests:cached
+      # START automatically generated volumes by generate-volumes-for-sources pre-commit
+      - ../../../providers/airbyte/tests:/opt/airflow/providers/airbyte/tests
+      - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
+      - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
+      - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
+      - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
+      - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
+      - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
+      - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
+      - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
+      - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
+      # END automatically generated volumes by generate-volumes-for-sources pre-commit
       # and entrypoint and in_container scripts for testing
       - ../../../scripts/docker/entrypoint_ci.sh:/entrypoint
       - ../../../scripts/in_container/:/opt/airflow/scripts/in_container

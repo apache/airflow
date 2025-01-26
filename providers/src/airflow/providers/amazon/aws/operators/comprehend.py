@@ -23,6 +23,10 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
+from airflow.providers.amazon.aws.links.comprehend import (
+    ComprehendDocumentClassifierLink,
+    ComprehendPiiEntitiesDetectionLink,
+)
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.comprehend import (
     ComprehendCreateDocumentClassifierCompletedTrigger,
@@ -120,6 +124,8 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
+    operator_extra_links = (ComprehendPiiEntitiesDetectionLink(),)
+
     def __init__(
         self,
         input_data_config: dict,
@@ -166,6 +172,19 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
             **self.start_pii_entities_kwargs,
         )["JobId"]
 
+        job_url = ComprehendPiiEntitiesDetectionLink.format_str.format(
+            aws_domain=ComprehendPiiEntitiesDetectionLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
+            job_id=job_id,
+        )
+        ComprehendPiiEntitiesDetectionLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            job_id=job_id,
+        )
+        self.log.info("You can view the PII entities detection job at %s", job_url)
         message_description = f"start pii entities detection job {job_id} to complete."
         if self.deferrable:
             self.log.info("Deferring %s", message_description)
@@ -238,6 +257,7 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
     """
 
     aws_hook_class = ComprehendHook
+    operator_extra_links = (ComprehendDocumentClassifierLink(),)
 
     template_fields: Sequence[str] = aws_template_fields(
         "document_classifier_name",
@@ -299,6 +319,22 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
             LanguageCode=self.language_code,
             **self.document_classifier_kwargs,
         )["DocumentClassifierArn"]
+
+        # create the link to console
+        job_url = ComprehendDocumentClassifierLink.format_str.format(
+            aws_domain=ComprehendDocumentClassifierLink.get_aws_domain(self.hook.conn_partition),
+            region_name=self.hook.conn_region_name,
+            arn=document_classifier_arn,
+        )
+
+        ComprehendDocumentClassifierLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            arn=document_classifier_arn,
+        )
+        self.log.info("You can monitor the classifier at %s", job_url)
 
         message_description = f"document classifier {document_classifier_arn} to complete."
         if self.deferrable:
