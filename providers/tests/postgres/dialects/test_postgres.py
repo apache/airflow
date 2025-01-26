@@ -43,8 +43,9 @@ class TestPostgresDialect:
 
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
         self.test_db_hook.get_records.side_effect = get_records
-        self.test_db_hook._insert_statement_format = "INSERT INTO {} {} VALUES ({})"
-        self.test_db_hook._escape_column_name_format = '"{}"'
+        self.test_db_hook.insert_statement_format = "INSERT INTO {} {} VALUES ({})"
+        self.test_db_hook.escape_word_format = '"{}"'
+        self.test_db_hook.escape_column_names = False
 
     def test_placeholder(self):
         assert PostgresDialect(self.test_db_hook).placeholder == "?"
@@ -69,11 +70,11 @@ class TestPostgresDialect:
 
     def test_generate_replace_sql(self):
         values = [
-            {"id": "id", "name": "Stallone", "firstname": "Sylvester", "age": "78"},
-            {"id": "id", "name": "Statham", "firstname": "Jason", "age": "57"},
-            {"id": "id", "name": "Li", "firstname": "Jet", "age": "61"},
-            {"id": "id", "name": "Lundgren", "firstname": "Dolph", "age": "66"},
-            {"id": "id", "name": "Norris", "firstname": "Chuck", "age": "84"},
+            {"id": 1, "name": "Stallone", "firstname": "Sylvester", "age": "78"},
+            {"id": 2, "name": "Statham", "firstname": "Jason", "age": "57"},
+            {"id": 3, "name": "Li", "firstname": "Jet", "age": "61"},
+            {"id": 4, "name": "Lundgren", "firstname": "Dolph", "age": "66"},
+            {"id": 5, "name": "Norris", "firstname": "Chuck", "age": "84"},
         ]
         target_fields = ["id", "name", "firstname", "age"]
         sql = PostgresDialect(self.test_db_hook).generate_replace_sql(
@@ -83,5 +84,25 @@ class TestPostgresDialect:
             sql
             == """
             INSERT INTO hollywood.actors (id, name, firstname, age) VALUES (?,?,?,?,?) ON CONFLICT (id) DO UPDATE SET name = excluded.name, firstname = excluded.firstname, age = excluded.age
+        """.strip()
+        )
+
+    def test_generate_replace_sql_when_escape_column_names_is_enabled(self):
+        values = [
+            {"id": 1, "name": "Stallone", "firstname": "Sylvester", "age": "78"},
+            {"id": 2, "name": "Statham", "firstname": "Jason", "age": "57"},
+            {"id": 3, "name": "Li", "firstname": "Jet", "age": "61"},
+            {"id": 4, "name": "Lundgren", "firstname": "Dolph", "age": "66"},
+            {"id": 5, "name": "Norris", "firstname": "Chuck", "age": "84"},
+        ]
+        target_fields = ["id", "name", "firstname", "age"]
+        self.test_db_hook.escape_column_names = True
+        sql = PostgresDialect(self.test_db_hook).generate_replace_sql(
+            "hollywood.actors", values, target_fields
+        )
+        assert (
+            sql
+            == """
+            INSERT INTO hollywood.actors ("id", "name", "firstname", "age") VALUES (?,?,?,?,?) ON CONFLICT ("id") DO UPDATE SET "name" = excluded."name", "firstname" = excluded."firstname", "age" = excluded."age"
         """.strip()
         )
