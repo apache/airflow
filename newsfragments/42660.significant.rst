@@ -1,1 +1,12 @@
 Deprecated field ``concurrency`` from ``DAGDetailSchema`` has been removed. Please use ``max_active_tasks`` from ``DAGDetailSchema`` instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

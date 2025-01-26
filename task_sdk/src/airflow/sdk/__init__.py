@@ -20,14 +20,17 @@ from typing import TYPE_CHECKING
 
 __all__ = [
     "BaseOperator",
+    "Connection",
     "DAG",
     "EdgeModifier",
     "Label",
+    "MappedOperator",
     "TaskGroup",
-    "dag",
-    "Connection",
-    "get_current_context",
+    "XComArg",
     "__version__",
+    "dag",
+    "get_current_context",
+    "get_parsing_context",
 ]
 
 __version__ = "1.0.0.dev1"
@@ -35,21 +38,26 @@ __version__ = "1.0.0.dev1"
 if TYPE_CHECKING:
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.definitions.context import get_current_context
+    from airflow.sdk.definitions.context import get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.edges import EdgeModifier, Label
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.definitions.xcom_arg import XComArg
 
 __lazy_imports: dict[str, str] = {
-    "DAG": ".definitions.dag",
-    "dag": ".definitions.dag",
     "BaseOperator": ".definitions.baseoperator",
-    "TaskGroup": ".definitions.taskgroup",
+    "Connection": ".definitions.connection",
+    "DAG": ".definitions.dag",
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",
-    "Connection": ".definitions.connection",
+    "MappedOperator": ".definitions.mappedoperator",
+    "TaskGroup": ".definitions.taskgroup",
     "Variable": ".definitions.variable",
+    "XComArg": ".definitions.xcom_arg",
+    "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
+    "get_parsing_context": ".definitions.context",
 }
 
 

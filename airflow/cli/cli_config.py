@@ -166,6 +166,14 @@ ARG_SUBDIR = Arg(
     ),
     default="[AIRFLOW_HOME]/dags" if BUILD_DOCS else settings.DAGS_FOLDER,
 )
+ARG_BUNDLE_NAME = Arg(
+    (
+        "-B",
+        "--bundle-name",
+    ),
+    help=("The name of the DAG bundle to use."),
+    default=None,
+)
 ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
 ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
 ARG_OUTPUT_PATH = Arg(
@@ -850,6 +858,7 @@ ARG_OPTION = Arg(
     help="The option name",
 )
 
+# lint
 ARG_LINT_CONFIG_SECTION = Arg(
     ("--section",),
     help="The section name(s) to lint in the airflow config.",
@@ -1225,7 +1234,7 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_reserialize"),
         args=(
-            ARG_SUBDIR,
+            ARG_BUNDLE_NAME,
             ARG_VERBOSE,
         ),
     ),
@@ -1893,7 +1902,6 @@ core_commands: list[CLICommand] = [
         help="Start a scheduler instance",
         func=lazy_load_command("airflow.cli.commands.local_commands.scheduler_command.scheduler"),
         args=(
-            ARG_SUBDIR,
             ARG_NUM_RUNS,
             ARG_PID,
             ARG_DAEMON,

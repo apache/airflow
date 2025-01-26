@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy import select, update
 
 from airflow.api_fastapi.common.db.common import (
@@ -38,11 +39,15 @@ from airflow.api_fastapi.core_api.datamodels.backfills import (
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
+from airflow.exceptions import DagNotFound
 from airflow.models import DagRun
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
     BackfillDagRun,
+    DagNoScheduleException,
+    InvalidBackfillDirection,
+    InvalidReprocessBehavior,
     _create_backfill,
     _do_dry_run,
 )
@@ -181,12 +186,7 @@ def cancel_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
 
 @backfills_router.post(
     path="",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_404_NOT_FOUND,
-            status.HTTP_409_CONFLICT,
-        ]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
 )
 def create_backfill(
     backfill_request: BackfillPostBody,
@@ -204,21 +204,29 @@ def create_backfill(
             reprocess_behavior=backfill_request.reprocess_behavior,
         )
         return BackfillResponse.model_validate(backfill_obj)
+
     except AlreadyRunningBackfill:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"There is already a running backfill for dag {backfill_request.dag_id}",
         )
 
+    except DagNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find dag {backfill_request.dag_id}",
+        )
+    except (
+        InvalidReprocessBehavior,
+        InvalidBackfillDirection,
+        DagNoScheduleException,
+    ) as e:
+        raise RequestValidationError(str(e))
+
 
 @backfills_router.post(
     path="/dry_run",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_404_NOT_FOUND,
-            status.HTTP_409_CONFLICT,
-        ]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
 )
 def create_backfill_dry_run(
     body: BackfillPostBody,
@@ -227,14 +235,24 @@ def create_backfill_dry_run(
     from_date = timezone.coerce_datetime(body.from_date)
     to_date = timezone.coerce_datetime(body.to_date)
 
-    backfills_dry_run = _do_dry_run(
-        dag_id=body.dag_id,
-        from_date=from_date,
-        to_date=to_date,
-        reverse=body.run_backwards,
-        reprocess_behavior=body.reprocess_behavior,
-        session=session,
-    )
-    backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
+    try:
+        backfills_dry_run = _do_dry_run(
+            dag_id=body.dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            reverse=body.run_backwards,
+            reprocess_behavior=body.reprocess_behavior,
+            session=session,
+        )
+        backfills = [DryRunBackfillResponse(logical_date=d) for d in backfills_dry_run]
 
-    return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
+        return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills_dry_run))
+
+    except DagNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find dag {body.dag_id}",
+        )
+
+    except (InvalidReprocessBehavior, InvalidBackfillDirection, DagNoScheduleException) as e:
+        raise RequestValidationError(str(e))

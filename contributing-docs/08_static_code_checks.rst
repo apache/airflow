@@ -220,6 +220,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-pyproject-toml-consistency                          | Check consistency of Airflow's pyproject.toml          |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                            |         |
@@ -277,6 +279,8 @@ require Breeze Docker image to be built locally.
 | generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-volumes-for-sources                              | Generate volumes for docker compose                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | identity                                                  | Print checked files                                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -362,8 +366,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-chart-dependencies                                 | Update chart dependencies to latest (manual)           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-common-sql-api-stubs                               | Check and update common.sql API stubs                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-er-diagram                                         | Update ER diagram                                      | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-extras                                             | Update extras in documentation                         |         |
@@ -382,9 +384,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-openapi-spec-tags-to-be-sorted                     | Sort alphabetically openapi spec tags                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-providers-dependencies                             | Update dependencies for provider packages              |         |
+| update-providers-build-files                              | Update providers build files                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-providers-init-py                                  | Update providers __init__.py files                     |         |
+| update-providers-dependencies                             | Update dependencies for provider packages              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

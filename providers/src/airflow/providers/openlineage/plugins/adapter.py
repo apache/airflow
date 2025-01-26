@@ -377,6 +377,7 @@ class OpenLineageAdapter(LoggingMixin):
         clear_number: int,
         dag_run_state: DagRunState,
         task_ids: list[str],
+        run_facets: dict[str, RunFacet],
     ):
         try:
             event = RunEvent(
@@ -390,6 +391,7 @@ class OpenLineageAdapter(LoggingMixin):
                     facets={
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
                         **get_airflow_debug_facet(),
+                        **run_facets,
                     },
                 ),
                 inputs=[],
@@ -413,6 +415,7 @@ class OpenLineageAdapter(LoggingMixin):
         dag_run_state: DagRunState,
         task_ids: list[str],
         msg: str,
+        run_facets: dict[str, RunFacet],
     ):
         try:
             event = RunEvent(
@@ -431,6 +434,7 @@ class OpenLineageAdapter(LoggingMixin):
                         ),
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
                         **get_airflow_debug_facet(),
+                        **run_facets,
                     },
                 ),
                 inputs=[],

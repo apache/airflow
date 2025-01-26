@@ -32,6 +32,7 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from providers.tests.system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -82,6 +83,11 @@ with DAG(
     # [END howto_operator_gcs_delete_bucket]
     delete_bucket.trigger_rule = TriggerRule.ALL_DONE
 
+    check_events = OpenLineageTestOperator(
+        task_id="check_openlineage_events",
+        file_path=str(Path(__file__).parent / "resources" / "openlineage_gcs_upload_download.json"),
+    )
+
     (
         # TEST SETUP
         create_bucket
@@ -89,7 +95,7 @@ with DAG(
         # TEST BODY
         >> download_file
         # TEST TEARDOWN
-        >> delete_bucket
+        >> [delete_bucket, check_events]
     )
 
     from tests_common.test_utils.watcher import watcher

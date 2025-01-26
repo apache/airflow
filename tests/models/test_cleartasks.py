@@ -385,7 +385,7 @@ class TestClearTasks:
             task1 = EmptyOperator(task_id="task1", retries=2)
 
         # Write DAG to the database so it can be found by clear_task_instances().
-        SerializedDagModel.write_dag(dag, session=session)
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -444,7 +444,7 @@ class TestClearTasks:
             task1 = EmptyOperator(task_id="task1", retries=2)
 
         # Write secondary DAG to the database so it can be found by clear_task_instances().
-        SerializedDagModel.write_dag(dag1, session=session)
+        SerializedDagModel.write_dag(dag1, bundle_name="testing", session=session)
 
         dr1 = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -644,6 +644,7 @@ class TestClearTasks:
 
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dr = dag.create_dagrun(
+                run_id=f"scheduled_{i}",
                 logical_date=DEFAULT_DATE,
                 state=State.RUNNING,
                 run_type=DagRunType.SCHEDULED,

@@ -189,6 +189,16 @@ function environment_initialization() {
     fi
 }
 
+# Handle mount sources
+function handle_mount_sources() {
+    if [[ ${MOUNT_SOURCES=} == "remove" ]]; then
+        echo
+        echo "${COLOR_BLUE}Mounted sources are removed, cleaning up mounted dist-info files${COLOR_RESET}"
+        echo
+        rm -rf /usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/apache_airflow*.dist-info/
+    fi
+}
+
 # Determine which airflow version to use
 function determine_airflow_to_use() {
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
@@ -203,12 +213,6 @@ function determine_airflow_to_use() {
         mkdir -p "${AIRFLOW_SOURCES}"/logs/
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     else
-        if [[ ${USE_AIRFLOW_VERSION} =~ 2\.[7-8].* && ${TEST_TYPE} == "Providers[fab]" ]]; then
-            echo
-            echo "${COLOR_YELLOW}Skipping FAB tests on Airflow 2.7 and 2.8 because of FAB incompatibility with them${COLOR_RESET}"
-            echo
-            exit 0
-        fi
         if [[ ${CLEAN_AIRFLOW_INSTALLATION=} == "true" ]]; then
             echo
             echo "${COLOR_BLUE}Uninstalling all packages first${COLOR_RESET}"
@@ -230,13 +234,6 @@ function determine_airflow_to_use() {
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
-        if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
-            echo
-            echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"
-            echo
-            rm -rf /usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers
-            ln -s "${AIRFLOW_SOURCES}/providers/src/airflow/providers" "/usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers"
-        fi
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -372,7 +369,7 @@ function start_webserver_with_examples(){
     echo
     echo "${COLOR_BLUE}Parsing example dags${COLOR_RESET}"
     echo
-    airflow scheduler --num-runs 100
+    airflow dags reserialize
     echo "Example dags parsing finished"
     echo "Create admin user"
     airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
@@ -396,6 +393,7 @@ function start_webserver_with_examples(){
     echo "${COLOR_BLUE}Airflow webserver started${COLOR_RESET}"
 }
 
+handle_mount_sources
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade

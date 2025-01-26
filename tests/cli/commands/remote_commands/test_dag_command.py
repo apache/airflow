@@ -50,7 +50,7 @@ from airflow.utils.types import DagRunType
 
 from tests.models import TEST_DAGS_FOLDER
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -68,8 +68,7 @@ class TestCliDags:
 
     @classmethod
     def setup_class(cls):
-        cls.dagbag = DagBag(include_examples=True)
-        cls.dagbag.sync_to_db()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
         cls.parser = cli_parser.get_parser()
 
     @classmethod
@@ -80,7 +79,6 @@ class TestCliDags:
     def setup_method(self):
         clear_db_runs()  # clean-up all dag run before start each test
 
-    @pytest.mark.skip("AIP-66: reserialize is not implemented yet")
     def test_reserialize(self, session):
         # Assert that there are serialized Dags
         serialized_dags_before_command = session.query(SerializedDagModel).all()
@@ -100,8 +98,7 @@ class TestCliDags:
         dag_version_after_command = session.query(DagVersion).all()
         assert len(dag_version_after_command)
 
-    @pytest.mark.skip("AIP-66: reserialize is not implemented yet")
-    def test_reserialize_should_support_subdir_argument(self, session):
+    def test_reserialize_should_support_bundle_name_argument(self, configure_testing_dag_bundle, session):
         # Run clear of serialized dags
         session.query(DagVersion).delete()
 
@@ -109,20 +106,38 @@ class TestCliDags:
         serialized_dags_after_clear = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_clear) == 0
 
-        # Serialize manually
-        dag_path = self.dagbag.dags["example_bash_operator"].fileloc
-        # Set default value of include_examples parameter to false
-        dagbag_default = list(DagBag.__init__.__defaults__)
-        dagbag_default[1] = False
-        with mock.patch(
-            "airflow.cli.commands.remote_commands.dag_command.DagBag.__init__.__defaults__",
-            tuple(dagbag_default),
-        ):
-            dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--subdir", dag_path]))
+        path_to_parse = TEST_DAGS_FOLDER / "test_dag_with_no_tags.py"
+
+        with configure_testing_dag_bundle(path_to_parse):
+            # reserializes only the above path
+            dag_command.dag_reserialize(
+                self.parser.parse_args(["dags", "reserialize", "--bundle-name", "testing"])
+            )
 
         # Check serialized DAG are back
         serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
+        assert len(serialized_dags_after_reserialize) == 1
+
+    def test_reserialize_should_support_more_than_one_bundle(self, configure_testing_dag_bundle, session):
+        # Run clear of serialized dags
+        session.query(DagVersion).delete()
+
+        # Assert no serialized Dags
+        serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_clear) == 0
+
+        path_to_parse = TEST_DAGS_FOLDER / "test_dag_with_no_tags.py"
+
+        with configure_testing_dag_bundle(path_to_parse):
+            # The command will now serialize the above bundle and the example dag bundle
+            dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
+
+        # Check serialized DAG are back
+        serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_reserialize) > 1
+        serialized_dag_ids = [dag.dag_id for dag in serialized_dags_after_reserialize]
+        assert "test_dag_with_no_tags" in serialized_dag_ids
+        assert "example_bash_operator" in serialized_dag_ids
 
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
@@ -207,8 +222,7 @@ class TestCliDags:
 
         with time_machine.travel(DEFAULT_DATE):
             clear_db_dags()
-            self.dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
-            self.dagbag.sync_to_db()
+            parse_and_sync_to_db(tmp_path, include_examples=False)
 
         default_run = DEFAULT_DATE
         future_run = default_run + timedelta(days=5)
@@ -255,8 +269,7 @@ class TestCliDags:
 
         # Rebuild Test DB for other tests
         clear_db_dags()
-        TestCliDags.dagbag = DagBag(include_examples=True)
-        TestCliDags.dagbag.sync_to_db()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_report(self):
@@ -405,24 +418,24 @@ class TestCliDags:
     def test_pause(self):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator"])
         dag_command.dag_pause(args)
-        assert self.dagbag.dags["example_bash_operator"].get_is_paused()
+        assert DagModel.get_dagmodel("example_bash_operator").is_paused
         dag_command.dag_unpause(args)
-        assert not self.dagbag.dags["example_bash_operator"].get_is_paused()
+        assert not DagModel.get_dagmodel("example_bash_operator").is_paused
 
     @mock.patch("airflow.cli.commands.remote_commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):
         args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-id-as-regex"])
         dag_command.dag_pause(args)
         mock_yesno.assert_called_once()
-        assert self.dagbag.dags["example_bash_decorator"].get_is_paused()
-        assert self.dagbag.dags["example_kubernetes_executor"].get_is_paused()
-        assert self.dagbag.dags["example_xcom_args"].get_is_paused()
+        assert DagModel.get_dagmodel("example_bash_decorator").is_paused
+        assert DagModel.get_dagmodel("example_kubernetes_executor").is_paused
+        assert DagModel.get_dagmodel("example_xcom_args").is_paused
 
         args = self.parser.parse_args(["dags", "unpause", "^example_.*$", "--treat-dag-id-as-regex"])
         dag_command.dag_unpause(args)
-        assert not self.dagbag.dags["example_bash_decorator"].get_is_paused()
-        assert not self.dagbag.dags["example_kubernetes_executor"].get_is_paused()
-        assert not self.dagbag.dags["example_xcom_args"].get_is_paused()
+        assert not DagModel.get_dagmodel("example_bash_decorator").is_paused
+        assert not DagModel.get_dagmodel("example_kubernetes_executor").is_paused
+        assert not DagModel.get_dagmodel("example_xcom_args").is_paused
 
     @mock.patch("airflow.cli.commands.remote_commands.dag_command.ask_yesno")
     def test_pause_regex_operation_cancelled(self, ask_yesno, capsys):

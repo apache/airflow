@@ -471,7 +471,7 @@ class SnowflakeHook(DbApiHook):
                             _last_description = cur.description
                         else:
                             results.append(result)
-                            self.descriptions.append(cur.description)
+                            self.descriptions.append(cur.description)  # type: ignore[has-type]
 
                     query_id = cur.sfqid
                     self.log.info("Rows affected: %s", cur.rowcount)

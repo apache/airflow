@@ -39,8 +39,8 @@ from airflow.stats import Stats
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
+    from airflow.sdk.definitions.context import Context
     from airflow.typing_compat import Self
-    from airflow.utils.context import Context
 
 
 def _parse_file_entrypoint():
@@ -49,7 +49,12 @@ def _parse_file_entrypoint():
     import structlog
 
     from airflow.sdk.execution_time import task_runner
+    from airflow.settings import configure_orm
     # Parse DAG file, send JSON back up!
+
+    # We need to reconfigure the orm here, as DagFileProcessorManager does db queries for bundles, and
+    # the session across forks blows things up.
+    configure_orm()
 
     comms_decoder = task_runner.CommsDecoder[DagFileParseRequest, DagFileParsingResult](
         input=sys.stdin,
@@ -198,6 +203,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     @classmethod
     def start(  # type: ignore[override]
         cls,
+        *,
         path: str | os.PathLike[str],
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,

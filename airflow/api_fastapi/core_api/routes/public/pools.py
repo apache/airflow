@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Response, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, select
@@ -26,15 +26,23 @@ from sqlalchemy import delete, select
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkAction
 from airflow.api_fastapi.core_api.datamodels.pools import (
     BasePool,
+    PoolBulkActionResponse,
+    PoolBulkBody,
+    PoolBulkResponse,
     PoolCollectionResponse,
     PoolPatchBody,
     PoolPostBody,
-    PoolPostBulkBody,
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.pools import (
+    handle_bulk_create,
+    handle_bulk_delete,
+    handle_bulk_update,
+)
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -176,51 +184,23 @@ def post_pool(
     return pool
 
 
-@pools_router.put(
-    "/bulk",
-    status_code=status.HTTP_201_CREATED,
-    responses={
-        **create_openapi_http_exception_doc(
-            [
-                status.HTTP_409_CONFLICT,  # handled by global exception handler
-            ]
-        ),
-        status.HTTP_201_CREATED: {
-            "description": "Created",
-            "model": PoolCollectionResponse,
-        },
-        status.HTTP_200_OK: {
-            "description": "Created with overwriting",
-            "model": PoolCollectionResponse,
-        },
-    },
-)
-def put_pools(
-    response: Response,
-    put_body: PoolPostBulkBody,
+@pools_router.patch("")
+def bulk_pools(
+    request: PoolBulkBody,
     session: SessionDep,
-) -> PoolCollectionResponse:
-    """Create multiple pools."""
-    response.status_code = status.HTTP_201_CREATED if not put_body.overwrite else status.HTTP_200_OK
-    pools: list[Pool]
-    if not put_body.overwrite:
-        pools = [Pool(**body.model_dump()) for body in put_body.pools]
-    else:
-        pool_names = [pool.pool for pool in put_body.pools]
-        existed_pools = session.execute(select(Pool).filter(Pool.pool.in_(pool_names))).scalars()
-        existed_pools_dict = {pool.pool: pool for pool in existed_pools}
-        pools = []
-        # if pool already exists, update the corresponding pool, else add a new pool
-        for body in put_body.pools:
-            if body.pool in existed_pools_dict:
-                pool = existed_pools_dict[body.pool]
-                for key, val in body.model_dump().items():
-                    setattr(pool, key, val)
-                pools.append(pool)
-            else:
-                pools.append(Pool(**body.model_dump()))
-    session.add_all(pools)
-    return PoolCollectionResponse(
-        pools=cast(list[PoolResponse], pools),
-        total_entries=len(pools),
-    )
+) -> PoolBulkResponse:
+    """Bulk create, update, and delete pools."""
+    results: dict[str, PoolBulkActionResponse] = {}
+
+    for action in request.actions:
+        if action.action.value not in results:
+            results[action.action.value] = PoolBulkActionResponse()
+
+        if action.action == BulkAction.CREATE:
+            handle_bulk_create(session, action, results[action.action.value])  # type: ignore
+        elif action.action == BulkAction.UPDATE:
+            handle_bulk_update(session, action, results[action.action.value])  # type: ignore
+        elif action.action == BulkAction.DELETE:
+            handle_bulk_delete(session, action, results[action.action.value])  # type: ignore
+
+    return PoolBulkResponse(**results)

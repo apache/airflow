@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound, PermissionDenied
@@ -61,7 +61,9 @@ def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) ->
         readable_dag_ids = security.get_readable_dags()
         file_dag_ids = {
             dag_id[0]
-            for dag_id in session.query(DagModel.dag_id).filter(DagModel.fileloc == error.filename).all()
+            for dag_id in session.query(DagModel.dag_id)
+            .filter(DagModel.fileloc == error.filename, DagModel.bundle_name == error.bundle_name)
+            .all()
         }
 
         # Can the user read any DAGs in the file?
@@ -98,9 +100,17 @@ def get_import_errors(
     if not can_read_all_dags:
         # if the user doesn't have access to all DAGs, only display errors from visible DAGs
         readable_dag_ids = security.get_readable_dags()
-        dagfiles_stmt = select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids))
-        query = query.where(ParseImportError.filename.in_(dagfiles_stmt))
-        count_query = count_query.where(ParseImportError.filename.in_(dagfiles_stmt))
+        dagfiles_stmt = session.execute(
+            select(DagModel.fileloc, DagModel.bundle_name)
+            .distinct()
+            .where(DagModel.dag_id.in_(readable_dag_ids))
+        ).all()
+        query = query.where(
+            tuple_(ParseImportError.filename, ParseImportError.bundle_name or None).in_(dagfiles_stmt)
+        )
+        count_query = count_query.where(
+            tuple_(ParseImportError.filename, ParseImportError.bundle_name).in_(dagfiles_stmt)
+        )
 
     total_entries = session.scalars(count_query).one()
     import_errors = session.scalars(query.offset(offset).limit(limit)).all()
@@ -109,7 +119,12 @@ def get_import_errors(
         for import_error in import_errors:
             # Check if user has read access to all the DAGs defined in the file
             file_dag_ids = (
-                session.query(DagModel.dag_id).filter(DagModel.fileloc == import_error.filename).all()
+                session.query(DagModel.dag_id)
+                .filter(
+                    DagModel.fileloc == import_error.filename,
+                    DagModel.bundle_name == import_error.bundle_name,
+                )
+                .all()
             )
             requests: Sequence[IsAuthorizedDagRequest] = [
                 {

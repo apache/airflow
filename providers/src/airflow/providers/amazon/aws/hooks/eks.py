@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import sys
 import tempfile
 from collections.abc import Generator
@@ -32,6 +33,7 @@ from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.utils import yaml
 from airflow.utils.json import AirflowJsonEncoder
 
@@ -612,9 +614,14 @@ class EksHook(AwsBaseHook):
     def fetch_access_token_for_cluster(self, eks_cluster_name: str) -> str:
         session = self.get_session()
         service_id = self.conn.meta.service_model.service_id
-        sts_url = (
-            f"https://sts.{session.region_name}.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
-        )
+        # This env variable is required so that we get a regionalized endpoint for STS in regions that
+        # otherwise default to global endpoints. The mechanism below to generate the token is very picky that
+        # the endpoint is regional.
+        os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
+        try:
+            sts_url = f"{StsHook(region_name=session.region_name).conn_client_meta.endpoint_url}/?Action=GetCallerIdentity&Version=2011-06-15"
+        finally:
+            del os.environ["AWS_STS_REGIONAL_ENDPOINTS"]
 
         signer = RequestSigner(
             service_id=service_id,

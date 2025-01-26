@@ -500,6 +500,7 @@ class OpenLineageListener:
                 task_ids = DagRun._get_partial_task_ids(dag_run.dag)
             else:
                 task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
+
             self.submit_callable(
                 self.adapter.dag_success,
                 dag_id=dag_run.dag_id,
@@ -509,6 +510,7 @@ class OpenLineageListener:
                 clear_number=dag_run.clear_number,
                 task_ids=task_ids,
                 dag_run_state=dag_run.get_state(),
+                run_facets={**get_airflow_dag_run_facet(dag_run)},
             )
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_success", exc_info=e)
@@ -543,6 +545,7 @@ class OpenLineageListener:
                 dag_run_state=dag_run.get_state(),
                 task_ids=task_ids,
                 msg=msg,
+                run_facets={**get_airflow_dag_run_facet(dag_run)},
             )
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)

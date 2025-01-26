@@ -1,1 +1,21 @@
 Removed deprecated auth ``airflow.api.auth.backend.kerberos_auth`` and ``airflow.auth.managers.fab.api.auth.backend.kerberos_auth`` from ``auth_backends``. Please use ``airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth`` instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.api.auth.backend.kerberos_auth`` → ``airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth``
+      * [x] ``airflow.auth.managers.fab.api.auth.backend.kerberos_auth`` → ``airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth``
