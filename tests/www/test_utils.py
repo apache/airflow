@@ -22,7 +22,8 @@ import os
 import re
 import time
 from datetime import datetime
-from unittest.mock import Mock
+from typing import TYPE_CHECKING, Callable
+from unittest.mock import MagicMock, Mock
 from urllib.parse import parse_qs
 
 import pendulum
@@ -31,6 +32,7 @@ from bs4 import BeautifulSoup
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_wtf import FlaskForm
 from markupsafe import Markup
+from sqlalchemy import func
 from sqlalchemy.orm import Query
 from wtforms.fields import StringField, TextAreaField
 
@@ -46,6 +48,9 @@ from airflow.www.utils import (
 )
 from airflow.www.widgets import AirflowDateTimePickerROWidget, BS3TextAreaROWidget, BS3TextFieldROWidget
 from tests.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from sqlalchemy.sql.elements import ColumnElement
 
 
 class TestUtils:
@@ -661,6 +666,108 @@ class TestFilter:
         result_query_filter = filter_lte.apply(self.mock_query, mock_value)
 
         assert result_query_filter == self.mock_query
+
+
+class TestXComFilter:
+    def setup_method(self):
+        self.mock_datamodel = MagicMock()
+        self.mock_query = MagicMock(spec=Query)
+        self.mock_column_name = "test_column"
+
+    def _assert_filter_query(
+        self,
+        xcom_filter,
+        raw_value: str,
+        expected_expr_builder: Callable[[ColumnElement, str], ColumnElement],
+        convert_value: bool = False,
+    ) -> None:
+        """
+        A helper function to assert the filter query.
+
+        :param xcom_filter: The XCom filter instance (e.g., XComFilterStartsWith).
+        :param raw_value: The raw string value we want to filter on.
+        :param expected_expr_builder: A function that takes in `returned_field` and returns the expected SQL expression.
+        :param convert_value: Whether to run `set_value_to_type(...)` on the raw_value.
+        """
+        returned_query, returned_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+
+        if convert_value:
+            value = set_value_to_type(self.mock_datamodel, self.mock_column_name, raw_value)
+        else:
+            value = raw_value
+        xcom_filter.apply(self.mock_query, value)
+        self.mock_query.filter.assert_called_once()
+        actual_filter_arg = self.mock_query.filter.call_args[0][0]
+        expected_filter_arg = expected_expr_builder(returned_field, value)
+        assert str(actual_filter_arg) == str(expected_filter_arg)
+
+    @pytest.mark.parametrize(
+        "filter_class, convert_value, expected_expr_builder",
+        [
+            (
+                utils.XComFilterStartsWith,
+                False,
+                lambda field, v: func.btrim(func.convert_from(field, "UTF8"), '"').ilike(f"{v}%"),
+            ),
+            (
+                utils.XComFilterEndsWith,
+                False,
+                lambda field, v: func.btrim(func.convert_from(field, "UTF8"), '"').ilike(f"%{v}"),
+            ),
+            (
+                utils.XComFilterEqual,
+                True,
+                lambda field, v: func.btrim(func.convert_from(field, "UTF8"), '"') == v,
+            ),
+            (
+                utils.XComFilterContains,
+                False,
+                lambda field, v: func.btrim(func.convert_from(field, "UTF8"), '"').ilike(f"%{v}%"),
+            ),
+            (
+                utils.XComFilterNotStartsWith,
+                False,
+                lambda field, v: ~func.btrim(func.convert_from(field, "UTF8"), '"').ilike(f"{v}%"),
+            ),
+            (
+                utils.XComFilterNotEndsWith,
+                False,
+                lambda field, v: ~func.btrim(func.convert_from(field, "UTF8"), '"').ilike(f"%{v}"),
+            ),
+            (
+                utils.XComFilterNotContains,
+                False,
+                lambda field, v: ~func.btrim(func.convert_from(field, "UTF8"), '"').ilike(f"%{v}%"),
+            ),
+            (
+                utils.XComFilterNotEqual,
+                True,
+                lambda field, v: func.btrim(func.convert_from(field, "UTF8"), '"') != v,
+            ),
+        ],
+        ids=[
+            "StartsWith",
+            "EndsWith",
+            "Equal",
+            "Contains",
+            "NotStartsWith",
+            "NotEndsWith",
+            "NotContains",
+            "NotEqual",
+        ],
+    )
+    def test_xcom_filters(self, filter_class, convert_value, expected_expr_builder):
+        xcom_filter_query = filter_class(datamodel=self.mock_datamodel, column_name=self.mock_column_name)
+        raw_value = "test_value"
+
+        self._assert_filter_query(
+            xcom_filter_query,
+            raw_value=raw_value,
+            expected_expr_builder=expected_expr_builder,
+            convert_value=convert_value,
+        )
 
 
 @pytest.mark.db_test
