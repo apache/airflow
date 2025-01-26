@@ -22,14 +22,13 @@ from typing import Literal
 from unittest import mock
 
 import pytest
-
-openai = pytest.importorskip("openai")
-
 from openai.types import Batch
 
 from airflow.providers.openai.hooks.openai import BatchStatus
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 from airflow.triggers.base import TriggerEvent
+
+openai = pytest.importorskip("openai")
 
 
 class TestOpenAIBatchTrigger:

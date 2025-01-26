@@ -627,6 +627,7 @@ dev = [
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-openai",
   "apache-airflow-providers-pgvector",
   "apache-airflow-providers-mysql",
   "apache-airflow-providers-odbc",
@@ -655,6 +656,7 @@ apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
 apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-odbc = { workspace = true }
@@ -682,6 +684,7 @@ members = [
     "providers/datadog",
     "providers/edge",
     "providers/pagerduty",
+    "providers/openai",
     "providers/mysql",
     "providers/jenkins",
     "providers/odbc",

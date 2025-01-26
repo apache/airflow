@@ -17,14 +17,9 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 import pytest
-
-openai = pytest.importorskip("openai")
-
-from unittest.mock import mock_open
-
 from openai.pagination import SyncCursorPage
 from openai.types import Batch, CreateEmbeddingResponse, Embedding, FileDeleted, FileObject
 from openai.types.beta import (
@@ -57,6 +52,8 @@ VECTOR_STORE_ID = "test_vs_abc123"
 VECTOR_STORE_NAME = "Test Vector Store"
 VECTOR_FILE_STORE_BATCH_ID = "test_vfsb_abc123"
 BATCH_ID = "test_batch_abc123"
+
+openai = pytest.importorskip("openai")
 
 
 def create_batch(status) -> Batch:
