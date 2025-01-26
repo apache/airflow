@@ -154,10 +154,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/cncf/kubernetes/**/*
 
   provider:cohere:
-    - providers/src/airflow/providers/cohere/**/*
-    - docs/apache-airflow-providers-cohere/**/*
-    - providers/tests/cohere/**/*
-    - providers/tests/system/cohere/**/*
+    - providers/cohere/**
 
   provider:common-compat:
     - providers/src/airflow/providers/common/compat/**/*
@@ -386,10 +383,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/pgvector/**/*
 
   provider:pinecone:
-    - providers/src/airflow/providers/pinecone/**/*
-    - docs/apache-airflow-providers-pinecone/**/*
-    - providers/tests/pinecone/**/*
-    - providers/tests/system/pinecone/**/*
+    - providers/pinecone/**
 
   provider:postgres:
     - providers/src/airflow/providers/postgres/**/*
@@ -501,10 +495,7 @@ labelPRBasedOnFilePath:
     - providers/tests/vertica/**/*
 
   provider:weaviate:
-    - providers/src/airflow/providers/weaviate/**/*
-    - docs/apache-airflow-providers-weaviate/**/*
-    - providers/tests/weaviate/**/*
-    - providers/tests/system/weaviate/**/*
+    - providers/weaviate/**
 
   provider:yandex:
     - providers/src/airflow/providers/yandex/**/*
