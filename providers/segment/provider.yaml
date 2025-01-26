@@ -43,14 +43,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - analytics-python>=1.2.9
-
 integrations:
   - integration-name: Segment
     external-doc-url: https://segment.com/docs/
-    logo: /integration-logos/segment/Segment.png
+    logo: /docs/integration-logos/Segment.png
     tags: [service]
 
 operators:

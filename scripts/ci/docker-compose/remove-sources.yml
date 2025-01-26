@@ -40,6 +40,7 @@ services:
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/edge/src
       - ../../../empty:/opt/airflow/providers/pinecone/src
+      - ../../../empty:/opt/airflow/providers/segment/src
       - ../../../empty:/opt/airflow/providers/standard/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
       # END automatically generated volumes by generate-volumes-for-sources pre-commit

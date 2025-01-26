@@ -420,14 +420,12 @@ labelPRBasedOnFilePath:
     - providers/tests/samba/**/*
 
   provider:segment:
-    - providers/src/airflow/providers/segment/**/*
-    - docs/apache-airflow-providers-segment/**/*
-    - providers/tests/segment/**/*
+    - providers/segment/**
 
   provider:sendgrid:
-    - providers/src/airflow/providers/segment/**/*
+    - providers/segment/src/airflow/providers/segment/**/*
     - docs/apache-airflow-providers-segment/**/*
-    - providers/tests/segment/**/*
+    - providers/segment/tests/provider_tests/segment/**/*
 
   provider:sftp:
     - providers/src/airflow/providers/sftp/**/*
