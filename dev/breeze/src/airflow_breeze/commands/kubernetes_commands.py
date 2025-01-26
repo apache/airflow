@@ -204,6 +204,14 @@ option_parallelism_cluster = click.option(
     envvar="PARALLELISM",
     show_default=True,
 )
+option_num_retries = click.option(
+    "--num-retries",
+    help="Number of times to retry the complete test run in case of failure.",
+    default=2,
+    type=click.IntRange(1),
+    envvar="NUM_RETRIES",
+    show_default=True,
+)
 option_all = click.option("--all", help="Apply it to all created clusters", is_flag=True, envvar="ALL")
 
 K8S_CLUSTER_CREATE_PROGRESS_REGEXP = r".*airflow-python-[0-9.]+-v[0-9.].*|.*Connecting to localhost.*"
@@ -1676,6 +1684,7 @@ def _run_complete_tests(
 @option_use_uv
 @option_verbose
 @option_wait_time_in_seconds
+@option_num_retries
 @click.argument("test_args", nargs=-1, type=click.Path())
 def run_complete_tests(
     copy_local_sources: bool,
@@ -1697,86 +1706,100 @@ def run_complete_tests(
     use_standard_naming: bool,
     use_uv: bool,
     wait_time_in_seconds: int,
+    num_retries: int,
 ):
-    result = create_virtualenv(force_venv_setup=force_venv_setup)
-    if result.returncode != 0:
+    tests_failed = False
+    for attempt in range(1, num_retries + 1):
+        get_console().print(f"[info]Attempt {attempt} of {num_retries}")
+        result = create_virtualenv(force_venv_setup=force_venv_setup)
+        if result.returncode != 0:
+            sys.exit(1)
+        make_sure_kubernetes_tools_are_installed()
+        if run_in_parallel:
+            combo_titles, combos, pytest_args, short_combo_titles = _get_parallel_test_args(
+                kubernetes_versions, python_versions, list(test_args)
+            )
+            get_console().print(f"[info]Running complete tests for: {short_combo_titles}")
+            get_console().print(f"[info]Parallelism: {parallelism}")
+            get_console().print(f"[info]Extra test args: {executor}")
+            get_console().print(f"[info]Executor: {executor}")
+            get_console().print(f"[info]Use standard naming: {use_standard_naming}")
+            get_console().print(f"[info]Upgrade: {upgrade}")
+            get_console().print(f"[info]Use uv: {use_uv}")
+            get_console().print(f"[info]Rebuild base image: {rebuild_base_image}")
+            get_console().print(f"[info]Force recreate cluster: {force_recreate_cluster}")
+            get_console().print(f"[info]Include success outputs: {include_success_outputs}")
+            get_console().print(f"[info]Debug resources: {debug_resources}")
+            get_console().print(f"[info]Skip cleanup: {skip_cleanup}")
+            get_console().print(f"[info]Wait time in seconds: {wait_time_in_seconds}")
+            with ci_group(f"Running complete tests for: {short_combo_titles}"):
+                with run_with_pool(
+                    parallelism=parallelism,
+                    all_params=combo_titles,
+                    debug_resources=debug_resources,
+                    progress_matcher=GenericRegexpProgressMatcher(
+                        regexp=COMPLETE_TEST_REGEXP,
+                        regexp_for_joined_line=PREVIOUS_LINE_K8S_TEST_REGEXP,
+                        lines_to_search=100,
+                    ),
+                ) as (pool, outputs):
+                    results = [
+                        pool.apply_async(
+                            _run_complete_tests,
+                            kwds={
+                                "python": combo.python_version,
+                                "kubernetes_version": combo.kubernetes_version,
+                                "executor": executor,
+                                "rebuild_base_image": rebuild_base_image,
+                                "copy_local_sources": copy_local_sources,
+                                "use_uv": use_uv,
+                                "upgrade": upgrade,
+                                "wait_time_in_seconds": wait_time_in_seconds,
+                                "force_recreate_cluster": force_recreate_cluster,
+                                "use_standard_naming": use_standard_naming,
+                                "num_tries": 3,  # when creating cluster in parallel, sometimes we need to retry
+                                "extra_options": None,
+                                "test_args": pytest_args,
+                                "output": outputs[index],
+                            },
+                        )
+                        for index, combo in enumerate(combos)
+                    ]
+            tests_failed = check_async_run_results(
+                results=results,
+                success="All K8S tests successfully completed.",
+                outputs=outputs,
+                include_success_outputs=include_success_outputs,
+                skip_cleanup=skip_cleanup,
+            )
+            if not tests_failed:
+                get_console().print("[success]Tests completed successfully.")
+                break
+        else:
+            pytest_args = deepcopy(KUBERNETES_PYTEST_ARGS)
+            pytest_args.extend(test_args)
+            result, _ = _run_complete_tests(
+                python=python,
+                kubernetes_version=kubernetes_version,
+                executor=executor,
+                rebuild_base_image=rebuild_base_image,
+                copy_local_sources=copy_local_sources,
+                use_uv=use_uv,
+                upgrade=upgrade,
+                wait_time_in_seconds=wait_time_in_seconds,
+                force_recreate_cluster=force_recreate_cluster,
+                use_standard_naming=use_standard_naming,
+                num_tries=1,
+                extra_options=None,
+                test_args=pytest_args,
+                output=None,
+            )
+            if result == 0:
+                get_console().print("[success]Tests completed successfully.")
+                break
+            else:
+                tests_failed = True
+
+    if attempt >= num_retries and tests_failed:
+        get_console().print("[error]All retries failed.")
         sys.exit(1)
-    make_sure_kubernetes_tools_are_installed()
-    if run_in_parallel:
-        combo_titles, combos, pytest_args, short_combo_titles = _get_parallel_test_args(
-            kubernetes_versions, python_versions, list(test_args)
-        )
-        get_console().print(f"[info]Running complete tests for: {short_combo_titles}")
-        get_console().print(f"[info]Parallelism: {parallelism}")
-        get_console().print(f"[info]Extra test args: {executor}")
-        get_console().print(f"[info]Executor: {executor}")
-        get_console().print(f"[info]Use standard naming: {use_standard_naming}")
-        get_console().print(f"[info]Upgrade: {upgrade}")
-        get_console().print(f"[info]Use uv: {use_uv}")
-        get_console().print(f"[info]Rebuild base image: {rebuild_base_image}")
-        get_console().print(f"[info]Force recreate cluster: {force_recreate_cluster}")
-        get_console().print(f"[info]Include success outputs: {include_success_outputs}")
-        get_console().print(f"[info]Debug resources: {debug_resources}")
-        get_console().print(f"[info]Skip cleanup: {skip_cleanup}")
-        get_console().print(f"[info]Wait time in seconds: {wait_time_in_seconds}")
-        with ci_group(f"Running complete tests for: {short_combo_titles}"):
-            with run_with_pool(
-                parallelism=parallelism,
-                all_params=combo_titles,
-                debug_resources=debug_resources,
-                progress_matcher=GenericRegexpProgressMatcher(
-                    regexp=COMPLETE_TEST_REGEXP,
-                    regexp_for_joined_line=PREVIOUS_LINE_K8S_TEST_REGEXP,
-                    lines_to_search=100,
-                ),
-            ) as (pool, outputs):
-                results = [
-                    pool.apply_async(
-                        _run_complete_tests,
-                        kwds={
-                            "python": combo.python_version,
-                            "kubernetes_version": combo.kubernetes_version,
-                            "executor": executor,
-                            "rebuild_base_image": rebuild_base_image,
-                            "copy_local_sources": copy_local_sources,
-                            "use_uv": use_uv,
-                            "upgrade": upgrade,
-                            "wait_time_in_seconds": wait_time_in_seconds,
-                            "force_recreate_cluster": force_recreate_cluster,
-                            "use_standard_naming": use_standard_naming,
-                            "num_tries": 3,  # when creating cluster in parallel, sometimes we need to retry
-                            "extra_options": None,
-                            "test_args": pytest_args,
-                            "output": outputs[index],
-                        },
-                    )
-                    for index, combo in enumerate(combos)
-                ]
-        check_async_run_results(
-            results=results,
-            success="All K8S tests successfully completed.",
-            outputs=outputs,
-            include_success_outputs=include_success_outputs,
-            skip_cleanup=skip_cleanup,
-        )
-    else:
-        pytest_args = deepcopy(KUBERNETES_PYTEST_ARGS)
-        pytest_args.extend(test_args)
-        result, _ = _run_complete_tests(
-            python=python,
-            kubernetes_version=kubernetes_version,
-            executor=executor,
-            rebuild_base_image=rebuild_base_image,
-            copy_local_sources=copy_local_sources,
-            use_uv=use_uv,
-            upgrade=upgrade,
-            wait_time_in_seconds=wait_time_in_seconds,
-            force_recreate_cluster=force_recreate_cluster,
-            use_standard_naming=use_standard_naming,
-            num_tries=1,
-            extra_options=None,
-            test_args=pytest_args,
-            output=None,
-        )
-        if result != 0:
-            sys.exit(result)
