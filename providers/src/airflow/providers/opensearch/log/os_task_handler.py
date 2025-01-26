@@ -294,7 +294,8 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         else:
             if TYPE_CHECKING:
                 assert dag is not None
-            data_interval = dag.get_run_data_interval(dag_run)
+            # TODO: Task-SDK: Where should this function be?
+            data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined]
 
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])

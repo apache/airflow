@@ -29,13 +29,29 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class AssetAliasResponse(BaseModel):
+class AssetProfile(BaseModel):
     """
-    Asset alias schema with fields that are needed for Runtime.
+    Profile of an Asset.
+
+    Asset will have name, uri and asset_type defined.
+    AssetNameRef will have name and asset_type defined.
+    AssetUriRef will have uri and asset_type defined.
+    """
+
+    name: Annotated[str | None, Field(title="Name")] = None
+    uri: Annotated[str | None, Field(title="Uri")] = None
+    asset_type: Annotated[str, Field(title="Asset Type")]
+
+
+class AssetResponse(BaseModel):
+    """
+    Asset schema for responses with fields that are needed for Runtime.
     """
 
     name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
     group: Annotated[str, Field(title="Group")]
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
 class ConnectionResponse(BaseModel):
@@ -78,6 +94,17 @@ class IntermediateTIState(str, Enum):
     DEFERRED = "deferred"
 
 
+class PrevSuccessfulDagRunResponse(BaseModel):
+    """
+    Schema for response with previous successful DagRun information for Task Template Context.
+    """
+
+    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    start_date: Annotated[datetime | None, Field(title="Start Date")] = None
+    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+
+
 class TIDeferredStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a deferred state.
@@ -117,8 +144,19 @@ class TIRescheduleStatePayload(BaseModel):
     """
 
     state: Annotated[Literal["up_for_reschedule"] | None, Field(title="State")] = "up_for_reschedule"
-    end_date: Annotated[datetime, Field(title="End Date")]
     reschedule_date: Annotated[datetime, Field(title="Reschedule Date")]
+    end_date: Annotated[datetime, Field(title="End Date")]
+
+
+class TISuccessStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to success state.
+    """
+
+    state: Annotated[Literal["success"] | None, Field(title="State")] = "success"
+    end_date: Annotated[datetime, Field(title="End Date")]
+    task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
+    outlet_events: Annotated[list | None, Field(title="Outlet Events")] = None
 
 
 class TITargetStatePayload(BaseModel):
@@ -196,17 +234,6 @@ class TaskInstance(BaseModel):
     hostname: Annotated[str | None, Field(title="Hostname")] = None
 
 
-class AssetResponse(BaseModel):
-    """
-    Asset schema for responses with fields that are needed for Runtime.
-    """
-
-    name: Annotated[str, Field(title="Name")]
-    uri: Annotated[str, Field(title="Uri")]
-    group: Annotated[str, Field(title="Group")]
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
-
-
 class DagRun(BaseModel):
     """
     Schema for DagRun model with minimal required fields needed for Runtime.
@@ -221,6 +248,7 @@ class DagRun(BaseModel):
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
     run_type: DagRunType
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
+    external_trigger: Annotated[bool, Field(title="External Trigger")] = False
 
 
 class HTTPValidationError(BaseModel):
@@ -240,7 +268,7 @@ class TIRunContext(BaseModel):
 
 class TITerminalStatePayload(BaseModel):
     """
-    Schema for updating TaskInstance to a terminal state (e.g., SUCCESS or FAILED).
+    Schema for updating TaskInstance to a terminal state except SUCCESS state.
     """
 
     state: TerminalTIState

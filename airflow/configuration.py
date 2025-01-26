@@ -325,7 +325,7 @@ class AirflowConfigParser(ConfigParser):
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
-        ("dag_bundles", "refresh_interval"): ("scheduler", "dag_dir_list_interval", "3.0"),
+        ("dag_processor", "refresh_interval"): ("scheduler", "dag_dir_list_interval", "3.0"),
     }
 
     # A mapping of new section -> (old section, since_version).

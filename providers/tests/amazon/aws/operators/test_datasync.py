@@ -27,6 +27,7 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
 from airflow.utils import timezone
+from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
@@ -358,6 +359,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
                 logical_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
@@ -365,6 +367,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
                 execution_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=self.datasync)
         ti.dag_run = dag_run
@@ -570,6 +573,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
                 logical_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
@@ -577,6 +581,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
                 execution_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=self.datasync)
         ti.dag_run = dag_run
@@ -684,6 +689,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
                 logical_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
@@ -691,6 +697,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
                 execution_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=self.datasync)
         ti.dag_run = dag_run
@@ -870,6 +877,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
                 logical_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
@@ -877,6 +885,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
                 execution_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=self.datasync)
         ti.dag_run = dag_run
@@ -980,6 +989,7 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
                 logical_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
@@ -987,6 +997,7 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
                 execution_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=self.datasync)
         ti.dag_run = dag_run

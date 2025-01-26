@@ -26,29 +26,18 @@ from pydantic import computed_field, field_validator, model_validator
 
 from airflow.api_fastapi.common.types import TimeDeltaWithValidation
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.models.mappedoperator import MappedOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator, encode_priority_weight_strategy
+from airflow.serialization.serialized_objects import encode_priority_weight_strategy
 from airflow.task.priority_strategy import PriorityWeightStrategy
 
 
 def _get_class_ref(obj) -> dict[str, str | None]:
     """Return the class_ref dict for obj."""
-    is_mapped_or_serialized = isinstance(obj, (MappedOperator, SerializedBaseOperator))
-
-    module_path = None
-    if is_mapped_or_serialized:
-        module_path = obj._task_module
-    else:
+    module_path = getattr(obj, "_task_module", None)
+    if module_path is None:
         module_type = inspect.getmodule(obj)
         module_path = module_type.__name__ if module_type else None
 
-    class_name = None
-    if is_mapped_or_serialized:
-        class_name = obj._task_type
-    elif obj.__class__ is type:
-        class_name = obj.__name__
-    else:
-        class_name = type(obj).__name__
+    class_name = obj.task_type
 
     return {
         "module_path": module_path,
@@ -89,9 +78,7 @@ class TaskResponse(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def validate_model(cls, task: Any) -> Any:
-        task.__dict__.update(
-            {"class_ref": _get_class_ref(task), "is_mapped": isinstance(task, MappedOperator)}
-        )
+        task.__dict__.update({"class_ref": _get_class_ref(task), "is_mapped": task.is_mapped})
         return task
 
     @field_validator("weight_rule", mode="before")

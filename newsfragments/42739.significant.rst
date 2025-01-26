@@ -1,1 +1,12 @@
 Remove support for Python 3.8 as this version is not maintained within Python release schedule, see https://peps.python.org/pep-0596/.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Dependency changes
+  * [ ] Code interface changes

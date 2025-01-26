@@ -30,6 +30,7 @@ from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
 from airflow.utils import timezone
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -129,11 +130,19 @@ class TestS3KeySensor:
 
         if AIRFLOW_V_3_0_PLUS:
             dag_run = DagRun(
-                dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+                dag_id=dag.dag_id,
+                logical_date=logical_date,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
-                dag_id=dag.dag_id, execution_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+                dag_id=dag.dag_id,
+                execution_date=logical_date,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
@@ -164,11 +173,19 @@ class TestS3KeySensor:
         )
         if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
             dag_run = DagRun(
-                dag_id=dag.dag_id, execution_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+                dag_id=dag.dag_id,
+                execution_date=logical_date,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
-                dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+                dag_id=dag.dag_id,
+                logical_date=logical_date,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run

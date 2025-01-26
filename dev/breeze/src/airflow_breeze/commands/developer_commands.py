@@ -722,11 +722,15 @@ def build_docs(
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
-        docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
-        for dir_name in ["_build", "_doctrees", "_inventory_cache", "_api"]:
-            for directory in docs_dir.rglob(dir_name):
-                get_console().print(f"[info]Removing {directory}")
-                shutil.rmtree(directory, ignore_errors=True)
+        directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "_api"]
+    else:
+        directories_to_clean = ["_api"]
+    docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+    for dir_name in directories_to_clean:
+        for directory in docs_dir.rglob(dir_name):
+            get_console().print(f"[info]Removing {directory}")
+            shutil.rmtree(directory, ignore_errors=True)
+
     docs_list_as_tuple: tuple[str, ...] = ()
     if package_list and len(package_list):
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")

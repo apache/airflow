@@ -887,6 +887,9 @@ extra-links:
   - airflow.providers.amazon.aws.links.sagemaker.SageMakerTransformJobLink
   - airflow.providers.amazon.aws.links.step_function.StateMachineDetailsLink
   - airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink
+  - airflow.providers.amazon.aws.links.comprehend.ComprehendPiiEntitiesDetectionLink
+  - airflow.providers.amazon.aws.links.comprehend.ComprehendDocumentClassifierLink
+
 
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook

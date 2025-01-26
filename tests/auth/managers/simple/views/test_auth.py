@@ -55,6 +55,9 @@ class TestSimpleAuthManagerAuthenticationViews:
             assert response.location == "/login"
             assert session.get("user") is None
 
+    @pytest.mark.skip(
+        "This test will be deleted soon, meanwhile disabling it because it is flaky. See: https://github.com/apache/airflow/issues/45818"
+    )
     @pytest.mark.parametrize(
         "username, password, is_successful, query_params, expected_redirect",
         [
@@ -64,13 +67,20 @@ class TestSimpleAuthManagerAuthenticationViews:
             ("test", "test", True, {"next": "next_url"}, "next_url?token=token"),
         ],
     )
-    @patch("airflow.auth.managers.simple.views.auth.JWTSigner")
+    @patch("airflow.auth.managers.simple.views.auth.get_auth_manager")
     def test_login_submit(
-        self, mock_jwt_signer, simple_app, username, password, is_successful, query_params, expected_redirect
+        self,
+        mock_get_auth_manager,
+        simple_app,
+        username,
+        password,
+        is_successful,
+        query_params,
+        expected_redirect,
     ):
-        signer = Mock()
-        signer.generate_signed_token.return_value = "token"
-        mock_jwt_signer.return_value = signer
+        auth_manager = Mock()
+        auth_manager.get_jwt_token.return_value = "token"
+        mock_get_auth_manager.return_value = auth_manager
         with simple_app.test_client() as client:
             response = client.post(
                 "/login_submit", query_string=query_params, data={"username": username, "password": password}

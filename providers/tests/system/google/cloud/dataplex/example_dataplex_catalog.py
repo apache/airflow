@@ -26,10 +26,15 @@ import os
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCatalogCreateEntryGroupOperator,
+    DataplexCatalogCreateEntryTypeOperator,
     DataplexCatalogDeleteEntryGroupOperator,
+    DataplexCatalogDeleteEntryTypeOperator,
     DataplexCatalogGetEntryGroupOperator,
+    DataplexCatalogGetEntryTypeOperator,
     DataplexCatalogListEntryGroupsOperator,
+    DataplexCatalogListEntryTypesOperator,
     DataplexCatalogUpdateEntryGroupOperator,
+    DataplexCatalogUpdateEntryTypeOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -45,6 +50,11 @@ ENTRY_GROUP_NAME = f"{DAG_ID}_entry_group_{ENV_ID}".replace("_", "-")
 # [START howto_dataplex_entry_group_configuration]
 ENTRY_GROUP_BODY = {"display_name": "Display Name", "description": "Some description"}
 # [END howto_dataplex_entry_group_configuration]
+
+ENTRY_TYPE_NAME = f"{DAG_ID}_entry_type_{ENV_ID}".replace("_", "-")
+# [START howto_dataplex_entry_type_configuration]
+ENTRY_TYPE_BODY = {"display_name": "Display Name", "description": "Some description"}
+# [END howto_dataplex_entry_type_configuration]
 
 with DAG(
     DAG_ID,
@@ -63,6 +73,17 @@ with DAG(
     )
     # [END howto_operator_dataplex_catalog_create_entry_group]
 
+    # [START howto_operator_dataplex_catalog_create_entry_type]
+    create_entry_type = DataplexCatalogCreateEntryTypeOperator(
+        task_id="create_entry_type",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        entry_type_id=ENTRY_TYPE_NAME,
+        entry_type_configuration=ENTRY_TYPE_BODY,
+        validate_request=False,
+    )
+    # [END howto_operator_dataplex_catalog_create_entry_type]
+
     # [START howto_operator_dataplex_catalog_get_entry_group]
     get_entry_group = DataplexCatalogGetEntryGroupOperator(
         task_id="get_entry_group",
@@ -71,6 +92,15 @@ with DAG(
         entry_group_id=ENTRY_GROUP_NAME,
     )
     # [END howto_operator_dataplex_catalog_get_entry_group]
+
+    # [START howto_operator_dataplex_catalog_get_entry_type]
+    get_entry_type = DataplexCatalogGetEntryTypeOperator(
+        task_id="get_entry_type",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        entry_type_id=ENTRY_TYPE_NAME,
+    )
+    # [END howto_operator_dataplex_catalog_get_entry_type]
 
     # [START howto_operator_dataplex_catalog_list_entry_groups]
     list_entry_group = DataplexCatalogListEntryGroupsOperator(
@@ -81,6 +111,16 @@ with DAG(
         filter_by='display_name = "Display Name"',
     )
     # [END howto_operator_dataplex_catalog_list_entry_groups]
+
+    # [START howto_operator_dataplex_catalog_list_entry_types]
+    list_entry_type = DataplexCatalogListEntryTypesOperator(
+        task_id="list_entry_type",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        order_by="name",
+        filter_by='display_name = "Display Name"',
+    )
+    # [END howto_operator_dataplex_catalog_list_entry_types]
 
     # [START howto_operator_dataplex_catalog_update_entry_group]
     update_entry_group = DataplexCatalogUpdateEntryGroupOperator(
@@ -93,6 +133,17 @@ with DAG(
     )
     # [END howto_operator_dataplex_catalog_update_entry_group]
 
+    # [START howto_operator_dataplex_catalog_update_entry_type]
+    update_entry_type = DataplexCatalogUpdateEntryTypeOperator(
+        task_id="update_entry_type",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        entry_type_id=ENTRY_TYPE_NAME,
+        entry_type_configuration={"display_name": "Updated Display Name"},
+        update_mask=["display_name"],
+    )
+    # [END howto_operator_dataplex_catalog_update_entry_type]
+
     # [START howto_operator_dataplex_catalog_delete_entry_group]
     delete_entry_group = DataplexCatalogDeleteEntryGroupOperator(
         task_id="delete_entry_group",
@@ -103,7 +154,24 @@ with DAG(
     )
     # [END howto_operator_dataplex_catalog_delete_entry_group]
 
-    create_entry_group >> get_entry_group >> list_entry_group >> update_entry_group >> delete_entry_group
+    # [START howto_operator_dataplex_catalog_delete_entry_type]
+    delete_entry_type = DataplexCatalogDeleteEntryTypeOperator(
+        task_id="delete_entry_type",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        entry_type_id=ENTRY_TYPE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_dataplex_catalog_delete_entry_type]
+
+    (
+        [
+            create_entry_group >> get_entry_group >> update_entry_group >> delete_entry_group,
+            list_entry_group,
+            create_entry_type >> get_entry_type >> update_entry_type >> delete_entry_type,
+            list_entry_type,
+        ]
+    )
 
     from tests_common.test_utils.watcher import watcher
 

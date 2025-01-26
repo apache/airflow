@@ -201,6 +201,7 @@ class TestSparkSubmitOperator:
                 run_id="spark_test",
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.MANUAL,
+                state="running",
             )
         else:
             ti.dag_run = DagRun(
@@ -208,7 +209,9 @@ class TestSparkSubmitOperator:
                 run_id="spark_test",
                 execution_date=DEFAULT_DATE,
                 run_type=DagRunType.MANUAL,
+                state="running",
             )
+
         session.add(ti)
         session.commit()
         # When
