@@ -22,11 +22,11 @@ import functools
 import json
 import logging
 import os
+import warnings
 from http import HTTPStatus
 from unittest import mock
 
 import aiohttp
-import packaging.version
 import pytest
 import requests
 import tenacity
@@ -35,15 +35,9 @@ from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers import http
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
-
-DEFAULT_HEADERS_AS_STRING = '{\r\n "Content-Type": "application/json",\r\n  "X-Requested-By": "Airflow"\r\n}'
-DEFAULT_HEADERS = json.loads(DEFAULT_HEADERS_AS_STRING)
 
 
 @pytest.fixture
@@ -56,9 +50,7 @@ def aioresponse():
 
 
 def get_airflow_connection(conn_id: str = "http_default"):
-    return Connection(
-        conn_id=conn_id, conn_type="http", host="test:8080/", extra={"headers": DEFAULT_HEADERS}
-    )
+    return Connection(conn_id=conn_id, conn_type="http", host="test:8080/", extra='{"bearer": "test"}')
 
 
 def get_airflow_connection_with_extra(extra: dict):
@@ -76,28 +68,6 @@ def get_airflow_connection_with_login_and_password(conn_id: str = "http_default"
     return Connection(conn_id=conn_id, conn_type="http", host="test.com", login="username", password="pass")
 
 
-def airflow_dependency_version():
-    import re
-    from os.path import dirname, join
-
-    import yaml
-
-    with open(join(dirname(http.__file__), "provider.yaml"), encoding="utf-8") as file:
-        for dependency in yaml.safe_load(file)["dependencies"]:
-            if dependency.startswith("apache-airflow"):
-                match = re.search(r">=([\d\.]+)", dependency)
-                if match:
-                    return packaging.version.parse(match.group(1))
-
-
-class CustomAuthBase(HTTPBasicAuth):
-    def __init__(self, username: str, password: str, endpoint: str):
-        super().__init__(username, password)
-
-
-@mock.patch.dict(
-    "os.environ", AIRFLOW__HTTP__EXTRA_AUTH_TYPES="tests.providers.http.hooks.test_http.CustomAuthBase"
-)
 class TestHttpHook:
     """Test get, post and raise_for_status"""
 
@@ -112,12 +82,14 @@ class TestHttpHook:
         self.post_hook = HttpHook(method="POST")
 
     def test_raise_for_status_with_200(self, requests_mock):
-        requests_mock.get(
-            "http://test:8080/v1/test", status_code=200, text='{"status":{"status": 200}}', reason="OK"
-        )
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            resp = self.get_hook.run("v1/test")
-            assert resp.text == '{"status":{"status": 200}}'
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+            requests_mock.get(
+                "http://test:8080/v1/test", status_code=200, text='{"status":{"status": 200}}', reason="OK"
+            )
+            with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+                resp = self.get_hook.run("v1/test")
+                assert resp.text == '{"status":{"status": 200}}'
 
     @mock.patch("requests.Request")
     @mock.patch("requests.Session")
@@ -139,127 +111,114 @@ class TestHttpHook:
                 mock_request.reset_mock()
 
     def test_get_request_do_not_raise_for_status_if_check_response_is_false(self, requests_mock):
-        requests_mock.get(
-            "http://test:8080/v1/test",
-            status_code=404,
-            text='{"status":{"status": 404}}',
-            reason="Bad request",
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+            requests_mock.get(
+                "http://test:8080/v1/test",
+                status_code=404,
+                text='{"status":{"status": 404}}',
+                reason="Bad request",
+            )
 
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            resp = self.get_hook.run("v1/test", extra_options={"check_response": False})
-            assert resp.text == '{"status":{"status": 404}}'
+            with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+                resp = self.get_hook.run("v1/test", extra_options={"check_response": False})
+                assert resp.text == '{"status":{"status": 404}}'
 
     def test_hook_contains_header_from_extra_field(self):
-        airflow_connection = get_airflow_connection_with_extra(extra={"headers": DEFAULT_HEADERS_AS_STRING})
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
-            expected_conn = get_airflow_connection()
-            conn = self.get_hook.get_conn()
-
-            conn_extra: dict = json.loads(expected_conn.extra)
-            assert dict(conn.headers, **conn_extra["headers"]) == conn.headers
-            assert conn.headers["Content-Type"] == "application/json"
-            assert conn.headers["X-Requested-By"] == "Airflow"
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                expected_conn = get_airflow_connection()
+                conn = self.get_hook.get_conn()
+                assert dict(conn.headers, **json.loads(expected_conn.extra)) == conn.headers
+                assert conn.headers.get("bearer") == "test"
 
     def test_hook_ignore_max_redirects_from_extra_field_as_header(self):
-        airflow_connection = get_airflow_connection_with_extra(
-            extra={
-                "headers": DEFAULT_HEADERS_AS_STRING,
-                "max_redirects": 3,
-            }
-        )
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "max_redirects": 3})
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
-            expected_conn = airflow_connection()
-            conn = self.get_hook.get_conn()
-            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
-            assert conn.headers["Content-Type"] == "application/json"
-            assert conn.headers["X-Requested-By"] == "Airflow"
-            assert conn.proxies == {}
-            assert conn.stream is False
-            assert conn.verify is True
-            assert conn.cert is None
-            assert conn.max_redirects == 3
-            assert conn.trust_env is True
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                expected_conn = airflow_connection()
+                conn = self.get_hook.get_conn()
+                assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+                assert conn.headers.get("bearer") == "test"
+                assert conn.headers.get("allow_redirects") is None
+                assert conn.proxies == {}
+                assert conn.stream is False
+                assert conn.verify is True
+                assert conn.cert is None
+                assert conn.max_redirects == 3
+                assert conn.trust_env is True
 
     def test_hook_ignore_proxies_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
-            extra={
-                "headers": DEFAULT_HEADERS,
-                "proxies": {"http": "http://proxy:80", "https": "https://proxy:80"},
-            }
+            extra={"bearer": "test", "proxies": {"http": "http://proxy:80", "https": "https://proxy:80"}}
         )
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
-            expected_conn = airflow_connection()
-            conn = self.get_hook.get_conn()
-            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
-            assert conn.headers["Content-Type"] == "application/json"
-            assert conn.headers["X-Requested-By"] == "Airflow"
-            assert conn.proxies == {"http": "http://proxy:80", "https": "https://proxy:80"}
-            assert conn.stream is False
-            assert conn.verify is True
-            assert conn.cert is None
-            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
-            assert conn.trust_env is True
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                expected_conn = airflow_connection()
+                conn = self.get_hook.get_conn()
+                assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+                assert conn.headers.get("bearer") == "test"
+                assert conn.headers.get("proxies") is None
+                assert conn.proxies == {"http": "http://proxy:80", "https": "https://proxy:80"}
+                assert conn.stream is False
+                assert conn.verify is True
+                assert conn.cert is None
+                assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+                assert conn.trust_env is True
 
     def test_hook_ignore_verify_from_extra_field_as_header(self):
-        airflow_connection = get_airflow_connection_with_extra(
-            extra={
-                "headers": {"Content-Type": "application/json", "X-Requested-By": "Airflow"},
-                "verify": False,
-            }
-        )
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "verify": False})
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
-            expected_conn = airflow_connection()
-            conn = self.get_hook.get_conn()
-            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
-            assert conn.headers["Content-Type"] == "application/json"
-            assert conn.headers["X-Requested-By"] == "Airflow"
-            assert conn.proxies == {}
-            assert conn.stream is False
-            assert conn.verify is False
-            assert conn.cert is None
-            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
-            assert conn.trust_env is True
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                expected_conn = airflow_connection()
+                conn = self.get_hook.get_conn()
+                assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+                assert conn.headers.get("bearer") == "test"
+                assert conn.headers.get("verify") is None
+                assert conn.proxies == {}
+                assert conn.stream is False
+                assert conn.verify is False
+                assert conn.cert is None
+                assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+                assert conn.trust_env is True
 
     def test_hook_ignore_cert_from_extra_field_as_header(self):
-        airflow_connection = get_airflow_connection_with_extra(
-            extra={
-                "headers": DEFAULT_HEADERS,
-                "cert": "cert.crt",
-            }
-        )
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "cert": "cert.crt"})
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
-            expected_conn = airflow_connection()
-            conn = self.get_hook.get_conn()
-            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
-            assert conn.headers["Content-Type"] == "application/json"
-            assert conn.headers["X-Requested-By"] == "Airflow"
-            assert conn.proxies == {}
-            assert conn.stream is False
-            assert conn.verify is True
-            assert conn.cert == "cert.crt"
-            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
-            assert conn.trust_env is True
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                expected_conn = airflow_connection()
+                conn = self.get_hook.get_conn()
+                assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+                assert conn.headers.get("bearer") == "test"
+                assert conn.headers.get("cert") is None
+                assert conn.proxies == {}
+                assert conn.stream is False
+                assert conn.verify is True
+                assert conn.cert == "cert.crt"
+                assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+                assert conn.trust_env is True
 
     def test_hook_ignore_trust_env_from_extra_field_as_header(self):
-        airflow_connection = get_airflow_connection_with_extra(
-            extra={
-                "headers": DEFAULT_HEADERS,
-                "trust_env": False,
-            }
-        )
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "trust_env": False})
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
-            expected_conn = airflow_connection()
-            conn = self.get_hook.get_conn()
-            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
-            assert conn.headers["Content-Type"] == "application/json"
-            assert conn.headers["X-Requested-By"] == "Airflow"
-            assert conn.proxies == {}
-            assert conn.stream is False
-            assert conn.verify is True
-            assert conn.cert is None
-            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
-            assert conn.trust_env is False
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                expected_conn = airflow_connection()
+                conn = self.get_hook.get_conn()
+                assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+                assert conn.headers.get("bearer") == "test"
+                assert conn.headers.get("cert") is None
+                assert conn.proxies == {}
+                assert conn.stream is False
+                assert conn.verify is True
+                assert conn.cert is None
+                assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+                assert conn.trust_env is False
 
     @mock.patch("requests.Request")
     def test_hook_with_method_in_lowercase(self, mock_requests):
@@ -275,20 +234,20 @@ class TestHttpHook:
 
     @pytest.mark.db_test
     def test_hook_uses_provided_header(self):
-        conn = self.get_hook.get_conn(headers={"Content-Type": "text/html"})
-        assert conn.headers["Content-Type"] == "text/html"
-        assert conn.headers.get("X-Requested-By") is None
+        conn = self.get_hook.get_conn(headers={"bearer": "newT0k3n"})
+        assert conn.headers.get("bearer") == "newT0k3n"
 
     @pytest.mark.db_test
     def test_hook_has_no_header_from_extra(self):
         conn = self.get_hook.get_conn()
-        assert conn.headers.get("Content-Type") is None
-        assert conn.headers.get("X-Requested-By") is None
+        assert conn.headers.get("bearer") is None
 
     def test_hooks_header_from_extra_is_overridden(self):
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            conn = self.get_hook.get_conn(headers={"Content-Type": "text/html"})
-            assert conn.headers["Content-Type"] == "text/html"
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                conn = self.get_hook.get_conn(headers={"bearer": "newT0k3n"})
+                assert conn.headers.get("bearer") == "newT0k3n"
 
     def test_post_request(self, requests_mock):
         requests_mock.post(
@@ -296,8 +255,10 @@ class TestHttpHook:
         )
 
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            resp = self.post_hook.run("v1/test")
-            assert resp.status_code == 200
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                resp = self.post_hook.run("v1/test")
+                assert resp.status_code == 200
 
     def test_post_request_with_error_code(self, requests_mock):
         requests_mock.post(
@@ -309,7 +270,9 @@ class TestHttpHook:
 
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
             with pytest.raises(AirflowException):
-                self.post_hook.run("v1/test")
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                    self.post_hook.run("v1/test")
 
     def test_post_request_do_not_raise_for_status_if_check_response_is_false(self, requests_mock):
         requests_mock.post(
@@ -320,8 +283,10 @@ class TestHttpHook:
         )
 
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            resp = self.post_hook.run("v1/test", extra_options={"check_response": False})
-            assert resp.status_code == 418
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                resp = self.post_hook.run("v1/test", extra_options={"check_response": False})
+                assert resp.status_code == 418
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.http.hooks.http.requests.Session")
@@ -351,8 +316,10 @@ class TestHttpHook:
             reraise=True,
         )
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            response = self.get_hook.run_with_advanced_retry(endpoint="v1/test", _retry_args=retry_args)
-            assert isinstance(response, requests.Response)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                response = self.get_hook.run_with_advanced_retry(endpoint="v1/test", _retry_args=retry_args)
+                assert isinstance(response, requests.Response)
 
     def test_header_from_extra_and_run_method_are_merged(self):
         def run_and_return(unused_session, prepped_request, unused_extra_options, **kwargs):
@@ -363,11 +330,12 @@ class TestHttpHook:
             "airflow.providers.http.hooks.http.HttpHook.run_and_check", side_effect=run_and_return
         ):
             with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-                prepared_request = self.get_hook.run("v1/test", headers={"some_other_header": "test"})
-                actual = dict(prepared_request.headers)
-                assert actual["Content-Type"] == "application/json"
-                assert actual["X-Requested-By"] == "Airflow"
-                assert actual["some_other_header"] == "test"
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                    prepared_request = self.get_hook.run("v1/test", headers={"some_other_header": "test"})
+                    actual = dict(prepared_request.headers)
+                    assert actual.get("bearer") == "test"
+                    assert actual.get("some_other_header") == "test"
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_http_connection(self, mock_get_connection):
@@ -413,119 +381,6 @@ class TestHttpHook:
         hook.get_conn({})
         assert hook.base_url == "http://"
 
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
-    @mock.patch("providers.tests.http.hooks.test_http.CustomAuthBase.__init__")
-    def test_connection_with_extra_header_and_auth_kwargs(self, auth, mock_get_connection):
-        auth.return_value = None
-        conn = Connection(
-            conn_id="http_default",
-            conn_type="http",
-            login="username",
-            password="pass",
-            extra='{"headers": {"x-header": 0}, "auth_kwargs": {"endpoint": "http://localhost"}}',
-        )
-        mock_get_connection.return_value = conn
-
-        hook = HttpHook(auth_type=CustomAuthBase)
-        session = hook.get_conn({})
-
-        auth.assert_called_once_with("username", "pass", endpoint="http://localhost")
-        assert "auth_kwargs" not in session.headers
-        assert "x-header" in session.headers
-
-    def test_available_connection_auth_types(self):
-        auth_types = HttpHook.get_auth_types()
-        assert auth_types == frozenset(
-            {
-                "requests.auth.HTTPBasicAuth",
-                "requests.auth.HTTPProxyAuth",
-                "requests.auth.HTTPDigestAuth",
-                "requests_kerberos.HTTPKerberosAuth",
-                "aiohttp.BasicAuth",
-                "tests.providers.http.hooks.test_http.CustomAuthBase",
-            }
-        )
-
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
-    def test_connection_with_invalid_auth_type_get_skipped(self, mock_get_connection, caplog):
-        auth_type: str = "auth_type.class.not.available.for.Import"
-        conn = Connection(
-            conn_id="http_default",
-            conn_type="http",
-            extra=f'{{"auth_type": "{auth_type}"}}',
-        )
-        mock_get_connection.return_value = conn
-        HttpHook().get_conn({})
-        assert f"Skipping import of auth_type '{auth_type}'." in caplog.text
-
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_auth_types")
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
-    @mock.patch("providers.tests.http.hooks.test_http.CustomAuthBase.__init__")
-    def test_connection_with_extra_header_and_auth_type(self, auth, mock_get_connection, mock_get_auth_types):
-        auth.return_value = None
-        conn = Connection(
-            conn_id="http_default",
-            conn_type="http",
-            login="username",
-            password="pass",
-            extra='{"headers": {"x-header": 0}, "auth_type": "providers.tests.http.hooks.test_http.CustomAuthBase"}',
-        )
-        mock_get_connection.return_value = conn
-        mock_get_auth_types.return_value = frozenset(["providers.tests.http.hooks.test_http.CustomAuthBase"])
-
-        session = HttpHook().get_conn({})
-        auth.assert_called_once_with("username", "pass")
-        assert isinstance(session.auth, CustomAuthBase)
-        assert "auth_type" not in session.headers
-        assert "x-header" in session.headers
-
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_auth_types")
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
-    @mock.patch("providers.tests.http.hooks.test_http.CustomAuthBase.__init__")
-    def test_connection_with_extra_auth_type_and_no_credentials(
-        self, auth, mock_get_connection, mock_get_auth_types
-    ):
-        auth.return_value = None
-        conn = Connection(
-            conn_id="http_default",
-            conn_type="http",
-            login="username",
-            password="secret",
-            extra='{"auth_type": "providers.tests.http.hooks.test_http.CustomAuthBase"}',
-        )
-        mock_get_connection.return_value = conn
-        mock_get_auth_types.return_value = frozenset(["providers.tests.http.hooks.test_http.CustomAuthBase"])
-
-        HttpHook().get_conn({})
-        auth.assert_called_once()
-
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
-    @mock.patch("providers.tests.http.hooks.test_http.CustomAuthBase.__init__")
-    def test_connection_with_string_headers_and_auth_kwargs(self, auth, mock_get_connection):
-        """When passed via the UI, the 'headers' and 'auth_kwargs' fields' data is
-        saved as string.
-        """
-        auth.return_value = None
-        conn = Connection(
-            conn_id="http_default",
-            conn_type="http",
-            login="username",
-            password="pass",
-            extra=f"""
-                {{"auth_kwargs": {{\r\n    "endpoint": "http://localhost"\r\n}},
-                "headers": {DEFAULT_HEADERS_AS_STRING}}}
-                """,
-        )
-        mock_get_connection.return_value = conn
-
-        hook = HttpHook(auth_type=CustomAuthBase)
-        session = hook.get_conn({})
-
-        auth.assert_called_once_with("username", "pass", endpoint="http://localhost")
-        assert "auth_kwargs" not in session.headers
-        assert session.headers["Content-Type"] == "application/json"
-        assert session.headers["X-Requested-By"] == "Airflow"
-
     @pytest.mark.parametrize("method", ["GET", "POST"])
     def test_json_request(self, method, requests_mock):
         obj1 = {"a": 1, "b": "abc", "c": [1, 2, {"d": 10}]}
@@ -536,8 +391,10 @@ class TestHttpHook:
         requests_mock.request(method=method, url="//test:8080/v1/test", additional_matcher=match_obj1)
 
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            # will raise NoMockAddress exception if obj1 != request.json()
-            HttpHook(method=method).run("v1/test", json=obj1)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                # will raise NoMockAddress exception if obj1 != request.json()
+                HttpHook(method=method).run("v1/test", json=obj1)
 
     @mock.patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_verify_set_to_true_by_default(self, mock_session_send):
@@ -612,35 +469,43 @@ class TestHttpHook:
     def test_connection_success(self, requests_mock):
         requests_mock.get("http://test:8080", status_code=200, json={"status": {"status": 200}}, reason="OK")
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            status, msg = self.get_hook.test_connection()
-            assert status is True
-            assert msg == "Connection successfully tested"
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                status, msg = self.get_hook.test_connection()
+                assert status is True
+                assert msg == "Connection successfully tested"
 
     def test_connection_failure(self, requests_mock):
         requests_mock.get(
             "http://test:8080", status_code=500, json={"message": "internal server error"}, reason="NOT_OK"
         )
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            status, msg = self.get_hook.test_connection()
-            assert status is False
-            assert msg == "500:NOT_OK"
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                status, msg = self.get_hook.test_connection()
+                assert status is False
+                assert msg == "500:NOT_OK"
 
     @mock.patch("requests.auth.AuthBase.__init__")
     def test_loginless_custom_auth_initialized_with_no_args(self, auth):
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            auth.return_value = None
-            hook = HttpHook("GET", "http_default", AuthBase)
-            hook.get_conn()
-            auth.assert_called_once_with()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                auth.return_value = None
+                hook = HttpHook("GET", "http_default", AuthBase)
+                hook.get_conn()
+                auth.assert_called_once_with()
 
     @mock.patch("requests.auth.AuthBase.__init__")
     def test_loginless_custom_auth_initialized_with_args(self, auth):
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            auth.return_value = None
-            auth_with_args = functools.partial(AuthBase, "test_arg")
-            hook = HttpHook("GET", "http_default", auth_with_args)
-            hook.get_conn()
-            auth.assert_called_once_with("test_arg")
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                auth.return_value = None
+                auth_with_args = functools.partial(AuthBase, "test_arg")
+                hook = HttpHook("GET", "http_default", auth_with_args)
+                hook.get_conn()
+                auth.assert_called_once_with("test_arg")
 
     @mock.patch("requests.auth.HTTPBasicAuth.__init__")
     def test_login_password_basic_auth_initialized(self, auth):
@@ -648,18 +513,22 @@ class TestHttpHook:
             "airflow.hooks.base.BaseHook.get_connection",
             side_effect=get_airflow_connection_with_login_and_password,
         ):
-            auth.return_value = None
-            hook = HttpHook("GET", "http_default", HTTPBasicAuth)
-            hook.get_conn()
-            auth.assert_called_once_with("username", "pass")
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                auth.return_value = None
+                hook = HttpHook("GET", "http_default", HTTPBasicAuth)
+                hook.get_conn()
+                auth.assert_called_once_with("username", "pass")
 
     @mock.patch("requests.auth.HTTPBasicAuth.__init__")
     def test_default_auth_not_initialized(self, auth):
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            auth.return_value = None
-            hook = HttpHook("GET", "http_default")
-            hook.get_conn()
-            auth.assert_not_called()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                auth.return_value = None
+                hook = HttpHook("GET", "http_default")
+                hook.get_conn()
+                auth.assert_not_called()
 
     def test_keep_alive_enabled(self):
         with (
@@ -724,15 +593,6 @@ class TestHttpHook:
             assert isinstance(
                 session.adapters["https://"], type(custom_adapter)
             ), "Custom HTTPS adapter not correctly mounted"
-
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Lambda parameters works in Airflow >= 2.10.0")
-    def test_airflow_dependency_version(self):
-        if airflow_dependency_version() >= packaging.version.parse("2.10.0"):
-            raise RuntimeError(
-                f"The method {HttpHook._configure_session_from_extra.__name__} from the "
-                f"{HttpHook.__name__} should be refactored since the {Connection.get_extra_dejson.__name__} "
-                f"method is now available on the {Connection.__name__} class since Apache Airflow 2.10.0"
-            )
 
 
 class TestHttpAsyncHook:
@@ -821,8 +681,8 @@ class TestHttpAsyncHook:
     @pytest.mark.asyncio
     async def test_async_request_uses_connection_extra(self):
         """Test api call asynchronously with a connection that has extra field."""
-        headers = {"Content-Type": "application/json", "X-Requested-By": "Airflow"}
-        airflow_connection = get_airflow_connection_with_extra(extra={"headers": headers})
+
+        connection_extra = {"bearer": "test"}
 
         with aioresponses() as m:
             m.post(
@@ -846,11 +706,11 @@ class TestHttpAsyncHook:
     @pytest.mark.asyncio
     async def test_async_request_uses_connection_extra_with_requests_parameters(self):
         """Test api call asynchronously with a connection that has extra field."""
-        headers = {"Content-Type": "application/json", "X-Requested-By": "Airflow"}
+        connection_extra = {"bearer": "test"}
         proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
         airflow_connection = get_airflow_connection_with_extra(
             extra={
-                **{"headers": DEFAULT_HEADERS},
+                **connection_extra,
                 **{
                     "proxies": proxy,
                     "timeout": 60,
@@ -864,6 +724,7 @@ class TestHttpAsyncHook:
 
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             hook = HttpAsyncHook()
+
             with aioresponses() as m:
                 m.post(
                     "http://test:8080/v1/test",
@@ -887,29 +748,34 @@ class TestHttpAsyncHook:
                         assert mocked_function.call_args.kwargs.get("max_redirects") == 3
                         assert mocked_function.call_args.kwargs.get("trust_env") is False
 
-    def test_parse_extra(self):
+    def test_process_extra_options_from_connection(self):
+        extra_options = {}
         proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
-        session_conf = {
-            "stream": True,
-            "cert": "cert.crt",
-            "proxies": proxy,
+        conn = get_airflow_connection_with_extra(
+            extra={
+                "bearer": "test",
+                "stream": True,
+                "cert": "cert.crt",
+                "proxies": proxy,
+                "timeout": 60,
+                "verify": False,
+                "allow_redirects": False,
+                "max_redirects": 3,
+                "trust_env": False,
+            }
+        )()
+
+        actual = HttpAsyncHook._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+
+        assert extra_options == {
+            "proxy": proxy,
             "timeout": 60,
-            "verify": False,
+            "verify_ssl": False,
             "allow_redirects": False,
             "max_redirects": 3,
             "trust_env": False,
         }
-
-        actual = HttpAsyncHook()._parse_extra(
-            conn_extra={**{"headers": DEFAULT_HEADERS_AS_STRING}, **session_conf}
-        )
-
-        assert actual == {
-            "auth_type": None,
-            "auth_kwargs": {},
-            "session_conf": session_conf,
-            "headers": DEFAULT_HEADERS,
-        }
+        assert actual == {"bearer": "test"}
 
     @pytest.mark.asyncio
     async def test_build_request_url_from_connection(self):
