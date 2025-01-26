@@ -627,6 +627,7 @@ dev = [
   "apache-airflow-providers-pagerduty",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-standard",
+  "apache-airflow-providers-telegram",
   "apache-airflow-providers-weaviate",
   "apache-airflow-providers-zendesk",
   "apache-airflow-task-sdk",
@@ -649,6 +650,7 @@ apache-airflow-providers-odbc = { workspace = true }
 apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
+apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
@@ -669,6 +671,7 @@ members = [
     "providers/odbc",
     "providers/pinecone",
     "providers/standard",
+    "providers/telegram",
     "providers/weaviate",
     "providers/zendesk",
     "task_sdk",

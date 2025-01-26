@@ -13,5 +13,6 @@ apache-airflow-providers-jenkins
 apache-airflow-providers-pagerduty
 apache-airflow-providers-pinecone
 apache-airflow-providers-standard
+apache-airflow-providers-telegram
 apache-airflow-providers-weaviate
 apache-airflow-providers-zendesk

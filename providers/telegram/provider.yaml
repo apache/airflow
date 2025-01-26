@@ -49,16 +49,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - python-telegram-bot>=20.2
-
 integrations:
   - integration-name: Telegram
     external-doc-url: https://telegram.org/
     how-to-guide:
       - /docs/apache-airflow-providers-telegram/operators.rst
-    logo: /integration-logos/telegram/Telegram.png
+    logo: /docs/integration-logos/Telegram.png
     tags: [service]
 
 operators:
