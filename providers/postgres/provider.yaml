@@ -67,23 +67,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-  - psycopg2-binary>=2.9.7
-  - asyncpg>=0.30.0
-
-additional-extras:
-  - name: amazon
-    dependencies:
-      - apache-airflow-providers-amazon>=2.6.0
-
 integrations:
   - integration-name: PostgreSQL
     external-doc-url: https://www.postgresql.org/
     how-to-guide:
       - /docs/apache-airflow-providers-postgres/operators/postgres_operator_howto_guide.rst
-    logo: /integration-logos/postgres/Postgres.png
+    logo: /docs/integration-logos/Postgres.png
     tags: [software]
 
 dialects:

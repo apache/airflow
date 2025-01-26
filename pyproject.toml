@@ -621,11 +621,13 @@ dev = [
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-pgvector",
   "apache-airflow-providers-mysql",
   "apache-airflow-providers-odbc",
   "apache-airflow-providers-jenkins",
   "apache-airflow-providers-pagerduty",
   "apache-airflow-providers-pinecone",
+  "apache-airflow-providers-postgres",
   "apache-airflow-providers-standard",
   "apache-airflow-providers-telegram",
   "apache-airflow-providers-weaviate",
@@ -649,6 +651,8 @@ apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-odbc = { workspace = true }
 apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
+apache-airflow-providers-postgres = { workspace = true }
+apache-airflow-providers-pgvector = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
 apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
@@ -670,6 +674,8 @@ members = [
     "providers/jenkins",
     "providers/odbc",
     "providers/pinecone",
+    "providers/postgres",
+    "providers/pgvector",
     "providers/standard",
     "providers/telegram",
     "providers/weaviate",
