@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-22T08:41:16.063304
+# This constraints file was automatically generated on 2025-01-26T18:29:52.133479
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -10,7 +10,7 @@
 #
 Authlib==1.3.2
 ConfigUpdater==3.2
-Deprecated==1.2.15
+Deprecated==1.2.17
 Flask-AppBuilder==4.5.2
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
@@ -33,7 +33,7 @@ SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
 WTForms==3.1.2
 Werkzeug==2.2.3
-aiobotocore==2.18.0
+aiobotocore==2.19.0
 aiohappyeyeballs==2.4.4
 aiohttp==3.10.11
 aioitertools==0.12.0
@@ -47,12 +47,12 @@ argcomplete==3.5.3
 asgiref==3.8.1
 async-timeout==5.0.1
 atlasclient==1.0.0
-attrs==24.3.0
+attrs==25.1.0
 babel==2.16.0
 backports.zoneinfo==0.2.1
 bcrypt==4.2.1
 blinker==1.8.2
-botocore==1.36.1
+botocore==1.36.3
 cachelib==0.9.0
 certifi==2024.12.14
 cffi==1.17.1
@@ -74,7 +74,7 @@ dnspython==2.6.1
 docopt==0.6.2
 email_validator==2.2.0
 eval_type_backport==0.2.2
-eventlet==0.38.2
+eventlet==0.39.0
 exceptiongroup==1.2.2
 fastavro==1.9.7
 filelock==3.16.1
@@ -85,7 +85,7 @@ google-re2==1.1.20240702
 googleapis-common-protos==1.66.0
 graphviz==0.20.3
 greenlet==3.1.1
-grpcio==1.69.0
+grpcio==1.70.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
@@ -145,7 +145,7 @@ pure-sasl==0.6.2
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
 pycparser==2.22
-pydantic==2.10.5
+pydantic==2.10.6
 pydantic_core==2.27.2
 pykerberos==1.2.4
 pyspnego==0.11.2
@@ -183,7 +183,7 @@ tzdata==2025.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 urllib3==1.26.20
-uv==0.5.17
+uv==0.5.24
 vine==5.1.0
 virtualenv==20.29.1
 wirerope==1.0.0

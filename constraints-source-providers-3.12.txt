@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-22T08:41:08.848718
+# This constraints file was automatically generated on 2025-01-26T18:29:45.369536
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -11,7 +11,7 @@
 #
 Authlib==1.3.1
 ConfigUpdater==3.2
-Deprecated==1.2.15
+Deprecated==1.2.17
 Events==0.5
 Flask-AppBuilder==4.5.2
 Flask-Babel==2.0.0
@@ -46,7 +46,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.12.0
-aiobotocore==2.18.0
+aiobotocore==2.19.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.4
 aiohttp==3.11.11
@@ -80,8 +80,8 @@ astroid==3.3.8
 asttokens==3.0.0
 asyncssh==2.19.0
 atlasclient==1.0.0
-atlassian-python-api==3.41.18
-attrs==24.3.0
+atlassian-python-api==3.41.19
+attrs==25.1.0
 aws-sam-translator==1.94.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
@@ -104,9 +104,9 @@ azure-mgmt-resource==23.2.0
 azure-mgmt-storage==22.0.0
 azure-nspkg==3.0.2
 azure-servicebus==7.13.0
-azure-storage-blob==12.24.0
-azure-storage-file-datalake==12.18.0
-azure-storage-file-share==12.20.0
+azure-storage-blob==12.24.1
+azure-storage-file-datalake==12.18.1
+azure-storage-file-share==12.20.1
 azure-synapse-artifacts==0.19.0
 azure-synapse-spark==0.7.0
 babel==2.16.0
@@ -117,8 +117,8 @@ billiard==4.2.1
 bitarray==3.0.0
 black==24.10.0
 blinker==1.9.0
-boto3==1.36.1
-botocore==1.36.1
+boto3==1.36.3
+botocore==1.36.3
 cachelib==0.9.0
 cachetools==5.5.1
 cassandra-driver==3.29.2
@@ -127,7 +127,7 @@ celery==5.4.0
 certifi==2024.12.14
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.22.5
+cfn-lint==1.22.7
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -153,7 +153,7 @@ cryptography==42.0.8
 curlify==2.2.1
 databricks-sql-connector==2.9.6
 datadog==0.50.2
-db-dtypes==1.3.1
+db-dtypes==1.4.0
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.24.0
@@ -168,13 +168,13 @@ docstring_parser==0.16
 docutils==0.21.2
 duckdb==1.1.3
 elastic-transport==8.17.0
-elasticsearch==8.17.0
+elasticsearch==8.17.1
 email_validator==2.2.0
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
-eventlet==0.38.2
+eventlet==0.39.0
 execnet==2.1.1
-executing==2.1.0
+executing==2.2.0
 facebook_business==21.0.5
 fastavro==1.10.0
 filelock==3.17.0
@@ -195,7 +195,7 @@ google-api-core==2.24.0
 google-api-python-client==2.159.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
-google-auth==2.37.0
+google-auth==2.38.0
 google-cloud-aiplatform==1.78.0
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
@@ -222,7 +222,7 @@ google-cloud-memcache==1.11.0
 google-cloud-monitoring==2.26.0
 google-cloud-orchestration-airflow==1.16.1
 google-cloud-os-login==2.16.0
-google-cloud-pubsub==2.27.2
+google-cloud-pubsub==2.27.3
 google-cloud-redis==2.17.0
 google-cloud-resource-manager==1.14.0
 google-cloud-run==0.10.14
@@ -241,7 +241,7 @@ google-crc32c==1.6.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
 googleapis-common-protos==1.66.0
-graphql-core==3.2.5
+graphql-core==3.2.6
 graphviz==0.20.3
 greenlet==3.1.1
 grpc-google-iam-v1==0.14.0
@@ -250,7 +250,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.69.0
+grpcio==1.70.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
@@ -259,13 +259,13 @@ hatch==1.14.0
 hatchling==1.27.0
 hdfs==2.7.3
 hmsclient==0.1.1
-hpack==4.0.0
+hpack==4.1.0
 httpcore==1.0.7
 httplib2==0.22.0
 httpx==0.27.0
 humanize==4.11.0
 hvac==2.3.0
-hyperframe==6.0.1
+hyperframe==6.1.0
 hyperlink==21.0.0
 icdiff==2.0.7
 id==1.5.0
@@ -297,7 +297,7 @@ jsondiff==2.2.1
 jsonpatch==1.33
 jsonpath-ng==1.7.0
 jsonpointer==3.0.0
-jsonschema-path==0.3.3
+jsonschema-path==0.3.4
 jsonschema-specifications==2024.10.1
 jsonschema==4.23.0
 keyring==25.6.0
@@ -317,7 +317,7 @@ lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.25.1
+marshmallow==3.26.0
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
@@ -326,7 +326,7 @@ methodtools==0.4.7
 microsoft-kiota-abstractions==1.3.3
 microsoft-kiota-authentication-azure==1.1.0
 microsoft-kiota-http==1.3.4
-mmh3==5.0.1
+mmh3==5.1.0
 mongomock==4.3.0
 more-itertools==10.6.0
 moto==5.0.11
@@ -352,7 +352,7 @@ nh3==0.2.20
 nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.59.9
+openai==1.60.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.27.0
@@ -404,7 +404,7 @@ prometheus_client==0.21.1
 prompt_toolkit==3.0.50
 propcache==0.2.1
 proto-plus==1.25.0
-protobuf==4.25.5
+protobuf==4.25.6
 psutil==6.1.1
 psycopg2-binary==2.9.10
 ptyprocess==0.7.0
@@ -419,9 +419,9 @@ pyasn1_modules==0.4.0
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.21.0
-pydantic==2.10.5
+pydantic==2.10.6
 pydantic_core==2.27.2
-pydata-google-auth==1.9.0
+pydata-google-auth==1.9.1
 pydruid==0.6.9
 pyenchant==3.2.2
 pyexasol==0.27.0
@@ -458,12 +458,12 @@ python-telegram-bot==21.10
 python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
-qdrant-client==1.13.0
+qdrant-client==1.13.2
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
 redshift-connector==2.1.5
-referencing==0.35.1
+referencing==0.36.2
 regex==2024.11.6
 requests-file==2.1.0
 requests-kerberos==0.15.0
@@ -483,9 +483,9 @@ rpds-py==0.22.3
 rsa==4.9
 ruff==0.5.5
 s3fs==2024.12.0
-s3transfer==0.11.1
+s3transfer==0.11.2
 scramp==1.4.5
-semver==3.0.2
+semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.0.0
 sentry-sdk==2.20.0
@@ -500,11 +500,11 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.12.4
+snowflake-connector-python==3.13.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.6
-sphinx-airflow-theme==0.2.0
+sphinx-airflow-theme==0.2.1
 sphinx-argparse==0.5.2
 sphinx-autoapi==3.4.0
 sphinx-copybutton==0.5.2
@@ -582,7 +582,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 userpath==1.9.2
-uv==0.5.17
+uv==0.5.24
 validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
