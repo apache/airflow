@@ -458,9 +458,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/sqlite/**/*
 
   provider:ssh:
-    - providers/src/airflow/providers/ssh/**/*
-    - docs/apache-airflow-providers-ssh/**/*
-    - providers/tests/ssh/**/*
+    - providers/ssh/**
 
   provider:tableau:
     - providers/src/airflow/providers/tableau/**/*
