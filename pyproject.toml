@@ -625,6 +625,7 @@ dev = [
   "apache-airflow-providers-postgres",
   "apache-airflow-providers-standard",
   "apache-airflow-providers-weaviate",
+  "apache-airflow-providers-zendesk",
   "apache-airflow-task-sdk",
 ]
 
@@ -643,6 +644,7 @@ apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-postgres = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
+apache-airflow-providers-zendesk = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 
 [tool.uv.workspace]
@@ -659,5 +661,6 @@ members = [
     "providers/postgres",
     "providers/standard",
     "providers/weaviate",
+    "providers/zendesk",
     "task_sdk",
 ]
