@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-25T13:56:09.288568
+# This constraints file was automatically generated on 2025-01-26T02:27:18.303105
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -92,11 +92,10 @@ alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
-analytics-python==1.4.post1
+analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.8.0
-apache-airflow-providers-alibaba==3.0.0
 apache-airflow-providers-amazon==9.2.0
 apache-airflow-providers-apache-beam==6.0.0
 apache-airflow-providers-apache-cassandra==3.7.0
@@ -116,9 +115,8 @@ apache-airflow-providers-apprise==2.0.0
 apache-airflow-providers-arangodb==2.7.0
 apache-airflow-providers-asana==2.7.0
 apache-airflow-providers-atlassian-jira==3.0.0
-apache-airflow-providers-cohere==1.1.2
+apache-airflow-providers-cohere==1.4.0
 apache-airflow-providers-common-io==1.5.0
-apache-airflow-providers-common-sql==1.21.0
 apache-airflow-providers-databricks==7.0.0
 apache-airflow-providers-datadog==3.8.0
 apache-airflow-providers-dbt-cloud==4.0.0
@@ -172,7 +170,6 @@ apache-airflow-providers-smtp==1.9.0
 apache-airflow-providers-snowflake==6.0.0
 apache-airflow-providers-sqlite==4.0.0
 apache-airflow-providers-ssh==4.0.0
-apache-airflow-providers-standard==0.0.3
 apache-airflow-providers-tableau==5.0.0
 apache-airflow-providers-telegram==4.7.0
 apache-airflow-providers-teradata==3.0.0
@@ -225,7 +222,7 @@ azure-storage-file-share==12.20.1
 azure-synapse-artifacts==0.19.0
 azure-synapse-spark==0.7.0
 babel==2.16.0
-backoff==1.10.0
+backoff==2.2.1
 backports.tarfile==1.2.0
 bcrypt==4.2.1
 beautifulsoup4==4.12.3
@@ -254,7 +251,7 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
-cohere==5.13.11
+cohere==4.57
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
@@ -399,7 +396,7 @@ idna==3.10
 ijson==3.3.0
 imagesize==1.4.1
 immutabledict==4.2.1
-importlib_metadata==8.4.0
+importlib-metadata==6.11.0
 importlib_resources==6.5.2
 impyla==0.19.0
 incremental==24.7.2
@@ -736,7 +733,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==1.26.20
 uuid6==2024.7.10
-uv==0.5.20
+uv==0.5.23
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
