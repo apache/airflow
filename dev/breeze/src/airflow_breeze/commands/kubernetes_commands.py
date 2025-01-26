@@ -208,7 +208,7 @@ option_num_retries = click.option(
     "--num-retries",
     help="Number of times to retry the complete test run in case of failure.",
     default=2,
-    type=click.IntRange(0),
+    type=click.IntRange(1),
     envvar="NUM_RETRIES",
     show_default=True,
 )
