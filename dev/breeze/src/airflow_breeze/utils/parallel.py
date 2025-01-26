@@ -19,7 +19,6 @@ from __future__ import annotations
 import datetime
 import os
 import re
-import sys
 import textwrap
 import time
 from abc import ABCMeta, abstractmethod
@@ -393,6 +392,7 @@ def check_async_run_results(
         the run in CI
     """
     from airflow_breeze.utils.ci_group import ci_group
+
     tests_failed = False
     completed_number = 0
     total_number_of_results = len(results)
@@ -459,6 +459,7 @@ def check_async_run_results(
                 Path(output.file_name).unlink(missing_ok=True)
 
     return tests_failed
+
 
 @contextmanager
 def run_with_pool(
