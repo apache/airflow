@@ -35,6 +35,7 @@ services:
       - ../../../empty:/opt/airflow/providers/airbyte/src
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
+      - ../../../empty:/opt/airflow/providers/asana/src
       - ../../../empty:/opt/airflow/providers/celery/src
       - ../../../empty:/opt/airflow/providers/cohere/src
       - ../../../empty:/opt/airflow/providers/common/sql/src

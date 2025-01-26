@@ -22,10 +22,9 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any
 
+from airflow.hooks.base import BaseHook
 from asana import Client  # type: ignore[attr-defined]
 from asana.error import NotFoundError  # type: ignore[attr-defined]
-
-from airflow.hooks.base import BaseHook
 
 
 class AsanaHook(BaseHook):
