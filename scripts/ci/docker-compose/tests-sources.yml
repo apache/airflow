@@ -42,6 +42,7 @@ services:
       - ../../../providers/airbyte/tests:/opt/airflow/providers/airbyte/tests
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
+      - ../../../providers/asana/tests:/opt/airflow/providers/asana/tests
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
