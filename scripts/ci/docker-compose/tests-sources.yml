@@ -43,6 +43,7 @@ services:
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
+      - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
