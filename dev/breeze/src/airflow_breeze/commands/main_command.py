@@ -271,8 +271,8 @@ def cleanup(all: bool):
                 sys.exit(0)
         else:
             get_console().print("[info]No locally downloaded images to remove[/]\n")
-    get_console().print("Removing unused networks")
-    given_answer = user_confirm("Are you sure with the removal of unused docker networks?")
+    get_console().print("Removing networks created by breeze")
+    given_answer = user_confirm("Are you sure with the removal of docker networks created by breeze?")
     if given_answer == Answer.YES:
         remove_docker_networks()
     get_console().print("Removing volumes created by breeze")
