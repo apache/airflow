@@ -498,10 +498,7 @@ labelPRBasedOnFilePath:
     - providers/tests/vertica/**/*
 
   provider:weaviate:
-    - providers/src/airflow/providers/weaviate/**/*
-    - docs/apache-airflow-providers-weaviate/**/*
-    - providers/tests/weaviate/**/*
-    - providers/tests/system/weaviate/**/*
+    - providers/weaviate/**
 
   provider:yandex:
     - providers/src/airflow/providers/yandex/**/*
