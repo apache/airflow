@@ -50,6 +50,13 @@ NEW_REFRESH_REQUEST_ID = "5e2d9921-e91b-491f-b7e1-e7d8db49194c"
 
 SUCCESS_TRIGGER_EVENT = {
     "status": "success",
+    "dataset_refresh_status": None,
+    "message": "success",
+    "dataset_refresh_id": NEW_REFRESH_REQUEST_ID,
+}
+
+SUCCESS_REFRESH_EVENT = {
+    "status": "success",
     "dataset_refresh_status": PowerBIDatasetRefreshStatus.COMPLETED,
     "message": "success",
     "dataset_refresh_id": NEW_REFRESH_REQUEST_ID,
@@ -88,6 +95,26 @@ class TestPowerBIDatasetRefreshOperator(Base):
             operator.execute(context)
 
         assert isinstance(exc.value.trigger, PowerBITrigger)
+        assert exc.value.trigger.dataset_refresh_id is None
+
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    def test_powerbi_operator_async_get_refresh_status_success(self, connection):
+        """Assert that get_refresh_status log success message"""
+        operator = PowerBIDatasetRefreshOperator(
+            **CONFIG,
+        )
+        context = {"ti": MagicMock()}
+        context["ti"].task_id = TASK_ID
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.get_refresh_status(
+                context=context,
+                event=SUCCESS_TRIGGER_EVENT,
+            )
+
+        assert isinstance(exc.value.trigger, PowerBITrigger)
+        assert exc.value.trigger.dataset_refresh_id is NEW_REFRESH_REQUEST_ID
+        assert context["ti"].xcom_push.call_count == 1
 
     def test_powerbi_operator_async_execute_complete_success(self):
         """Assert that execute_complete log success message"""
@@ -97,9 +124,9 @@ class TestPowerBIDatasetRefreshOperator(Base):
         context = {"ti": MagicMock()}
         operator.execute_complete(
             context=context,
-            event=SUCCESS_TRIGGER_EVENT,
+            event=SUCCESS_REFRESH_EVENT,
         )
-        assert context["ti"].xcom_push.call_count == 2
+        assert context["ti"].xcom_push.call_count == 1
 
     def test_powerbi_operator_async_execute_complete_fail(self):
         """Assert that execute_complete raise exception on error"""
@@ -117,7 +144,7 @@ class TestPowerBIDatasetRefreshOperator(Base):
                     "dataset_refresh_id": "1234",
                 },
             )
-        assert context["ti"].xcom_push.call_count == 0
+        assert context["ti"].xcom_push.call_count == 1
         assert str(exc.value) == "error"
 
     def test_powerbi_operator_refresh_fail(self):
@@ -136,7 +163,7 @@ class TestPowerBIDatasetRefreshOperator(Base):
                     "dataset_refresh_id": "1234",
                 },
             )
-        assert context["ti"].xcom_push.call_count == 0
+        assert context["ti"].xcom_push.call_count == 1
         assert str(exc.value) == "error message"
 
     def test_execute_complete_no_event(self):
