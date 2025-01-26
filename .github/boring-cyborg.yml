@@ -475,10 +475,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/tableau/**/*
 
   provider:telegram:
-    - providers/src/airflow/providers/telegram/**/*
-    - docs/apache-airflow-providers-telegram/**/*
-    - providers/tests/telegram/**/*
-    - providers/tests/system/telegram/**/*
+    - providers/telegram/**
 
   provider:teradata:
     - providers/src/airflow/providers/teradata/**/*
