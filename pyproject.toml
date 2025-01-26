@@ -621,6 +621,7 @@ dev = [
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-mysql",
   "apache-airflow-providers-odbc",
   "apache-airflow-providers-jenkins",
   "apache-airflow-providers-pagerduty",
@@ -643,6 +644,7 @@ apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
 apache-airflow-providers-jenkins = { workspace = true }
+apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-odbc = { workspace = true }
 apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
@@ -662,6 +664,7 @@ members = [
     "providers/common/sql",
     "providers/edge",
     "providers/pagerduty",
+    "providers/mysql",
     "providers/jenkins",
     "providers/odbc",
     "providers/pinecone",
