@@ -48,6 +48,7 @@ services:
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
+      - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
       # END automatically generated volumes by generate-volumes-for-sources pre-commit
       # and entrypoint and in_container scripts for testing
       - ../../../scripts/docker/entrypoint_ci.sh:/entrypoint
