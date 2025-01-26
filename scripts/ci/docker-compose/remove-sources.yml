@@ -41,6 +41,7 @@ services:
       - ../../../empty:/opt/airflow/providers/edge/src
       - ../../../empty:/opt/airflow/providers/pinecone/src
       - ../../../empty:/opt/airflow/providers/standard/src
+      - ../../../empty:/opt/airflow/providers/telegram/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
       - ../../../empty:/opt/airflow/providers/zendesk/src
       # END automatically generated volumes by generate-volumes-for-sources pre-commit

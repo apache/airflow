@@ -9,5 +9,6 @@ apache-airflow-providers-common-sql
 apache-airflow-providers-edge
 apache-airflow-providers-pinecone
 apache-airflow-providers-standard
+apache-airflow-providers-telegram
 apache-airflow-providers-weaviate
 apache-airflow-providers-zendesk
