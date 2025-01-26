@@ -8,6 +8,7 @@ apache-airflow-providers-cohere
 apache-airflow-providers-common-compat
 apache-airflow-providers-common-sql
 apache-airflow-providers-edge
+apache-airflow-providers-openlineage
 apache-airflow-providers-pinecone
 apache-airflow-providers-standard
 apache-airflow-providers-weaviate
