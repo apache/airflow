@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import json
 import warnings
 from contextlib import suppress
@@ -36,8 +35,8 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.utils.module_loading import import_string
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
