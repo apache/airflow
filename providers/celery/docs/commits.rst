@@ -37,11 +37,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.10.0
 ......
 
-Latest change: 2025-01-23
+Latest change: 2025-01-25
 
-=================================================================================================  ===========  =========================================================================
+=================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =========================================================================
+=================================================================================================  ===========  ================================================================================
+`29b9e8ea10 <https://github.com/apache/airflow/commit/29b9e8ea10de7a82ad40a7a2160c64a84004a45e>`_  2025-01-25   ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+`4545ea42ef <https://github.com/apache/airflow/commit/4545ea42efd034686ff26788c6b729ed0a69e358>`_  2025-01-23   ``Prepare docs for ad hoc release celery provider Jan 2025 (#45942)``
 `4dda6ba8c0 <https://github.com/apache/airflow/commit/4dda6ba8c01912db2c2a6518dacd062b10ebf1e0>`_  2025-01-23   ``Move new provider tests to "provider_tests" submodule (#45955)``
 `2a1f17d052 <https://github.com/apache/airflow/commit/2a1f17d0521fd82736c76dfe05d0695505ffffec>`_  2025-01-22   ``Add script to move providers to the new directory structure (#45945)``
 `25aeb1166e <https://github.com/apache/airflow/commit/25aeb1166e6e8d093892ad3a7b1a341375b0cf51>`_  2025-01-20   ``move Celery provider to new provider code structure (#45786)``
@@ -49,7 +51,7 @@ Commit                                                                          
 `f616c62209 <https://github.com/apache/airflow/commit/f616c62209d6b51d293ecf6f5c900f89a7fdc3a3>`_  2025-01-15   ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
 `a152b6a827 <https://github.com/apache/airflow/commit/a152b6a82795b2045de931d3f3d3b6696486c5cb>`_  2024-12-30   ``Fix Version Check for CLI Imports in Celery provider (#45255)``
 `f3151491b3 <https://github.com/apache/airflow/commit/f3151491b318075d6e23e542b6a0150d665b8b47>`_  2024-12-23   ``Add support for custom celery configs (#45038)``
-=================================================================================================  ===========  =========================================================================
+=================================================================================================  ===========  ================================================================================
 
 3.9.0
 .....
