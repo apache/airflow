@@ -33,7 +33,7 @@ connect to your account.
 Example Code:
 -------------
 
-.. exampleinclude:: /../../providers/tests/system/cohere/example_cohere_embedding_operator.py
+.. exampleinclude:: /../../providers/cohere/tests/system/cohere/example_cohere_embedding_operator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cohere_embedding]
