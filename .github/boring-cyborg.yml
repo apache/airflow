@@ -377,19 +377,13 @@ labelPRBasedOnFilePath:
     - providers/tests/system/papermill/**/*
 
   provider:pgvector:
-    - providers/src/airflow/providers/pgvector/**/*
-    - docs/apache-airflow-providers-pgvector/**/*
-    - providers/tests/pgvector/**/*
-    - providers/tests/system/pgvector/**/*
+    - providers/pgvector/**
 
   provider:pinecone:
     - providers/pinecone/**
 
   provider:postgres:
-    - providers/src/airflow/providers/postgres/**/*
-    - docs/apache-airflow-providers-postgres/**/*
-    - providers/tests/postgres/**/*
-    - providers/tests/system/postgres/**/*
+    - providers/postgres/**
 
   provider:presto:
     - providers/src/airflow/providers/presto/**/*
