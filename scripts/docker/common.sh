@@ -144,7 +144,7 @@ function common::install_packaging_tools() {
             echo
             echo "${COLOR_BLUE}(Re)Installing pip version: ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
             echo
-            pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+            pip install --root-user-action ignore --disable-pip-version-check "${AIRFLOW_PIP_VERSION}"
         fi
     fi
     if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then

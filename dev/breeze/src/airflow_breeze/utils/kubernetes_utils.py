@@ -408,10 +408,10 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
             f"{venv_command_result.stdout}\n{venv_command_result.stderr}"
         )
         return venv_command_result
-    get_console().print(f"[info]Reinstalling pip=={PIP_VERSION} in {K8S_ENV_PATH}")
+    get_console().print(f"[info]Reinstalling {PIP_VERSION} in {K8S_ENV_PATH}")
     command = create_pip_command(PYTHON_BIN_PATH)
     pip_reinstall_result = run_command(
-        [*command, "install", f"pip=={PIP_VERSION}"],
+        [*command, "install", f"{PIP_VERSION}"],
         check=False,
         capture_output=True,
     )

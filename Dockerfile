@@ -53,7 +53,7 @@ ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=24.3.1
+ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip@f47b5874299848c688336ae7c8d69534013fe2c6"
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_UV_VERSION=0.5.23
 ARG AIRFLOW_USE_UV="false"
@@ -553,7 +553,7 @@ function common::install_packaging_tools() {
             echo
             echo "${COLOR_BLUE}(Re)Installing pip version: ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
             echo
-            pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+            pip install --root-user-action ignore --disable-pip-version-check "${AIRFLOW_PIP_VERSION}"
         fi
     fi
     if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then

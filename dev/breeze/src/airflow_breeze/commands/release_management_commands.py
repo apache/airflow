@@ -236,7 +236,7 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "24.3.1"
+AIRFLOW_PIP_VERSION = "git+https://github.com/pypa/pip@f47b5874299848c688336ae7c8d69534013fe2c6"
 AIRFLOW_UV_VERSION = "0.5.23"
 AIRFLOW_USE_UV = False
 # TODO: automate these as well
@@ -251,7 +251,7 @@ PYYAML_VERSION = "6.0.2"
 AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
 RUN apt-get update && apt-get install -y --no-install-recommends git
-RUN pip install --root-user-action ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
+RUN pip install --root-user-action ignore "{AIRFLOW_PIP_VERSION}" hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
  gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} pre-commit=={PRE_COMMIT_VERSION}
 COPY . /opt/airflow
 """

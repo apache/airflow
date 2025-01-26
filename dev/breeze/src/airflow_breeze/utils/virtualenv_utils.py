@@ -61,7 +61,7 @@ def create_venv(
         sys.exit(1)
     if pip_version:
         result = run_command(
-            [python_path.as_posix(), "-m", "pip", "install", f"pip=={pip_version}", "-q"],
+            [python_path.as_posix(), "-m", "pip", "install", f"{pip_version}", "-q"],
             check=False,
             capture_output=False,
             text=True,
