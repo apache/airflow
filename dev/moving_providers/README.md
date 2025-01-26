@@ -75,7 +75,7 @@ By default the script runs in dry run mode, which means it will not make any cha
 but will print what it would do. To actually move the files, you need to pass `--perform-update` flag.
 
 ```shell
-uv run dev/moving_providers/move_providers.py alibaba --no-dry-run
+uv run dev/moving_providers/move_providers.py alibaba --perform-update
 ```
 
 You can specify multiple providers to move in one go:
