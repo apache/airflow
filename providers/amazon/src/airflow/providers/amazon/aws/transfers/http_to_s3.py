@@ -164,12 +164,21 @@ class HttpToS3Operator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Calling HTTP method")
         response = self.http_hook.run(self.endpoint, self.data, self.headers, self.extra_options)
-
-        self.s3_hook.load_bytes(
-            response.content,
-            self.s3_key,
-            self.s3_bucket,
-            self.replace,
-            self.encrypt,
-            self.acl_policy,
-        )
+        if self.extra_options.get("stream", False):
+            self.s3_hook.load_file_obj(
+                response.raw,
+                self.s3_key,
+                self.s3_bucket,
+                self.replace,
+                self.encrypt,
+                self.acl_policy,
+            )
+        else:
+            self.s3_hook.load_bytes(
+                response.content,
+                self.s3_key,
+                self.s3_bucket,
+                self.replace,
+                self.encrypt,
+                self.acl_policy,
+            )
