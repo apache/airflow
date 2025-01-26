@@ -380,10 +380,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/papermill/**/*
 
   provider:pgvector:
-    - providers/src/airflow/providers/pgvector/**/*
-    - docs/apache-airflow-providers-pgvector/**/*
-    - providers/tests/pgvector/**/*
-    - providers/tests/system/pgvector/**/*
+    - providers/pgvector/**
 
   provider:pinecone:
     - providers/src/airflow/providers/pinecone/**/*
