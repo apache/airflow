@@ -42,6 +42,7 @@ services:
       - ../../../empty:/opt/airflow/providers/pinecone/src
       - ../../../empty:/opt/airflow/providers/standard/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
+      - ../../../empty:/opt/airflow/providers/zendesk/src
       # END automatically generated volumes by generate-volumes-for-sources pre-commit
       # However we keep in_container scripts in order to be able to debug easily the scripts that
       # are run with --mount-sources removed flag - such as installing airflow and providers
