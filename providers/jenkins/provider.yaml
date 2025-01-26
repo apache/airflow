@@ -54,14 +54,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - python-jenkins>=1.0.0
-
 integrations:
   - integration-name: Jenkins
     external-doc-url: https://jenkins.io/
-    logo: /integration-logos/jenkins/Jenkins.png
+    logo: /docs/integration-logos/Jenkins.png
     tags: [software]
 
 operators:
