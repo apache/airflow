@@ -45,10 +45,6 @@ integrations:
       - /docs/apache-airflow-providers-pinecone/operators/pinecone.rst
     tags: [software]
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - pinecone-client>=3.1.0
-
 hooks:
   - integration-name: Pinecone
     python-modules:

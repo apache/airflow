@@ -383,10 +383,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/pgvector/**/*
 
   provider:pinecone:
-    - providers/src/airflow/providers/pinecone/**/*
-    - docs/apache-airflow-providers-pinecone/**/*
-    - providers/tests/pinecone/**/*
-    - providers/tests/system/pinecone/**/*
+    - providers/pinecone/**
 
   provider:postgres:
     - providers/src/airflow/providers/postgres/**/*
