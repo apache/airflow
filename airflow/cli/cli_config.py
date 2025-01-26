@@ -858,6 +858,7 @@ ARG_OPTION = Arg(
     help="The option name",
 )
 
+# lint
 ARG_LINT_CONFIG_SECTION = Arg(
     ("--section",),
     help="The section name(s) to lint in the airflow config.",
@@ -1901,7 +1902,6 @@ core_commands: list[CLICommand] = [
         help="Start a scheduler instance",
         func=lazy_load_command("airflow.cli.commands.local_commands.scheduler_command.scheduler"),
         args=(
-            ARG_SUBDIR,
             ARG_NUM_RUNS,
             ARG_PID,
             ARG_DAEMON,

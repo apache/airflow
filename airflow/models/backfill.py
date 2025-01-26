@@ -40,8 +40,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy_jsonfield import JSONField
 
-from airflow.api_connexion.exceptions import NotFound
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 from airflow.settings import json
@@ -71,6 +70,22 @@ class AlreadyRunningBackfill(AirflowException):
 class DagNoScheduleException(AirflowException):
     """
     Raised when attempting to create backfill for a DAG with no schedule.
+
+    :meta private:
+    """
+
+
+class InvalidBackfillDirection(AirflowException):
+    """
+    Raised when backfill is attempted in reverse order with tasks that depend on past runs.
+
+    :meta private:
+    """
+
+
+class InvalidReprocessBehavior(AirflowException):
+    """
+    Raised when a backfill cannot be completed because the reprocess behavior is not valid.
 
     :meta private:
     """
@@ -189,18 +204,16 @@ def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> 
 
 
 def _validate_backfill_params(dag, reverse, reprocess_behavior: ReprocessBehavior | None):
-    depends_on_past = None
     depends_on_past = any(x.depends_on_past for x in dag.tasks)
     if depends_on_past:
         if reverse is True:
-            raise ValueError(
-                "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
+            raise InvalidBackfillDirection(
+                "Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True."
             )
         if reprocess_behavior in (None, ReprocessBehavior.NONE):
-            raise ValueError(
-                "Dag has task for which depends_on_past is true. "
-                "You must set reprocess behavior to reprocess completed or "
-                "reprocess failed"
+            raise InvalidReprocessBehavior(
+                "DAG has tasks for which depends_on_past=True. "
+                "You must set reprocess behavior to reprocess completed or reprocess failed."
             )
 
 
@@ -209,6 +222,8 @@ def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, sess
     from airflow.models.serialized_dag import SerializedDagModel
 
     serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
+    if not serdag:
+        raise DagNotFound(f"Could not find dag {dag_id}")
     dag = serdag.dag
     _validate_backfill_params(dag, reverse, reprocess_behavior)
 
@@ -331,7 +346,7 @@ def _create_backfill(
     with create_session() as session:
         serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
-            raise NotFound(f"Could not find dag {dag_id}")
+            raise DagNotFound(f"Could not find dag {dag_id}")
         no_schedule = session.scalar(
             select(func.count()).where(DagModel.timetable_summary == "None", DagModel.dag_id == dag_id)
         )

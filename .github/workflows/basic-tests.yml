@@ -100,7 +100,7 @@ jobs:
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.0.0
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
         with:
           version: 9
           run_install: false
@@ -109,7 +109,7 @@ jobs:
         with:
           node-version: 21
           cache: 'pnpm'
-          cache-dependency-path: 'airflow/ui/pnpm-lock.yaml'
+          cache-dependency-path: 'airflow/**/pnpm-lock.yaml'
       - name: "Restore eslint cache (ui)"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:

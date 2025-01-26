@@ -177,10 +177,6 @@ class XComNotFound(AirflowException):
         )
 
 
-class UnmappableOperator(AirflowException):
-    """Raise when an operator is not implemented to be mappable."""
-
-
 class XComForMappingNotPushed(AirflowException):
     """Raise when a mapped downstream's dependency fails to push XCom for task mapping."""
 
@@ -293,23 +289,23 @@ class DagFileExists(AirflowBadRequest):
         warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
 
 
-class FailStopDagInvalidTriggerRule(AirflowException):
-    """Raise when a dag has 'fail_stop' enabled yet has a non-default trigger rule."""
+class FailFastDagInvalidTriggerRule(AirflowException):
+    """Raise when a dag has 'fail_fast' enabled yet has a non-default trigger rule."""
 
     _allowed_rules = (TriggerRule.ALL_SUCCESS, TriggerRule.ALL_DONE_SETUP_SUCCESS)
 
     @classmethod
-    def check(cls, *, fail_stop: bool, trigger_rule: TriggerRule):
+    def check(cls, *, fail_fast: bool, trigger_rule: TriggerRule):
         """
-        Check that fail_stop dag tasks have allowable trigger rules.
+        Check that fail_fast dag tasks have allowable trigger rules.
 
         :meta private:
         """
-        if fail_stop and trigger_rule not in cls._allowed_rules:
+        if fail_fast and trigger_rule not in cls._allowed_rules:
             raise cls()
 
     def __str__(self) -> str:
-        return f"A 'fail-stop' dag can only have {TriggerRule.ALL_SUCCESS} trigger rule"
+        return f"A 'fail_fast' dag can only have {TriggerRule.ALL_SUCCESS} trigger rule"
 
 
 class DuplicateTaskIdFound(AirflowException):
@@ -465,7 +461,7 @@ class TaskDeferralTimeout(AirflowException):
 # 2) if you have new provider, both provider and pod generator will throw the
 #    "airflow.providers.cncf.kubernetes" as it will be imported here from the provider.
 try:
-    from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException
+    from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException
 except ImportError:
 
     class PodMutationHookException(AirflowException):  # type: ignore[no-redef]
@@ -473,7 +469,7 @@ except ImportError:
 
 
 try:
-    from airflow.providers.cncf.kubernetes.pod_generator import PodReconciliationError
+    from airflow.providers.cncf.kubernetes.exceptions import PodReconciliationError
 except ImportError:
 
     class PodReconciliationError(AirflowException):  # type: ignore[no-redef]

@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Text, Button } from "@chakra-ui/react";
+import type { ReactNode } from "react";
 import { FiChevronRight } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -26,18 +27,20 @@ import { capitalize } from "src/utils";
 // TODO: Add badge count once API is available
 
 export const DagFilterButton = ({
-  badgeColor,
+  colorPalette,
   filter,
+  icon,
   link,
 }: {
-  readonly badgeColor: string;
+  readonly colorPalette: string;
   readonly filter: string;
+  readonly icon?: ReactNode;
   readonly link: string;
 }) => (
   <RouterLink to={link}>
     <Button alignItems="center" borderRadius="md" display="flex" gap={2} variant="outline">
       <Box alignItems="center" display="flex" gap={1}>
-        <MetricsBadge backgroundColor={badgeColor} />
+        <MetricsBadge colorPalette={colorPalette} icon={icon} />
         <Text fontWeight="bold">{capitalize(filter)} Dags</Text>
         <FiChevronRight />
       </Box>

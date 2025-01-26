@@ -1,6 +1,5 @@
 Removed deprecated aliases support for providers.
 
-
 * Removed deprecated ``atlas`` alias support. Please use ``apache-atlas`` instead.
 * Removed deprecated ``aws`` alias support. Please use ``amazon`` instead.
 * Removed deprecated ``azure`` alias support. Please use ``microsoft-azure`` instead.
@@ -18,3 +17,14 @@ Removed deprecated aliases support for providers.
 * Removed deprecated ``spark`` alias support. Please use ``apache-spark`` instead.
 * Removed deprecated ``webhdfs`` alias support. Please use ``apache-webhdfs`` instead.
 * Removed deprecated ``winrm`` alias support. Please use ``microsoft-winrm`` instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

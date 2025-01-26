@@ -19,18 +19,13 @@
 
 labelPRBasedOnFilePath:
   provider:airbyte:
-    - providers/airbyte/src/airflow/providers/airbyte/**/*
-    - providers/airbyte/docs/**/*
-    - providers/airbyte/tests/**/*
+    - providers/airbyte/**
 
   provider:alibaba:
-    - providers/src/airflow/providers/alibaba/**/*
-    - docs/apache-airflow-providers-alibaba/**/*
-    - providers/tests/alibaba/**/*
-    - providers/tests/system/alibaba/**/*
+    - providers/alibaba/**
 
-  provider:amazon-aws:
-    - providers/src/airflow/providers/amazon/aws/**/*
+  provider:amazon:
+    - providers/src/airflow/providers/amazon/**/*
     - providers/tests/amazon/aws/**/*
     - docs/apache-airflow-providers-amazon/**/*
     - providers/tests/system/amazon/aws/**/*
@@ -76,10 +71,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/hive/**/*
 
   provider:apache-iceberg:
-    - providers/src/airflow/providers/apache/iceberg/**/*
-    - docs/apache-airflow-providers-apache-iceberg/**/*
-    - providers/tests/apache/iceberg/**/*
-    - providers/tests/system/apache/iceberg/**/*
+    - providers/apache/iceberg/**
 
   provider:apache-impala:
     - providers/src/airflow/providers/apache/impala/**/*
@@ -144,9 +136,7 @@ labelPRBasedOnFilePath:
     - providers/tests/atlassian/jira/**/*
 
   provider:celery:
-    - providers/src/airflow/providers/celery/**/*
-    - docs/apache-airflow-providers-celery/**/*
-    - providers/tests/celery/**/*
+    - providers/celery/**
 
   provider:cloudant:
     - providers/src/airflow/providers/cloudant/**/*
@@ -157,17 +147,14 @@ labelPRBasedOnFilePath:
     - airflow/example_dags/example_kubernetes_executor.py
     - airflow/example_dags/example_local_kubernetes_executor.py
     - providers/src/airflow/providers/cncf/kubernetes/**/*
-    - providers/src/airflow/providers/celery/executors/celery_kubernetes_executor.py
+    - providers/celery/src/airflow/providers/celery/executors/celery_kubernetes_executor.py
     - docs/apache-airflow-providers-cncf-kubernetes/**/*
     - kubernetes_tests/**/*
     - providers/tests/cncf/kubernetes/**/*
     - providers/tests/system/cncf/kubernetes/**/*
 
   provider:cohere:
-    - providers/src/airflow/providers/cohere/**/*
-    - docs/apache-airflow-providers-cohere/**/*
-    - providers/tests/cohere/**/*
-    - providers/tests/system/cohere/**/*
+    - providers/cohere/**
 
   provider:common-compat:
     - providers/src/airflow/providers/common/compat/**/*
@@ -180,15 +167,10 @@ labelPRBasedOnFilePath:
     - providers/tests/system/common/io/**/*
 
   provider:common-sql:
-    - providers/src/airflow/providers/common/sql/**/*
-    - docs/apache-airflow-providers-common-sql/**/*
-    - providers/tests/common/sql/**/*
-    - providers/tests/system/common/sql/**/*
+    - providers/common/sql/**
 
   provider:standard:
-    - providers/src/airflow/providers/standard/**/*
-    - docs/apache-airflow-providers-standard/**/*
-    - providers/tests/standard/**/*
+    - providers/standard/**
 
   provider:databricks:
     - providers/src/airflow/providers/databricks/**/*
@@ -225,9 +207,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/docker/**/*
 
   provider:edge:
-    - providers/src/airflow/providers/edge/**/*
-    - docs/apache-airflow-providers-edge/**/*
-    - providers/tests/edge/**/*
+    - providers/edge/**
 
   provider:elasticsearch:
     - providers/src/airflow/providers/elasticsearch/**/*
@@ -403,10 +383,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/pgvector/**/*
 
   provider:pinecone:
-    - providers/src/airflow/providers/pinecone/**/*
-    - docs/apache-airflow-providers-pinecone/**/*
-    - providers/tests/pinecone/**/*
-    - providers/tests/system/pinecone/**/*
+    - providers/pinecone/**
 
   provider:postgres:
     - providers/src/airflow/providers/postgres/**/*
@@ -521,10 +498,7 @@ labelPRBasedOnFilePath:
     - providers/tests/vertica/**/*
 
   provider:weaviate:
-    - providers/src/airflow/providers/weaviate/**/*
-    - docs/apache-airflow-providers-weaviate/**/*
-    - providers/tests/weaviate/**/*
-    - providers/tests/system/weaviate/**/*
+    - providers/weaviate/**
 
   provider:yandex:
     - providers/src/airflow/providers/yandex/**/*
@@ -539,10 +513,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/ydb/**/*
 
   provider:zendesk:
-    - providers/src/airflow/providers/zendesk/**/*
-    - docs/apache-airflow-providers-zendesk/**/*
-    - providers/tests/zendesk/**/*
-    - providers/tests/system/zendesk/**/*
+    - providers/zendesk/**
 
   area:providers:
     - providers/src/airflow/providers/**/*
@@ -629,11 +600,16 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow/authoring-and-scheduling/plugins.rst
 
   area:Scheduler:
-    - airflow/jobs/**/*
+    - airflow/jobs/scheduler_job_runner.py
     - airflow/task/standard_task_runner.py
-    - airflow/dag_processing/**/*
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
-    - tests/jobs/**/*
+    - tests/jobs/test_scheduler_job.py
+
+  area:DAG-processing:
+    - airflow/dag_processing/**/*
+    - airflow/jobs/dag_processor_job_runner.py
+    - docs/apache-airflow/administration-and-deployment/dagfile-processing.rst
+    - tests/dag_processing/**/*
 
   area:Executors-core:
     - airflow/executors/**/*
@@ -651,12 +627,12 @@ labelPRBasedOnFilePath:
     - airflow/cli/commands/local_commands/triggerer_command.py
     - airflow/jobs/triggerer_job_runner.py
     - airflow/models/trigger.py
-    - providers/src/airflow/providers/standard/triggers/**/*
+    - providers/standard/src/airflow/providers/standard/triggers/**/*
     - tests/cli/commands/local_commands/test_triggerer_command.py
     - tests/jobs/test_triggerer_job.py
     - tests/models/test_trigger.py
     - tests/jobs/test_triggerer_job_logging.py
-    - providers/tests/standard/triggers/**/*
+    - providers/standard/tests/provider_tests/standard/triggers/**/*
 
   area:Serialization:
     - airflow/serialization/**/*

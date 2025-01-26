@@ -1,0 +1,25 @@
+Move all time operators and sensors from airflow core to standard provider
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.operators.datetime.*`` → ``airflow.providers.standard.time.operators.datetime.*``
+      * [x] ``airflow.operators.weekday.*`` → ``airflow.providers.standard.time.operators.weekday.*``
+      * [x] ``airflow.sensors.date_time.*`` → ``airflow.providers.standard.time.sensors.date_time.*``
+      * [x] ``airflow.sensors.time_sensor.*`` → ``airflow.providers.standard.time.sensors.time.*``
+      * [x] ``airflow.sensors.time_delta.*`` → ``airflow.providers.standard.time.sensors.time_delta.*``
+      * [x] ``airflow.sensors.weekday.*`` → ``airflow.providers.standard.time.sensors.weekday.*``

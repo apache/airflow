@@ -855,7 +855,7 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            self._exec_pod_command(resp, "kill -2 $(pgrep -u $(whoami) -f trap)")
+            self._exec_pod_command(resp, "kill -2 $(pgrep -u $(id -u) -f 'sh')")
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = ""
