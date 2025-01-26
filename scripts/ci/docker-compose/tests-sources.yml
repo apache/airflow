@@ -57,6 +57,7 @@ services:
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
       - ../../../providers/telegram/tests:/opt/airflow/providers/telegram/tests
       - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
+      - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests
       - ../../../providers/zendesk/tests:/opt/airflow/providers/zendesk/tests
       # END automatically generated volumes by generate-volumes-for-sources pre-commit
       # and entrypoint and in_container scripts for testing
