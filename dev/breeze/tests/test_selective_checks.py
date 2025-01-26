@@ -341,6 +341,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                (),
                 {
                     "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": "['3.9']",
@@ -370,6 +371,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                (),
                 {
                     "selected-providers-list-as-string": "common.compat google",
                     "all-python-versions": "['3.9']",
