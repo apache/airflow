@@ -484,10 +484,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/yandex/**/*
 
   provider:ydb:
-    - providers/src/airflow/providers/ydb/**/*
-    - docs/apache-airflow-providers-ydb/**/*
-    - providers/tests/ydb/**/*
-    - providers/tests/system/ydb/**/*
+    - providers/ydb/**
 
   provider:zendesk:
     - providers/zendesk/**

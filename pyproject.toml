@@ -636,6 +636,7 @@ dev = [
   "apache-airflow-providers-standard",
   "apache-airflow-providers-telegram",
   "apache-airflow-providers-weaviate",
+  "apache-airflow-providers-ydb",
   "apache-airflow-providers-zendesk",
   "apache-airflow-task-sdk",
 ]
@@ -662,6 +663,7 @@ apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
 apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
+apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 
@@ -686,6 +688,7 @@ members = [
     "providers/standard",
     "providers/telegram",
     "providers/weaviate",
+    "providers/ydb",
     "providers/zendesk",
     "task_sdk",
 ]

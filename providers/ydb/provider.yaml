@@ -33,18 +33,12 @@ versions:
   - 1.1.0
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-  - ydb>=3.18.8
-  - ydb-dbapi>=0.1.0
-
 integrations:
   - integration-name: YDB
     external-doc-url: https://ydb.tech/docs/en/
     how-to-guide:
       - /docs/apache-airflow-providers-ydb/operators/ydb_operator_howto_guide.rst
-    logo: /integration-logos/ydb/ydb.png
+    logo: /docs/integration-logos/ydb.png
     tags: [software]
 
 operators:
