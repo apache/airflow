@@ -7,6 +7,7 @@ apache-airflow-providers-celery
 apache-airflow-providers-cohere
 apache-airflow-providers-common-sql
 apache-airflow-providers-edge
+apache-airflow-providers-imap
 apache-airflow-providers-pinecone
 apache-airflow-providers-standard
 apache-airflow-providers-weaviate
