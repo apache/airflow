@@ -33,7 +33,7 @@ const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success"
 export const DagRunMetrics = ({ dagRunStates, total }: DagRunMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} p={2}>
     <HStack mb={4}>
-      <MetricsBadge backgroundColor="blue.solid" runs={total} />
+      <MetricsBadge colorPalette="blue" runs={total} />
       <Heading size="md">Dag Runs</Heading>
     </HStack>
     {DAGRUN_STATES.map((state) => (

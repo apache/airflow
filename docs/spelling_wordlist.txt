@@ -9,9 +9,11 @@ ack
 ackIds
 acknowledgement
 acks
+acl
 actionCard
 Acyclic
 acyclic
+adb
 AddressesType
 adf
 adhoc
@@ -67,6 +69,7 @@ apis
 AppBuilder
 appbuilder
 Appflow
+appflow
 approle
 AQL
 arango
@@ -259,6 +262,7 @@ cloudant
 CloudantV
 cloudbuild
 CloudBuildClient
+cloudformation
 cloudml
 cloudpickle
 cloudsqldatabehook
@@ -320,6 +324,7 @@ contextmgr
 contrib
 CoreV
 coroutine
+cosmosdb
 coverals
 cp
 cpu
@@ -375,8 +380,10 @@ Dask
 dask
 daskexecutor
 dat
+databrew
 Databricks
 databricks
+datacatalog
 datacenter
 dataclass
 Datadog
@@ -384,6 +391,7 @@ datadog
 Dataflow
 dataflow
 Dataform
+dataform
 DataFrame
 Dataframe
 dataframe
@@ -398,6 +406,7 @@ Dataplex
 dataplex
 datapoint
 Dataprep
+dataprep
 Dataproc
 dataproc
 DataprocDiagnoseClusterOperator
@@ -454,6 +463,7 @@ DeidentifyContentResponse
 DeidentifyTemplate
 del
 delim
+delitem
 dep
 DependencyMixin
 deploymentUrl
@@ -521,6 +531,7 @@ dotproduct
 DownloadReportV
 downscaling
 downstreams
+dp
 dq
 Drillbit
 Drivy
@@ -530,6 +541,7 @@ ds
 dsl
 Dsn
 dsn
+dts
 dttm
 dtypes
 du
@@ -542,6 +554,7 @@ dynamodb
 dynload
 ec
 ecb
+ECR
 ecs
 EdgeModifier
 EdgeModifiers
@@ -562,8 +575,12 @@ encodable
 encryptor
 enqueue
 enqueued
+EntryGroup
+EntryGroups
 entrypoint
 entrypoints
+EntryType
+EntryTypes
 Enum
 enum
 enums
@@ -586,6 +603,7 @@ etl
 europe
 eval
 evals
+eventbridge
 EventBufferValueType
 eventlet
 evo
@@ -620,6 +638,7 @@ fetchmany
 fetchone
 FieldMask
 Filebeat
+filebeat
 filehandle
 fileloc
 filelocs
@@ -677,6 +696,7 @@ gcpcloudsql
 GCS
 gcs
 gdbm
+gdrive
 Gelf
 gelf
 generateUploadUrl
@@ -687,6 +707,7 @@ getboolean
 getfqdn
 getframe
 getint
+getitem
 GetPartitions
 getsource
 getters
@@ -792,6 +813,7 @@ IdP
 ie
 iframe
 IGM
+igm
 ignorable
 ignoreUnknownValues
 ImageAnnotatorClient
@@ -856,6 +878,7 @@ ish
 isn
 isort
 istio
+iter
 iterable
 iterables
 iteratively
@@ -943,6 +966,7 @@ Kubernetes
 kubernetes
 KubernetesPodOperator
 Kueue
+kueue
 Kusto
 kv
 kwarg
@@ -959,6 +983,7 @@ latin
 LaunchTemplateParameters
 ldap
 ldaps
+len
 leq
 Letsbonus
 LevelDB
@@ -1023,7 +1048,9 @@ mb
 md
 mediawiki
 memberOf
+memcached
 Memorystore
+memorystore
 Mesos
 mesos
 MessageAttributes
@@ -1063,7 +1090,9 @@ monospace
 Moto
 moto
 mouseover
+msfabric
 msg
+msgraph
 mssql
 mTLS
 mtls
@@ -1095,6 +1124,7 @@ neighbours
 neo
 Neo4j
 neo4j
+neptune
 neq
 NetBIOS
 NetworkPolicy
@@ -1241,6 +1271,7 @@ postgres
 postgresql
 postMessage
 Potiuk
+powerbi
 powershell
 pql
 prc
@@ -1270,6 +1301,7 @@ presign
 presigned
 prestocmd
 prestodb
+pretify
 prev
 Proc
 productionalize
@@ -1337,6 +1369,7 @@ Quboles
 queryParameters
 querystring
 queueing
+quicksight
 quickstart
 quotechar
 rabbitmq
@@ -1346,9 +1379,11 @@ rbac
 rc
 rdbms
 RDS
+rds
 readfp
 Readme
 readme
+readonly
 ReadOnlyCredentials
 readthedocs
 Realtime
@@ -1480,11 +1515,15 @@ serializer
 serializers
 serverless
 ServiceAccount
+ServiceResource
+SES
 sessionmaker
 setattr
 setdefault
+setitem
 setMachineType
 setted
+SFN
 sftp
 SFTPClient
 sharded
@@ -1509,6 +1548,8 @@ SnowflakeHook
 Snowpark
 snowpark
 SnowparkOperator
+SNS
+sns
 somecollection
 somedatabase
 sortable
@@ -1541,6 +1582,8 @@ sqlproxy
 sqlsensor
 Sqoop
 sqoop
+SQS
+sqs
 src
 srv
 ssc
@@ -1576,6 +1619,7 @@ StrictUndefined
 Stringified
 stringified
 Struct
+STS
 subchart
 subclassed
 Subclasses
@@ -1693,6 +1737,7 @@ TicketAudit
 timedelta
 timedeltas
 timeframe
+timespan
 timezones
 tis
 TLS
@@ -1894,6 +1939,7 @@ Yieldr
 yml
 youtrack
 youtube
+yq
 zA
 Zego
 Zendesk

@@ -16,11 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import os
+from contextlib import contextmanager
+from pathlib import Path
+
 import pytest
 
 from airflow.www import app
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
@@ -72,5 +78,24 @@ def set_auth_role_public(request):
 def dagbag():
     from airflow.models import DagBag
 
-    DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
-    return DagBag(include_examples=True, read_dags_from_db=True)
+    parse_and_sync_to_db(os.devnull, include_examples=True)
+    return DagBag(read_dags_from_db=True)
+
+
+@pytest.fixture
+def configure_testing_dag_bundle():
+    """Configure the testing DAG bundle with the provided path, and disable the DAGs folder bundle."""
+
+    @contextmanager
+    def _config_bundle(path_to_parse: Path | str):
+        bundle_config = [
+            {
+                "name": "testing",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(path_to_parse), "refresh_interval": 0},
+            }
+        ]
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+            yield
+
+    return _config_bundle

@@ -20,6 +20,7 @@ import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, Protocol
+from unittest import mock
 
 import pytest
 
@@ -183,7 +184,8 @@ def make_ti_context() -> MakeTIContextCallable:
                 data_interval_end=data_interval_end,  # type: ignore
                 start_date=start_date,  # type: ignore
                 run_type=run_type,  # type: ignore
-            )
+            ),
+            max_tries=0,
         )
 
     return _make_context
@@ -214,3 +216,11 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         return context.model_dump(exclude_unset=True, mode="json")
 
     return _make_context_dict
+
+
+@pytest.fixture
+def mock_supervisor_comms():
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as supervisor_comms:
+        yield supervisor_comms

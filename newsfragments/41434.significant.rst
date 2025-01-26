@@ -1,6 +1,15 @@
 Experimental API is removed
 
-**Breaking Change**
-
 Experimental API is no longer available in Airflow. Users
 should transition to using Rest API as an alternative.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
