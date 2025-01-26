@@ -46,6 +46,7 @@ services:
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
+      - ../../../providers/odbc/tests:/opt/airflow/providers/odbc/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
       - ../../../providers/pagerduty/tests:/opt/airflow/providers/pagerduty/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
