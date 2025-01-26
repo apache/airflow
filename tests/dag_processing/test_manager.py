@@ -378,7 +378,7 @@ class TestDagFileProcessorManager:
             dag = dagbag.get_dag("test_example_bash_operator")
             dag.last_parsed_time = timezone.utcnow()
             DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag)
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(
@@ -534,7 +534,7 @@ class TestDagFileProcessorManager:
         dagbag.process_file(zipped_dag_path)
         dag = dagbag.get_dag("test_zip_dag")
         DAG.bulk_write_to_db("testing", None, [dag])
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         with configure_testing_dag_bundle(zipped_dag_path):
             manager = DagFileProcessorManager(max_runs=1)
@@ -547,6 +547,7 @@ class TestDagFileProcessorManager:
         # assert dag still active
         assert dag.get_is_active()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_refresh_dags_dir_deactivates_deleted_zipped_dags(self, tmp_path, configure_testing_dag_bundle):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
         dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
@@ -554,7 +555,7 @@ class TestDagFileProcessorManager:
         dagbag.process_file(zipped_dag_path)
         dag = dagbag.get_dag("test_zip_dag")
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         # TODO: this test feels a bit fragile - pointing at the zip directly causes the test to fail
         # TODO: jed look at this more closely - bagbad then process_file?!
@@ -749,7 +750,7 @@ class TestDagFileProcessorManager:
         bundletwo.refresh_interval = 300
         bundletwo.get_current_version.return_value = None
 
-        with conf_vars({("dag_bundles", "config_list"): json.dumps(config)}):
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch(
                 "airflow.dag_processing.bundles.manager.DagBundlesManager"
@@ -802,7 +803,7 @@ class TestDagFileProcessorManager:
         mybundle.supports_versioning = True
         mybundle.get_current_version.return_value = "123"
 
-        with conf_vars({("dag_bundles", "config_list"): json.dumps(config)}):
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch(
                 "airflow.dag_processing.bundles.manager.DagBundlesManager"

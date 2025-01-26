@@ -47,6 +47,7 @@ class MSGraphSensor(BaseSensorOperator):
     :param method: The HTTP method being used to do the REST call (default is GET).
     :param conn_id: The HTTP Connection ID to run the operator against (templated).
     :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param scopes: The scopes to be used (default is ["https://graph.microsoft.com/.default"]).
     :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
         You can pass an enum named APIVersion which has 2 possible members v1 and beta,
         or you can pass a string as `v1.0` or `beta`.
@@ -83,6 +84,7 @@ class MSGraphSensor(BaseSensorOperator):
         data: dict[str, Any] | str | BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         proxies: dict | None = None,
+        scopes: str | list[str] | None = None,
         api_version: APIVersion | str | None = None,
         event_processor: Callable[[Context, Any], bool] = lambda context, e: e.get("status") == "Succeeded",
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
@@ -101,6 +103,7 @@ class MSGraphSensor(BaseSensorOperator):
         self.data = data
         self.conn_id = conn_id
         self.proxies = proxies
+        self.scopes = scopes
         self.api_version = api_version
         self.event_processor = event_processor
         self.result_processor = result_processor
@@ -120,6 +123,7 @@ class MSGraphSensor(BaseSensorOperator):
                 conn_id=self.conn_id,
                 timeout=self.timeout,
                 proxies=self.proxies,
+                scopes=self.scopes,
                 api_version=self.api_version,
                 serializer=type(self.serializer),
             ),

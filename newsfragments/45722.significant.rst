@@ -1,4 +1,4 @@
-Move airflow config ``scheduler.dag_dir_list_interval`` to ``dag_bundles.refresh_interval``
+Move airflow config ``scheduler.dag_dir_list_interval`` to ``dag_processor.refresh_interval``
 
 * Types of change
 
@@ -15,4 +15,4 @@ Move airflow config ``scheduler.dag_dir_list_interval`` to ``dag_bundles.refresh
 
   * ``airflow config lint``
 
-    * [x] ``scheduler.dag_dir_list_interval`` → ``dag_bundles.refresh_interval``
+    * [x] ``scheduler.dag_dir_list_interval`` → ``dag_processor.refresh_interval``
