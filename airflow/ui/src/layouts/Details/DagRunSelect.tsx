@@ -34,11 +34,13 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const offset = parseInt(searchParams.get("offset") ?? "0", 10);
+
   const { data, isLoading } = useGridServiceGridData(
     {
       dagId,
-      limit: 14,
-      offset: 0,
+      limit: 25,
+      offset,
       orderBy: "-start_date",
     },
     undefined,

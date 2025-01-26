@@ -351,7 +351,7 @@ class ShellParams:
             self.mount_sources = MOUNT_REMOVE
         if self.mount_sources in USE_AIRFLOW_MOUNT_SOURCES and self.use_airflow_version is None:
             get_console().print(
-                "[error]You need to specify --use-airflow-version when using one of the"
+                "[error]You need to specify `--use-airflow-version wheel | sdist` when using one of the"
                 f"{USE_AIRFLOW_MOUNT_SOURCES} mount sources[/]"
             )
             sys.exit(1)

@@ -44,7 +44,7 @@ def change_ownership_of_files(path: Path) -> None:
         sys.exit(1)
     count_files = 0
     root_uid = pwd.getpwnam("root").pw_uid
-    skip_folders = {".venv", "node_modules", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
+    skip_folders = {".venv", "node_modules"}
     for root, dirs, files in os.walk(path):
         original_length = len(dirs)
         original_dirs = dirs.copy()
@@ -57,6 +57,8 @@ def change_ownership_of_files(path: Path) -> None:
                     f"{root}: Skipped {original_length - new_length} "
                     f"folders: {set(original_dirs) - set(dirs)}"
                 )
+        for dir_name in dirs:
+            os.chown(Path(root) / dir_name, int(host_user_id), int(host_group_id), follow_symlinks=False)
         for name in files:
             file = Path(root) / name
             try:

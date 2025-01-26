@@ -58,7 +58,7 @@ def get_provider_info():
             {
                 "integration-name": "Airbyte",
                 "external-doc-url": "https://airbyte.com/",
-                "logo": "/docs/integration-logo/Airbyte.png",
+                "logo": "/docs/integration-logos/Airbyte.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-airbyte/operators/airbyte.rst"],
                 "tags": ["service"],
             }

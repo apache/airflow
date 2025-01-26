@@ -24,8 +24,10 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pendulum
+from msgraph_core import APIVersion
 
 from airflow.exceptions import AirflowException
+from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
@@ -108,7 +110,7 @@ class TestMSGraphTrigger(Base):
             actual = trigger.serialize()
 
             assert isinstance(actual, tuple)
-            assert actual[0] == "airflow.providers.microsoft.azure.triggers.msgraph.MSGraphTrigger"
+            assert actual[0] == f"{MSGraphTrigger.__module__}.{MSGraphTrigger.__name__}"
             assert actual[1] == {
                 "url": "https://graph.microsoft.com/v1.0/me/drive/items",
                 "path_parameters": None,
@@ -121,8 +123,9 @@ class TestMSGraphTrigger(Base):
                 "conn_id": "msgraph_api",
                 "timeout": None,
                 "proxies": None,
-                "api_version": "v1.0",
-                "serializer": "airflow.providers.microsoft.azure.triggers.msgraph.ResponseSerializer",
+                "scopes": [KiotaRequestAdapterHook.DEFAULT_SCOPE],
+                "api_version": APIVersion.v1.value,
+                "serializer": f"{ResponseSerializer.__module__}.{ResponseSerializer.__name__}",
             }
 
     def test_template_fields(self):

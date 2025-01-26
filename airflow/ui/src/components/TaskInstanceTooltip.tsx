@@ -38,6 +38,7 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: P
       {...rest}
       content={
         <Box>
+          <Text>State: {taskInstance.state}</Text>
           {"dag_run_id" in taskInstance ? <Text>Run ID: {taskInstance.dag_run_id}</Text> : undefined}
           <Text>
             Start Date: <Time datetime={taskInstance.start_date} />

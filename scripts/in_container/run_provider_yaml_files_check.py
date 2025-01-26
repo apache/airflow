@@ -73,9 +73,11 @@ if __name__ != "__main__":
     )
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[2]
-PROVIDERS_SRC = ROOT_DIR / "providers" / "src"
-DOCS_DIR = ROOT_DIR.joinpath("docs")
+PROVIDERS_DIR_PATH = ROOT_DIR / "providers"
+PROVIDERS_SRC_DIR_PATH = PROVIDERS_DIR_PATH / "src"
+DOCS_DIR_PATH = ROOT_DIR / "docs"
 PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR.joinpath("airflow", "provider.yaml.schema.json")
+NEW_PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR.joinpath("airflow", "new_provider.yaml.schema.json")
 PROVIDER_ISSUE_TEMPLATE_PATH = ROOT_DIR.joinpath(
     ".github", "ISSUE_TEMPLATE", "airflow_providers_bug_report.yml"
 )
@@ -102,25 +104,45 @@ def _filepath_to_module(filepath: pathlib.Path | str) -> str:
         filepath = pathlib.Path(filepath)
     if filepath.name == "provider.yaml":
         filepath = filepath.parent
-    p = filepath.resolve().relative_to(PROVIDERS_SRC).with_suffix("")
+    filepath = filepath.resolve()
+    for parent in filepath.parents:
+        if parent.name == "src":
+            break
+    else:
+        if filepath.is_relative_to(PROVIDERS_DIR_PATH.resolve()):
+            p = filepath.relative_to(PROVIDERS_DIR_PATH.resolve()).with_suffix("")
+            return "airflow.providers." + p.as_posix().replace("/", ".")
+        raise ValueError(f"The file {filepath} does no have `src` in the path")
+    p = filepath.relative_to(parent).with_suffix("")
     return p.as_posix().replace("/", ".")
 
 
+# TODO(potiuk): remove this when we move all providers to the new structure
 def _load_schema() -> dict[str, Any]:
     with PROVIDER_DATA_SCHEMA_PATH.open() as schema_file:
         content = json.load(schema_file)
     return content
 
 
+def _load_new_schema() -> dict[str, Any]:
+    with NEW_PROVIDER_DATA_SCHEMA_PATH.open() as schema_file:
+        content = json.load(schema_file)
+    return content
+
+
 def _load_package_data(package_paths: Iterable[str]):
     schema = _load_schema()
+    new_schema = _load_new_schema()
     result = {}
     for provider_yaml_path in package_paths:
         with open(provider_yaml_path) as yaml_file:
             provider = yaml.load(yaml_file, SafeLoader)
         rel_path = pathlib.Path(provider_yaml_path).relative_to(ROOT_DIR).as_posix()
         try:
-            jsonschema.validate(provider, schema=schema)
+            if "providers/src" in provider_yaml_path:
+                jsonschema.validate(provider, schema=schema)
+            else:
+                jsonschema.validate(provider, schema=new_schema)
         except jsonschema.ValidationError as ex:
             msg = f"Unable to parse: {provider_yaml_path}. Original error {type(ex).__name__}: {ex}"
             raise RuntimeError(msg)
@@ -280,7 +302,12 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
         package_dir.glob(f"**/{resource_type}/**/*.py"),
         package_dir.glob(f"{resource_type}/**/*.py"),
     )
-    expected_modules = {_filepath_to_module(f) for f in py_files if f.name != "__init__.py"}
+    module = _filepath_to_module(yaml_file_path)
+    expected_modules = {
+        _filepath_to_module(f)
+        for f in py_files
+        if f.name != "__init__.py" and f"{module.replace('.','/')}/tests/" not in f.as_posix()
+    }
     resource_data = provider_data.get(resource_type, [])
     return expected_modules, _filepath_to_module(provider_dir), resource_data
 
@@ -340,9 +367,7 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
             current_modules, provider_package, yaml_file_path, resource_type, ObjectType.MODULE
         )
         try:
-            package_name = os.fspath(ROOT_DIR.joinpath(yaml_file_path).parent.relative_to(ROOT_DIR)).replace(
-                "/", "."
-            )
+            package_name = _filepath_to_module(yaml_file_path)
             assert_sets_equal(
                 set(expected_modules),
                 f"Found list of {resource_type} modules in provider package: {package_name}",
@@ -568,29 +593,30 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
         console.print(suspended_providers)
 
     expected_doc_files = itertools.chain(
-        DOCS_DIR.glob("apache-airflow-providers-*/operators/**/*.rst"),
-        DOCS_DIR.glob("apache-airflow-providers-*/transfer/**/*.rst"),
+        DOCS_DIR_PATH.glob("apache-airflow-providers-*/operators/**/*.rst"),
+        DOCS_DIR_PATH.glob("apache-airflow-providers-*/transfer/**/*.rst"),
     )
 
     expected_doc_urls = {
-        f"/docs/{f.relative_to(DOCS_DIR).as_posix()}"
+        f"/docs/{f.relative_to(DOCS_DIR_PATH).as_posix()}"
         for f in expected_doc_files
         if f.name != "index.rst"
         and "_partials" not in f.parts
-        and not f.relative_to(DOCS_DIR).as_posix().startswith(tuple(suspended_providers))
+        and not f.relative_to(DOCS_DIR_PATH).as_posix().startswith(tuple(suspended_providers))
     } | {
-        f"/docs/{f.relative_to(DOCS_DIR).as_posix()}"
-        for f in DOCS_DIR.glob("apache-airflow-providers-*/operators.rst")
-        if not f.relative_to(DOCS_DIR).as_posix().startswith(tuple(suspended_providers))
+        f"/docs/{f.relative_to(DOCS_DIR_PATH).as_posix()}"
+        for f in DOCS_DIR_PATH.glob("apache-airflow-providers-*/operators.rst")
+        if not f.relative_to(DOCS_DIR_PATH).as_posix().startswith(tuple(suspended_providers))
     }
     if suspended_logos:
         console.print("[yellow]Suspended logos:[/]")
         console.print(suspended_logos)
         console.print()
     expected_logo_urls = {
-        f"/{f.relative_to(DOCS_DIR).as_posix()}"
-        for f in (DOCS_DIR / "integration-logos").rglob("*")
-        if f.is_file() and not f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(tuple(suspended_logos))
+        f"/{f.relative_to(DOCS_DIR_PATH).as_posix()}"
+        for f in (DOCS_DIR_PATH / "integration-logos").rglob("*")
+        if f.is_file()
+        and not f"/{f.relative_to(DOCS_DIR_PATH).as_posix()}".startswith(tuple(suspended_logos))
     }
 
     try:
@@ -676,9 +702,16 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
     for package_info in yaml_files.values():
         num_providers += 1
         package_name = package_info["package-name"]
-        provider_dir = DOCS_DIR.joinpath(package_name)
+        # TODO(potiuk) - remove this when we move all providers to the new structure
+        if (DOCS_DIR_PATH / package_name).exists():
+            provider_dir = DOCS_DIR_PATH / package_name
+        else:
+            provider_dir = (
+                PROVIDERS_DIR_PATH.joinpath(*package_name[len("apache-airflow-providers-") :].split("-"))
+                / "docs"
+            )
         for file in expected_files:
-            if not provider_dir.joinpath(file).is_file():
+            if not (provider_dir / file).is_file():
                 errors.append(
                     f"The provider {package_name} misses `{file}` in documentation. "
                     f"[yellow]How to fix it[/]: Please add the file to {provider_dir}"

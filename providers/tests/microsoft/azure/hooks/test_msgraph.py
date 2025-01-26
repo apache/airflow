@@ -86,6 +86,37 @@ class TestKiotaRequestAdapterHook:
             assert isinstance(actual, HttpxRequestAdapter)
             assert actual.base_url == "https://api.fabric.microsoft.com/v1"
 
+    def test_scopes_when_default(self):
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            assert hook.scopes == [KiotaRequestAdapterHook.DEFAULT_SCOPE]
+
+    def test_scopes_when_passed_as_string(self):
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(
+                conn_id="msgraph_api", scopes="https://microsoft.sharepoint.com/.default"
+            )
+
+            assert hook.scopes == ["https://microsoft.sharepoint.com/.default"]
+
+    def test_scopes_when_passed_as_list(self):
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(
+                conn_id="msgraph_api", scopes=["https://microsoft.sharepoint.com/.default"]
+            )
+
+            assert hook.scopes == ["https://microsoft.sharepoint.com/.default"]
+
     def test_api_version(self):
         with patch(
             "airflow.hooks.base.BaseHook.get_connection",

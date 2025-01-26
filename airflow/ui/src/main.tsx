@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
+import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
 import { StrictMode } from "react";
@@ -28,6 +28,7 @@ import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
 
 import { queryClient } from "./queryClient";
+import { system } from "./theme";
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
@@ -46,7 +47,7 @@ axios.interceptors.response.use(
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>
-    <ChakraProvider value={defaultSystem}>
+    <ChakraProvider value={system}>
       <ColorModeProvider>
         <QueryClientProvider client={queryClient}>
           <TimezoneProvider>

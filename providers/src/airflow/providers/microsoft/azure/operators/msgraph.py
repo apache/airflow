@@ -71,6 +71,7 @@ class MSGraphAsyncOperator(BaseOperator):
     :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter` (default is None).
         When no timeout is specified or set to None then there is no HTTP timeout on each request.
     :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param scopes: The scopes to be used (default is ["https://graph.microsoft.com/.default"]).
     :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
         You can pass an enum named APIVersion which has 2 possible members v1 and beta,
         or you can pass a string as `v1.0` or `beta`.
@@ -110,6 +111,7 @@ class MSGraphAsyncOperator(BaseOperator):
         key: str = XCOM_RETURN_KEY,
         timeout: float | None = None,
         proxies: dict | None = None,
+        scopes: str | list[str] | None = None,
         api_version: APIVersion | str | None = None,
         pagination_function: Callable[[MSGraphAsyncOperator, dict, Context], tuple[str, dict]] | None = None,
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
@@ -130,6 +132,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.key = key
         self.timeout = timeout
         self.proxies = proxies
+        self.scopes = scopes
         self.api_version = api_version
         self.pagination_function = pagination_function or self.paginate
         self.result_processor = result_processor
@@ -150,6 +153,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 conn_id=self.conn_id,
                 timeout=self.timeout,
                 proxies=self.proxies,
+                scopes=self.scopes,
                 api_version=self.api_version,
                 serializer=type(self.serializer),
             ),

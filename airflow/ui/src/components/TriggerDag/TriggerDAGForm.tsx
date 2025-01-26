@@ -31,6 +31,7 @@ import { useTrigger } from "src/queries/useTrigger";
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { Accordion } from "../ui";
+import { useParamStore } from "./useParamStore";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
@@ -48,22 +49,16 @@ export type DagRunTriggerParams = {
 
 const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
-  const { initialConf, paramsDict } = useDagParams(dagId, open);
+  const initialParamsDict = useDagParams(dagId, open);
   const {
     dateValidationError,
     error: errorTrigger,
     isPending,
     triggerDagRun,
   } = useTrigger({ onSuccessConfirm: onClose });
-  const conf = initialConf;
+  const { conf, setConf } = useParamStore();
 
-  const {
-    control,
-    formState: { isDirty },
-    handleSubmit,
-    reset,
-    watch,
-  } = useForm<DagRunTriggerParams>({
+  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
@@ -89,17 +84,6 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   const dataIntervalStart = watch("dataIntervalStart");
   const dataIntervalEnd = watch("dataIntervalEnd");
 
-  const handleReset = () => {
-    setErrors({ conf: undefined, date: undefined });
-    reset({
-      conf,
-      dagRunId: "",
-      dataIntervalEnd: "",
-      dataIntervalStart: "",
-      note: "",
-    });
-  };
-
   const onSubmit = (data: DagRunTriggerParams) => {
     triggerDagRun(dagId, data);
   };
@@ -110,7 +94,13 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
       setErrors((prev) => ({ ...prev, conf: undefined }));
 
-      return JSON.stringify(parsedJson, undefined, 2);
+      const formattedJson = JSON.stringify(parsedJson, undefined, 2);
+
+      if (formattedJson !== conf) {
+        setConf(formattedJson); // Update only if the value is different
+      }
+
+      return formattedJson;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
 
@@ -139,7 +129,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
         size="lg"
         variant="enclosed"
       >
-        <FlexibleForm params={paramsDict} />
+        <FlexibleForm initialParamsDict={initialParamsDict} />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>
@@ -245,11 +235,6 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
       <ErrorAlert error={errors.date ?? errorTrigger} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
-          {isDirty ? (
-            <Button onClick={handleReset} variant="outline">
-              Reset
-            </Button>
-          ) : undefined}
           <Spacer />
           <Button
             colorPalette="blue"

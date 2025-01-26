@@ -24,6 +24,8 @@
 - [Moving providers to new structure](#moving-providers-to-new-structure)
   - [How to use the script](#how-to-use-the-script)
   - [Options](#options)
+- [What happens under the hood](#what-happens-under-the-hood)
+- [What to do next](#what-to-do-next)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -44,10 +46,19 @@ some manual adjustments needed in more complex cases.
 
 The script follows https://peps.python.org/pep-0723/ and uses inlined dependencies - so it can be run as-is
 by modern tools without creating dedicated virtualenv - the virtualenv with dependencies is
-created on-the-fly by PEP 723 compatible tools. For example one can use uv to run it:
+created on-the-fly by PEP 723 compatible tools.
+
+For example this one will make a dry-run of moving Alibaba provider:
 
 ```shell
 uv run dev/moving_providers/move_providers.py alibaba
+```
+
+And this one will perform update and move the Alibaba provider:
+
+
+```shell
+uv run dev/moving_providers/move_providers.py alibaba --perform-update
 ```
 
 ## Options
@@ -60,9 +71,8 @@ uv run dev/moving_providers/move_providers.py alibaba
 > uv run dev/moving_providers/move_providers.py --help
 > ```
 
-By default the script runs in `--dry-run` mode, which means it will not make any changes to the file system,
-but will print what it would do. To actually move the files, you need to pass `--no-dry-run` option and you
-will be asked to commit the code and create a PR:
+By default the script runs in dry run mode, which means it will not make any changes to the file system,
+but will print what it would do. To actually move the files, you need to pass `--perform-update` flag.
 
 ```shell
 uv run dev/moving_providers/move_providers.py alibaba --no-dry-run
@@ -85,3 +95,26 @@ You can also specify `--quiet` option to see less output:
 ```shell
 uv run dev/moving_providers/move_providers.py alibaba --quiet
 ```
+
+# What happens under the hood
+
+When you run the script with `--perform-update` flag, you will see the diff of the changes
+that the script made, and you will be able to scroll through it (with your configured editor)
+to verify that it looks good.
+
+The script will:
+
+* move the provider to the new structure and apply fixes
+* build CI image to add the new provider in the image packages
+* run static checks to verify that the moved provider code is good and apply auto-fixes in some cases
+
+# What to do next
+
+After all that you need to fix all potential static check problems, run all the tests for the provider and
+fix any issues that might happen:
+
+1) Fix all the static check errors, add them to git
+2) run `breeze testing providers-tests --test-type 'Providers[LIST_OF_PROVIDER_IDS_MOVED]'` and fix all tests.
+3) Add changes to git, create branch, commit the changes and create a PR!
+
+Good luck!

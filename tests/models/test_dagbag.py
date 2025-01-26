@@ -671,7 +671,7 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
             dag_bag = DagBag(read_dags_from_db=True)
             ser_dag_1 = dag_bag.get_dag("example_bash_operator")
@@ -689,7 +689,7 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
@@ -703,7 +703,7 @@ with airflow.DAG(
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
-    def test_get_dag_refresh_race_condition(self, session):
+    def test_get_dag_refresh_race_condition(self, session, testing_dag_bundle):
         """
         Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
         is before DagBag.dags_last_fetched.
@@ -713,7 +713,7 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # deserialize the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 10)), tick=False):
@@ -739,7 +739,7 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
@@ -751,7 +751,7 @@ with airflow.DAG(
         assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_update_time > ser_dag_update_time
 
-    def test_collect_dags_from_db(self):
+    def test_collect_dags_from_db(self, testing_dag_bundle):
         """DAGs are collected from Database"""
         db.clear_db_dags()
         dagbag = DagBag(str(example_dags_folder))
@@ -759,7 +759,7 @@ with airflow.DAG(
         example_dags = dagbag.dags
         for dag in example_dags.values():
             dag.sync_to_db()
-            SerializedDagModel.write_dag(dag)
+            SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
 
         new_dagbag = DagBag(read_dags_from_db=True)
         assert len(new_dagbag.dags) == 0

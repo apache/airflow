@@ -69,13 +69,13 @@ class TestDagCode:
     def _write_two_example_dags(self, session):
         example_dags = make_example_dags(example_dags_module)
         bash_dag = example_dags["example_bash_operator"]
-        SDM.write_dag(bash_dag)
+        SDM.write_dag(bash_dag, bundle_name="testing")
         dag_version = DagVersion.get_latest_version("example_bash_operator")
         x = DagCode(dag_version, bash_dag.fileloc)
         session.add(x)
         session.commit()
         xcom_dag = example_dags["example_xcom"]
-        SDM.write_dag(xcom_dag)
+        SDM.write_dag(xcom_dag, bundle_name="testing")
         dag_version = DagVersion.get_latest_version("example_xcom")
         x = DagCode(dag_version, xcom_dag.fileloc)
         session.add(x)
@@ -85,10 +85,10 @@ class TestDagCode:
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
-            SDM.write_dag(dag)
+            SDM.write_dag(dag, bundle_name="testing")
         return example_dags
 
-    def test_write_to_db(self):
+    def test_write_to_db(self, testing_dag_bundle):
         """Dg code can be written into database."""
         example_dags = self._write_example_dags()
 
@@ -119,13 +119,13 @@ class TestDagCode:
                     source_code = source.read()
                 assert result.source_code == source_code
 
-    def test_code_can_be_read_when_no_access_to_file(self):
+    def test_code_can_be_read_when_no_access_to_file(self, testing_dag_bundle):
         """
         Test that code can be retrieved from DB when you do not have access to Code file.
         Source Code should at least exist in one of DB or File.
         """
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        SDM.write_dag(example_dag)
+        SDM.write_dag(example_dag, bundle_name="testing")
 
         # Mock that there is no access to the Dag File
         with patch("airflow.models.dagcode.open_maybe_zipped") as mock_open:
@@ -135,10 +135,10 @@ class TestDagCode:
             for test_string in ["example_bash_operator", "also_run_this", "run_this_last"]:
                 assert test_string in dag_code
 
-    def test_db_code_created_on_serdag_change(self, session):
+    def test_db_code_created_on_serdag_change(self, session, testing_dag_bundle):
         """Test new DagCode is created in DB when ser dag is changed"""
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        SDM.write_dag(example_dag)
+        SDM.write_dag(example_dag, bundle_name="testing")
 
         result = (
             session.query(DagCode)
@@ -153,7 +153,7 @@ class TestDagCode:
         example_dag.doc_md = "new doc"
         with patch("airflow.models.dagcode.DagCode.get_code_from_file") as mock_code:
             mock_code.return_value = "# dummy code"
-            SDM.write_dag(example_dag)
+            SDM.write_dag(example_dag, bundle_name="testing")
 
         new_result = (
             session.query(DagCode)
@@ -172,12 +172,12 @@ class TestDagCode:
         with dag_maker("test_has_dag") as dag:
             pass
         dag.sync_to_db()
-        SDM.write_dag(dag)
+        SDM.write_dag(dag, bundle_name="dag_maker")
 
         with dag_maker() as dag2:
             pass
         dag2.sync_to_db()
-        SDM.write_dag(dag2)
+        SDM.write_dag(dag2, bundle_name="dag_maker")
 
         assert DagCode.has_dag(dag.dag_id)
 
@@ -192,7 +192,7 @@ class TestDagCode:
 
             mytask()
         dag.sync_to_db()
-        SDM.write_dag(dag)
+        SDM.write_dag(dag, bundle_name="dag_maker")
         dag_code = DagCode.get_latest_dagcode(dag.dag_id)
         dag_code.source_code_hash = 2
         session.add(dag_code)

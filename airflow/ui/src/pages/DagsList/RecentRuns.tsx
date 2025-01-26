@@ -24,7 +24,6 @@ import { Link } from "react-router-dom";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
-import { stateColor } from "src/utils/stateColor";
 
 dayjs.extend(duration);
 
@@ -74,7 +73,7 @@ export const RecentRuns = ({
           <Link to={`/dags/${run.dag_id}/runs/${run.dag_run_id}/`}>
             <Box px={1}>
               <Box
-                bg={stateColor[run.state]}
+                bg={`${run.state}.solid`}
                 borderRadius="4px"
                 height={`${(run.duration / max) * BAR_HEIGHT}px`}
                 minHeight={1}

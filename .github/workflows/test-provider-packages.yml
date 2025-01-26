@@ -109,6 +109,10 @@ jobs:
         run: >
           breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
           --package-format ${{ matrix.package-format }}
+      - name: "Prepare task-sdk package: ${{ matrix.package-format }}"
+        run: >
+          breeze release-management prepare-task-sdk-package --version-suffix-for-pypi dev0
+          --package-format ${{ matrix.package-format }}
       - name: "Verify ${{ matrix.package-format }} packages with twine"
         run: |
           uv tool uninstall twine || true

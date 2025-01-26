@@ -104,11 +104,16 @@ def _all_new_providers() -> list[str]:
                 *[f"providers/{provider}/tests" for provider in _all_new_providers()],
                 "providers/tests",
                 "--ignore=providers/tests/amazon",
-                "--ignore=providers/amazon",
                 "--ignore=providers/tests/google",
-                "--ignore=providers/google",
                 "--ignore=providers/tests/microsoft/azure",
-                "--ignore=providers/microsoft/tests/azure",
+            ],
+        ),
+        (
+            GroupOfTests.PROVIDERS,
+            "Providers[-edge]",
+            [
+                *[f"providers/{provider}/tests" for provider in _all_new_providers() if provider != "edge"],
+                "providers/tests",
             ],
         ),
         (
