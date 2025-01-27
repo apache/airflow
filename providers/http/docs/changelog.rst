@@ -277,7 +277,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix json data for async PUTs (#35405)``
-* ``Fix: Paginate on lastest Response (#35560)``
+* ``Fix: Paginate on latest Response (#35560)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

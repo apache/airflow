@@ -568,7 +568,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "INTHEWILD.md",
                     "chart/aaaa.txt",
-                    "providers/tests/http/file.py",
+                    "providers/http/tests/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "amazon apache.livy "
