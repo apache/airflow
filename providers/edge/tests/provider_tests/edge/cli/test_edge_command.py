@@ -29,7 +29,7 @@ from requests import HTTPError, Response
 
 from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
-from airflow.providers.edge.worker_api.datamodels import EdgeJobFetched
+from airflow.providers.edge.worker_api.datamodels import EdgeJobFetched, WorkerSetStateReturn
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
@@ -322,7 +322,7 @@ class TestEdgeWorkerCli:
             worker_with_job.jobs = []
         _EdgeWorkerCli.drain = drain
         _EdgeWorkerCli.maintenance_mode = maintenance_mode
-        mock_set_state.return_value = {"state": "state", "queues": ["queue1", "queue2"]}
+        mock_set_state.return_value = WorkerSetStateReturn(state="running", queues=["queue1", "queue2"])
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.heartbeat()
         assert mock_set_state.call_args.args[1] == expected_state
