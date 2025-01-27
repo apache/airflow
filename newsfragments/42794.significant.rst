@@ -17,6 +17,6 @@ Move filesystem, package_index, subprocess hooks to standard provider
 
     * AIR303
 
-      * [ ] ``airflow.hooks.filesystem.*`` → ``airflow.providers.standard.hooks.filesystem.*``
-      * [ ] ``airflow.hooks.package_index.*`` → ``airflow.providers.standard.hooks.package_index.*``
-      * [ ] ``airflow.hooks.subprocess.*`` → ``airflow.providers.standard.hooks.subprocess.*``
+      * [x] ``airflow.hooks.filesystem.*`` → ``airflow.providers.standard.hooks.filesystem.*``
+      * [x] ``airflow.hooks.package_index.*`` → ``airflow.providers.standard.hooks.package_index.*``
+      * [x] ``airflow.hooks.subprocess.*`` → ``airflow.providers.standard.hooks.subprocess.*``

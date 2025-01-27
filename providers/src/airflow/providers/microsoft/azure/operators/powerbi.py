@@ -114,6 +114,35 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                     check_interval=self.check_interval,
                     wait_for_termination=self.wait_for_termination,
                 ),
+                method_name=self.get_refresh_status.__name__,
+            )
+
+    def get_refresh_status(self, context: Context, event: dict[str, str] | None = None):
+        """Push the refresh Id to XCom then runs the Trigger to wait for refresh completion."""
+        if event:
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
+
+            dataset_refresh_id = event["dataset_refresh_id"]
+
+        if dataset_refresh_id:
+            self.xcom_push(
+                context=context,
+                key=f"{self.task_id}.powerbi_dataset_refresh_Id",
+                value=dataset_refresh_id,
+            )
+            self.defer(
+                trigger=PowerBITrigger(
+                    conn_id=self.conn_id,
+                    group_id=self.group_id,
+                    dataset_id=self.dataset_id,
+                    dataset_refresh_id=dataset_refresh_id,
+                    timeout=self.timeout,
+                    proxies=self.proxies,
+                    api_version=self.api_version,
+                    check_interval=self.check_interval,
+                    wait_for_termination=self.wait_for_termination,
+                ),
                 method_name=self.execute_complete.__name__,
             )
 
@@ -124,10 +153,10 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
+            self.xcom_push(
+                context=context,
+                key=f"{self.task_id}.powerbi_dataset_refresh_status",
+                value=event["dataset_refresh_status"],
+            )
             if event["status"] == "error":
                 raise AirflowException(event["message"])
-
-            self.xcom_push(
-                context=context, key="powerbi_dataset_refresh_Id", value=event["dataset_refresh_id"]
-            )
-            self.xcom_push(context=context, key="powerbi_dataset_refresh_status", value=event["status"])

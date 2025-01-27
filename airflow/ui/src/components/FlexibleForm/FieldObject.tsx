@@ -16,37 +16,65 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Text } from "@chakra-ui/react";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
+import { useState } from "react";
 
 import { useColorMode } from "src/context/colorMode";
 
 import type { FlexibleFormElementProps } from ".";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
-export const FieldObject = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldObject = ({ name }: FlexibleFormElementProps) => {
   const { colorMode } = useColorMode();
 
+  const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+  const [error, setError] = useState<unknown>(undefined);
+
+  const handleChange = (value: string) => {
+    setError(undefined);
+    try {
+      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+      // eslint-disable-next-line unicorn/no-null
+      const parsedValue = value === "" ? null : (JSON.parse(value) as JSON);
+
+      if (paramsDict[name]) {
+        paramsDict[name].value = parsedValue;
+      }
+
+      setParamsDict(paramsDict);
+    } catch (_error) {
+      setError(_error);
+    }
+  };
+
   return (
-    <CodeMirror
-      basicSetup={{
-        autocompletion: true,
-        bracketMatching: true,
-        foldGutter: true,
-        lineNumbers: true,
-      }}
-      extensions={[json()]}
-      height="200px"
-      id={`element_${name}`}
-      style={{
-        border: "1px solid var(--chakra-colors-border)",
-        borderRadius: "8px",
-        outline: "none",
-        padding: "2px",
-        width: "100%",
-      }}
-      theme={colorMode === "dark" ? githubDark : githubLight}
-      value={JSON.stringify(param.value ?? {}, undefined, 2)}
-    />
+    <>
+      <CodeMirror
+        basicSetup={{
+          autocompletion: true,
+          bracketMatching: true,
+          foldGutter: true,
+          lineNumbers: true,
+        }}
+        extensions={[json()]}
+        height="200px"
+        id={`element_${name}`}
+        onChange={handleChange}
+        style={{
+          border: "1px solid var(--chakra-colors-border)",
+          borderRadius: "8px",
+          outline: "none",
+          padding: "2px",
+          width: "100%",
+        }}
+        theme={colorMode === "dark" ? githubDark : githubLight}
+        value={JSON.stringify(param.value ?? {}, undefined, 2)}
+      />
+      {Boolean(error) ? <Text color="red">{String(error)}</Text> : undefined}
+    </>
   );
 };

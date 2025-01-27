@@ -247,11 +247,11 @@ class TestGetTask(TestTaskEndpoint):
             expected["task_display_name"] = task_id
             assert response.json == expected
 
-    def test_should_respond_200_serialized(self):
+    def test_should_respond_200_serialized(self, testing_dag_bundle):
         # Get the dag out of the dagbag before we patch it to an empty one
         dag = self.app.dag_bag.get_dag(self.dag_id)
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         patcher = unittest.mock.patch.object(self.app, "dag_bag", dag_bag)
