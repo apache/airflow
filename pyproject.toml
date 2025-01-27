@@ -656,6 +656,7 @@ dev = [
   "apache-airflow-providers-odbc",
   "apache-airflow-providers-jenkins",
   "apache-airflow-providers-pagerduty",
+  "apache-airflow-providers-sftp",
   "apache-airflow-providers-snowflake",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
@@ -721,6 +722,7 @@ apache-airflow-providers-presto = { workspace = true }
 apache-airflow-providers-qdrant = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
+apache-airflow-providers-sftp = { workspace = true }
 apache-airflow-providers-singularity = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-snowflake = { workspace = true }
@@ -778,6 +780,7 @@ members = [
     "providers/qdrant",
     "providers/samba",
     "providers/segment",
+    "providers/sftp",
     "providers/singularity",
     "providers/ssh",
     "providers/snowflake",
