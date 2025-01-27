@@ -628,9 +628,9 @@ repos:
           ^providers/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^providers/src/airflow/providers/apache/hive/operators/hive_stats.py$|
           ^providers/src/airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
-          ^providers/src/airflow/providers/apache/spark/decorators/|
-          ^providers/src/airflow/providers/apache/spark/hooks/|
-          ^providers/src/airflow/providers/apache/spark/operators/|
+          ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
+          ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
+          ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
           ^providers/src/airflow/providers/exasol/hooks/exasol.py$|
           ^providers/src/airflow/providers/fab/auth_manager/security_manager/|
           ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
@@ -659,7 +659,7 @@ repos:
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
           ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
-          ^docs/apache-airflow-providers-apache-spark/decorators/pyspark.rst$|
+          ^providers/apache/spark/docs/decorators/pyspark.rst$|
           ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
