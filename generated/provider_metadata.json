@@ -2387,6 +2387,10 @@
         "3.9.0": {
             "associated_airflow_version": "2.10.4",
             "date_released": "2024-12-26T09:26:47Z"
+        },
+        "3.10.0": {
+            "associated_airflow_version": "2.10.4",
+            "date_released": "2025-01-27T15:03:44Z"
         }
     },
     "cloudant": {
