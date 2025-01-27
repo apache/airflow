@@ -197,9 +197,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/elasticsearch/**/*
 
   provider:exasol:
-    - providers/src/airflow/providers/exasol/**/*
-    - docs/apache-airflow-providers-exasol/**/*
-    - providers/tests/exasol/**/*
+    - providers/exasol/**
 
   provider:fab:
     - providers/src/airflow/providers/fab/**/*
