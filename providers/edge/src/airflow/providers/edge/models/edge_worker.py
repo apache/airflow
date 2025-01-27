@@ -20,8 +20,9 @@ import ast
 import json
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, select
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
@@ -30,6 +31,9 @@ from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class EdgeWorkerVersionException(AirflowException):
@@ -180,17 +184,15 @@ def reset_metrics(worker_name: str) -> None:
 @provide_session
 def request_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Writes maintenance request to the db"""
-    from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
     worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
     session.commit()
 
-
+@provide_session
 def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Writes maintenance exit to the db"""
-    from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)

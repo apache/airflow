@@ -22,7 +22,7 @@ import platform
 import signal
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from http import HTTPStatus
 from multiprocessing import Process
 from pathlib import Path
@@ -307,8 +307,9 @@ class _EdgeWorkerCli:
         self.check_running_jobs()
 
         if _EdgeWorkerCli.drain or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval:
-            self.heartbeat()
-            self.last_hb = datetime.now()
+            worker_state_changed = self.heartbeat()
+            # If worker state changed, send heartbeat immdediately.
+            self.last_hb = datetime.now() if not worker_state_changed else self.last_hb
 
         if not new_job:
             self.interruptible_sleep()
@@ -365,7 +366,7 @@ class _EdgeWorkerCli:
 
         self.free_concurrency = self.concurrency - used_concurrency
 
-    def heartbeat(self) -> None:
+    def heartbeat(self) -> bool:
         """Report liveness state of worker to central site with stats."""
         if _EdgeWorkerCli.drain:
             state = EdgeWorkerState.TERMINATING
@@ -380,14 +381,10 @@ class _EdgeWorkerCli:
             else:
                 state = EdgeWorkerState.IDLE
         sysinfo = self._get_sysinfo()
+        worker_state_changed: bool = False
         try:
             worker_info = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
             self.queues = worker_info.queues
-            self.last_hb = (
-                self.last_hb - timedelta(self.hb_interval)
-                if self.last_hb and worker_info.state != state
-                else self.last_hb
-            )
             if worker_info.state in (
                 EdgeWorkerState.MAINTENANCE_REQUEST,
                 EdgeWorkerState.MAINTENANCE_PENDING,
@@ -400,9 +397,11 @@ class _EdgeWorkerCli:
                 if _EdgeWorkerCli.maintenance_mode:
                     logger.info("Exit Maintenance mode requested!")
                 _EdgeWorkerCli.maintenance_mode = False
+            worker_state_changed = worker_info.state == state
         except EdgeWorkerVersionException:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             _EdgeWorkerCli.drain = True
+        return worker_state_changed
 
     def interruptible_sleep(self):
         """Sleeps but stops sleeping if drain is made."""
