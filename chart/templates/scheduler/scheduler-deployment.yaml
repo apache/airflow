@@ -57,7 +57,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    executor: {{ .Values.executor }}
+    executor: "{{ .Values.executor }}"
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -268,12 +268,15 @@ spec:
           {{- if .Values.scheduler.logGroomerSidecar.args }}
           args: {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
           env:
+          {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
+          {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
+          {{- if .Values.scheduler.logGroomerSidecar.env }}
+              {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
           volumeMounts:
             - name: logs

@@ -43,12 +43,15 @@ services:
       - ../../../empty:/opt/airflow/providers/celery/src
       - ../../../empty:/opt/airflow/providers/cohere/src
       - ../../../empty:/opt/airflow/providers/common/compat/src
+      - ../../../empty:/opt/airflow/providers/common/io/src
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/datadog/src
       - ../../../empty:/opt/airflow/providers/discord/src
       - ../../../empty:/opt/airflow/providers/edge/src
       - ../../../empty:/opt/airflow/providers/exasol/src
+      - ../../../empty:/opt/airflow/providers/facebook/src
       - ../../../empty:/opt/airflow/providers/hashicorp/src
+      - ../../../empty:/opt/airflow/providers/http/src
       - ../../../empty:/opt/airflow/providers/imap/src
       - ../../../empty:/opt/airflow/providers/jenkins/src
       - ../../../empty:/opt/airflow/providers/mysql/src
@@ -56,12 +59,14 @@ services:
       - ../../../empty:/opt/airflow/providers/odbc/src
       - ../../../empty:/opt/airflow/providers/openai/src
       - ../../../empty:/opt/airflow/providers/openfaas/src
+      - ../../../empty:/opt/airflow/providers/openlineage/src
       - ../../../empty:/opt/airflow/providers/opsgenie/src
       - ../../../empty:/opt/airflow/providers/pagerduty/src
       - ../../../empty:/opt/airflow/providers/papermill/src
       - ../../../empty:/opt/airflow/providers/pgvector/src
       - ../../../empty:/opt/airflow/providers/pinecone/src
       - ../../../empty:/opt/airflow/providers/postgres/src
+      - ../../../empty:/opt/airflow/providers/presto/src
       - ../../../empty:/opt/airflow/providers/qdrant/src
       - ../../../empty:/opt/airflow/providers/samba/src
       - ../../../empty:/opt/airflow/providers/segment/src
@@ -72,6 +77,7 @@ services:
       - ../../../empty:/opt/airflow/providers/tableau/src
       - ../../../empty:/opt/airflow/providers/telegram/src
       - ../../../empty:/opt/airflow/providers/teradata/src
+      - ../../../empty:/opt/airflow/providers/vertica/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
       - ../../../empty:/opt/airflow/providers/ydb/src
       - ../../../empty:/opt/airflow/providers/zendesk/src

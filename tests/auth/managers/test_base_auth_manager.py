@@ -191,6 +191,23 @@ class TestBaseAuthManager:
         assert auth_manager.get_url_user_profile() is None
 
     @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
+    @patch.object(EmptyAuthManager, "deserialize_user")
+    def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_signer, auth_manager):
+        token = "token"
+        payload = {}
+        user = BaseAuthManagerUserTest(name="test")
+        signer = Mock()
+        signer.verify_token.return_value = payload
+        mock_jwt_signer.return_value = signer
+        mock_deserialize_user.return_value = user
+
+        result = auth_manager.get_user_from_token(token)
+
+        mock_deserialize_user.assert_called_once_with(payload)
+        signer.verify_token.assert_called_once_with(token)
+        assert result == user
+
+    @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
     @patch.object(EmptyAuthManager, "serialize_user")
     def test_get_jwt_token(self, mock_serialize_user, mock_jwt_signer, auth_manager):
         token = "token"
@@ -222,7 +239,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": DagDetails(id="dag1")},
                 {"method": "GET", "details": DagDetails(id="dag2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -243,7 +261,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": ConnectionDetails(conn_id="conn1")},
                 {"method": "GET", "details": ConnectionDetails(conn_id="conn2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -262,7 +281,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": PoolDetails(name="pool1")},
                 {"method": "GET", "details": PoolDetails(name="pool2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -283,7 +303,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": VariableDetails(key="var1")},
                 {"method": "GET", "details": VariableDetails(key="var2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 

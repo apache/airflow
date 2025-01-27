@@ -50,12 +50,15 @@ services:
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/compat/tests:/opt/airflow/providers/common/compat/tests
+      - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
       - ../../../providers/discord/tests:/opt/airflow/providers/discord/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
       - ../../../providers/exasol/tests:/opt/airflow/providers/exasol/tests
+      - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
+      - ../../../providers/http/tests:/opt/airflow/providers/http/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
       - ../../../providers/mysql/tests:/opt/airflow/providers/mysql/tests
@@ -63,12 +66,14 @@ services:
       - ../../../providers/odbc/tests:/opt/airflow/providers/odbc/tests
       - ../../../providers/openai/tests:/opt/airflow/providers/openai/tests
       - ../../../providers/openfaas/tests:/opt/airflow/providers/openfaas/tests
+      - ../../../providers/openlineage/tests:/opt/airflow/providers/openlineage/tests
       - ../../../providers/opsgenie/tests:/opt/airflow/providers/opsgenie/tests
       - ../../../providers/pagerduty/tests:/opt/airflow/providers/pagerduty/tests
       - ../../../providers/papermill/tests:/opt/airflow/providers/papermill/tests
       - ../../../providers/pgvector/tests:/opt/airflow/providers/pgvector/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
       - ../../../providers/postgres/tests:/opt/airflow/providers/postgres/tests
+      - ../../../providers/presto/tests:/opt/airflow/providers/presto/tests
       - ../../../providers/qdrant/tests:/opt/airflow/providers/qdrant/tests
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
@@ -79,6 +84,7 @@ services:
       - ../../../providers/tableau/tests:/opt/airflow/providers/tableau/tests
       - ../../../providers/telegram/tests:/opt/airflow/providers/telegram/tests
       - ../../../providers/teradata/tests:/opt/airflow/providers/teradata/tests
+      - ../../../providers/vertica/tests:/opt/airflow/providers/vertica/tests
       - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
       - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests
       - ../../../providers/zendesk/tests:/opt/airflow/providers/zendesk/tests

@@ -20,7 +20,7 @@ import { Box, Heading, Flex, HStack, VStack, StackSeparator, Skeleton } from "@c
 import { createListCollection } from "@chakra-ui/react/collection";
 
 import { useAssetServiceGetAssetEvents } from "openapi/queries";
-import { MetricsBadge } from "src/components/MetricsBadge";
+import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
 
 import { AssetEvent } from "./AssetEvent";
@@ -51,7 +51,9 @@ export const AssetEvents = ({ assetSortBy, endDate, setAssetSortBy, startDate }:
     <Box borderRadius={5} borderWidth={1} ml={2} pb={2}>
       <Flex justify="space-between" mr={1} mt={0} pl={3} pt={1}>
         <HStack>
-          <MetricsBadge colorPalette="blue" runs={isLoading ? 0 : data?.total_entries} />
+          <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+            {data?.total_entries ?? " "}
+          </StateBadge>
           <Heading marginEnd="auto" size="md">
             Asset Events
           </Heading>

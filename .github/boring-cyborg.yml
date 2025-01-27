@@ -145,9 +145,7 @@ labelPRBasedOnFilePath:
     - providers/common/compat/**
 
   provider:common-io:
-    - providers/src/airflow/providers/common/io/**/*
-    - docs/apache-airflow-providers-common-io/**/*
-    - providers/tests/system/common/io/**/*
+    - providers/common/io/**
 
   provider:common-sql:
     - providers/common/sql/**
@@ -203,9 +201,7 @@ labelPRBasedOnFilePath:
     - providers/tests/fab/**/*
 
   provider:facebook:
-    - providers/src/airflow/providers/facebook/**/*
-    - docs/apache-airflow-providers-facebook/**/*
-    - providers/tests/facebook/**/*
+    - providers/facebook/**
 
   provider:ftp:
     - providers/src/airflow/providers/ftp/**/*
@@ -234,10 +230,7 @@ labelPRBasedOnFilePath:
     - providers/hashicorp/**
 
   provider:http:
-    - providers/src/airflow/providers/http/**/*
-    - docs/apache-airflow-providers-http/**/*
-    - providers/tests/http/**/*
-    - providers/tests/system/http/**/*
+    - providers/http/**
 
   provider:imap:
     - providers/imap/**
@@ -301,9 +294,7 @@ labelPRBasedOnFilePath:
     - providers/openfaas/**
 
   provider:openlineage:
-    - providers/src/airflow/providers/openlineage/**/*
-    - docs/apache-airflow-providers-openlineage/**/*
-    - providers/tests/openlineage/**/*
+    - providers/openlineage/**
 
   provider:opensearch:
     - providers/src/airflow/providers/opensearch/**/*
@@ -335,10 +326,7 @@ labelPRBasedOnFilePath:
     - providers/postgres/**
 
   provider:presto:
-    - providers/src/airflow/providers/presto/**/*
-    - docs/apache-airflow-providers-presto/**/*
-    - providers/tests/presto/**/*
-    - providers/tests/system/presto/**/*
+    - providers/presto/**
 
   provider:qdrant:
     - providers/qdrant/**
@@ -410,9 +398,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/trino/**/*
 
   provider:vertica:
-    - providers/src/airflow/providers/vertica/**/*
-    - docs/apache-airflow-providers-vertica/**/*
-    - providers/tests/vertica/**/*
+    - providers/vertica/**
 
   provider:weaviate:
     - providers/weaviate/**

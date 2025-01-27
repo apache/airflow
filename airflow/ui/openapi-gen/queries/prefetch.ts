@@ -889,14 +889,14 @@ export const prefetchUseDagStatsServiceGetDagStats = (
     queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });
 /**
- * Get Dag Report
+ * Get Dag Reports
  * Get DAG report.
  * @param data The data for the request.
  * @param data.subdir
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagReportServiceGetDagReport = (
+export const prefetchUseDagReportServiceGetDagReports = (
   queryClient: QueryClient,
   {
     subdir,
@@ -905,8 +905,8 @@ export const prefetchUseDagReportServiceGetDagReport = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }),
-    queryFn: () => DagReportService.getDagReport({ subdir }),
+    queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }),
+    queryFn: () => DagReportService.getDagReports({ subdir }),
   });
 /**
  * List Dag Warnings

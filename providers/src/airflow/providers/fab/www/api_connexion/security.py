@@ -70,7 +70,9 @@ def requires_access_custom_view(
         def decorated(*args, **kwargs):
             return _requires_access(
                 is_authorized_callback=lambda: get_auth_manager().is_authorized_custom_view(
-                    method=method, resource_name=resource_name
+                    method=method,
+                    resource_name=resource_name,
+                    user=get_auth_manager().get_user(),
                 ),
                 func=func,
                 args=args,

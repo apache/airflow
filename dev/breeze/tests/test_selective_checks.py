@@ -568,7 +568,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "INTHEWILD.md",
                     "chart/aaaa.txt",
-                    "providers/tests/http/file.py",
+                    "providers/http/tests/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "amazon apache.livy "
@@ -798,8 +798,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             (
                 "tests/always/test_project_structure.py",
-                "providers/tests/common/io/operators/__init__.py",
-                "providers/tests/common/io/operators/test_file_transfer.py",
+                "providers/common/io/tests/operators/__init__.py",
+                "providers/common/io/tests/operators/test_file_transfer.py",
             ),
             {
                 "selected-providers-list-as-string": "common.compat common.io openlineage",
