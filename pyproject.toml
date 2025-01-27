@@ -637,6 +637,10 @@ dev = [
   "apache-airflow-providers-opsgenie",
   "apache-airflow-providers-papermill",
   "apache-airflow-providers-pgvector",
+  "apache-airflow-providers-mysql",
+  "apache-airflow-providers-odbc",
+  "apache-airflow-providers-jenkins",
+  "apache-airflow-providers-pagerduty",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
   "apache-airflow-providers-qdrant",
@@ -672,6 +676,10 @@ apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
 apache-airflow-providers-openai = { workspace = true }
+apache-airflow-providers-jenkins = { workspace = true }
+apache-airflow-providers-mysql = { workspace = true }
+apache-airflow-providers-odbc = { workspace = true }
+apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-openfaas = { workspace = true }
 apache-airflow-providers-opsgenie = { workspace = true }
 apache-airflow-providers-papermill = { workspace = true }
@@ -705,6 +713,10 @@ members = [
     "providers/common/sql",
     "providers/datadog",
     "providers/edge",
+    "providers/pagerduty",
+    "providers/mysql",
+    "providers/jenkins",
+    "providers/odbc",
     "providers/hashicorp",
     "providers/imap",
     "providers/neo4j",
