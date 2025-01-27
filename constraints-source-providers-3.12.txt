@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-26T19:51:11.672262
+# This constraints file was automatically generated on 2025-01-27T02:16:31.923701
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -332,7 +332,7 @@ linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.0.0
 lxml==5.3.0
-lz4==4.3.3
+lz4==4.4.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
@@ -418,7 +418,7 @@ pinecone-client==5.0.1
 pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
-pipdeptree==2.24.0
+pipdeptree==2.25.0
 platformdirs==4.3.6
 pluggy==1.5.0
 ply==3.11
