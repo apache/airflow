@@ -344,10 +344,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/opensearch/**/*
 
   provider:opsgenie:
-    - providers/src/airflow/providers/opsgenie/**/*
-    - docs/apache-airflow-providers-opsgenie/**/*
-    - providers/tests/opsgenie/**/*
-    - providers/tests/system/opsgenie/**/*
+    - providers/opsgenie/**
 
   provider:Oracle:
     - providers/src/airflow/providers/oracle/**/*

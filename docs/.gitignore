@@ -11,6 +11,7 @@ apache-airflow-providers-datadog
 apache-airflow-providers-edge
 apache-airflow-providers-neo4j
 apache-airflow-providers-openai
+apache-airflow-providers-opsgenie
 apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
 apache-airflow-providers-postgres
