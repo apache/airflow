@@ -635,6 +635,8 @@ dev = [
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-exasol",
+  "apache-airflow-providers-facebook",
   "apache-airflow-providers-openlineage",
   "apache-airflow-providers-hashicorp",
   "apache-airflow-providers-imap",
@@ -648,8 +650,10 @@ dev = [
   "apache-airflow-providers-odbc",
   "apache-airflow-providers-jenkins",
   "apache-airflow-providers-pagerduty",
+  "apache-airflow-providers-snowflake",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
+  "apache-airflow-providers-presto",
   "apache-airflow-providers-qdrant",
   "apache-airflow-providers-samba",
   "apache-airflow-providers-segment",
@@ -658,6 +662,8 @@ dev = [
   "apache-airflow-providers-standard",
   "apache-airflow-providers-tableau",
   "apache-airflow-providers-telegram",
+  "apache-airflow-providers-teradata",
+  "apache-airflow-providers-vertica",
   "apache-airflow-providers-weaviate",
   "apache-airflow-providers-ydb",
   "apache-airflow-providers-zendesk",
@@ -682,6 +688,8 @@ apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-exasol = { workspace = true }
+apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
@@ -697,14 +705,18 @@ apache-airflow-providers-papermill = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-postgres = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
+apache-airflow-providers-presto = { workspace = true }
 apache-airflow-providers-qdrant = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-singularity = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
+apache-airflow-providers-snowflake = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
 apache-airflow-providers-tableau = { workspace = true }
 apache-airflow-providers-telegram = { workspace = true }
+apache-airflow-providers-teradata = { workspace = true }
+apache-airflow-providers-vertica = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
@@ -727,29 +739,35 @@ members = [
     "providers/common/sql",
     "providers/datadog",
     "providers/edge",
-    "providers/pagerduty",
-    "providers/mysql",
-    "providers/jenkins",
-    "providers/odbc",
-    "providers/openlineage",
+    "providers/exasol",
+    "providers/facebook",
     "providers/hashicorp",
     "providers/imap",
+    "providers/jenkins",
+    "providers/mysql",
     "providers/neo4j",
+    "providers/odbc",
     "providers/openai",
     "providers/openfaas",
+    "providers/openlineage",
     "providers/opsgenie",
+    "providers/pagerduty",
     "providers/papermill",
     "providers/pinecone",
     "providers/postgres",
     "providers/pgvector",
+    "providers/presto",
     "providers/qdrant",
     "providers/samba",
     "providers/segment",
     "providers/singularity",
     "providers/ssh",
+    "providers/snowflake",
     "providers/standard",
     "providers/tableau",
     "providers/telegram",
+    "providers/teradata",
+    "providers/vertica",
     "providers/weaviate",
     "providers/ydb",
     "providers/zendesk",

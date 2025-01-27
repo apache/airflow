@@ -2590,9 +2590,9 @@ paths:
     get:
       tags:
       - DagReport
-      summary: Get Dag Report
+      summary: Get Dag Reports
       description: Get DAG report.
-      operationId: get_dag_report
+      operationId: get_dag_reports
       parameters:
       - name: subdir
         in: query
@@ -7008,7 +7008,14 @@ components:
         task_ids:
           anyOf:
           - items:
-              type: string
+              anyOf:
+              - type: string
+              - prefixItems:
+                - type: string
+                - type: integer
+                type: array
+                maxItems: 2
+                minItems: 2
             type: array
           - type: 'null'
           title: Task Ids

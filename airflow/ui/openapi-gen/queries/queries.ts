@@ -1077,15 +1077,15 @@ export const useDagStatsServiceGetDagStats = <
     ...options,
   });
 /**
- * Get Dag Report
+ * Get Dag Reports
  * Get DAG report.
  * @param data The data for the request.
  * @param data.subdir
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useDagReportServiceGetDagReport = <
-  TData = Common.DagReportServiceGetDagReportDefaultResponse,
+export const useDagReportServiceGetDagReports = <
+  TData = Common.DagReportServiceGetDagReportsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -1098,8 +1098,8 @@ export const useDagReportServiceGetDagReport = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }, queryKey),
-    queryFn: () => DagReportService.getDagReport({ subdir }) as TData,
+    queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }, queryKey),
+    queryFn: () => DagReportService.getDagReports({ subdir }) as TData,
     ...options,
   });
 /**

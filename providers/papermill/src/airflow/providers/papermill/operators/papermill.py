@@ -98,9 +98,9 @@ class PapermillOperator(BaseOperator):
 
     def execute(self, context: Context):
         if not isinstance(self.input_nb, NoteBook):
-            self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)
+            self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)  # type: ignore[call-arg]
         if not isinstance(self.output_nb, NoteBook):
-            self.output_nb = NoteBook(url=self.output_nb)
+            self.output_nb = NoteBook(url=self.output_nb)  # type: ignore[call-arg]
         self.inlets.append(self.input_nb)
         self.outlets.append(self.output_nb)
         remote_kernel_kwargs = {}

@@ -602,3 +602,15 @@ class TestDbApiHook:
 
         self.cur.fetchone.side_effect = Exception("Should not get called !")
         assert rows == self.db_hook.run(sql=query, handler=fetch_one_handler)
+
+    def test_insert_rows_with_executemany_correctly_logs_amount_of_commited_rows(self, caplog):
+        table = "table"
+        rows = [("test",) for _ in range(9)]
+
+        with caplog.at_level(logging.DEBUG):
+            self.db_hook.supports_executemany = True
+            self.db_hook.insert_rows(table, iter(rows), commit_every=3)
+
+        assert any(f"Loaded 3 rows into {table} so far" in message for message in caplog.messages)
+        assert any(f"Loaded 6 rows into {table} so far" in message for message in caplog.messages)
+        assert any(f"Loaded 9 rows into {table} so far" in message for message in caplog.messages)
