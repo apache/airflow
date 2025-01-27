@@ -53,18 +53,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - dnspython>=1.13.0
-  - pymongo>=4.0.0
-
-devel-dependencies:
-  - mongomock>=4.0.0
-
 integrations:
   - integration-name: MongoDB
     external-doc-url: https://www.mongodb.com/
-    logo: /integration-logos/mongo/MongoDB.png
+    logo: /docs/integration-logos/MongoDB.png
     tags: [software]
 
 sensors:
