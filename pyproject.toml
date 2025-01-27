@@ -629,6 +629,7 @@ dev = [
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
   "apache-airflow-providers-hashicorp",
+  "apache-airflow-providers-imap",
   "apache-airflow-providers-neo4j",
   "apache-airflow-providers-openai",
   "apache-airflow-providers-openfaas",
@@ -641,6 +642,7 @@ dev = [
   "apache-airflow-providers-pagerduty",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
+  "apache-airflow-providers-qdrant",
   "apache-airflow-providers-samba",
   "apache-airflow-providers-segment",
   "apache-airflow-providers-singularity",
@@ -669,6 +671,7 @@ apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
 apache-airflow-providers-hashicorp = { workspace = true }
+apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
 apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
@@ -681,6 +684,7 @@ apache-airflow-providers-papermill = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-postgres = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
+apache-airflow-providers-qdrant = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-singularity = { workspace = true }
@@ -711,6 +715,7 @@ members = [
     "providers/jenkins",
     "providers/odbc",
     "providers/hashicorp",
+    "providers/imap",
     "providers/neo4j",
     "providers/openai",
     "providers/openfaas",
@@ -719,6 +724,7 @@ members = [
     "providers/pinecone",
     "providers/postgres",
     "providers/pgvector",
+    "providers/qdrant",
     "providers/samba",
     "providers/segment",
     "providers/singularity",

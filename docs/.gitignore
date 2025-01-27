@@ -11,6 +11,7 @@ apache-airflow-providers-common-sql
 apache-airflow-providers-datadog
 apache-airflow-providers-edge
 apache-airflow-providers-hashicorp
+apache-airflow-providers-imap
 apache-airflow-providers-neo4j
 apache-airflow-providers-openai
 apache-airflow-providers-openfaas
@@ -25,6 +26,7 @@ apache-airflow-providers-openai
 apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
 apache-airflow-providers-postgres
+apache-airflow-providers-qdrant
 apache-airflow-providers-samba
 apache-airflow-providers-segment
 apache-airflow-providers-singularity
