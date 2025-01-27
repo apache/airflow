@@ -18,10 +18,11 @@
 """This module contains the Amazon SageMaker Unified Studio Notebook sensor."""
 
 from airflow import AirflowException
+from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
+    SageMakerNotebookHook,
+)
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.context import Context
-
-from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMakerNotebookHook
 
 
 class SageMakerNotebookSensor(BaseSensorOperator):
@@ -29,10 +30,6 @@ class SageMakerNotebookSensor(BaseSensorOperator):
     Waits for an Sagemaker Workflows Notebook execution to reach any of the status below.
 
     'FAILED', 'STOPPED', 'COMPLETED'
-
-    .. seealso::
-        For more information on how to use this sensor, take a look at the guide:
-        :ref:`howto/sensor:NotebookSensor`
 
     :param execution_id: The Sagemaker Workflows Notebook running execution identifier
     :param execution_name: The Sagemaker Workflows Notebook unique execution name

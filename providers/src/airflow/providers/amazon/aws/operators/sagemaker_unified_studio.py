@@ -22,10 +22,13 @@ from functools import cached_property
 from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
+    SageMakerNotebookHook,
+)
+from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
+    SageMakerNotebookJobTrigger,
+)
 from airflow.utils.context import Context
-
-from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMakerNotebookHook
-from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import SageMakerNotebookJobTrigger
 
 
 class SageMakerNotebookOperator(BaseOperator):
@@ -45,10 +48,11 @@ class SageMakerNotebookOperator(BaseOperator):
             poll_interval=10,
             max_polling_attempts=100,
         )
+
     :param task_id: A unique, meaningful id for the task.
     :param input_config: Configuration for the input file. Input path should be specified as a relative path.
         The provided relative path will be automatically resolved to an absolute path within
-        the context of the user's home directory in the IDE. Input parms should be a dict
+        the context of the user's home directory in the IDE. Input params should be a dict
         Example: {'input_path': 'folder/input/notebook.ipynb', 'input_params':{'key': 'value'}}
     :param output_config:  Configuration for the output format. It should include an output_format parameter to control
         the format of the notebook execution output.
@@ -65,6 +69,10 @@ class SageMakerNotebookOperator(BaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerNotebookOperator`
     """
 
     def __init__(
@@ -77,7 +85,9 @@ class SageMakerNotebookOperator(BaseOperator):
         tags: dict = {},
         wait_for_completion: bool = True,
         poll_interval: int = 10,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable: bool = conf.getboolean(
+            "operators", "default_deferrable", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(task_id=task_id, **kwargs)

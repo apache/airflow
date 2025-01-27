@@ -27,7 +27,6 @@ from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import (
     SageMakerNotebookOperator,
 )
-
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
@@ -45,7 +44,9 @@ Then, the SageMakerNotebookOperator will run a test notebook. This should spin u
 The teardown tasks will finally delete the project and domain that was set up for this test run.
 """
 
-pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
+pytestmark = pytest.mark.skipif(
+    not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+"
+)
 
 DAG_ID = "example_sagemaker_unified_studio"
 
@@ -66,7 +67,9 @@ sys_test_context_task = (
 
 
 @task
-def emulate_mwaa_environment(domain_id: str, project_id: str, environment_id: str, s3_path: str):
+def emulate_mwaa_environment(
+    domain_id: str, project_id: str, environment_id: str, s3_path: str
+):
     """
     Sets several environment variables in the container to emulate an MWAA environment provisioned
     within SageMaker Unified Studio.
@@ -77,9 +80,11 @@ def emulate_mwaa_environment(domain_id: str, project_id: str, environment_id: st
     os.environ[f"{AIRFLOW_PREFIX}DATAZONE_ENVIRONMENT_ID"] = environment_id
     os.environ[f"{AIRFLOW_PREFIX}DATAZONE_SCOPE_NAME"] = "dev"
     os.environ[f"{AIRFLOW_PREFIX}DATAZONE_STAGE"] = "prod"
-    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_ENDPOINT"] = "https://datazone.us-west-2.api.aws"
+    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_ENDPOINT"] = (
+        "https://datazone.us-east-1.api.aws"
+    )
     os.environ[f"{AIRFLOW_PREFIX}PROJECT_S3_PATH"] = s3_path
-    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = "us-west-2"
+    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = "us-east-1"
 
 
 with DAG(
@@ -106,6 +111,7 @@ with DAG(
         s3_path,
     )
 
+    # [START howto_operator_sagemaker_unified_studio_notebook]
     run_notebook = SageMakerNotebookOperator(
         task_id="initial",
         input_config={"input_path": notebook_path, "input_params": {}},
@@ -113,6 +119,7 @@ with DAG(
         wait_for_completion=True,
         poll_interval=5,
     )
+    # [END howto_operator_sagemaker_unified_studio_notebook]
 
     chain(
         # TEST SETUP

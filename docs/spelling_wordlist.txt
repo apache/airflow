@@ -315,6 +315,7 @@ connectTimeoutMS
 connexion
 containerConfiguration
 containerd
+ContainerEntrypoint
 ContainerGroup
 containerinstance
 ContainerPort
@@ -819,6 +820,7 @@ ImageAnnotatorClient
 imageORfile
 imagePullPolicy
 imagePullSecrets
+ImageUri
 imageVersion
 Imap
 imap
@@ -852,6 +854,7 @@ InstanceFlexibilityPolicy
 InstanceGroupConfig
 InstanceSelection
 instanceTemplates
+InstanceType
 instantiation
 integrations
 interdependencies
@@ -869,6 +872,7 @@ IPv4
 ipv4
 IPv6
 ipv6
+ipynb
 iPython
 irreproducible
 IRSA
@@ -1043,6 +1047,7 @@ masterType
 Matomo
 matomo
 Maxime
+MaxRuntimeInSeconds
 mb
 md
 mediawiki
@@ -1361,6 +1366,8 @@ quantile
 Quantiles
 quantiles
 Quantopian
+Querybooks
+querybook
 Qubole
 qubole
 QuboleCheckHook
@@ -1880,6 +1887,8 @@ virtualenvs
 vm
 VolumeMount
 volumeMounts
+VolumeKmsKeyId
+VolumeSizeInGB
 vpc
 WaiterModel
 wape

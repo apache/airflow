@@ -30,10 +30,11 @@ class SageMakerNotebookJobTrigger(BaseTrigger):
         from workflows.airflow.providers.amazon.aws.operators.sagemaker_workflows import NotebookOperator
 
         notebook_operator = NotebookJobTrigger(
-            execution_id='notebook_job_1234'
+            execution_id='notebook_job_1234',
             execution_name='notebook_task',
             poll_interval=10,
         )
+
     :param execution_id: A unique, meaningful id for the task.
     :param execution_name: A unique, meaningful name for the task.
     :param poll_interval: Interval in seconds to check the notebook execution status.

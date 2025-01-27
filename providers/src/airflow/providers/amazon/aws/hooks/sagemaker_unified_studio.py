@@ -19,12 +19,12 @@
 
 import time
 
-from airflow import AirflowException
-from airflow.hooks.base import BaseHook
 from sagemaker_studio import ClientConfig
 from sagemaker_studio._openapi.models import GetExecutionRequest, StartExecutionRequest
 from sagemaker_studio.sagemaker_studio_api import SageMakerStudioAPI
 
+from airflow import AirflowException
+from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local_runner
 
 
@@ -45,6 +45,7 @@ class SageMakerNotebookHook(BaseHook):
             execution_name='notebook_execution',
             poll_interval=10,
         )
+
     :param execution_name: The name of the notebook job to be executed, this is same as task_id.
     :param input_config: Configuration for the input file.
         Example: {'input_path': 'folder/input/notebook.ipynb', 'input_params': {'param1': 'value1'}}
