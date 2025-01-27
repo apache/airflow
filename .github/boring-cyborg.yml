@@ -232,10 +232,7 @@ labelPRBasedOnFilePath:
     - providers/hashicorp/**
 
   provider:http:
-    - providers/src/airflow/providers/http/**/*
-    - docs/apache-airflow-providers-http/**/*
-    - providers/tests/http/**/*
-    - providers/tests/system/http/**/*
+    - providers/http/**
 
   provider:imap:
     - providers/imap/**

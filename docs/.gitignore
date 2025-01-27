@@ -17,6 +17,7 @@ apache-airflow-providers-datadog
 apache-airflow-providers-edge
 apache-airflow-providers-exasol
 apache-airflow-providers-facebook
+apache-airflow-providers-http
 apache-airflow-providers-openlineage
 apache-airflow-providers-hashicorp
 apache-airflow-providers-imap
