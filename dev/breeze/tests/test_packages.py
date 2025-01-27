@@ -325,37 +325,6 @@ def test_get_package_extras_for_old_providers(version_suffix: str, expected: dic
     assert actual == expected_as_str
 
 
-# TODO(potiuk) - remove this test when we remove the old providers structure
-def test_get_old_provider_details():
-    provider_details = get_provider_details("asana")
-    assert provider_details.provider_id == "asana"
-    assert provider_details.full_package_name == "airflow.providers.asana"
-    assert provider_details.pypi_package_name == "apache-airflow-providers-asana"
-    assert provider_details.root_provider_path == AIRFLOW_SOURCES_ROOT.joinpath(
-        "providers",
-        "src",
-        "airflow",
-        "providers",
-        "asana",
-    )
-    assert provider_details.base_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
-        "providers",
-        "src",
-        "airflow",
-        "providers",
-        "asana",
-    )
-    assert (
-        provider_details.documentation_provider_package_path == DOCS_ROOT / "apache-airflow-providers-asana"
-    )
-    assert "Asana" in provider_details.provider_description
-    assert len(provider_details.versions) > 11
-    assert provider_details.excluded_python_versions == []
-    assert provider_details.plugins == []
-    assert provider_details.changelog_path == provider_details.base_provider_package_path / "CHANGELOG.rst"
-    assert not provider_details.removed
-
-
 # TODO(potiuk) - remove when all providers are new-style
 def test_get_new_provider_details():
     provider_details = get_provider_details("airbyte")

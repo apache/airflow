@@ -287,13 +287,18 @@ def convert_test_type_to_pytest_args(
             excluded_provider_list = test_type[len(PROVIDERS_LIST_EXCLUDE_PREFIX) : -1].split(",")
             providers_with_exclusions = TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.PROVIDERS].copy()
             for excluded_provider in excluded_provider_list:
-                # TODO(potiuk): remove me when all providers are migrated
-                providers_with_exclusions.append(
-                    "--ignore=providers/tests/" + excluded_provider.replace(".", "/")
-                )
-                providers_with_exclusions.append(
-                    "--ignore=providers/" + excluded_provider.replace(".", "/tests/")
-                )
+                provider_test_to_exclude = f"providers/{excluded_provider.replace('.', '/')}/tests"
+                if provider_test_to_exclude in providers_with_exclusions:
+                    get_console().print(
+                        f"[info]Removing {provider_test_to_exclude} from {providers_with_exclusions}[/]"
+                    )
+                    providers_with_exclusions.remove(provider_test_to_exclude)
+                else:
+                    # TODO(potiuk): remove me when all providers are migrated
+                    get_console().print(f"[info]Adding {provider_test_to_exclude} to pytest ignores[/]")
+                    providers_with_exclusions.append(
+                        "--ignore=providers/tests/" + excluded_provider.replace(".", "/")
+                    )
             return providers_with_exclusions
         if test_type.startswith(PROVIDERS_LIST_PREFIX):
             provider_list = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
