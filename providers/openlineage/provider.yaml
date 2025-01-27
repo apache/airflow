@@ -51,18 +51,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-  - apache-airflow-providers-common-compat>=1.4.0
-  - attrs>=22.2
-  - openlineage-integration-common>=1.24.2
-  - openlineage-python>=1.24.2
-
 integrations:
   - integration-name: OpenLineage
     external-doc-url: https://openlineage.io
-    logo: /integration-logos/openlineage/openlineage.svg
+    logo: /docs/integration-logos/openlineage.svg
     tags: [protocol]
 
 plugins:

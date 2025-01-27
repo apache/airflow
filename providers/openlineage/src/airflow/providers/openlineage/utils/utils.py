@@ -26,7 +26,6 @@ from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import attrs
-from openlineage.client.utils import RedactMixin
 from sqlalchemy import exists
 
 from airflow import __version__ as AIRFLOW_VERSION
@@ -63,15 +62,15 @@ from airflow.utils.log.secrets_masker import (
 )
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
+from openlineage.client.utils import RedactMixin
 
 if TYPE_CHECKING:
-    from openlineage.client.event_v2 import Dataset as OpenLineageDataset
-    from openlineage.client.facet_v2 import RunFacet, processing_engine_run
-
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
     from airflow.sdk import DAG, BaseOperator, MappedOperator
     from airflow.utils.state import DagRunState, TaskInstanceState
+    from openlineage.client.event_v2 import Dataset as OpenLineageDataset
+    from openlineage.client.facet_v2 import RunFacet, processing_engine_run
 else:
     try:
         from airflow.sdk import DAG, BaseOperator, MappedOperator

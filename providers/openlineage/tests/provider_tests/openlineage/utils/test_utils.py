@@ -304,7 +304,7 @@ def test_get_tasks_details():
             "downstream_task_ids": [],
         },
         "task": {
-            "operator": "providers.tests.openlineage.utils.test_utils.CustomOperatorForTest",
+            "operator": "provider_tests.openlineage.utils.test_utils.CustomOperatorForTest",
             "task_group": None,
             "emits_ol_events": True,
             "ui_color": CustomOperatorForTest.ui_color,
@@ -332,7 +332,7 @@ def test_get_tasks_details():
             ],
         },
         "task_1": {
-            "operator": "providers.tests.openlineage.utils.test_utils.CustomOperatorFromEmpty",
+            "operator": "provider_tests.openlineage.utils.test_utils.CustomOperatorFromEmpty",
             "task_group": None,
             "emits_ol_events": False,
             "ui_color": CustomOperatorFromEmpty.ui_color,
@@ -401,7 +401,7 @@ def test_get_tasks_details():
             "emits_ol_events": True,
             "is_setup": False,
             "is_teardown": False,
-            "operator": "providers.tests.openlineage.utils.test_utils.TestMappedOperator",
+            "operator": "provider_tests.openlineage.utils.test_utils.TestMappedOperator",
             "task_group": None,
             "ui_color": "#fff",
             "ui_fgcolor": "#000",
@@ -586,7 +586,7 @@ def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_fa
 
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
-    return_value={"providers.tests.openlineage.utils.custom_facet_fixture.get_additional_test_facet"},
+    return_value={"provider_tests.openlineage.utils.custom_facet_fixture.get_additional_test_facet"},
 )
 def test_get_user_provided_run_facets_with_function_definition(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
@@ -604,7 +604,7 @@ def test_get_user_provided_run_facets_with_function_definition(mock_custom_facet
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
     return_value={
-        "providers.tests.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
+        "provider_tests.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
     },
 )
 def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_facet_funcs):
@@ -624,9 +624,9 @@ def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_face
     "airflow.providers.openlineage.conf.custom_run_facets",
     return_value={
         "invalid_function",
-        "providers.tests.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
-        "providers.tests.openlineage.utils.custom_facet_fixture.return_type_is_not_dict",
-        "providers.tests.openlineage.utils.custom_facet_fixture.get_another_test_facet",
+        "provider_tests.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
+        "provider_tests.openlineage.utils.custom_facet_fixture.return_type_is_not_dict",
+        "provider_tests.openlineage.utils.custom_facet_fixture.get_another_test_facet",
     },
 )
 def test_get_user_provided_run_facets_with_multiple_function_definition(mock_custom_facet_funcs):
@@ -646,8 +646,8 @@ def test_get_user_provided_run_facets_with_multiple_function_definition(mock_cus
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
     return_value={
-        "providers.tests.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
-        "providers.tests.openlineage.utils.custom_facet_fixture.get_duplicate_test_facet_key",
+        "provider_tests.openlineage.utils.custom_facet_fixture.get_additional_test_facet",
+        "provider_tests.openlineage.utils.custom_facet_fixture.get_duplicate_test_facet_key",
     },
 )
 def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_facet_funcs):
