@@ -468,7 +468,7 @@ class PodManager(LoggingMixin):
                                 for line in progress_callback_lines:
                                     for callback in self._callbacks:
                                         callback.progress_callback(
-                                            line=line, client=self._client, mode=ExecutionMode.SYNC
+                                            pod=pod, line=line, client=self._client, mode=ExecutionMode.SYNC
                                         )
                                 if message_to_log is not None:
                                     if is_log_group_marker(message_to_log):
@@ -487,7 +487,7 @@ class PodManager(LoggingMixin):
                     for line in progress_callback_lines:
                         for callback in self._callbacks:
                             callback.progress_callback(
-                                line=line, client=self._client, mode=ExecutionMode.SYNC
+                                pod=pod, line=line, client=self._client, mode=ExecutionMode.SYNC
                             )
                     if message_to_log is not None:
                         if is_log_group_marker(message_to_log):
