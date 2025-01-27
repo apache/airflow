@@ -628,7 +628,9 @@ dev = [
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-discord",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-neo4j",
   "apache-airflow-providers-openai",
+  "apache-airflow-providers-opsgenie",
   "apache-airflow-providers-pgvector",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
@@ -657,7 +659,9 @@ apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-neo4j = { workspace = true }
 apache-airflow-providers-openai = { workspace = true }
+apache-airflow-providers-opsgenie = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-postgres = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
@@ -684,7 +688,9 @@ members = [
     "providers/datadog",
     "providers/discord",
     "providers/edge",
+    "providers/neo4j",
     "providers/openai",
+    "providers/opsgenie",
     "providers/pinecone",
     "providers/postgres",
     "providers/pgvector",
