@@ -40,7 +40,6 @@ from airflow.executors.workloads import BundleInfo
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
-from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
@@ -1016,7 +1015,8 @@ class TestHandleRequest:
             ),
             pytest.param(
                 RuntimeCheckOnTask(
-                    inlet=[Asset(name="alias", uri="alias")], outlet=[Asset(name="alias", uri="alias")]
+                    inlet=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
+                    outlet=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
                 ),
                 b'{"ok":true,"type":"OKResponse"}\n',
                 "task_instances.runtime_checks",
@@ -1024,8 +1024,8 @@ class TestHandleRequest:
                 {
                     "id": TI_ID,
                     "msg": RuntimeCheckOnTask(
-                        inlet=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
-                        outlet=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
+                        inlet=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        outlet=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
                         type="RuntimeCheckOnTask",
                     ),
                 },
