@@ -268,9 +268,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/microsoft/winrm/**/*
 
   provider:mongo:
-    - providers/src/airflow/providers/mongo/**/*
-    - docs/apache-airflow-providers-mongo/**/*
-    - providers/tests/mongo/**/*
+    - providers/mongo/**
 
   provider:mysql:
     - providers/mysql/**

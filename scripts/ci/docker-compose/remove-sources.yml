@@ -56,6 +56,7 @@ services:
       - ../../../empty:/opt/airflow/providers/http/src
       - ../../../empty:/opt/airflow/providers/imap/src
       - ../../../empty:/opt/airflow/providers/jenkins/src
+      - ../../../empty:/opt/airflow/providers/mongo/src
       - ../../../empty:/opt/airflow/providers/mysql/src
       - ../../../empty:/opt/airflow/providers/neo4j/src
       - ../../../empty:/opt/airflow/providers/odbc/src
