@@ -105,7 +105,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
           {
             action: "create" as const,
             action_if_exists: actionIfExists,
-            variables: Object.entries(fileContent).map(([key, value]) => ({
+            entities: Object.entries(fileContent).map(([key, value]) => ({
               key,
               value,
             })),
