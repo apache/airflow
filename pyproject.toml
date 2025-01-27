@@ -622,6 +622,7 @@ dev = [
   "apache-airflow-providers-alibaba",
   "apache-airflow-providers-apache-iceberg",
   "apache-airflow-providers-apache-pig",
+  "apache-airflow-providers-apache-spark",
   "apache-airflow-providers-asana",
   "apache-airflow-providers-celery",
   "apache-airflow-providers-cohere",
@@ -660,6 +661,7 @@ apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
 apache-airflow-providers-apache-pig = { workspace = true }
+apache-airflow-providers-apache-spark = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
@@ -696,6 +698,7 @@ members = [
     "providers/alibaba",
     "providers/apache/iceberg",
     "providers/apache/pig",
+    "providers/apache/spark",
     "providers/asana",
     "providers/celery",
     "providers/cohere",
