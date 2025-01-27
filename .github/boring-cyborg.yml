@@ -106,10 +106,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/pinot/**/*
 
   provider:apache-spark:
-    - providers/src/airflow/providers/apache/spark/**/*
-    - docs/apache-airflow-providers-apache-spark/**/*
-    - providers/tests/apache/spark/**/*
-    - providers/tests/system/apache/spark/**/*
+    - providers/apache/spark/**
 
   provider:apprise:
     - providers/src/airflow/providers/apprise/**/*
