@@ -61,6 +61,7 @@ services:
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
+      - ../../../providers/tableau/tests:/opt/airflow/providers/tableau/tests
       - ../../../providers/telegram/tests:/opt/airflow/providers/telegram/tests
       - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
       - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests

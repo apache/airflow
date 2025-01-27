@@ -640,6 +640,7 @@ dev = [
   "apache-airflow-providers-singularity",
   "apache-airflow-providers-ssh",
   "apache-airflow-providers-standard",
+  "apache-airflow-providers-tableau",
   "apache-airflow-providers-telegram",
   "apache-airflow-providers-weaviate",
   "apache-airflow-providers-ydb",
@@ -673,6 +674,7 @@ apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-singularity = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
+apache-airflow-providers-tableau = { workspace = true }
 apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
@@ -704,6 +706,7 @@ members = [
     "providers/singularity",
     "providers/ssh",
     "providers/standard",
+    "providers/tableau",
     "providers/telegram",
     "providers/weaviate",
     "providers/ydb",
