@@ -53,6 +53,7 @@ services:
       - ../../../providers/openai/tests:/opt/airflow/providers/openai/tests
       - ../../../providers/openfaas/tests:/opt/airflow/providers/openfaas/tests
       - ../../../providers/opsgenie/tests:/opt/airflow/providers/opsgenie/tests
+      - ../../../providers/papermill/tests:/opt/airflow/providers/papermill/tests
       - ../../../providers/pgvector/tests:/opt/airflow/providers/pgvector/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
       - ../../../providers/postgres/tests:/opt/airflow/providers/postgres/tests
