@@ -36,6 +36,7 @@ apache-airflow-providers-segment
 apache-airflow-providers-singularity
 apache-airflow-providers-ssh
 apache-airflow-providers-standard
+apache-airflow-providers-teradata
 apache-airflow-providers-tableau
 apache-airflow-providers-telegram
 apache-airflow-providers-weaviate
