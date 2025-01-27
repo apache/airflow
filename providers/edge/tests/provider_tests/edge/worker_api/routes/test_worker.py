@@ -163,7 +163,7 @@ class TestWorkerApiRoutes:
             queues=["default2"],
             sysinfo=cli_worker._get_sysinfo(),
         )
-        return_queues = set_state("test2_worker", body, session)["queues"]
+        return_queues = set_state("test2_worker", body, session).queues
 
         worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
         assert len(worker) == 1

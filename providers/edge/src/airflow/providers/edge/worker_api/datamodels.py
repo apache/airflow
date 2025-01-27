@@ -162,3 +162,15 @@ class PushLogsBody(BaseModel):
 
     log_chunk_time: Annotated[datetime, Field(description="Time of the log chunk at point of sending.")]
     log_chunk_data: Annotated[str, Field(description="Log chunk data as incremental log text.")]
+
+
+class WorkerSetStateReturn(BaseModel):
+    """The return class for the worker set state."""
+
+    state: Annotated[EdgeWorkerState, Field(description="State of the worker from the view of the server.")]
+    queues: Annotated[
+        list[str] | None,
+        Field(
+            description="List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues."
+        ),
+    ]

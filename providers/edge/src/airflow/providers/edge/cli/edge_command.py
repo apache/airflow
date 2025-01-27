@@ -22,7 +22,7 @@ import platform
 import signal
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from multiprocessing import Process
 from pathlib import Path
@@ -382,8 +382,13 @@ class _EdgeWorkerCli:
         sysinfo = self._get_sysinfo()
         try:
             worker_info = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
-            self.queues = worker_info["queues"] if isinstance(worker_info["queues"], list) else None
-            if worker_info["state"] in (
+            self.queues = worker_info.queues
+            self.last_hb = (
+                self.last_hb - timedelta(self.hb_interval)
+                if self.last_hb and worker_info.state != state
+                else self.last_hb
+            )
+            if worker_info.state in (
                 EdgeWorkerState.MAINTENANCE_REQUEST,
                 EdgeWorkerState.MAINTENANCE_PENDING,
                 EdgeWorkerState.MAINTENANCE_MODE,

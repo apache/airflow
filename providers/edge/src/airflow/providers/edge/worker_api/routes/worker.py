@@ -26,8 +26,9 @@ from sqlalchemy import select
 from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
 from airflow.providers.edge.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge.worker_api.datamodels import (
-    WorkerQueueUpdateBody,  # noqa: TC001
-    WorkerStateBody,  # noqa: TC001
+    WorkerQueueUpdateBody,
+    WorkerSetStateReturn,
+    WorkerStateBody,
 )
 from airflow.providers.edge.worker_api.routes._v2_compat import (
     AirflowRouter,
@@ -156,7 +157,7 @@ def set_state(
     worker_name: Annotated[str, _worker_name_doc],
     body: Annotated[WorkerStateBody, _worker_state_doc],
     session: SessionDep,
-) -> dict[str, str | list[str] | None]:
+) -> WorkerSetStateReturn:
     """Set state of worker and returns the current assigned queues."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
@@ -176,7 +177,7 @@ def set_state(
         queues=worker.queues,
     )
     _assert_version(body.sysinfo)  #  Exception only after worker state is in the DB
-    return {"state": worker.state, "queues": worker.queues}
+    return WorkerSetStateReturn(state=worker.state, queues=worker.queues)
 
 
 @worker_router.patch(
