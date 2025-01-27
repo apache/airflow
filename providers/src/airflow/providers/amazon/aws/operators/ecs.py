@@ -392,6 +392,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
+    :param container_name: The name of the container to fetch logs from. If not set, the first container is used.
     :param do_xcom_push: If True, the operator will push the ECS task ARN to XCom with key 'ecs_task_arn'.
         Additionally, if logs are fetched, the last log message will be pushed to XCom with the key 'return_value'. (default: False)
     """
@@ -419,6 +420,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         "number_logs_exception",
         "wait_for_completion",
         "deferrable",
+        "container_name",
     )
     template_fields_renderers = {
         "overrides": "json",
@@ -455,6 +457,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         # Set the default waiter duration to 70 days (attempts*delay)
         # Airflow execution_timeout handles task timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        container_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -484,7 +487,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             self.awslogs_region = self.region_name
 
         self.arn: str | None = None
-        self.container_name: str | None = None
+        self.container_name: str | None = container_name
         self._started_by: str | None = None
 
         self.retry_args = quota_retry
