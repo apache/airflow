@@ -49,7 +49,9 @@ services:
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
+      - ../../../providers/neo4j/tests:/opt/airflow/providers/neo4j/tests
       - ../../../providers/openai/tests:/opt/airflow/providers/openai/tests
+      - ../../../providers/opsgenie/tests:/opt/airflow/providers/opsgenie/tests
       - ../../../providers/pgvector/tests:/opt/airflow/providers/pgvector/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
       - ../../../providers/postgres/tests:/opt/airflow/providers/postgres/tests
