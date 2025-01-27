@@ -47,6 +47,7 @@ services:
       - ../../../empty:/opt/airflow/providers/datadog/src
       - ../../../empty:/opt/airflow/providers/discord/src
       - ../../../empty:/opt/airflow/providers/edge/src
+      - ../../../empty:/opt/airflow/providers/exasol/src
       - ../../../empty:/opt/airflow/providers/hashicorp/src
       - ../../../empty:/opt/airflow/providers/imap/src
       - ../../../empty:/opt/airflow/providers/jenkins/src
@@ -65,6 +66,7 @@ services:
       - ../../../empty:/opt/airflow/providers/samba/src
       - ../../../empty:/opt/airflow/providers/segment/src
       - ../../../empty:/opt/airflow/providers/singularity/src
+      - ../../../empty:/opt/airflow/providers/snowflake/src
       - ../../../empty:/opt/airflow/providers/ssh/src
       - ../../../empty:/opt/airflow/providers/standard/src
       - ../../../empty:/opt/airflow/providers/tableau/src

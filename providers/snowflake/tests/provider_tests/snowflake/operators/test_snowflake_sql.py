@@ -22,7 +22,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.models.connection import Connection
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    Dataset,
+    Fields,
+    InputField,
+    SQLJobFacet,
+)
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 
 class MockRow:
@@ -35,17 +45,6 @@ class MockRow:
     def __repr__(self):
         return f"MockRow({self.__dict__})"
 
-
-from airflow.models.connection import Connection
-from airflow.providers.common.compat.openlineage.facet import (
-    ColumnLineageDatasetFacet,
-    Dataset,
-    Fields,
-    InputField,
-    SQLJobFacet,
-)
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-sql-operator"
