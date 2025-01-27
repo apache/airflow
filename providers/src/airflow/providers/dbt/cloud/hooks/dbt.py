@@ -135,6 +135,10 @@ class DbtCloudJobRunException(AirflowException):
     """An exception that indicates a job run failed to complete."""
 
 
+class DbtCloudResourceLookupError(AirflowException):
+    """Exception raised when a dbt Cloud resource cannot be uniquely identified."""
+
+
 T = TypeVar("T", bound=Any)
 
 
@@ -357,13 +361,13 @@ class DbtCloudHook(HttpHook):
 
     @fallback_to_default_account
     def list_projects(
-        self, name_contains: str | None = None, account_id: int | None = None
+        self, account_id: int | None = None, name_contains: str | None = None
     ) -> list[Response]:
         """
         Retrieve metadata for all projects tied to a specified dbt Cloud account.
 
-        :param name_contains: Optional. The case-insensitive substring of a dbt Cloud project name to filter by.
         :param account_id: Optional. The ID of a dbt Cloud account.
+        :param name_contains: Optional. The case-insensitive substring of a dbt Cloud project name to filter by.
         :return: List of request responses.
         """
         payload = {"name__icontains": name_contains} if name_contains else None
@@ -387,7 +391,7 @@ class DbtCloudHook(HttpHook):
 
     @fallback_to_default_account
     def list_environments(
-        self, project_id: int, name_contains: str | None = None, account_id: int | None = None
+        self, project_id: int, *, name_contains: str | None = None, account_id: int | None = None
     ) -> list[Response]:
         """
         Retrieve metadata for all environments tied to a specified dbt Cloud project.
@@ -407,7 +411,7 @@ class DbtCloudHook(HttpHook):
 
     @fallback_to_default_account
     def get_environment(
-        self, project_id: int, environment_id: int, account_id: int | None = None
+        self, project_id: int, environment_id: int, *, account_id: int | None = None
     ) -> Response:
         """
         Retrieve metadata for a specific project's environment.
@@ -468,7 +472,7 @@ class DbtCloudHook(HttpHook):
 
     @fallback_to_default_account
     def get_job_by_name(
-        self, project_name: str, environment_name: str, job_name: str, account_id: int | None = None
+        self, *, project_name: str, environment_name: str, job_name: str, account_id: int | None = None
     ) -> dict:
         """
         Retrieve metadata for a specific job by combination of project, environment, and job name.
@@ -491,7 +495,7 @@ class DbtCloudHook(HttpHook):
             if project["name"] == project_name
         ]
         if len(projects) != 1:
-            raise AirflowException(f"Found {len(projects)} projects with name `{project_name}`.")
+            raise DbtCloudResourceLookupError(f"Found {len(projects)} projects with name `{project_name}`.")
         project_id = projects[0]["id"]
 
         # get environment_id using project_id and environment_name
@@ -506,7 +510,7 @@ class DbtCloudHook(HttpHook):
             if env["name"] == environment_name
         ]
         if len(environments) != 1:
-            raise AirflowException(
+            raise DbtCloudResourceLookupError(
                 f"Found {len(environments)} environments with name `{environment_name}` in project `{project_name}`."
             )
         environment_id = environments[0]["id"]
@@ -526,7 +530,7 @@ class DbtCloudHook(HttpHook):
             if job["name"] == job_name
         ]
         if len(jobs) != 1:
-            raise AirflowException(
+            raise DbtCloudResourceLookupError(
                 f"Found {len(jobs)} jobs with name `{job_name}` in environment `{environment_name}` in project `{project_name}`."
             )
 
