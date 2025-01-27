@@ -165,9 +165,7 @@ labelPRBasedOnFilePath:
     - providers/exasol/**
 
   provider:fab:
-    - providers/src/airflow/providers/fab/**/*
-    - docs/apache-airflow-providers-fab/**/*
-    - providers/tests/fab/**/*
+    - providers/fab/**
 
   provider:facebook:
     - providers/facebook/**

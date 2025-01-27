@@ -26,7 +26,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from airflow.www.views import DagRunModelView
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+from providers.tests.legacy_fab.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,

@@ -28,6 +28,7 @@ apache-airflow-providers-docker
 apache-airflow-providers-edge
 apache-airflow-providers-elasticsearch
 apache-airflow-providers-exasol
+apache-airflow-providers-fab
 apache-airflow-providers-facebook
 apache-airflow-providers-ftp
 apache-airflow-providers-github
