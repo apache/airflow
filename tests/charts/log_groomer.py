@@ -93,7 +93,7 @@ class LogGroomerTestBase:
     def test_log_groomer_collector_custom_env(self):
 
         env = [{"name:": "WORKER_RELEASE_NAME", "value" : '{{ .Release.Name }}-workers'},
-               {"name:": "AIRFLOW__LOG_RETENTION_DAYS", "value" : 5}]
+               {"name:": "AIRFLOW__LOG_RETENTION_DAYS", "value" : "5"}]
 
         if self.obj_name == "dag-processor":
             values = {"dagProcessor": {"enabled": True, "env": env}}
@@ -105,7 +105,7 @@ class LogGroomerTestBase:
         )
 
         assert {"name:": "WORKER_RELEASE_NAME", "value" : 'release-name-workers'} in jmespath.search("spec.template.spec.containers[1].env", docs[0])
-        assert {"name:": "AIRFLOW__LOG_RETENTION_DAYS", "value" : 5 } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        assert {"name:": "AIRFLOW__LOG_RETENTION_DAYS", "value" : "5" } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
