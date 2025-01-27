@@ -1931,7 +1931,7 @@ dagProcessor:
     #   memory: 128Mi
     securityContexts:
       container: {}
-    
+
     env: []
 
   waitForMigrations:
