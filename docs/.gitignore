@@ -14,6 +14,7 @@ apache-airflow-providers-common-compat
 apache-airflow-providers-common-sql
 apache-airflow-providers-datadog
 apache-airflow-providers-edge
+apache-airflow-providers-exasol
 apache-airflow-providers-facebook
 apache-airflow-providers-hashicorp
 apache-airflow-providers-imap
@@ -36,6 +37,7 @@ apache-airflow-providers-samba
 apache-airflow-providers-segment
 apache-airflow-providers-singularity
 apache-airflow-providers-ssh
+apache-airflow-providers-snowflake
 apache-airflow-providers-standard
 apache-airflow-providers-teradata
 apache-airflow-providers-tableau
