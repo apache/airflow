@@ -382,6 +382,9 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
@@ -622,11 +625,13 @@ dev = [
   "apache-airflow-providers-alibaba",
   "apache-airflow-providers-apache-beam",
   "apache-airflow-providers-apache-iceberg",
+  "apache-airflow-providers-apache-kylin",
   "apache-airflow-providers-apache-pig",
   "apache-airflow-providers-apache-spark",
   "apache-airflow-providers-asana",
   "apache-airflow-providers-celery",
   "apache-airflow-providers-cohere",
+  "apache-airflow-providers-common-compat",
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
@@ -667,11 +672,13 @@ apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
+apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
+apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
@@ -710,11 +717,13 @@ members = [
     "providers/alibaba",
     "providers/apache/beam",
     "providers/apache/iceberg",
+    "providers/apache/kylin",
     "providers/apache/pig",
     "providers/apache/spark",
     "providers/asana",
     "providers/celery",
     "providers/cohere",
+    "providers/common/compat",
     "providers/common/sql",
     "providers/datadog",
     "providers/edge",

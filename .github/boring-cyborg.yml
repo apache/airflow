@@ -82,10 +82,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/kafka/**/*
 
   provider:apache-kylin:
-    - providers/src/airflow/providers/apache/kylin/**/*
-    - docs/apache-airflow-providers-apache-kylin/**/*
-    - providers/tests/apache/kylin/**/*
-    - providers/tests/system/apache/kylin/**/*
+    - providers/apache/kylin/**
 
   provider:apache-livy:
     - providers/src/airflow/providers/apache/livy/**/*
@@ -145,9 +142,7 @@ labelPRBasedOnFilePath:
     - providers/cohere/**
 
   provider:common-compat:
-    - providers/src/airflow/providers/common/compat/**/*
-    - docs/apache-airflow-providers-common-compat/**/*
-    - providers/tests/common/compat/**/*
+    - providers/common/compat/**
 
   provider:common-io:
     - providers/src/airflow/providers/common/io/**/*
