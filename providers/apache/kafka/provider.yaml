@@ -39,15 +39,10 @@ versions:
   - 1.1.0
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - asgiref>=2.3.0
-  - confluent-kafka>=2.3.0
-
 integrations:
   - integration-name: Apache Kafka
     external-doc-url: https://kafka.apache.org/
-    logo: /integration-logos/apache/kafka.svg
+    logo: /docs/integration-logos/kafka.svg
     tags: [apache]
 
 operators:

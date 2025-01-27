@@ -76,10 +76,7 @@ labelPRBasedOnFilePath:
     - providers/tests/apache/impala/**/*
 
   provider:apache-kafka:
-    - providers/src/airflow/providers/apache/kafka/**/*
-    - docs/apache-airflow-providers-apache-kafka/**/*
-    - providers/tests/apache/kafka/**/*
-    - providers/tests/system/apache/kafka/**/*
+    - providers/apache/kafka/**
 
   provider:apache-kylin:
     - providers/apache/kylin/**
