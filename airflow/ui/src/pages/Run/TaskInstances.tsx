@@ -122,7 +122,7 @@ const stateOptions = createListCollection<{ label: string; value: TaskInstanceSt
     { label: "Skipped", value: "skipped" },
     { label: "Deferred", value: "deferred" },
     { label: "Removed", value: "removed" },
-    { label: "No StateBadge", value: "none" },
+    { label: "No Status", value: "none" },
   ],
 });
 
@@ -211,7 +211,7 @@ export const TaskInstances = () => {
                   <HStack gap="10px">
                     {filteredState.map((state) => (
                       <StateBadge key={state} state={state as TaskInstanceState}>
-                        {state === "none" ? "No StateBadge" : capitalize(state)}
+                        {state === "none" ? "No Status" : capitalize(state)}
                       </StateBadge>
                     ))}
                   </HStack>

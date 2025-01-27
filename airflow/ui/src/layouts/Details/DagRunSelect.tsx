@@ -66,7 +66,7 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
       colorPalette="blue"
       data-testid="dag-run-select"
       disabled={isLoading}
-      maxWidth="400px"
+      maxWidth="500px"
       onValueChange={selectDagRun}
       value={runId === undefined ? [] : [runId]}
       variant="subtle"

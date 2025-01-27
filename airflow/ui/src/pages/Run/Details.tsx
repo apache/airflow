@@ -44,7 +44,7 @@ export const Details = () => {
         <Table.Root striped>
           <Table.Body>
             <Table.Row>
-              <Table.Cell>Status</Table.Cell>
+              <Table.Cell>State</Table.Cell>
               <Table.Cell>
                 <Flex gap={1}>
                   <StateBadge state={dagRun.state} />
