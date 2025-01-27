@@ -18,7 +18,8 @@
  */
 import { Box, Flex, HStack, VStack, Text } from "@chakra-ui/react";
 
-import { MetricsBadge } from "src/components/MetricsBadge";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
 import { capitalize } from "src/utils";
 
 const BAR_WIDTH = 100;
@@ -26,7 +27,7 @@ const BAR_HEIGHT = 5;
 
 type MetricSectionProps = {
   readonly runs: number;
-  readonly state: string;
+  readonly state: TaskInstanceState;
   readonly total: number;
 };
 
@@ -41,8 +42,15 @@ export const MetricSection = ({ runs, state, total }: MetricSectionProps) => {
     <VStack align="left" gap={1} mb={4} ml={0} pl={0}>
       <Flex justify="space-between">
         <HStack>
-          <MetricsBadge colorPalette={state} runs={runs} />
-          <Text> {capitalize(state)} </Text>
+          <StateBadge fontSize="md" state={state}>
+            {runs}
+          </StateBadge>
+          <Text>
+            {state
+              .split("_")
+              .map((st) => capitalize(st))
+              .join(" ")}
+          </Text>
         </HStack>
         <Text color="fg.muted"> {statePercent}% </Text>
       </Flex>

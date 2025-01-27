@@ -16,24 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Status as ChakraStatus, chakra } from "@chakra-ui/react";
+import { Badge, type BadgeProps } from "@chakra-ui/react";
 import * as React from "react";
 
-import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
 
-import { StateIcon } from "../StateIcon";
+import { StateIcon } from "./StateIcon";
 
-type StatusValue = DagRunState | TaskInstanceState | null;
+export type Props = {
+  state?: TaskInstanceState | null;
+} & BadgeProps;
 
-export type StatusProps = {
-  state?: StatusValue;
-} & ChakraStatus.RootProps;
-
-export const Status = React.forwardRef<HTMLDivElement, StatusProps>(({ children, state, ...rest }, ref) => (
-  <ChakraStatus.Root ref={ref} {...rest}>
-    <chakra.span color={`${state}.solid`}>
-      <StateIcon state={state} />
-    </chakra.span>
+export const StateBadge = React.forwardRef<HTMLDivElement, Props>(({ children, state, ...rest }, ref) => (
+  <Badge
+    borderRadius="full"
+    colorPalette={state ?? undefined}
+    fontSize="sm"
+    px={children === undefined ? 1 : 2}
+    py={1}
+    ref={ref}
+    variant="solid"
+    {...rest}
+  >
+    {state ? <StateIcon state={state} /> : undefined}
     {children}
-  </ChakraStatus.Root>
+  </Badge>
 ));

@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, TagLabel, Text, HStack } from "@chakra-ui/react";
+import { Skeleton, Text } from "@chakra-ui/react";
 
-import { StateIcon } from "src/components/StateIcon";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Tag, Tooltip } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
 import { capitalize } from "src/utils";
 
-export const HealthTag = ({
+export const HealthBadge = ({
   isLoading,
   latestHeartbeat,
   status,
@@ -52,12 +52,9 @@ export const HealthTag = ({
       }
       disabled={!Boolean(latestHeartbeat)}
     >
-      <Tag borderRadius="full" colorPalette={state} size="lg">
-        <HStack>
-          <StateIcon state={state} />
-          <TagLabel>{title}</TagLabel>
-        </HStack>
-      </Tag>
+      <StateBadge size="lg" state={state} variant="surface">
+        {title}
+      </StateBadge>
     </Tooltip>
   );
 };
