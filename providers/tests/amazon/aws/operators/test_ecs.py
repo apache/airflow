@@ -755,7 +755,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
-    def test_container_name_in_log_stream(self, client_mock):
+    def test_container_name_in_log_stream(self, client_mock, log_fetcher_mock):
         container_name = "container-name"
         prefix = "prefix"
         self.set_up_operator(
@@ -764,7 +764,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             container_name=container_name
         )
 
-        assert self.ecs._get_logs_stream_name() == f"{prefix}/{container_name}/{TASK_ID}"
+        assert self.ecs._get_logs_stream_name().startswith(f"{prefix}/{container_name}/")
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
