@@ -21,7 +21,8 @@ import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
-import { Button, Dialog, Status } from "src/components/ui";
+import { StateBadge } from "src/components/StateBadge";
+import { Button, Dialog } from "src/components/ui";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 
 import MarkAsAccordion from "../MarkAsAccordion";
@@ -46,7 +47,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>Mark DagRun as {state}:</strong> {dagRunId} <Status state={state} />
+              <strong>Mark DagRun as {state}:</strong> {dagRunId} <StateBadge state={state} />
             </Heading>
           </VStack>
         </Dialog.Header>

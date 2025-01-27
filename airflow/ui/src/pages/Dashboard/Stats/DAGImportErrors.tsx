@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, Button, useDisclosure, Skeleton } from "@chakra-ui/react";
+import { Box, Text, Button, useDisclosure, Skeleton, Badge } from "@chakra-ui/react";
 import { FiChevronRight } from "react-icons/fi";
 
 import { useImportErrorServiceGetImportErrors } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { MetricsBadge } from "src/components/MetricsBadge";
 
 import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 
@@ -48,7 +47,7 @@ export const DAGImportErrors = () => {
           onClick={onOpen}
           variant="outline"
         >
-          <MetricsBadge colorPalette="failed" runs={importErrorsCount} />
+          <Badge colorPalette="failed">{importErrorsCount}</Badge>
           <Box alignItems="center" display="flex" gap={1}>
             <Text fontWeight="bold">Dag Import Errors</Text>
             <FiChevronRight />

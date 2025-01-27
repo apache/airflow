@@ -21,7 +21,8 @@ import { useState } from "react";
 import { MdArrowDropDown } from "react-icons/md";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
-import { Menu, Status } from "src/components/ui";
+import { StateBadge } from "src/components/StateBadge";
+import { Menu } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
 import MarkRunAsDialog from "./MarkRunAsDialog";
@@ -63,7 +64,7 @@ const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
               }}
               value={menuState}
             >
-              <Status state={menuState}>{menuState}</Status>
+              <StateBadge state={menuState}>{menuState}</StateBadge>
             </Menu.Item>
           ))}
         </Menu.Content>
