@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
@@ -293,7 +293,7 @@ class TestDbtCloudRunJobOperator:
             dag=self.dag,
         )
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match="Either job_id or project_name, environment_name, and job_name must be provided.",
         ):
             dbt_op.execute(MagicMock())

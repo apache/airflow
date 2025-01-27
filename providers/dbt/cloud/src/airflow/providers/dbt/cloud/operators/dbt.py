@@ -24,7 +24,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
@@ -150,7 +149,7 @@ class DbtCloudRunJobOperator(BaseOperator):
 
         if self.job_id is None:
             if not all([self.project_name, self.environment_name, self.job_name]):
-                raise AirflowException(
+                raise ValueError(
                     "Either job_id or project_name, environment_name, and job_name must be provided."
                 )
             self.job_id = self.hook.get_job_by_name(

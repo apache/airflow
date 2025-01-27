@@ -32,6 +32,7 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
     DbtCloudJobRunStatus,
+    DbtCloudResourceLookupError,
     TokenAuth,
     fallback_to_default_account,
 )
@@ -520,7 +521,7 @@ class TestDbtCloudHook:
         job_name,
     ):
         hook = DbtCloudHook(ACCOUNT_ID_CONN)
-        with pytest.raises(AirflowException, match="Found 0"):
+        with pytest.raises(DbtCloudResourceLookupError, match="Found 0"):
             hook.get_job_by_name(
                 project_name=project_name,
                 environment_name=environment_name,
@@ -572,7 +573,7 @@ class TestDbtCloudHook:
                 return_value=[mock_response_json(mock_list_projects_response)],
             ),
         ):
-            with pytest.raises(AirflowException, match=f"Found 2 {duplicated}"):
+            with pytest.raises(DbtCloudResourceLookupError, match=f"Found 2 {duplicated}"):
                 hook.get_job_by_name(
                     project_name=PROJECT_NAME,
                     environment_name=ENVIRONMENT_NAME,
