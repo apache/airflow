@@ -401,9 +401,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/salesforce/**/*
 
   provider:samba:
-    - providers/src/airflow/providers/samba/**/*
-    - docs/apache-airflow-providers-samba/**/*
-    - providers/tests/samba/**/*
+    - providers/samba/**
 
   provider:segment:
     - providers/segment/**
