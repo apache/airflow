@@ -17,9 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
+from jwt import InvalidTokenError
 from sqlalchemy import select
 
 from airflow.auth.managers.models.base_user import BaseUser
@@ -61,6 +63,7 @@ if TYPE_CHECKING:
 # TODO: Move this inside once all providers drop Airflow 2.x support.
 ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
+log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
 
 
@@ -102,14 +105,18 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     def serialize_user(self, user: T) -> dict[str, Any]:
         """Create a dict from a user object."""
 
+    def get_user_from_token(self, token: str) -> BaseUser:
+        """Verify the JWT token is valid and create a user object from it if valid."""
+        try:
+            payload: dict[str, Any] = self._get_token_signer().verify_token(token)
+            return self.deserialize_user(payload)
+        except InvalidTokenError as e:
+            log.error("JWT token is not valid")
+            raise e
+
     def get_jwt_token(self, user: T) -> str:
         """Return the JWT token from a user object."""
-        signer = JWTSigner(
-            secret_key=conf.get("api", "auth_jwt_secret"),
-            expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
-            audience="front-apis",
-        )
-        return signer.generate_signed_token(self.serialize_user(user))
+        return self._get_token_signer().generate_signed_token(self.serialize_user(user))
 
     def get_user_id(self) -> str | None:
         """Return the user ID associated to the user in session."""
@@ -448,3 +455,16 @@ class BaseAuthManager(Generic[T], LoggingMixin):
 
     def register_views(self) -> None:
         """Register views specific to the auth manager."""
+
+    @staticmethod
+    def _get_token_signer():
+        """
+        Return the signer used to sign JWT token.
+
+        :meta private:
+        """
+        return JWTSigner(
+            secret_key=conf.get("api", "auth_jwt_secret"),
+            expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
+            audience="front-apis",
+        )
