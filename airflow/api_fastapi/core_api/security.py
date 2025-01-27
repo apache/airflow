@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from functools import cache
-from typing import TYPE_CHECKING, Annotated, Any, Callable
+from typing import TYPE_CHECKING, Annotated, Callable
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -46,9 +46,7 @@ def get_signer() -> JWTSigner:
 
 def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
     try:
-        signer = get_signer()
-        payload: dict[str, Any] = signer.verify_token(token_str)
-        return get_auth_manager().deserialize_user(payload)
+        return get_auth_manager().get_user_from_token(token_str)
     except InvalidTokenError:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
 

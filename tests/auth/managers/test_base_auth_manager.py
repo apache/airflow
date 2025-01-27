@@ -191,6 +191,23 @@ class TestBaseAuthManager:
         assert auth_manager.get_url_user_profile() is None
 
     @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
+    @patch.object(EmptyAuthManager, "deserialize_user")
+    def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_signer, auth_manager):
+        token = "token"
+        payload = {}
+        user = BaseAuthManagerUserTest(name="test")
+        signer = Mock()
+        signer.verify_token.return_value = payload
+        mock_jwt_signer.return_value = signer
+        mock_deserialize_user.return_value = user
+
+        result = auth_manager.get_user_from_token(token)
+
+        mock_deserialize_user.assert_called_once_with(payload)
+        signer.verify_token.assert_called_once_with(token)
+        assert result == user
+
+    @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
     @patch.object(EmptyAuthManager, "serialize_user")
     def test_get_jwt_token(self, mock_serialize_user, mock_jwt_signer, auth_manager):
         token = "token"
