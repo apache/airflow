@@ -65,22 +65,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - pyspark>=3.1.3
-  - grpcio-status>=1.59.0
-
-additional-extras:
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=7.4.0
-
 integrations:
   - integration-name: Apache Spark
     external-doc-url: https://spark.apache.org/
     how-to-guide:
       - /docs/apache-airflow-providers-apache-spark/operators.rst
-    logo: /integration-logos/apache/spark.png
+    logo: /docs/integration-logos/spark.png
     tags: [apache]
 
 operators:
