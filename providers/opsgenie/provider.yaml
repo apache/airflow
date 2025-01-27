@@ -48,16 +48,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - opsgenie-sdk>=2.1.5
-
 integrations:
   - integration-name: Opsgenie
     external-doc-url: https://www.atlassian.com/software/opsgenie
     how-to-guide:
       - /docs/apache-airflow-providers-opsgenie/operators/opsgenie_alert.rst
-    logo: /integration-logos/opsgenie/Opsgenie.png
+    logo: /docs/integration-logos/Opsgenie.png
     tags: [service]
 
 operators:

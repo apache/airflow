@@ -644,7 +644,7 @@ repos:
           ^docs/.*commits.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^providers/src/airflow/providers/microsoft/winrm/operators/winrm.py$|
-          ^providers/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
+          ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
           ^providers/src/airflow/providers/redis/provider.yaml$|
           ^airflow/serialization/serialized_objects.py$|
           ^airflow/ui/pnpm-lock.yaml$|
