@@ -30,6 +30,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.edge.models.edge_worker import exit_maintenance, request_maintenance
 from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
@@ -115,28 +116,18 @@ class EdgeWorkerHosts(BaseView):
         five_min_ago = datetime.now() - timedelta(minutes=5)
         return self.render_template("edge_worker_hosts.html", hosts=hosts, five_min_ago=five_min_ago)
 
-    @expose("/status/maintenance/<string:worker_name>/on")
+    @expose("/status/maintenance/<string:worker_name>/on", methods=["POST"])
     @has_access_view(AccessView.JOBS)
     @provide_session
     def worker_to_maintenance(self, worker_name: str, session: Session = NEW_SESSION):
-        from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
-
-        query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-        worker: EdgeWorkerModel = session.scalar(query)
-        worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
-        session.commit()
+        request_maintenance(worker_name, session)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
-    @expose("/status/maintenance/<string:worker_name>/off")
+    @expose("/status/maintenance/<string:worker_name>/off", methods=["POST"])
     @has_access_view(AccessView.JOBS)
     @provide_session
     def remove_worker_from_maintenance(self, worker_name: str, session: Session = NEW_SESSION):
-        from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
-
-        query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-        worker: EdgeWorkerModel = session.scalar(query)
-        worker.state = EdgeWorkerState.MAINTENANCE_EXIT
-        session.commit()
+        exit_maintenance(worker_name, session)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
 

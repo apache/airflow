@@ -28,6 +28,7 @@ from airflow.models.base import Base
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -174,3 +175,24 @@ def reset_metrics(worker_name: str) -> None:
         free_concurrency=-1,
         queues=None,
     )
+
+
+@provide_session
+def request_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
+    """Writes maintenance request to the db"""
+    from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
+    session.commit()
+
+
+def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
+    """Writes maintenance exit to the db"""
+    from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    worker.state = EdgeWorkerState.MAINTENANCE_EXIT
+    session.commit()
