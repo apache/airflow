@@ -658,7 +658,7 @@ repos:
           ^docs/README.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
-          ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
+          ^providers/apache/kafka/docs/connections/kafka.rst$|
           ^providers/apache/spark/docs/decorators/pyspark.rst$|
           ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
