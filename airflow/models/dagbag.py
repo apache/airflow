@@ -487,7 +487,6 @@ class DagBag(LoggingMixin):
                 dag.relative_fileloc = str(Path(mod.__file__).relative_to(self.bundle_path))
             else:
                 dag.relative_fileloc = dag.fileloc
-            dag.get_bundle_name
             try:
                 dag.validate()
                 self.bag_dag(dag=dag)
