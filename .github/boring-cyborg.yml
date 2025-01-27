@@ -326,9 +326,7 @@ labelPRBasedOnFilePath:
     - providers/openai/**
 
   provider:openfaas:
-    - providers/src/airflow/providers/openfaas/**/*
-    - docs/apache-airflow-providers-openfaas/**/*
-    - providers/tests/openfaas/**/*
+    - providers/openfaas/**
 
   provider:openlineage:
     - providers/src/airflow/providers/openlineage/**/*

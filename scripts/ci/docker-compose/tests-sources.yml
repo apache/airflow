@@ -51,6 +51,7 @@ services:
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/neo4j/tests:/opt/airflow/providers/neo4j/tests
       - ../../../providers/openai/tests:/opt/airflow/providers/openai/tests
+      - ../../../providers/openfaas/tests:/opt/airflow/providers/openfaas/tests
       - ../../../providers/opsgenie/tests:/opt/airflow/providers/opsgenie/tests
       - ../../../providers/pgvector/tests:/opt/airflow/providers/pgvector/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests

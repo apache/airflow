@@ -630,6 +630,7 @@ dev = [
   "apache-airflow-providers-hashicorp",
   "apache-airflow-providers-neo4j",
   "apache-airflow-providers-openai",
+  "apache-airflow-providers-openfaas",
   "apache-airflow-providers-opsgenie",
   "apache-airflow-providers-pgvector",
   "apache-airflow-providers-pinecone",
@@ -661,6 +662,7 @@ apache-airflow-providers-edge = {workspace = true}
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
 apache-airflow-providers-openai = { workspace = true }
+apache-airflow-providers-openfaas = { workspace = true }
 apache-airflow-providers-opsgenie = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-postgres = { workspace = true }
@@ -690,6 +692,7 @@ members = [
     "providers/hashicorp",
     "providers/neo4j",
     "providers/openai",
+    "providers/openfaas",
     "providers/opsgenie",
     "providers/pinecone",
     "providers/postgres",
