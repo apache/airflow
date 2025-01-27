@@ -19,7 +19,7 @@
 import { Box, Heading, HStack } from "@chakra-ui/react";
 import type { DAGRunStates } from "openapi-gen/requests/types.gen";
 
-import { MetricsBadge } from "src/components/MetricsBadge";
+import { StateBadge } from "src/components/StateBadge";
 
 import { MetricSection } from "./MetricSection";
 
@@ -33,7 +33,9 @@ const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success"
 export const DagRunMetrics = ({ dagRunStates, total }: DagRunMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} p={2}>
     <HStack mb={4}>
-      <MetricsBadge colorPalette="blue" runs={total} />
+      <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+        {total}
+      </StateBadge>
       <Heading size="md">Dag Runs</Heading>
     </HStack>
     {DAGRUN_STATES.map((state) => (

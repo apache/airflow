@@ -526,7 +526,7 @@ export const $BulkActionNotOnExistence = {
   type: "string",
   enum: ["fail", "skip"],
   title: "BulkActionNotOnExistence",
-  description: "Bulk Action to be taken if the entity does not exists.",
+  description: "Bulk Action to be taken if the entity does not exist.",
 } as const;
 
 export const $BulkActionOnExistence = {
@@ -534,6 +534,373 @@ export const $BulkActionOnExistence = {
   enum: ["fail", "skip", "overwrite"],
   title: "BulkActionOnExistence",
   description: "Bulk Action to be taken if the entity already exists or not.",
+} as const;
+
+export const $BulkActionResponse = {
+  properties: {
+    success: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Success",
+      description: "A list of unique id/key representing successful operations.",
+      default: [],
+    },
+    errors: {
+      items: {
+        type: "object",
+      },
+      type: "array",
+      title: "Errors",
+      description:
+        "A list of errors encountered during the operation, each containing details about the issue.",
+      default: [],
+    },
+  },
+  type: "object",
+  title: "BulkActionResponse",
+  description: `Serializer for individual bulk action responses.
+
+Represents the outcome of a single bulk operation (create, update, or delete).
+The response includes a list of successful keys and any errors encountered during the operation.
+This structure helps users understand which key actions succeeded and which failed.`,
+} as const;
+
+export const $BulkBody_ConnectionBody_ = {
+  properties: {
+    actions: {
+      items: {
+        oneOf: [
+          {
+            $ref: "#/components/schemas/BulkCreateAction_ConnectionBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkUpdateAction_ConnectionBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkDeleteAction_ConnectionBody_",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "BulkBody[ConnectionBody]",
+} as const;
+
+export const $BulkBody_PoolBody_ = {
+  properties: {
+    actions: {
+      items: {
+        oneOf: [
+          {
+            $ref: "#/components/schemas/BulkCreateAction_PoolBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkUpdateAction_PoolBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkDeleteAction_PoolBody_",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "BulkBody[PoolBody]",
+} as const;
+
+export const $BulkBody_VariableBody_ = {
+  properties: {
+    actions: {
+      items: {
+        oneOf: [
+          {
+            $ref: "#/components/schemas/BulkCreateAction_VariableBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkUpdateAction_VariableBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkDeleteAction_VariableBody_",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "BulkBody[VariableBody]",
+} as const;
+
+export const $BulkCreateAction_ConnectionBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/ConnectionBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkCreateAction[ConnectionBody]",
+} as const;
+
+export const $BulkCreateAction_PoolBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/PoolBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkCreateAction[PoolBody]",
+} as const;
+
+export const $BulkCreateAction_VariableBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/VariableBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkCreateAction[VariableBody]",
+} as const;
+
+export const $BulkDeleteAction_ConnectionBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entity id/key to be deleted.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkDeleteAction[ConnectionBody]",
+} as const;
+
+export const $BulkDeleteAction_PoolBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entity id/key to be deleted.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkDeleteAction[PoolBody]",
+} as const;
+
+export const $BulkDeleteAction_VariableBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entity id/key to be deleted.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkDeleteAction[VariableBody]",
+} as const;
+
+export const $BulkResponse = {
+  properties: {
+    create: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/BulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk create operation, including successful keys and errors.",
+    },
+    update: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/BulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk update operation, including successful keys and errors.",
+    },
+    delete: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/BulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk delete operation, including successful keys and errors.",
+    },
+  },
+  type: "object",
+  title: "BulkResponse",
+  description: `Serializer for responses to bulk entity operations.
+
+This represents the results of create, update, and delete actions performed on entity in bulk.
+Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
+Fields are populated in the response only if the respective action was part of the request, else are set None.`,
+} as const;
+
+export const $BulkUpdateAction_ConnectionBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/ConnectionBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be updated.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkUpdateAction[ConnectionBody]",
+} as const;
+
+export const $BulkUpdateAction_PoolBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/PoolBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be updated.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkUpdateAction[PoolBody]",
+} as const;
+
+export const $BulkUpdateAction_VariableBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/VariableBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be updated.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkUpdateAction[VariableBody]",
 } as const;
 
 export const $ClearTaskInstancesBody = {
@@ -586,7 +953,24 @@ export const $ClearTaskInstancesBody = {
       anyOf: [
         {
           items: {
-            type: "string",
+            anyOf: [
+              {
+                type: "string",
+              },
+              {
+                prefixItems: [
+                  {
+                    type: "string",
+                  },
+                  {
+                    type: "integer",
+                  },
+                ],
+                type: "array",
+                maxItems: 2,
+                minItems: 2,
+              },
+            ],
           },
           type: "array",
         },
@@ -907,182 +1291,6 @@ export const $ConnectionBody = {
   required: ["connection_id", "conn_type"],
   title: "ConnectionBody",
   description: "Connection Serializer for requests body.",
-} as const;
-
-export const $ConnectionBulkActionResponse = {
-  properties: {
-    success: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Success",
-      description: "A list of connection_ids representing successful operations.",
-    },
-    errors: {
-      items: {
-        type: "object",
-      },
-      type: "array",
-      title: "Errors",
-      description:
-        "A list of errors encountered during the operation, each containing details about the issue.",
-    },
-  },
-  type: "object",
-  title: "ConnectionBulkActionResponse",
-  description: `Serializer for individual bulk action responses.
-
-Represents the outcome of a single bulk operation (create, update, or delete).
-The response includes a list of successful connection_ids and any errors encountered during the operation.
-This structure helps users understand which key actions succeeded and which failed.`,
-} as const;
-
-export const $ConnectionBulkBody = {
-  properties: {
-    actions: {
-      items: {
-        anyOf: [
-          {
-            $ref: "#/components/schemas/ConnectionBulkCreateAction",
-          },
-          {
-            $ref: "#/components/schemas/ConnectionBulkUpdateAction",
-          },
-          {
-            $ref: "#/components/schemas/ConnectionBulkDeleteAction",
-          },
-        ],
-      },
-      type: "array",
-      title: "Actions",
-      description: "A list of Connection actions to perform.",
-    },
-  },
-  type: "object",
-  required: ["actions"],
-  title: "ConnectionBulkBody",
-  description: "Request body for bulk Connection operations (create, update, delete).",
-} as const;
-
-export const $ConnectionBulkCreateAction = {
-  properties: {
-    action: {
-      $ref: "#/components/schemas/BulkAction",
-      default: "create",
-    },
-    connections: {
-      items: {
-        $ref: "#/components/schemas/ConnectionBody",
-      },
-      type: "array",
-      title: "Connections",
-      description: "A list of connections to be created.",
-    },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
-  },
-  type: "object",
-  required: ["connections"],
-  title: "ConnectionBulkCreateAction",
-  description: "Bulk Create Variable serializer for request bodies.",
-} as const;
-
-export const $ConnectionBulkDeleteAction = {
-  properties: {
-    action: {
-      $ref: "#/components/schemas/BulkAction",
-      default: "delete",
-    },
-    connection_ids: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Connection Ids",
-      description: "A list of connection IDs to be deleted.",
-    },
-    action_on_non_existence: {
-      $ref: "#/components/schemas/BulkActionNotOnExistence",
-      default: "fail",
-    },
-  },
-  type: "object",
-  required: ["connection_ids"],
-  title: "ConnectionBulkDeleteAction",
-  description: "Bulk Delete Connection serializer for request bodies.",
-} as const;
-
-export const $ConnectionBulkResponse = {
-  properties: {
-    create: {
-      anyOf: [
-        {
-          $ref: "#/components/schemas/ConnectionBulkActionResponse",
-        },
-        {
-          type: "null",
-        },
-      ],
-      description: "Details of the bulk create operation, including successful connection_ids and errors.",
-    },
-    update: {
-      anyOf: [
-        {
-          $ref: "#/components/schemas/ConnectionBulkActionResponse",
-        },
-        {
-          type: "null",
-        },
-      ],
-      description: "Details of the bulk update operation, including successful connection_ids and errors.",
-    },
-    delete: {
-      anyOf: [
-        {
-          $ref: "#/components/schemas/ConnectionBulkActionResponse",
-        },
-        {
-          type: "null",
-        },
-      ],
-      description: "Details of the bulk delete operation, including successful connection_ids and errors.",
-    },
-  },
-  type: "object",
-  title: "ConnectionBulkResponse",
-  description: `Serializer for responses to bulk connection operations.
-
-This represents the results of create, update, and delete actions performed on connections in bulk.
-Each action (if requested) is represented as a field containing details about successful connection_ids and any encountered errors.
-Fields are populated in the response only if the respective action was part of the request, else are set None.`,
-} as const;
-
-export const $ConnectionBulkUpdateAction = {
-  properties: {
-    action: {
-      $ref: "#/components/schemas/BulkAction",
-      default: "update",
-    },
-    connections: {
-      items: {
-        $ref: "#/components/schemas/ConnectionBody",
-      },
-      type: "array",
-      title: "Connections",
-      description: "A list of connections to be updated.",
-    },
-    action_on_non_existence: {
-      $ref: "#/components/schemas/BulkActionNotOnExistence",
-      default: "fail",
-    },
-  },
-  type: "object",
-  required: ["connections"],
-  title: "ConnectionBulkUpdateAction",
-  description: "Bulk Update Connection serializer for request bodies.",
 } as const;
 
 export const $ConnectionCollectionResponse = {
@@ -3871,180 +4079,38 @@ export const $PluginResponse = {
   description: "Plugin serializer.",
 } as const;
 
-export const $PoolBulkActionResponse = {
+export const $PoolBody = {
   properties: {
-    success: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Success",
-      description: "A list of pool names representing successful operations.",
+    name: {
+      type: "string",
+      maxLength: 256,
+      title: "Name",
     },
-    errors: {
-      items: {
-        type: "object",
-      },
-      type: "array",
-      title: "Errors",
-      description:
-        "A list of errors encountered during the operation, each containing details about the issue.",
+    slots: {
+      type: "integer",
+      title: "Slots",
     },
-  },
-  type: "object",
-  title: "PoolBulkActionResponse",
-  description: `Serializer for individual bulk action responses.
-
-Represents the outcome of a single bulk operation (create, update, or delete).
-The response includes a list of successful pool names and any errors encountered during the operation.
-This structure helps users understand which key actions succeeded and which failed.`,
-} as const;
-
-export const $PoolBulkBody = {
-  properties: {
-    actions: {
-      items: {
-        anyOf: [
-          {
-            $ref: "#/components/schemas/PoolBulkCreateAction",
-          },
-          {
-            $ref: "#/components/schemas/PoolBulkUpdateAction",
-          },
-          {
-            $ref: "#/components/schemas/PoolBulkDeleteAction",
-          },
-        ],
-      },
-      type: "array",
-      title: "Actions",
-      description: "A list of Pool actions to perform.",
-    },
-  },
-  type: "object",
-  required: ["actions"],
-  title: "PoolBulkBody",
-  description: "Request body for bulk Pool operations (create, update, delete).",
-} as const;
-
-export const $PoolBulkCreateAction = {
-  properties: {
-    action: {
-      $ref: "#/components/schemas/BulkAction",
-      default: "create",
-    },
-    pools: {
-      items: {
-        $ref: "#/components/schemas/PoolPostBody",
-      },
-      type: "array",
-      title: "Pools",
-      description: "A list of pools to be created.",
-    },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
-  },
-  type: "object",
-  required: ["pools"],
-  title: "PoolBulkCreateAction",
-  description: "Bulk Create Pool serializer for request bodies.",
-} as const;
-
-export const $PoolBulkDeleteAction = {
-  properties: {
-    action: {
-      $ref: "#/components/schemas/BulkAction",
-      default: "delete",
-    },
-    pool_names: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Pool Names",
-      description: "A list of pool names to be deleted.",
-    },
-    action_on_non_existence: {
-      $ref: "#/components/schemas/BulkActionNotOnExistence",
-      default: "fail",
-    },
-  },
-  type: "object",
-  required: ["pool_names"],
-  title: "PoolBulkDeleteAction",
-  description: "Bulk Delete Pool serializer for request bodies.",
-} as const;
-
-export const $PoolBulkResponse = {
-  properties: {
-    create: {
+    description: {
       anyOf: [
         {
-          $ref: "#/components/schemas/PoolBulkActionResponse",
+          type: "string",
         },
         {
           type: "null",
         },
       ],
-      description: "Details of the bulk create operation, including successful pool names and errors.",
+      title: "Description",
     },
-    update: {
-      anyOf: [
-        {
-          $ref: "#/components/schemas/PoolBulkActionResponse",
-        },
-        {
-          type: "null",
-        },
-      ],
-      description: "Details of the bulk update operation, including successful pool names and errors.",
-    },
-    delete: {
-      anyOf: [
-        {
-          $ref: "#/components/schemas/PoolBulkActionResponse",
-        },
-        {
-          type: "null",
-        },
-      ],
-      description: "Details of the bulk delete operation, including successful pool names and errors.",
+    include_deferred: {
+      type: "boolean",
+      title: "Include Deferred",
+      default: false,
     },
   },
   type: "object",
-  title: "PoolBulkResponse",
-  description: `Serializer for responses to bulk pool operations.
-
-This represents the results of create, update, and delete actions performed on pools in bulk.
-Each action (if requested) is represented as a field containing details about successful pool names and any encountered errors.
-Fields are populated in the response only if the respective action was part of the request, else are set None.`,
-} as const;
-
-export const $PoolBulkUpdateAction = {
-  properties: {
-    action: {
-      $ref: "#/components/schemas/BulkAction",
-      default: "update",
-    },
-    pools: {
-      items: {
-        $ref: "#/components/schemas/PoolPatchBody",
-      },
-      type: "array",
-      title: "Pools",
-      description: "A list of pools to be updated.",
-    },
-    action_on_non_existence: {
-      $ref: "#/components/schemas/BulkActionNotOnExistence",
-      default: "fail",
-    },
-  },
-  type: "object",
-  required: ["pools"],
-  title: "PoolBulkUpdateAction",
-  description: "Bulk Update Pool serializer for request bodies.",
+  required: ["name", "slots"],
+  title: "PoolBody",
+  description: "Pool serializer for post bodies.",
 } as const;
 
 export const $PoolCollectionResponse = {
@@ -4117,40 +4183,6 @@ export const $PoolPatchBody = {
   type: "object",
   title: "PoolPatchBody",
   description: "Pool serializer for patch bodies.",
-} as const;
-
-export const $PoolPostBody = {
-  properties: {
-    name: {
-      type: "string",
-      maxLength: 256,
-      title: "Name",
-    },
-    slots: {
-      type: "integer",
-      title: "Slots",
-    },
-    description: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Description",
-    },
-    include_deferred: {
-      type: "boolean",
-      title: "Include Deferred",
-      default: false,
-    },
-  },
-  type: "object",
-  required: ["name", "slots"],
-  title: "PoolPostBody",
-  description: "Pool serializer for post bodies.",
 } as const;
 
 export const $PoolResponse = {
@@ -5842,184 +5874,6 @@ export const $VariableBody = {
   required: ["key", "value"],
   title: "VariableBody",
   description: "Variable serializer for bodies.",
-} as const;
-
-export const $VariableBulkActionResponse = {
-  properties: {
-    success: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Success",
-      description: "A list of keys representing successful operations.",
-      default: [],
-    },
-    errors: {
-      items: {
-        type: "object",
-      },
-      type: "array",
-      title: "Errors",
-      description:
-        "A list of errors encountered during the operation, each containing details about the issue.",
-      default: [],
-    },
-  },
-  type: "object",
-  title: "VariableBulkActionResponse",
-  description: `Serializer for individual bulk action responses.
-
-Represents the outcome of a single bulk operation (create, update, or delete).
-The response includes a list of successful keys and any errors encountered during the operation.
-This structure helps users understand which key actions succeeded and which failed.`,
-} as const;
-
-export const $VariableBulkBody = {
-  properties: {
-    actions: {
-      items: {
-        anyOf: [
-          {
-            $ref: "#/components/schemas/VariableBulkCreateAction",
-          },
-          {
-            $ref: "#/components/schemas/VariableBulkUpdateAction",
-          },
-          {
-            $ref: "#/components/schemas/VariableBulkDeleteAction",
-          },
-        ],
-      },
-      type: "array",
-      title: "Actions",
-      description: "A list of variable actions to perform.",
-    },
-  },
-  type: "object",
-  required: ["actions"],
-  title: "VariableBulkBody",
-  description: "Request body for bulk variable operations (create, update, delete).",
-} as const;
-
-export const $VariableBulkCreateAction = {
-  properties: {
-    action: {
-      $ref: "#/components/schemas/BulkAction",
-      default: "create",
-    },
-    variables: {
-      items: {
-        $ref: "#/components/schemas/VariableBody",
-      },
-      type: "array",
-      title: "Variables",
-      description: "A list of variables to be created.",
-    },
-    action_on_existence: {
-      $ref: "#/components/schemas/BulkActionOnExistence",
-      default: "fail",
-    },
-  },
-  type: "object",
-  required: ["variables"],
-  title: "VariableBulkCreateAction",
-  description: "Bulk Create Variable serializer for request bodies.",
-} as const;
-
-export const $VariableBulkDeleteAction = {
-  properties: {
-    action: {
-      $ref: "#/components/schemas/BulkAction",
-      default: "delete",
-    },
-    keys: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Keys",
-      description: "A list of variable keys to be deleted.",
-    },
-    action_on_non_existence: {
-      $ref: "#/components/schemas/BulkActionNotOnExistence",
-      default: "fail",
-    },
-  },
-  type: "object",
-  required: ["keys"],
-  title: "VariableBulkDeleteAction",
-  description: "Bulk Delete Variable serializer for request bodies.",
-} as const;
-
-export const $VariableBulkResponse = {
-  properties: {
-    create: {
-      anyOf: [
-        {
-          $ref: "#/components/schemas/VariableBulkActionResponse",
-        },
-        {
-          type: "null",
-        },
-      ],
-      description: "Details of the bulk create operation, including successful keys and errors.",
-    },
-    update: {
-      anyOf: [
-        {
-          $ref: "#/components/schemas/VariableBulkActionResponse",
-        },
-        {
-          type: "null",
-        },
-      ],
-      description: "Details of the bulk update operation, including successful keys and errors.",
-    },
-    delete: {
-      anyOf: [
-        {
-          $ref: "#/components/schemas/VariableBulkActionResponse",
-        },
-        {
-          type: "null",
-        },
-      ],
-      description: "Details of the bulk delete operation, including successful keys and errors.",
-    },
-  },
-  type: "object",
-  title: "VariableBulkResponse",
-  description: `Serializer for responses to bulk variable operations.
-
-This represents the results of create, update, and delete actions performed on variables in bulk.
-Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
-Fields are populated in the response only if the respective action was part of the request, else are set None.`,
-} as const;
-
-export const $VariableBulkUpdateAction = {
-  properties: {
-    action: {
-      $ref: "#/components/schemas/BulkAction",
-      default: "update",
-    },
-    variables: {
-      items: {
-        $ref: "#/components/schemas/VariableBody",
-      },
-      type: "array",
-      title: "Variables",
-      description: "A list of variables to be updated.",
-    },
-    action_on_non_existence: {
-      $ref: "#/components/schemas/BulkActionNotOnExistence",
-      default: "fail",
-    },
-  },
-  type: "object",
-  required: ["variables"],
-  title: "VariableBulkUpdateAction",
-  description: "Bulk Update Variable serializer for request bodies.",
 } as const;
 
 export const $VariableCollectionResponse = {

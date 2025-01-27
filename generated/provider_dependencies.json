@@ -84,9 +84,7 @@
       "common.compat",
       "google"
     ],
-    "excluded-python-versions": [
-      "3.12"
-    ],
+    "excluded-python-versions": [],
     "state": "ready"
   },
   "apache.cassandra": {
@@ -1241,7 +1239,7 @@
       "pandas>=2.1.2,<2.2",
       "pyarrow>=14.0.1",
       "snowflake-connector-python>=3.7.1",
-      "snowflake-snowpark-python>=1.17.0;python_version<\"3.12\"",
+      "snowflake-snowpark-python>=1.17.0;python_version<'3.12'",
       "snowflake-sqlalchemy>=1.4.0"
     ],
     "devel-deps": [],

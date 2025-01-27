@@ -246,7 +246,7 @@ repos:
         name: Require literal syntax when initializing builtins
       - id: detect-private-key
         name: Detect if private key is added to the repository
-        exclude: ^docs/apache-airflow-providers-ssh/connections/ssh.rst$
+        exclude: ^providers/ssh/docs/connections/ssh.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
         exclude: ^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
@@ -628,10 +628,10 @@ repos:
           ^providers/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^providers/src/airflow/providers/apache/hive/operators/hive_stats.py$|
           ^providers/src/airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
-          ^providers/src/airflow/providers/apache/spark/decorators/|
-          ^providers/src/airflow/providers/apache/spark/hooks/|
-          ^providers/src/airflow/providers/apache/spark/operators/|
-          ^providers/src/airflow/providers/exasol/hooks/exasol.py$|
+          ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
+          ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
+          ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
+          ^providers/exasol/src/airflow/providers/exasol/hooks/exasol.py$|
           ^providers/src/airflow/providers/fab/auth_manager/security_manager/|
           ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/src/airflow/providers/google/cloud/hooks/bigquery.py$|
@@ -644,7 +644,7 @@ repos:
           ^docs/.*commits.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^providers/src/airflow/providers/microsoft/winrm/operators/winrm.py$|
-          ^providers/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
+          ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
           ^providers/src/airflow/providers/redis/provider.yaml$|
           ^airflow/serialization/serialized_objects.py$|
           ^airflow/ui/pnpm-lock.yaml$|
@@ -658,8 +658,8 @@ repos:
           ^docs/README.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
-          ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
-          ^docs/apache-airflow-providers-apache-spark/decorators/pyspark.rst$|
+          ^providers/apache/kafka/docs/connections/kafka.rst$|
+          ^providers/apache/spark/docs/decorators/pyspark.rst$|
           ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
@@ -748,7 +748,7 @@ repos:
           airflow.lineage.hook.
         entry: ./scripts/ci/pre_commit/check_get_lineage_collector_providers.py
         files: ^providers/src/airflow/providers/.*\.py$
-        exclude: ^providers/src/airflow/providers/common/compat/.*\.py$
+        exclude: ^providers/common/compat/src/airflow/providers/common/compat/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name

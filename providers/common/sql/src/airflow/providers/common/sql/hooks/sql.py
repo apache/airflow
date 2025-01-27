@@ -47,6 +47,7 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.hooks import handlers
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
@@ -67,23 +68,17 @@ be removed in the future. Please import it from 'airflow.providers.common.sql.ho
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool | None):
     warnings.warn(WARNING_MESSAGE.format("return_single_query_results"), DeprecationWarning, stacklevel=2)
 
-    from airflow.providers.common.sql.hooks import handlers
-
     return handlers.return_single_query_results(sql, return_last, split_statements)
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
     warnings.warn(WARNING_MESSAGE.format("fetch_all_handler"), DeprecationWarning, stacklevel=2)
 
-    from airflow.providers.common.sql.hooks import handlers
-
     return handlers.fetch_all_handler(cursor)
 
 
 def fetch_one_handler(cursor) -> list[tuple] | None:
     warnings.warn(WARNING_MESSAGE.format("fetch_one_handler"), DeprecationWarning, stacklevel=2)
-
-    from airflow.providers.common.sql.hooks import handlers
 
     return handlers.fetch_one_handler(cursor)
 
@@ -184,13 +179,10 @@ class DbApiHook(BaseHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
-        self._insert_statement_format: str = kwargs.get(
-            "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
-        )
-        self._replace_statement_format: str = kwargs.get(
-            "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
-        )
-        self._escape_column_name_format: str = kwargs.get("escape_column_name_format", '"{}"')
+        self._insert_statement_format: str | None = kwargs.get("insert_statement_format")
+        self._replace_statement_format: str | None = kwargs.get("replace_statement_format")
+        self._escape_word_format: str | None = kwargs.get("escape_word_format")
+        self._escape_column_names: bool | None = kwargs.get("escape_column_names")
         self._connection: Connection | None = kwargs.pop("connection", None)
 
     def get_conn_id(self) -> str:
@@ -211,6 +203,38 @@ class DbApiHook(BaseHook):
                 self._placeholder,
             )
         return self._placeholder
+
+    @property
+    def insert_statement_format(self) -> str:
+        """Return the insert statement format."""
+        if not self._insert_statement_format:
+            self._insert_statement_format = self.connection_extra.get(
+                "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
+            )
+        return self._insert_statement_format
+
+    @property
+    def replace_statement_format(self) -> str:
+        """Return the replacement statement format."""
+        if not self._replace_statement_format:
+            self._replace_statement_format = self.connection_extra.get(
+                "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
+            )
+        return self._replace_statement_format
+
+    @property
+    def escape_word_format(self) -> str:
+        """Return the escape word format."""
+        if not self._escape_word_format:
+            self._escape_word_format = self.connection_extra.get("escape_word_format", '"{}"')
+        return self._escape_word_format
+
+    @property
+    def escape_column_names(self) -> bool:
+        """Return the escape column names flag."""
+        if not self._escape_column_names:
+            self._escape_column_names = self.connection_extra.get("escape_column_names", False)
+        return self._escape_column_names
 
     @property
     def connection(self) -> Connection:
@@ -413,7 +437,7 @@ class DbApiHook(BaseHook):
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
+        return self.run(sql=sql, parameters=parameters, handler=handlers.fetch_all_handler)
 
     def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
@@ -422,7 +446,7 @@ class DbApiHook(BaseHook):
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        return self.run(sql=sql, parameters=parameters, handler=fetch_one_handler)
+        return self.run(sql=sql, parameters=parameters, handler=handlers.fetch_one_handler)
 
     @staticmethod
     def strip_sql_string(sql: str) -> str:
@@ -557,7 +581,7 @@ class DbApiHook(BaseHook):
 
                     if handler is not None:
                         result = self._make_common_data_structure(handler(cur))
-                        if return_single_query_results(sql, return_last, split_statements):
+                        if handlers.return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
                         else:
@@ -572,7 +596,7 @@ class DbApiHook(BaseHook):
 
         if handler is None:
             return None
-        if return_single_query_results(sql, return_last, split_statements):
+        if handlers.return_single_query_results(sql, return_last, split_statements):
             self.descriptions = [_last_description]
             return _last_result
         else:
@@ -720,8 +744,8 @@ class DbApiHook(BaseHook):
                         self.log.debug("Generated sql: %s", sql)
                         cur.executemany(sql, values)
                         conn.commit()
-                        self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
                         nb_rows += len(chunked_rows)
+                        self.log.info("Loaded %s rows into %s so far", nb_rows, table)
                 else:
                     for i, row in enumerate(rows, 1):
                         values = self._serialize_cells(row, conn)

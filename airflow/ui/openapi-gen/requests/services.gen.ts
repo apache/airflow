@@ -93,8 +93,8 @@ import type {
   GetDagSourceResponse,
   GetDagStatsData,
   GetDagStatsResponse,
-  GetDagReportData,
-  GetDagReportResponse,
+  GetDagReportsData,
+  GetDagReportsResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
   GetDagsData,
@@ -1144,7 +1144,7 @@ export class ConnectionService {
    * Bulk create, update, and delete connections.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns ConnectionBulkResponse Successful Response
+   * @returns BulkResponse Successful Response
    * @throws ApiError
    */
   public static bulkConnections(data: BulkConnectionsData): CancelablePromise<BulkConnectionsResponse> {
@@ -1524,14 +1524,14 @@ export class DagStatsService {
 
 export class DagReportService {
   /**
-   * Get Dag Report
+   * Get Dag Reports
    * Get DAG report.
    * @param data The data for the request.
    * @param data.subdir
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static getDagReport(data: GetDagReportData): CancelablePromise<GetDagReportResponse> {
+  public static getDagReports(data: GetDagReportsData): CancelablePromise<GetDagReportsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/dagReports",
@@ -2794,7 +2794,7 @@ export class PoolService {
    * Bulk create, update, and delete pools.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns PoolBulkResponse Successful Response
+   * @returns BulkResponse Successful Response
    * @throws ApiError
    */
   public static bulkPools(data: BulkPoolsData): CancelablePromise<BulkPoolsResponse> {
@@ -3117,7 +3117,7 @@ export class VariableService {
    * Bulk create, update, and delete variables.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns VariableBulkResponse Successful Response
+   * @returns BulkResponse Successful Response
    * @throws ApiError
    */
   public static bulkVariables(data: BulkVariablesData): CancelablePromise<BulkVariablesResponse> {

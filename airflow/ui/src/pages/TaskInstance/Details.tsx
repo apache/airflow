@@ -23,9 +23,10 @@ import {
   useTaskInstanceServiceGetMappedTaskInstance,
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
+import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton, Status } from "src/components/ui";
+import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { getDuration } from "src/utils";
 
 export const Details = () => {
@@ -76,10 +77,10 @@ export const Details = () => {
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
-            <Table.Cell>Status</Table.Cell>
+            <Table.Cell>StateBadge</Table.Cell>
             <Table.Cell>
               <Flex gap={1}>
-                <Status state={tryInstance?.state ?? null} />
+                <StateBadge state={tryInstance?.state} />
                 {tryInstance?.state ?? "no status"}
               </Flex>
             </Table.Cell>
