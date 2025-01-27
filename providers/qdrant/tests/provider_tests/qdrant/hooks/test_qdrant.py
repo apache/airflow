@@ -20,9 +20,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-qdrant_client = pytest.importorskip("qdrant_client")
-
 from airflow.providers.qdrant.hooks.qdrant import QdrantHook
+
+qdrant_client = pytest.importorskip("qdrant_client")
 
 
 class TestQdrantHook:

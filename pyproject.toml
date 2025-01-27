@@ -382,6 +382,9 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
@@ -655,6 +658,7 @@ dev = [
   "apache-airflow-providers-standard",
   "apache-airflow-providers-tableau",
   "apache-airflow-providers-telegram",
+  "apache-airflow-providers-teradata",
   "apache-airflow-providers-weaviate",
   "apache-airflow-providers-ydb",
   "apache-airflow-providers-zendesk",
@@ -702,6 +706,7 @@ apache-airflow-providers-snowflake = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
 apache-airflow-providers-tableau = { workspace = true }
 apache-airflow-providers-telegram = { workspace = true }
+apache-airflow-providers-teradata = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
@@ -747,6 +752,7 @@ members = [
     "providers/standard",
     "providers/tableau",
     "providers/telegram",
+    "providers/teradata",
     "providers/weaviate",
     "providers/ydb",
     "providers/zendesk",
