@@ -20,6 +20,7 @@ import datetime
 import re
 from contextlib import contextmanager, nullcontext
 from io import BytesIO
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -47,6 +48,9 @@ from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodLoggingStatus, PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
@@ -196,7 +200,7 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.volumes[0].name
         assert dag_id == rendered.volumes[0].config_map.name
 
-    def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
+    def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> tuple[k8s.V1Pod, Context]:
         with self.dag_maker(dag_id="dag") as dag:
             operator.dag = dag
 
@@ -211,7 +215,7 @@ class TestKubernetesPodOperator:
         remote_pod_mock.status.phase = "Succeeded"
         self.await_pod_mock.return_value = remote_pod_mock
         operator.execute(context=context)
-        return self.await_start_mock.call_args.kwargs["pod"]
+        return self.await_start_mock.call_args.kwargs["pod"], context
 
     def sanitize_for_serialization(self, obj):
         return ApiClient().sanitize_for_serialization(obj)
@@ -357,7 +361,7 @@ class TestKubernetesPodOperator:
             in_cluster=in_cluster,
             do_xcom_push=False,
         )
-        pod = self.run_pod(k)
+        pod, _ = self.run_pod(k)
         assert pod.metadata.labels == {
             "foo": "bar",
             "dag_id": "dag",
@@ -1247,7 +1251,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=do_xcom_push,
         )
 
-        pod = self.run_pod(k)
+        pod, _ = self.run_pod(k)
         pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
         pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
         assert pod_name == pod.metadata.name
@@ -1475,7 +1479,7 @@ class TestKubernetesPodOperator:
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = "Succeeded"
         self.await_pod_mock.return_value = remote_pod_mock
-        pod = self.run_pod(k)
+        pod, _ = self.run_pod(k)
 
         # check that the base container is not included in the logs
         mock_fetch_log.assert_called_once_with(pod=pod, containers=["some_init_container"], follow_logs=True)
@@ -1513,11 +1517,14 @@ class TestKubernetesPodOperator:
             do_xcom_push=False,
             callbacks=MockKubernetesPodOperatorCallback,
         )
-        self.run_pod(k)
+        _, context = self.run_pod(k)
 
         # check on_sync_client_creation callback
         mock_callbacks.on_sync_client_creation.assert_called_once()
-        assert mock_callbacks.on_sync_client_creation.call_args.kwargs == {"client": k.client}
+        assert mock_callbacks.on_sync_client_creation.call_args.kwargs == {"client": k.client, "operator": k}
+
+        # check on_pod_manifest_created callback
+        mock_callbacks.on_pod_manifest_created.assert_called_once()
 
         # check on_pod_creation callback
         mock_callbacks.on_pod_creation.assert_called_once()
@@ -1525,6 +1532,8 @@ class TestKubernetesPodOperator:
             "client": k.client,
             "mode": ExecutionMode.SYNC,
             "pod": found_pods[0],
+            "operator": k,
+            "context": context,
         }
 
         # check on_pod_starting callback
@@ -1533,6 +1542,8 @@ class TestKubernetesPodOperator:
             "client": k.client,
             "mode": ExecutionMode.SYNC,
             "pod": found_pods[1],
+            "operator": k,
+            "context": context,
         }
 
         # check on_pod_completion callback
@@ -1541,6 +1552,17 @@ class TestKubernetesPodOperator:
             "client": k.client,
             "mode": ExecutionMode.SYNC,
             "pod": found_pods[2],
+            "operator": k,
+            "context": context,
+        }
+
+        mock_callbacks.on_pod_teardown.assert_called_once()
+        assert mock_callbacks.on_pod_teardown.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[2],
+            "operator": k,
+            "context": context,
         }
 
         # check on_pod_cleanup callback
@@ -1549,6 +1571,95 @@ class TestKubernetesPodOperator:
             "client": k.client,
             "mode": ExecutionMode.SYNC,
             "pod": k.pod,
+            "operator": k,
+            "context": context,
+        }
+
+    @patch(HOOK_CLASS, new=MagicMock)
+    @patch(KUB_OP_PATH.format("find_pod"))
+    def test_execute_sync_multiple_callbacks(self, find_pod_mock):
+        from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
+        from providers.tests.cncf.kubernetes.test_callbacks import (
+            MockKubernetesPodOperatorCallback,
+            MockWrapper,
+        )
+
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+        found_pods = [MagicMock(), MagicMock(), MagicMock()]
+        find_pod_mock.side_effect = [None] + found_pods
+
+        remote_pod_mock = MagicMock()
+        remote_pod_mock.status.phase = "Succeeded"
+        self.await_pod_mock.return_value = remote_pod_mock
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            callbacks=[MockKubernetesPodOperatorCallback, MockKubernetesPodOperatorCallback],
+        )
+        _, context = self.run_pod(k)
+
+        # check on_sync_client_creation callback
+        assert mock_callbacks.on_sync_client_creation.call_count == 2
+        assert mock_callbacks.on_sync_client_creation.call_args.kwargs == {"client": k.client, "operator": k}
+
+        # check on_pod_manifest_created callback
+        assert mock_callbacks.on_pod_manifest_created.call_count == 2
+
+        # check on_pod_creation callback
+        assert mock_callbacks.on_pod_creation.call_count == 2
+        assert mock_callbacks.on_pod_creation.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[0],
+            "operator": k,
+            "context": context,
+        }
+
+        # check on_pod_starting callback
+        assert mock_callbacks.on_pod_starting.call_count == 2
+        assert mock_callbacks.on_pod_starting.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[1],
+            "operator": k,
+            "context": context,
+        }
+
+        # check on_pod_completion callback
+        assert mock_callbacks.on_pod_completion.call_count == 2
+        assert mock_callbacks.on_pod_completion.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[2],
+            "operator": k,
+            "context": context,
+        }
+
+        assert mock_callbacks.on_pod_teardown.call_count == 2
+        assert mock_callbacks.on_pod_teardown.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[2],
+            "operator": k,
+            "context": context,
+        }
+
+        # check on_pod_cleanup callback
+        assert mock_callbacks.on_pod_cleanup.call_count == 2
+        assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": k.pod,
+            "operator": k,
+            "context": context,
         }
 
     @patch(HOOK_CLASS, new=MagicMock)
@@ -1577,8 +1688,10 @@ class TestKubernetesPodOperator:
             do_xcom_push=False,
             callbacks=MockKubernetesPodOperatorCallback,
         )
+        context = create_context(k)
+
         k.trigger_reentry(
-            context=create_context(k),
+            context=context,
             event={
                 "status": "success",
                 "message": TEST_SUCCESS_MESSAGE,
@@ -1593,6 +1706,8 @@ class TestKubernetesPodOperator:
             "client": k.client,
             "mode": ExecutionMode.SYNC,
             "pod": remote_pod_mock,
+            "operator": k,
+            "context": context,
         }
 
         # check on_pod_cleanup callback
@@ -1601,6 +1716,8 @@ class TestKubernetesPodOperator:
             "client": k.client,
             "mode": ExecutionMode.SYNC,
             "pod": remote_pod_mock,
+            "operator": k,
+            "context": context,
         }
 
     @pytest.mark.parametrize("get_logs", [True, False])
@@ -1611,7 +1728,7 @@ class TestKubernetesPodOperator:
         self, mock_read_pod, mock_await_container_completion, fetch_requested_container_logs, get_logs
     ):
         k = KubernetesPodOperator(task_id="task", get_logs=get_logs)
-        pod = self.run_pod(k)
+        pod, _ = self.run_pod(k)
         client, hook, pod_manager = k.client, k.hook, k.pod_manager
 
         # no exception doesn't update properties
@@ -1644,7 +1761,7 @@ class TestKubernetesPodOperator:
         self, mock_read_pod, mock_await_container_completion
     ):
         k = KubernetesPodOperator(task_id="task", get_logs=False)
-        pod = self.run_pod(k)
+        pod, _ = self.run_pod(k)
         client, hook, pod_manager = k.client, k.hook, k.pod_manager
 
         mock_await_container_completion.side_effect = [ApiException(status=401)]
@@ -1677,7 +1794,7 @@ class TestKubernetesPodOperator:
             task_id="task",
             get_logs=False,
         )
-        pod = self.run_pod(k)
+        pod, _ = self.run_pod(k)
         mock_await_container_completion.side_effect = side_effect
         if expect_exc:
             k.await_pod_completion(pod)
