@@ -15,6 +15,7 @@ apache-airflow-providers-common-compat
 apache-airflow-providers-common-io
 apache-airflow-providers-common-sql
 apache-airflow-providers-datadog
+apache-airflow-providers-discord
 apache-airflow-providers-edge
 apache-airflow-providers-exasol
 apache-airflow-providers-facebook

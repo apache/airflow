@@ -172,9 +172,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/dingding/**/*
 
   provider:discord:
-    - providers/src/airflow/providers/discord/**/*
-    - docs/apache-airflow-providers-discord/**/*
-    - providers/tests/discord/**/*
+    - providers/discord/**
 
   provider:docker:
     - providers/src/airflow/providers/docker/**/*

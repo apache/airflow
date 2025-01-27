@@ -47,14 +47,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-http
-
 integrations:
   - integration-name: Discord
     external-doc-url: https://discord.com/
-    logo: /integration-logos/discord/Discord.png
+    logo: /docs/integration-logos/Discord.png
     tags: [service]
 
 operators:
