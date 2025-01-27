@@ -52,10 +52,14 @@ services:
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
+      - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
+      - ../../../providers/mysql/tests:/opt/airflow/providers/mysql/tests
       - ../../../providers/neo4j/tests:/opt/airflow/providers/neo4j/tests
+      - ../../../providers/odbc/tests:/opt/airflow/providers/odbc/tests
       - ../../../providers/openai/tests:/opt/airflow/providers/openai/tests
       - ../../../providers/openfaas/tests:/opt/airflow/providers/openfaas/tests
       - ../../../providers/opsgenie/tests:/opt/airflow/providers/opsgenie/tests
+      - ../../../providers/pagerduty/tests:/opt/airflow/providers/pagerduty/tests
       - ../../../providers/papermill/tests:/opt/airflow/providers/papermill/tests
       - ../../../providers/pgvector/tests:/opt/airflow/providers/pgvector/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests

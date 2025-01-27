@@ -267,10 +267,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/jdbc/**/*
 
   provider:jenkins:
-    - providers/src/airflow/providers/jenkins/**/*
-    - docs/apache-airflow-providers-jenkins/**/*
-    - providers/tests/jenkins/**/*
-    - providers/tests/system/jenkins/**/*
+    - providers/jenkins/**
 
   provider:microsoft-azure:
     - providers/src/airflow/providers/microsoft/azure/**/*
@@ -301,18 +298,13 @@ labelPRBasedOnFilePath:
     - providers/tests/mongo/**/*
 
   provider:mysql:
-    - providers/src/airflow/providers/mysql/**/*
-    - docs/apache-airflow-providers-mysql/**/*
-    - providers/tests/mysql/**/*
-    - providers/tests/system/mysql/**/*
+    - providers/mysql/**
 
   provider:neo4j:
     - providers/neo4j/**
 
   provider:odbc:
-    - providers/src/airflow/providers/odbc/**/*
-    - docs/apache-airflow-providers-odbc/**/*
-    - providers/tests/odbc/**/*
+    - providers/odbc/**
 
   provider:openai:
     - providers/openai/**
@@ -340,9 +332,7 @@ labelPRBasedOnFilePath:
     - providers/tests/oracle/**/*
 
   provider:pagerduty:
-    - providers/src/airflow/providers/pagerduty/**/*
-    - docs/apache-airflow-providers-pagerduty/**/*
-    - providers/tests/pagerduty/**/*
+    - providers/pagerduty/**
 
   provider:papermill:
     - providers/papermill/**
