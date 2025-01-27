@@ -49,10 +49,6 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - neo4j>=4.2.1
-
 integrations:
   - integration-name: Neo4j
     external-doc-url: https://neo4j.com/

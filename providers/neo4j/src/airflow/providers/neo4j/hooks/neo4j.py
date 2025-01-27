@@ -22,9 +22,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from neo4j import Driver, GraphDatabase
-
 from airflow.hooks.base import BaseHook
+from neo4j import Driver, GraphDatabase
 
 if TYPE_CHECKING:
     from airflow.models import Connection
