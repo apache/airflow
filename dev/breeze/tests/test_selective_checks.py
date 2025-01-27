@@ -436,7 +436,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         (
             pytest.param(
                 (
-                    # "providers/system/apache/beam/tests/file.py",
+                    "",  # "providers/system/apache/beam/tests/file.py",
                     # "providers/apache/beam/tests/file.py",
                 ),
                 {
