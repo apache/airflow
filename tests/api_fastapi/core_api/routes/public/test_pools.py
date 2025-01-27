@@ -162,22 +162,28 @@ class TestPatchPool(TestPoolsEndpoint):
                 {
                     "detail": [
                         {
-                            "input": None,
+                            "input": {},
                             "loc": ["pool"],
-                            "msg": "Input should be a valid string",
-                            "type": "string_type",
+                            "msg": "Field required",
+                            "type": "missing",
                         },
                         {
-                            "input": None,
+                            "input": {},
                             "loc": ["slots"],
-                            "msg": "Input should be a valid integer",
-                            "type": "int_type",
+                            "msg": "Field required",
+                            "type": "missing",
                         },
                         {
-                            "input": None,
+                            "input": {},
+                            "loc": ["description"],
+                            "msg": "Field required",
+                            "type": "missing",
+                        },
+                        {
+                            "input": {},
                             "loc": ["include_deferred"],
-                            "msg": "Input should be a valid boolean",
-                            "type": "bool_type",
+                            "msg": "Field required",
+                            "type": "missing",
                         },
                     ],
                 },

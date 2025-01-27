@@ -148,7 +148,7 @@ def patch_pool(
         fields_to_update = fields_to_update.intersection(update_mask)
         data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
-        data = patch_body.model_dump(by_alias=True)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
         try:
             BasePool.model_validate(data)
         except ValidationError as e:

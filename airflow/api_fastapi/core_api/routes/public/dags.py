@@ -227,13 +227,13 @@ def patch_dag(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
         try:
             DAGPatchBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
     for key, val in data.items():
         setattr(dag, key, val)
