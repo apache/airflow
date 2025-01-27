@@ -22,15 +22,14 @@ import pytest
 import airflow.models.xcom
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
-
-pytestmark = [pytest.mark.db_test]
-
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.utils import timezone
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
+
+pytestmark = [pytest.mark.db_test]
 
 
 @pytest.fixture(autouse=True)

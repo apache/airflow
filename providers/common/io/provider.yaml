@@ -37,9 +37,6 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-
 integrations:
   - integration-name: Common IO
     external-doc-url: https://filesystem-spec.readthedocs.io/en/latest/index.html

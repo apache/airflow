@@ -632,6 +632,7 @@ dev = [
   "apache-airflow-providers-celery",
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-compat",
+  "apache-airflow-providers-common-io",
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
@@ -684,6 +685,7 @@ apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
+apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
@@ -734,6 +736,7 @@ members = [
     "providers/celery",
     "providers/cohere",
     "providers/common/compat",
+    "providers/common/io",
     "providers/common/sql",
     "providers/datadog",
     "providers/edge",
