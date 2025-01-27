@@ -92,8 +92,8 @@ class LogGroomerTestBase:
 
     def test_log_groomer_collector_custom_env(self):
         env = [
-            {"name:": "WORKER_RELEASE_NAME", "value": "{{ .Release.Name }}-workers"},
-            {"name:": "AIRFLOW__LOG_RETENTION_DAYS", "value": "5"},
+            {"name": "WORKER_RELEASE_NAME", "value": "{{ .Release.Name }}-workers"},
+            {"name": "AIRFLOW__LOG_RETENTION_DAYS", "value": "5"},
         ]
 
         if self.obj_name == "dag-processor":
@@ -105,10 +105,10 @@ class LogGroomerTestBase:
             values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
         )
 
-        assert {"name:": "WORKER_RELEASE_NAME", "value": "release-name-workers"} in jmespath.search(
+        assert {"name": "WORKER_RELEASE_NAME", "value": "release-name-workers"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
-        assert {"name:": "AIRFLOW__LOG_RETENTION_DAYS", "value": "5"} in jmespath.search(
+        assert {"name": "AIRFLOW__LOG_RETENTION_DAYS", "value": "5"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
 
@@ -185,7 +185,7 @@ class LogGroomerTestBase:
                 "spec.template.spec.containers[1].env[0].value", docs[0]
             )
         else:
-            assert jmespath.search("spec.template.spec.containers[1].env", docs[0]) is None
+            assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 1
 
     def test_log_groomer_resources(self):
         if self.obj_name == "dag-processor":
