@@ -635,6 +635,7 @@ dev = [
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-exasol",
   "apache-airflow-providers-hashicorp",
   "apache-airflow-providers-imap",
   "apache-airflow-providers-neo4j",
@@ -682,6 +683,7 @@ apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-exasol = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
@@ -727,6 +729,7 @@ members = [
     "providers/common/sql",
     "providers/datadog",
     "providers/edge",
+    "providers/exasol",
     "providers/pagerduty",
     "providers/mysql",
     "providers/jenkins",
