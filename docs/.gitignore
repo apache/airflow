@@ -36,6 +36,7 @@ apache-airflow-providers-ssh
 apache-airflow-providers-standard
 apache-airflow-providers-tableau
 apache-airflow-providers-telegram
+apache-airflow-providers-vertica
 apache-airflow-providers-weaviate
 apache-airflow-providers-ydb
 apache-airflow-providers-zendesk
