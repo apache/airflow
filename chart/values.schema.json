@@ -12197,6 +12197,16 @@
                     "type": "integer",
                     "default": 15
                 },
+                "env": {
+                    "description": "Add additional env vars to log groomer sidecar container (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "x-kubernetes-patch-merge-key": "name",
+                    "x-kubernetes-patch-strategy": "merge"
+                },
                 "resources": {
                     "description": "Resources for Airflow log groomer sidecar.",
                     "type": "object",
