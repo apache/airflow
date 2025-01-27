@@ -14,6 +14,8 @@ apache-airflow-providers-common-compat
 apache-airflow-providers-common-sql
 apache-airflow-providers-datadog
 apache-airflow-providers-edge
+apache-airflow-providers-exasol
+apache-airflow-providers-facebook
 apache-airflow-providers-hashicorp
 apache-airflow-providers-imap
 apache-airflow-providers-neo4j
@@ -30,14 +32,18 @@ apache-airflow-providers-openai
 apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
 apache-airflow-providers-postgres
+apache-airflow-providers-presto
 apache-airflow-providers-qdrant
 apache-airflow-providers-samba
 apache-airflow-providers-segment
 apache-airflow-providers-singularity
 apache-airflow-providers-ssh
+apache-airflow-providers-snowflake
 apache-airflow-providers-standard
+apache-airflow-providers-teradata
 apache-airflow-providers-tableau
 apache-airflow-providers-telegram
+apache-airflow-providers-vertica
 apache-airflow-providers-weaviate
 apache-airflow-providers-ydb
 apache-airflow-providers-zendesk
