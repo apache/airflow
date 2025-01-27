@@ -226,7 +226,7 @@ class VaultHook(BaseHook):
 
     def _get_kubernetes_parameters_from_connection(
         self, kubernetes_jwt_path: str | None, kubernetes_role: str | None
-    ) -> tuple[str, str | None]:
+    ) -> tuple[str | None, str | None]:
         if not kubernetes_jwt_path:
             kubernetes_jwt_path = self.connection.extra_dejson.get("kubernetes_jwt_path")
             if not kubernetes_jwt_path:
