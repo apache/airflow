@@ -631,7 +631,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.log.info("ECS Task started: %s", response)
 
         self.arn = response["tasks"][0]["taskArn"]
-        self.container_name = response["tasks"][0]["containers"][0]["name"]
+        if not self.container_name:
+            self.container_name = response["tasks"][0]["containers"][0]["name"]
         self.log.info("ECS task ID is: %s", self._get_ecs_task_id(self.arn))
 
     def _try_reattach_task(self, started_by: str):
