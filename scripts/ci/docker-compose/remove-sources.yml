@@ -35,6 +35,7 @@ services:
       - ../../../empty:/opt/airflow/providers/airbyte/src
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
+      - ../../../empty:/opt/airflow/providers/apache/pig/src
       - ../../../empty:/opt/airflow/providers/asana/src
       - ../../../empty:/opt/airflow/providers/celery/src
       - ../../../empty:/opt/airflow/providers/cohere/src
@@ -43,6 +44,7 @@ services:
       - ../../../empty:/opt/airflow/providers/datadog/src
       - ../../../empty:/opt/airflow/providers/edge/src
       - ../../../empty:/opt/airflow/providers/hashicorp/src
+      - ../../../empty:/opt/airflow/providers/imap/src
       - ../../../empty:/opt/airflow/providers/neo4j/src
       - ../../../empty:/opt/airflow/providers/openai/src
       - ../../../empty:/opt/airflow/providers/openfaas/src
@@ -51,6 +53,7 @@ services:
       - ../../../empty:/opt/airflow/providers/pgvector/src
       - ../../../empty:/opt/airflow/providers/pinecone/src
       - ../../../empty:/opt/airflow/providers/postgres/src
+      - ../../../empty:/opt/airflow/providers/qdrant/src
       - ../../../empty:/opt/airflow/providers/samba/src
       - ../../../empty:/opt/airflow/providers/segment/src
       - ../../../empty:/opt/airflow/providers/singularity/src

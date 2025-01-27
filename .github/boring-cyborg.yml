@@ -97,10 +97,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/livy/**/*
 
   provider:apache-pig:
-    - providers/src/airflow/providers/apache/pig/**/*
-    - docs/apache-airflow-providers-apache-pig/**/*
-    - providers/tests/apache/pig/**/*
-    - providers/tests/system/apache/pig/**/*
+    - providers/apache/pig/**
 
   provider:apache-pinot:
     - providers/src/airflow/providers/apache/pinot/**/*
@@ -256,9 +253,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/http/**/*
 
   provider:imap:
-    - providers/src/airflow/providers/imap/**/*
-    - docs/apache-airflow-providers-imap/**/*
-    - providers/tests/imap/**/*
+    - providers/imap/**
 
   provider:influxdb:
     - providers/src/airflow/providers/influxdb/**/*
@@ -369,10 +364,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/presto/**/*
 
   provider:qdrant:
-    - providers/src/airflow/providers/qdrant/**/*
-    - docs/apache-airflow-providers-qdrant/**/*
-    - providers/tests/qdrant/**/*
-    - providers/tests/system/qdrant/**/*
+    - providers/qdrant/**
 
   provider:redis:
     - providers/src/airflow/providers/redis/**/*

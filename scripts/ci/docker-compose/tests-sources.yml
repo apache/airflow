@@ -42,6 +42,7 @@ services:
       - ../../../providers/airbyte/tests:/opt/airflow/providers/airbyte/tests
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
+      - ../../../providers/apache/pig/tests:/opt/airflow/providers/apache/pig/tests
       - ../../../providers/asana/tests:/opt/airflow/providers/asana/tests
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
@@ -50,6 +51,7 @@ services:
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
+      - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/neo4j/tests:/opt/airflow/providers/neo4j/tests
       - ../../../providers/openai/tests:/opt/airflow/providers/openai/tests
       - ../../../providers/openfaas/tests:/opt/airflow/providers/openfaas/tests
@@ -58,6 +60,7 @@ services:
       - ../../../providers/pgvector/tests:/opt/airflow/providers/pgvector/tests
       - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
       - ../../../providers/postgres/tests:/opt/airflow/providers/postgres/tests
+      - ../../../providers/qdrant/tests:/opt/airflow/providers/qdrant/tests
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests

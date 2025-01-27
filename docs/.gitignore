@@ -3,6 +3,7 @@
 apache-airflow-providers-airbyte
 apache-airflow-providers-alibaba
 apache-airflow-providers-apache-iceberg
+apache-airflow-providers-apache-pig
 apache-airflow-providers-asana
 apache-airflow-providers-celery
 apache-airflow-providers-cohere
@@ -11,6 +12,7 @@ apache-airflow-providers-common-sql
 apache-airflow-providers-datadog
 apache-airflow-providers-edge
 apache-airflow-providers-hashicorp
+apache-airflow-providers-imap
 apache-airflow-providers-neo4j
 apache-airflow-providers-openai
 apache-airflow-providers-openfaas
@@ -19,6 +21,7 @@ apache-airflow-providers-papermill
 apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
 apache-airflow-providers-postgres
+apache-airflow-providers-qdrant
 apache-airflow-providers-samba
 apache-airflow-providers-segment
 apache-airflow-providers-singularity
