@@ -94,6 +94,7 @@ class TestSalesforceHook:
             session=None,
             client_id=extras["client_id"],
             consumer_key=None,
+            consumer_secret=None,
             privatekey_file=None,
             privatekey=None,
         )
@@ -146,6 +147,7 @@ class TestSalesforceHook:
             session=self.salesforce_hook.session,
             client_id=extras["client_id"],
             consumer_key=None,
+            consumer_secret=None,
             privatekey_file=None,
             privatekey=None,
         )
@@ -169,6 +171,7 @@ class TestSalesforceHook:
             {
                 "client_id": "my_client3",
                 "consumer_key": "consumer_key",
+                "consumer_secret": "consumer_secret",
                 "domain": "login",
                 "private_key": "private_key",
                 "version": "34.0"
@@ -195,6 +198,7 @@ class TestSalesforceHook:
             session=None,
             client_id=extras["client_id"],
             consumer_key=extras["consumer_key"],
+            consumer_secret=extras["consumer_secret"],
             privatekey_file=None,
             privatekey=extras["private_key"],
         )
@@ -240,6 +244,7 @@ class TestSalesforceHook:
             session=None,
             client_id=None,
             consumer_key=None,
+            consumer_secret=None,
             privatekey_file=None,
             privatekey=None,
         )
@@ -261,6 +266,7 @@ class TestSalesforceHook:
             {
                 "client_id": "",
                 "consumer_key": "",
+                "consumer_secret": "",
                 "domain": "",
                 "instance": "",
                 "instance_url": "",
@@ -291,6 +297,7 @@ class TestSalesforceHook:
             session=None,
             client_id=None,
             consumer_key=None,
+            consumer_secret=None,
             privatekey_file=None,
             privatekey=None,
         )
@@ -480,6 +487,7 @@ class TestSalesforceHook:
             mock_client.assert_called_with(
                 client_id=None,
                 consumer_key=None,
+                consumer_secret=None,
                 domain="domain",
                 instance=None,
                 instance_url=None,
@@ -509,6 +517,7 @@ class TestSalesforceHook:
             mock_client.assert_called_with(
                 client_id=None,
                 consumer_key=None,
+                consumer_secret=None,
                 domain=None,
                 instance=None,
                 instance_url=None,

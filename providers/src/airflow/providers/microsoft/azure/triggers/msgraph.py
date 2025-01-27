@@ -90,6 +90,7 @@ class MSGraphTrigger(BaseTrigger):
     :param timeout: The HTTP timeout being used by the `KiotaRequestAdapter` (default is None).
         When no timeout is specified or set to None then there is no HTTP timeout on each request.
     :param proxies: A dict defining the HTTP proxies to be used (default is None).
+    :param scopes: The scopes to be used (default is ["https://graph.microsoft.com/.default"]).
     :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
         You can pass an enum named APIVersion which has 2 possible members v1 and beta,
         or you can pass a string as `v1.0` or `beta`.
@@ -121,6 +122,7 @@ class MSGraphTrigger(BaseTrigger):
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         timeout: float | None = None,
         proxies: dict | None = None,
+        scopes: str | list[str] | None = None,
         api_version: APIVersion | str | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
     ):
@@ -129,6 +131,7 @@ class MSGraphTrigger(BaseTrigger):
             conn_id=conn_id,
             timeout=timeout,
             proxies=proxies,
+            scopes=scopes,
             api_version=api_version,
         )
         self.url = url
@@ -157,6 +160,7 @@ class MSGraphTrigger(BaseTrigger):
                 "conn_id": self.conn_id,
                 "timeout": self.timeout,
                 "proxies": self.proxies,
+                "scopes": self.hook.scopes,
                 "api_version": self.api_version,
                 "serializer": f"{self.serializer.__class__.__module__}.{self.serializer.__class__.__name__}",
                 "url": self.url,

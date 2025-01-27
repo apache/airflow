@@ -244,8 +244,7 @@ class Trigger(Base):
         trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one()
         for asset in trigger.assets:
             AssetManager.register_asset_change(
-                asset=asset.to_public(),
-                session=session,
+                asset=asset.to_public(), session=session, extra={"from_trigger": True}
             )
 
     @classmethod

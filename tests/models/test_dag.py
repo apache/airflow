@@ -1035,7 +1035,7 @@ class TestDag:
         dag = DAG("test_dag2", schedule=None, max_consecutive_failed_dag_runs=2)
         assert dag.max_consecutive_failed_dag_runs == 2
 
-    def test_existing_dag_is_paused_after_limit(self):
+    def test_existing_dag_is_paused_after_limit(self, testing_dag_bundle):
         def add_failed_dag_run(dag, id, logical_date):
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_v = DagVersion.get_latest_version(dag_id=dag.dag_id)
@@ -1058,7 +1058,7 @@ class TestDag:
         dag.add_task(op1)
         session = settings.Session()
         dag.sync_to_db(session=session)
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         assert not dag.get_is_paused()
 
         # dag should be paused after 2 failed dag_runs
@@ -2379,7 +2379,7 @@ class TestDagModel:
         ],
     )
     def test_relative_fileloc_serialized(
-        self, fileloc, expected_relative, session, clear_dags, reader_dags_folder
+        self, fileloc, expected_relative, session, clear_dags, reader_dags_folder, testing_dag_bundle
     ):
         """
         The serialized dag model includes the dags folder as configured on the thing serializing
@@ -2393,20 +2393,20 @@ class TestDagModel:
         dag = DAG(dag_id="test", schedule=None)
         dag.fileloc = fileloc
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
         session.expunge_all()
         sdm = SerializedDagModel.get(dag.dag_id, session)
         dag = sdm.dag
         with conf_vars({("core", "dags_folder"): reader_dags_folder}):
             assert dag.relative_fileloc == expected_relative
 
-    def test__processor_dags_folder(self, session):
+    def test__processor_dags_folder(self, session, testing_dag_bundle):
         """Only populated after deserializtion"""
         dag = DAG(dag_id="test", schedule=None)
         dag.fileloc = "/abc/test.py"
         dag.sync_to_db()
         assert dag._processor_dags_folder is None
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         sdm = SerializedDagModel.get(dag.dag_id, session)
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 

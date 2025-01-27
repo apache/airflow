@@ -53,13 +53,13 @@ export const DagCard = ({ dag }: Props) => {
           <TriggerDAGButton dag={dag} withText={false} />
         </HStack>
       </Flex>
-      <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
+      <SimpleGrid columns={4} gap={1} height={20} px={3}>
         <Stat label="Schedule">
           <Schedule dag={dag} />
         </Stat>
         <Stat label="Latest Run">
           {latestRun ? (
-            <Link asChild color="fg.info" fontSize="sm">
+            <Link asChild color="fg.info">
               <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
                 <DagRunInfo
                   dataIntervalEnd={latestRun.data_interval_end}
