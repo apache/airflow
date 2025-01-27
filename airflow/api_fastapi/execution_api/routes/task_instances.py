@@ -471,19 +471,18 @@ def ti_runtime_checks(
     task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
     if task_instance.state != State.RUNNING:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    else:
-        try:
-            TI.validate_inlet_outlet_assets_activeness(payload.inlet, payload.outlet, session)  # type: ignore
-        except AirflowInactiveAssetInInletOrOutletException as e:
-            log.error("Task Instance %s doesn't pass the runtime checks.", ti_id_str)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "reason": "validation_failed",
-                    "message": "Task Instance fails the runtime checks",
-                    "error": str(e),
-                },
-            )
+    try:
+        TI.validate_inlet_outlet_assets_activeness(payload.inlet, payload.outlet, session)  # type: ignore
+    except AirflowInactiveAssetInInletOrOutletException as e:
+        log.error("Task Instance %s doesn't pass the runtime checks.", ti_id_str)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "validation_failed",
+                "message": "Task Instance fails the runtime checks",
+                "error": str(e),
+            },
+        )
     return {"message": "Runtime checks passed successfully."}
 
 
