@@ -80,6 +80,7 @@ services:
       - ../../../providers/tableau/tests:/opt/airflow/providers/tableau/tests
       - ../../../providers/telegram/tests:/opt/airflow/providers/telegram/tests
       - ../../../providers/teradata/tests:/opt/airflow/providers/teradata/tests
+      - ../../../providers/vertica/tests:/opt/airflow/providers/vertica/tests
       - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
       - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests
       - ../../../providers/zendesk/tests:/opt/airflow/providers/zendesk/tests

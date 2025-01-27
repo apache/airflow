@@ -407,9 +407,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/trino/**/*
 
   provider:vertica:
-    - providers/src/airflow/providers/vertica/**/*
-    - docs/apache-airflow-providers-vertica/**/*
-    - providers/tests/vertica/**/*
+    - providers/vertica/**
 
   provider:weaviate:
     - providers/weaviate/**
