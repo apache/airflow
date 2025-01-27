@@ -22,7 +22,7 @@ import pytest
 
 qdrant_client = pytest.importorskip("qdrant_client")
 
-from airflow.providers.qdrant.hooks.qdrant import QdrantHook
+from airflow.providers.qdrant.hooks.qdrant import QdrantHook  # noqa: E402
 
 
 class TestQdrantHook:

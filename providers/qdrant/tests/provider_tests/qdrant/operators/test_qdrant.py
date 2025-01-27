@@ -23,7 +23,7 @@ import pytest
 qdrant_client = pytest.importorskip("qdrant_client")
 
 
-from airflow.providers.qdrant.operators.qdrant import QdrantIngestOperator
+from airflow.providers.qdrant.operators.qdrant import QdrantIngestOperator  # noqa: E402
 
 
 class TestQdrantIngestOperator:
