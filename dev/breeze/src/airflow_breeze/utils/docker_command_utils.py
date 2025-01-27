@@ -592,7 +592,8 @@ def fix_ownership_using_docker(quiet: bool = False):
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
     """
-    Removes specified docker networks. If no networks are specified, it removes all unused networks.
+    Removes specified docker networks. If no networks are specified, it removes all networks created by breeze.
+    Any network with label "com.docker.compose.project=breeze" are removed when no networks are specified.
     Errors are ignored (not even printed in the output), so you can safely call it without checking
     if the networks exist.
 
@@ -600,7 +601,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
     """
     if networks is None:
         run_command(
-            ["docker", "network", "prune", "-f"],
+            ["docker", "network", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
             check=False,
             stderr=DEVNULL,
         )
@@ -608,6 +609,30 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
         for network in networks:
             run_command(
                 ["docker", "network", "rm", network],
+                check=False,
+                stderr=DEVNULL,
+            )
+
+
+def remove_docker_volumes(volumes: list[str] | None = None) -> None:
+    """
+    Removes specified docker volumes. If no volumes are specified, it removes all volumes created by breeze.
+    Any volume with label "com.docker.compose.project=breeze" are removed when no volumes are specified.
+    Errors are ignored (not even printed in the output), so you can safely call it without checking
+    if the volumes exist.
+
+    :param volumes: list of volumes to remove
+    """
+    if volumes is None:
+        run_command(
+            ["docker", "volume", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
+            check=False,
+            stderr=DEVNULL,
+        )
+    else:
+        for volume in volumes:
+            run_command(
+                ["docker", "volume", "rm", volume],
                 check=False,
                 stderr=DEVNULL,
             )

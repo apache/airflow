@@ -30,10 +30,8 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     _get_change_from_line,
     _get_changes_classified,
     _get_git_log_command,
-    _verify_changelog_exists,
     get_version_tag,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 CHANGELOG_CONTENT = """
 Changelog
@@ -232,13 +230,6 @@ def test_convert_git_changes_to_table(input: str, output: str, markdown: bool, c
     assert list_of_changes[0].pr is None
     assert list_of_changes[1].pr == "12345"
     assert list_of_changes[2].pr == "12346"
-
-
-def test_verify_changelog_exists():
-    assert (
-        _verify_changelog_exists("asana")
-        == AIRFLOW_SOURCES_ROOT / "providers" / "src" / "airflow" / "providers" / "asana" / "CHANGELOG.rst"
-    )
 
 
 def generate_random_string(length):

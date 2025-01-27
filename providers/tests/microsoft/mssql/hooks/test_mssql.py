@@ -246,7 +246,7 @@ class TestMsSqlHook:
     def test_generate_insert_sql(self, get_connection):
         get_connection.return_value = PYMSSQL_CONN
 
-        hook = MsSqlHook()
+        hook = MsSqlHook(escape_word_format="[{}]")
         sql = hook._generate_insert_sql(
             table="YAMMER_GROUPS_ACTIVITY_DETAIL",
             values=[

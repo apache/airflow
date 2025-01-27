@@ -108,6 +108,13 @@ To start Airflow using Breeze:
 
    breeze start-airflow
 
+To start Airflow in development mode:
+
+.. code-block:: bash
+
+   breeze start-airflow --dev-mode
+
+
 .. note::
    The database initialization step is required only when you plan to use the webserver.
    When running tests, the database will be initialized automatically on the first run.

@@ -19,7 +19,6 @@ from __future__ import annotations
 import datetime
 import os
 import re
-import sys
 import textwrap
 import time
 from abc import ABCMeta, abstractmethod
@@ -377,7 +376,7 @@ def check_async_run_results(
     skip_cleanup: bool = False,
     summarize_on_ci: SummarizeAfter = SummarizeAfter.NO_SUMMARY,
     summary_start_regexp: str | None = None,
-):
+) -> bool:
     """
     Check if all async results were success. Exits with error if not.
     :param results: results of parallel runs (expected in the form of Tuple: (return_code, info)
@@ -394,6 +393,7 @@ def check_async_run_results(
     """
     from airflow_breeze.utils.ci_group import ci_group
 
+    tests_failed = False
     completed_number = 0
     total_number_of_results = len(results)
     completed_list = get_completed_result_list(results)
@@ -447,7 +447,7 @@ def check_async_run_results(
             from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
 
             fix_ownership_using_docker()
-            sys.exit(1)
+            tests_failed = True
         else:
             get_console().print(f"\n[success]{success}[/]\n")
             from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
@@ -457,6 +457,8 @@ def check_async_run_results(
         if not skip_cleanup:
             for output in outputs:
                 Path(output.file_name).unlink(missing_ok=True)
+
+    return tests_failed
 
 
 @contextmanager

@@ -41,6 +41,7 @@ class TestTeradataHook:
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
+        self.conn.extra_dejson = {}
         conn = self.conn
 
         class UnitTestTeradataHook(TeradataHook):

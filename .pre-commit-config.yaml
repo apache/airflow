@@ -246,7 +246,7 @@ repos:
         name: Require literal syntax when initializing builtins
       - id: detect-private-key
         name: Detect if private key is added to the repository
-        exclude: ^docs/apache-airflow-providers-ssh/connections/ssh.rst$
+        exclude: ^providers/ssh/docs/connections/ssh.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
         exclude: ^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
@@ -644,7 +644,7 @@ repos:
           ^docs/.*commits.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^providers/src/airflow/providers/microsoft/winrm/operators/winrm.py$|
-          ^providers/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
+          ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
           ^providers/src/airflow/providers/redis/provider.yaml$|
           ^airflow/serialization/serialized_objects.py$|
           ^airflow/ui/pnpm-lock.yaml$|

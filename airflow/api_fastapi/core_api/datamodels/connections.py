@@ -18,18 +18,11 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.api_fastapi.core_api.datamodels.common import (
-    BulkAction,
-    BulkActionNotOnExistence,
-    BulkActionOnExistence,
-    BulkBaseAction,
-)
 from airflow.utils.log.secrets_masker import redact
 
 
@@ -95,76 +88,3 @@ class ConnectionBody(BaseModel):
     port: int | None = Field(default=None)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
-
-
-class ConnectionBulkCreateAction(BulkBaseAction):
-    """Bulk Create Variable serializer for request bodies."""
-
-    action: BulkAction = BulkAction.CREATE
-    connections: list[ConnectionBody] = Field(..., description="A list of connections to be created.")
-    action_on_existence: BulkActionOnExistence = BulkActionOnExistence.FAIL
-
-
-class ConnectionBulkUpdateAction(BulkBaseAction):
-    """Bulk Update Connection serializer for request bodies."""
-
-    action: BulkAction = BulkAction.UPDATE
-    connections: list[ConnectionBody] = Field(..., description="A list of connections to be updated.")
-    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
-
-
-class ConnectionBulkDeleteAction(BulkBaseAction):
-    """Bulk Delete Connection serializer for request bodies."""
-
-    action: BulkAction = BulkAction.DELETE
-    connection_ids: list[str] = Field(..., description="A list of connection IDs to be deleted.")
-    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
-
-
-class ConnectionBulkBody(BaseModel):
-    """Request body for bulk Connection operations (create, update, delete)."""
-
-    actions: list[ConnectionBulkCreateAction | ConnectionBulkUpdateAction | ConnectionBulkDeleteAction] = (
-        Field(..., description="A list of Connection actions to perform.")
-    )
-
-
-class ConnectionBulkActionResponse(BaseModel):
-    """
-    Serializer for individual bulk action responses.
-
-    Represents the outcome of a single bulk operation (create, update, or delete).
-    The response includes a list of successful connection_ids and any errors encountered during the operation.
-    This structure helps users understand which key actions succeeded and which failed.
-    """
-
-    success: list[str] = Field(
-        default_factory=list, description="A list of connection_ids representing successful operations."
-    )
-    errors: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="A list of errors encountered during the operation, each containing details about the issue.",
-    )
-
-
-class ConnectionBulkResponse(BaseModel):
-    """
-    Serializer for responses to bulk connection operations.
-
-    This represents the results of create, update, and delete actions performed on connections in bulk.
-    Each action (if requested) is represented as a field containing details about successful connection_ids and any encountered errors.
-    Fields are populated in the response only if the respective action was part of the request, else are set None.
-    """
-
-    create: ConnectionBulkActionResponse | None = Field(
-        default=None,
-        description="Details of the bulk create operation, including successful connection_ids and errors.",
-    )
-    update: ConnectionBulkActionResponse | None = Field(
-        default=None,
-        description="Details of the bulk update operation, including successful connection_ids and errors.",
-    )
-    delete: ConnectionBulkActionResponse | None = Field(
-        default=None,
-        description="Details of the bulk delete operation, including successful connection_ids and errors.",
-    )
