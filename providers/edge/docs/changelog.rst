@@ -33,7 +33,7 @@ Changelog
 Misc
 ~~~~
 
-* ``Enable maintenance mode for edge worker.``
+* ``Add the option to set edge workers to maintenance mode via UI plugin and API.``
 
 0.10.2pre0
 ..........

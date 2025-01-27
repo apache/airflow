@@ -53,13 +53,13 @@ class EdgeWorkerState(str, Enum):
     UNKNOWN = "unknown"
     """No heartbeat signal from worker for some time, Edge Worker probably down."""
     MAINTENANCE_REQUEST = "maintenance request"
-    """Maintenance mode was requested by user."""
+    """Worker was requested to enter maintenance mode. Once worker receives this it will pause fetching jobs."""
     MAINTENANCE_PENDING = "maintenance pending"
-    """Edge worker received the request for maintenance, waiting for jobs to finish."""
+    """Edge worker received the request for maintenance, waiting for jobs to finish. Once jobs are finished will move to 'maintenance mode'."""
     MAINTENANCE_MODE = "maintenance mode"
-    """Edge worker is in maintenance mode."""
+    """Edge worker is in maintenance mode. It is online but pauses fetching jobs."""
     MAINTENANCE_EXIT = "maintenance exit"
-    """Request worker to exit maintenance mode."""
+    """Request worker to exit maintenance mode. Once the worker receives this state it will un-pause and fetch new jobs."""
 
 
 class EdgeWorkerModel(Base, LoggingMixin):
