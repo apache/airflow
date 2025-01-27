@@ -342,6 +342,10 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TC001"]
 
+# The FastAPI models are not parsed well with Pydantic when __future__.annotations is used
+# It is forcing for Union to replace with `|` pipe instead
+"airflow/api_fastapi/core_api/datamodels/common.py" = ["UP007"]
+
 # Provider's get_provider_info.py files are generated and do not need "from __future__ import annotations"
 "providers/**/get_provider_info.py" = ["I002"]
 
@@ -617,13 +621,31 @@ dev = [
   "apache-airflow-providers-airbyte",
   "apache-airflow-providers-alibaba",
   "apache-airflow-providers-apache-iceberg",
+  "apache-airflow-providers-apache-pig",
+  "apache-airflow-providers-asana",
   "apache-airflow-providers-celery",
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-sql",
+  "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-hashicorp",
+  "apache-airflow-providers-neo4j",
+  "apache-airflow-providers-openai",
+  "apache-airflow-providers-openfaas",
+  "apache-airflow-providers-opsgenie",
+  "apache-airflow-providers-papermill",
+  "apache-airflow-providers-pgvector",
   "apache-airflow-providers-pinecone",
+  "apache-airflow-providers-postgres",
+  "apache-airflow-providers-samba",
+  "apache-airflow-providers-segment",
+  "apache-airflow-providers-singularity",
+  "apache-airflow-providers-ssh",
   "apache-airflow-providers-standard",
+  "apache-airflow-providers-tableau",
+  "apache-airflow-providers-telegram",
   "apache-airflow-providers-weaviate",
+  "apache-airflow-providers-ydb",
   "apache-airflow-providers-zendesk",
   "apache-airflow-task-sdk",
 ]
@@ -635,13 +657,31 @@ local-providers = { workspace = true }
 apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
+apache-airflow-providers-apache-pig = { workspace = true }
+apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
+apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-hashicorp = { workspace = true }
+apache-airflow-providers-neo4j = { workspace = true }
+apache-airflow-providers-openai = { workspace = true }
+apache-airflow-providers-openfaas = { workspace = true }
+apache-airflow-providers-opsgenie = { workspace = true }
+apache-airflow-providers-papermill = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
+apache-airflow-providers-postgres = { workspace = true }
+apache-airflow-providers-pgvector = { workspace = true }
+apache-airflow-providers-samba = { workspace = true }
+apache-airflow-providers-segment = { workspace = true }
+apache-airflow-providers-singularity = { workspace = true }
+apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
+apache-airflow-providers-tableau = { workspace = true }
+apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
+apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 
@@ -651,13 +691,31 @@ members = [
     "providers/airbyte",
     "providers/alibaba",
     "providers/apache/iceberg",
+    "providers/apache/pig",
+    "providers/asana",
     "providers/celery",
     "providers/cohere",
     "providers/common/sql",
+    "providers/datadog",
     "providers/edge",
+    "providers/hashicorp",
+    "providers/neo4j",
+    "providers/openai",
+    "providers/openfaas",
+    "providers/opsgenie",
+    "providers/papermill",
     "providers/pinecone",
+    "providers/postgres",
+    "providers/pgvector",
+    "providers/samba",
+    "providers/segment",
+    "providers/singularity",
+    "providers/ssh",
     "providers/standard",
+    "providers/tableau",
+    "providers/telegram",
     "providers/weaviate",
+    "providers/ydb",
     "providers/zendesk",
     "task_sdk",
 ]
