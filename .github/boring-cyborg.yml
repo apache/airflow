@@ -115,9 +115,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/spark/**/*
 
   provider:apprise:
-    - providers/src/airflow/providers/apprise/**/*
-    - docs/apache-airflow-providers-apprise/**/*
-    - providers/tests/apprise/**/*
+    - providers/apprise/**
 
   provider:arangodb:
     - providers/src/airflow/providers/arangodb/**/*
@@ -456,10 +454,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/teradata/**/*
 
   provider:trino:
-    - providers/src/airflow/providers/trino/**/*
-    - docs/apache-airflow-providers-trino/**/*
-    - providers/tests/trino/**/*
-    - providers/tests/system/trino/**/*
+    - providers/trino/**
 
   provider:vertica:
     - providers/src/airflow/providers/vertica/**/*

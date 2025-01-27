@@ -621,6 +621,7 @@ dev = [
   "apache-airflow-providers-airbyte",
   "apache-airflow-providers-alibaba",
   "apache-airflow-providers-apache-iceberg",
+  "apache-airflow-providers-apprise",
   "apache-airflow-providers-asana",
   "apache-airflow-providers-celery",
   "apache-airflow-providers-cohere",
@@ -638,6 +639,7 @@ dev = [
   "apache-airflow-providers-ssh",
   "apache-airflow-providers-standard",
   "apache-airflow-providers-telegram",
+  "apache-airflow-providers-trino",
   "apache-airflow-providers-weaviate",
   "apache-airflow-providers-ydb",
   "apache-airflow-providers-zendesk",
@@ -651,6 +653,7 @@ local-providers = { workspace = true }
 apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
+apache-airflow-providers-apprise = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
@@ -668,6 +671,7 @@ apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
 apache-airflow-providers-telegram = { workspace = true }
+apache-airflow-providers-trino = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
@@ -679,6 +683,7 @@ members = [
     "providers/airbyte",
     "providers/alibaba",
     "providers/apache/iceberg",
+    "providers/apprise",
     "providers/asana",
     "providers/celery",
     "providers/cohere",
@@ -696,6 +701,7 @@ members = [
     "providers/ssh",
     "providers/standard",
     "providers/telegram",
+    "providers/trino",
     "providers/weaviate",
     "providers/ydb",
     "providers/zendesk",
