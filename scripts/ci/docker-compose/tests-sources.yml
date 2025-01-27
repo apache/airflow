@@ -57,6 +57,7 @@ services:
       - ../../../providers/exasol/tests:/opt/airflow/providers/exasol/tests
       - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
+      - ../../../providers/http/tests:/opt/airflow/providers/http/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
       - ../../../providers/mysql/tests:/opt/airflow/providers/mysql/tests
