@@ -19,10 +19,9 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING, Annotated, Any, Callable
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
-from starlette import status
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.base_user import BaseUser
@@ -52,6 +51,20 @@ def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
         return get_auth_manager().deserialize_user(payload)
     except InvalidTokenError:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
+
+
+async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
+    # Currently the UI does not support JWT authentication, this method defines a fallback if no token is provided by the UI.
+    # We can remove this method when issue https://github.com/apache/airflow/issues/44884 is done.
+    try:
+        token_str = await oauth2_scheme(request)
+        if not token_str:  # Handle None or empty token
+            return None
+        return get_user(token_str)
+    except HTTPException as e:
+        if e.status_code == status.HTTP_401_UNAUTHORIZED:
+            return None
+        raise e
 
 
 def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None = None) -> Callable:
