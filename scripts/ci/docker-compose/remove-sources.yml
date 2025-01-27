@@ -43,6 +43,7 @@ services:
       - ../../../empty:/opt/airflow/providers/datadog/src
       - ../../../empty:/opt/airflow/providers/edge/src
       - ../../../empty:/opt/airflow/providers/hashicorp/src
+      - ../../../empty:/opt/airflow/providers/imap/src
       - ../../../empty:/opt/airflow/providers/neo4j/src
       - ../../../empty:/opt/airflow/providers/openai/src
       - ../../../empty:/opt/airflow/providers/openfaas/src

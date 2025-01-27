@@ -11,6 +11,7 @@ apache-airflow-providers-common-sql
 apache-airflow-providers-datadog
 apache-airflow-providers-edge
 apache-airflow-providers-hashicorp
+apache-airflow-providers-imap
 apache-airflow-providers-neo4j
 apache-airflow-providers-openai
 apache-airflow-providers-openfaas
