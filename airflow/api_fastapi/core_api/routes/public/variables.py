@@ -31,21 +31,14 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
-    VariableBulkActionResponse,
-    VariableBulkBody,
-    VariableBulkResponse,
     VariableCollectionResponse,
     VariableResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.services.public.variables import (
-    handle_bulk_create,
-    handle_bulk_delete,
-    handle_bulk_update,
-)
+from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
@@ -193,21 +186,8 @@ def post_variable(
 
 @variables_router.patch("")
 def bulk_variables(
-    request: VariableBulkBody,
+    request: BulkBody[VariableBody],
     session: SessionDep,
-) -> VariableBulkResponse:
+) -> BulkResponse:
     """Bulk create, update, and delete variables."""
-    results: dict[str, VariableBulkActionResponse] = {}
-
-    for action in request.actions:
-        if action.action.value not in results:
-            results[action.action.value] = VariableBulkActionResponse()
-
-        if action.action == BulkAction.CREATE:
-            handle_bulk_create(session, action, results[action.action.value])  # type: ignore
-        elif action.action == BulkAction.UPDATE:
-            handle_bulk_update(session, action, results[action.action.value])  # type: ignore
-        elif action.action == BulkAction.DELETE:
-            handle_bulk_delete(session, action, results[action.action.value])  # type: ignore
-
-    return VariableBulkResponse(**results)
+    return BulkVariableService(session=session, request=request).handle_request()

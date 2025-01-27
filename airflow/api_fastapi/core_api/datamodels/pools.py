@@ -17,17 +17,11 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Callable
+from typing import Annotated, Callable
 
 from pydantic import BeforeValidator, ConfigDict, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.api_fastapi.core_api.datamodels.common import (
-    BulkAction,
-    BulkActionNotOnExistence,
-    BulkActionOnExistence,
-    BulkBaseAction,
-)
 
 
 def _call_function(function: Callable[[], int]) -> int:
@@ -77,89 +71,9 @@ class PoolPatchBody(BaseModel):
     include_deferred: bool | None = None
 
 
-class PoolPostBody(BasePool):
+class PoolBody(BasePool):
     """Pool serializer for post bodies."""
 
     pool: str = Field(alias="name", max_length=256)
     description: str | None = None
     include_deferred: bool = False
-
-
-class PoolPostBulkBody(BaseModel):
-    """Pools serializer for post bodies."""
-
-    pools: list[PoolPostBody]
-    overwrite: bool | None = Field(default=False)
-
-
-class PoolBulkCreateAction(BulkBaseAction):
-    """Bulk Create Pool serializer for request bodies."""
-
-    action: BulkAction = BulkAction.CREATE
-    pools: list[PoolPostBody] = Field(..., description="A list of pools to be created.")
-    action_on_existence: BulkActionOnExistence = BulkActionOnExistence.FAIL
-
-
-class PoolBulkUpdateAction(BulkBaseAction):
-    """Bulk Update Pool serializer for request bodies."""
-
-    action: BulkAction = BulkAction.UPDATE
-    pools: list[PoolPatchBody] = Field(..., description="A list of pools to be updated.")
-    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
-
-
-class PoolBulkDeleteAction(BulkBaseAction):
-    """Bulk Delete Pool serializer for request bodies."""
-
-    action: BulkAction = BulkAction.DELETE
-    pool_names: list[str] = Field(..., description="A list of pool names to be deleted.")
-    action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
-
-
-class PoolBulkBody(BaseModel):
-    """Request body for bulk Pool operations (create, update, delete)."""
-
-    actions: list[PoolBulkCreateAction | PoolBulkUpdateAction | PoolBulkDeleteAction] = Field(
-        ..., description="A list of Pool actions to perform."
-    )
-
-
-class PoolBulkActionResponse(BaseModel):
-    """
-    Serializer for individual bulk action responses.
-
-    Represents the outcome of a single bulk operation (create, update, or delete).
-    The response includes a list of successful pool names and any errors encountered during the operation.
-    This structure helps users understand which key actions succeeded and which failed.
-    """
-
-    success: list[str] = Field(
-        default_factory=list, description="A list of pool names representing successful operations."
-    )
-    errors: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="A list of errors encountered during the operation, each containing details about the issue.",
-    )
-
-
-class PoolBulkResponse(BaseModel):
-    """
-    Serializer for responses to bulk pool operations.
-
-    This represents the results of create, update, and delete actions performed on pools in bulk.
-    Each action (if requested) is represented as a field containing details about successful pool names and any encountered errors.
-    Fields are populated in the response only if the respective action was part of the request, else are set None.
-    """
-
-    create: PoolBulkActionResponse | None = Field(
-        default=None,
-        description="Details of the bulk create operation, including successful pool names and errors.",
-    )
-    update: PoolBulkActionResponse | None = Field(
-        default=None,
-        description="Details of the bulk update operation, including successful pool names and errors.",
-    )
-    delete: PoolBulkActionResponse | None = Field(
-        default=None,
-        description="Details of the bulk delete operation, including successful pool names and errors.",
-    )
