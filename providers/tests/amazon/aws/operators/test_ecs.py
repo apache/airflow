@@ -753,6 +753,19 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         # task gets described to assert its success
         client_mock().describe_tasks.assert_called_once_with(cluster="test_cluster", tasks=["my_arn"])
 
+    @mock.patch.object(EcsBaseOperator, "client")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
+    def test_container_name_in_log_stream(self, client_mock):
+        container_name = "container-name"
+        prefix = "prefix"
+        self.set_up_operator(
+            awslogs_group="awslogs-group",
+            awslogs_stream_prefix=prefix,
+            container_name=container_name
+        )
+
+        assert self.ecs._get_logs_stream_name() == f"{prefix}/{container_name}/{TASK_ID}"
+
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
     @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
