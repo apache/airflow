@@ -299,9 +299,7 @@ labelPRBasedOnFilePath:
     - providers/openfaas/**
 
   provider:openlineage:
-    - providers/src/airflow/providers/openlineage/**/*
-    - docs/apache-airflow-providers-openlineage/**/*
-    - providers/tests/openlineage/**/*
+    - providers/openlineage/**
 
   provider:opensearch:
     - providers/src/airflow/providers/opensearch/**/*
