@@ -16,31 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, Button } from "@chakra-ui/react";
-import type { ReactNode } from "react";
+import { Box, Text, Button, Badge, type BadgeProps } from "@chakra-ui/react";
 import { FiChevronRight } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
-import { MetricsBadge } from "src/components/MetricsBadge";
 import { capitalize } from "src/utils";
 
 // TODO: Add badge count once API is available
 
-export const DagFilterButton = ({
-  colorPalette,
-  filter,
-  icon,
-  link,
-}: {
-  readonly colorPalette: string;
+type Props = {
   readonly filter: string;
-  readonly icon?: ReactNode;
   readonly link: string;
-}) => (
+} & BadgeProps;
+
+export const DagFilterButton = ({ children, filter, link, ...rest }: Props) => (
   <RouterLink to={link}>
     <Button alignItems="center" borderRadius="md" display="flex" gap={2} variant="outline">
       <Box alignItems="center" display="flex" gap={1}>
-        <MetricsBadge colorPalette={colorPalette} icon={icon} />
+        <Badge borderRadius="full" p={1} variant="solid" {...rest}>
+          {children}
+        </Badge>
         <Text fontWeight="bold">{capitalize(filter)} Dags</Text>
         <FiChevronRight />
       </Box>
