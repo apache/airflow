@@ -54,16 +54,12 @@ versions:
   - 2.0.0
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - tableauserverclient>=0.25
-
 integrations:
   - integration-name: Tableau
     external-doc-url: https://www.tableau.com/
     how-to-guide:
       - /docs/apache-airflow-providers-tableau/operators.rst
-    logo: /integration-logos/tableau/tableau.png
+    logo: /docs/integration-logos/tableau.png
     tags: [service]
 
 operators:

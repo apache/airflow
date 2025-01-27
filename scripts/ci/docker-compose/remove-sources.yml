@@ -54,6 +54,7 @@ services:
       - ../../../empty:/opt/airflow/providers/singularity/src
       - ../../../empty:/opt/airflow/providers/ssh/src
       - ../../../empty:/opt/airflow/providers/standard/src
+      - ../../../empty:/opt/airflow/providers/tableau/src
       - ../../../empty:/opt/airflow/providers/telegram/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
       - ../../../empty:/opt/airflow/providers/ydb/src

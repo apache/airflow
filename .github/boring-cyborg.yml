@@ -434,10 +434,7 @@ labelPRBasedOnFilePath:
     - providers/ssh/**
 
   provider:tableau:
-    - providers/src/airflow/providers/tableau/**/*
-    - docs/apache-airflow-providers-tableau/**/*
-    - providers/tests/tableau/**/*
-    - providers/tests/system/tableau/**/*
+    - providers/tableau/**
 
   provider:telegram:
     - providers/telegram/**
