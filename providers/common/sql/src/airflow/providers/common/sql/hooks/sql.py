@@ -744,8 +744,8 @@ class DbApiHook(BaseHook):
                         self.log.debug("Generated sql: %s", sql)
                         cur.executemany(sql, values)
                         conn.commit()
-                        self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
                         nb_rows += len(chunked_rows)
+                        self.log.info("Loaded %s rows into %s so far", nb_rows, table)
                 else:
                     for i, row in enumerate(rows, 1):
                         values = self._serialize_cells(row, conn)
