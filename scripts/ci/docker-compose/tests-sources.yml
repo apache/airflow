@@ -72,6 +72,7 @@ services:
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
+      - ../../../providers/snowflake/tests:/opt/airflow/providers/snowflake/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
       - ../../../providers/tableau/tests:/opt/airflow/providers/tableau/tests

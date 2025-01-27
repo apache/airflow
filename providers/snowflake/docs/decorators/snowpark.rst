@@ -15,28 +15,24 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator:SnowparkOperator:
+.. _howto/decorators:snowpark:
 
-SnowparkOperator
-================
+``@task.snowpark``
+==================
 
-Use the :class:`SnowparkOperator <airflow.providers.snowflake.operators.snowpark.SnowparkOperator>` to run
+Use the :func:`@task.snowpark <airflow.providers.snowflake.decorators.snowpark.snowpark_task>` to run
 `Snowpark Python <https://docs.snowflake.com/en/developer-guide/snowpark/python/index.html>`__ code in a `Snowflake <https://docs.snowflake.com/en/>`__ database.
 
 .. warning::
 
     - Snowpark does not support Python 3.12 yet.
-    - Currently, this operator does not support `Snowpark pandas API <https://docs.snowflake.com/en/developer-guide/snowpark/python/pandas-on-snowflake>`__ because conflicting pandas version is used in Airflow.
+    - Currently, this decorator does not support `Snowpark pandas API <https://docs.snowflake.com/en/developer-guide/snowpark/python/pandas-on-snowflake>`__ because conflicting pandas version is used in Airflow.
       Consider using Snowpark pandas API with other Snowpark decorators or operators.
-
-.. tip::
-
-    The :doc:`@task.snowpark </decorators/snowpark>` decorator is recommended over the ``SnowparkOperator`` to run Snowpark Python code.
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-To use this operator, you must do a few things:
+To use this decorator, you must do a few things:
 
   * Install provider package via **pip**.
 
@@ -55,10 +51,10 @@ Use the ``snowflake_conn_id`` argument to specify connection used. If not specif
 
 An example usage of the ``@task.snowpark`` is as follows:
 
-.. exampleinclude:: /../../providers/tests/system/snowflake/example_snowpark_operator.py
+.. exampleinclude:: /../../providers/snowflake/tests/system/snowflake/example_snowpark_decorator.py
     :language: python
-    :start-after: [START howto_operator_snowpark]
-    :end-before: [END howto_operator_snowpark]
+    :start-after: [START howto_decorator_snowpark]
+    :end-before: [END howto_decorator_snowpark]
 
 
 As the example demonstrates, there are two ways to use the Snowpark session object in your Python function:
@@ -70,5 +66,5 @@ As the example demonstrates, there are two ways to use the Snowpark session obje
 
 .. note::
 
-  Parameters that can be passed onto the operators will be given priority over the parameters already given
+  Parameters that can be passed onto the decorators will be given priority over the parameters already given
   in the Airflow connection metadata (such as ``schema``, ``role``, ``database`` and so forth).
