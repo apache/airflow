@@ -630,6 +630,7 @@ dev = [
   "apache-airflow-providers-apache-pig",
   "apache-airflow-providers-apache-pinot",
   "apache-airflow-providers-apache-spark",
+  "apache-airflow-providers-arangodb",
   "apache-airflow-providers-asana",
   "apache-airflow-providers-celery",
   "apache-airflow-providers-cohere",
@@ -691,6 +692,7 @@ apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
+apache-airflow-providers-arangodb = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
@@ -750,6 +752,7 @@ members = [
     "providers/apache/pig",
     "providers/apache/pinot",
     "providers/apache/spark",
+    "providers/arangodb",
     "providers/asana",
     "providers/celery",
     "providers/cohere",
