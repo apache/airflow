@@ -12,6 +12,7 @@ apache-airflow-providers-edge
 apache-airflow-providers-hashicorp
 apache-airflow-providers-neo4j
 apache-airflow-providers-openai
+apache-airflow-providers-openfaas
 apache-airflow-providers-opsgenie
 apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
