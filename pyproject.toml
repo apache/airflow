@@ -627,6 +627,7 @@ dev = [
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-neo4j",
   "apache-airflow-providers-openai",
   "apache-airflow-providers-pgvector",
   "apache-airflow-providers-mysql",
@@ -635,6 +636,7 @@ dev = [
   "apache-airflow-providers-pagerduty",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
+  "apache-airflow-providers-samba",
   "apache-airflow-providers-segment",
   "apache-airflow-providers-ssh",
   "apache-airflow-providers-standard",
@@ -658,6 +660,7 @@ apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-neo4j = { workspace = true }
 apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
 apache-airflow-providers-mysql = { workspace = true }
@@ -666,6 +669,7 @@ apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-postgres = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
+apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
@@ -691,10 +695,12 @@ members = [
     "providers/mysql",
     "providers/jenkins",
     "providers/odbc",
+    "providers/neo4j",
     "providers/openai",
     "providers/pinecone",
     "providers/postgres",
     "providers/pgvector",
+    "providers/samba",
     "providers/segment",
     "providers/ssh",
     "providers/standard",
