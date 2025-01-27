@@ -145,9 +145,7 @@ labelPRBasedOnFilePath:
     - providers/common/compat/**
 
   provider:common-io:
-    - providers/src/airflow/providers/common/io/**/*
-    - docs/apache-airflow-providers-common-io/**/*
-    - providers/tests/system/common/io/**/*
+    - providers/common/io/**
 
   provider:common-sql:
     - providers/common/sql/**
