@@ -748,7 +748,7 @@ repos:
           airflow.lineage.hook.
         entry: ./scripts/ci/pre_commit/check_get_lineage_collector_providers.py
         files: ^providers/src/airflow/providers/.*\.py$
-        exclude: ^providers/src/airflow/providers/common/compat/.*\.py$
+        exclude: ^providers/common/compat/src/airflow/providers/common/compat/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name

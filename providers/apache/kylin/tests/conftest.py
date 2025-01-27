@@ -14,29 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
----
-package-name: apache-airflow-providers-common-compat
-name: Common Compat
-description: |
-  ``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``
+import pathlib
 
-state: ready
-source-date-epoch: 1731569875
-# note that those versions are maintained by release manager - do not update them manually
-versions:
-  - 1.4.0
-  - 1.3.0
-  - 1.2.2
-  - 1.2.1
-  - 1.2.0
-  - 1.1.0
-  - 1.0.0
+import pytest
 
-dependencies:
-  - apache-airflow>=2.9.0
+pytest_plugins = "tests_common.pytest_plugin"
 
-integrations:
-  - integration-name: Common Compat
-    external-doc-url: https://airflow.apache.org/docs/apache-airflow-providers-common-compat/
-    tags: [software]
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:
+    deprecations_ignore_path = pathlib.Path(__file__).parent.joinpath("deprecations_ignore.yml")
+    dep_path = [deprecations_ignore_path] if deprecations_ignore_path.exists() else []
+    config.inicfg["airflow_deprecations_ignore"] = (
+        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
+    )
