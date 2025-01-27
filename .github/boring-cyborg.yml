@@ -197,9 +197,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/elasticsearch/**/*
 
   provider:exasol:
-    - providers/src/airflow/providers/exasol/**/*
-    - docs/apache-airflow-providers-exasol/**/*
-    - providers/tests/exasol/**/*
+    - providers/exasol/**
 
   provider:fab:
     - providers/src/airflow/providers/fab/**/*
@@ -387,10 +385,7 @@ labelPRBasedOnFilePath:
     - providers/tests/smtp/**/*
 
   provider:snowflake:
-    - providers/src/airflow/providers/snowflake/**/*
-    - docs/apache-airflow-providers-snowflake/**/*
-    - providers/tests/snowflake/**/*
-    - providers/tests/system/snowflake/**/*
+    - providers/snowflake/**
 
   provider:sqlite:
     - providers/src/airflow/providers/sqlite/**/*
@@ -408,10 +403,7 @@ labelPRBasedOnFilePath:
     - providers/telegram/**
 
   provider:teradata:
-    - providers/src/airflow/providers/teradata/**/*
-    - docs/apache-airflow-providers-teradata/**/*
-    - providers/tests/teradata/**/*
-    - providers/tests/system/teradata/**/*
+    - providers/teradata/**
 
   provider:trino:
     - providers/src/airflow/providers/trino/**/*
