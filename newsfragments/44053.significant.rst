@@ -1,0 +1,20 @@
+Move ``TriggerDagRunOperator`` to standard provider
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.operators.trigger_dagrun import TriggerDagRunOperator`` → ``airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator``

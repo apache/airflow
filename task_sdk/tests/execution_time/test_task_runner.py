@@ -37,7 +37,8 @@ from airflow.exceptions import (
     AirflowTaskTerminated,
 )
 from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
@@ -46,8 +47,10 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetXCom,
+    PrevSuccessfulDagRunResult,
     SetRenderedFields,
     StartupDetails,
+    SucceedTask,
     TaskState,
     VariableResult,
     XComResult,
@@ -135,7 +138,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     with patch.dict(
         os.environ,
         {
-            "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
                 [
                     {
                         "name": "my-bundle",
@@ -171,7 +174,8 @@ def test_run_basic(time_machine, create_runtime_ti, spy_agency, mock_supervisor_
     assert ti.task._lock_for_execution
 
     mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
+        msg=SucceedTask(state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]),
+        log=mock.ANY,
     )
 
 
@@ -442,7 +446,12 @@ def test_startup_and_run_dag_with_rtif(
             log=mock.ANY,
         ),
         mock.call.send_request(
-            msg=TaskState(end_date=instant, state=TerminalTIState.SUCCESS),
+            msg=SucceedTask(
+                end_date=instant,
+                state=TerminalTIState.SUCCESS,
+                task_outlets=[],
+                outlet_events=[],
+            ),
             log=mock.ANY,
         ),
     ]
@@ -497,7 +506,8 @@ def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_co
 
     # Ensure the task is Successful
     mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
+        msg=SucceedTask(state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]),
+        log=mock.ANY,
     )
 
 
@@ -579,12 +589,66 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
         ]
     )
 
-    monkeypatch.setenv("AIRFLOW__DAG_BUNDLES__CONFIG_LIST", dag_bundle_val)
+    monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", dag_bundle_val)
     ti, _ = startup()
 
     # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!
     # Check the dag file for the actual logic!
     assert ti.task.dag.task_dict.keys() == {"visible_task", "conditional_task"}
+
+
+@pytest.mark.parametrize(
+    ["task_outlets", "expected_msg"],
+    [
+        pytest.param(
+            [Asset(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[
+                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", asset_type="Asset")
+                ],
+                outlet_events=[
+                    {
+                        "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                        "asset_alias_events": [],
+                    }
+                ],
+            ),
+            id="asset",
+        ),
+        pytest.param(
+            [AssetAlias(name="example-alias", group="asset")],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[AssetProfile(asset_type="AssetAlias")],
+                outlet_events=[],
+            ),
+            id="asset-alias",
+        ),
+    ],
+)
+def test_run_with_asset_outlets(
+    time_machine, create_runtime_ti, mock_supervisor_comms, task_outlets, expected_msg
+):
+    """Test running a basic task that contains asset outlets."""
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(
+        outlets=task_outlets,
+        task_id="asset-outlet-task",
+        bash_command="echo 'hi'",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+
+    mock_supervisor_comms.send_request.assert_any_call(msg=expected_msg, log=mock.ANY)
 
 
 class TestRuntimeTaskInstance:
@@ -614,7 +678,6 @@ class TestRuntimeTaskInstance:
             },
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
-            "expanded_ti_count": None,
             "inlets": task.inlets,
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
@@ -626,7 +689,7 @@ class TestRuntimeTaskInstance:
             "ti": runtime_ti,
         }
 
-    def test_get_context_with_ti_context_from_server(self, create_runtime_ti):
+    def test_get_context_with_ti_context_from_server(self, create_runtime_ti, mock_supervisor_comms):
         """Test the context keys are added when sent from API server (mocked)"""
         from airflow.utils import timezone
 
@@ -638,6 +701,13 @@ class TestRuntimeTaskInstance:
         runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
 
         dr = runtime_ti._ti_context_from_server.dag_run
+
+        mock_supervisor_comms.get_message.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=dr.logical_date - timedelta(hours=1),
+            data_interval_start=dr.logical_date - timedelta(hours=2),
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+        )
 
         context = runtime_ti.get_template_context()
 
@@ -653,6 +723,10 @@ class TestRuntimeTaskInstance:
             "map_index_template": task.map_index_template,
             "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
+            "prev_data_interval_end_success": timezone.datetime(2024, 12, 1, 0, 0, 0),
+            "prev_data_interval_start_success": timezone.datetime(2024, 11, 30, 23, 0, 0),
+            "prev_end_date_success": timezone.datetime(2024, 12, 1, 1, 0, 0),
+            "prev_start_date_success": timezone.datetime(2024, 12, 1, 0, 0, 0),
             "run_id": "test_run",
             "task": task,
             "task_instance": runtime_ti,
@@ -663,12 +737,34 @@ class TestRuntimeTaskInstance:
             "logical_date": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "ds": "2024-12-01",
             "ds_nodash": "20241201",
-            "expanded_ti_count": None,
             "task_instance_key_str": "basic_task__hello__20241201",
             "ts": "2024-12-01T01:00:00+00:00",
             "ts_nodash": "20241201T010000",
             "ts_nodash_with_tz": "20241201T010000+0000",
         }
+
+    def test_lazy_loading_not_triggered_until_accessed(self, create_runtime_ti, mock_supervisor_comms):
+        """Ensure lazy-loaded attributes are not resolved until accessed."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        mock_supervisor_comms.get_message.return_value = PrevSuccessfulDagRunResult(
+            data_interval_end=timezone.datetime(2025, 1, 1, 2, 0, 0),
+            data_interval_start=timezone.datetime(2025, 1, 1, 1, 0, 0),
+            start_date=timezone.datetime(2025, 1, 1, 1, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 2, 0, 0),
+        )
+
+        context = runtime_ti.get_template_context()
+
+        # Assert lazy attributes are not resolved initially
+        mock_supervisor_comms.get_message.assert_not_called()
+
+        # Access a lazy-loaded attribute to trigger computation
+        assert context["prev_data_interval_start_success"] == timezone.datetime(2025, 1, 1, 1, 0, 0)
+
+        # Now the lazy attribute should trigger the call
+        mock_supervisor_comms.get_message.assert_called_once()
 
     def test_get_connection_from_context(self, create_runtime_ti, mock_supervisor_comms):
         """Test that the connection is fetched from the API server via the Supervisor lazily when accessed"""

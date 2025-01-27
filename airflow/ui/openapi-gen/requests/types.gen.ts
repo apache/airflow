@@ -60,6 +60,9 @@ export type AssetEventCollectionResponse = {
 export type AssetEventResponse = {
   id: number;
   asset_id: number;
+  uri?: string | null;
+  name?: string | null;
+  group?: string | null;
   extra?: {
     [key: string]: unknown;
   } | null;
@@ -139,6 +142,187 @@ export type BaseInfoResponse = {
 };
 
 /**
+ * Bulk Action to be performed on the used model.
+ */
+export type BulkAction = "create" | "delete" | "update";
+
+/**
+ * Bulk Action to be taken if the entity does not exist.
+ */
+export type BulkActionNotOnExistence = "fail" | "skip";
+
+/**
+ * Bulk Action to be taken if the entity already exists or not.
+ */
+export type BulkActionOnExistence = "fail" | "skip" | "overwrite";
+
+/**
+ * Serializer for individual bulk action responses.
+ *
+ * Represents the outcome of a single bulk operation (create, update, or delete).
+ * The response includes a list of successful keys and any errors encountered during the operation.
+ * This structure helps users understand which key actions succeeded and which failed.
+ */
+export type BulkActionResponse = {
+  /**
+   * A list of unique id/key representing successful operations.
+   */
+  success?: Array<string>;
+  /**
+   * A list of errors encountered during the operation, each containing details about the issue.
+   */
+  errors?: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+export type BulkBody_ConnectionBody_ = {
+  actions: Array<
+    BulkCreateAction_ConnectionBody_ | BulkUpdateAction_ConnectionBody_ | BulkDeleteAction_ConnectionBody_
+  >;
+};
+
+export type BulkBody_PoolBody_ = {
+  actions: Array<BulkCreateAction_PoolBody_ | BulkUpdateAction_PoolBody_ | BulkDeleteAction_PoolBody_>;
+};
+
+export type BulkBody_VariableBody_ = {
+  actions: Array<
+    BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_
+  >;
+};
+
+export type BulkCreateAction_ConnectionBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be created.
+   */
+  entities: Array<ConnectionBody>;
+  action_on_existence?: BulkActionOnExistence;
+};
+
+export type BulkCreateAction_PoolBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be created.
+   */
+  entities: Array<PoolBody>;
+  action_on_existence?: BulkActionOnExistence;
+};
+
+export type BulkCreateAction_VariableBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be created.
+   */
+  entities: Array<VariableBody>;
+  action_on_existence?: BulkActionOnExistence;
+};
+
+export type BulkDeleteAction_ConnectionBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entity id/key to be deleted.
+   */
+  entities: Array<string>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkDeleteAction_PoolBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entity id/key to be deleted.
+   */
+  entities: Array<string>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkDeleteAction_VariableBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entity id/key to be deleted.
+   */
+  entities: Array<string>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+/**
+ * Serializer for responses to bulk entity operations.
+ *
+ * This represents the results of create, update, and delete actions performed on entity in bulk.
+ * Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
+ * Fields are populated in the response only if the respective action was part of the request, else are set None.
+ */
+export type BulkResponse = {
+  /**
+   * Details of the bulk create operation, including successful keys and errors.
+   */
+  create?: BulkActionResponse | null;
+  /**
+   * Details of the bulk update operation, including successful keys and errors.
+   */
+  update?: BulkActionResponse | null;
+  /**
+   * Details of the bulk delete operation, including successful keys and errors.
+   */
+  delete?: BulkActionResponse | null;
+};
+
+export type BulkUpdateAction_ConnectionBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be updated.
+   */
+  entities: Array<ConnectionBody>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkUpdateAction_PoolBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be updated.
+   */
+  entities: Array<PoolBody>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkUpdateAction_VariableBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be updated.
+   */
+  entities: Array<VariableBody>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+/**
  * Request body for Clear Task Instances endpoint.
  */
 export type ClearTaskInstancesBody = {
@@ -148,7 +332,7 @@ export type ClearTaskInstancesBody = {
   only_failed?: boolean;
   only_running?: boolean;
   reset_dag_runs?: boolean;
-  task_ids?: Array<string> | null;
+  task_ids?: Array<string | [string, number]> | null;
   dag_run_id?: string | null;
   include_upstream?: boolean;
   include_downstream?: boolean;
@@ -220,14 +404,6 @@ export type ConnectionBody = {
   port?: number | null;
   password?: string | null;
   extra?: string | null;
-};
-
-/**
- * Connections Serializer for requests body.
- */
-export type ConnectionBulkBody = {
-  connections: Array<ConnectionBody>;
-  overwrite?: boolean | null;
 };
 
 /**
@@ -883,6 +1059,16 @@ export type PluginResponse = {
 };
 
 /**
+ * Pool serializer for post bodies.
+ */
+export type PoolBody = {
+  name: string;
+  slots: number;
+  description?: string | null;
+  include_deferred?: boolean;
+};
+
+/**
  * Pool Collection serializer for responses.
  */
 export type PoolCollectionResponse = {
@@ -898,24 +1084,6 @@ export type PoolPatchBody = {
   slots?: number | null;
   description?: string | null;
   include_deferred?: boolean | null;
-};
-
-/**
- * Pool serializer for post bodies.
- */
-export type PoolPostBody = {
-  name: string;
-  slots: number;
-  description?: string | null;
-  include_deferred?: boolean;
-};
-
-/**
- * Pools serializer for post bodies.
- */
-export type PoolPostBulkBody = {
-  pools: Array<PoolPostBody>;
-  overwrite?: boolean | null;
 };
 
 /**
@@ -1276,98 +1444,6 @@ export type VariableBody = {
 };
 
 /**
- * Serializer for individual bulk action responses.
- *
- * Represents the outcome of a single bulk operation (create, update, or delete).
- * The response includes a list of successful keys and any errors encountered during the operation.
- * This structure helps users understand which key actions succeeded and which failed.
- */
-export type VariableBulkActionResponse = {
-  /**
-   * A list of keys representing successful operations.
-   */
-  success?: Array<string>;
-  /**
-   * A list of errors encountered during the operation, each containing details about the issue.
-   */
-  errors?: Array<{
-    [key: string]: unknown;
-  }>;
-};
-
-/**
- * Request body for bulk variable operations (create, update, delete).
- */
-export type VariableBulkBody = {
-  /**
-   * A list of variable actions to perform.
-   */
-  actions: Array<VariableBulkCreateAction | VariableBulkUpdateAction | VariableBulkDeleteAction>;
-};
-
-/**
- * Bulk Create Variable serializer for request bodies.
- */
-export type VariableBulkCreateAction = {
-  action?: "create";
-  /**
-   * A list of variables to be created.
-   */
-  variables: Array<VariableBody>;
-  action_if_exists?: "skip" | "overwrite" | "fail";
-};
-
-export type action_if_exists = "skip" | "overwrite" | "fail";
-
-/**
- * Bulk Delete Variable serializer for request bodies.
- */
-export type VariableBulkDeleteAction = {
-  action?: "delete";
-  /**
-   * A list of variable keys to be deleted.
-   */
-  keys: Array<string>;
-  action_if_not_exists?: "skip" | "fail";
-};
-
-export type action_if_not_exists = "skip" | "fail";
-
-/**
- * Serializer for responses to bulk variable operations.
- *
- * This represents the results of create, update, and delete actions performed on variables in bulk.
- * Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
- * Fields are populated in the response only if the respective action was part of the request, else are set None.
- */
-export type VariableBulkResponse = {
-  /**
-   * Details of the bulk create operation, including successful keys and errors.
-   */
-  create?: VariableBulkActionResponse | null;
-  /**
-   * Details of the bulk update operation, including successful keys and errors.
-   */
-  update?: VariableBulkActionResponse | null;
-  /**
-   * Details of the bulk delete operation, including successful keys and errors.
-   */
-  delete?: VariableBulkActionResponse | null;
-};
-
-/**
- * Bulk Update Variable serializer for request bodies.
- */
-export type VariableBulkUpdateAction = {
-  action?: "update";
-  /**
-   * A list of variables to be updated.
-   */
-  variables: Array<VariableBody>;
-  action_if_not_exists?: "skip" | "fail";
-};
-
-/**
  * Variable Collection serializer for responses.
  */
 export type VariableCollectionResponse = {
@@ -1576,6 +1652,7 @@ export type RecentDagRunsData = {
   owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;
+  tagsMatchMode?: "any" | "all" | null;
 };
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
@@ -1702,11 +1779,11 @@ export type PostConnectionData = {
 
 export type PostConnectionResponse = ConnectionResponse;
 
-export type PutConnectionsData = {
-  requestBody: ConnectionBulkBody;
+export type BulkConnectionsData = {
+  requestBody: BulkBody_ConnectionBody_;
 };
 
-export type PutConnectionsResponse = ConnectionCollectionResponse;
+export type BulkConnectionsResponse = BulkResponse;
 
 export type TestConnectionData = {
   requestBody: ConnectionBody;
@@ -1800,6 +1877,12 @@ export type GetDagStatsData = {
 
 export type GetDagStatsResponse = DagStatsCollectionResponse;
 
+export type GetDagReportsData = {
+  subdir: string;
+};
+
+export type GetDagReportsResponse = unknown;
+
 export type ListDagWarningsData = {
   dagId?: string | null;
   limit?: number;
@@ -1813,6 +1896,11 @@ export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
+  dagRunEndDateGte?: string | null;
+  dagRunEndDateLte?: string | null;
+  dagRunStartDateGte?: string | null;
+  dagRunStartDateLte?: string | null;
+  dagRunState?: Array<string>;
   lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
@@ -1821,6 +1909,7 @@ export type GetDagsData = {
   owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;
+  tagsMatchMode?: "any" | "all" | null;
 };
 
 export type GetDagsResponse = DAGCollectionResponse;
@@ -1835,6 +1924,7 @@ export type PatchDagsData = {
   paused?: boolean | null;
   requestBody: DAGPatchBody;
   tags?: Array<string>;
+  tagsMatchMode?: "any" | "all" | null;
   updateMask?: Array<string> | null;
 };
 
@@ -2149,16 +2239,16 @@ export type GetPoolsData = {
 export type GetPoolsResponse = PoolCollectionResponse;
 
 export type PostPoolData = {
-  requestBody: PoolPostBody;
+  requestBody: PoolBody;
 };
 
 export type PostPoolResponse = PoolResponse;
 
-export type PutPoolsData = {
-  requestBody: PoolPostBulkBody;
+export type BulkPoolsData = {
+  requestBody: BulkBody_PoolBody_;
 };
 
-export type PutPoolsResponse = PoolCollectionResponse;
+export type BulkPoolsResponse = BulkResponse;
 
 export type GetProvidersData = {
   limit?: number;
@@ -2241,10 +2331,10 @@ export type PostVariableData = {
 export type PostVariableResponse = VariableResponse;
 
 export type BulkVariablesData = {
-  requestBody: VariableBulkBody;
+  requestBody: BulkBody_VariableBody_;
 };
 
-export type BulkVariablesResponse = VariableBulkResponse;
+export type BulkVariablesResponse = BulkResponse;
 
 export type ReparseDagFileData = {
   fileToken: string;
@@ -3104,19 +3194,13 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
-  };
-  "/public/connections/bulk": {
-    put: {
-      req: PutConnectionsData;
+    patch: {
+      req: BulkConnectionsData;
       res: {
         /**
-         * Created with overwrite
+         * Successful Response
          */
-        200: ConnectionCollectionResponse;
-        /**
-         * Created
-         */
-        201: ConnectionCollectionResponse;
+        200: BulkResponse;
         /**
          * Unauthorized
          */
@@ -3125,10 +3209,6 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
-        /**
-         * Conflict
-         */
-        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -3462,6 +3542,33 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dagReports": {
+    get: {
+      req: GetDagReportsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -4417,19 +4524,13 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
-  };
-  "/public/pools/bulk": {
-    put: {
-      req: PutPoolsData;
+    patch: {
+      req: BulkPoolsData;
       res: {
         /**
-         * Created with overwriting
+         * Successful Response
          */
-        200: PoolCollectionResponse;
-        /**
-         * Created
-         */
-        201: PoolCollectionResponse;
+        200: BulkResponse;
         /**
          * Unauthorized
          */
@@ -4438,10 +4539,6 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
-        /**
-         * Conflict
-         */
-        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -4730,7 +4827,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: VariableBulkResponse;
+        200: BulkResponse;
         /**
          * Unauthorized
          */

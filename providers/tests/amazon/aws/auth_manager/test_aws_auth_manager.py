@@ -190,15 +190,13 @@ class TestAwsAuthManager:
     @pytest.mark.parametrize(
         "details, user, expected_user, expected_entity_id",
         [
-            (None, None, ANY, None),
+            (None, mock, ANY, None),
             (ConfigurationDetails(section="test"), mock, mock, "test"),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
     def test_is_authorized_configuration(
         self,
-        mock_get_user,
         mock_avp_facade,
         details,
         user,
@@ -212,8 +210,6 @@ class TestAwsAuthManager:
         method: ResourceMethod = "GET"
         result = auth_manager.is_authorized_configuration(method=method, details=details, user=user)
 
-        if not user:
-            mock_get_user.assert_called_once()
         is_authorized.assert_called_once_with(
             method=method,
             entity_type=AvpEntities.CONFIGURATION,
@@ -225,15 +221,13 @@ class TestAwsAuthManager:
     @pytest.mark.parametrize(
         "details, user, expected_user, expected_entity_id",
         [
-            (None, None, ANY, None),
+            (None, mock, ANY, None),
             (ConnectionDetails(conn_id="conn_id"), mock, mock, "conn_id"),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
     def test_is_authorized_connection(
         self,
-        mock_get_user,
         mock_avp_facade,
         details,
         user,
@@ -247,8 +241,6 @@ class TestAwsAuthManager:
         method: ResourceMethod = "GET"
         result = auth_manager.is_authorized_connection(method=method, details=details, user=user)
 
-        if not user:
-            mock_get_user.assert_called_once()
         is_authorized.assert_called_once_with(
             method=method,
             entity_type=AvpEntities.CONNECTION,
@@ -260,7 +252,7 @@ class TestAwsAuthManager:
     @pytest.mark.parametrize(
         "access_entity, details, user, expected_user, expected_entity_id, expected_context",
         [
-            (None, None, None, ANY, None, None),
+            (None, None, mock, ANY, None, None),
             (None, DagDetails(id="dag_1"), mock, mock, "dag_1", None),
             (
                 DagAccessEntity.CODE,
@@ -277,10 +269,8 @@ class TestAwsAuthManager:
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
     def test_is_authorized_dag(
         self,
-        mock_get_user,
         mock_avp_facade,
         access_entity,
         details,
@@ -298,8 +288,6 @@ class TestAwsAuthManager:
             method=method, access_entity=access_entity, details=details, user=user
         )
 
-        if not user:
-            mock_get_user.assert_called_once()
         is_authorized.assert_called_once_with(
             method=method,
             entity_type=AvpEntities.DAG,
@@ -312,15 +300,13 @@ class TestAwsAuthManager:
     @pytest.mark.parametrize(
         "details, user, expected_user, expected_entity_id",
         [
-            (None, None, ANY, None),
+            (None, mock, ANY, None),
             (AssetDetails(uri="uri"), mock, mock, "uri"),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
     def test_is_authorized_asset(
         self,
-        mock_get_user,
         mock_avp_facade,
         details,
         user,
@@ -334,8 +320,6 @@ class TestAwsAuthManager:
         method: ResourceMethod = "GET"
         result = auth_manager.is_authorized_asset(method=method, details=details, user=user)
 
-        if not user:
-            mock_get_user.assert_called_once()
         is_authorized.assert_called_once_with(
             method=method, entity_type=AvpEntities.ASSET, user=expected_user, entity_id=expected_entity_id
         )
@@ -344,15 +328,13 @@ class TestAwsAuthManager:
     @pytest.mark.parametrize(
         "details, user, expected_user, expected_entity_id",
         [
-            (None, None, ANY, None),
+            (None, mock, ANY, None),
             (PoolDetails(name="pool1"), mock, mock, "pool1"),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
     def test_is_authorized_pool(
         self,
-        mock_get_user,
         mock_avp_facade,
         details,
         user,
@@ -366,8 +348,6 @@ class TestAwsAuthManager:
         method: ResourceMethod = "GET"
         result = auth_manager.is_authorized_pool(method=method, details=details, user=user)
 
-        if not user:
-            mock_get_user.assert_called_once()
         is_authorized.assert_called_once_with(
             method=method, entity_type=AvpEntities.POOL, user=expected_user, entity_id=expected_entity_id
         )
@@ -376,15 +356,13 @@ class TestAwsAuthManager:
     @pytest.mark.parametrize(
         "details, user, expected_user, expected_entity_id",
         [
-            (None, None, ANY, None),
+            (None, mock, ANY, None),
             (VariableDetails(key="var1"), mock, mock, "var1"),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
     def test_is_authorized_variable(
         self,
-        mock_get_user,
         mock_avp_facade,
         details,
         user,
@@ -398,8 +376,6 @@ class TestAwsAuthManager:
         method: ResourceMethod = "GET"
         result = auth_manager.is_authorized_variable(method=method, details=details, user=user)
 
-        if not user:
-            mock_get_user.assert_called_once()
         is_authorized.assert_called_once_with(
             method=method, entity_type=AvpEntities.VARIABLE, user=expected_user, entity_id=expected_entity_id
         )
@@ -408,32 +384,25 @@ class TestAwsAuthManager:
     @pytest.mark.parametrize(
         "access_view, user, expected_user",
         [
-            (AccessView.CLUSTER_ACTIVITY, None, ANY),
+            (AccessView.CLUSTER_ACTIVITY, mock, ANY),
             (AccessView.PLUGINS, mock, mock),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
-    def test_is_authorized_view(
-        self, mock_get_user, mock_avp_facade, access_view, user, expected_user, auth_manager
-    ):
+    def test_is_authorized_view(self, mock_avp_facade, access_view, user, expected_user, auth_manager):
         is_authorized = Mock(return_value=True)
         mock_avp_facade.is_authorized = is_authorized
 
         result = auth_manager.is_authorized_view(access_view=access_view, user=user)
 
-        if not user:
-            mock_get_user.assert_called_once()
         is_authorized.assert_called_once_with(
             method="GET", entity_type=AvpEntities.VIEW, user=expected_user, entity_id=access_view.value
         )
         assert result
 
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
     def test_batch_is_authorized_connection(
         self,
-        mock_get_user,
         mock_avp_facade,
         auth_manager,
     ):
@@ -441,10 +410,10 @@ class TestAwsAuthManager:
         mock_avp_facade.batch_is_authorized = batch_is_authorized
 
         result = auth_manager.batch_is_authorized_connection(
-            requests=[{"method": "GET"}, {"method": "GET", "details": ConnectionDetails(conn_id="conn_id")}]
+            requests=[{"method": "GET"}, {"method": "GET", "details": ConnectionDetails(conn_id="conn_id")}],
+            user=mock,
         )
 
-        mock_get_user.assert_called_once()
         batch_is_authorized.assert_called_once_with(
             requests=[
                 {
@@ -463,10 +432,8 @@ class TestAwsAuthManager:
         assert result
 
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
     def test_batch_is_authorized_dag(
         self,
-        mock_get_user,
         mock_avp_facade,
         auth_manager,
     ):
@@ -478,10 +445,10 @@ class TestAwsAuthManager:
                 {"method": "GET"},
                 {"method": "GET", "details": DagDetails(id="dag_1")},
                 {"method": "GET", "details": DagDetails(id="dag_1"), "access_entity": DagAccessEntity.CODE},
-            ]
+            ],
+            user=mock,
         )
 
-        mock_get_user.assert_called_once()
         batch_is_authorized.assert_called_once_with(
             requests=[
                 {
@@ -512,10 +479,8 @@ class TestAwsAuthManager:
         assert result
 
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
     def test_batch_is_authorized_pool(
         self,
-        mock_get_user,
         mock_avp_facade,
         auth_manager,
     ):
@@ -523,10 +488,10 @@ class TestAwsAuthManager:
         mock_avp_facade.batch_is_authorized = batch_is_authorized
 
         result = auth_manager.batch_is_authorized_pool(
-            requests=[{"method": "GET"}, {"method": "GET", "details": PoolDetails(name="pool1")}]
+            requests=[{"method": "GET"}, {"method": "GET", "details": PoolDetails(name="pool1")}],
+            user=mock,
         )
 
-        mock_get_user.assert_called_once()
         batch_is_authorized.assert_called_once_with(
             requests=[
                 {
@@ -545,10 +510,8 @@ class TestAwsAuthManager:
         assert result
 
     @patch.object(AwsAuthManager, "avp_facade")
-    @patch.object(AwsAuthManager, "get_user")
     def test_batch_is_authorized_variable(
         self,
-        mock_get_user,
         mock_avp_facade,
         auth_manager,
     ):
@@ -556,10 +519,10 @@ class TestAwsAuthManager:
         mock_avp_facade.batch_is_authorized = batch_is_authorized
 
         result = auth_manager.batch_is_authorized_variable(
-            requests=[{"method": "GET"}, {"method": "GET", "details": VariableDetails(key="var1")}]
+            requests=[{"method": "GET"}, {"method": "GET", "details": VariableDetails(key="var1")}],
+            user=mock,
         )
 
-        mock_get_user.assert_called_once()
         batch_is_authorized.assert_called_once_with(
             requests=[
                 {
@@ -701,12 +664,11 @@ class TestAwsAuthManager:
     @pytest.mark.parametrize(
         "methods, user",
         [
-            (None, None),
+            (None, AwsAuthManagerUser(user_id="test_user_id", groups=[])),
             (["PUT", "GET"], AwsAuthManagerUser(user_id="test_user_id", groups=[])),
         ],
     )
-    @patch.object(AwsAuthManager, "get_user")
-    def test_filter_permitted_dag_ids(self, mock_get_user, methods, user, auth_manager, test_user):
+    def test_filter_permitted_dag_ids(self, methods, user, auth_manager, test_user):
         dag_ids = {"dag_1", "dag_2"}
         batch_is_authorized_output = [
             {
@@ -745,8 +707,6 @@ class TestAwsAuthManager:
         auth_manager.avp_facade.get_batch_is_authorized_results = Mock(
             return_value=batch_is_authorized_output
         )
-
-        mock_get_user.return_value = test_user
 
         result = auth_manager.filter_permitted_dag_ids(
             dag_ids=dag_ids,

@@ -18,24 +18,19 @@
 from __future__ import annotations
 
 import io
-import itertools
 import json
 import logging
-import multiprocessing
 import os
 import pathlib
 import random
 import signal
-import socket
 import textwrap
-import threading
 import time
 from collections import deque
-from contextlib import suppress
 from datetime import datetime, timedelta
 from logging.config import dictConfig
 from unittest import mock
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 import pytest
 import time_machine
@@ -47,7 +42,6 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.manager import (
     DagFileInfo,
-    DagFileProcessorAgent,
     DagFileProcessorManager,
     DagFileStat,
 )
@@ -60,7 +54,6 @@ from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
-from airflow.utils.process_utils import reap_process_group
 from airflow.utils.session import create_session
 
 from tests.models import TEST_DAGS_FOLDER
@@ -69,6 +62,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_callbacks,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_import_errors,
     clear_db_runs,
@@ -100,6 +94,7 @@ class TestDagFileProcessorManager:
         clear_db_dags()
         clear_db_callbacks()
         clear_db_import_errors()
+        clear_db_dag_bundles()
 
     def teardown_class(self):
         clear_db_assets()
@@ -108,6 +103,7 @@ class TestDagFileProcessorManager:
         clear_db_dags()
         clear_db_callbacks()
         clear_db_import_errors()
+        clear_db_dag_bundles()
 
     def mock_processor(self) -> DagFileProcessorProcess:
         proc = MagicMock()
@@ -179,7 +175,8 @@ class TestDagFileProcessorManager:
         # Mock that only one processor exists. This processor runs with 'file_1'
         manager._processors[file_1] = MagicMock()
         # Start New Processes
-        manager._start_new_processes()
+        with mock.patch.object(DagFileProcessorManager, "_create_process"):
+            manager._start_new_processes()
 
         # Because of the config: '[scheduler] parsing_processes = 2'
         # verify that only one extra process is created
@@ -384,7 +381,7 @@ class TestDagFileProcessorManager:
             dag = dagbag.get_dag("test_example_bash_operator")
             dag.last_parsed_time = timezone.utcnow()
             DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag)
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(
@@ -506,76 +503,6 @@ class TestDagFileProcessorManager:
             assert session.get(DagModel, dag_id) is not None
 
     @conf_vars({("core", "load_examples"): "False"})
-    @pytest.mark.execution_timeout(30)
-    def test_pipe_full_deadlock(self, configure_testing_dag_bundle):
-        dag_filepath = TEST_DAG_FOLDER / "test_scheduler_dags.py"
-
-        child_pipe, parent_pipe = multiprocessing.Pipe()
-
-        # Shrink the buffers to exacerbate the problem!
-        for fd in (parent_pipe.fileno(),):
-            sock = socket.socket(fileno=fd)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)
-            sock.detach()
-
-        exit_event = threading.Event()
-
-        # To test this behaviour we need something that continually fills the
-        # parent pipe's buffer (and keeps it full).
-        def keep_pipe_full(pipe, exit_event):
-            for n in itertools.count(1):
-                if exit_event.is_set():
-                    break
-
-                req = DagCallbackRequest(
-                    full_filepath=dag_filepath.as_posix(), dag_id="test_dag", run_id="run_id"
-                )
-                logger.info("Sending DagCallbackRequests %d", n)
-                try:
-                    pipe.send(req)
-                except TypeError:
-                    # This is actually the error you get when the parent pipe
-                    # is closed! Nicely handled, eh?
-                    break
-                except OSError:
-                    break
-                logger.debug("   Sent %d DagCallbackRequests", n)
-
-        thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
-
-        with configure_testing_dag_bundle(dag_filepath):
-            manager = DagFileProcessorManager(
-                # A reasonable large number to ensure that we trigger the deadlock
-                max_runs=100,
-                processor_timeout=5,
-                signal_conn=child_pipe,
-                # Make it loop sub-processes quickly. Need to be non-zero to exercise the bug, else it finishes
-                # too quickly
-                file_process_interval=0.01,
-            )
-
-            try:
-                thread.start()
-
-                # If this completes without hanging, then the test is good!
-                with mock.patch.object(
-                    DagFileProcessorProcess,
-                    "start",
-                    side_effect=lambda *args, **kwargs: self.mock_processor(),
-                ):
-                    manager.run()
-                exit_event.set()
-            finally:
-                logger.info("Closing pipes")
-                parent_pipe.close()
-                child_pipe.close()
-                logger.info("Closed pipes")
-                logger.info("Joining thread")
-                thread.join(timeout=1.0)
-                logger.info("Joined thread")
-
-    @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.dag_processing.manager.Stats.timing")
     @pytest.mark.skip("AIP-66: stats are not implemented yet")
     def test_send_file_processing_statsd_timing(
@@ -603,14 +530,16 @@ class TestDagFileProcessorManager:
             any_order=True,
         )
 
-    def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmp_path, configure_testing_dag_bundle):
+    def test_refresh_dags_dir_doesnt_delete_zipped_dags(
+        self, tmp_path, testing_dag_bundle, configure_testing_dag_bundle
+    ):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
         dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
         zipped_dag_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
         dagbag.process_file(zipped_dag_path)
         dag = dagbag.get_dag("test_zip_dag")
         DAG.bulk_write_to_db("testing", None, [dag])
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         with configure_testing_dag_bundle(zipped_dag_path):
             manager = DagFileProcessorManager(max_runs=1)
@@ -623,6 +552,7 @@ class TestDagFileProcessorManager:
         # assert dag still active
         assert dag.get_is_active()
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_refresh_dags_dir_deactivates_deleted_zipped_dags(self, tmp_path, configure_testing_dag_bundle):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
         dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
@@ -630,7 +560,7 @@ class TestDagFileProcessorManager:
         dagbag.process_file(zipped_dag_path)
         dag = dagbag.get_dag("test_zip_dag")
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         # TODO: this test feels a bit fragile - pointing at the zip directly causes the test to fail
         # TODO: jed look at this more closely - bagbad then process_file?!
@@ -650,12 +580,7 @@ class TestDagFileProcessorManager:
         # assert dag deactivated
         assert not dag.get_is_active()
 
-    @conf_vars(
-        {
-            ("core", "load_examples"): "False",
-            ("scheduler", "standalone_dag_processor"): "True",
-        }
-    )
+    @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, tmp_path, configure_testing_dag_bundle):
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
 
@@ -677,7 +602,7 @@ class TestDagFileProcessorManager:
             session.add(DbCallbackRequest(callback=callback2, priority_weight=10))
 
         with configure_testing_dag_bundle(tmp_path):
-            manager = DagFileProcessorManager(max_runs=1, standalone_dag_processor=True)
+            manager = DagFileProcessorManager(max_runs=1)
 
             with create_session() as session:
                 manager.run()
@@ -685,7 +610,6 @@ class TestDagFileProcessorManager:
 
     @conf_vars(
         {
-            ("scheduler", "standalone_dag_processor"): "True",
             ("scheduler", "max_callbacks_per_loop"): "2",
             ("core", "load_examples"): "False",
         }
@@ -714,32 +638,6 @@ class TestDagFileProcessorManager:
             with create_session() as session:
                 manager.run()
                 assert session.query(DbCallbackRequest).count() == 1
-
-    @conf_vars(
-        {
-            ("scheduler", "standalone_dag_processor"): "False",
-            ("core", "load_examples"): "False",
-        }
-    )
-    def test_fetch_callbacks_from_database_not_standalone(self, tmp_path, configure_testing_dag_bundle):
-        dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
-
-        with create_session() as session:
-            callback = DagCallbackRequest(
-                dag_id="test_start_date_scheduling",
-                full_filepath=str(dag_filepath),
-                is_failure_callback=True,
-                run_id="123",
-            )
-            session.add(DbCallbackRequest(callback=callback, priority_weight=10))
-
-        with configure_testing_dag_bundle(tmp_path):
-            manager = DagFileProcessorManager(max_runs=1)
-            manager.run()
-
-        # Verify no callbacks removed from database.
-        with create_session() as session:
-            assert session.query(DbCallbackRequest).count() == 1
 
     @pytest.mark.skip("AIP-66: callbacks are not implemented yet")
     def test_callback_queue(self, tmp_path):
@@ -857,7 +755,7 @@ class TestDagFileProcessorManager:
         bundletwo.refresh_interval = 300
         bundletwo.get_current_version.return_value = None
 
-        with conf_vars({("dag_bundles", "config_list"): json.dumps(config)}):
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch(
                 "airflow.dag_processing.bundles.manager.DagBundlesManager"
@@ -898,7 +796,64 @@ class TestDagFileProcessorManager:
     def test_bundles_versions_are_stored(self):
         config = [
             {
-                "name": "mybundle",
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+            },
+        ]
+
+        mybundle = MagicMock()
+        mybundle.name = "bundleone"
+        mybundle.refresh_interval = 0
+        mybundle.supports_versioning = True
+        mybundle.get_current_version.return_value = "123"
+
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
+            DagBundlesManager().sync_bundles_to_db()
+            with mock.patch(
+                "airflow.dag_processing.bundles.manager.DagBundlesManager"
+            ) as mock_bundle_manager:
+                mock_bundle_manager.return_value._bundle_config = {"bundleone": None}
+                mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [mybundle]
+                manager = DagFileProcessorManager(max_runs=1)
+                manager.run()
+
+        with create_session() as session:
+            model = session.get(DagBundleModel, "bundleone")
+            assert model.version == "123"
+
+    def test_non_versioned_bundle_get_version_not_called(self):
+        config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+            },
+        ]
+
+        mybundle = MagicMock()
+        mybundle.name = "bundleone"
+        mybundle.refresh_interval = 0
+        mybundle.supports_versioning = False
+
+        with conf_vars({("dag_bundles", "config_list"): json.dumps(config)}):
+            DagBundlesManager().sync_bundles_to_db()
+            with mock.patch(
+                "airflow.dag_processing.bundles.manager.DagBundlesManager"
+            ) as mock_bundle_manager:
+                mock_bundle_manager.return_value._bundle_config = {"bundleone": None}
+                mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [mybundle]
+                manager = DagFileProcessorManager(max_runs=1)
+                manager.run()
+
+        mybundle.get_current_version.assert_not_called()
+
+    def test_versioned_bundle_get_version_called_once(self):
+        """Make sure in a normal "warm" loop, get_current_version is called just once after refresha"""
+
+        config = [
+            {
+                "name": "bundleone",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
                 "kwargs": {"path": "/dev/null", "refresh_interval": 0},
             },
@@ -918,171 +873,9 @@ class TestDagFileProcessorManager:
                 mock_bundle_manager.return_value._bundle_config = {"bundleone": None}
                 mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [mybundle]
                 manager = DagFileProcessorManager(max_runs=1)
+                manager.run()  # run it once to warm up
+
+                # now run it again so we can check we only call get_current_version once
+                mybundle.get_current_version.reset_mock()
                 manager.run()
-
-        with create_session() as session:
-            model = session.get(DagBundleModel, "bundleone")
-            assert model.version == "123"
-
-
-class TestDagFileProcessorAgent:
-    @pytest.fixture(autouse=True)
-    def _disable_examples(self):
-        with conf_vars({("core", "load_examples"): "False"}):
-            yield
-
-    def test_launch_process(self):
-        from airflow.configuration import conf
-
-        log_file_loc = conf.get("logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION")
-        with suppress(OSError):
-            os.remove(log_file_loc)
-
-        # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(0, timedelta(days=365))
-        processor_agent.start()
-
-        processor_agent._process.join()
-
-        assert os.path.isfile(log_file_loc)
-
-    def test_get_callbacks_pipe(self):
-        processor_agent = DagFileProcessorAgent(1, timedelta(days=365))
-        processor_agent._parent_signal_conn = Mock()
-        retval = processor_agent.get_callbacks_pipe()
-        assert retval == processor_agent._parent_signal_conn
-
-    def test_get_callbacks_pipe_no_parent_signal_conn(self):
-        processor_agent = DagFileProcessorAgent(1, timedelta(days=365))
-        processor_agent._parent_signal_conn = None
-        with pytest.raises(ValueError, match="Process not started"):
-            processor_agent.get_callbacks_pipe()
-
-    def test_heartbeat_no_parent_signal_conn(self):
-        processor_agent = DagFileProcessorAgent(1, timedelta(days=365))
-        processor_agent._parent_signal_conn = None
-        with pytest.raises(ValueError, match="Process not started"):
-            processor_agent.heartbeat()
-
-    def test_heartbeat_poll_eof_error(self):
-        processor_agent = DagFileProcessorAgent(1, timedelta(days=365))
-        processor_agent._parent_signal_conn = Mock()
-        processor_agent._parent_signal_conn.poll.return_value = True
-        processor_agent._parent_signal_conn.recv = Mock()
-        processor_agent._parent_signal_conn.recv.side_effect = EOFError
-        ret_val = processor_agent.heartbeat()
-        assert ret_val is None
-
-    def test_heartbeat_poll_connection_error(self):
-        processor_agent = DagFileProcessorAgent(1, timedelta(days=365))
-        processor_agent._parent_signal_conn = Mock()
-        processor_agent._parent_signal_conn.poll.return_value = True
-        processor_agent._parent_signal_conn.recv = Mock()
-        processor_agent._parent_signal_conn.recv.side_effect = ConnectionError
-        ret_val = processor_agent.heartbeat()
-        assert ret_val is None
-
-    def test_heartbeat_poll_process_message(self):
-        processor_agent = DagFileProcessorAgent(1, timedelta(days=365))
-        processor_agent._parent_signal_conn = Mock()
-        processor_agent._parent_signal_conn.poll.side_effect = [True, False]
-        processor_agent._parent_signal_conn.recv = Mock()
-        processor_agent._parent_signal_conn.recv.return_value = "testelem"
-        with mock.patch.object(processor_agent, "_process_message"):
-            processor_agent.heartbeat()
-            processor_agent._process_message.assert_called_with("testelem")
-
-    def test_process_message_invalid_type(self):
-        message = "xyz"
-        processor_agent = DagFileProcessorAgent(1, timedelta(days=365))
-        with pytest.raises(RuntimeError, match="Unexpected message received of type str"):
-            processor_agent._process_message(message)
-
-    @mock.patch("airflow.utils.process_utils.reap_process_group")
-    def test_heartbeat_manager_process_restart(self, mock_pg, monkeypatch):
-        processor_agent = DagFileProcessorAgent(1, timedelta(days=365))
-        processor_agent._parent_signal_conn = Mock()
-        processor_agent._process = MagicMock()
-        monkeypatch.setattr(processor_agent._process, "pid", 1234)
-        monkeypatch.setattr(processor_agent._process, "exitcode", 1)
-        processor_agent.start = Mock()
-        processor_agent._process.is_alive.return_value = False
-        with mock.patch.object(processor_agent._process, "join"):
-            processor_agent._heartbeat_manager()
-            processor_agent.start.assert_called()
-            mock_pg.assert_not_called()
-
-    @mock.patch("airflow.dag_processing.manager.Stats")
-    @mock.patch("time.monotonic")
-    @mock.patch("airflow.dag_processing.manager.reap_process_group")
-    def test_heartbeat_manager_process_reap(self, mock_pg, mock_time_monotonic, mock_stats):
-        processor_agent = DagFileProcessorAgent(1, timedelta(days=365))
-        processor_agent._parent_signal_conn = Mock()
-        processor_agent._process = Mock()
-        processor_agent._process.pid = 12345
-        processor_agent._process.is_alive.return_value = True
-        processor_agent._done = False
-
-        processor_agent.log.error = Mock()
-        processor_agent._processor_timeout = Mock()
-        processor_agent._processor_timeout.total_seconds.return_value = 500
-        mock_time_monotonic.return_value = 1000
-        processor_agent._last_parsing_stat_received_at = 100
-        processor_agent.start = Mock()
-
-        processor_agent._heartbeat_manager()
-        mock_stats.incr.assert_called()
-        mock_pg.assert_called()
-        processor_agent.log.error.assert_called()
-        processor_agent.start.assert_called()
-
-    def test_heartbeat_manager_end_no_process(self):
-        processor_agent = DagFileProcessorAgent(1, timedelta(days=365))
-        processor_agent._process = Mock()
-        processor_agent._process.__bool__ = Mock(return_value=False)
-        processor_agent._process.side_effect = [None]
-        processor_agent.log.warning = Mock()
-
-        processor_agent.end()
-        processor_agent.log.warning.assert_called_with("Ending without manager process.")
-        processor_agent._process.join.assert_not_called()
-
-    @pytest.mark.execution_timeout(5)
-    def test_terminate(self, tmp_path, configure_testing_dag_bundle):
-        with configure_testing_dag_bundle(tmp_path):
-            processor_agent = DagFileProcessorAgent(-1, timedelta(days=365))
-
-            processor_agent.start()
-            try:
-                processor_agent.terminate()
-
-                processor_agent._process.join(timeout=1)
-                assert processor_agent._process.is_alive() is False
-                assert processor_agent._process.exitcode == 0
-            except Exception:
-                reap_process_group(processor_agent._process.pid, logger=logger)
-                raise
-
-    @conf_vars({("logging", "dag_processor_manager_log_stdout"): "True"})
-    def test_log_to_stdout(self, capfd):
-        # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(0, timedelta(days=365))
-        processor_agent.start()
-
-        processor_agent._process.join()
-
-        # Capture the stdout and stderr
-        out, _ = capfd.readouterr()
-        assert "DAG File Processing Stats" in out
-
-    @conf_vars({("logging", "dag_processor_manager_log_stdout"): "False"})
-    def test_not_log_to_stdout(self, capfd):
-        # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(0, timedelta(days=365))
-        processor_agent.start()
-
-        processor_agent._process.join()
-
-        # Capture the stdout and stderr
-        out, _ = capfd.readouterr()
-        assert "DAG File Processing Stats" not in out
+                mybundle.get_current_version.assert_called_once()

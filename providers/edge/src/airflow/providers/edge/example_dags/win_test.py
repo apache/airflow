@@ -46,7 +46,7 @@ from airflow.utils.types import ArgNotSet
 
 if TYPE_CHECKING:
     try:
-        from airflow.sdk.definitions.protocols import RuntimeTaskInstanceProtocol as TaskInstance
+        from airflow.sdk.types import RuntimeTaskInstanceProtocol as TaskInstance
     except ImportError:
         from airflow.models import TaskInstance  # type: ignore[assignment]
     from airflow.utils.context import Context
@@ -81,7 +81,7 @@ class CmdOperator(BaseOperator):
     :param cwd: Working directory to execute the command in (templated).
         If None (default), the command is run in a temporary directory.
         To use current DAG folder as the working directory,
-        you might set template ``{{ dag_run.dag.folder }}``.
+        you might set template ``{{ task.dag.folder }}``.
     :param output_processor: Function to further process the output of the script / command
         (default is lambda output: output).
 

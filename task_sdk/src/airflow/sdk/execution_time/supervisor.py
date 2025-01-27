@@ -67,13 +67,16 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByName,
     GetAssetByUri,
     GetConnection,
+    GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
     SetRenderedFields,
     SetXCom,
     StartupDetails,
+    SucceedTask,
     TaskState,
     ToSupervisor,
     VariableResult,
@@ -102,7 +105,11 @@ MAX_FAILED_HEARTBEATS: int = 3
 # These are the task instance states that require some additional information to transition into.
 # "Directly" here means that the PATCH API calls to transition into these states are
 # made from _handle_request() itself and don't have to come all the way to wait().
-STATES_SENT_DIRECTLY = [IntermediateTIState.DEFERRED, IntermediateTIState.UP_FOR_RESCHEDULE]
+STATES_SENT_DIRECTLY = [
+    IntermediateTIState.DEFERRED,
+    IntermediateTIState.UP_FOR_RESCHEDULE,
+    TerminalTIState.SUCCESS,
+]
 
 
 @overload
@@ -760,6 +767,14 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
+        elif isinstance(msg, SucceedTask):
+            self._terminal_state = msg.state
+            self.client.task_instances.succeed(
+                id=self.id,
+                when=msg.end_date,
+                task_outlets=msg.task_outlets,
+                outlet_events=msg.outlet_events,
+            )
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
@@ -798,6 +813,10 @@ class ActivitySubprocess(WatchedSubprocess):
             asset_resp = self.client.assets.get(uri=msg.uri)
             asset_result = AssetResult.from_asset_response(asset_resp)
             resp = asset_result.model_dump_json(exclude_unset=True).encode()
+        elif isinstance(msg, GetPrevSuccessfulDagRun):
+            dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
+            dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
+            resp = dagrun_result.model_dump_json(exclude_unset=True).encode()
         else:
             log.error("Unhandled request", msg=msg)
             return

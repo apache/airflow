@@ -37,12 +37,14 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
     DagRunType,
+    PrevSuccessfulDagRunResponse,
     TerminalTIState,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
     TIRunContext,
+    TISuccessStatePayload,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
     VariablePostBody,
@@ -135,6 +137,11 @@ class TaskInstanceOperations:
         body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
+    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events):
+        """Tell the API server that this TI has succeeded."""
+        body = TISuccessStatePayload(end_date=when, task_outlets=task_outlets, outlet_events=outlet_events)
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
     def heartbeat(self, id: uuid.UUID, pid: int):
         body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
         self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
@@ -161,6 +168,15 @@ class TaskInstanceOperations:
         # decouple from the server response string
         return {"ok": True}
 
+    def get_previous_successful_dagrun(self, id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
+        """
+        Get the previous successful dag run for a given task instance.
+
+        The data from it is used to get values for Task Context.
+        """
+        resp = self.client.get(f"task-instances/{id}/previous-successful-dagrun")
+        return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
+
 
 class ConnectionOperations:
     __slots__ = ("client",)
@@ -181,6 +197,7 @@ class ConnectionOperations:
                     status_code=e.response.status_code,
                 )
                 return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
+            raise
         return ConnectionResponse.model_validate_json(resp.read())
 
 

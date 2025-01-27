@@ -47,12 +47,15 @@ from airflow.sdk.execution_time.comms import (
     GetAssetByName,
     GetAssetByUri,
     GetConnection,
+    GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
     SetRenderedFields,
     SetXCom,
+    SucceedTask,
     TaskState,
     VariableResult,
     XComResult,
@@ -77,7 +80,7 @@ def lineno():
 
 def local_dag_bundle_cfg(path, name="my-bundle"):
     return {
-        "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
+        "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
             [
                 {
                     "name": name,
@@ -976,12 +979,45 @@ class TestHandleRequest:
                 AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
                 id="get_asset_by_uri",
             ),
+            pytest.param(
+                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                b"",
+                "task_instances.succeed",
+                (),
+                {
+                    "id": TI_ID,
+                    "outlet_events": None,
+                    "task_outlets": None,
+                    "when": timezone.parse("2024-10-31T12:00:00Z"),
+                },
+                "",
+                id="succeed_task",
+            ),
+            pytest.param(
+                GetPrevSuccessfulDagRun(ti_id=TI_ID),
+                (
+                    b'{"data_interval_start":"2025-01-10T12:00:00Z","data_interval_end":"2025-01-10T14:00:00Z",'
+                    b'"start_date":"2025-01-10T12:00:00Z","end_date":"2025-01-10T14:00:00Z",'
+                    b'"type":"PrevSuccessfulDagRunResult"}\n'
+                ),
+                "task_instances.get_previous_successful_dagrun",
+                (TI_ID,),
+                {},
+                PrevSuccessfulDagRunResult(
+                    start_date=timezone.parse("2025-01-10T12:00:00Z"),
+                    end_date=timezone.parse("2025-01-10T14:00:00Z"),
+                    data_interval_start=timezone.parse("2025-01-10T12:00:00Z"),
+                    data_interval_end=timezone.parse("2025-01-10T14:00:00Z"),
+                ),
+                id="get_prev_successful_dagrun",
+            ),
         ],
     )
     def test_handle_requests(
         self,
         watched_subprocess,
         mocker,
+        time_machine,
         message,
         expected_buffer,
         client_attr_path,
@@ -1010,6 +1046,7 @@ class TestHandleRequest:
         next(generator)
         msg = message.model_dump_json().encode() + b"\n"
         generator.send(msg)
+        time_machine.move_to(timezone.datetime(2024, 10, 31), tick=False)
 
         # Verify the correct client method was called
         if client_attr_path:

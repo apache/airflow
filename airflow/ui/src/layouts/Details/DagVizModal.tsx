@@ -31,6 +31,7 @@ import { DagRunSelect } from "./DagRunSelect";
 import { Gantt } from "./Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
+import { ToggleGroups } from "./ToggleGroups";
 
 type DAGVizModalProps = {
   dagDisplayName?: DAGResponse["dag_display_name"];
@@ -63,7 +64,7 @@ export const DagVizModal: React.FC<DAGVizModalProps> = ({ dagDisplayName, dagId,
   params.delete("modal");
 
   return (
-    <Dialog.Root motionPreset="none" onOpenChange={onClose} open={open} size="full">
+    <Dialog.Root lazyMount motionPreset="none" onOpenChange={onClose} open={open} size="full">
       <Dialog.Content backdrop ref={contentRef}>
         <Dialog.Header bg="blue.muted" pr={16}>
           <HStack>
@@ -89,6 +90,7 @@ export const DagVizModal: React.FC<DAGVizModalProps> = ({ dagDisplayName, dagId,
               </RouterLink>
             ))}
             <DagRunSelect ref={contentRef} />
+            <ToggleGroups />
           </HStack>
           <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
         </Dialog.Header>

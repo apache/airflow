@@ -168,7 +168,7 @@ class ClearTaskInstancesBody(BaseModel):
     only_failed: bool = True
     only_running: bool = False
     reset_dag_runs: bool = True
-    task_ids: list[str] | None = None
+    task_ids: list[str | tuple[str, int]] | None = None
     dag_run_id: str | None = None
     include_upstream: bool = False
     include_downstream: bool = False

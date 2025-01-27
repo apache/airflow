@@ -1,0 +1,20 @@
+Move filesystem sensor to standard provider
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.sensors.filesystem.FileSensor`` → ``airflow.providers.standard.sensors.filesystem.FileSensor``
