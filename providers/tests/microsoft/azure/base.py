@@ -16,22 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 from contextlib import contextmanager
-from copy import deepcopy
-from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 
-from airflow.exceptions import TaskDeferred
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 
-from providers.tests.microsoft.conftest import get_airflow_connection, mock_context
-
-if TYPE_CHECKING:
-    from airflow.models import Operator
-    from airflow.triggers.base import BaseTrigger, TriggerEvent
+from providers.tests.microsoft.conftest import get_airflow_connection
 
 
 class Base:
@@ -49,42 +41,3 @@ class Base:
             else:
                 mock_get_http_response.return_value = response
             yield
-
-    @staticmethod
-    async def _run_tigger(trigger: BaseTrigger) -> list[TriggerEvent]:
-        events = []
-        async for event in trigger.run():
-            events.append(event)
-        return events
-
-    def run_trigger(self, trigger: BaseTrigger) -> list[TriggerEvent]:
-        return asyncio.run(self._run_tigger(trigger))
-
-    def execute_operator(self, operator: Operator) -> tuple[Any, Any]:
-        context = mock_context(task=operator)
-        return asyncio.run(self.deferrable_operator(context, operator))
-
-    async def deferrable_operator(self, context, operator):
-        result = None
-        triggered_events = []
-        try:
-            operator.render_template_fields(context=context)
-            result = operator.execute(context=context)
-        except TaskDeferred as deferred:
-            task = deferred
-
-            while task:
-                events = await self._run_tigger(task.trigger)
-
-                if not events:
-                    break
-
-                triggered_events.extend(deepcopy(events))
-
-                try:
-                    method = getattr(operator, task.method_name)
-                    result = method(context=context, event=next(iter(events)).payload)
-                    task = None
-                except TaskDeferred as exception:
-                    task = exception
-        return result, triggered_events
