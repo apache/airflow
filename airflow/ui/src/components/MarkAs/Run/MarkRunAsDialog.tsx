@@ -42,7 +42,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
   const { isPending, mutate } = usePatchDagRun({ dagId, dagRunId, onSuccess: onClose });
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>

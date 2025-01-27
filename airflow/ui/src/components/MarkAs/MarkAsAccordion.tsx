@@ -16,57 +16,95 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Editable, Text, VStack } from "@chakra-ui/react";
+import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
 
-import type { DAGRunResponse } from "openapi/requests/types.gen";
+import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
 import { Accordion } from "src/components/ui";
 
+import { columns } from "../Clear/columns";
+import { DataTable } from "../DataTable";
+
 type Props = {
+  readonly affectedTasks?: TaskInstanceCollectionResponse;
   readonly note: DAGRunResponse["note"];
   readonly setNote: (value: string) => void;
 };
 
-const MarkAsAccordion = ({ note, setNote }: Props) => (
-  <Accordion.Root collapsible defaultValue={["note"]} multiple={false} variant="enclosed">
-    <Accordion.Item key="note" value="note">
-      <Accordion.ItemTrigger>
-        <Text fontWeight="bold">Note</Text>
-      </Accordion.ItemTrigger>
-      <Accordion.ItemContent>
-        <Editable.Root
-          onChange={(event: ChangeEvent<HTMLInputElement>) => setNote(event.target.value)}
-          value={note ?? ""}
-        >
-          <Editable.Preview
-            _hover={{ backgroundColor: "transparent" }}
-            alignItems="flex-start"
-            as={VStack}
-            gap="0"
-            height="200px"
-            overflowY="auto"
-            width="100%"
+const MarkAsAccordion = ({ affectedTasks, note, setNote }: Props) => {
+  const showTaskSection = affectedTasks !== undefined;
+
+  return (
+    <Accordion.Root
+      collapsible
+      defaultValue={showTaskSection ? ["tasks"] : ["note"]}
+      multiple={false}
+      variant="enclosed"
+    >
+      {showTaskSection ? (
+        <Accordion.Item key="tasks" value="tasks">
+          <Accordion.ItemTrigger>
+            <Text fontWeight="bold">Affected Tasks: {affectedTasks.total_entries}</Text>
+          </Accordion.ItemTrigger>
+          <Accordion.ItemContent>
+            <Box maxH="400px" overflowY="scroll">
+              <DataTable
+                columns={columns}
+                data={affectedTasks.task_instances}
+                displayMode="table"
+                initialState={{
+                  pagination: {
+                    pageIndex: 0,
+                    pageSize: affectedTasks.total_entries,
+                  },
+                  sorting: [],
+                }}
+                modelName="Task Instance"
+                total={affectedTasks.total_entries}
+              />
+            </Box>
+          </Accordion.ItemContent>
+        </Accordion.Item>
+      ) : undefined}
+      <Accordion.Item key="note" value="note">
+        <Accordion.ItemTrigger>
+          <Text fontWeight="bold">Note</Text>
+        </Accordion.ItemTrigger>
+        <Accordion.ItemContent>
+          <Editable.Root
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setNote(event.target.value)}
+            value={note ?? ""}
           >
-            {Boolean(note) ? (
-              <ReactMarkdown>{note}</ReactMarkdown>
-            ) : (
-              <Text color="gray" opacity={0.6}>
-                Add a note...
-              </Text>
-            )}
-          </Editable.Preview>
-          <Editable.Textarea
-            data-testid="notes-input"
-            height="200px"
-            overflowY="auto"
-            placeholder="Add a note..."
-            resize="none"
-          />
-        </Editable.Root>
-      </Accordion.ItemContent>
-    </Accordion.Item>
-  </Accordion.Root>
-);
+            <Editable.Preview
+              _hover={{ backgroundColor: "transparent" }}
+              alignItems="flex-start"
+              as={VStack}
+              gap="0"
+              height="200px"
+              overflowY="auto"
+              width="100%"
+            >
+              {Boolean(note) ? (
+                <ReactMarkdown>{note}</ReactMarkdown>
+              ) : (
+                <Text color="gray" opacity={0.6}>
+                  Add a note...
+                </Text>
+              )}
+            </Editable.Preview>
+            <Editable.Textarea
+              data-testid="notes-input"
+              height="200px"
+              overflowY="auto"
+              placeholder="Add a note..."
+              resize="none"
+            />
+          </Editable.Root>
+        </Accordion.ItemContent>
+      </Accordion.Item>
+    </Accordion.Root>
+  );
+};
 
 export default MarkAsAccordion;
