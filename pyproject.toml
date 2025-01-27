@@ -636,6 +636,7 @@ dev = [
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
   "apache-airflow-providers-exasol",
+  "apache-airflow-providers-facebook",
   "apache-airflow-providers-hashicorp",
   "apache-airflow-providers-imap",
   "apache-airflow-providers-neo4j",
@@ -685,6 +686,7 @@ apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
 apache-airflow-providers-exasol = { workspace = true }
+apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
@@ -732,16 +734,17 @@ members = [
     "providers/datadog",
     "providers/edge",
     "providers/exasol",
-    "providers/pagerduty",
-    "providers/mysql",
-    "providers/jenkins",
-    "providers/odbc",
+    "providers/facebook",
     "providers/hashicorp",
     "providers/imap",
+    "providers/jenkins",
+    "providers/mysql",
     "providers/neo4j",
+    "providers/odbc",
     "providers/openai",
     "providers/openfaas",
     "providers/opsgenie",
+    "providers/pagerduty",
     "providers/papermill",
     "providers/pinecone",
     "providers/postgres",

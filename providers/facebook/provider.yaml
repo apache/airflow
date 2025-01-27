@@ -49,14 +49,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - facebook-business>=15.0.2
-
 integrations:
   - integration-name: Facebook Ads
     external-doc-url: https://business.facebook.com
-    logo: /integration-logos/facebook/Facebook-Ads.png
+    logo: /docs/integration-logos/Facebook-Ads.png
     tags: [service]
 
 hooks:

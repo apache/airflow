@@ -205,9 +205,7 @@ labelPRBasedOnFilePath:
     - providers/tests/fab/**/*
 
   provider:facebook:
-    - providers/src/airflow/providers/facebook/**/*
-    - docs/apache-airflow-providers-facebook/**/*
-    - providers/tests/facebook/**/*
+    - providers/facebook/**
 
   provider:ftp:
     - providers/src/airflow/providers/ftp/**/*
