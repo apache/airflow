@@ -277,9 +277,9 @@ class TestHttpHook:
         )
 
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            with pytest.raises(AirflowException):
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=AirflowProviderDeprecationWarning)
+                with pytest.raises(AirflowException):
                     self.post_hook.run("v1/test")
 
     def test_post_request_do_not_raise_for_status_if_check_response_is_false(self, requests_mock):
