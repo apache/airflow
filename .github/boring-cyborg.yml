@@ -335,10 +335,7 @@ labelPRBasedOnFilePath:
     - providers/postgres/**
 
   provider:presto:
-    - providers/src/airflow/providers/presto/**/*
-    - docs/apache-airflow-providers-presto/**/*
-    - providers/tests/presto/**/*
-    - providers/tests/system/presto/**/*
+    - providers/presto/**
 
   provider:qdrant:
     - providers/qdrant/**

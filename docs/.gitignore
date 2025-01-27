@@ -32,6 +32,7 @@ apache-airflow-providers-openai
 apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
 apache-airflow-providers-postgres
+apache-airflow-providers-presto
 apache-airflow-providers-qdrant
 apache-airflow-providers-samba
 apache-airflow-providers-segment
