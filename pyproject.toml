@@ -628,10 +628,12 @@ dev = [
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
   "apache-airflow-providers-hashicorp",
+  "apache-airflow-providers-neo4j",
   "apache-airflow-providers-openai",
   "apache-airflow-providers-pgvector",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
+  "apache-airflow-providers-samba",
   "apache-airflow-providers-segment",
   "apache-airflow-providers-ssh",
   "apache-airflow-providers-standard",
@@ -656,10 +658,12 @@ apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
 apache-airflow-providers-hashicorp = { workspace = true }
+apache-airflow-providers-neo4j = { workspace = true }
 apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-postgres = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
+apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
@@ -682,10 +686,12 @@ members = [
     "providers/datadog",
     "providers/edge",
     "providers/hashicorp",
+    "providers/neo4j",
     "providers/openai",
     "providers/pinecone",
     "providers/postgres",
     "providers/pgvector",
+    "providers/samba",
     "providers/segment",
     "providers/ssh",
     "providers/standard",
