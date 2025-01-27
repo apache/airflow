@@ -91,10 +91,7 @@ labelPRBasedOnFilePath:
     - providers/apache/pig/**
 
   provider:apache-pinot:
-    - providers/src/airflow/providers/apache/pinot/**/*
-    - docs/apache-airflow-providers-apache-pinot/**/*
-    - providers/tests/apache/pinot/**/*
-    - providers/tests/system/apache/pinot/**/*
+    - providers/apache/pinot/**
 
   provider:apache-spark:
     - providers/apache/spark/**

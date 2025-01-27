@@ -53,15 +53,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-  - pinotdb>=5.1.0
-
 integrations:
   - integration-name: Apache Pinot
     external-doc-url: https://pinot.apache.org/
-    logo: /integration-logos/apache/pinot.png
+    logo: /docs/integration-logos/pinot.png
     tags: [apache]
     how-to-guide:
       - /docs/apache-airflow-providers-apache-pinot/operators.rst
