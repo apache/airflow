@@ -627,6 +627,7 @@ dev = [
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-neo4j",
   "apache-airflow-providers-openai",
   "apache-airflow-providers-pgvector",
   "apache-airflow-providers-pinecone",
@@ -655,6 +656,7 @@ apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-neo4j = { workspace = true }
 apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
 apache-airflow-providers-postgres = { workspace = true }
@@ -681,6 +683,7 @@ members = [
     "providers/common/sql",
     "providers/datadog",
     "providers/edge",
+    "providers/neo4j",
     "providers/openai",
     "providers/pinecone",
     "providers/postgres",

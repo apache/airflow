@@ -317,10 +317,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/mysql/**/*
 
   provider:neo4j:
-    - providers/src/airflow/providers/neo4j/**/*
-    - docs/apache-airflow-providers-neo4j/**/*
-    - providers/tests/neo4j/**/*
-    - providers/tests/system/neo4j/**/*
+    - providers/neo4j/**
 
   provider:odbc:
     - providers/src/airflow/providers/odbc/**/*
