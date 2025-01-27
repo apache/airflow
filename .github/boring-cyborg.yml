@@ -249,9 +249,7 @@ labelPRBasedOnFilePath:
     - providers/tests/grpc/**/*
 
   provider:hashicorp:
-    - providers/src/airflow/providers/hashicorp/**/*
-    - docs/apache-airflow-providers-hashicorp/**/*
-    - providers/tests/hashicorp/**/*
+    - providers/hashicorp/**
 
   provider:http:
     - providers/src/airflow/providers/http/**/*
@@ -326,9 +324,7 @@ labelPRBasedOnFilePath:
     - providers/openai/**
 
   provider:openfaas:
-    - providers/src/airflow/providers/openfaas/**/*
-    - docs/apache-airflow-providers-openfaas/**/*
-    - providers/tests/openfaas/**/*
+    - providers/openfaas/**
 
   provider:openlineage:
     - providers/src/airflow/providers/openlineage/**/*
@@ -355,10 +351,7 @@ labelPRBasedOnFilePath:
     - providers/tests/pagerduty/**/*
 
   provider:papermill:
-    - providers/src/airflow/providers/papermill/**/*
-    - docs/apache-airflow-providers-papermill/**/*
-    - providers/tests/papermill/**/*
-    - providers/tests/system/papermill/**/*
+    - providers/papermill/**
 
   provider:pgvector:
     - providers/pgvector/**
@@ -407,10 +400,7 @@ labelPRBasedOnFilePath:
     - providers/tests/sftp/**/*
 
   provider:singularity:
-    - providers/src/airflow/providers/singularity/**/*
-    - docs/apache-airflow-providers-singularity/**/*
-    - providers/tests/singularity/**/*
-    - providers/tests/system/singularity/**/*
+    - providers/singularity/**
 
   provider:slack:
     - providers/src/airflow/providers/slack/**/*
@@ -439,10 +429,7 @@ labelPRBasedOnFilePath:
     - providers/ssh/**
 
   provider:tableau:
-    - providers/src/airflow/providers/tableau/**/*
-    - docs/apache-airflow-providers-tableau/**/*
-    - providers/tests/tableau/**/*
-    - providers/tests/system/tableau/**/*
+    - providers/tableau/**
 
   provider:telegram:
     - providers/telegram/**
