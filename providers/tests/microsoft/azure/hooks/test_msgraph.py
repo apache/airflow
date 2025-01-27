@@ -23,6 +23,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from httpx import Response
+from httpx._utils import URLPattern
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_serialization_json.json_parse_node import JsonParseNode
 from kiota_serialization_text.text_parse_node import TextParseNode
@@ -49,9 +50,6 @@ if TYPE_CHECKING:
 
 
 class TestKiotaRequestAdapterHook:
-    def setup_method(self):
-        KiotaRequestAdapterHook.cached_request_adapters.clear()
-
     @staticmethod
     def assert_tenant_id(request_adapter: RequestAdapter, expected_tenant_id: str):
         assert isinstance(request_adapter, HttpxRequestAdapter)
@@ -85,6 +83,44 @@ class TestKiotaRequestAdapterHook:
 
             assert isinstance(actual, HttpxRequestAdapter)
             assert actual.base_url == "https://api.fabric.microsoft.com/v1"
+
+    def test_get_conn_with_proxies_as_string(self):
+        connection = lambda conn_id: get_airflow_connection(
+            conn_id=conn_id,
+            host="api.fabric.microsoft.com",
+            api_version="v1",
+            proxies="{'http': 'http://proxy:80', 'https': 'https://proxy:80'}",
+        )
+
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            actual = hook.get_conn()
+
+            assert isinstance(actual, HttpxRequestAdapter)
+            assert actual._http_client._mounts.get(URLPattern("http://"))
+            assert actual._http_client._mounts.get(URLPattern("https://"))
+
+    def test_get_conn_with_proxies_as_json(self):
+        connection = lambda conn_id: get_airflow_connection(
+            conn_id=conn_id,
+            host="api.fabric.microsoft.com",
+            api_version="v1",
+            proxies='{"http": "http://proxy:80", "https": "https://proxy:80"}',
+        )
+
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            actual = hook.get_conn()
+
+            assert isinstance(actual, HttpxRequestAdapter)
+            assert actual._http_client._mounts.get(URLPattern("http://"))
+            assert actual._http_client._mounts.get(URLPattern("https://"))
 
     def test_scopes_when_default(self):
         with patch(

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from ast import literal_eval
 from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
@@ -251,7 +252,7 @@ class KiotaRequestAdapterHook(BaseHook):
             host = self.get_host(connection)
             base_url = config.get("base_url", urljoin(host, api_version))
             authority = config.get("authority")
-            proxies = self.proxies or config.get("proxies", {})
+            proxies = self.get_proxies(config)
             httpx_proxies = self.to_httpx_proxies(proxies=proxies)
             scopes = config.get("scopes", self.scopes)
             if isinstance(scopes, str):
@@ -313,6 +314,15 @@ class KiotaRequestAdapterHook(BaseHook):
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         self._api_version = api_version
         return request_adapter
+
+    def get_proxies(self, config: dict) -> dict | None:
+        proxies = self.proxies or config.get("proxies", {})
+        if isinstance(proxies, str):
+            with suppress(JSONDecodeError):
+                return json.loads(proxies)
+            with suppress(ValueError, TypeError):
+                return literal_eval(proxies)
+        return proxies
 
     def get_credentials(
         self,
