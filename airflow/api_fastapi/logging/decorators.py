@@ -82,7 +82,7 @@ def action_logging(event: str | None = None):
         request_body = await request.json()
         masked_body_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
 
-        event_name = event or request.url.path.strip("/").replace("/", ".")
+        event_name = event or request.url.path
 
         if not user:
             user_name = "anonymous"
