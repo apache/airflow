@@ -22,7 +22,7 @@ import json
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 
-from providers.tests.elasticsearch.log.elasticmock.utilities import (
+from provider_tests.elasticsearch.log.elasticmock.utilities import (
     MissingIndexException,
     get_random_id,
     query_params,
