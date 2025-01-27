@@ -9,6 +9,7 @@ apache-airflow-providers-cohere
 apache-airflow-providers-common-sql
 apache-airflow-providers-datadog
 apache-airflow-providers-edge
+apache-airflow-providers-hashicorp
 apache-airflow-providers-neo4j
 apache-airflow-providers-openai
 apache-airflow-providers-opsgenie

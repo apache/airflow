@@ -249,9 +249,7 @@ labelPRBasedOnFilePath:
     - providers/tests/grpc/**/*
 
   provider:hashicorp:
-    - providers/src/airflow/providers/hashicorp/**/*
-    - docs/apache-airflow-providers-hashicorp/**/*
-    - providers/tests/hashicorp/**/*
+    - providers/hashicorp/**
 
   provider:http:
     - providers/src/airflow/providers/http/**/*
