@@ -382,6 +382,9 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
@@ -620,8 +623,11 @@ dev = [
   "local-providers",
   "apache-airflow-providers-airbyte",
   "apache-airflow-providers-alibaba",
+  "apache-airflow-providers-apache-beam",
   "apache-airflow-providers-apache-iceberg",
+  "apache-airflow-providers-apache-kylin",
   "apache-airflow-providers-apache-pig",
+  "apache-airflow-providers-apache-spark",
   "apache-airflow-providers-asana",
   "apache-airflow-providers-celery",
   "apache-airflow-providers-cohere",
@@ -638,6 +644,10 @@ dev = [
   "apache-airflow-providers-opsgenie",
   "apache-airflow-providers-papermill",
   "apache-airflow-providers-pgvector",
+  "apache-airflow-providers-mysql",
+  "apache-airflow-providers-odbc",
+  "apache-airflow-providers-jenkins",
+  "apache-airflow-providers-pagerduty",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
   "apache-airflow-providers-qdrant",
@@ -660,8 +670,11 @@ dev = [
 local-providers = { workspace = true }
 apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
+apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
+apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
+apache-airflow-providers-apache-spark = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
@@ -674,6 +687,10 @@ apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
 apache-airflow-providers-neo4j = { workspace = true }
 apache-airflow-providers-openai = { workspace = true }
+apache-airflow-providers-jenkins = { workspace = true }
+apache-airflow-providers-mysql = { workspace = true }
+apache-airflow-providers-odbc = { workspace = true }
+apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-openfaas = { workspace = true }
 apache-airflow-providers-opsgenie = { workspace = true }
 apache-airflow-providers-papermill = { workspace = true }
@@ -698,8 +715,11 @@ members = [
     "providers",
     "providers/airbyte",
     "providers/alibaba",
+    "providers/apache/beam",
     "providers/apache/iceberg",
+    "providers/apache/kylin",
     "providers/apache/pig",
+    "providers/apache/spark",
     "providers/asana",
     "providers/celery",
     "providers/cohere",
@@ -707,6 +727,10 @@ members = [
     "providers/common/sql",
     "providers/datadog",
     "providers/edge",
+    "providers/pagerduty",
+    "providers/mysql",
+    "providers/jenkins",
+    "providers/odbc",
     "providers/openlineage",
     "providers/hashicorp",
     "providers/imap",
