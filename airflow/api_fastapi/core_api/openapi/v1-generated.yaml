@@ -2590,9 +2590,9 @@ paths:
     get:
       tags:
       - DagReport
-      summary: Get Dag Report
+      summary: Get Dag Reports
       description: Get DAG report.
-      operationId: get_dag_report
+      operationId: get_dag_reports
       parameters:
       - name: subdir
         in: query
