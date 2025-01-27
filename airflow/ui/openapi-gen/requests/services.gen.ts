@@ -1900,6 +1900,7 @@ export class ExtraLinksService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.mapIndex
    * @returns ExtraLinksResponse Successful Response
    * @throws ApiError
    */
@@ -1911,6 +1912,9 @@ export class ExtraLinksService {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
       },
       errors: {
         401: "Unauthorized",
@@ -1930,6 +1934,7 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.mapIndex
    * @returns ExtraLinksResponse Successful Response
    * @throws ApiError
    */
@@ -1941,6 +1946,9 @@ export class TaskInstanceService {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
       },
       errors: {
         401: "Unauthorized",

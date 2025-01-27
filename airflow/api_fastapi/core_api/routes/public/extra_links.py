@@ -48,6 +48,7 @@ def get_extra_links(
     task_id: str,
     session: SessionDep,
     request: Request,
+    map_index: int = -1,
 ) -> ExtraLinksResponse:
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
@@ -66,6 +67,7 @@ def get_extra_links(
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == dag_run_id,
             TaskInstance.task_id == task_id,
+            TaskInstance.map_index == map_index,
         )
     )
 
