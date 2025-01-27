@@ -382,6 +382,9 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
