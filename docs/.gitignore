@@ -15,6 +15,8 @@ apache-airflow-providers-mysql
 apache-airflow-providers-odbc
 apache-airflow-providers-jenkins
 apache-airflow-providers-pagerduty
+apache-airflow-providers-openai
+apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
 apache-airflow-providers-postgres
 apache-airflow-providers-segment
