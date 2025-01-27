@@ -96,7 +96,7 @@ class LogGroomerTestBase:
                {"name:": "AIRFLOW__LOG_RETENTION_DAYS", "value" : "5"}]
 
         if self.obj_name == "dag-processor":
-            values = {"dagProcessor": {"enabled": True, "env": env}}
+            values = {"dagProcessor": {"enabled": True, "logGroomerSidecar": {"env": env}}}
         else:
             values = None
 
