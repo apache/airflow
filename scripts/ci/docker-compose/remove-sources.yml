@@ -45,6 +45,7 @@ services:
       - ../../../empty:/opt/airflow/providers/pgvector/src
       - ../../../empty:/opt/airflow/providers/pinecone/src
       - ../../../empty:/opt/airflow/providers/postgres/src
+      - ../../../empty:/opt/airflow/providers/samba/src
       - ../../../empty:/opt/airflow/providers/segment/src
       - ../../../empty:/opt/airflow/providers/ssh/src
       - ../../../empty:/opt/airflow/providers/standard/src
