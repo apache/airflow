@@ -97,22 +97,13 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/livy/**/*
 
   provider:apache-pig:
-    - providers/src/airflow/providers/apache/pig/**/*
-    - docs/apache-airflow-providers-apache-pig/**/*
-    - providers/tests/apache/pig/**/*
-    - providers/tests/system/apache/pig/**/*
+    - providers/apache/pig/**
 
   provider:apache-pinot:
-    - providers/src/airflow/providers/apache/pinot/**/*
-    - docs/apache-airflow-providers-apache-pinot/**/*
-    - providers/tests/apache/pinot/**/*
-    - providers/tests/system/apache/pinot/**/*
+    - providers/apache/pinot/**
 
   provider:apache-spark:
-    - providers/src/airflow/providers/apache/spark/**/*
-    - docs/apache-airflow-providers-apache-spark/**/*
-    - providers/tests/apache/spark/**/*
-    - providers/tests/system/apache/spark/**/*
+    - providers/apache/spark/**
 
   provider:apprise:
     - providers/src/airflow/providers/apprise/**/*
