@@ -44,15 +44,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-
 integrations:
   - integration-name: Apache Pig
     external-doc-url: https://pig.apache.org/
     how-to-guide:
       - /docs/apache-airflow-providers-apache-pig/operators.rst
-    logo: /integration-logos/apache/pig.png
+    logo: /docs/integration-logos/pig.png
     tags: [apache]
 
 operators:
