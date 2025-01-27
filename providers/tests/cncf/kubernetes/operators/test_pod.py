@@ -1602,7 +1602,7 @@ class TestKubernetesPodOperator:
             name="test",
             task_id="task",
             do_xcom_push=False,
-            callbacks=[MockKubernetesPodOperatorCallback, MockKubernetesPodOperatorCallback]
+            callbacks=[MockKubernetesPodOperatorCallback, MockKubernetesPodOperatorCallback],
         )
         _, context = self.run_pod(k)
 
