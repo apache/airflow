@@ -31,7 +31,7 @@ from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow.models.param import Param, ParamsDict
+from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
 
 PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3

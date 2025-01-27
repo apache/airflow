@@ -103,7 +103,7 @@ class TestGetTask(TestTaskEndpoint):
             "owner": "airflow",
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "value": "bar",
                     "description": None,
                     "schema": {},
@@ -185,7 +185,7 @@ class TestGetTask(TestTaskEndpoint):
             "owner": "airflow",
             "params": {
                 "is_unscheduled": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "value": True,
                     "description": None,
                     "schema": {},
@@ -248,7 +248,7 @@ class TestGetTask(TestTaskEndpoint):
             "owner": "airflow",
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "value": "bar",
                     "description": None,
                     "schema": {},
@@ -313,7 +313,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "owner": "airflow",
                     "params": {
                         "foo": {
-                            "__class": "airflow.models.param.Param",
+                            "__class": "airflow.sdk.definitions.param.Param",
                             "value": "bar",
                             "description": None,
                             "schema": {},
@@ -469,7 +469,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "owner": "airflow",
                     "params": {
                         "is_unscheduled": {
-                            "__class": "airflow.models.param.Param",
+                            "__class": "airflow.sdk.definitions.param.Param",
                             "value": True,
                             "description": None,
                             "schema": {},

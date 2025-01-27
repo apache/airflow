@@ -329,7 +329,7 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     :meta private:
     """
     # TODO: Task-SDK this need to live in sdk too
-    from airflow.models.param import process_params
+    from airflow.sdk.definitions.param import process_params
 
     context["task"] = context["ti"].task = task
     context["params"] = process_params(

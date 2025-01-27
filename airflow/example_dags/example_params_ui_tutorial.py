@@ -29,7 +29,7 @@ from pathlib import Path
 
 from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.models.param import Param, ParamsDict
+from airflow.sdk.definitions.param import Param, ParamsDict
 
 with (
     DAG(

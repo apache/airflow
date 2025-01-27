@@ -51,12 +51,12 @@ from airflow.exceptions import (
     ParamValidationError,
     TaskNotFound,
 )
-from airflow.models.param import DagParam, ParamsDict
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions.context import Context
+from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,

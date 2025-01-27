@@ -31,9 +31,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.io.path import ObjectStoragePath
-    from airflow.models.param import ParamsDict
     from airflow.sdk.definitions.asset import AssetAlias, AssetUniqueKey
     from airflow.sdk.definitions.dag import DAG, DagStateChangeCallback, ScheduleArg
+    from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.triggers.base import BaseTrigger
     from airflow.typing_compat import Self

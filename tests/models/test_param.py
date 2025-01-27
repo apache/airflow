@@ -22,7 +22,7 @@ import pytest
 
 from airflow.decorators import task
 from airflow.exceptions import ParamValidationError
-from airflow.models.param import Param, ParamsDict
+from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -211,7 +211,7 @@ class TestParam:
     def test_dump(self):
         p = Param("hello", description="world", type="string", minLength=2)
         dump = p.dump()
-        assert dump["__class"] == "airflow.models.param.Param"
+        assert dump["__class"] == "airflow.sdk.definitions.param.Param"
         assert dump["value"] == "hello"
         assert dump["description"] == "world"
         assert dump["schema"] == {"type": "string", "minLength": 2}

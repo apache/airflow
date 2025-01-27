@@ -320,7 +320,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "owners": [],
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "description": None,
                     "schema": {},
                     "value": 1,
@@ -380,7 +380,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "owners": [],
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "description": None,
                     "schema": {},
                     "value": 1,
@@ -533,7 +533,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "owners": [],
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "description": None,
                     "schema": {},
                     "value": 1,
@@ -591,7 +591,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "owners": [],
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "description": None,
                     "schema": {},
                     "value": 1,
