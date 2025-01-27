@@ -80,8 +80,8 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
                       actions: [
                         {
                           action: "delete" as const,
-                          action_on_existence: "fail",
-                          keys: variableKeys,
+                          action_on_non_existence: "fail",
+                          entities: variableKeys,
                         },
                       ],
                     },

@@ -2625,32 +2625,13 @@ sensors:
       type: float
       example: ~
       default: "604800"
-usage_data_collection:
+dag_processor:
   description: |
-    Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic platform and usage data
-    during operation. This data assists Airflow maintainers in better understanding how Airflow is used.
-    Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
-    security fixes. Additionally, this information supports key decisions related to the development road map.
-    Check the FAQ doc for more information on what data is collected.
-
-    Deployments can opt-out of analytics by setting the ``enabled`` option
-    to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
-    Individual users can easily opt-out of analytics in various ways documented in the
-    `Scarf Do Not Track docs <https://docs.scarf.sh/gateway/#do-not-track>`__.
-
-  options:
-    enabled:
-      description: |
-        Enable or disable usage data collection and sending.
-      version_added: 2.10.0
-      type: boolean
-      example: ~
-      default: "True"
-      see_also: ":ref:`Usage data collection FAQ <usage-data-collection>`"
-dag_bundles:
-  description: |
-    Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
-
+    Configuration for the Airflow DAG processor. This includes, for example:
+      - DAG bundles, which allows Airflow to load DAGs from different sources
+      - Parsing configuration, like:
+         - how often to refresh DAGs from those sources
+         - how many files to parse concurrently
   options:
     dag_bundle_storage_path:
       description: |
@@ -2662,11 +2643,11 @@ dag_bundles:
       example: "/tmp/some-place"
       default: ~
 
-    config_list:
+    dag_bundle_config_list:
       description: |
         List of backend configs.  Must supply name, classpath, and kwargs for each backend.
 
-        By default, ``refresh_interval`` is set to ``[dag_bundles] refresh_interval``, but that can
+        By default, ``refresh_interval`` is set to ``[dag_processor] refresh_interval``, but that can
         also be overridden in kwargs if desired.
 
         The default is the dags folder dag bundle.
@@ -2684,6 +2665,15 @@ dag_bundles:
                 "kwargs": {
                     "subdir": "dags",
                     "repo_url": "git@github.com:example.com/my-dags.git",
+                    "tracking_ref": "main",
+                    "refresh_interval": 0
+            },
+            {
+                "name": "my-git-repo",
+                "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+                "kwargs": {
+                    "subdir": "dags",
+                    "repo_url": "https://github.com/example/my-dags.git",
                     "tracking_ref": "main",
                     "refresh_interval": 0
             }

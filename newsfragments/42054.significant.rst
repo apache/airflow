@@ -2,3 +2,14 @@ Dataset and DatasetAlias are no longer hashable
 
 This means they can no longer be used as dict keys or put into a set. Dataset's
 equality logic is also tweaked slightly to consider the extra dict.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

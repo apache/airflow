@@ -93,8 +93,8 @@ import type {
   GetDagSourceResponse,
   GetDagStatsData,
   GetDagStatsResponse,
-  GetDagReportData,
-  GetDagReportResponse,
+  GetDagReportsData,
+  GetDagReportsResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
   GetDagsData,
@@ -165,8 +165,8 @@ import type {
   GetPoolsResponse,
   PostPoolData,
   PostPoolResponse,
-  PutPoolsData,
-  PutPoolsResponse,
+  BulkPoolsData,
+  BulkPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
   GetXcomEntryData,
@@ -1144,7 +1144,7 @@ export class ConnectionService {
    * Bulk create, update, and delete connections.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns ConnectionBulkResponse Successful Response
+   * @returns BulkResponse Successful Response
    * @throws ApiError
    */
   public static bulkConnections(data: BulkConnectionsData): CancelablePromise<BulkConnectionsResponse> {
@@ -1524,14 +1524,14 @@ export class DagStatsService {
 
 export class DagReportService {
   /**
-   * Get Dag Report
+   * Get Dag Reports
    * Get DAG report.
    * @param data The data for the request.
    * @param data.subdir
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static getDagReport(data: GetDagReportData): CancelablePromise<GetDagReportResponse> {
+  public static getDagReports(data: GetDagReportsData): CancelablePromise<GetDagReportsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/dagReports",
@@ -2790,24 +2790,22 @@ export class PoolService {
   }
 
   /**
-   * Put Pools
-   * Create multiple pools.
+   * Bulk Pools
+   * Bulk create, update, and delete pools.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns PoolCollectionResponse Created with overwriting
-   * @returns PoolCollectionResponse Created
+   * @returns BulkResponse Successful Response
    * @throws ApiError
    */
-  public static putPools(data: PutPoolsData): CancelablePromise<PutPoolsResponse> {
+  public static bulkPools(data: BulkPoolsData): CancelablePromise<BulkPoolsResponse> {
     return __request(OpenAPI, {
-      method: "PUT",
-      url: "/public/pools/bulk",
+      method: "PATCH",
+      url: "/public/pools",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
-        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -3119,7 +3117,7 @@ export class VariableService {
    * Bulk create, update, and delete variables.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns VariableBulkResponse Successful Response
+   * @returns BulkResponse Successful Response
    * @throws ApiError
    */
   public static bulkVariables(data: BulkVariablesData): CancelablePromise<BulkVariablesResponse> {

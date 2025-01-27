@@ -148,7 +148,7 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-TEST_PROGRESS_REGEXP = r"tests/.*|providers/tests/.*|task_sdk/tests/.*|.*=====.*"
+TEST_PROGRESS_REGEXP = r"tests/.*|providers/.*/tests/.*|providers/tests/.*|task_sdk/tests/.*|.*=====.*"
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 

@@ -19,15 +19,48 @@
 import { Textarea } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
-export const FieldStringArray = ({ name, param }: FlexibleFormElementProps) => (
-  <Textarea
-    defaultValue={
-      Array.isArray(param.value) ? (param.value as Array<string>).join("\n") : String(param.value ?? "")
+export const FieldStringArray = ({ name }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+
+  const handleChange = (newValue: string) => {
+    const newValueArray = newValue.split("\n");
+
+    if (paramsDict[name]) {
+      paramsDict[name].value = newValueArray;
     }
-    id={`element_${name}`}
-    name={`element_${name}`}
-    rows={6}
-    size="sm"
-  />
-);
+
+    setParamsDict(paramsDict);
+  };
+
+  const handleBlur = () => {
+    const currentValue = paramsDict[name]?.value;
+
+    if (Array.isArray(currentValue) && currentValue.length === 1 && currentValue[0] === "") {
+      if (paramsDict[name]) {
+        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+        // eslint-disable-next-line unicorn/no-null
+        paramsDict[name].value = null;
+      }
+
+      setParamsDict(paramsDict);
+    }
+  };
+
+  const value = Array.isArray(param.value) ? param.value.join("\n") : [];
+
+  return (
+    <Textarea
+      id={`element_${name}`}
+      name={`element_${name}`}
+      onBlur={handleBlur}
+      onChange={(event) => handleChange(event.target.value)}
+      placeholder="Enter each string on a new line"
+      rows={6}
+      size="sm"
+      value={value}
+    />
+  );
+};
