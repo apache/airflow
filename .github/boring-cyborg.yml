@@ -353,10 +353,7 @@ labelPRBasedOnFilePath:
     - providers/tests/pagerduty/**/*
 
   provider:papermill:
-    - providers/src/airflow/providers/papermill/**/*
-    - docs/apache-airflow-providers-papermill/**/*
-    - providers/tests/papermill/**/*
-    - providers/tests/system/papermill/**/*
+    - providers/papermill/**
 
   provider:pgvector:
     - providers/pgvector/**

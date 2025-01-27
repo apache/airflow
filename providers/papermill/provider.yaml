@@ -53,19 +53,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - papermill[all]>=2.6.0
-  - scrapbook[all]>=0.5.0
-  - ipykernel>=6.29.4
-  - pandas>=2.1.2,<2.2
-
 integrations:
   - integration-name: Papermill
     external-doc-url: https://github.com/nteract/papermill
     how-to-guide:
       - /docs/apache-airflow-providers-papermill/operators.rst
-    logo: /integration-logos/papermill/Papermill.png
+    logo: /docs/integration-logos/Papermill.png
     tags: [software]
 
 operators:
