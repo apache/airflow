@@ -41,6 +41,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
+from tests_common.test_utils.www import _check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -1140,12 +1141,7 @@ class TestTriggerDagRun:
         ],
     )
     def test_should_respond_200(
-        self,
-        test_client,
-        dag_run_id,
-        note,
-        data_interval_start,
-        data_interval_end,
+        self, test_client, dag_run_id, note, data_interval_start, data_interval_end, session
     ):
         fixed_now = timezone.utcnow().isoformat()
 
@@ -1193,6 +1189,7 @@ class TestTriggerDagRun:
         }
 
         assert response.json() == expected_response_json
+        _check_last_log(session, dag_id=DAG1_ID, event=f"public.dags.{DAG1_ID}.dagRuns", logical_date=None)
 
     @pytest.mark.parametrize(
         "post_body, expected_detail",

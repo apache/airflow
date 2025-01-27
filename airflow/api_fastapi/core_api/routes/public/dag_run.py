@@ -60,6 +60,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
@@ -331,9 +332,13 @@ def get_dag_runs(
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def trigger_dag_run(
-    dag_id, body: TriggerDAGRunPostBody, request: Request, session: SessionDep
+    dag_id,
+    body: TriggerDAGRunPostBody,
+    request: Request,
+    session: SessionDep,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
