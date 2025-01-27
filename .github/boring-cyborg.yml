@@ -97,10 +97,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/livy/**/*
 
   provider:apache-pig:
-    - providers/src/airflow/providers/apache/pig/**/*
-    - docs/apache-airflow-providers-apache-pig/**/*
-    - providers/tests/apache/pig/**/*
-    - providers/tests/system/apache/pig/**/*
+    - providers/apache/pig/**
 
   provider:apache-pinot:
     - providers/src/airflow/providers/apache/pinot/**/*
