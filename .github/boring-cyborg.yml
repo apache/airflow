@@ -82,10 +82,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/kafka/**/*
 
   provider:apache-kylin:
-    - providers/src/airflow/providers/apache/kylin/**/*
-    - docs/apache-airflow-providers-apache-kylin/**/*
-    - providers/tests/apache/kylin/**/*
-    - providers/tests/system/apache/kylin/**/*
+    - providers/apache/kylin/**
 
   provider:apache-livy:
     - providers/src/airflow/providers/apache/livy/**/*

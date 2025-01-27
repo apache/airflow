@@ -45,14 +45,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - kylinpy>=2.7.0
-
 integrations:
   - integration-name: Apache Kylin
     external-doc-url: https://kylin.apache.org/
-    logo: /integration-logos/apache/kylin.png
+    logo: /docs/integration-logos/kylin.png
     tags: [apache]
 
 operators:
