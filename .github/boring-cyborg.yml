@@ -366,10 +366,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/presto/**/*
 
   provider:qdrant:
-    - providers/src/airflow/providers/qdrant/**/*
-    - docs/apache-airflow-providers-qdrant/**/*
-    - providers/tests/qdrant/**/*
-    - providers/tests/system/qdrant/**/*
+    - providers/qdrant/**
 
   provider:redis:
     - providers/src/airflow/providers/redis/**/*

@@ -42,10 +42,6 @@ integrations:
       - /docs/apache-airflow-providers-qdrant/operators/qdrant.rst
     tags: [software]
 
-dependencies:
-  - qdrant_client>=1.10.1
-  - apache-airflow>=2.9.0
-
 hooks:
   - integration-name: Qdrant
     python-modules:

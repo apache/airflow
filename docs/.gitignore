@@ -20,6 +20,7 @@ apache-airflow-providers-papermill
 apache-airflow-providers-pgvector
 apache-airflow-providers-pinecone
 apache-airflow-providers-postgres
+apache-airflow-providers-qdrant
 apache-airflow-providers-samba
 apache-airflow-providers-segment
 apache-airflow-providers-singularity
