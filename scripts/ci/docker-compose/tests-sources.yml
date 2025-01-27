@@ -53,6 +53,7 @@ services:
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
+      - ../../../providers/exasol/tests:/opt/airflow/providers/exasol/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
@@ -72,6 +73,7 @@ services:
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
+      - ../../../providers/snowflake/tests:/opt/airflow/providers/snowflake/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
       - ../../../providers/tableau/tests:/opt/airflow/providers/tableau/tests
