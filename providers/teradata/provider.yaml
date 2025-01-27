@@ -36,27 +36,13 @@ versions:
   - 2.1.0
   - 2.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-  - teradatasqlalchemy>=17.20.0.0
-  - teradatasql>=17.20.0.28
-
-additional-extras:
-  - name: microsoft.azure
-    dependencies:
-      - apache-airflow-providers-microsoft-azure
-  - name: amazon
-    dependencies:
-      - apache-airflow-providers-amazon
-
 integrations:
   - integration-name: Teradata
     external-doc-url: https://www.teradata.com/
     how-to-guide:
       - /docs/apache-airflow-providers-teradata/operators/teradata.rst
       - /docs/apache-airflow-providers-teradata/operators/compute_cluster.rst
-    logo: /integration-logos/teradata/Teradata.png
+    logo: /docs/integration-logos/Teradata.png
     tags: [software]
 
 operators:
