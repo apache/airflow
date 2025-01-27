@@ -12176,7 +12176,7 @@
                     "default": 15
                 },
                 "env": {
-                    "description": "Add additional env vars to log groomer sidecar container.",
+                    "description": "Add additional env vars to log groomer sidecar container (templated).",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
                     },
