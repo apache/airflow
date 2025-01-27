@@ -93,8 +93,8 @@ import type {
   GetDagSourceResponse,
   GetDagStatsData,
   GetDagStatsResponse,
-  GetDagReportData,
-  GetDagReportResponse,
+  GetDagReportsData,
+  GetDagReportsResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
   GetDagsData,
@@ -1524,14 +1524,14 @@ export class DagStatsService {
 
 export class DagReportService {
   /**
-   * Get Dag Report
+   * Get Dag Reports
    * Get DAG report.
    * @param data The data for the request.
    * @param data.subdir
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static getDagReport(data: GetDagReportData): CancelablePromise<GetDagReportResponse> {
+  public static getDagReports(data: GetDagReportsData): CancelablePromise<GetDagReportsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/dagReports",

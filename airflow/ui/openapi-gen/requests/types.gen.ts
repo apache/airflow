@@ -1877,11 +1877,11 @@ export type GetDagStatsData = {
 
 export type GetDagStatsResponse = DagStatsCollectionResponse;
 
-export type GetDagReportData = {
+export type GetDagReportsData = {
   subdir: string;
 };
 
-export type GetDagReportResponse = unknown;
+export type GetDagReportsResponse = unknown;
 
 export type ListDagWarningsData = {
   dagId?: string | null;
@@ -3551,7 +3551,7 @@ export type $OpenApiTs = {
   };
   "/public/dagReports": {
     get: {
-      req: GetDagReportData;
+      req: GetDagReportsData;
       res: {
         /**
          * Successful Response
