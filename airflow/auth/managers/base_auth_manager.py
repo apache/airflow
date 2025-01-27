@@ -146,15 +146,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         self,
         *,
         method: ResourceMethod,
+        user: T,
         details: ConfigurationDetails | None = None,
-        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on configuration.
 
         :param method: the method to perform
+        :param user: the user to perform the action on
         :param details: optional details about the configuration
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
     @abstractmethod
@@ -162,15 +162,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         self,
         *,
         method: ResourceMethod,
+        user: T,
         details: ConnectionDetails | None = None,
-        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a connection.
 
         :param method: the method to perform
+        :param user: the user to perform the action on
         :param details: optional details about the connection
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
     @abstractmethod
@@ -178,18 +178,18 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         self,
         *,
         method: ResourceMethod,
+        user: T,
         access_entity: DagAccessEntity | None = None,
         details: DagDetails | None = None,
-        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a DAG.
 
         :param method: the method to perform
+        :param user: the user to perform the action on
         :param access_entity: the kind of DAG information the authorization request is about.
             If not provided, the authorization request is about the DAG itself
         :param details: optional details about the DAG
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
     @abstractmethod
@@ -197,15 +197,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         self,
         *,
         method: ResourceMethod,
+        user: T,
         details: AssetDetails | None = None,
-        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on an asset.
 
         :param method: the method to perform
+        :param user: the user to perform the action on
         :param details: optional details about the asset
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
     @abstractmethod
@@ -213,15 +213,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         self,
         *,
         method: ResourceMethod,
+        user: T,
         details: PoolDetails | None = None,
-        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a pool.
 
         :param method: the method to perform
+        :param user: the user to perform the action on
         :param details: optional details about the pool
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
     @abstractmethod
@@ -229,15 +229,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         self,
         *,
         method: ResourceMethod,
+        user: T,
         details: VariableDetails | None = None,
-        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a variable.
 
         :param method: the method to perform
+        :param user: the user to perform the action on
         :param details: optional details about the variable
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
     @abstractmethod
@@ -245,19 +245,17 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         self,
         *,
         access_view: AccessView,
-        user: T | None = None,
+        user: T,
     ) -> bool:
         """
         Return whether the user is authorized to access a read-only state of the installation.
 
         :param access_view: the specific read-only view/state the authorization request is about.
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        :param user: the user to perform the action on
         """
 
     @abstractmethod
-    def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: T | None = None
-    ):
+    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: T):
         """
         Return whether the user is authorized to perform a given action on a custom view.
 
@@ -270,7 +268,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             In that case, the action can be anything (e.g. can_do).
             See https://github.com/apache/airflow/issues/39144
         :param resource_name: the name of the resource
-        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        :param user: the user to perform the action on
         """
 
     @abstractmethod
@@ -284,6 +282,8 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     def batch_is_authorized_connection(
         self,
         requests: Sequence[IsAuthorizedConnectionRequest],
+        *,
+        user: T,
     ) -> bool:
         """
         Batch version of ``is_authorized_connection``.
@@ -293,15 +293,18 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         manager implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_connection``
+        :param user: the user to perform the action on
         """
         return all(
-            self.is_authorized_connection(method=request["method"], details=request.get("details"))
+            self.is_authorized_connection(method=request["method"], details=request.get("details"), user=user)
             for request in requests
         )
 
     def batch_is_authorized_dag(
         self,
         requests: Sequence[IsAuthorizedDagRequest],
+        *,
+        user: T,
     ) -> bool:
         """
         Batch version of ``is_authorized_dag``.
@@ -311,12 +314,14 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_dag``
+        :param user: the user to perform the action on
         """
         return all(
             self.is_authorized_dag(
                 method=request["method"],
                 access_entity=request.get("access_entity"),
                 details=request.get("details"),
+                user=user,
             )
             for request in requests
         )
@@ -324,6 +329,8 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     def batch_is_authorized_pool(
         self,
         requests: Sequence[IsAuthorizedPoolRequest],
+        *,
+        user: T,
     ) -> bool:
         """
         Batch version of ``is_authorized_pool``.
@@ -333,15 +340,18 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         manager implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_pool``
+        :param user: the user to perform the action on
         """
         return all(
-            self.is_authorized_pool(method=request["method"], details=request.get("details"))
+            self.is_authorized_pool(method=request["method"], details=request.get("details"), user=user)
             for request in requests
         )
 
     def batch_is_authorized_variable(
         self,
         requests: Sequence[IsAuthorizedVariableRequest],
+        *,
+        user: T,
     ) -> bool:
         """
         Batch version of ``is_authorized_variable``.
@@ -351,9 +361,10 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         manager implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_variable``
+        :param user: the user to perform the action on
         """
         return all(
-            self.is_authorized_variable(method=request["method"], details=request.get("details"))
+            self.is_authorized_variable(method=request["method"], details=request.get("details"), user=user)
             for request in requests
         )
 
@@ -361,8 +372,8 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     def get_permitted_dag_ids(
         self,
         *,
+        user: T,
         methods: Container[ResourceMethod] | None = None,
-        user=None,
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -372,8 +383,8 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Can lead to some poor performance. It is recommended to override this method in the auth manager
         implementation to provide a more efficient implementation.
 
+        :param user: the user
         :param methods: whether filter readable or writable
-        :param user: the current user
         :param session: the session
         """
         dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
@@ -383,15 +394,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         self,
         *,
         dag_ids: set[str],
+        user: T,
         methods: Container[ResourceMethod] | None = None,
-        user=None,
     ):
         """
         Filter readable or writable DAGs for user.
 
         :param dag_ids: the list of DAG ids
+        :param user: the user
         :param methods: whether filter readable or writable
-        :param user: the current user
         """
         if not methods:
             methods = ["PUT", "GET"]

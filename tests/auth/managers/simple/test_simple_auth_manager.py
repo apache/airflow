@@ -163,7 +163,6 @@ class TestSimpleAuthManager:
         assert result == {"username": "test", "role": "admin"}
 
     @pytest.mark.db_test
-    @patch.object(SimpleAuthManager, "is_logged_in")
     @pytest.mark.parametrize(
         "api",
         [
@@ -176,27 +175,25 @@ class TestSimpleAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "is_logged_in, role, method, result",
+        "role, method, result",
         [
-            (True, "ADMIN", "GET", True),
-            (True, "ADMIN", "DELETE", True),
-            (True, "VIEWER", "POST", False),
-            (True, "VIEWER", "PUT", False),
-            (True, "VIEWER", "DELETE", False),
-            (False, "ADMIN", "GET", False),
+            ("ADMIN", "GET", True),
+            ("ADMIN", "DELETE", True),
+            ("VIEWER", "POST", False),
+            ("VIEWER", "PUT", False),
+            ("VIEWER", "DELETE", False),
         ],
     )
-    def test_is_authorized_methods(
-        self, mock_is_logged_in, auth_manager, app, api, is_logged_in, role, method, result
-    ):
-        mock_is_logged_in.return_value = is_logged_in
-
+    def test_is_authorized_methods(self, auth_manager, app, api, role, method, result):
         with app.test_request_context():
-            session["user"] = SimpleAuthManagerUser(username="test", role=role)
-            assert getattr(auth_manager, api)(method=method) is result
+            assert (
+                getattr(auth_manager, api)(
+                    method=method, user=SimpleAuthManagerUser(username="test", role=role)
+                )
+                is result
+            )
 
     @pytest.mark.db_test
-    @patch.object(SimpleAuthManager, "is_logged_in")
     @pytest.mark.parametrize(
         "api, kwargs",
         [
@@ -211,26 +208,22 @@ class TestSimpleAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "is_logged_in, role, result",
+        "role, result",
         [
-            (True, "ADMIN", True),
-            (True, "VIEWER", True),
-            (True, "USER", True),
-            (True, "OP", True),
-            (False, "ADMIN", False),
+            ("ADMIN", True),
+            ("VIEWER", True),
+            ("USER", True),
+            ("OP", True),
         ],
     )
-    def test_is_authorized_view_methods(
-        self, mock_is_logged_in, auth_manager, app, api, kwargs, is_logged_in, role, result
-    ):
-        mock_is_logged_in.return_value = is_logged_in
-
+    def test_is_authorized_view_methods(self, auth_manager, app, api, kwargs, role, result):
         with app.test_request_context():
-            session["user"] = SimpleAuthManagerUser(username="test", role=role)
-            assert getattr(auth_manager, api)(**kwargs) is result
+            assert (
+                getattr(auth_manager, api)(**kwargs, user=SimpleAuthManagerUser(username="test", role=role))
+                is result
+            )
 
     @pytest.mark.db_test
-    @patch.object(SimpleAuthManager, "is_logged_in")
     @pytest.mark.parametrize(
         "api",
         [
@@ -250,17 +243,16 @@ class TestSimpleAuthManager:
             ("VIEWER", "PUT", False),
         ],
     )
-    def test_is_authorized_methods_op_role_required(
-        self, mock_is_logged_in, auth_manager, app, api, role, method, result
-    ):
-        mock_is_logged_in.return_value = True
-
+    def test_is_authorized_methods_op_role_required(self, auth_manager, app, api, role, method, result):
         with app.test_request_context():
-            session["user"] = SimpleAuthManagerUser(username="test", role=role)
-            assert getattr(auth_manager, api)(method=method) is result
+            assert (
+                getattr(auth_manager, api)(
+                    method=method, user=SimpleAuthManagerUser(username="test", role=role)
+                )
+                is result
+            )
 
     @pytest.mark.db_test
-    @patch.object(SimpleAuthManager, "is_logged_in")
     @pytest.mark.parametrize(
         "api",
         ["is_authorized_dag"],
@@ -275,17 +267,16 @@ class TestSimpleAuthManager:
             ("VIEWER", "PUT", False),
         ],
     )
-    def test_is_authorized_methods_user_role_required(
-        self, mock_is_logged_in, auth_manager, app, api, role, method, result
-    ):
-        mock_is_logged_in.return_value = True
-
+    def test_is_authorized_methods_user_role_required(self, auth_manager, app, api, role, method, result):
         with app.test_request_context():
-            session["user"] = SimpleAuthManagerUser(username="test", role=role)
-            assert getattr(auth_manager, api)(method=method) is result
+            assert (
+                getattr(auth_manager, api)(
+                    method=method, user=SimpleAuthManagerUser(username="test", role=role)
+                )
+                is result
+            )
 
     @pytest.mark.db_test
-    @patch.object(SimpleAuthManager, "is_logged_in")
     @pytest.mark.parametrize(
         "api",
         ["is_authorized_dag", "is_authorized_asset", "is_authorized_pool"],
@@ -301,13 +292,15 @@ class TestSimpleAuthManager:
         ],
     )
     def test_is_authorized_methods_viewer_role_required_for_get(
-        self, mock_is_logged_in, auth_manager, app, api, role, method, result
+        self, auth_manager, app, api, role, method, result
     ):
-        mock_is_logged_in.return_value = True
-
         with app.test_request_context():
-            session["user"] = SimpleAuthManagerUser(username="test", role=role)
-            assert getattr(auth_manager, api)(method=method) is result
+            assert (
+                getattr(auth_manager, api)(
+                    method=method, user=SimpleAuthManagerUser(username="test", role=role)
+                )
+                is result
+            )
 
     @pytest.mark.db_test
     def test_register_views(self, auth_manager_with_appbuilder):
