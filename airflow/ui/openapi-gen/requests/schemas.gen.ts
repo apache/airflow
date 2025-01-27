@@ -953,7 +953,24 @@ export const $ClearTaskInstancesBody = {
       anyOf: [
         {
           items: {
-            type: "string",
+            anyOf: [
+              {
+                type: "string",
+              },
+              {
+                prefixItems: [
+                  {
+                    type: "string",
+                  },
+                  {
+                    type: "integer",
+                  },
+                ],
+                type: "array",
+                maxItems: 2,
+                minItems: 2,
+              },
+            ],
           },
           type: "array",
         },

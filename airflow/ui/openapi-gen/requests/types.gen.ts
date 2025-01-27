@@ -332,7 +332,7 @@ export type ClearTaskInstancesBody = {
   only_failed?: boolean;
   only_running?: boolean;
   reset_dag_runs?: boolean;
-  task_ids?: Array<string> | null;
+  task_ids?: Array<string | [string, number]> | null;
   dag_run_id?: string | null;
   include_upstream?: boolean;
   include_downstream?: boolean;
