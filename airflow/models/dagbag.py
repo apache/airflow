@@ -482,7 +482,7 @@ class DagBag(LoggingMixin):
         found_dags = []
 
         for dag, mod in top_level_dags:
-            dag.fileloc = mod.__file__  # todo: dstandish: where fileloc set
+            dag.fileloc = mod.__file__
             if self.bundle_path:
                 dag.relative_fileloc = str(Path(mod.__file__).relative_to(self.bundle_path))
             else:
