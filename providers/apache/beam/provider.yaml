@@ -63,24 +63,6 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  # Apache Beam > 2.53.0 and pyarrow > 14.0.1 fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
-  - apache-beam>=2.53.0
-  - pyarrow>=14.0.1
-
-additional-extras:
-  - name: google
-    dependencies:
-      - apache-beam[gcp]
-
-# Apache Beam currently does not support Python 3.12
-# There is an issue tracking it https://github.com/apache/beam/issues/29149.
-# While the original issue above is closed, Apache Beam still does not support Python 3.12
-# because the dill version used by them break our PythonVirtualenvOperator when dill is enabled
-# See https://github.com/apache/beam/issues/32617
-excluded-python-versions: ['3.12']
-
 integrations:
   - integration-name: Apache Beam
     external-doc-url: https://beam.apache.org/

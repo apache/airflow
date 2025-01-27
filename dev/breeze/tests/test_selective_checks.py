@@ -84,7 +84,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             if received_value != expected_value:
                 if received_value is not None:
                     print_in_color(f"\n[red]ERROR: The key '{expected_key}' has unexpected value:")
-                    print(received_value)
+                    print(
+                        received_value,
+                    )
                     print_in_color("Expected value:\n")
                     print(expected_value)
                     print_in_color("\nOutput received:")
@@ -341,7 +343,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/tests/apache/beam/file.py",),
+                ("providers/apache/beam/tests/provider_tests/apache/beam/file.py",),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
@@ -371,7 +373,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/tests/system/apache/beam/file.py",),
+                ("providers/apache/beam/tests/provider_tests/apache/beam/file.py",),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
@@ -402,7 +404,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/tests/system/apache/beam/file.py", "providers/tests/apache/beam/file.py"),
+                (
+                    "providers/apache/beam/tests/system/apache/beam/file.py",
+                    "providers/apache/beam/tests/provider_tests/apache/beam/file.py",
+                ),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
@@ -434,8 +439,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         (
             pytest.param(
                 (
-                    "providers/tests/system/apache/beam/file.py",
-                    "providers/tests/apache/beam/file.py",
+                    "providers/apache/beam/tests/system/apache/beam/file.py",
+                    "providers/apache/beam/tests/provider_tests/apache/beam/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
@@ -1027,7 +1032,7 @@ def test_excluded_providers():
     )
     assert_outputs_are_printed(
         {
-            "excluded-providers-as-string": json.dumps({"3.9": ["cloudant"], "3.12": ["apache.beam"]}),
+            "excluded-providers-as-string": json.dumps({"3.9": ["cloudant"]}),
         },
         str(stderr),
     )
