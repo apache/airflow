@@ -375,6 +375,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param awslogs_fetch_interval: the interval that the ECS task log fetcher should wait
         in between each Cloudwatch logs fetches.
         If deferrable is set to True, that parameter is ignored and waiter_delay is used instead.
+    :param container_name: The name of the container to fetch logs from. If not set, the first container is used.
     :param quota_retry: Config if and how to retry the launch of a new ECS task, to handle
         transient errors.
     :param reattach: If set to True, will check if the task previously launched by the task_instance
@@ -392,7 +393,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
-    :param container_name: The name of the container to fetch logs from. If not set, the first container is used.
     :param do_xcom_push: If True, the operator will push the ECS task ARN to XCom with key 'ecs_task_arn'.
         Additionally, if logs are fetched, the last log message will be pushed to XCom with the key 'return_value'. (default: False)
     """
@@ -415,12 +415,12 @@ class EcsRunTaskOperator(EcsBaseOperator):
         "awslogs_region",
         "awslogs_stream_prefix",
         "awslogs_fetch_interval",
+        "container_name",
         "propagate_tags",
         "reattach",
         "number_logs_exception",
         "wait_for_completion",
         "deferrable",
-        "container_name",
     )
     template_fields_renderers = {
         "overrides": "json",
@@ -447,6 +447,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         awslogs_region: str | None = None,
         awslogs_stream_prefix: str | None = None,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
+        container_name: str | None = None,
         propagate_tags: str | None = None,
         quota_retry: dict | None = None,
         reattach: bool = False,
@@ -457,7 +458,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
         # Set the default waiter duration to 70 days (attempts*delay)
         # Airflow execution_timeout handles task timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        container_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
