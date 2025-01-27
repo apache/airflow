@@ -385,10 +385,7 @@ labelPRBasedOnFilePath:
     - providers/tests/smtp/**/*
 
   provider:snowflake:
-    - providers/src/airflow/providers/snowflake/**/*
-    - docs/apache-airflow-providers-snowflake/**/*
-    - providers/tests/snowflake/**/*
-    - providers/tests/system/snowflake/**/*
+    - providers/snowflake/**
 
   provider:sqlite:
     - providers/src/airflow/providers/sqlite/**/*
