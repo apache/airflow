@@ -24,7 +24,7 @@ brings together AWS data, analytics, artificial intelligence (AI), and machine l
 It provides a place to build, deploy, execute, and monitor end-to-end workflows from a single interface.
 This helps drive collaboration across teams and facilitate agile development.
 
-Airflow provides operators to orchestrate Notebooks and Querybooks within SageMaker Unified Studio Workflows.
+Airflow provides operators to orchestrate Notebooks, Querybooks, and Visual ETL jobs within SageMaker Unified Studio Workflows.
 
 Prerequisite Tasks
 ------------------
@@ -39,7 +39,7 @@ Operators
 Create an Amazon SageMaker Unified Studio Workflow
 ==================================================
 
-To create an Amazon SageMaker Unified Studio workflow to orchestrate your notebook and querybook runs you can use
+To create an Amazon SageMaker Unified Studio workflow to orchestrate your notebook, querybook, and visual ETL runs you can use
 :class:`~airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookOperator`.
 
 .. exampleinclude:: /../../providers/tests/system/amazon/aws/example_sagemaker_unified_studio.py
