@@ -58,6 +58,7 @@ services:
       - ../../../providers/postgres/tests:/opt/airflow/providers/postgres/tests
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
+      - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
       - ../../../providers/telegram/tests:/opt/airflow/providers/telegram/tests

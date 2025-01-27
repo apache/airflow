@@ -637,6 +637,7 @@ dev = [
   "apache-airflow-providers-postgres",
   "apache-airflow-providers-samba",
   "apache-airflow-providers-segment",
+  "apache-airflow-providers-singularity",
   "apache-airflow-providers-ssh",
   "apache-airflow-providers-standard",
   "apache-airflow-providers-telegram",
@@ -669,6 +670,7 @@ apache-airflow-providers-postgres = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
+apache-airflow-providers-singularity = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
 apache-airflow-providers-telegram = { workspace = true }
@@ -699,6 +701,7 @@ members = [
     "providers/pgvector",
     "providers/samba",
     "providers/segment",
+    "providers/singularity",
     "providers/ssh",
     "providers/standard",
     "providers/telegram",

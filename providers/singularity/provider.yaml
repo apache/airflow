@@ -45,14 +45,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - spython>=0.0.56
-
 integrations:
   - integration-name: Singularity
     external-doc-url: https://sylabs.io/guides/latest/user-guide/
-    logo: /integration-logos/singularity/Singularity.png
+    logo: /docs/integration-logos/Singularity.png
     tags: [software]
 
 operators:

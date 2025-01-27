@@ -405,10 +405,7 @@ labelPRBasedOnFilePath:
     - providers/tests/sftp/**/*
 
   provider:singularity:
-    - providers/src/airflow/providers/singularity/**/*
-    - docs/apache-airflow-providers-singularity/**/*
-    - providers/tests/singularity/**/*
-    - providers/tests/system/singularity/**/*
+    - providers/singularity/**
 
   provider:slack:
     - providers/src/airflow/providers/slack/**/*
