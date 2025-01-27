@@ -31,10 +31,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/amazon/aws/**/*
 
   provider:apache-beam:
-    - providers/src/airflow/providers/apache/beam/**/*
-    - docs/apache-airflow-providers-apache-beam/**/*
-    - providers/tests/apache/beam/**/*
-    - providers/tests/system/apache/beam/**/*
+    - providers/apache/beam/**
 
   provider:apache-cassandra:
     - providers/src/airflow/providers/apache/cassandra/**/*
