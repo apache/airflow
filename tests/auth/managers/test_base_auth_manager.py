@@ -222,7 +222,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": DagDetails(id="dag1")},
                 {"method": "GET", "details": DagDetails(id="dag2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -243,7 +244,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": ConnectionDetails(conn_id="conn1")},
                 {"method": "GET", "details": ConnectionDetails(conn_id="conn2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -262,7 +264,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": PoolDetails(name="pool1")},
                 {"method": "GET", "details": PoolDetails(name="pool2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -283,7 +286,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": VariableDetails(key="var1")},
                 {"method": "GET", "details": VariableDetails(key="var2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
