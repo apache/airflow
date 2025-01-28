@@ -19,6 +19,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 __all__ = [
+    "__version__",
+    "Asset",
+    "AssetWatcher",
     "BaseOperator",
     "Connection",
     "DAG",
@@ -27,13 +30,9 @@ __all__ = [
     "MappedOperator",
     "TaskGroup",
     "XComArg",
-    "__version__",
     "dag",
     "get_current_context",
     "get_parsing_context",
-    "__version__",
-    "Asset",
-    "AssetWatcher",
 ]
 
 __version__ = "1.0.0.dev1"
