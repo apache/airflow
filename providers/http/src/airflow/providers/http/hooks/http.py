@@ -64,6 +64,46 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     return (base_url or "") + (endpoint or "")
 
 
+def _load_conn_auth_type(module_name: str | None) -> Any:
+    """
+    Load auth_type module from extra Connection parameters.
+
+    Check if the auth_type module is listed in 'extra_auth_types' and load it.
+    This method protects against the execution of random modules.
+    """
+    if module_name:
+        if module_name in HttpHook.get_auth_types():
+            try:
+                module = import_string(module_name)
+                return module
+            except Exception as error:
+                raise AirflowException(error)
+        warnings.warn(
+            f"Skipping import of auth_type '{module_name}'. The class should be listed in "
+            "'extra_auth_types' config of the http provider."
+        )
+    return None
+
+
+def _extract_auth(connection: Connection, auth_type: Any) -> AuthBase | None:
+    extra = connection.extra_dejson
+    auth_type = auth_type or _load_conn_auth_type(module_name=extra.get("auth_type"))
+
+    if auth_type:
+        auth_args: list[str | None] = [connection.login, connection.password]
+
+        if any(auth_args):
+            auth_kwargs = extra.get("auth_kwargs", {})
+
+            if auth_kwargs:
+                _auth = auth_type(*auth_args, **auth_kwargs)
+            else:
+                return auth_type(*auth_args)
+        else:
+            return auth_type()
+    return None
+
+
 class HttpHook(BaseHook):
     """
     Interact with HTTP servers.
@@ -222,54 +262,8 @@ class HttpHook(BaseHook):
     def _configure_session_from_auth(
         self, session: requests.Session, connection: Connection
     ) -> requests.Session:
-        session.auth = self._extract_auth(connection)
+        session.auth = _extract_auth(connection, self.auth_type)
         return session
-
-    def _load_conn_auth_type(self, module_name: str | None) -> Any:
-        """
-        Load auth_type module from extra Connection parameters.
-
-        Check if the auth_type module is listed in 'extra_auth_types' and load it.
-        This method protects against the execution of random modules.
-        """
-        if module_name:
-            if module_name in self.get_auth_types():
-                try:
-                    module = import_string(module_name)
-                    self._is_auth_type_setup = True
-                    self.log.info("Loaded auth_type: %s", module_name)
-                    return module
-                except Exception as error:
-                    self.log.error("Cannot import auth_type '%s' due to: %s", module_name, error)
-                    raise AirflowException(error)
-            self.log.warning(
-                "Skipping import of auth_type '%s'. The class should be listed in "
-                "'extra_auth_types' config of the http provider.",
-                module_name,
-            )
-        return None
-
-    def _extract_auth(self, connection: Connection) -> AuthBase | None:
-        extra = connection.extra_dejson
-        auth_type: Any = self.auth_type or self._load_conn_auth_type(module_name=extra.get("auth_type"))
-        auth_kwargs = extra.get("auth_kwargs", {})
-
-        self.log.debug("auth_type: %s", auth_type)
-        self.log.debug("auth_kwargs: %s", auth_kwargs)
-
-        if auth_type:
-            auth_args: list[str | None] = [connection.login, connection.password]
-
-            self.log.debug("auth_args: %s", auth_args)
-
-            if any(auth_args):
-                if auth_kwargs:
-                    _auth = auth_type(*auth_args, **auth_kwargs)
-                else:
-                    return auth_type(*auth_args)
-            else:
-                return auth_type()
-        return None
 
     def _configure_session_from_extra(
         self, session: requests.Session, connection: Connection
@@ -481,7 +475,7 @@ class HttpAsyncHook(BaseHook):
         self,
         method: str = "POST",
         http_conn_id: str = default_conn_name,
-        auth_type: Any = aiohttp.BasicAuth,
+        auth_type: Any = None,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
     ) -> None:
@@ -535,7 +529,7 @@ class HttpAsyncHook(BaseHook):
             if conn.port:
                 self.base_url += f":{conn.port}"
             if conn.login:
-                auth = self.auth_type(conn.login, conn.password)
+                auth = _extract_auth(conn, self.auth_type)
             if conn.extra:
                 extra = self._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
 

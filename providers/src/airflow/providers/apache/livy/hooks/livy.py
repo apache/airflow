@@ -495,9 +495,9 @@ class LivyAsyncHook(HttpAsyncHook):
         livy_conn_id: str = default_conn_name,
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
+        auth_type: Any | None = None,
     ) -> None:
-        super().__init__(http_conn_id=livy_conn_id)
-        self.auth_type = self.default_auth_type
+        super().__init__(http_conn_id=livy_conn_id, auth_type=auth_type)
         self.method = "POST"
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
