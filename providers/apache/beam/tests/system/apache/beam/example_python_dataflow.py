@@ -23,11 +23,7 @@ from __future__ import annotations
 
 from airflow import models
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
-from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
-from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
-from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
-
-from providers.tests.system.apache.beam.utils import (
+from airflow.providers.apache.beam.tests.system.apache.beam.utils import (
     DEFAULT_ARGS,
     GCP_PROJECT_ID,
     GCS_OUTPUT,
@@ -36,6 +32,9 @@ from providers.tests.system.apache.beam.utils import (
     GCS_TMP,
     START_DATE,
 )
+from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
+from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
+from airflow.providers.google.cloud.sensors.dataflow import DataflowJobStatusSensor
 
 with models.DAG(
     "example_beam_native_python_dataflow_async",
