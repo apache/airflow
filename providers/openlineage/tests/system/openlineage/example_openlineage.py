@@ -20,9 +20,8 @@ import os
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 from airflow.providers.standard.operators.python import PythonOperator
-
-from providers.tests.system.openlineage.operator import OpenLineageTestOperator
 
 
 def do_nothing():
