@@ -17,5 +17,4 @@
  * under the License.
  */
 
-export { default as MarkRunAsButton } from "./Run";
-export { default as MarkTaskInstanceAsButton } from "./TaskInstance";
+export { default as ActionAccordion } from "./ActionAccordion";
