@@ -108,6 +108,8 @@ CONN_DEFAULT = "git_default"
 CONN_HTTPS = "my_git_conn"
 CONN_HTTPS_PASSWORD = "my_git_conn_https_password"
 CONN_ONLY_PATH = "my_git_conn_only_path"
+CONN_ONLY_INLINE_KEY = "my_git_conn_only_inline_key"
+CONN_BOTH_PATH_INLINE = "my_git_conn_both_path_inline"
 CONN_NO_REPO_URL = "my_git_conn_no_repo_url"
 
 
@@ -144,6 +146,28 @@ class TestGitHook:
                 conn_id=CONN_ONLY_PATH,
                 host="path/to/repo",
                 conn_type="git",
+                extra={"key_file": "path/to/key"},
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=CONN_ONLY_INLINE_KEY,
+                host="path/to/repo",
+                conn_type="git",
+                extra={
+                    "private_key": "inline/key",
+                },
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=CONN_BOTH_PATH_INLINE,
+                host="path/to/repo",
+                conn_type="git",
+                extra={
+                    "key_file": "path/to/key",
+                    "private_key": "inline/key",
+                },
             )
         )
 
@@ -178,6 +202,16 @@ class TestGitHook:
         assert hook.env == {
             "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
         }
+
+    def test_given_both_private_key_and_key_file(self):
+        with pytest.raises(
+            AirflowException, match="Both 'key_file' and 'private_key' cannot be provided at the same time"
+        ):
+            GitHook(git_conn_id=CONN_BOTH_PATH_INLINE)
+
+    def test_only_inline_connection_has_tmp_keyfile(self):
+        hook = GitHook(git_conn_id=CONN_ONLY_INLINE_KEY)
+        assert hook.tmp_keyfile is not None
 
 
 class TestGitDagBundle:
