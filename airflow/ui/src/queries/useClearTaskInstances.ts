@@ -51,18 +51,26 @@ export const useClearTaskInstances = ({
     _: TaskInstanceCollectionResponse,
     variables: { dagId: string; requestBody: ClearTaskInstancesBody },
   ) => {
-    const taskInstanceKeys = (variables.requestBody.task_ids ?? [])
-      .map((taskId) => {
-        const runId = variables.requestBody.dag_run_id;
+    // deduplication using set as user can clear multiple map index of the same task_id.
+    const taskInstanceKeys = [
+      ...new Set(
+        (variables.requestBody.task_ids ?? [])
+          .filter((taskId) => typeof taskId === "string" || Array.isArray(taskId))
+          .map((taskId) => {
+            const actualTaskId = Array.isArray(taskId) ? taskId[0] : taskId;
+            const runId = variables.requestBody.dag_run_id;
 
-        if (runId === null || runId === undefined) {
-          return undefined;
-        }
-        const params = { dagId, dagRunId: runId, taskId };
+            if (runId === null || runId === undefined) {
+              return undefined;
+            }
 
-        return UseTaskInstanceServiceGetTaskInstanceKeyFn(params);
-      })
-      .filter((key) => key !== undefined);
+            const params = { dagId, dagRunId: runId, taskId: actualTaskId };
+
+            return UseTaskInstanceServiceGetTaskInstanceKeyFn(params);
+          })
+          .filter((key) => key !== undefined),
+      ),
+    ];
 
     const queryKeys = [
       [useTaskInstanceServiceGetTaskInstancesKey],

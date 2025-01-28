@@ -20,8 +20,9 @@ import { VStack, Text, Box } from "@chakra-ui/react";
 import dayjs from "dayjs";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Tooltip, Status } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
 
 type Props = {
   readonly dataIntervalEnd?: string | null;
@@ -74,7 +75,7 @@ const DagRunInfo = ({
     >
       <Box>
         <Time datetime={dataIntervalStart} mr={2} showTooltip={false} />
-        {state === undefined ? undefined : <Status state={state} />}
+        {state === undefined ? undefined : <StateBadge state={state} />}
       </Box>
     </Tooltip>
   ) : undefined;

@@ -953,7 +953,24 @@ export const $ClearTaskInstancesBody = {
       anyOf: [
         {
           items: {
-            type: "string",
+            anyOf: [
+              {
+                type: "string",
+              },
+              {
+                prefixItems: [
+                  {
+                    type: "string",
+                  },
+                  {
+                    type: "integer",
+                  },
+                ],
+                type: "array",
+                maxItems: 2,
+                minItems: 2,
+              },
+            ],
           },
           type: "array",
         },
@@ -3896,21 +3913,15 @@ export const $NodeResponse = {
 
 export const $PatchTaskInstanceBody = {
   properties: {
-    dry_run: {
-      type: "boolean",
-      title: "Dry Run",
-      default: true,
-    },
     new_state: {
       anyOf: [
         {
-          type: "string",
+          $ref: "#/components/schemas/TaskInstanceState",
         },
         {
           type: "null",
         },
       ],
-      title: "New State",
     },
     note: {
       anyOf: [
