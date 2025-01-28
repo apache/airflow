@@ -126,8 +126,25 @@ def get_mapped_task_instances(
         SortParam,
         Depends(
             SortParam(
-                ["id", "state", "duration", "start_date", "end_date", "map_index", "rendered_map_index"],
+                [
+                    "id",
+                    "state",
+                    "duration",
+                    "start_date",
+                    "end_date",
+                    "map_index",
+                    "try_number",
+                    "logical_date",
+                    "data_interval_start",
+                    "data_interval_end",
+                    "rendered_map_index",
+                ],
                 TI,
+                to_replace={
+                    "logical_date": DagRun.logical_date,
+                    "data_interval_start": DagRun.data_interval_start,
+                    "data_interval_end": DagRun.data_interval_end,
+                },
             ).dynamic_depends(default="map_index")
         ),
     ],
@@ -349,8 +366,25 @@ def get_task_instances(
         SortParam,
         Depends(
             SortParam(
-                ["id", "state", "duration", "start_date", "end_date", "map_index"],
+                [
+                    "id",
+                    "state",
+                    "duration",
+                    "start_date",
+                    "end_date",
+                    "map_index",
+                    "try_number",
+                    "logical_date",
+                    "data_interval_start",
+                    "data_interval_end",
+                    "rendered_map_index",
+                ],
                 TI,
+                to_replace={
+                    "logical_date": DagRun.logical_date,
+                    "data_interval_start": DagRun.data_interval_start,
+                    "data_interval_end": DagRun.data_interval_end,
+                },
             ).dynamic_depends(default="map_index")
         ),
     ],
@@ -399,6 +433,7 @@ def get_task_instances(
         limit=limit,
         session=session,
     )
+
     task_instances = session.scalars(task_instance_select)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,

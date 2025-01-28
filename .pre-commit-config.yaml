@@ -135,7 +135,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/core_api/openapi/v1-generated.yaml$|^.*/pnpm-lock.yaml$
+        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/core_api/openapi/v1-generated.yaml$|^airflow/auth/managers/simple/openapi/v1-generated.yaml$|^.*/pnpm-lock.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -179,14 +179,6 @@ repos:
         language: python
         additional_dependencies: ['rich>=12.4.4', "ruff==0.8.1"]
         files: ^providers/src/airflow/providers/.*\.py$
-        require_serial: true
-      - id: update-common-sql-api-stubs
-        name: Check and update common.sql API stubs
-        entry: ./scripts/ci/pre_commit/update_common_sql_api_stubs.py
-        language: python
-        files: ^scripts/ci/pre_commit/update_common_sql_api\.py|^providers/src/airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.9.0', 'black==24.10.0', 'jinja2']
-        pass_filenames: false
         require_serial: true
       - id: update-black-version
         name: Update black versions everywhere (manual)
@@ -254,7 +246,7 @@ repos:
         name: Require literal syntax when initializing builtins
       - id: detect-private-key
         name: Detect if private key is added to the repository
-        exclude: ^docs/apache-airflow-providers-ssh/connections/ssh.rst$
+        exclude: ^providers/ssh/docs/connections/ssh.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
         exclude: ^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
@@ -475,9 +467,7 @@ repos:
         language: python
         files: |
           (?x)
-          ^providers/src/airflow/providers/.*\.py$ |
-          ^providers/src/airflow/providers/.*/provider\.yaml$ |
-          ^providers/tests/.*\.py$ |
+          ^providers/.*/provider\.yaml$|
           ^scripts/ci/pre_commit/update_providers_dependencies\.py$
         pass_filenames: false
         additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml', 'tomli']
@@ -517,6 +507,14 @@ repos:
         files: ^docs/.*/diagram_[^/]*\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4', "diagrams>=0.23.4"]
+      - id: generate-volumes-for-sources
+        name: Generate volumes for docker compose
+        entry: ./scripts/ci/pre_commit/generate_volumes_for_sources.py
+        language: python
+        files: ^providers/.*/provider.yaml$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-supported-versions
         name: Updates supported versions in documentation
         entry: ./scripts/ci/pre_commit/supported_versions.py
@@ -623,15 +621,17 @@ repos:
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
+          ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute.py$|
+          ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/src/airflow/providers/amazon/aws/hooks/emr.py$|
           ^providers/src/airflow/providers/amazon/aws/operators/emr.py$|
           ^providers/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^providers/src/airflow/providers/apache/hive/operators/hive_stats.py$|
           ^providers/src/airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
-          ^providers/src/airflow/providers/apache/spark/decorators/|
-          ^providers/src/airflow/providers/apache/spark/hooks/|
-          ^providers/src/airflow/providers/apache/spark/operators/|
-          ^providers/src/airflow/providers/exasol/hooks/exasol.py$|
+          ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
+          ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
+          ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
+          ^providers/exasol/src/airflow/providers/exasol/hooks/exasol.py$|
           ^providers/src/airflow/providers/fab/auth_manager/security_manager/|
           ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/src/airflow/providers/google/cloud/hooks/bigquery.py$|
@@ -644,7 +644,7 @@ repos:
           ^docs/.*commits.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^providers/src/airflow/providers/microsoft/winrm/operators/winrm.py$|
-          ^providers/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
+          ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
           ^providers/src/airflow/providers/redis/provider.yaml$|
           ^airflow/serialization/serialized_objects.py$|
           ^airflow/ui/pnpm-lock.yaml$|
@@ -658,8 +658,8 @@ repos:
           ^docs/README.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
-          ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
-          ^docs/apache-airflow-providers-apache-spark/decorators/pyspark.rst$|
+          ^providers/apache/kafka/docs/connections/kafka.rst$|
+          ^providers/apache/spark/docs/decorators/pyspark.rst$|
           ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
@@ -672,8 +672,11 @@ repos:
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint.sh$|
           ^tests/|
           ^providers/tests/|
+          ^providers/.*/tests/|
           ^.pre-commit-config\.yaml$|
           ^.*CHANGELOG\.(rst|txt)$|
+          ^.*changelog\.(rst|txt)$|
+          ^.*commits\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
           ^contributing-docs/03_contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
@@ -724,6 +727,8 @@ repos:
           ^airflow/operators/.*$|
           ^providers/src/airflow/providers/.*$|
           ^providers/src/airflow/providers/standard/sensors/.*$|
+          ^providers/.*/src/airflow/providers/.*$|
+          ^providers/.*/src/airflow/providers/standard/sensors/.*$|
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
@@ -733,8 +738,9 @@ repos:
         pass_filenames: true
         files: >
           (?x)
-          ^providers/src/airflow/providers/.*\.py$
-        exclude: providers/src/airflow/providers/standard/operators/bash.py|providers/src/airflow/providers/standard/operators/python.py|providers/src/airflow/providers/standard/sensors/external_task.py
+          ^providers/src/airflow/providers/.*\.py$|
+          ^providers/.*/src/airflow/providers/.*\.py$
+        exclude: providers/standard/.*/.*\.py$
       - id: check-get-lineage-collector-providers
         language: python
         name: Check providers import hook lineage code from compat
@@ -742,7 +748,7 @@ repos:
           airflow.lineage.hook.
         entry: ./scripts/ci/pre_commit/check_get_lineage_collector_providers.py
         files: ^providers/src/airflow/providers/.*\.py$
-        exclude: ^providers/src/airflow/providers/common/compat/.*\.py$
+        exclude: ^providers/common/compat/src/airflow/providers/common/compat/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name
@@ -867,7 +873,7 @@ repos:
         language: node
         stages: ['manual']
         types_or: [javascript, ts, tsx]
-        files: ^airflow/ui/
+        files: ^airflow/ui/|^airflow/auth/managers/simple/ui/
         entry: ./scripts/ci/pre_commit/compile_ui_assets.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
@@ -876,7 +882,7 @@ repos:
         language: node
         stages: ['manual']
         types_or: [javascript, ts, tsx]
-        files: ^airflow/ui/
+        files: ^airflow/ui/|^airflow/auth/managers/simple/ui/
         entry: ./scripts/ci/pre_commit/compile_ui_assets_dev.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
@@ -1178,7 +1184,7 @@ repos:
         description: TS types generation / ESLint / Prettier new UI files
         language: node
         types_or: [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/ui/|^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$
+        files: ^airflow/ui/|^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|^airflow/auth/managers/simple/ui/|^airflow/auth/managers/simple/openapi/v1-generated\.yaml$
         entry: ./scripts/ci/pre_commit/lint_ui.py
         additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: false
@@ -1205,10 +1211,12 @@ repos:
           ^airflow/utils/file.py$ |
           ^airflow/utils/helpers.py$ |
           ^airflow/utils/log/secrets_masker.py$ |
-          ^providers/src/airflow/providers/ |
-          ^(providers/)?tests/ |
-          task_sdk/src/airflow/sdk/definitions/dag.py$ |
-          task_sdk/src/airflow/sdk/definitions/_internal/node.py$ |
+          ^providers/ |
+          ^tests/ |
+          ^providers/tests/ |
+          ^providers/.*/tests/ |
+          ^task_sdk/src/airflow/sdk/definitions/dag.py$ |
+          ^task_sdk/src/airflow/sdk/definitions/_internal/node.py$ |
           ^dev/.*\.py$ |
           ^scripts/.*\.py$ |
           ^docker_tests/.*$ |
@@ -1343,7 +1351,7 @@ repos:
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
-        files: ^providers/src/airflow/providers/.*\.py$|^providers/tests//.*\.py$|^providers/.*/src/.*\.py$|^providers/.*/tests/.*\.py$
+        files: ^providers/.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
@@ -1392,7 +1400,7 @@ repos:
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/check_provider_yaml_files.py
         language: python
-        files: ^providers/src/airflow/providers/.*/provider\.yaml$|^providers/.*/src/provider\.yaml$
+        files: ^providers/.*/provider\.yaml$
         additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: check-template-fields-valid

@@ -161,6 +161,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/.*\.[jt]sx?",
             r"^airflow/.*\.lock",
             r"^airflow/ui/.*\.yaml$",
+            r"^airflow/auth/managers/simple/ui/.*\.yaml$",
         ],
         FileGroupForCi.API_TEST_FILES: [
             r"^airflow/api/",
@@ -198,7 +199,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
         ],
-        FileGroupForCi.UI_FILES: [r"^airflow/ui/"],
+        FileGroupForCi.UI_FILES: [r"^airflow/ui/", r"^airflow/auth/managers/simple/ui/"],
         FileGroupForCi.LEGACY_WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",

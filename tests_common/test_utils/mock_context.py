@@ -19,11 +19,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
-try:
-    from airflow.sdk.definitions.context import Context
-except ImportError:
-    # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

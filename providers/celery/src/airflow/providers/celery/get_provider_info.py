@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Celery",
         "description": "`Celery <https://docs.celeryq.dev/en/stable/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1737371674,
+        "source-date-epoch": 1737575943,
         "versions": [
+            "3.10.0",
             "3.9.0",
             "3.8.5",
             "3.8.4",
@@ -70,7 +71,7 @@ def get_provider_info():
             {
                 "integration-name": "Celery",
                 "external-doc-url": "https://docs.celeryq.dev/en/stable/",
-                "logo": "/docs/integration-logo/Celery.png",
+                "logo": "/docs/integration-logos/Celery.png",
                 "tags": ["software"],
             }
         ],

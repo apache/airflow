@@ -651,22 +651,22 @@ export const UseDagStatsServiceGetDagStatsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
-export type DagReportServiceGetDagReportDefaultResponse = Awaited<
-  ReturnType<typeof DagReportService.getDagReport>
+export type DagReportServiceGetDagReportsDefaultResponse = Awaited<
+  ReturnType<typeof DagReportService.getDagReports>
 >;
-export type DagReportServiceGetDagReportQueryResult<
-  TData = DagReportServiceGetDagReportDefaultResponse,
+export type DagReportServiceGetDagReportsQueryResult<
+  TData = DagReportServiceGetDagReportsDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useDagReportServiceGetDagReportKey = "DagReportServiceGetDagReport";
-export const UseDagReportServiceGetDagReportKeyFn = (
+export const useDagReportServiceGetDagReportsKey = "DagReportServiceGetDagReports";
+export const UseDagReportServiceGetDagReportsKeyFn = (
   {
     subdir,
   }: {
     subdir: string;
   },
   queryKey?: Array<unknown>,
-) => [useDagReportServiceGetDagReportKey, ...(queryKey ?? [{ subdir }])];
+) => [useDagReportServiceGetDagReportsKey, ...(queryKey ?? [{ subdir }])];
 export type DagWarningServiceListDagWarningsDefaultResponse = Awaited<
   ReturnType<typeof DagWarningService.listDagWarnings>
 >;
@@ -1672,7 +1672,6 @@ export type BackfillServiceUnpauseBackfillMutationResult = Awaited<
 export type BackfillServiceCancelBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.cancelBackfill>
 >;
-export type PoolServicePutPoolsMutationResult = Awaited<ReturnType<typeof PoolService.putPools>>;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<
   ReturnType<typeof DagParsingService.reparseDagFile>
 >;
@@ -1692,6 +1691,7 @@ export type TaskInstanceServicePatchTaskInstance1MutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.patchTaskInstance1>
 >;
 export type PoolServicePatchPoolMutationResult = Awaited<ReturnType<typeof PoolService.patchPool>>;
+export type PoolServiceBulkPoolsMutationResult = Awaited<ReturnType<typeof PoolService.bulkPools>>;
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
 >;

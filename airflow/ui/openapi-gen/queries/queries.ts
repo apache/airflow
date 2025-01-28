@@ -33,9 +33,11 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
+  BulkBody_ConnectionBody_,
+  BulkBody_PoolBody_,
+  BulkBody_VariableBody_,
   ClearTaskInstancesBody,
   ConnectionBody,
-  ConnectionBulkBody,
   CreateAssetEventsBody,
   DAGPatchBody,
   DAGRunClearBody,
@@ -44,13 +46,11 @@ import {
   DagRunState,
   DagWarningType,
   PatchTaskInstanceBody,
+  PoolBody,
   PoolPatchBody,
-  PoolPostBody,
-  PoolPostBulkBody,
   TaskInstancesBatchBody,
   TriggerDAGRunPostBody,
   VariableBody,
-  VariableBulkBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -1077,15 +1077,15 @@ export const useDagStatsServiceGetDagStats = <
     ...options,
   });
 /**
- * Get Dag Report
+ * Get Dag Reports
  * Get DAG report.
  * @param data The data for the request.
  * @param data.subdir
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useDagReportServiceGetDagReport = <
-  TData = Common.DagReportServiceGetDagReportDefaultResponse,
+export const useDagReportServiceGetDagReports = <
+  TData = Common.DagReportServiceGetDagReportsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -1098,8 +1098,8 @@ export const useDagReportServiceGetDagReport = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }, queryKey),
-    queryFn: () => DagReportService.getDagReport({ subdir }) as TData,
+    queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }, queryKey),
+    queryFn: () => DagReportService.getDagReports({ subdir }) as TData,
     ...options,
   });
 /**
@@ -3130,7 +3130,7 @@ export const usePoolServicePostPool = <
       TData,
       TError,
       {
-        requestBody: PoolPostBody;
+        requestBody: PoolBody;
       },
       TContext
     >,
@@ -3141,7 +3141,7 @@ export const usePoolServicePostPool = <
     TData,
     TError,
     {
-      requestBody: PoolPostBody;
+      requestBody: PoolBody;
     },
     TContext
   >({
@@ -3294,43 +3294,6 @@ export const useBackfillServiceCancelBackfill = <
     ...options,
   });
 /**
- * Put Pools
- * Create multiple pools.
- * @param data The data for the request.
- * @param data.requestBody
- * @returns PoolCollectionResponse Created with overwriting
- * @returns PoolCollectionResponse Created
- * @throws ApiError
- */
-export const usePoolServicePutPools = <
-  TData = Common.PoolServicePutPoolsMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: PoolPostBulkBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: PoolPostBulkBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) => PoolService.putPools({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
  * Reparse Dag File
  * Request re-parsing a DAG file.
  * @param data The data for the request.
@@ -3419,7 +3382,7 @@ export const useConnectionServicePatchConnection = <
  * Bulk create, update, and delete connections.
  * @param data The data for the request.
  * @param data.requestBody
- * @returns ConnectionBulkResponse Successful Response
+ * @returns BulkResponse Successful Response
  * @throws ApiError
  */
 export const useConnectionServiceBulkConnections = <
@@ -3432,7 +3395,7 @@ export const useConnectionServiceBulkConnections = <
       TData,
       TError,
       {
-        requestBody: ConnectionBulkBody;
+        requestBody: BulkBody_ConnectionBody_;
       },
       TContext
     >,
@@ -3443,7 +3406,7 @@ export const useConnectionServiceBulkConnections = <
     TData,
     TError,
     {
-      requestBody: ConnectionBulkBody;
+      requestBody: BulkBody_ConnectionBody_;
     },
     TContext
   >({
@@ -3793,6 +3756,42 @@ export const usePoolServicePatchPool = <
     ...options,
   });
 /**
+ * Bulk Pools
+ * Bulk create, update, and delete pools.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns BulkResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServiceBulkPools = <
+  TData = Common.PoolServiceBulkPoolsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: BulkBody_PoolBody_;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: BulkBody_PoolBody_;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) => PoolService.bulkPools({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Patch Variable
  * Update a variable by key.
  * @param data The data for the request.
@@ -3840,7 +3839,7 @@ export const useVariableServicePatchVariable = <
  * Bulk create, update, and delete variables.
  * @param data The data for the request.
  * @param data.requestBody
- * @returns VariableBulkResponse Successful Response
+ * @returns BulkResponse Successful Response
  * @throws ApiError
  */
 export const useVariableServiceBulkVariables = <
@@ -3853,7 +3852,7 @@ export const useVariableServiceBulkVariables = <
       TData,
       TError,
       {
-        requestBody: VariableBulkBody;
+        requestBody: BulkBody_VariableBody_;
       },
       TContext
     >,
@@ -3864,7 +3863,7 @@ export const useVariableServiceBulkVariables = <
     TData,
     TError,
     {
-      requestBody: VariableBulkBody;
+      requestBody: BulkBody_VariableBody_;
     },
     TContext
   >({
