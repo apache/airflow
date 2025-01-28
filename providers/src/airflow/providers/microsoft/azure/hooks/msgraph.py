@@ -318,6 +318,10 @@ class KiotaRequestAdapterHook(BaseHook):
     def get_proxies(self, config: dict) -> dict | None:
         proxies = self.proxies or config.get("proxies", {})
         if isinstance(proxies, str):
+            # TODO: Once provider depends on Airflow 2.10 or higher code below won't be needed anymore as we
+            #       could then use the get_extra_dejson method on the connection which deserializes nested
+            #       json. Make sure to use connection.get_extra_dejson(nested=True) instead of
+            #       connection.extra_dejson.
             with suppress(JSONDecodeError):
                 return json.loads(proxies)
             with suppress(ValueError, TypeError):
