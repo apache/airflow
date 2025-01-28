@@ -80,7 +80,7 @@ def _load_conn_auth_type(module_name: str | None) -> Any:
                 raise AirflowException(error)
         warnings.warn(
             f"Skipping import of auth_type '{module_name}'. The class should be listed in "
-            "'extra_auth_types' config of the http provider."
+            "'extra_auth_types' config of the http provider.", RuntimeWarning, stacklevel=2
         )
     return None
 
