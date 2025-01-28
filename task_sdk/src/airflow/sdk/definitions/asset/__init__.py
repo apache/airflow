@@ -255,7 +255,7 @@ class BaseAsset:
 
 @attrs.define(frozen=True)
 class AssetWatcher:
-    """A representation of an asset watcher. The name uniquely identity the watch."""
+    """A representation of an asset watcher. The name uniquely identifies the watch."""
 
     name: str
     # This attribute serves double purpose.
