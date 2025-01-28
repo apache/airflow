@@ -4,8 +4,10 @@ apache-airflow-providers-airbyte
 apache-airflow-providers-alibaba
 apache-airflow-providers-apache-beam
 apache-airflow-providers-apache-iceberg
+apache-airflow-providers-apache-kafka
 apache-airflow-providers-apache-kylin
 apache-airflow-providers-apache-pig
+apache-airflow-providers-apache-pinot
 apache-airflow-providers-apache-spark
 apache-airflow-providers-asana
 apache-airflow-providers-celery
@@ -14,9 +16,12 @@ apache-airflow-providers-common-compat
 apache-airflow-providers-common-io
 apache-airflow-providers-common-sql
 apache-airflow-providers-datadog
+apache-airflow-providers-discord
 apache-airflow-providers-edge
 apache-airflow-providers-exasol
 apache-airflow-providers-facebook
+apache-airflow-providers-http
+apache-airflow-providers-mongo
 apache-airflow-providers-openlineage
 apache-airflow-providers-hashicorp
 apache-airflow-providers-imap
@@ -38,6 +43,7 @@ apache-airflow-providers-presto
 apache-airflow-providers-qdrant
 apache-airflow-providers-samba
 apache-airflow-providers-segment
+apache-airflow-providers-sftp
 apache-airflow-providers-singularity
 apache-airflow-providers-ssh
 apache-airflow-providers-snowflake

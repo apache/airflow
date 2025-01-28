@@ -1690,6 +1690,12 @@ export type TaskInstanceServicePatchTaskInstanceMutationResult = Awaited<
 export type TaskInstanceServicePatchTaskInstance1MutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.patchTaskInstance1>
 >;
+export type TaskInstanceServicePatchTaskInstanceDryRunMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.patchTaskInstanceDryRun>
+>;
+export type TaskInstanceServicePatchTaskInstanceDryRun1MutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.patchTaskInstanceDryRun1>
+>;
 export type PoolServicePatchPoolMutationResult = Awaited<ReturnType<typeof PoolService.patchPool>>;
 export type PoolServiceBulkPoolsMutationResult = Awaited<ReturnType<typeof PoolService.bulkPools>>;
 export type VariableServicePatchVariableMutationResult = Awaited<

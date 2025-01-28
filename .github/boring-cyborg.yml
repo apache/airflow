@@ -76,10 +76,7 @@ labelPRBasedOnFilePath:
     - providers/tests/apache/impala/**/*
 
   provider:apache-kafka:
-    - providers/src/airflow/providers/apache/kafka/**/*
-    - docs/apache-airflow-providers-apache-kafka/**/*
-    - providers/tests/apache/kafka/**/*
-    - providers/tests/system/apache/kafka/**/*
+    - providers/apache/kafka/**
 
   provider:apache-kylin:
     - providers/apache/kylin/**
@@ -94,10 +91,7 @@ labelPRBasedOnFilePath:
     - providers/apache/pig/**
 
   provider:apache-pinot:
-    - providers/src/airflow/providers/apache/pinot/**/*
-    - docs/apache-airflow-providers-apache-pinot/**/*
-    - providers/tests/apache/pinot/**/*
-    - providers/tests/system/apache/pinot/**/*
+    - providers/apache/pinot/**
 
   provider:apache-spark:
     - providers/apache/spark/**
@@ -175,9 +169,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/dingding/**/*
 
   provider:discord:
-    - providers/src/airflow/providers/discord/**/*
-    - docs/apache-airflow-providers-discord/**/*
-    - providers/tests/discord/**/*
+    - providers/discord/**
 
   provider:docker:
     - providers/src/airflow/providers/docker/**/*
@@ -232,10 +224,7 @@ labelPRBasedOnFilePath:
     - providers/hashicorp/**
 
   provider:http:
-    - providers/src/airflow/providers/http/**/*
-    - docs/apache-airflow-providers-http/**/*
-    - providers/tests/http/**/*
-    - providers/tests/system/http/**/*
+    - providers/http/**
 
   provider:imap:
     - providers/imap/**
@@ -279,9 +268,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/microsoft/winrm/**/*
 
   provider:mongo:
-    - providers/src/airflow/providers/mongo/**/*
-    - docs/apache-airflow-providers-mongo/**/*
-    - providers/tests/mongo/**/*
+    - providers/mongo/**
 
   provider:mysql:
     - providers/mysql/**
@@ -357,9 +344,7 @@ labelPRBasedOnFilePath:
     - providers/segment/**
 
   provider:sftp:
-    - providers/src/airflow/providers/sftp/**/*
-    - docs/apache-airflow-providers-sftp/**/*
-    - providers/tests/sftp/**/*
+    - providers/sftp/**
 
   provider:singularity:
     - providers/singularity/**
