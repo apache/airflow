@@ -213,17 +213,18 @@ class KiotaRequestAdapterHook(BaseHook):
 
     @classmethod
     def to_httpx_proxies(cls, proxies: dict | None) -> dict | None:
-        proxies = proxies.copy()
-        if proxies.get("http"):
-            proxies["http://"] = AsyncHTTPTransport(proxy=proxies.pop("http"))
-        if proxies.get("https"):
-            proxies["https://"] = AsyncHTTPTransport(proxy=proxies.pop("https"))
-        if proxies.get("no"):
-            for url in proxies.pop("no", "").split(","):
-                proxies[cls.format_no_proxy_url(url.strip())] = None
+        if proxies:
+            proxies = proxies.copy()
+            if proxies.get("http"):
+                proxies["http://"] = AsyncHTTPTransport(proxy=proxies.pop("http"))
+            if proxies.get("https"):
+                proxies["https://"] = AsyncHTTPTransport(proxy=proxies.pop("https"))
+            if proxies.get("no"):
+                for url in proxies.pop("no", "").split(","):
+                    proxies[cls.format_no_proxy_url(url.strip())] = None
         return proxies
 
-    def to_msal_proxies(self, authority: str | None, proxies: dict | None):
+    def to_msal_proxies(self, authority: str | None, proxies: dict | None) -> dict | None:
         self.log.debug("authority: %s", authority)
         if authority and proxies:
             no_proxies = proxies.get("no")
