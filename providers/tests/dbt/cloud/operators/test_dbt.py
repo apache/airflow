@@ -210,6 +210,15 @@ class TestDbtCloudRunJobOperator:
             dbt_op.execute(MagicMock())
         assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
 
+    @pytest.mark.parametrize(
+        argnames="project_id, project_name, environment_id, environment_name, job_name",
+        argvalues=[
+            (PROJECT_ID, None, ENVIRONMENT_ID, None, JOB_NAME),
+            (None, PROJECT_NAME, None, ENVIRONMENT_NAME, JOB_NAME),
+            (PROJECT_ID, None, None, ENVIRONMENT_NAME, JOB_NAME),
+            (None, PROJECT_NAME, ENVIRONMENT_ID, None, JOB_NAME),
+        ],
+    )
     @patch(
         "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_by_name",
         return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RESPONSE),
@@ -224,18 +233,26 @@ class TestDbtCloudRunJobOperator:
         return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
     )
     def test_dbt_run_job_by_name(
-        self, mock_trigger_job_run, mock_dbt_hook, mock_job_run_status, mock_job_by_name
+        self,
+        mock_trigger_job_run,
+        mock_dbt_hook,
+        mock_job_run_status,
+        mock_job_by_name,
+        project_id,
+        project_name,
+        environment_id,
+        environment_name,
+        job_name,
     ):
-        """
-        Test alternative way to run a job by project,
-        environment and job name instead of job id.
-        """
+        """Test running a job by project, environment, and job name."""
         dbt_op = DbtCloudRunJobOperator(
             dbt_cloud_conn_id=ACCOUNT_ID_CONN,
             task_id=TASK_ID,
-            project_name=PROJECT_NAME,
-            environment_name=ENVIRONMENT_NAME,
-            job_name=JOB_NAME,
+            project_id=project_id,
+            project_name=project_name,
+            environment_id=environment_id,
+            environment_name=environment_name,
+            job_name=job_name,
             check_interval=1,
             timeout=3,
             dag=self.dag,
@@ -244,12 +261,22 @@ class TestDbtCloudRunJobOperator:
         mock_trigger_job_run.assert_called_once()
 
     @pytest.mark.parametrize(
-        argnames="project_name, environment_name, job_name",
+        argnames="project_id, project_name, environment_id, environment_name, job_name",
         argvalues=[
-            (None, ENVIRONMENT_NAME, JOB_NAME),
-            (PROJECT_NAME, "", JOB_NAME),
-            (PROJECT_NAME, ENVIRONMENT_NAME, None),
-            ("", "", ""),
+            # Missing all required fields
+            (None, None, None, None, None),
+            # Missing project (both id and name)
+            (None, None, ENVIRONMENT_ID, None, JOB_NAME),
+            (None, None, None, ENVIRONMENT_NAME, JOB_NAME),
+            (None, "", None, ENVIRONMENT_NAME, JOB_NAME),
+            # Missing environment (both id and name)
+            (PROJECT_ID, None, None, None, JOB_NAME),
+            (None, PROJECT_NAME, None, None, JOB_NAME),
+            (None, PROJECT_NAME, None, "", JOB_NAME),
+            # Missing job name
+            (PROJECT_ID, None, ENVIRONMENT_ID, None, None),
+            (None, PROJECT_NAME, None, ENVIRONMENT_NAME, None),
+            (None, PROJECT_NAME, ENVIRONMENT_ID, None, ""),
         ],
     )
     @patch(
@@ -271,21 +298,19 @@ class TestDbtCloudRunJobOperator:
         mock_dbt_hook,
         mock_job_run_status,
         mock_job_by_name,
+        project_id,
         project_name,
+        environment_id,
         environment_name,
         job_name,
     ):
-        """
-        Test alternative way to run a job by project,
-        environment and job name instead of job id.
-
-        This test is to check if the operator raises an exception
-        when the project, environment or job name is missing.
-        """
+        """Test that the operator raises an exception when job lookup information is invalid."""
         dbt_op = DbtCloudRunJobOperator(
             dbt_cloud_conn_id=ACCOUNT_ID_CONN,
             task_id=TASK_ID,
+            project_id=project_id,
             project_name=project_name,
+            environment_id=environment_id,
             environment_name=environment_name,
             job_name=job_name,
             check_interval=1,
@@ -294,7 +319,7 @@ class TestDbtCloudRunJobOperator:
         )
         with pytest.raises(
             ValueError,
-            match="Either job_id or project_name, environment_name, and job_name must be provided.",
+            match="Not enough information to lookup the job_id.",
         ):
             dbt_op.execute(MagicMock())
         mock_trigger_job_run.assert_not_called()

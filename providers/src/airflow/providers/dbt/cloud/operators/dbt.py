@@ -57,10 +57,19 @@ class DbtCloudRunJobOperator(BaseOperator):
         :ref:`howto/operator:DbtCloudRunJobOperator`
 
     :param dbt_cloud_conn_id: The connection ID for connecting to dbt Cloud.
-    :param job_id: The ID of a dbt Cloud job. Required if project_name, environment_name, and job_name are not provided.
-    :param project_name: Optional. The name of a dbt Cloud project. Used only if ``job_id`` is None.
-    :param environment_name: Optional. The name of a dbt Cloud environment. Used only if ``job_id`` is None.
-    :param job_name: Optional. The name of a dbt Cloud job. Used only if ``job_id`` is None.
+    :param job_id: The ID of a dbt Cloud job. You can either provide this ID directly, or let
+        the operator look it up using a combination of project, environment, and job name.
+    :param job_name: The name of the dbt Cloud job to run. Only used for job lookup when
+        job_id is not provided. Must be used together with either project_id/project_name
+        and environment_id/environment_name.
+    :param project_id: The ID of the dbt Cloud project. Only used for job lookup when
+        job_id is not provided. Can be used interchangeably with project_name.
+    :param project_name: The name of the dbt Cloud project. Only used for job lookup when
+        job_id is not provided. Can be used interchangeably with project_id.
+    :param environment_id: The ID of the dbt Cloud environment. Only used for job lookup when
+        job_id is not provided. Can be used interchangeably with environment_name.
+    :param environment_name: The name of the dbt Cloud environment. Only used for job lookup when
+        job_id is not provided. Can be used interchangeably with environment_id.
     :param account_id: Optional. The ID of a dbt Cloud account.
     :param trigger_reason: Optional. Description of the reason to trigger the job.
         Defaults to "Triggered via Apache Airflow by task <task_id> in the <dag_id> DAG."
@@ -89,9 +98,11 @@ class DbtCloudRunJobOperator(BaseOperator):
     template_fields = (
         "dbt_cloud_conn_id",
         "job_id",
-        "project_name",
-        "environment_name",
         "job_name",
+        "project_id",
+        "project_name",
+        "environment_id",
+        "environment_name",
         "account_id",
         "trigger_reason",
         "steps_override",
@@ -106,9 +117,11 @@ class DbtCloudRunJobOperator(BaseOperator):
         *,
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         job_id: int | None = None,
-        project_name: str | None = None,
-        environment_name: str | None = None,
         job_name: str | None = None,
+        project_id: int | None = None,
+        project_name: str | None = None,
+        environment_id: int | None = None,
+        environment_name: str | None = None,
         account_id: int | None = None,
         trigger_reason: str | None = None,
         steps_override: list[str] | None = None,
@@ -126,9 +139,11 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
         self.account_id = account_id
         self.job_id = job_id
-        self.project_name = project_name
-        self.environment_name = environment_name
         self.job_name = job_name
+        self.project_id = project_id
+        self.project_name = project_name
+        self.environment_id = environment_id
+        self.environment_name = environment_name
         self.trigger_reason = trigger_reason
         self.steps_override = steps_override
         self.schema_override = schema_override
@@ -148,9 +163,19 @@ class DbtCloudRunJobOperator(BaseOperator):
             )
 
         if self.job_id is None:
-            if not all([self.project_name, self.environment_name, self.job_name]):
+            if not (
+                (self.project_id or self.project_name)
+                and (self.environment_id or self.environment_name)
+                and self.job_name
+            ):
                 raise ValueError(
-                    "Either job_id or project_name, environment_name, and job_name must be provided."
+                    "Not enough information to lookup the job_id. "
+                    "To identify a job, you must provide either:\n"
+                    "1. A job_id, or\n"
+                    "2. All of the following:\n"
+                    "   - project_id or project_name\n"
+                    "   - environment_id or environment_name\n"
+                    "   - job_name"
                 )
             self.job_id = self.hook.get_job_by_name(
                 account_id=self.account_id,
