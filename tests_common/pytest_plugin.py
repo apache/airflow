@@ -834,9 +834,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 return
 
             dag.clear(session=self.session)
-            dag.relative_fileloc = dag.fileloc
             if AIRFLOW_V_3_0_PLUS:
                 dag.bulk_write_to_db(self.bundle_name, None, [dag], session=self.session)
+                dag.relative_fileloc = dag.fileloc
             else:
                 dag.sync_to_db(session=self.session)
 
