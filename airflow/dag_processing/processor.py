@@ -161,7 +161,10 @@ class DagFileParseRequest(BaseModel):
     """
 
     file: str
+
     bundle_path: Path
+    """Passing bundle path around lets us figure out relative file path."""
+
     requests_fd: int
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
