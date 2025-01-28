@@ -124,9 +124,7 @@ class TaskExecutor(LoggingMixin):
         if self.task_instance.try_number == 0:
             self.operator.render_template_fields(context=self.context)
             self.operator.pre_execute(context=self.context)
-            self.task_instance._run_execute_callback(
-                context=self.context, task=self.operator
-            )
+            self.task_instance._run_execute_callback(context=self.context, task=self.operator)
         return self
 
     async def __aenter__(self):
@@ -251,9 +249,7 @@ class IterableOperator(BaseOperator):
         self._operator_class = operator_class
         self.expand_input = expand_input
         self.partial_kwargs = partial_kwargs or {}
-        self.timeout = (
-            timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
-        )
+        self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
         self._mapped_kwargs: list[dict] = []
         if not self.max_active_tis_per_dag:
             self.max_active_tis_per_dag = os.cpu_count() or 1
@@ -296,9 +292,7 @@ class IterableOperator(BaseOperator):
 
     def _resolve_expand_input(self, context: Context, session: Session):
         if isinstance(self.expand_input.value, XComArg):
-            resolved_input = self.expand_input.value.resolve(
-                context=context, session=session
-            )
+            resolved_input = self.expand_input.value.resolve(context=context, session=session)
         else:
             resolved_input = self.expand_input.value
 
@@ -309,9 +303,7 @@ class IterableOperator(BaseOperator):
                 )
 
         else:
-            value = self._resolve(
-                value=resolved_input, context=context, session=session
-            )
+            value = self._resolve(value=resolved_input, context=context, session=session)
 
             if isinstance(value, dict):
                 for key, item in self._resolve(
@@ -346,10 +338,7 @@ class IterableOperator(BaseOperator):
         failed_tasks: list[TaskInstance] = []
 
         with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
-            futures = [
-                (task, pool.apply_async(self._run_operator, (context, task)))
-                for task in tasks
-            ]
+            futures = [(task, pool.apply_async(self._run_operator, (context, task))) for task in tasks]
 
             for task, future in futures:
                 try:
@@ -384,9 +373,7 @@ class IterableOperator(BaseOperator):
             self.log.info("Running %s deferred tasks", len(deferred_tasks))
 
             with event_loop() as loop:
-                for result in loop.run_until_complete(
-                    gather(*deferred_tasks, return_exceptions=True)
-                ):
+                for result in loop.run_until_complete(gather(*deferred_tasks, return_exceptions=True)):
                     self.log.debug("result: %s", result)
 
                     if isinstance(result, Exception):
@@ -430,16 +417,12 @@ class IterableOperator(BaseOperator):
     @classmethod
     def _run_operator(cls, context: Context, task_instance: TaskInstance):
         try:
-            with OperatorExecutor(
-                context=context, task_instance=task_instance
-            ) as executor:
+            with OperatorExecutor(context=context, task_instance=task_instance) as executor:
                 return executor.run()
         except TaskDeferred as task_deferred:
             return task_deferred
 
-    async def _run_deferrable(
-        self, context: Context, task: TaskInstance, task_deferred: TaskDeferred
-    ):
+    async def _run_deferrable(self, context: Context, task: TaskInstance, task_deferred: TaskDeferred):
         async with self._semaphore:
             async with TriggerExecutor(context=context, task_instance=task) as executor:
                 return await executor.run(task_deferred)

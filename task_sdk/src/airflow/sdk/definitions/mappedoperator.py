@@ -86,7 +86,7 @@ if TYPE_CHECKING:
 
     TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, list[TaskStateChangeCallback]]
 
-ValidationSource = Union[Literal["expand"], Literal["partial"]]
+ValidationSource = Union[Literal["expand"], Literal["iterate"], Literal["partial"]]
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
@@ -242,24 +242,19 @@ class OperatorPartial:
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
         validate_mapping_kwargs(self.operator_class, "iterate", mapped_kwargs)
-        prevent_duplicates(
-            self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified"
-        )
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
         return self._iterate(DictOfListsExpandInput(mapped_kwargs))
 
     def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument) -> IterableOperator:
         if isinstance(kwargs, Sequence):
             for item in kwargs:
                 if not isinstance(item, (XComArg, Mapping)):
-                    raise TypeError(
-                        f"expected XComArg or list[dict], not {type(kwargs).__name__}"
-                    )
+                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         elif not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         return self._iterate(ListOfDictsExpandInput(kwargs))
 
     def _iterate(self, expand_input) -> IterableOperator:
-
         from airflow.models.iterableoperator import IterableOperator
 
         ensure_xcomarg_return_value(expand_input.value)
