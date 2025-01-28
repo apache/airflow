@@ -177,9 +177,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/google/**/*
 
   provider:grpc:
-    - providers/src/airflow/providers/grpc/**/*
-    - docs/apache-airflow-providers-grpc/**/*
-    - providers/tests/grpc/**/*
+    - providers/grpc/**
 
   provider:hashicorp:
     - providers/hashicorp/**
