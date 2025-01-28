@@ -31,10 +31,10 @@
 Definition of the public interface for airflow.providers.common.sql.triggers.sql
 isort:skip_file
 """
-from airflow.triggers.base import BaseTrigger, TriggerEvent as TriggerEvent
-
 from collections.abc import AsyncIterator
 from typing import Any
+
+from airflow.triggers.base import BaseTrigger, TriggerEvent as TriggerEvent
 
 
 class SQLExecuteQueryTrigger(BaseTrigger):
