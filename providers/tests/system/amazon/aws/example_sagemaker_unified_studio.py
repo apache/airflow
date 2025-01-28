@@ -102,8 +102,6 @@ with DAG(
     environment_id = test_context[ENVIRONMENT_ID_KEY]
     s3_path = test_context[S3_PATH_KEY]
 
-    notebook_path = "test_notebook.ipynb"
-
     setup_mock_mwaa_environment = emulate_mwaa_environment(
         domain_id,
         project_id,
@@ -112,12 +110,21 @@ with DAG(
     )
 
     # [START howto_operator_sagemaker_unified_studio_notebook]
+    notebook_path = "test_notebook.ipynb"  # This should be the path to your .ipynb, .sqlnb, or .vetl file in your project.
+
     run_notebook = SageMakerNotebookOperator(
         task_id="initial",
         input_config={"input_path": notebook_path, "input_params": {}},
-        output_config={"output_formats": ["NOTEBOOK"]},
-        wait_for_completion=True,
-        poll_interval=5,
+        output_config={"output_formats": ["NOTEBOOK"]},  # optional
+        compute={
+            "InstanceType": "ml.m5.large",
+            "VolumeSizeInGB": 30,
+        },  # optional
+        termination_condition={"MaxRuntimeInSeconds": 600},  # optional
+        tags={},  # optional
+        wait_for_completion=True,  # optional
+        poll_interval=5,  # optional
+        deferrable=False,  # optional
     )
     # [END howto_operator_sagemaker_unified_studio_notebook]
 

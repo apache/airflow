@@ -29,7 +29,13 @@ Airflow provides operators to orchestrate Notebooks, Querybooks, and Visual ETL 
 Prerequisite Tasks
 ------------------
 
-.. include:: ../_partials/prerequisite_tasks.rst
+To use these operators, you must do a few things:
+
+  * Create a SageMaker Unified Studio domain.
+  * Within your domain, create a project with the "Data analytics and AI-ML model development" project profile.
+  * Within your project:
+    * Navigate to the "Compute > Workflow environments" tab, and click "Create" to create a new MWAA environment.
+    * Create a Notebook, Querybook, or Visual ETL job and save it to your project.
 
 Operators
 ---------
