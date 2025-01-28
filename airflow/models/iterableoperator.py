@@ -298,10 +298,7 @@ class IterableOperator(BaseOperator):
 
         if isinstance(resolved_input, _MapResult):
             for value in resolved_input:
-                self._mapped_kwargs.append(
-                    self._resolve(value=value, context=context, session=session)
-                )
-
+                self._mapped_kwargs.append(self._resolve(value=value, context=context, session=session))
         else:
             value = self._resolve(value=resolved_input, context=context, session=session)
 
