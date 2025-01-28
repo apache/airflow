@@ -488,10 +488,10 @@ class TestHttpHook:
             conn_type="http",
             login="username",
             password="pass",
-            extra=f"""
-                    {{"auth_kwargs": {{\r\n    "endpoint": "http://localhost"\r\n}},
-                    "headers": ""}}
-                    """,
+            extra="""
+                   {"auth_kwargs": {\r\n    "endpoint": "http://localhost"\r\n},
+                   "headers": ""}
+                   """,
         )
         mock_get_connection.return_value = conn
 
