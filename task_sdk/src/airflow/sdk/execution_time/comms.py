@@ -50,7 +50,6 @@ from uuid import UUID
 from fastapi import Body
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRuntimeCheckPayload
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     BundleInfo,
@@ -61,6 +60,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRunContext,
+    TIRuntimeCheckPayload,
     TISuccessStatePayload,
     VariableResponse,
     XComResponse,

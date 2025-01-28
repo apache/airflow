@@ -1024,8 +1024,8 @@ class TestHandleRequest:
                 {
                     "id": TI_ID,
                     "msg": RuntimeCheckOnTask(
-                        inlet=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
-                        outlet=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
                         type="RuntimeCheckOnTask",
                     ),
                 },
