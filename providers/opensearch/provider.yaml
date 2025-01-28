@@ -36,16 +36,12 @@ versions:
   - 1.1.0
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - opensearch-py>=2.2.0
-
 integrations:
   - integration-name: OpenSearch
     external-doc-url: https://opensearch.org/
     how-to-guide:
       - /docs/apache-airflow-providers-opensearch/operators/opensearch.rst
-    logo: /integration-logos/opensearch/opensearch.png
+    logo: /docs/integration-logos/opensearch.png
     tags: [software]
 
 hooks:
