@@ -3913,21 +3913,15 @@ export const $NodeResponse = {
 
 export const $PatchTaskInstanceBody = {
   properties: {
-    dry_run: {
-      type: "boolean",
-      title: "Dry Run",
-      default: true,
-    },
     new_state: {
       anyOf: [
         {
-          type: "string",
+          $ref: "#/components/schemas/TaskInstanceState",
         },
         {
           type: "null",
         },
       ],
-      title: "New State",
     },
     note: {
       anyOf: [
