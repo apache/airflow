@@ -18,23 +18,18 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import re
+import warnings
 from collections.abc import Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import aiohttp
 import requests
-from aiohttp import ClientResponseError
-from asgiref.sync import sync_to_async
-
 from airflow.exceptions import AirflowException
+from airflow.providers.http.exceptions import HttpErrorException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
-
-if TYPE_CHECKING:
-    from airflow.models import Connection
 
 
 class BatchState(Enum):
@@ -509,89 +504,9 @@ class LivyAsyncHook(HttpAsyncHook):
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> Any:
-        """
-        Perform an asynchronous HTTP request call.
+        warnings.warn("The '_do_api_call_async' method is deprecated, use 'run_method' instead", DeprecationWarning, stacklevel=2)
 
-        :param endpoint: the endpoint to be called i.e. resource/v1/query?
-        :param data: payload to be uploaded or request parameters
-        :param headers: additional headers to be passed through as a dictionary
-        :param extra_options: Additional kwargs to pass when creating a request.
-            For example, ``run(json=obj)`` is passed as ``aiohttp.ClientSession().get(json=obj)``
-        """
-        extra_options = extra_options or {}
-
-        # headers may be passed through directly or in the "extra" field in the connection
-        # definition
-        _headers = {}
-        auth = None
-
-        if self.http_conn_id:
-            conn = await sync_to_async(self.get_connection)(self.http_conn_id)
-
-            self.base_url = self._generate_base_url(conn)
-            if conn.login:
-                auth = self.auth_type(conn.login, conn.password)
-            if conn.extra:
-                try:
-                    _headers.update(conn.extra_dejson)
-                except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
-        if headers:
-            _headers.update(headers)
-
-        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-            url = self.base_url + "/" + endpoint
-        else:
-            url = (self.base_url or "") + (endpoint or "")
-
-        async with aiohttp.ClientSession() as session:
-            if self.method == "GET":
-                request_func = session.get
-            elif self.method == "POST":
-                request_func = session.post
-            elif self.method == "PATCH":
-                request_func = session.patch
-            else:
-                return {"Response": f"Unexpected HTTP Method: {self.method}", "status": "error"}
-
-            for attempt_num in range(1, 1 + self.retry_limit):
-                response = await request_func(
-                    url,
-                    json=data if self.method in ("POST", "PATCH") else None,
-                    params=data if self.method == "GET" else None,
-                    headers=headers,
-                    auth=auth,
-                    **extra_options,
-                )
-                try:
-                    response.raise_for_status()
-                    return await response.json()
-                except ClientResponseError as e:
-                    self.log.warning(
-                        "[Try %d of %d] Request to %s failed.",
-                        attempt_num,
-                        self.retry_limit,
-                        url,
-                    )
-                    if not self._retryable_error_async(e) or attempt_num == self.retry_limit:
-                        self.log.exception("HTTP error, status code: %s", e.status)
-                        # In this case, the user probably made a mistake.
-                        # Don't retry.
-                        return {"Response": {e.message}, "Status Code": {e.status}, "status": "error"}
-
-                await asyncio.sleep(self.retry_delay)
-
-    def _generate_base_url(self, conn: Connection) -> str:
-        if conn.host and "://" in conn.host:
-            base_url: str = conn.host
-        else:
-            # schema defaults to HTTP
-            schema = conn.schema if conn.schema else "http"
-            host = conn.host if conn.host else ""
-            base_url = f"{schema}://{host}"
-        if conn.port:
-            base_url = f"{base_url}:{conn.port}"
-        return base_url
+        return await self.run_method(endpoint=endpoint, method=self.method, data=data, headers=headers, extra_options=extra_options)
 
     async def run_method(
         self,
@@ -599,6 +514,7 @@ class LivyAsyncHook(HttpAsyncHook):
         method: str = "GET",
         data: Any | None = None,
         headers: dict[str, Any] | None = None,
+        extra_options: dict[str, Any] | None = None,
     ) -> Any:
         """
         Wrap HttpAsyncHook; allows to change method on the same HttpAsyncHook.
@@ -615,7 +531,18 @@ class LivyAsyncHook(HttpAsyncHook):
         back_method = self.method
         self.method = method
         try:
-            result = await self._do_api_call_async(endpoint, data, headers, self.extra_options)
+            async with aiohttp.ClientSession() as session:
+                try:
+                    result = await super().run(
+                        session=session,
+                        endpoint=endpoint,
+                        data=data,
+                        headers=headers,
+                        extra_options=extra_options or self.extra_options,
+                    )
+                except HttpErrorException as e:
+                    status, message = str(e).split(":", 1)
+                    return {"Response": {message}, "Status Code": {status}, "status": "error"}
         finally:
             self.method = back_method
         return {"status": "success", "response": result}

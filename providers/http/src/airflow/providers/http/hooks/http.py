@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import warnings
 from contextlib import suppress
@@ -80,7 +81,9 @@ def _load_conn_auth_type(module_name: str | None) -> Any:
                 raise AirflowException(error)
         warnings.warn(
             f"Skipping import of auth_type '{module_name}'. The class should be listed in "
-            "'extra_auth_types' config of the http provider.", RuntimeWarning, stacklevel=2
+            "'extra_auth_types' config of the http provider.",
+            RuntimeWarning,
+            stacklevel=2,
         )
     return None
 
@@ -583,10 +586,10 @@ class HttpAsyncHook(BaseHook):
                     # In this case, the user probably made a mistake.
                     # Don't retry.
                     raise HttpErrorException(f"{e.status}:{e.message}")
-            else:
-                return response
 
-        raise NotImplementedError  # should not reach this, but makes mypy happy
+                await asyncio.sleep(self.retry_delay)
+
+            return response
 
     @classmethod
     def _process_extra_options_from_connection(cls, conn: Connection, extra_options: dict) -> dict:
