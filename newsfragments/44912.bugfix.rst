@@ -1,1 +1,0 @@
-Fix short circuit operator in mapped tasks. The operator did not work until now due to a bug in ``NotPreviouslySkippedDep``. Please note that at time of merging, this fix has been applied only for Airflow version > 2.10.4 and < 3, and should be ported to v3 after merging PR #44925.

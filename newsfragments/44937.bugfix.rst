@@ -1,1 +1,0 @@
-Fix pre-mature evaluation of tasks in mapped task group. The origins of the bug are in ``TriggerRuleDep``, when dealing with ``TriggerRule`` that is fastly triggered (i.e, ``ONE_FAILED``, ``ONE_SUCCESS`, or ``ONE_DONE``). Please note that at time of merging, this fix has been applied only for Airflow version > 2.10.4 and < 3, and should be ported to v3 after merging PR #40460.
