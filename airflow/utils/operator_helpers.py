@@ -62,10 +62,6 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
         "default": f"{DEFAULT_FORMAT_PREFIX}dag_owner",
         "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_OWNER",
     },
-    "AIRFLOW_CONTEXT_DAG_EMAIL": {
-        "default": f"{DEFAULT_FORMAT_PREFIX}dag_email",
-        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_EMAIL",
-    },
 }
 
 
@@ -93,7 +89,6 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     dag_run = context.get("dag_run")
 
     ops = [
-        (task, "email", "AIRFLOW_CONTEXT_DAG_EMAIL"),
         (task, "owner", "AIRFLOW_CONTEXT_DAG_OWNER"),
         (task_instance, "dag_id", "AIRFLOW_CONTEXT_DAG_ID"),
         (task_instance, "task_id", "AIRFLOW_CONTEXT_TASK_ID"),

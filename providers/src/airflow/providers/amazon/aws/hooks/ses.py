@@ -16,13 +16,21 @@
 # under the License.
 """This module contains AWS SES Hook."""
 
+# TODO: remove this module once minimum Airflow version is >=3
+
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate
 from typing import Any
 
+import re2
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.email import build_mime_message
 
 
 class SesHook(AwsBaseHook):
@@ -88,7 +96,7 @@ class SesHook(AwsBaseHook):
         if return_path:
             custom_headers["Return-Path"] = return_path
 
-        message, recipients = build_mime_message(
+        message, recipients = _build_mime_message(
             mail_from=mail_from,
             to=to,
             subject=subject,
@@ -104,3 +112,68 @@ class SesHook(AwsBaseHook):
         return ses_client.send_raw_email(
             Source=mail_from, Destinations=recipients, RawMessage={"Data": message.as_string()}
         )
+
+
+def _get_email_list_from_str(addresses: str) -> list[str]:
+    pattern = r"\s*[,;]\s*"
+    return re2.split(pattern, addresses)
+
+
+def _get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
+    if isinstance(addresses, str):
+        return _get_email_list_from_str(addresses)
+    elif isinstance(addresses, Iterable):
+        if not all(isinstance(item, str) for item in addresses):
+            raise TypeError("The items in your iterable must be strings.")
+        return list(addresses)
+    else:
+        raise TypeError(f"Unexpected argument type: Received '{type(addresses).__name__}'.")
+
+
+def _build_mime_message(
+    mail_from: str | None,
+    to: str | Iterable[str],
+    subject: str,
+    html_content: str,
+    files: list[str] | None = None,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
+    custom_headers: dict[str, Any] | None = None,
+) -> tuple[MIMEMultipart, list[str]]:
+    to = _get_email_address_list(to)
+
+    msg = MIMEMultipart(mime_subtype)
+    msg["Subject"] = subject
+    if mail_from:
+        msg["From"] = mail_from
+    msg["To"] = ", ".join(to)
+    recipients = to
+    if cc:
+        cc = _get_email_address_list(cc)
+        msg["CC"] = ", ".join(cc)
+        recipients += cc
+
+    if bcc:
+        # don't add bcc in header
+        bcc = _get_email_address_list(bcc)
+        recipients += bcc
+
+    msg["Date"] = formatdate(localtime=True)
+    mime_text = MIMEText(html_content, "html", mime_charset)
+    msg.attach(mime_text)
+
+    for fname in files or []:
+        basename = os.path.basename(fname)
+        with open(fname, "rb") as file:
+            part = MIMEApplication(file.read(), Name=basename)
+            part["Content-Disposition"] = f'attachment; filename="{basename}"'
+            part["Content-ID"] = f"<{basename}>"
+            msg.attach(part)
+
+    if custom_headers:
+        for header_key, header_value in custom_headers.items():
+            msg[header_key] = header_value
+
+    return msg, recipients

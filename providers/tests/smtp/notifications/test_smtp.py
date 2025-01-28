@@ -31,8 +31,7 @@ from airflow.providers.smtp.notifications.smtp import (
 )
 from airflow.utils import timezone
 
-from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -124,29 +123,38 @@ class TestSmtpNotifier:
     def test_notifier_with_defaults(self, mock_smtphook_hook, create_task_instance):
         ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
         context = {"dag": ti.dag_run.dag, "ti": ti}
-        notifier = SmtpNotifier(
-            from_email=conf.get("smtp", "smtp_mail_from"),
-            to="test_reciver@test.com",
-        )
-        notifier(context)
-        mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
-            from_email=conf.get("smtp", "smtp_mail_from"),
-            to="test_reciver@test.com",
-            subject="DAG dag - Task op - Run ID test in State None",
-            html_content=mock.ANY,
-            smtp_conn_id="smtp_default",
-            files=None,
-            cc=None,
-            bcc=None,
-            mime_subtype="mixed",
-            mime_charset="utf-8",
-            custom_headers=None,
-        )
-        content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
-        assert f"{NUM_TRY} of 1" in content
+        with (
+            tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_content,
+        ):
+            f_content.write("Mock content goes here")
+            f_content.flush()
+            mock_smtphook_hook.return_value.from_email = "default@email.com"
+            mock_smtphook_hook.return_value.subject_template = None
+            mock_smtphook_hook.return_value.html_content_template = f_content.name
+            notifier = SmtpNotifier(
+                to="test_reciver@test.com",
+            )
+            notifier(context)
+            if AIRFLOW_V_3_0_PLUS:
+                expected_from_email = "default@email.com"
+            else:
+                expected_from_email = conf.get("smtp", "smtp_mail_from")
+            mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
+                from_email=expected_from_email,
+                to="test_reciver@test.com",
+                subject="DAG dag - Task op - Run ID test in State None",
+                html_content="Mock content goes here",
+                smtp_conn_id="smtp_default",
+                files=None,
+                cc=None,
+                bcc=None,
+                mime_subtype="mixed",
+                mime_charset="utf-8",
+                custom_headers=None,
+            )
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier_with_nondefault_conf_vars(self, mock_smtphook_hook, create_task_instance):
+    def test_notifier_with_nondefault_conf_vars(self, mock_smtphook_hook, create_task_instance, caplog):
         ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
         context = {"dag": ti.dag_run.dag, "ti": ti}
 
@@ -160,17 +168,16 @@ class TestSmtpNotifier:
             f_content.write("Mock content goes here")
             f_content.flush()
 
-            with conf_vars(
-                {
-                    ("smtp", "templated_html_content_path"): f_content.name,
-                    ("smtp", "templated_email_subject_path"): f_subject.name,
-                }
-            ):
-                notifier = SmtpNotifier(
-                    from_email=conf.get("smtp", "smtp_mail_from"),
-                    to="test_reciver@test.com",
-                )
-                notifier(context)
+            mock_smtphook_hook.return_value.from_email = None
+            mock_smtphook_hook.return_value.html_content_template = f_content.name
+            mock_smtphook_hook.return_value.subject_template = f_subject.name
+
+            notifier = SmtpNotifier(
+                to="test_reciver@test.com",
+            )
+
+            notifier(context)
+            if not AIRFLOW_V_3_0_PLUS:
                 mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
                     from_email=conf.get("smtp", "smtp_mail_from"),
                     to="test_reciver@test.com",
@@ -184,3 +191,9 @@ class TestSmtpNotifier:
                     mime_charset="utf-8",
                     custom_headers=None,
                 )
+            else:
+                assert (
+                    "Failed to send notification: you must provide from_email argument,"
+                    " or set a default one in the connection" in caplog.text
+                )
+                mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_not_called()

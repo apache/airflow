@@ -1097,7 +1097,6 @@ class CreateDummyDAG(Protocol):
         on_execute_callback: Callable = ...,
         on_failure_callback: Callable = ...,
         on_retry_callback: Callable = ...,
-        email: str = ...,
         with_dagrun_type="scheduled",
         **kwargs,
     ) -> tuple[DAG, EmptyOperator]: ...
@@ -1137,7 +1136,6 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
         on_execute_callback=None,
         on_failure_callback=None,
         on_retry_callback=None,
-        email=None,
         with_dagrun_type=DagRunType.SCHEDULED,
         **kwargs,
     ):
@@ -1153,7 +1151,6 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
                 on_execute_callback=on_execute_callback,
                 on_failure_callback=on_failure_callback,
                 on_retry_callback=on_retry_callback,
-                email=email,
                 pool=pool,
                 trigger_rule=trigger_rule,
                 **op_kwargs,
@@ -1190,7 +1187,6 @@ class CreateTaskInstance(Protocol):
         on_execute_callback: Callable = ...,
         on_failure_callback: Callable = ...,
         on_retry_callback: Callable = ...,
-        email: str = ...,
         map_index: int = -1,
         **kwargs,
     ) -> TaskInstance: ...
@@ -1225,7 +1221,6 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         on_execute_callback=None,
         on_failure_callback=None,
         on_retry_callback=None,
-        email=None,
         map_index=-1,
         hostname=None,
         pid=None,
@@ -1248,7 +1243,6 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
                 on_execute_callback=on_execute_callback,
                 on_failure_callback=on_failure_callback,
                 on_retry_callback=on_retry_callback,
-                email=email,
                 pool=pool,
                 trigger_rule=trigger_rule,
                 **op_kwargs,

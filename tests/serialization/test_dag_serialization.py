@@ -1372,9 +1372,6 @@ class TestStringifiedDAGs:
             "doc_yaml": None,
             "downstream_task_ids": set(),
             "end_date": None,
-            "email": None,
-            "email_on_failure": True,
-            "email_on_retry": True,
             "execution_timeout": None,
             "executor": None,
             "executor_config": {},
@@ -2251,9 +2248,13 @@ class TestStringifiedDAGs:
 
         class TestOperator(BaseOperator):
             template_fields = (
-                "email",  # templateable
+                "any_field",  # templateable
                 "execution_timeout",  # not templateable
             )
+
+            def __init__(self, *args, any_field=None, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.any_field = any_field
 
             def execute(self, context: Context):
                 pass
@@ -2263,18 +2264,18 @@ class TestStringifiedDAGs:
         with dag:
             task = TestOperator(
                 task_id="test_task",
-                email="{{ ','.join(test_email_list) }}",
+                any_field="{{ ','.join(test_any_field_list) }}",
                 execution_timeout=timedelta(seconds=10),
             )
-            task.render_template_fields(context={"test_email_list": ["foo@test.com", "bar@test.com"]})
-            assert task.email == "foo@test.com,bar@test.com"
+            task.render_template_fields(context={"test_any_field_list": ["foo", "boo"]})
+            assert task.any_field == "foo,boo"
 
         with pytest.raises(
             AirflowException,
             match=re.escape(
                 dedent(
                     """Failed to serialize DAG 'test_dag': Cannot template BaseOperator field:
-                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('email', 'execution_timeout')"""
+                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('any_field', 'execution_timeout')"""
                 )
             ),
         ):

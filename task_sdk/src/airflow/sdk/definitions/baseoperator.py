@@ -169,7 +169,6 @@ if TYPE_CHECKING:
         start_date: datetime | ArgNotSet = NOTSET,
         end_date: datetime | ArgNotSet = NOTSET,
         owner: str | ArgNotSet = NOTSET,
-        email: None | str | Iterable[str] | ArgNotSet = NOTSET,
         params: collections.abc.MutableMapping | None = None,
         resources: dict[str, Any] | None | ArgNotSet = NOTSET,
         trigger_rule: str | ArgNotSet = NOTSET,
@@ -431,9 +430,6 @@ class BaseOperatorMeta(abc.ABCMeta):
 #  manual type-checking method.
 BASEOPERATOR_ARGS_EXPECTED_TYPES = {
     "task_id": str,
-    "email": (str, Sequence),
-    "email_on_retry": bool,
-    "email_on_failure": bool,
     "retries": int,
     "retry_exponential_backoff": bool,
     "depends_on_past": bool,
@@ -502,13 +498,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param task_id: a unique, meaningful id for the task
     :param owner: the owner of the task. Using a meaningful description
         (e.g. user/person/team/role name) to clarify ownership is recommended.
-    :param email: the 'to' email address(es) used in email alerts. This can be a
-        single email or multiple ones. Multiple addresses can be specified as a
-        comma or semicolon separated string or by passing a list of strings.
-    :param email_on_retry: Indicates whether email alerts should be sent when a
-        task is retried
-    :param email_on_failure: Indicates whether email alerts should be sent when
-        a task failed
     :param retries: the number of retries that should be performed before
         failing the task
     :param retry_delay: delay between retries, can be set as ``timedelta`` or
@@ -697,9 +686,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     task_id: str
     owner: str = DEFAULT_OWNER
-    email: str | Sequence[str] | None = None
-    email_on_retry: bool = True
-    email_on_failure: bool = True
     retries: int | None = DEFAULT_RETRIES
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
     retry_exponential_backoff: bool = False
@@ -780,8 +766,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "task_id",
         "dag_id",
         "owner",
-        "email",
-        "email_on_retry",
         "retry_delay",
         "retry_exponential_backoff",
         "max_retry_delay",
@@ -853,9 +837,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         *,
         task_id: str,
         owner: str = DEFAULT_OWNER,
-        email: str | Sequence[str] | None = None,
-        email_on_retry: bool = True,
-        email_on_failure: bool = True,
         retries: int | None = DEFAULT_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: bool = False,
@@ -924,9 +905,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         validate_key(self.task_id)
 
         self.owner = owner
-        self.email = email
-        self.email_on_retry = email_on_retry
-        self.email_on_failure = email_on_failure
 
         if execution_timeout is not None and not isinstance(execution_timeout, timedelta):
             raise ValueError(

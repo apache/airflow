@@ -164,18 +164,6 @@ class TestBaseOperator:
         assert task.resources.cpus.qty == 1
         assert task.resources.ram.qty == 1024
 
-    def test_default_email_on_actions(self):
-        test_task = BaseOperator(task_id="test_default_email_on_actions")
-        assert test_task.email_on_retry is True
-        assert test_task.email_on_failure is True
-
-    def test_email_on_actions(self):
-        test_task = BaseOperator(
-            task_id="test_default_email_on_actions", email_on_retry=False, email_on_failure=True
-        )
-        assert test_task.email_on_retry is False
-        assert test_task.email_on_failure is True
-
     def test_incorrect_default_args(self):
         default_args = {"test_param": True, "extra_param": True}
         op = FakeOperator(default_args=default_args)

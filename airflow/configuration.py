@@ -353,13 +353,6 @@ class AirflowConfigParser(ConfigParser):
             "navbar_color": (re2.compile(r"(?i)\A#007A87\z"), "#fff", "2.1"),
             "dag_default_view": (re2.compile(r"^tree$"), "grid", "3.0"),
         },
-        "email": {
-            "email_backend": (
-                re2.compile(r"^airflow\.contrib\.utils\.sendgrid\.send_email$"),
-                r"airflow.providers.sendgrid.utils.emailer.send_email",
-                "2.1",
-            ),
-        },
         "logging": {
             "log_filename_template": (
                 re2.compile(re2.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),

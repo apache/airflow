@@ -104,7 +104,6 @@ The following config options support this ``_cmd`` and ``_secret`` version:
 * ``flower_basic_auth`` in ``[celery]`` section
 * ``result_backend`` in ``[celery]`` section
 * ``password`` in ``[atlas]`` section
-* ``smtp_password`` in ``[smtp]`` section
 * ``secret_key`` in ``[webserver]`` section
 
 The ``_cmd`` config options can also be set using a corresponding environment variable

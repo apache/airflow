@@ -76,7 +76,6 @@ Environment Variables
 * ``flower_basic_auth`` in ``[celery]`` section
 * ``result_backend`` in ``[celery]`` section
 * ``password`` in ``[atlas]`` section
-* ``smtp_password`` in ``[smtp]`` section
 * ``secret_key`` in ``[webserver]`` section
 
 .. envvar:: AIRFLOW__{SECTION}__{KEY}_SECRET

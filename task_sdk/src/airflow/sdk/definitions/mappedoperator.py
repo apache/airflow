@@ -386,10 +386,6 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 
     @property
-    def email(self) -> None | str | Iterable[str]:
-        return self.partial_kwargs.get("email")
-
-    @property
     def map_index_template(self) -> None | str:
         return self.partial_kwargs.get("map_index_template")
 
