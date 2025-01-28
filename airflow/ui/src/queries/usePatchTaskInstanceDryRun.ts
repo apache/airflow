@@ -54,6 +54,10 @@ export const usePatchTaskInstanceDryRun = <TData = PatchTaskInstanceDryRunRespon
       dagRunId,
       taskId,
       mapIndex,
-      { ...requestBody, note: Boolean(requestBody.note) },
+      requestBody.new_state,
+      requestBody.include_downstream,
+      requestBody.include_future,
+      requestBody.include_past,
+      requestBody.include_upstream,
     ],
   });

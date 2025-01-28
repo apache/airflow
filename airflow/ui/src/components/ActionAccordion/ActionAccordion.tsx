@@ -55,13 +55,6 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
                 columns={columns}
                 data={affectedTasks.task_instances}
                 displayMode="table"
-                initialState={{
-                  pagination: {
-                    pageIndex: 0,
-                    pageSize: affectedTasks.total_entries,
-                  },
-                  sorting: [],
-                }}
                 modelName="Task Instance"
                 total={affectedTasks.total_entries}
               />
@@ -90,9 +83,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
               {Boolean(note) ? (
                 <ReactMarkdown>{note}</ReactMarkdown>
               ) : (
-                <Text color="gray" opacity={0.6}>
-                  Add a note...
-                </Text>
+                <Text color="fg.subtle">Add a note...</Text>
               )}
             </Editable.Preview>
             <Editable.Textarea
