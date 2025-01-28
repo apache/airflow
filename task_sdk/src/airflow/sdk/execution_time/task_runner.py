@@ -516,29 +516,34 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             ]
             SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlets=inlets, outlets=outlets), log=log)  # type: ignore
             msg = SUPERVISOR_COMMS.get_message()  # type: ignore
+
         if isinstance(msg, OKResponse) and not msg.ok:
             log.info("Runtime checks failed for task, marking task as failed..")
-            return
-        context = ti.get_template_context()
-        with set_current_context(context):
-            jinja_env = ti.task.dag.get_template_env()
-            ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
-            result = _execute_task(context, ti.task)
+            msg = TaskState(
+                state=TerminalTIState.FAILED,
+                end_date=datetime.now(tz=timezone.utc),
+            )
+        else:
+            context = ti.get_template_context()
+            with set_current_context(context):
+                jinja_env = ti.task.dag.get_template_env()
+                ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
+                result = _execute_task(context, ti.task)
 
-        _push_xcom_if_needed(result, ti)
+            _push_xcom_if_needed(result, ti)
 
-        task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
+            task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
 
-        # TODO: Get things from _execute_task_with_callbacks
-        #   - Clearing XCom
-        #   - Update RTIF
-        #   - Pre Execute
-        #   etc
-        msg = SucceedTask(
-            end_date=datetime.now(tz=timezone.utc),
-            task_outlets=task_outlets,
-            outlet_events=outlet_events,
-        )
+            # TODO: Get things from _execute_task_with_callbacks
+            #   - Clearing XCom
+            #   - Update RTIF
+            #   - Pre Execute
+            #   etc
+            msg = SucceedTask(
+                end_date=datetime.now(tz=timezone.utc),
+                task_outlets=task_outlets,
+                outlet_events=outlet_events,
+            )
     except TaskDeferred as defer:
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)

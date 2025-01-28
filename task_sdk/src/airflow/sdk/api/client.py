@@ -186,6 +186,9 @@ class TaskInstanceOperations:
         except ServerResponseError as e:
             if e.response.status_code == 400:
                 return OKResponse(ok=False)
+            elif e.response.status_code == 409:
+                # The TI isn't in the right state to perform the check, but we shouldn't fail the task for that
+                return OKResponse(ok=True)
             raise
 
 
