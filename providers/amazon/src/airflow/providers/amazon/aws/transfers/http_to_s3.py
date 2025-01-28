@@ -38,6 +38,9 @@ class HttpToS3Operator(BaseOperator):
     """
     Calls an endpoint on an HTTP system to execute an action and store the result in S3.
 
+    By default, it loads file in memory before S3 upload.
+    Use requests streaming mode for lazy load (`extra_options={"stream": True}`).
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:HttpToS3Operator`
