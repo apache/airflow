@@ -379,10 +379,7 @@ labelPRBasedOnFilePath:
     - providers/teradata/**
 
   provider:trino:
-    - providers/src/airflow/providers/trino/**/*
-    - docs/apache-airflow-providers-trino/**/*
-    - providers/tests/trino/**/*
-    - providers/tests/system/trino/**/*
+    - providers/trino/**
 
   provider:vertica:
     - providers/vertica/**

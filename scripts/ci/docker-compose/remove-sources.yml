@@ -82,6 +82,7 @@ services:
       - ../../../empty:/opt/airflow/providers/tableau/src
       - ../../../empty:/opt/airflow/providers/telegram/src
       - ../../../empty:/opt/airflow/providers/teradata/src
+      - ../../../empty:/opt/airflow/providers/trino/src
       - ../../../empty:/opt/airflow/providers/vertica/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
       - ../../../empty:/opt/airflow/providers/ydb/src

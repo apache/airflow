@@ -671,6 +671,7 @@ dev = [
   "apache-airflow-providers-tableau",
   "apache-airflow-providers-telegram",
   "apache-airflow-providers-teradata",
+  "apache-airflow-providers-trino",
   "apache-airflow-providers-vertica",
   "apache-airflow-providers-weaviate",
   "apache-airflow-providers-ydb",
@@ -732,6 +733,7 @@ apache-airflow-providers-standard = { workspace = true }
 apache-airflow-providers-tableau = { workspace = true }
 apache-airflow-providers-telegram = { workspace = true }
 apache-airflow-providers-teradata = { workspace = true }
+apache-airflow-providers-trino = { workspace = true }
 apache-airflow-providers-vertica = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
@@ -791,6 +793,7 @@ members = [
     "providers/tableau",
     "providers/telegram",
     "providers/teradata",
+    "providers/trino",
     "providers/vertica",
     "providers/weaviate",
     "providers/ydb",
