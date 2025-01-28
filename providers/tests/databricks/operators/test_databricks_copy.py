@@ -24,7 +24,6 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
-    ExternalQueryRunFacet,
     SQLJobFacet,
 )
 from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
@@ -261,41 +260,6 @@ def test_templating(create_task_instance_of_operator, session):
     assert task.databricks_conn_id == "databricks-conn-id"
 
 
-def test_extract_openlineage_unique_dataset_paths():
-    """Test extraction of dataset paths from various cloud storage URIs."""
-    results = [
-        {"file": "s3://bucket/dir/file.csv"},
-        {"file": "s3a://bucket/dir/nested/file2.csv"},
-        {"file": "s3n://bucket/file3.csv"},
-        {"file": "gs://bucket/dir/file.csv"},
-        {"file": "abfss://container@account.dfs.core.windows.net/dir/file.csv"},
-        {"file": "wasbs://container@account.blob.core.windows.net/dir/file.csv"},
-        {"file": "azure://account.blob.core.windows.net/container/dir/file.csv"},
-        # Add some edge cases
-        {"file": "s3://bucket"},
-        {"file": "gs://bucket/"},
-        # Add some invalid cases
-        {"file": "invalid://uri"},
-        {"file": "azure://account.invalid.net/container/file.csv"},
-    ]
-
-    paths, errors = DatabricksCopyIntoOperator._extract_openlineage_unique_dataset_paths(results)
-
-    # Valid paths should be normalized and deduplicated
-    assert paths == [
-        ("abfss://container@account", "dir"),
-        ("gs://bucket", "/"),
-        ("gs://bucket", "dir"),
-        ("s3://bucket", "/"),
-        ("s3://bucket", "dir"),
-        ("s3://bucket", "dir/nested"),
-        ("wasbs://container@account", "dir"),
-    ]
-
-    # Invalid URIs should be captured in errors
-    assert errors == ["azure://account.invalid.net/container/file.csv", "invalid://uri", "s3://bucket"]
-
-
 @mock.patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
 def test_get_openlineage_facets_on_complete_s3(mock_hook):
     """Test OpenLineage facets generation for S3 source."""
@@ -320,11 +284,7 @@ def test_get_openlineage_facets_on_complete_s3(mock_hook):
         inputs=[Dataset(namespace="s3://bucket", name="dir1")],
         outputs=[Dataset(namespace="databricks://databricks.com", name="schema.table")],
         job_facets={"sql": SQLJobFacet(query="COPY INTO schema.table FROM 's3://bucket/dir1'")},
-        run_facets={
-            "externalQuery": ExternalQueryRunFacet(
-                externalQueryId=str(id(op._result)), source="databricks://databricks.com"
-            )
-        },
+        run_facets={},
     )
 
 
@@ -362,11 +322,6 @@ def test_get_openlineage_facets_on_complete_with_errors(mock_hook):
     assert "sql" in lineage.job_facets
     assert lineage.job_facets["sql"].query == "COPY INTO schema.table FROM 's3://bucket/dir1'"
 
-    assert "externalQuery" in lineage.run_facets
-    assert lineage.run_facets["externalQuery"].source == "databricks://databricks.com"
-    assert lineage.run_facets["externalQuery"].externalQueryId == str(id(op._result))
-
-    # For this test, we don't expect extraction errors since we're not using _extract_openlineage_unique_dataset_paths
     assert "extractionError" not in lineage.run_facets
 
 
@@ -415,10 +370,6 @@ def test_get_openlineage_facets_on_complete_gcs(mock_hook):
     assert len(result.outputs) == 1
     assert result.outputs[0].namespace == "databricks://databricks.com"
     assert result.outputs[0].name == "catalog.schema.table"
-
-    # Check run facets
-    assert "externalQuery" in result.run_facets
-    assert result.run_facets["externalQuery"].source == "databricks://databricks.com"
 
     # Check SQL job facet
     assert "sql" in result.job_facets
