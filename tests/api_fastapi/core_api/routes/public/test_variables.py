@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from io import BytesIO
+from unittest import mock
 
 import pytest
 
@@ -431,6 +432,24 @@ class TestPostVariable(TestVariableEndpoint):
                 }
             ]
         }
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {
+                "key": "new variable key",
+                "value": "new variable value",
+                "description": "new variable description",
+            },
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.logging.decorators._mask_variable_fields")
+    def test_mask_variable_fields_called(self, mock_mask_variable_fields, test_client, body):
+        mock_mask_variable_fields.return_value = {**body, "method": "POST"}
+        response = test_client.post("/public/variables", json=body)
+        assert response.status_code == 201
+
+        mock_mask_variable_fields.assert_called_once_with(body)
 
 
 class TestBulkVariables(TestVariableEndpoint):

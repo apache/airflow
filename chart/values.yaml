@@ -831,6 +831,7 @@ workers:
     # Detailed default security context for logGroomerSidecar for container level
     securityContexts:
       container: {}
+    env: []
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1034,6 +1035,7 @@ scheduler:
       container: {}
     # container level lifecycle hooks
     containerLifecycleHooks: {}
+    env: []
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1748,6 +1750,8 @@ triggerer:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+    env: []
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
@@ -1928,6 +1932,8 @@ dagProcessor:
     securityContexts:
       container: {}
 
+    env: []
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
@@ -1955,6 +1961,13 @@ flower:
     timeoutSeconds: 5
     failureThreshold: 10
     periodSeconds: 5
+
+  # Wait for at most 1 minute (6*10s) for the flower container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
+  startupProbe:
+    timeoutSeconds: 20
+    failureThreshold: 6
+    periodSeconds: 10
 
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
