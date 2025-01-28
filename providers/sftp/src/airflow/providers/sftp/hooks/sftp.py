@@ -152,8 +152,8 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory to list
         """
-        conn = self.get_conn()
-        return [file for file in conn.listdir_attr(path)]
+        with self.get_conn() as conn:
+            return [file for file in conn.listdir_attr(path)]
 
     def mkdir(self, path: str, mode: int = 0o777) -> None:
         """
