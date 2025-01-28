@@ -60,7 +60,7 @@ class TestHttpToS3Operator:
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.s3_bucket)
         operator = HttpToS3Operator(
-            task_id="s3_to_file_sensor",
+            task_id="http_to_s3_operator",
             http_conn_id=self.http_conn_id,
             endpoint=self.endpoint,
             s3_key=self.s3_key,
@@ -81,7 +81,7 @@ class TestHttpToS3Operator:
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.s3_bucket)
         operator = HttpToS3Operator(
-            task_id="s3_to_file_sensor",
+            task_id="http_to_s3_operator",
             http_conn_id=self.http_conn_id,
             endpoint=self.endpoint,
             s3_key=self.s3_key,
