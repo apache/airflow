@@ -39,13 +39,13 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models.abstractoperator import DEFAULT_TASK_EXECUTION_TIMEOUT
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
     ExpandInput,
     _needs_run_time_resolution,
     is_mappable,
 )
 from airflow.models.taskinstance import TaskInstance
+from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions.xcom_arg import _MapResult
 from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
