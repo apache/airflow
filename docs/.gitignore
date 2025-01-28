@@ -46,6 +46,7 @@ apache-airflow-providers-samba
 apache-airflow-providers-segment
 apache-airflow-providers-sftp
 apache-airflow-providers-singularity
+apache-airflow-providers-slack
 apache-airflow-providers-ssh
 apache-airflow-providers-snowflake
 apache-airflow-providers-standard

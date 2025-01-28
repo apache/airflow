@@ -76,6 +76,7 @@ services:
       - ../../../empty:/opt/airflow/providers/segment/src
       - ../../../empty:/opt/airflow/providers/sftp/src
       - ../../../empty:/opt/airflow/providers/singularity/src
+      - ../../../empty:/opt/airflow/providers/slack/src
       - ../../../empty:/opt/airflow/providers/snowflake/src
       - ../../../empty:/opt/airflow/providers/ssh/src
       - ../../../empty:/opt/airflow/providers/standard/src
