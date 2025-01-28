@@ -29,9 +29,9 @@ import aiohttp
 import requests
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
+from providers.http.src.airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
 from airflow.exceptions import AirflowException
-from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
