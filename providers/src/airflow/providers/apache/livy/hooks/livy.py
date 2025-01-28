@@ -27,6 +27,7 @@ from typing import Any
 
 import aiohttp
 import requests
+
 from airflow.exceptions import AirflowException
 from airflow.providers.http.exceptions import HttpErrorException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
@@ -504,9 +505,15 @@ class LivyAsyncHook(HttpAsyncHook):
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> Any:
-        warnings.warn("The '_do_api_call_async' method is deprecated, use 'run_method' instead", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "The '_do_api_call_async' method is deprecated, use 'run_method' instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
-        return await self.run_method(endpoint=endpoint, method=self.method, data=data, headers=headers, extra_options=extra_options)
+        return await self.run_method(
+            endpoint=endpoint, method=self.method, data=data, headers=headers, extra_options=extra_options
+        )
 
     async def run_method(
         self,

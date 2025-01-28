@@ -18,12 +18,10 @@ from __future__ import annotations
 
 import json
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
-import multidict
 import pytest
 import requests
-from aiohttp import ClientResponseError, RequestInfo
 from requests.exceptions import RequestException
 
 from airflow.exceptions import AirflowException
