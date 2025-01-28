@@ -20,32 +20,33 @@ import { Box, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { MdArrowDropDown } from "react-icons/md";
 
-import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { Menu } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
 import { allowedStates } from "../utils";
-import MarkRunAsDialog from "./MarkRunAsDialog";
+import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
 
 type Props = {
-  readonly dagRun: DAGRunResponse;
+  readonly taskInstance: TaskInstanceResponse;
   readonly withText?: boolean;
 };
 
-const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
+const MarkTaskInstanceAsButton = ({ taskInstance, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
-  const [state, setState] = useState<DAGRunPatchStates>("success");
+
+  const [state, setState] = useState<TaskInstanceState>("success");
 
   return (
     <Box>
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
         <Menu.Trigger asChild>
           <ActionButton
-            actionName="Mark Dag Run as..."
+            actionName="Mark Task Instance as..."
             flexDirection="row-reverse"
             icon={<MdArrowDropDown />}
-            text="Mark Run as..."
+            text="Mark Task Instance as..."
             withText={withText}
           />
         </Menu.Trigger>
@@ -53,27 +54,25 @@ const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
           {allowedStates.map((menuState) => (
             <Menu.Item
               asChild
-              disabled={dagRun.state === menuState}
+              disabled={taskInstance.state === menuState}
               key={menuState}
               onClick={() => {
-                if (dagRun.state !== menuState) {
+                if (taskInstance.state !== menuState) {
                   setState(menuState);
                   onOpen();
                 }
               }}
               value={menuState}
             >
-              <StateBadge my={1} state={menuState}>
-                {menuState}
-              </StateBadge>
+              <StateBadge state={menuState}>{menuState}</StateBadge>
             </Menu.Item>
           ))}
         </Menu.Content>
       </Menu.Root>
 
-      <MarkRunAsDialog dagRun={dagRun} onClose={onClose} open={open} state={state} />
+      <MarkTaskInstanceAsDialog onClose={onClose} open={open} state={state} taskInstance={taskInstance} />
     </Box>
   );
 };
 
-export default MarkRunAsButton;
+export default MarkTaskInstanceAsButton;
