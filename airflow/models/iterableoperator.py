@@ -46,7 +46,7 @@ from airflow.models.expandinput import (
     is_mappable,
 )
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom_arg import _MapResult
+from airflow.sdk.definitions.xcom_arg import _MapResult
 from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
