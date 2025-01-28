@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
@@ -60,6 +61,7 @@ class GitHook(BaseHook):
                 "extra": json.dumps(
                     {
                         "key_file": "optional/path/to/keyfile",
+                        "private_key": "optional/private_key",
                     }
                 )
             },
@@ -70,9 +72,15 @@ class GitHook(BaseHook):
         connection = self.get_connection(git_conn_id)
         self.repo_url = connection.host
         self.auth_token = connection.password
+        self.private_key = connection.extra_dejson.get("private_key")
         self.key_file = connection.extra_dejson.get("key_file")
         strict_host_key_checking = connection.extra_dejson.get("strict_host_key_checking", "no")
         self.env: dict[str, str] = {}
+
+        if self.key_file and self.private_key:
+            raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
+        if self.private_key:
+            self._setup_inline_key()
         if self.key_file:
             self.env["GIT_SSH_COMMAND"] = (
                 f"ssh -i {self.key_file} -o IdentitiesOnly=yes -o StrictHostKeyChecking={strict_host_key_checking}"
@@ -86,6 +94,13 @@ class GitHook(BaseHook):
             self.repo_url = self.repo_url.replace("https://", f"https://{self.auth_token}@")
         elif not self.repo_url.startswith("git@") or not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
+
+    def _setup_inline_key(self):
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmp_keyfile:
+            tmp_keyfile.write(self.private_key)
+            tmp_keyfile.flush()
+            os.chmod(tmp_keyfile.name, 0o600)
+            self.tmp_keyfile = tmp_keyfile.name
 
 
 class GitDagBundle(BaseDagBundle, LoggingMixin):
