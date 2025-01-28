@@ -78,7 +78,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         *,
         method: ResourceMethod | str,
         entity_type: AvpEntities,
-        user: AwsAuthManagerUser | None,
+        user: AwsAuthManagerUser,
         entity_id: str | None = None,
         context: dict | None = None,
     ) -> bool:
@@ -97,9 +97,6 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
             considered.
         :param context: optional additional context to pass to Amazon Verified Permissions.
         """
-        if user is None:
-            return False
-
         entity_list = self._get_user_group_entities(user)
 
         self.log.debug(

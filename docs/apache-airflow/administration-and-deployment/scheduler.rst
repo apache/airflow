@@ -209,7 +209,7 @@ There are several areas of resource usage that you should pay attention to:
 * The Airflow Scheduler scales almost linearly with several instances, so you can also add more Schedulers
   if your Scheduler's performance is CPU-bound.
 * Make sure when you look at memory usage, pay attention to the kind of memory you are observing.
-  Usually you should look at ``working memory``(names might vary depending on your deployment) rather
+  Usually you should look at ``working memory`` (names might vary depending on your deployment) rather
   than ``total memory used``.
 
 What can you do, to improve Scheduler's performance

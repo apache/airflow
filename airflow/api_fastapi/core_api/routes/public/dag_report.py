@@ -42,7 +42,7 @@ dag_report_router = AirflowRouter(tags=["DagReport"], prefix="/dagReports")
         ]
     ),
 )
-def get_dag_report(
+def get_dag_reports(
     subdir: str,
 ):
     """Get DAG report."""

@@ -141,6 +141,18 @@ spec:
             initialDelaySeconds: {{ .Values.flower.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.flower.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.flower.readinessProbe.timeoutSeconds }}
+          startupProbe:
+            failureThreshold: {{ .Values.flower.startupProbe.failureThreshold }}
+            exec:
+              command:
+                - curl
+                {{- if (or .Values.flower.secretName (and .Values.flower.username .Values.flower.password))}}
+                - "--user"
+                - $AIRFLOW__CELERY__FLOWER_BASIC_AUTH
+                {{- end }}
+                - {{ printf "localhost:%s" (.Values.ports.flowerUI | toString) }}
+            periodSeconds: {{ .Values.flower.startupProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.flower.startupProbe.timeoutSeconds }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:

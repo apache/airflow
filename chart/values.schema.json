@@ -6244,6 +6244,28 @@
                         }
                     }
                 },
+                "startupProbe": {
+                    "description": "Startup probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "timeoutSeconds": {
+                            "description": "Flower Startup probe timeout seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Flower Startup probe failure threshold.",
+                            "type": "integer",
+                            "default": 6
+                        },
+                        "periodSeconds": {
+                            "description": "Flower Startup probe period seconds.",
+                            "type": "integer",
+                            "default": 10
+                        }
+                    }
+                },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
                     "type": [
@@ -12174,6 +12196,16 @@
                     "description": "Number of days to retain the logs when running the Airflow log groomer sidecar.",
                     "type": "integer",
                     "default": 15
+                },
+                "env": {
+                    "description": "Add additional env vars to log groomer sidecar container (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "x-kubernetes-patch-merge-key": "name",
+                    "x-kubernetes-patch-strategy": "merge"
                 },
                 "resources": {
                     "description": "Resources for Airflow log groomer sidecar.",

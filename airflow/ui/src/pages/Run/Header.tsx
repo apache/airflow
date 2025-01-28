@@ -25,8 +25,8 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { Stat } from "src/components/Stat";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Status } from "src/components/ui";
 import { getDuration } from "src/utils";
 
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
@@ -38,7 +38,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
           <strong>Run: </strong>
           {dagRun.dag_run_id}
         </Heading>
-        <Status state={dagRun.state}>{dagRun.state}</Status>
+        <StateBadge state={dagRun.state}>{dagRun.state}</StateBadge>
         <Flex>
           <div />
         </Flex>

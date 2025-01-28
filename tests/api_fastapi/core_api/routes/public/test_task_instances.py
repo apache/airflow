@@ -49,7 +49,6 @@ from tests_common.test_utils.mock_operators import MockOperator
 
 pytestmark = pytest.mark.db_test
 
-
 DEFAULT = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
 DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
@@ -1852,6 +1851,31 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 2,
                 id="dry_run default",
             ),
+            pytest.param(
+                "example_python_operator",
+                [
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
+                        "state": State.FAILED,
+                    },
+                ],
+                "example_python_operator",
+                {
+                    "dry_run": False,
+                    "task_ids": [["print_the_context", 0], "sleep_for_1"],
+                },
+                2,
+                id="clear mapped task and unmapped tasks together",
+            ),
         ],
     )
     def test_should_respond_200(
@@ -1877,6 +1901,59 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti
+
+    @pytest.mark.parametrize(
+        "main_dag, task_instances, request_dag, payload, expected_ti",
+        [
+            pytest.param(
+                "example_python_operator",
+                [
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "state": State.FAILED,
+                    },
+                    {
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
+                        "state": State.FAILED,
+                    },
+                ],
+                "example_python_operator",
+                {
+                    "dry_run": False,
+                    "task_ids": [["print_the_context", 1, 2]],
+                },
+                2,
+                id="clear mapped task and unmapped tasks together",
+            ),
+        ],
+    )
+    def test_should_respond_422(
+        self,
+        test_client,
+        session,
+        main_dag,
+        task_instances,
+        request_dag,
+        payload,
+        expected_ti,
+    ):
+        self.create_task_instances(
+            session,
+            dag_id=main_dag,
+            task_instances=task_instances,
+            update_extras=False,
+        )
+        self.dagbag.sync_to_db("dags-folder", None)
+        response = test_client.post(
+            f"/public/dags/{request_dag}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 422
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.clear_task_instances")
     def test_clear_taskinstance_is_called_with_queued_dr_state(self, mock_clearti, test_client, session):
