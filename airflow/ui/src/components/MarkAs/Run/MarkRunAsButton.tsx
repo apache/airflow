@@ -63,7 +63,9 @@ const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
               }}
               value={menuState}
             >
-              <StateBadge state={menuState}>{menuState}</StateBadge>
+              <StateBadge my={1} state={menuState}>
+                {menuState}
+              </StateBadge>
             </Menu.Item>
           ))}
         </Menu.Content>
