@@ -32,7 +32,6 @@ from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -53,7 +52,7 @@ class BatchState(Enum):
     SUCCESS = "success"
 
 
-class LivyHook(HttpHook, LoggingMixin):
+class LivyHook(HttpHook):
     """
     Hook for Apache Livy through the REST API.
 
@@ -97,6 +96,7 @@ class LivyHook(HttpHook, LoggingMixin):
         auth_type: Any | None = None,
     ) -> None:
         super().__init__(http_conn_id=livy_conn_id, auth_type=auth_type)
+        self.method = "POST"
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
 
@@ -463,7 +463,7 @@ class LivyHook(HttpHook, LoggingMixin):
         return True
 
 
-class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
+class LivyAsyncHook(HttpAsyncHook):
     """
     Hook for Apache Livy through the REST API asynchronously.
 
@@ -498,6 +498,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     ) -> None:
         super().__init__(http_conn_id=livy_conn_id)
         self.auth_type = self.default_auth_type
+        self.method = "POST"
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
 
