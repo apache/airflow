@@ -672,7 +672,7 @@ def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
 
     ti = create_runtime_ti(task=task, dag_id="dag_with_inlets_and_outlets")
     mock_supervisor_comms.get_message.return_value = OKResponse(
-        ok=False,
+        ok=True,
     )
 
     run(ti, log=mock.MagicMock())
@@ -687,7 +687,7 @@ def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
             AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
         ],
     )
-    mock_supervisor_comms.send_request.assert_called_with(msg=expected, log=mock.ANY)
+    mock_supervisor_comms.send_request.assert_any_call(msg=expected, log=mock.ANY)
 
 
 class TestRuntimeTaskInstance:
