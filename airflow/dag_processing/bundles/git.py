@@ -61,7 +61,7 @@ class GitHook(BaseHook):
                 "extra": json.dumps(
                     {
                         "key_file": "optional/path/to/keyfile",
-                        "private_key": "optional/private_key",
+                        "private_key": "optional inline private key",
                     }
                 )
             },
