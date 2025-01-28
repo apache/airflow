@@ -658,10 +658,10 @@ class TestTIUpdateState:
     @pytest.mark.parametrize(
         ("state", "expected_status_code"),
         [
-            (State.RUNNING, 200),
-            (State.SUCCESS, 204),
-            (State.QUEUED, 204),
-            (State.FAILED, 204),
+            (State.RUNNING, 204),
+            (State.SUCCESS, 409),
+            (State.QUEUED, 409),
+            (State.FAILED, 409),
         ],
     )
     def test_ti_runtime_checks_success(
@@ -686,8 +686,6 @@ class TestTIUpdateState:
             )
 
             assert response.status_code == expected_status_code
-            if expected_status_code == 200:
-                assert response.json() == {"message": "Runtime checks passed successfully."}
 
         session.expire_all()
 
