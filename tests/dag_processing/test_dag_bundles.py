@@ -415,6 +415,10 @@ class TestGitDagBundle:
                 "https://myorg.github.com/apache/airflow/tree/0f0f0f",
             ),
             ("https://github.com/apache/airflow.git", "https://github.com/apache/airflow/tree/0f0f0f"),
+            (
+                "https://myorg.github.com/apache/airflow.git",
+                "https://myorg.github.com/apache/airflow/tree/0f0f0f",
+            ),
         ],
     )
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
