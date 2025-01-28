@@ -83,6 +83,7 @@ class SFTPHook(SSHHook):
     def __init__(
         self,
         ssh_conn_id: str | None = "sftp_default",
+        host_proxy_cmd: str | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -104,13 +105,15 @@ class SFTPHook(SSHHook):
             ssh_conn_id = ftp_conn_id
 
         kwargs["ssh_conn_id"] = ssh_conn_id
+        kwargs["host_proxy_cmd"] = host_proxy_cmd
+        self.ssh_conn_id = ssh_conn_id
 
         super().__init__(*args, **kwargs)
 
     @contextmanager
-    def get_sftp_conn(self) -> Generator[SFTPClient, None, None]:
+    def get_conn(self) -> Generator[SFTPClient, None, None]:
         """Context manager that closes the connection after use."""
-        with closing(self.get_conn().open_sftp()) as conn:
+        with closing(super().get_conn().open_sftp()) as conn:
             yield conn
 
     def describe_directory(self, path: str) -> dict[str, dict[str, str | int | None]]:
@@ -122,7 +125,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory
         """
-        with self.get_sftp_conn() as conn:  # type: SFTPClient
+        with self.get_conn() as conn:  # type: SFTPClient
             flist = sorted(conn.listdir_attr(path), key=lambda x: x.filename)
             files = {}
             for f in flist:
@@ -140,7 +143,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory to list
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             return sorted(conn.listdir(path))
 
     def list_directory_with_attr(self, path: str) -> list[SFTPAttributes]:
@@ -162,7 +165,7 @@ class SFTPHook(SSHHook):
         :param path: full path to the remote directory to create
         :param mode: int permissions of octal mode for directory
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             conn.mkdir(path, mode=mode)
 
     def isdir(self, path: str) -> bool:
@@ -171,7 +174,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory to check
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             try:
                 return stat.S_ISDIR(conn.stat(path).st_mode)  # type: ignore
             except OSError:
@@ -183,7 +186,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote file to check
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             try:
                 return stat.S_ISREG(conn.stat(path).st_mode)  # type: ignore
             except OSError:
@@ -201,7 +204,7 @@ class SFTPHook(SSHHook):
         :param path: full path to the remote directory to create
         :param mode: int permissions of octal mode for directory
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             if self.isdir(path):
                 self.log.info("%s already exists", path)
                 return
@@ -221,7 +224,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory to delete
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             conn.rmdir(path)
 
     def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
@@ -235,7 +238,7 @@ class SFTPHook(SSHHook):
         :param local_full_path: full path to the local file or a file-like buffer
         :param prefetch: controls whether prefetch is performed (default: True)
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             if isinstance(local_full_path, BytesIO):
                 conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)
             else:
@@ -251,7 +254,7 @@ class SFTPHook(SSHHook):
         :param remote_full_path: full path to the remote file
         :param local_full_path: full path to the local file or a file-like buffer
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             if isinstance(local_full_path, BytesIO):
                 conn.putfo(local_full_path, remote_full_path, confirm=confirm)
             else:
@@ -263,7 +266,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote file
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             conn.remove(path)
 
     def retrieve_directory(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
@@ -317,7 +320,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote file
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             ftp_mdtm = conn.stat(path).st_mtime
             return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
 
@@ -327,7 +330,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote file or directory
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_conn() as conn:
             try:
                 conn.stat(path)
             except OSError:
@@ -426,7 +429,7 @@ class SFTPHook(SSHHook):
     def test_connection(self) -> tuple[bool, str]:
         """Test the SFTP connection by calling path with directory."""
         try:
-            with self.get_sftp_conn() as conn:
+            with self.get_conn() as conn:
                 conn.normalize(".")
                 return True, "Connection successfully tested"
         except Exception as e:
