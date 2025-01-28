@@ -52,7 +52,7 @@ class TestPodManager:
         self.mock_kube_client = mock.Mock()
         self.pod_manager = PodManager(
             kube_client=self.mock_kube_client,
-            callbacks=MockKubernetesPodOperatorCallback,
+            callbacks=[MockKubernetesPodOperatorCallback],
         )
 
     def test_read_pod_logs_successfully_returns_logs(self):

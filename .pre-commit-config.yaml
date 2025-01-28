@@ -631,7 +631,7 @@ repos:
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
-          ^providers/src/airflow/providers/exasol/hooks/exasol.py$|
+          ^providers/exasol/src/airflow/providers/exasol/hooks/exasol.py$|
           ^providers/src/airflow/providers/fab/auth_manager/security_manager/|
           ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/src/airflow/providers/google/cloud/hooks/bigquery.py$|
@@ -658,7 +658,7 @@ repos:
           ^docs/README.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
-          ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
+          ^providers/apache/kafka/docs/connections/kafka.rst$|
           ^providers/apache/spark/docs/decorators/pyspark.rst$|
           ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|

@@ -90,7 +90,7 @@ def _all_new_providers() -> list[str]:
         (
             GroupOfTests.PROVIDERS,
             "Providers[common.io]",
-            ["providers/tests/common/io"],
+            ["providers/common/io/tests"],
         ),
         (
             GroupOfTests.PROVIDERS,
