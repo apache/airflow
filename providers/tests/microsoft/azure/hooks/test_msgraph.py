@@ -31,8 +31,12 @@ from kiota_serialization_text.text_parse_node import TextParseNode
 from msgraph_core import APIVersion, NationalClouds
 from opentelemetry.trace import Span
 
-from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException, \
-    AirflowProviderDeprecationWarning
+from airflow.exceptions import (
+    AirflowBadRequest,
+    AirflowException,
+    AirflowNotFoundException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.microsoft.azure.hooks.msgraph import (
     DefaultResponseHandler,
     KiotaRequestAdapterHook,

@@ -32,8 +32,8 @@ from httpx import Headers, Response
 from msgraph_core import APIVersion
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 
 T = TypeVar("T", dict, str, Connection)
 
