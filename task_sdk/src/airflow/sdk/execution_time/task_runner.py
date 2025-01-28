@@ -504,16 +504,8 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         ti.hostname = get_hostname()
         ti.task = ti.task.prepare_for_execution()
         if ti.task.inlets or ti.task.outlets:
-            inlets = [
-                AssetProfile(name=x.name or None, uri=x.uri or None, asset_type=Asset.__name__)
-                for x in ti.task.inlets
-                if isinstance(x, Asset)
-            ]
-            outlets = [
-                AssetProfile(name=x.name or None, uri=x.uri or None, asset_type=Asset.__name__)
-                for x in ti.task.outlets
-                if isinstance(x, Asset)
-            ]
+            inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+            outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
             SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlets=inlets, outlets=outlets), log=log)  # type: ignore
             msg = SUPERVISOR_COMMS.get_message()  # type: ignore
 

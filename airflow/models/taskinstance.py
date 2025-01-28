@@ -261,16 +261,8 @@ def _run_raw_task(
 
         try:
             if ti.task:
-                inlets = [
-                    AssetProfile(name=x.name or None, uri=x.uri or None, asset_type=type(x).__name__)
-                    for x in ti.task.inlets
-                    if isinstance(x, Asset)
-                ]
-                outlets = [
-                    AssetProfile(name=x.name or None, uri=x.uri or None, asset_type=type(x).__name__)
-                    for x in ti.task.outlets
-                    if isinstance(x, Asset)
-                ]
+                inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+                outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
                 TaskInstance.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
             if not mark_success:
                 TaskInstance._execute_task_with_callbacks(
