@@ -23,9 +23,7 @@ from __future__ import annotations
 
 from airflow import models
 from airflow.providers.apache.beam.operators.beam import BeamRunJavaPipelineOperator
-from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
-
-from providers.tests.system.apache.beam.utils import (
+from airflow.providers.apache.beam.tests.system.apache.beam.utils import (
     GCS_JAR_DATAFLOW_RUNNER_BUCKET_NAME,
     GCS_JAR_DATAFLOW_RUNNER_OBJECT_NAME,
     GCS_OUTPUT,
@@ -33,6 +31,7 @@ from providers.tests.system.apache.beam.utils import (
     GCS_TMP,
     START_DATE,
 )
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 
 with models.DAG(
     "example_beam_native_java_dataflow_runner",
