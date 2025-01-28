@@ -23,17 +23,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
-from httpx import Response
-from httpx._utils import URLPattern
-from kiota_http.httpx_request_adapter import HttpxRequestAdapter
-from kiota_serialization_json.json_parse_node import JsonParseNode
-from kiota_serialization_text.text_parse_node import TextParseNode
-from msgraph_core import APIVersion, NationalClouds
-from opentelemetry.trace import Span
-
 from airflow.exceptions import (
     AirflowBadRequest,
     AirflowException,
+    AirflowConfigException,
     AirflowNotFoundException,
     AirflowProviderDeprecationWarning,
 )
@@ -41,6 +34,13 @@ from airflow.providers.microsoft.azure.hooks.msgraph import (
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
 )
+from httpx import Response
+from httpx._utils import URLPattern
+from kiota_http.httpx_request_adapter import HttpxRequestAdapter
+from kiota_serialization_json.json_parse_node import JsonParseNode
+from kiota_serialization_text.text_parse_node import TextParseNode
+from msgraph_core import APIVersion, NationalClouds
+from opentelemetry.trace import Span
 
 from providers.tests.microsoft.conftest import (
     get_airflow_connection,
@@ -109,6 +109,23 @@ class TestKiotaRequestAdapterHook:
             assert isinstance(actual, HttpxRequestAdapter)
             assert actual._http_client._mounts.get(URLPattern("http://"))
             assert actual._http_client._mounts.get(URLPattern("https://"))
+
+    def test_get_conn_with_proxies_as_invalid_string(self):
+        connection = lambda conn_id: get_airflow_connection(
+            conn_id=conn_id,
+            host="api.fabric.microsoft.com",
+            api_version="v1",
+            proxies='["http://proxy:80", "https://proxy:80"]',
+        )
+
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.raises(AirflowConfigException):
+                hook.get_conn()
 
     def test_get_conn_with_proxies_as_json(self):
         connection = lambda conn_id: get_airflow_connection(

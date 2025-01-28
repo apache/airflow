@@ -27,6 +27,13 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
+from airflow.exceptions import (
+    AirflowBadRequest,
+    AirflowException,
+    AirflowConfigException,
+    AirflowNotFoundException,
+)
+from airflow.hooks.base import BaseHook
 from azure.identity import CertificateCredential, ClientSecretCredential
 from httpx import AsyncHTTPTransport, Timeout
 from kiota_abstractions.api_error import APIError
@@ -43,9 +50,6 @@ from kiota_serialization_json.json_parse_node_factory import JsonParseNodeFactor
 from kiota_serialization_text.text_parse_node_factory import TextParseNodeFactory
 from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
-
-from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase
@@ -324,13 +328,11 @@ class KiotaRequestAdapterHook(BaseHook):
             #       nested json. Make sure to use connection.get_extra_dejson(nested=True) instead of
             #       connection.extra_dejson.
             with suppress(JSONDecodeError):
-                result = json.loads(proxies)
-                if isinstance(result, dict):
-                    return result
-            with suppress(ValueError, TypeError):
-                result = literal_eval(proxies)
-                if isinstance(result, dict):
-                    return result
+                proxies = json.loads(proxies)
+            with suppress(Exception):
+                proxies = literal_eval(proxies)
+        if not isinstance(proxies, dict):
+            raise AirflowConfigException(f"Proxies must be of type dict, got {type(proxies).__name__} instead!")
         return proxies
 
     def get_credentials(
