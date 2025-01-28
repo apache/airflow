@@ -65,12 +65,16 @@ def mocked_parse(spy_agency):
             )
     """
 
-    def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
+    def set_dag(
+        what: StartupDetails, dag_id: str, task: BaseOperator, dag_params=None
+    ) -> RuntimeTaskInstance:
         from airflow.sdk.definitions.dag import DAG
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
         from airflow.utils import timezone
 
         dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
+        if dag_params:
+            dag.params = dag_params
         task.dag = dag
         t = dag.task_dict[task.task_id]
         ti = RuntimeTaskInstance.model_construct(

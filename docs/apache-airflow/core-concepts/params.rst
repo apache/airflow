@@ -40,7 +40,7 @@ Use a dictionary that maps Param names to either a :class:`~airflow.models.param
 
     from airflow import DAG
     from airflow.decorators import task
-    from airflow.models.param import Param
+    from airflow.sdk.definitions.param import Param
 
     with DAG(
         "the_dag",

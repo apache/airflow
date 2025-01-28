@@ -672,6 +672,7 @@ class TestRuntimeTaskInstance:
 
         # Verify the context keys and values
         assert context == {
+            "params": {},
             "var": {
                 "json": VariableAccessor(deserialize_json=True),
                 "value": VariableAccessor(deserialize_json=False),
@@ -712,6 +713,7 @@ class TestRuntimeTaskInstance:
         context = runtime_ti.get_template_context()
 
         assert context == {
+            "params": {},
             "var": {
                 "json": VariableAccessor(deserialize_json=True),
                 "value": VariableAccessor(deserialize_json=False),
@@ -943,6 +945,47 @@ class TestRuntimeTaskInstance:
                     map_index=-1,
                 ),
             )
+
+    def test_get_param_from_context(self, mocked_parse, make_ti_context, mock_supervisor_comms):
+        """Test that a params can be retrieved from context."""
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                value = context["params"]
+                print("The dag params are", value)
+
+        task = CustomOperator(task_id="print-params")
+        what = StartupDetails(
+            ti=TaskInstance(
+                id=uuid7(), task_id="print-params", dag_id="basic_param_dag", run_id="c", try_number=1
+            ),
+            bundle_info=FAKE_BUNDLE,
+            dag_rel_path="",
+            requests_fd=0,
+            ti_context=make_ti_context(),
+        )
+        ti = mocked_parse(
+            what,
+            "basic_param_dag",
+            task,
+            dag_params={
+                "x": 3,
+                "text": "Hello World!",
+                "flag": False,
+                "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
+            },
+        )
+        mock_supervisor_comms.get_message.return_value = what
+
+        startup()
+        run(ti, log=mock.MagicMock())
+
+        assert ti.task.dag.params == {
+            "x": 3,
+            "text": "Hello World!",
+            "flag": False,
+            "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
+        }
 
 
 class TestXComAfterTaskExecution:
