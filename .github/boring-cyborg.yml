@@ -144,10 +144,7 @@ labelPRBasedOnFilePath:
     - providers/datadog/**
 
   provider:dbt-cloud:
-    - providers/src/airflow/providers/dbt/cloud/**/*
-    - docs/apache-airflow-providers-dbt-cloud/**/*
-    - providers/tests/dbt/cloud/**/*
-    - providers/tests/system/dbt/cloud/**/*
+    - providers/dbt/cloud/**
 
   provider:dingding:
     - providers/src/airflow/providers/dingding/**/*
