@@ -31,14 +31,17 @@
 Definition of the public interface for airflow.providers.common.sql.operators.generic_transfer
 isort:skip_file
 """
-import jinja2
-from _typeshed import Incomplete as Incomplete
-from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import DbApiHook as DbApiHook
-from airflow.utils.context import Context as Context
+
 from collections.abc import Sequence
 from functools import cached_property as cached_property
 from typing import Any, ClassVar
+
+import jinja2
+from _typeshed import Incomplete as Incomplete
+
+from airflow.models import BaseOperator
+from airflow.providers.common.sql.hooks.sql import DbApiHook as DbApiHook
+from airflow.utils.context import Context as Context
 
 
 class GenericTransfer(BaseOperator):
