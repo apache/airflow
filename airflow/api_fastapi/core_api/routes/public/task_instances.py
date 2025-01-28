@@ -62,6 +62,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.exceptions import TaskNotFound
 from airflow.jobs.scheduler_job_runner import DR
 from airflow.models import Base, DagRun
+from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.ti_deps.dep_context import DepContext
@@ -661,19 +662,7 @@ def post_clear_task_instances(
     )
 
 
-@task_instances_router.patch(
-    task_instances_prefix + "/{task_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
-    ),
-)
-@task_instances_router.patch(
-    task_instances_prefix + "/{task_id}/{map_index}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
-    ),
-)
-def patch_task_instance(
+def _patch_ti_validate_request(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
@@ -682,8 +671,7 @@ def patch_task_instance(
     session: SessionDep,
     map_index: int = -1,
     update_mask: list[str] | None = Query(None),
-) -> TaskInstanceResponse:
-    """Update the state of a task instance."""
+) -> tuple[DAG, TI, dict]:
     dag = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG {dag_id} not found")
@@ -717,34 +705,123 @@ def patch_task_instance(
     fields_to_update = body.model_fields_set
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = body.model_dump(include=fields_to_update, by_alias=True)
     else:
         try:
             PatchTaskInstanceBody.model_validate(body)
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = body.model_dump(by_alias=True)
+
+    return dag, ti, body.model_dump(include=fields_to_update, by_alias=True)
+
+
+@task_instances_router.patch(
+    task_instances_prefix + "/{task_id}/dry_run",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+    ),
+)
+@task_instances_router.patch(
+    task_instances_prefix + "/{task_id}/{map_index}/dry_run",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+    ),
+)
+def patch_task_instance_dry_run(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    request: Request,
+    body: PatchTaskInstanceBody,
+    session: SessionDep,
+    map_index: int = -1,
+    update_mask: list[str] | None = Query(None),
+) -> TaskInstanceCollectionResponse:
+    """Update a task instance dry_run mode."""
+    dag, ti, data = _patch_ti_validate_request(
+        dag_id, dag_run_id, task_id, request, body, session, map_index, update_mask
+    )
+
+    tis: list[TI] = []
+
+    if data.get("new_state"):
+        tis = dag.set_task_instance_state(
+            task_id=task_id,
+            run_id=dag_run_id,
+            map_indexes=[map_index],
+            state=data["new_state"],
+            upstream=body.include_upstream,
+            downstream=body.include_downstream,
+            future=body.include_future,
+            past=body.include_past,
+            commit=False,
+            session=session,
+        )
+
+        if not tis:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, f"Task id {task_id} is already in {data['new_state']} state"
+            )
+    elif "note" in data:
+        tis = [ti]
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[
+            TaskInstanceResponse.model_validate(
+                ti,
+                from_attributes=True,
+            )
+            for ti in tis
+        ],
+        total_entries=len(tis),
+    )
+
+
+@task_instances_router.patch(
+    task_instances_prefix + "/{task_id}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+    ),
+)
+@task_instances_router.patch(
+    task_instances_prefix + "/{task_id}/{map_index}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+    ),
+)
+def patch_task_instance(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    request: Request,
+    body: PatchTaskInstanceBody,
+    session: SessionDep,
+    map_index: int = -1,
+    update_mask: list[str] | None = Query(None),
+) -> TaskInstanceResponse:
+    """Update a task instance."""
+    dag, ti, data = _patch_ti_validate_request(
+        dag_id, dag_run_id, task_id, request, body, session, map_index, update_mask
+    )
 
     for key, _ in data.items():
         if key == "new_state":
-            if not body.dry_run:
-                tis: list[TI] = dag.set_task_instance_state(
-                    task_id=task_id,
-                    run_id=dag_run_id,
-                    map_indexes=[map_index],
-                    state=body.new_state,
-                    upstream=body.include_upstream,
-                    downstream=body.include_downstream,
-                    future=body.include_future,
-                    past=body.include_past,
-                    commit=True,
-                    session=session,
+            tis: list[TI] = dag.set_task_instance_state(
+                task_id=task_id,
+                run_id=dag_run_id,
+                map_indexes=[map_index],
+                state=data["new_state"],
+                upstream=body.include_upstream,
+                downstream=body.include_downstream,
+                future=body.include_future,
+                past=body.include_past,
+                commit=True,
+                session=session,
+            )
+            if not tis:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, f"Task id {task_id} is already in {data['new_state']} state"
                 )
-                if not tis:
-                    raise HTTPException(
-                        status.HTTP_409_CONFLICT, f"Task id {task_id} is already in {data['new_state']} state"
-                    )
-                ti = tis[0] if isinstance(tis, list) else tis
+            ti = tis[0] if isinstance(tis, list) else tis
         elif key == "note":
             if update_mask or body.note is not None:
                 # @TODO: replace None passed for user_id with actual user id when
