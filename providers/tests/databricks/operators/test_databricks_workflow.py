@@ -77,9 +77,19 @@ def test_flatten_node():
 
 def test_create_workflow_json(mock_databricks_hook, context, mock_task_group):
     """Test that _CreateDatabricksWorkflowOperator.create_workflow_json returns the expected JSON."""
+    environments = [
+        {
+            "environment_key": "default_environment",
+            "spec": {
+                "client": "1",
+                "dependencies": ["library1"],
+            },
+        }
+    ]
     operator = _CreateDatabricksWorkflowOperator(
         task_id="test_task",
         databricks_conn_id="databricks_default",
+        environments=environments,
     )
     operator.task_group = mock_task_group
 
@@ -96,6 +106,7 @@ def test_create_workflow_json(mock_databricks_hook, context, mock_task_group):
     assert workflow_json["job_clusters"] == []
     assert workflow_json["max_concurrent_runs"] == 1
     assert workflow_json["timeout_seconds"] == 0
+    assert workflow_json["environments"] == environments
 
 
 def test_create_or_reset_job_existing(mock_databricks_hook, context, mock_task_group):
@@ -216,6 +227,7 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
         task_group=task_group,
         task_id="launch",
         databricks_conn_id="databricks_conn",
+        environments=[],
         existing_clusters=[],
         extra_job_params={},
         job_clusters=[],
