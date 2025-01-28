@@ -834,6 +834,8 @@ def render_template(
     context: dict[str, Any],
     extension: str,
     autoescape: bool = True,
+    lstrip_blocks: bool = False,
+    trim_blocks: bool = False,
     keep_trailing_newline: bool = False,
 ) -> str:
     """
@@ -842,6 +844,8 @@ def render_template(
     :param context: Jinja2 context
     :param extension: Target file extension
     :param autoescape: Whether to autoescape HTML
+    :param lstrip_blocks: Whether to strip leading blocks
+    :param trim_blocks: Whether to trim blocks
     :param keep_trailing_newline: Whether to keep the newline in rendered output
     :return: rendered template
     """
@@ -852,6 +856,8 @@ def render_template(
         loader=template_loader,
         undefined=jinja2.StrictUndefined,
         autoescape=autoescape,
+        lstrip_blocks=lstrip_blocks,
+        trim_blocks=trim_blocks,
         keep_trailing_newline=keep_trailing_newline,
     )
     template = template_env.get_template(f"{template_name}_TEMPLATE{extension}.jinja2")

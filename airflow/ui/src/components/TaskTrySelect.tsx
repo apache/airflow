@@ -20,9 +20,10 @@ import { Button, createListCollection, HStack, VStack, Heading } from "@chakra-u
 
 import { useTaskInstanceServiceGetMappedTaskInstanceTries } from "openapi/queries";
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
-import { Select, Status } from "./ui";
+import { Select } from "./ui";
 
 type Props = {
   readonly onSelectTryNumber?: (tryNumber: number) => void;
@@ -90,14 +91,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
                   task_instance: TaskInstanceHistoryResponse;
                   value: number;
                 }>,
-              ) => (
-                <Status
-                  // eslint-disable-next-line unicorn/no-null
-                  state={items[0]?.task_instance.state ?? null}
-                >
-                  {items[0]?.value}
-                </Status>
-              )}
+              ) => <StateBadge state={items[0]?.task_instance.state}>{items[0]?.value}</StateBadge>}
             </Select.ValueText>
           </Select.Trigger>
           <Select.Content>
@@ -105,9 +99,9 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
               <Select.Item item={option} key={option.value}>
                 <span>
                   {option.value}:
-                  <Status ml={2} state={option.task_instance.state}>
+                  <StateBadge ml={2} state={option.task_instance.state}>
                     {option.task_instance.state}
-                  </Status>
+                  </StateBadge>
                 </span>
               </Select.Item>
             ))}
@@ -129,7 +123,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
                 variant={selectedTryNumber === ti.try_number ? "surface" : "outline"}
               >
                 {ti.try_number}
-                <Status state={ti.state} />
+                <StateBadge state={ti.state} />
               </Button>
             </TaskInstanceTooltip>
           ))}

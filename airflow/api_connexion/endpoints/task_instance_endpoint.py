@@ -387,7 +387,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
             }
             for id in dag_ids
         ]
-        if not get_auth_manager().batch_is_authorized_dag(requests):
+        if not get_auth_manager().batch_is_authorized_dag(requests, user=get_auth_manager().get_user()):
             raise PermissionDenied(detail=f"User not allowed to access some of these DAGs: {list(dag_ids)}")
     else:
         dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)

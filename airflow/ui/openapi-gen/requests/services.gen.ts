@@ -93,8 +93,8 @@ import type {
   GetDagSourceResponse,
   GetDagStatsData,
   GetDagStatsResponse,
-  GetDagReportData,
-  GetDagReportResponse,
+  GetDagReportsData,
+  GetDagReportsResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
   GetDagsData,
@@ -145,6 +145,10 @@ import type {
   GetMappedTaskInstanceTryDetailsResponse,
   PostClearTaskInstancesData,
   PostClearTaskInstancesResponse,
+  PatchTaskInstanceDryRunData,
+  PatchTaskInstanceDryRunResponse,
+  PatchTaskInstanceDryRun1Data,
+  PatchTaskInstanceDryRun1Response,
   GetLogData,
   GetLogResponse,
   GetImportErrorData,
@@ -165,8 +169,8 @@ import type {
   GetPoolsResponse,
   PostPoolData,
   PostPoolResponse,
-  PutPoolsData,
-  PutPoolsResponse,
+  BulkPoolsData,
+  BulkPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
   GetXcomEntryData,
@@ -1144,7 +1148,7 @@ export class ConnectionService {
    * Bulk create, update, and delete connections.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns ConnectionBulkResponse Successful Response
+   * @returns BulkResponse Successful Response
    * @throws ApiError
    */
   public static bulkConnections(data: BulkConnectionsData): CancelablePromise<BulkConnectionsResponse> {
@@ -1524,14 +1528,14 @@ export class DagStatsService {
 
 export class DagReportService {
   /**
-   * Get Dag Report
+   * Get Dag Reports
    * Get DAG report.
    * @param data The data for the request.
    * @param data.subdir
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static getDagReport(data: GetDagReportData): CancelablePromise<GetDagReportResponse> {
+  public static getDagReports(data: GetDagReportsData): CancelablePromise<GetDagReportsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/dagReports",
@@ -1981,7 +1985,7 @@ export class TaskInstanceService {
 
   /**
    * Patch Task Instance
-   * Update the state of a task instance.
+   * Update a task instance.
    * @param data The data for the request.
    * @param data.dagId
    * @param data.dagRunId
@@ -2249,7 +2253,7 @@ export class TaskInstanceService {
 
   /**
    * Patch Task Instance
-   * Update the state of a task instance.
+   * Update a task instance.
    * @param data The data for the request.
    * @param data.dagId
    * @param data.dagRunId
@@ -2481,6 +2485,88 @@ export class TaskInstanceService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Task Instance Dry Run
+   * Update a task instance dry_run mode.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns TaskInstanceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchTaskInstanceDryRun(
+    data: PatchTaskInstanceDryRunData,
+  ): CancelablePromise<PatchTaskInstanceDryRunResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        map_index: data.mapIndex,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Task Instance Dry Run
+   * Update a task instance dry_run mode.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.requestBody
+   * @param data.mapIndex
+   * @param data.updateMask
+   * @returns TaskInstanceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchTaskInstanceDryRun1(
+    data: PatchTaskInstanceDryRun1Data,
+  ): CancelablePromise<PatchTaskInstanceDryRun1Response> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -2790,24 +2876,22 @@ export class PoolService {
   }
 
   /**
-   * Put Pools
-   * Create multiple pools.
+   * Bulk Pools
+   * Bulk create, update, and delete pools.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns PoolCollectionResponse Created with overwriting
-   * @returns PoolCollectionResponse Created
+   * @returns BulkResponse Successful Response
    * @throws ApiError
    */
-  public static putPools(data: PutPoolsData): CancelablePromise<PutPoolsResponse> {
+  public static bulkPools(data: BulkPoolsData): CancelablePromise<BulkPoolsResponse> {
     return __request(OpenAPI, {
-      method: "PUT",
-      url: "/public/pools/bulk",
+      method: "PATCH",
+      url: "/public/pools",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
-        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -3119,7 +3203,7 @@ export class VariableService {
    * Bulk create, update, and delete variables.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns VariableBulkResponse Successful Response
+   * @returns BulkResponse Successful Response
    * @throws ApiError
    */
   public static bulkVariables(data: BulkVariablesData): CancelablePromise<BulkVariablesResponse> {

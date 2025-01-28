@@ -856,6 +856,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
                     dagv = DagVersion.write_dag(
                         dag_id=dag.dag_id,
+                        bundle_name=self.dag_model.bundle_name,
+                        bundle_version=self.dag_model.bundle_version,
                         session=self.session,
                     )
                     self.session.add(dagv)
@@ -1361,15 +1363,27 @@ def session():
 @pytest.fixture
 def get_test_dag():
     def _get(dag_id: str):
+        from airflow import settings
         from airflow.models.dagbag import DagBag
         from airflow.models.serialized_dag import SerializedDagModel
+
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
         dag_file = AIRFLOW_TESTS_DIR / "dags" / f"{dag_id}.py"
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
 
         dag = dagbag.get_dag(dag_id)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        if AIRFLOW_V_3_0_PLUS:
+            session = settings.Session()
+            from airflow.models.dagbundle import DagBundleModel
+
+            if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+                session.add(DagBundleModel(name="testing"))
+                session.commit()
+            dag.bulk_write_to_db("testing", None, [dag])
+        else:
+            dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         return dag
 
@@ -1565,6 +1579,19 @@ def clean_dags_and_dagruns():
     yield  # Test runs here
     clear_db_dags()
     clear_db_runs()
+
+
+@pytest.fixture
+def clean_executor_loader():
+    """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
+    from airflow.executors.executor_loader import ExecutorLoader
+
+    from tests_common.test_utils.executor_loader import clean_executor_loader_module
+
+    clean_executor_loader_module()
+    yield  # Test runs here
+    clean_executor_loader_module()
+    ExecutorLoader.init_executors()
 
 
 @pytest.fixture(scope="session")

@@ -116,6 +116,9 @@ export const DataTable = <TData,>({
 
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
   const hasRows = rows.length > 0;
+  const hasPagination =
+    table.getState().pagination.pageIndex !== 0 ||
+    (table.getState().pagination.pageIndex === 0 && rows.length !== total);
 
   return (
     <>
@@ -127,7 +130,7 @@ export const DataTable = <TData,>({
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       ) : undefined}
       {!hasRows && !Boolean(isLoading) && <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>}
-      {hasRows ? (
+      {hasPagination ? (
         <Pagination.Root
           count={table.getRowCount()}
           my={2}

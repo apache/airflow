@@ -29,6 +29,7 @@ const tabs = [
   { label: "Task Instances", value: "" },
   { label: "Events", value: "events" },
   { label: "Code", value: "code" },
+  { label: "Details", value: "details" },
 ];
 
 export const Run = () => {

@@ -714,6 +714,14 @@ class AssetEvent(Base):
     def uri(self):
         return self.asset.uri
 
+    @property
+    def group(self):
+        return self.asset.group
+
+    @property
+    def name(self):
+        return self.asset.name
+
     def __repr__(self) -> str:
         args = []
         for attr in [

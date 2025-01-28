@@ -2017,14 +2017,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
                         "seconds) and will be terminated. "
                         "See https://airflow.apache.org/docs/apache-airflow/"
-                        "stable/core-concepts/tasks.html#zombie-undead-tasks"
+                        "stable/core-concepts/tasks.html#zombie-tasks"
                     ),
                 )
             )
             self.log.error(
                 "Detected zombie job: %s "
                 "(See https://airflow.apache.org/docs/apache-airflow/"
-                "stable/core-concepts/tasks.html#zombie-undead-tasks)",
+                "stable/core-concepts/tasks.html#zombie-tasks)",
                 request,
             )
             self.job.executor.send_callback(request)

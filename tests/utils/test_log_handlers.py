@@ -33,7 +33,7 @@ from pydantic.v1.utils import deep_update
 from requests.adapters import Response
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.executors import executor_loader
+from airflow.executors import executor_constants, executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models.dagrun import DagRun
@@ -186,6 +186,95 @@ class TestFileTaskLogHandler:
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
+
+    @pytest.mark.parametrize(
+        "executor_name",
+        [
+            (executor_constants.LOCAL_KUBERNETES_EXECUTOR),
+            (executor_constants.CELERY_KUBERNETES_EXECUTOR),
+            (executor_constants.KUBERNETES_EXECUTOR),
+            (None),
+        ],
+    )
+    @conf_vars(
+        {
+            ("core", "EXECUTOR"): ",".join(
+                [
+                    executor_constants.LOCAL_KUBERNETES_EXECUTOR,
+                    executor_constants.CELERY_KUBERNETES_EXECUTOR,
+                    executor_constants.KUBERNETES_EXECUTOR,
+                ]
+            ),
+        }
+    )
+    @patch(
+        "airflow.executors.executor_loader.ExecutorLoader.load_executor",
+        wraps=executor_loader.ExecutorLoader.load_executor,
+    )
+    @patch(
+        "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
+        wraps=executor_loader.ExecutorLoader.get_default_executor,
+    )
+    def test_file_task_handler_with_multiple_executors(
+        self,
+        mock_get_default_executor,
+        mock_load_executor,
+        executor_name,
+        create_task_instance,
+        clean_executor_loader,
+    ):
+        executors_mapping = executor_loader.ExecutorLoader.executors
+        default_executor_name = executor_loader.ExecutorLoader.get_default_executor_name()
+        path_to_executor_class: str
+        if executor_name is None:
+            path_to_executor_class = executors_mapping.get(default_executor_name.alias)
+        else:
+            path_to_executor_class = executors_mapping.get(executor_name)
+
+        with patch(f"{path_to_executor_class}.get_task_log", return_value=([], [])) as mock_get_task_log:
+            mock_get_task_log.return_value = ([], [])
+            ti = create_task_instance(
+                dag_id="dag_for_testing_multiple_executors",
+                task_id="task_for_testing_multiple_executors",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            if executor_name is not None:
+                ti.executor = executor_name
+            ti.try_number = 1
+            ti.state = TaskInstanceState.RUNNING
+            logger = ti.log
+            ti.log.disabled = False
+
+            file_handler = next(
+                (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
+            )
+            assert file_handler is not None
+
+            set_context(logger, ti)
+            # clear executor_instances cache
+            file_handler.executor_instances = {}
+            assert file_handler.handler is not None
+            # We expect set_context generates a file locally.
+            log_filename = file_handler.handler.baseFilename
+            assert os.path.isfile(log_filename)
+            assert log_filename.endswith("1.log"), log_filename
+
+            file_handler.flush()
+            file_handler.close()
+
+            assert hasattr(file_handler, "read")
+            file_handler.read(ti)
+            os.remove(log_filename)
+            mock_get_task_log.assert_called_once()
+
+            if executor_name is None:
+                mock_get_default_executor.assert_called_once()
+                # will be called in `ExecutorLoader.get_default_executor` method
+                mock_load_executor.assert_called_once_with(default_executor_name)
+            else:
+                mock_get_default_executor.assert_not_called()
+                mock_load_executor.assert_called_once_with(executor_name)
 
     def test_file_task_handler_running(self, dag_maker):
         def task_callable(ti):

@@ -17,12 +17,10 @@
  * under the License.
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
-import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
-import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
+import type { DAGRunResponse } from "openapi/requests/types.gen";
 import ActionButton from "src/components/ui/ActionButton";
-import { useClearDagRun } from "src/queries/useClearRun";
 
 import ClearRunDialog from "./ClearRunDialog";
 
@@ -34,21 +32,6 @@ type Props = {
 const ClearRunButton = ({ dagRun, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const [affectedTasks, setAffectedTasks] = useState<TaskInstanceCollectionResponse>({
-    task_instances: [],
-    total_entries: 0,
-  });
-
-  const dagId = dagRun.dag_id;
-  const dagRunId = dagRun.dag_run_id;
-
-  const { isPending, mutate } = useClearDagRun({
-    dagId,
-    dagRunId,
-    onSuccessConfirm: onClose,
-    onSuccessDryRun: setAffectedTasks,
-  });
-
   return (
     <Box>
       <ActionButton
@@ -59,14 +42,7 @@ const ClearRunButton = ({ dagRun, withText = true }: Props) => {
         withText={withText}
       />
 
-      <ClearRunDialog
-        affectedTasks={affectedTasks}
-        dagRun={dagRun}
-        isPending={isPending}
-        mutate={mutate}
-        onClose={onClose}
-        open={open}
-      />
+      <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} />
     </Box>
   );
 };

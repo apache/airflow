@@ -19,20 +19,20 @@
  * under the License.
  */
 import { Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
-import { FiClock } from "react-icons/fi";
+import { FiXCircle } from "react-icons/fi";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
+import { StateIcon } from "src/components/StateIcon";
 import { Tooltip } from "src/components/ui";
 import { capitalize } from "src/utils";
-import { stateColor } from "src/utils/stateColor";
 
 const slots = {
-  open_slots: stateColor.success,
-  occupied_slots: stateColor.up_for_retry,
-  running_slots: stateColor.running,
-  queued_slots: stateColor.queued,
-  scheduled_slots: stateColor.scheduled,
-  deferred_slots: stateColor.deferred,
+  open_slots: { color: "success", icon: <StateIcon state="success" /> },
+  occupied_slots: { color: "up_for_retry", icon: <FiXCircle /> },
+  running_slots: { color: "running", icon: <StateIcon state="running" /> },
+  queued_slots: { color: "queued", icon: <StateIcon state="queued" /> },
+  scheduled_slots: { color: "scheduled", icon: <StateIcon state="scheduled" /> },
+  deferred_slots: { color: "deferred", icon: <StateIcon state="deferred" /> },
 };
 
 type PoolBarProps = {
@@ -49,7 +49,7 @@ const PoolBar = ({ pool }: PoolBarProps) => (
           </Text>
           {pool.include_deferred ? (
             <Tooltip content="Deferred Slots Included">
-              <FiClock size={18} />
+              <StateIcon size={18} state="deferred" />
             </Tooltip>
           ) : undefined}
         </HStack>
@@ -63,14 +63,27 @@ const PoolBar = ({ pool }: PoolBarProps) => (
 
     <Box margin={4}>
       <Flex bg="gray.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
-        {Object.entries(slots).map(([slotKey, color]) => {
+        {Object.entries(slots).map(([slotKey, { color, icon }]) => {
           const rawSlotValue = pool[slotKey as keyof PoolResponse];
           const slotValue = typeof rawSlotValue === "number" ? rawSlotValue : 0;
           const flexValue = slotValue / pool.slots || 0;
 
+          if (flexValue === 0) {
+            return undefined; // Skip rendering if no value for this slot
+          }
+
           return (
             <Tooltip content={`${capitalize(slotKey.replace("_", " "))}: ${slotValue}`} key={slotKey}>
-              <Box bg={color} flex={flexValue} h="100%" />
+              <Flex
+                alignItems="center"
+                colorPalette={color}
+                flex={flexValue}
+                h="100%"
+                justifyContent="center"
+                position="relative"
+              >
+                {icon}
+              </Flex>
             </Tooltip>
           );
         })}

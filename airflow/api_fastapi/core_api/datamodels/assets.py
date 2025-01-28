@@ -102,6 +102,9 @@ class AssetEventResponse(BaseModel):
 
     id: int
     asset_id: int
+    uri: str | None = Field(alias="uri", default=None)
+    name: str | None = Field(alias="name", default=None)
+    group: str | None = Field(alias="group", default=None)
     extra: dict | None = None
     source_task_id: str | None = None
     source_dag_id: str | None = None

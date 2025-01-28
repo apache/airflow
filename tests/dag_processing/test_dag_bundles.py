@@ -39,12 +39,12 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(autouse=True)
 def bundle_temp_dir(tmp_path):
-    with conf_vars({("dag_bundles", "dag_bundle_storage_path"): str(tmp_path)}):
+    with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
         yield tmp_path
 
 
 def test_default_dag_storage_path():
-    with conf_vars({("dag_bundles", "dag_bundle_storage_path"): ""}):
+    with conf_vars({("dag_processor", "dag_bundle_storage_path"): ""}):
         bundle = LocalDagBundle(name="test", path="/hello")
         assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
@@ -60,7 +60,7 @@ def test_dag_bundle_root_storage_path():
         def path(self):
             pass
 
-    with conf_vars({("dag_bundles", "dag_bundle_storage_path"): None}):
+    with conf_vars({("dag_processor", "dag_bundle_storage_path"): None}):
         bundle = BasicBundle(name="test")
         assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
@@ -355,9 +355,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_NO_REPO_URL,
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
-        with pytest.raises(
-            AirflowException, match=f"Connection {CONN_NO_REPO_URL} doesn't have a git_repo_url"
-        ):
+        with pytest.raises(AirflowException, match=f"Connection {CONN_NO_REPO_URL} doesn't have a host url"):
             bundle.initialize()
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
@@ -401,7 +399,8 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         with pytest.raises(
-            AirflowException, match=f"Invalid git URL: {repo_url}. URL must start with git@ and end with .git"
+            AirflowException,
+            match=f"Invalid git URL: {repo_url}. URL must start with git@ or https and end with .git",
         ):
             bundle.initialize()
 
@@ -415,6 +414,7 @@ class TestGitDagBundle:
                 "git@myorg.github.com:apache/airflow.git",
                 "https://myorg.github.com/apache/airflow/tree/0f0f0f",
             ),
+            ("https://github.com/apache/airflow.git", "https://github.com/apache/airflow/tree/0f0f0f"),
         ],
     )
     @mock.patch("airflow.dag_processing.bundles.git.Repo")

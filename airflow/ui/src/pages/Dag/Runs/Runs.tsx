@@ -35,9 +35,11 @@ import { ClearRunButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Select, Status } from "src/components/ui";
+import { Select } from "src/components/ui";
 import { capitalize, getDuration } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
@@ -59,7 +61,7 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
       row: {
         original: { state },
       },
-    }) => <Status state={state}>{state}</Status>,
+    }) => <StateBadge state={state}>{state}</StateBadge>,
     header: () => "State",
   },
   {
@@ -92,6 +94,7 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     cell: ({ row }) => (
       <Flex justifyContent="end">
         <ClearRunButton dagRun={row.original} withText={false} />
+        <MarkRunAsButton dagRun={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
@@ -171,7 +174,7 @@ export const Runs = () => {
                 filteredState === null ? (
                   "All States"
                 ) : (
-                  <Status state={filteredState as DagRunState}>{capitalize(filteredState)}</Status>
+                  <StateBadge state={filteredState as DagRunState}>{capitalize(filteredState)}</StateBadge>
                 )
               }
             </Select.ValueText>
@@ -182,7 +185,7 @@ export const Runs = () => {
                 {option.value === "all" ? (
                   option.label
                 ) : (
-                  <Status state={option.value as DagRunState}>{option.label}</Status>
+                  <StateBadge state={option.value as DagRunState}>{option.label}</StateBadge>
                 )}
               </Select.Item>
             ))}

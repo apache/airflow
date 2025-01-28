@@ -4,3 +4,14 @@ The format of the output with that flag can be expensive to generate and extreme
 ``airflow dag show`` is a better way to visualize the relationship of tasks in a DAG.
 
 ``DAG.tree_view`` and ``DAG.get_tree_view`` have also been removed.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

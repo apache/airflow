@@ -21,9 +21,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import { Status, Tooltip } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
 import { getTaskInstanceLink } from "src/utils/links";
 import { trimText } from "src/utils/trimTextFn";
+
+import { StateBadge } from "../StateBadge";
 
 export const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   {
@@ -46,7 +48,7 @@ export const columns: Array<ColumnDef<TaskInstanceResponse>> = [
       row: {
         original: { state },
       },
-    }) => <Status state={state}>{state}</Status>,
+    }) => <StateBadge state={state}>{state}</StateBadge>,
     enableSorting: false,
     header: () => "State",
   },

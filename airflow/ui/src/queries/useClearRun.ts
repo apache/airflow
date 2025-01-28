@@ -25,7 +25,6 @@ import {
   UseDagServiceGetDagDetailsKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import type { DAGRunClearBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 const onError = () => {
@@ -40,37 +39,24 @@ export const useClearDagRun = ({
   dagId,
   dagRunId,
   onSuccessConfirm,
-  onSuccessDryRun,
 }: {
   dagId: string;
   dagRunId: string;
   onSuccessConfirm: () => void;
-  onSuccessDryRun: (date: TaskInstanceCollectionResponse) => void;
 }) => {
   const queryClient = useQueryClient();
 
-  const onSuccess = async (
-    data: TaskInstanceCollectionResponse,
-    variables: {
-      dagId: string;
-      dagRunId: string;
-      requestBody: DAGRunClearBody;
-    },
-  ) => {
-    if (variables.requestBody.dry_run) {
-      onSuccessDryRun(data);
-    } else {
-      const queryKeys = [
-        [useTaskInstanceServiceGetTaskInstancesKey],
-        UseDagServiceGetDagDetailsKeyFn({ dagId }),
-        UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
-        [useDagRunServiceGetDagRunsKey],
-      ];
+  const onSuccess = async () => {
+    const queryKeys = [
+      [useTaskInstanceServiceGetTaskInstancesKey],
+      UseDagServiceGetDagDetailsKeyFn({ dagId }),
+      UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+      [useDagRunServiceGetDagRunsKey],
+    ];
 
-      await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
-      onSuccessConfirm();
-    }
+    onSuccessConfirm();
   };
 
   return useDagRunServiceClearDagRun({

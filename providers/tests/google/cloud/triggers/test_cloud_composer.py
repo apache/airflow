@@ -44,6 +44,7 @@ TEST_END_DATE = datetime(2024, 3, 22, 12, 0, 0)
 TEST_STATES = ["success"]
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_POLL_INTERVAL = 10
+TEST_COMPOSER_AIRFLOW_VERSION = 3
 TEST_IMPERSONATION_CHAIN = "test_impersonation_chain"
 TEST_EXEC_RESULT = {
     "output": [{"line_number": 1, "content": "test_content"}],
@@ -86,6 +87,7 @@ def dag_run_trigger(mock_conn):
         gcp_conn_id=TEST_GCP_CONN_ID,
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
         poll_interval=TEST_POLL_INTERVAL,
+        composer_airflow_version=TEST_COMPOSER_AIRFLOW_VERSION,
     )
 
 
@@ -140,6 +142,7 @@ class TestCloudComposerDAGRunTrigger:
                 "gcp_conn_id": TEST_GCP_CONN_ID,
                 "impersonation_chain": TEST_IMPERSONATION_CHAIN,
                 "poll_interval": TEST_POLL_INTERVAL,
+                "composer_airflow_version": TEST_COMPOSER_AIRFLOW_VERSION,
             },
         )
         assert actual_data == expected_data

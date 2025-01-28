@@ -34,9 +34,11 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { SearchBar } from "src/components/SearchBar";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Select, Status } from "src/components/ui";
+import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { capitalize, getDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -58,7 +60,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
       row: {
         original: { state },
       },
-    }) => <Status state={state}>{state}</Status>,
+    }) => <StateBadge state={state}>{state}</StateBadge>,
     header: () => "State",
   },
   {
@@ -96,6 +98,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     cell: ({ row }) => (
       <Flex justifyContent="end">
         <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
+        <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
@@ -209,9 +212,9 @@ export const TaskInstances = () => {
                 hasFilteredState ? (
                   <HStack gap="10px">
                     {filteredState.map((state) => (
-                      <Status key={state} state={state as TaskInstanceState}>
+                      <StateBadge key={state} state={state as TaskInstanceState}>
                         {state === "none" ? "No Status" : capitalize(state)}
-                      </Status>
+                      </StateBadge>
                     ))}
                   </HStack>
                 ) : (
@@ -226,7 +229,7 @@ export const TaskInstances = () => {
                 {option.value === "all" ? (
                   option.label
                 ) : (
-                  <Status state={option.value as TaskInstanceState}>{option.label}</Status>
+                  <StateBadge state={option.value as TaskInstanceState}>{option.label}</StateBadge>
                 )}
               </Select.Item>
             ))}

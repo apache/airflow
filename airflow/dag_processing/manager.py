@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import attrs
+import structlog
 from sqlalchemy import delete, select, tuple_, update
 from tabulate import tabulate
 from uuid6 import uuid7
@@ -46,12 +47,14 @@ import airflow.models
 from airflow.configuration import conf
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
+from airflow.exceptions import AirflowException
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.sdk.log import init_log_file, logging_processors
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace
@@ -107,6 +110,10 @@ def _config_int_factory(section: str, key: str):
 
 def _config_bool_factory(section: str, key: str):
     return functools.partial(conf.getboolean, section, key)
+
+
+def _config_get_factory(section: str, key: str):
+    return functools.partial(conf.get, section, key)
 
 
 def _resolve_path(instance: Any, attribute: attrs.Attribute, val: str | os.PathLike[str] | None):
@@ -179,6 +186,9 @@ class DagFileProcessorManager:
         factory=_config_int_factory("scheduler", "max_callbacks_per_loop")
     )
 
+    base_log_dir: str = attrs.field(factory=_config_get_factory("scheduler", "CHILD_PROCESS_LOG_DIRECTORY"))
+    _latest_log_symlink_date: datetime = attrs.field(factory=datetime.today, init=False)
+
     def register_exit_signals(self):
         """Register signals that stop child processes."""
         signal.signal(signal.SIGINT, self._exit_gracefully)
@@ -216,6 +226,7 @@ class DagFileProcessorManager:
 
         self.log.info("Getting all DAG bundles")
         self._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+        self._symlink_latest_log_directory()
 
         return self._run_parsing_loop()
 
@@ -423,18 +434,32 @@ class DagFileProcessorManager:
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
             #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
             if not bundle.is_initialized:
-                bundle.initialize()
+                try:
+                    bundle.initialize()
+                except AirflowException as e:
+                    self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
+                    continue
             # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             with create_session() as session:
                 bundle_model: DagBundleModel = session.get(DagBundleModel, bundle.name)
                 elapsed_time_since_refresh = (
                     now - (bundle_model.last_refreshed or timezone.utc_epoch())
                 ).total_seconds()
-                pre_refresh_version = bundle.get_current_version()
+                if bundle.supports_versioning:
+                    # we will also check the version of the bundle to see if another DAG processor has seen
+                    # a new version
+                    pre_refresh_version = (
+                        self._bundle_versions.get(bundle.name) or bundle.get_current_version()
+                    )
+                    current_version_matches_db = pre_refresh_version == bundle_model.version
+                else:
+                    # With no versioning, it always "matches"
+                    current_version_matches_db = True
+
                 previously_seen = bundle.name in self._bundle_versions
                 if (
                     elapsed_time_since_refresh < bundle.refresh_interval
-                    and bundle_model.version == pre_refresh_version
+                    and current_version_matches_db
                     and previously_seen
                 ):
                     self.log.info("Not time to refresh %s", bundle.name)
@@ -448,13 +473,17 @@ class DagFileProcessorManager:
 
                 bundle_model.last_refreshed = now
 
-                version_after_refresh = bundle.get_current_version()
                 if bundle.supports_versioning:
                     # We can short-circuit the rest of this if (1) bundle was seen before by
                     # this dag processor and (2) the version of the bundle did not change
                     # after refreshing it
+                    version_after_refresh = bundle.get_current_version()
                     if previously_seen and pre_refresh_version == version_after_refresh:
-                        self.log.debug("Bundle %s version not changed after refresh", bundle.name)
+                        self.log.debug(
+                            "Bundle %s version not changed after refresh: %s",
+                            bundle.name,
+                            version_after_refresh,
+                        )
                         continue
 
                     bundle_model.version = version_after_refresh
@@ -462,6 +491,10 @@ class DagFileProcessorManager:
                     self.log.info(
                         "Version changed for %s, new version: %s", bundle.name, version_after_refresh
                     )
+                else:
+                    version_after_refresh = None
+
+            self._bundle_versions[bundle.name] = version_after_refresh
 
             bundle_file_paths = self._find_files_in_bundle(bundle)
 
@@ -473,8 +506,6 @@ class DagFileProcessorManager:
 
             self.deactivate_deleted_dags(bundle_file_paths)
             self.clear_nonexistent_import_errors()
-
-            self._bundle_versions[bundle.name] = bundle.get_current_version()
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[str]:
         """Refresh file paths from bundle dir."""
@@ -694,6 +725,51 @@ class DagFileProcessorManager:
         for dag_file in finished:
             self._processors.pop(dag_file)
 
+    def _get_log_dir(self) -> str:
+        return os.path.join(self.base_log_dir, timezone.utcnow().strftime("%Y-%m-%d"))
+
+    def _symlink_latest_log_directory(self):
+        """
+        Create symbolic link to the current day's log directory.
+
+        Allows easy access to the latest parsing log files.
+        """
+        log_directory = self._get_log_dir()
+        latest_log_directory_path = os.path.join(self.base_log_dir, "latest")
+        if os.path.isdir(log_directory):
+            rel_link_target = Path(log_directory).relative_to(Path(latest_log_directory_path).parent)
+            try:
+                # if symlink exists but is stale, update it
+                if os.path.islink(latest_log_directory_path):
+                    if os.path.realpath(latest_log_directory_path) != log_directory:
+                        os.unlink(latest_log_directory_path)
+                        os.symlink(rel_link_target, latest_log_directory_path)
+                elif os.path.isdir(latest_log_directory_path) or os.path.isfile(latest_log_directory_path):
+                    self.log.warning(
+                        "%s already exists as a dir/file. Skip creating symlink.", latest_log_directory_path
+                    )
+                else:
+                    os.symlink(rel_link_target, latest_log_directory_path)
+            except OSError:
+                self.log.warning("OSError while attempting to symlink the latest log directory")
+
+    def _render_log_filename(self, dag_file: DagFileInfo) -> str:
+        """Return an absolute path of where to log for a given dagfile."""
+        if self._latest_log_symlink_date < datetime.today():
+            self._symlink_latest_log_directory()
+            self._latest_log_symlink_date = datetime.today()
+
+        bundle = next(b for b in self._dag_bundles if b.name == dag_file.bundle_name)
+        relative_path = Path(dag_file.path).relative_to(bundle.path)
+        return os.path.join(self._get_log_dir(), bundle.name, f"{relative_path}.log")
+
+    def _get_logger_for_dag_file(self, dag_file: DagFileInfo):
+        log_filename = self._render_log_filename(dag_file)
+        log_file = init_log_file(log_filename)
+        underlying_logger = structlog.BytesLogger(log_file.open("ab"))
+        processors = logging_processors(enable_pretty_log=False)[0]
+        return structlog.wrap_logger(underlying_logger, processors=processors, logger_name="processor").bind()
+
     def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
         id = uuid7()
 
@@ -705,6 +781,7 @@ class DagFileProcessorManager:
             path=dag_file.path,
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
+            logger=self._get_logger_for_dag_file(dag_file),
         )
 
     def _start_new_processes(self):

@@ -68,6 +68,7 @@ jobs:
             'Behaviour changes'
             'Plugin changes'
             'Dependency changes'
+            'Code interface changes'
           )
           news_fragment_content=`git diff origin/${BASE_REF} newsfragments/*.significant.rst`
 
