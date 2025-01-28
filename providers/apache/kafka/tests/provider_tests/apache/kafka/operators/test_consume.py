@@ -64,7 +64,7 @@ class TestConsumeFromTopic:
         operator = ConsumeFromTopicOperator(
             kafka_config_id="kafka_d",
             topics=["test"],
-            apply_function="providers.tests.apache.kafka.operators.test_consume._no_op",
+            apply_function="provider_tests.apache.kafka.operators.test_consume._no_op",
             task_id="test",
             poll_timeout=0.0001,
         )
