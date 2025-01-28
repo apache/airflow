@@ -50,7 +50,7 @@ Breaking changes
 Features
 ~~~~~~~~
 
-* ``feat: retrieve sftp file attrs onces instead multiple time (#44625)``
+* ``feat: retrieve sftp file attrs once instead multiple time (#44625)``
 * ``Add host_proxy_cmd parameter to SSHHook and SFTPHook (#44565)``
 
 Misc
@@ -191,7 +191,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``change warnning message (#36148)``
+* ``change warning message (#36148)``
 * ``Follow BaseHook connection fields method signature in child classes (#36086)``
 
 Misc
