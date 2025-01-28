@@ -238,8 +238,8 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             return None
         if url.startswith("git@"):
             url = self._convert_git_ssh_url_to_https(url)
-        if url.startswith("https"):
-            url = url.replace(".git", "")
+        if url.endswith(".git"):
+            url = url[:-4]
         parsed_url = urlparse(url)
         host = parsed_url.hostname
         if not host:
