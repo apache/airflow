@@ -25,10 +25,10 @@ import pytest
 from dateutil.tz import UTC
 
 from airflow.decorators import task_group
-from airflow.lineage.entities import File
 from airflow.models import DagBag
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.common.compat.lineage.entities import File
 from airflow.sdk.definitions.asset import Asset
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState

@@ -21,8 +21,11 @@ import sys
 import traceback
 
 from flask import (
+    g,
+    redirect,
     render_template,
 )
+from flask_appbuilder import IndexView, expose
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
@@ -30,17 +33,25 @@ from airflow.utils.net import get_hostname
 from airflow.version import version
 
 
-def not_found(error):
-    """Show Not Found on screen for any error in the Webserver."""
-    return (
-        render_template(
-            "airflow/error.html",
-            hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
-            status_code=404,
-            error_message="Page cannot be found.",
-        ),
-        404,
-    )
+class FabIndexView(IndexView):
+    """
+    A simple view that inherits from FAB index view.
+
+    The only goal of this view is to redirect the user to the Airflow 3 UI index page if the user is
+    authenticated. It is impossible to redirect the user directly to the Airflow 3 UI index page before
+    redirecting them to this page because FAB itself defines the logic redirection and does not allow external
+    redirect.
+
+    It is impossible to redirect the user before
+    """
+
+    @expose("/")
+    def index(self):
+        if g.user is not None and g.user.is_authenticated:
+            token = get_auth_manager().get_jwt_token(g.user)
+            return redirect(f"/webapp?token={token}", code=302)
+        else:
+            super().index(self)
 
 
 def show_traceback(error):

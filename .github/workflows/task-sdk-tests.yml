@@ -44,7 +44,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a canary run (true/false)"
         required: true
         type: string
-
+permissions:
+  contents: read
 jobs:
   task-sdk-tests:
     timeout-minutes: 80

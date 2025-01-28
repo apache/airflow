@@ -180,6 +180,39 @@ export const $AssetEventResponse = {
       type: "integer",
       title: "Asset Id",
     },
+    uri: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Uri",
+    },
+    name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Name",
+    },
+    group: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Group",
+    },
     extra: {
       anyOf: [
         {
@@ -482,17 +515,392 @@ export const $BaseInfoResponse = {
   description: "Base info serializer for responses.",
 } as const;
 
-export const $Body_import_variables = {
+export const $BulkAction = {
+  type: "string",
+  enum: ["create", "delete", "update"],
+  title: "BulkAction",
+  description: "Bulk Action to be performed on the used model.",
+} as const;
+
+export const $BulkActionNotOnExistence = {
+  type: "string",
+  enum: ["fail", "skip"],
+  title: "BulkActionNotOnExistence",
+  description: "Bulk Action to be taken if the entity does not exist.",
+} as const;
+
+export const $BulkActionOnExistence = {
+  type: "string",
+  enum: ["fail", "skip", "overwrite"],
+  title: "BulkActionOnExistence",
+  description: "Bulk Action to be taken if the entity already exists or not.",
+} as const;
+
+export const $BulkActionResponse = {
   properties: {
-    file: {
-      type: "string",
-      format: "binary",
-      title: "File",
+    success: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Success",
+      description: "A list of unique id/key representing successful operations.",
+      default: [],
+    },
+    errors: {
+      items: {
+        type: "object",
+      },
+      type: "array",
+      title: "Errors",
+      description:
+        "A list of errors encountered during the operation, each containing details about the issue.",
+      default: [],
     },
   },
   type: "object",
-  required: ["file"],
-  title: "Body_import_variables",
+  title: "BulkActionResponse",
+  description: `Serializer for individual bulk action responses.
+
+Represents the outcome of a single bulk operation (create, update, or delete).
+The response includes a list of successful keys and any errors encountered during the operation.
+This structure helps users understand which key actions succeeded and which failed.`,
+} as const;
+
+export const $BulkBody_ConnectionBody_ = {
+  properties: {
+    actions: {
+      items: {
+        oneOf: [
+          {
+            $ref: "#/components/schemas/BulkCreateAction_ConnectionBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkUpdateAction_ConnectionBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkDeleteAction_ConnectionBody_",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "BulkBody[ConnectionBody]",
+} as const;
+
+export const $BulkBody_PoolBody_ = {
+  properties: {
+    actions: {
+      items: {
+        oneOf: [
+          {
+            $ref: "#/components/schemas/BulkCreateAction_PoolBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkUpdateAction_PoolBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkDeleteAction_PoolBody_",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "BulkBody[PoolBody]",
+} as const;
+
+export const $BulkBody_VariableBody_ = {
+  properties: {
+    actions: {
+      items: {
+        oneOf: [
+          {
+            $ref: "#/components/schemas/BulkCreateAction_VariableBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkUpdateAction_VariableBody_",
+          },
+          {
+            $ref: "#/components/schemas/BulkDeleteAction_VariableBody_",
+          },
+        ],
+      },
+      type: "array",
+      title: "Actions",
+    },
+  },
+  type: "object",
+  required: ["actions"],
+  title: "BulkBody[VariableBody]",
+} as const;
+
+export const $BulkCreateAction_ConnectionBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/ConnectionBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkCreateAction[ConnectionBody]",
+} as const;
+
+export const $BulkCreateAction_PoolBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/PoolBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkCreateAction[PoolBody]",
+} as const;
+
+export const $BulkCreateAction_VariableBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/VariableBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be created.",
+    },
+    action_on_existence: {
+      $ref: "#/components/schemas/BulkActionOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkCreateAction[VariableBody]",
+} as const;
+
+export const $BulkDeleteAction_ConnectionBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entity id/key to be deleted.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkDeleteAction[ConnectionBody]",
+} as const;
+
+export const $BulkDeleteAction_PoolBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entity id/key to be deleted.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkDeleteAction[PoolBody]",
+} as const;
+
+export const $BulkDeleteAction_VariableBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entity id/key to be deleted.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkDeleteAction[VariableBody]",
+} as const;
+
+export const $BulkResponse = {
+  properties: {
+    create: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/BulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk create operation, including successful keys and errors.",
+    },
+    update: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/BulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk update operation, including successful keys and errors.",
+    },
+    delete: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/BulkActionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Details of the bulk delete operation, including successful keys and errors.",
+    },
+  },
+  type: "object",
+  title: "BulkResponse",
+  description: `Serializer for responses to bulk entity operations.
+
+This represents the results of create, update, and delete actions performed on entity in bulk.
+Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
+Fields are populated in the response only if the respective action was part of the request, else are set None.`,
+} as const;
+
+export const $BulkUpdateAction_ConnectionBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/ConnectionBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be updated.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkUpdateAction[ConnectionBody]",
+} as const;
+
+export const $BulkUpdateAction_PoolBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/PoolBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be updated.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkUpdateAction[PoolBody]",
+} as const;
+
+export const $BulkUpdateAction_VariableBody_ = {
+  properties: {
+    action: {
+      $ref: "#/components/schemas/BulkAction",
+      description: "The action to be performed on the entities.",
+    },
+    entities: {
+      items: {
+        $ref: "#/components/schemas/VariableBody",
+      },
+      type: "array",
+      title: "Entities",
+      description: "A list of entities to be updated.",
+    },
+    action_on_non_existence: {
+      $ref: "#/components/schemas/BulkActionNotOnExistence",
+      default: "fail",
+    },
+  },
+  type: "object",
+  required: ["action", "entities"],
+  title: "BulkUpdateAction[VariableBody]",
 } as const;
 
 export const $ClearTaskInstancesBody = {
@@ -545,7 +953,24 @@ export const $ClearTaskInstancesBody = {
       anyOf: [
         {
           items: {
-            type: "string",
+            anyOf: [
+              {
+                type: "string",
+              },
+              {
+                prefixItems: [
+                  {
+                    type: "string",
+                  },
+                  {
+                    type: "integer",
+                  },
+                ],
+                type: "array",
+                maxItems: 2,
+                minItems: 2,
+              },
+            ],
           },
           type: "array",
         },
@@ -866,34 +1291,6 @@ export const $ConnectionBody = {
   required: ["connection_id", "conn_type"],
   title: "ConnectionBody",
   description: "Connection Serializer for requests body.",
-} as const;
-
-export const $ConnectionBulkBody = {
-  properties: {
-    connections: {
-      items: {
-        $ref: "#/components/schemas/ConnectionBody",
-      },
-      type: "array",
-      title: "Connections",
-    },
-    overwrite: {
-      anyOf: [
-        {
-          type: "boolean",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Overwrite",
-      default: false,
-    },
-  },
-  type: "object",
-  required: ["connections"],
-  title: "ConnectionBulkBody",
-  description: "Connections Serializer for requests body.",
 } as const;
 
 export const $ConnectionCollectionResponse = {
@@ -2640,6 +3037,40 @@ This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`,
 } as const;
 
+export const $DryRunBackfillCollectionResponse = {
+  properties: {
+    backfills: {
+      items: {
+        $ref: "#/components/schemas/DryRunBackfillResponse",
+      },
+      type: "array",
+      title: "Backfills",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["backfills", "total_entries"],
+  title: "DryRunBackfillCollectionResponse",
+  description: "Backfill collection serializer for responses in dry-run mode.",
+} as const;
+
+export const $DryRunBackfillResponse = {
+  properties: {
+    logical_date: {
+      type: "string",
+      format: "date-time",
+      title: "Logical Date",
+    },
+  },
+  type: "object",
+  required: ["logical_date"],
+  title: "DryRunBackfillResponse",
+  description: "Backfill serializer for responses in dry-run mode.",
+} as const;
+
 export const $EdgeResponse = {
   properties: {
     is_setup_teardown: {
@@ -3225,13 +3656,17 @@ export const $ImportErrorResponse = {
       type: "string",
       title: "Filename",
     },
+    bundle_name: {
+      type: "string",
+      title: "Bundle Name",
+    },
     stack_trace: {
       type: "string",
       title: "Stack Trace",
     },
   },
   type: "object",
-  required: ["import_error_id", "timestamp", "filename", "stack_trace"],
+  required: ["import_error_id", "timestamp", "filename", "bundle_name", "stack_trace"],
   title: "ImportErrorResponse",
   description: "Import Error Response.",
 } as const;
@@ -3611,13 +4046,6 @@ export const $PluginResponse = {
       type: "string",
       title: "Source",
     },
-    ti_deps: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Ti Deps",
-    },
     listeners: {
       items: {
         type: "string",
@@ -3644,12 +4072,45 @@ export const $PluginResponse = {
     "global_operator_extra_links",
     "operator_extra_links",
     "source",
-    "ti_deps",
     "listeners",
     "timetables",
   ],
   title: "PluginResponse",
   description: "Plugin serializer.",
+} as const;
+
+export const $PoolBody = {
+  properties: {
+    name: {
+      type: "string",
+      maxLength: 256,
+      title: "Name",
+    },
+    slots: {
+      type: "integer",
+      title: "Slots",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    include_deferred: {
+      type: "boolean",
+      title: "Include Deferred",
+      default: false,
+    },
+  },
+  type: "object",
+  required: ["name", "slots"],
+  title: "PoolBody",
+  description: "Pool serializer for post bodies.",
 } as const;
 
 export const $PoolCollectionResponse = {
@@ -3722,68 +4183,6 @@ export const $PoolPatchBody = {
   type: "object",
   title: "PoolPatchBody",
   description: "Pool serializer for patch bodies.",
-} as const;
-
-export const $PoolPostBody = {
-  properties: {
-    name: {
-      type: "string",
-      maxLength: 256,
-      title: "Name",
-    },
-    slots: {
-      type: "integer",
-      title: "Slots",
-    },
-    description: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Description",
-    },
-    include_deferred: {
-      type: "boolean",
-      title: "Include Deferred",
-      default: false,
-    },
-  },
-  type: "object",
-  required: ["name", "slots"],
-  title: "PoolPostBody",
-  description: "Pool serializer for post bodies.",
-} as const;
-
-export const $PoolPostBulkBody = {
-  properties: {
-    pools: {
-      items: {
-        $ref: "#/components/schemas/PoolPostBody",
-      },
-      type: "array",
-      title: "Pools",
-    },
-    overwrite: {
-      anyOf: [
-        {
-          type: "boolean",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Overwrite",
-      default: false,
-    },
-  },
-  type: "object",
-  required: ["pools"],
-  title: "PoolPostBulkBody",
-  description: "Pools serializer for post bodies.",
 } as const;
 
 export const $PoolResponse = {
@@ -4301,47 +4700,6 @@ export const $TaskInstanceHistoryResponse = {
   ],
   title: "TaskInstanceHistoryResponse",
   description: "TaskInstanceHistory serializer for responses.",
-} as const;
-
-export const $TaskInstanceReferenceCollectionResponse = {
-  properties: {
-    task_instances: {
-      items: {
-        $ref: "#/components/schemas/TaskInstanceReferenceResponse",
-      },
-      type: "array",
-      title: "Task Instances",
-    },
-    total_entries: {
-      type: "integer",
-      title: "Total Entries",
-    },
-  },
-  type: "object",
-  required: ["task_instances", "total_entries"],
-  title: "TaskInstanceReferenceCollectionResponse",
-  description: "Task Instance Reference collection serializer for responses.",
-} as const;
-
-export const $TaskInstanceReferenceResponse = {
-  properties: {
-    task_id: {
-      type: "string",
-      title: "Task Id",
-    },
-    dag_run_id: {
-      type: "string",
-      title: "Dag Run Id",
-    },
-    dag_id: {
-      type: "string",
-      title: "Dag Id",
-    },
-  },
-  type: "object",
-  required: ["task_id", "dag_run_id", "dag_id"],
-  title: "TaskInstanceReferenceResponse",
-  description: "Task Instance Reference serializer for responses.",
 } as const;
 
 export const $TaskInstanceResponse = {
@@ -5568,30 +5926,6 @@ export const $VariableResponse = {
   required: ["key", "value", "description", "is_encrypted"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
-} as const;
-
-export const $VariablesImportResponse = {
-  properties: {
-    created_variable_keys: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Created Variable Keys",
-    },
-    import_count: {
-      type: "integer",
-      title: "Import Count",
-    },
-    created_count: {
-      type: "integer",
-      title: "Created Count",
-    },
-  },
-  type: "object",
-  required: ["created_variable_keys", "import_count", "created_count"],
-  title: "VariablesImportResponse",
-  description: "Import Variables serializer for responses.",
 } as const;
 
 export const $VersionInfo = {

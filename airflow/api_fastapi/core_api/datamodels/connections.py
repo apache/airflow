@@ -88,10 +88,3 @@ class ConnectionBody(BaseModel):
     port: int | None = Field(default=None)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
-
-
-class ConnectionBulkBody(BaseModel):
-    """Connections Serializer for requests body."""
-
-    connections: list[ConnectionBody]
-    overwrite: bool | None = Field(default=False)

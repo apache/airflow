@@ -147,10 +147,10 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         # For info about k8s timeout settings see
         # https://github.com/kubernetes-client/python/blob/v29.0.0/examples/watch/timeout-settings.md
         # and https://github.com/kubernetes-client/python/blob/v29.0.0/kubernetes/client/api_client.py#L336-L339
-        client_timeout = 30
-        server_conn_timeout = 3600
-        kwargs["_request_timeout"] = client_timeout
-        kwargs["timeout_seconds"] = server_conn_timeout
+        if "_request_timeout" not in kwargs:
+            kwargs["_request_timeout"] = 30
+        if "timeout_seconds" not in kwargs:
+            kwargs["timeout_seconds"] = 3600
 
         logical_date_key = get_logical_date_key()
         for event in self._pod_events(kube_client=kube_client, query_kwargs=kwargs):
@@ -231,12 +231,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             )
         elif status == "Pending":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
-            # since kube server have received request to delete pod set TI state failed
             if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
-                self.watcher_queue.put(
-                    (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
-                )
             elif (
                 self.kube_config.worker_pod_pending_fatal_container_state_reasons
                 and "status" in event["raw_object"]

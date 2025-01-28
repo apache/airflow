@@ -43,39 +43,32 @@ class TestFastApiSecurity:
         ):
             create_app()
 
-    @patch("airflow.api_fastapi.core_api.security.get_signer")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    def test_get_user(self, mock_get_auth_manager, mock_get_signer):
+    def test_get_user(self, mock_get_auth_manager):
         token_str = "test-token"
-        user_dict = {"user": "XXXXXXXXX"}
         user = SimpleAuthManagerUser(username="username", role="admin")
 
         auth_manager = Mock()
-        auth_manager.deserialize_user.return_value = user
+        auth_manager.get_user_from_token.return_value = user
         mock_get_auth_manager.return_value = auth_manager
-
-        signer = Mock()
-        signer.verify_token.return_value = user_dict
-        mock_get_signer.return_value = signer
 
         result = get_user(token_str)
 
-        signer.verify_token.assert_called_once_with(token_str)
-        auth_manager.deserialize_user.assert_called_once_with(user_dict)
+        auth_manager.get_user_from_token.assert_called_once_with(token_str)
         assert result == user
 
-    @patch("airflow.api_fastapi.core_api.security.get_signer")
-    def test_get_user_unsuccessful(self, mock_get_signer):
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_get_user_unsuccessful(self, mock_get_auth_manager):
         token_str = "test-token"
 
-        signer = Mock()
-        signer.verify_token.side_effect = InvalidTokenError()
-        mock_get_signer.return_value = signer
+        auth_manager = Mock()
+        auth_manager.get_user_from_token.side_effect = InvalidTokenError()
+        mock_get_auth_manager.return_value = auth_manager
 
         with pytest.raises(HTTPException, match="Forbidden"):
             get_user(token_str)
 
-        signer.verify_token.assert_called_once_with(token_str)
+        auth_manager.get_user_from_token.assert_called_once_with(token_str)
 
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     def test_requires_access_dag_authorized(self, mock_get_auth_manager):

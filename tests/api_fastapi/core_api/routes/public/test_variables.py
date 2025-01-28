@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from io import BytesIO
+from unittest import mock
 
 import pytest
 
@@ -432,109 +433,497 @@ class TestPostVariable(TestVariableEndpoint):
             ]
         }
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {
+                "key": "new variable key",
+                "value": "new variable value",
+                "description": "new variable description",
+            },
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.logging.decorators._mask_variable_fields")
+    def test_mask_variable_fields_called(self, mock_mask_variable_fields, test_client, body):
+        mock_mask_variable_fields.return_value = {**body, "method": "POST"}
+        response = test_client.post("/public/variables", json=body)
+        assert response.status_code == 201
 
-class TestImportVariables(TestVariableEndpoint):
+        mock_mask_variable_fields.assert_called_once_with(body)
+
+
+class TestBulkVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "variables_data, behavior, expected_status_code, expected_created_count, expected_created_keys, expected_conflict_keys",
+        "actions, expected_results",
         [
+            # Test successful create
             (
-                {"new_key1": "new_value1", "new_key2": "new_value2"},
-                "overwrite",
-                200,
-                2,
-                {"new_key1", "new_key2"},
-                set(),
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {"key": "new_var1", "value": "new_value1", "description": "New variable 1"},
+                                {"key": "new_var2", "value": "new_value2", "description": "New variable 2"},
+                            ],
+                            "action_on_existence": "fail",
+                        }
+                    ]
+                },
+                {"create": {"success": ["new_var1", "new_var2"], "errors": []}},
             ),
+            # Test successful create with skip
             (
-                {"new_key1": "new_value1", "new_key2": "new_value2"},
-                "skip",
-                200,
-                2,
-                {"new_key1", "new_key2"},
-                set(),
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value1",
+                                    "description": "New variable 1",
+                                },
+                                {"key": "new_var2", "value": "new_value2", "description": "New variable 2"},
+                            ],
+                            "action_on_existence": "skip",
+                        }
+                    ]
+                },
+                {"create": {"success": ["new_var2"], "errors": []}},
             ),
+            # Test successful create with overwrite
             (
-                {"test_variable_key": "new_value", "new_key": "new_value"},
-                "fail",
-                409,
-                0,
-                set(),
-                {"test_variable_key"},
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value1",
+                                    "description": "New variable 1",
+                                },
+                                {"key": "new_var2", "value": "new_value2", "description": "New variable 2"},
+                            ],
+                            "action_on_existence": "overwrite",
+                        }
+                    ]
+                },
+                {"create": {"success": ["test_variable_key", "new_var2"], "errors": []}},
             ),
+            # Test create conflict
             (
-                {"test_variable_key": "new_value", "new_key": "new_value"},
-                "skip",
-                200,
-                1,
-                {"new_key"},
-                {"test_variable_key"},
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value",
+                                    "description": "Should conflict",
+                                }
+                            ],
+                            "action_on_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "create": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The variables with these keys: {'test_variable_key'} already exist.",
+                                "status_code": 409,
+                            }
+                        ],
+                    }
+                },
             ),
+            # Test successful update
             (
-                {"test_variable_key": "new_value", "new_key": "new_value"},
-                "overwrite",
-                200,
-                2,
-                {"test_variable_key", "new_key"},
-                set(),
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "updated_value",
+                                    "description": "Updated variable 1",
+                                }
+                            ],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {"update": {"success": ["test_variable_key"], "errors": []}},
+            ),
+            # Test update with skip
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "key_not_present",
+                                    "value": "updated_value",
+                                    "description": "Updated variable 1",
+                                }
+                            ],
+                            "action_on_non_existence": "skip",
+                        }
+                    ]
+                },
+                {"update": {"success": [], "errors": []}},
+            ),
+            # Test update not found
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "nonexistent_var",
+                                    "value": "updated_value",
+                                    "description": "Should fail",
+                                }
+                            ],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The variables with these keys: {'nonexistent_var'} were not found.",
+                                "status_code": 404,
+                            }
+                        ],
+                    }
+                },
+            ),
+            # Test successful delete
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": ["test_variable_key"],
+                            "action_on_non_existence": "skip",
+                        }
+                    ]
+                },
+                {"delete": {"success": ["test_variable_key"], "errors": []}},
+            ),
+            # Test delete with skip
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": ["key_not_present"],
+                            "action_on_non_existence": "skip",
+                        }
+                    ]
+                },
+                {"delete": {"success": [], "errors": []}},
+            ),
+            # Test delete not found
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": ["nonexistent_var"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The variables with these keys: {'nonexistent_var'} were not found.",
+                                "status_code": 404,
+                            }
+                        ],
+                    }
+                },
+            ),
+            # Test Create, Update, and Delete combined
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [{"key": "new_var1", "value": "new_value1"}],
+                            "action_on_existence": "skip",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "updated_value",
+                                    "description": "Updated variable 1",
+                                }
+                            ],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["dictionary_password"],
+                            "action_on_non_existence": "skip",
+                        },
+                    ]
+                },
+                {
+                    "create": {"success": ["new_var1"], "errors": []},
+                    "update": {"success": ["test_variable_key"], "errors": []},
+                    "delete": {"success": ["dictionary_password"], "errors": []},
+                },
+            ),
+            # Test Fail on conflicting create and handle others
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value",
+                                    "description": "Should conflict",
+                                }
+                            ],
+                            "action_on_existence": "fail",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "dictionary_password",
+                                    "value": "updated_value",
+                                    "description": "Updated variable 2",
+                                }
+                            ],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["nonexistent_var"],
+                            "action_on_non_existence": "skip",
+                        },
+                    ]
+                },
+                {
+                    "create": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "The variables with these keys: {'test_variable_key'} already exist.",
+                                "status_code": 409,
+                            }
+                        ],
+                    },
+                    "update": {"success": ["dictionary_password"], "errors": []},
+                    "delete": {"success": [], "errors": []},
+                },
+            ),
+            # Test all skipping actions
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value1",
+                                    "description": "Should be skipped",
+                                }
+                            ],
+                            "action_on_existence": "skip",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "nonexistent_var",
+                                    "value": "updated_value",
+                                    "description": "Should be skipped",
+                                }
+                            ],
+                            "action_on_non_existence": "skip",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["nonexistent_var"],
+                            "action_on_non_existence": "skip",
+                        },
+                    ]
+                },
+                {
+                    "create": {"success": [], "errors": []},
+                    "update": {"success": [], "errors": []},
+                    "delete": {"success": [], "errors": []},
+                },
+            ),
+            # Test Dependent actions
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {
+                                    "key": "new_variable_key",
+                                    "value": "new_value1",
+                                    "description": "test case description",
+                                }
+                            ],
+                            "action_on_existence": "fail",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "new_variable_key",
+                                    "value": "updated_value",
+                                    "description": "description updated",
+                                }
+                            ],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["new_variable_key"],
+                            "action_on_non_existence": "fail",
+                        },
+                    ]
+                },
+                {
+                    "create": {"success": ["new_variable_key"], "errors": []},
+                    "update": {"success": ["new_variable_key"], "errors": []},
+                    "delete": {"success": ["new_variable_key"], "errors": []},
+                },
+            ),
+            # Test Repeated actions
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value1",
+                                    "description": "test case description",
+                                }
+                            ],
+                            "action_on_existence": "fail",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "updated_value",
+                                    "description": "description updated",
+                                }
+                            ],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "create",
+                            "entities": [
+                                {
+                                    "key": "new_key",
+                                    "value": "new_value1",
+                                    "description": "test case description",
+                                }
+                            ],
+                            "action_on_existence": "fail",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "nonexistent_var",
+                                    "value": "updated_value",
+                                    "description": "description updated",
+                                }
+                            ],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["dictionary_password"],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "create",
+                            "entities": [
+                                {
+                                    "key": "new_variable_key_1",
+                                    "value": "new_value1",
+                                    "description": "test case description",
+                                }
+                            ],
+                            "action_on_existence": "fail",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "new_variable_key",
+                                    "value": "updated_value",
+                                    "description": "description updated",
+                                }
+                            ],
+                            "action_on_non_existence": "fail",
+                        },
+                    ]
+                },
+                {
+                    "create": {
+                        "success": ["new_key", "new_variable_key_1"],
+                        "errors": [
+                            {
+                                "error": "The variables with these keys: {'test_variable_key'} already exist.",
+                                "status_code": 409,
+                            }
+                        ],
+                    },
+                    "update": {
+                        "success": ["test_variable_key"],
+                        "errors": [
+                            {
+                                "error": "The variables with these keys: {'nonexistent_var'} were not found.",
+                                "status_code": 404,
+                            },
+                            {
+                                "error": "The variables with these keys: {'new_variable_key'} were not found.",
+                                "status_code": 404,
+                            },
+                        ],
+                    },
+                    "delete": {"success": ["dictionary_password"], "errors": []},
+                },
             ),
         ],
     )
-    def test_import_variables(
-        self,
-        test_client,
-        variables_data,
-        behavior,
-        expected_status_code,
-        expected_created_count,
-        expected_created_keys,
-        expected_conflict_keys,
-        session,
-    ):
-        """Test variable import with different behaviors (overwrite, fail, skip)."""
-
+    def test_bulk_variables(self, test_client, actions, expected_results):
         self.create_variables()
-
-        file = create_file_upload(variables_data)
-        response = test_client.post(
-            "/public/variables/import",
-            files={"file": ("variables.json", file, "application/json")},
-            params={"action_if_exists": behavior},
-        )
-
-        assert response.status_code == expected_status_code
-
-        if expected_status_code == 200:
-            body = response.json()
-            assert body["created_count"] == expected_created_count
-            assert set(body["created_variable_keys"]) == expected_created_keys
-
-        elif expected_status_code == 409:
-            body = response.json()
-            assert (
-                f"The variables with these keys: {expected_conflict_keys} already exists." == body["detail"]
-            )
-
-    def test_import_invalid_json(self, test_client):
-        """Test invalid JSON import."""
-        file = BytesIO(b"import variable test")
-        response = test_client.post(
-            "/public/variables/import",
-            files={"file": ("variables.json", file, "application/json")},
-            params={"action_if_exists": "overwrite"},
-        )
-
-        assert response.status_code == 400
-        assert "Invalid JSON format" in response.json()["detail"]
-
-    def test_import_empty_file(self, test_client):
-        """Test empty file import."""
-        file = create_file_upload({})
-        response = test_client.post(
-            "/public/variables/import",
-            files={"file": ("empty_variables.json", file, "application/json")},
-            params={"action_if_exists": "overwrite"},
-        )
-
-        assert response.status_code == 422
-        assert response.json()["detail"] == "No variables found in the provided JSON."
+        response = test_client.patch("/public/variables", json=actions)
+        response_data = response.json()
+        for key, value in expected_results.items():
+            assert response_data[key] == value

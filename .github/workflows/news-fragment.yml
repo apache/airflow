@@ -21,7 +21,8 @@ name: CI
 on:  # yamllint disable-line rule:truthy
   pull_request:
     types: [labeled, unlabeled, opened, reopened, synchronize]
-
+permissions:
+  contents: read
 jobs:
   check-news-fragment:
     name: Check News Fragment
@@ -60,13 +61,14 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: >
           change_types=(
-            'DAG changes'
+            'Dag changes'
             'Config changes'
             'API changes'
             'CLI changes'
             'Behaviour changes'
             'Plugin changes'
-            'Dependency change'
+            'Dependency changes'
+            'Code interface changes'
           )
           news_fragment_content=`git diff origin/${BASE_REF} newsfragments/*.significant.rst`
 

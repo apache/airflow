@@ -50,7 +50,7 @@ from tests_common.test_utils.db import clear_db_dag_bundles
                     {
                         "name": "my-bundle",
                         "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                        "kwargs": {"local_folder": "/tmp/hihi", "refresh_interval": 1},
+                        "kwargs": {"path": "/tmp/hihi", "refresh_interval": 1},
                     }
                 ]
             ),
@@ -68,7 +68,9 @@ from tests_common.test_utils.db import clear_db_dag_bundles
 )
 def test_parse_bundle_config(value, expected):
     """Test that bundle_configs are read from configuration."""
-    envs = {"AIRFLOW__DAG_BUNDLES__BACKENDS": value} if value else {}
+    envs = {"AIRFLOW__CORE__LOAD_EXAMPLES": "False"}
+    if value:
+        envs["AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST"] = value
     cm = nullcontext()
     exp_fail = False
     if isinstance(expected, str):
@@ -106,7 +108,9 @@ BASIC_BUNDLE_CONFIG = [
 def test_get_bundle():
     """Test that get_bundle builds and returns a bundle."""
 
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
         bundle_manager = DagBundlesManager()
 
         with pytest.raises(ValueError, match="'bundle-that-doesn't-exist' is not configured"):
@@ -118,7 +122,9 @@ def test_get_bundle():
     assert bundle.refresh_interval == 1
 
     # And none for version also works!
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
         bundle = bundle_manager.get_bundle(name="my-test-bundle")
     assert isinstance(bundle, BasicBundle)
     assert bundle.name == "my-test-bundle"
@@ -133,6 +139,7 @@ def clear_db():
 
 
 @pytest.mark.db_test
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
 def test_sync_bundles_to_db(clear_db):
     def _get_bundle_names_and_active():
         with create_session() as session:
@@ -141,7 +148,9 @@ def test_sync_bundles_to_db(clear_db):
             )
 
     # Initial add
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [("my-test-bundle", True)]
@@ -153,13 +162,15 @@ def test_sync_bundles_to_db(clear_db):
     assert _get_bundle_names_and_active() == [("dags-folder", True), ("my-test-bundle", False)]
 
     # Re-enable one that reappears in config
-    with patch.dict(os.environ, {"AIRFLOW__DAG_BUNDLES__BACKENDS": json.dumps(BASIC_BUNDLE_CONFIG)}):
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
         manager = DagBundlesManager()
         manager.sync_bundles_to_db()
     assert _get_bundle_names_and_active() == [("dags-folder", False), ("my-test-bundle", True)]
 
 
-@conf_vars({("dag_bundles", "backends"): json.dumps(BASIC_BUNDLE_CONFIG)})
+@conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)})
 @pytest.mark.parametrize("version", [None, "hello"])
 def test_view_url(version):
     """Test that view_url calls the bundle's view_url method."""
@@ -167,3 +178,21 @@ def test_view_url(version):
     with patch.object(BaseDagBundle, "view_url") as view_url_mock:
         bundle_manager.view_url("my-test-bundle", version=version)
     view_url_mock.assert_called_once_with(version=version)
+
+
+def test_example_dags_bundle_added():
+    manager = DagBundlesManager()
+    manager.parse_config()
+    assert "example_dags" in manager._bundle_config
+
+    with conf_vars({("core", "LOAD_EXAMPLES"): "False"}):
+        manager = DagBundlesManager()
+        manager.parse_config()
+        assert "example_dags" not in manager._bundle_config
+
+
+def test_example_dags_name_is_reserved():
+    reserved_name_config = [{"name": "example_dags"}]
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(reserved_name_config)}):
+        with pytest.raises(AirflowConfigException, match="Bundle name 'example_dags' is a reserved name."):
+            DagBundlesManager().parse_config()

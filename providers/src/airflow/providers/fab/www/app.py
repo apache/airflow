@@ -41,7 +41,7 @@ app: Flask | None = None
 csrf = CSRFProtect()
 
 
-def create_app():
+def create_app(enable_plugins: bool):
     """Create a new instance of Airflow WWW app."""
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
@@ -66,10 +66,11 @@ def create_app():
     init_api_auth(flask_app)
 
     with flask_app.app_context():
-        init_appbuilder(flask_app)
-        init_plugins(flask_app)
+        init_appbuilder(flask_app, enable_plugins=enable_plugins)
+        if enable_plugins:
+            init_plugins(flask_app)
         init_error_handlers(flask_app)
-        init_jinja_globals(flask_app)
+        init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_xframe_protection(flask_app)
     return flask_app
 

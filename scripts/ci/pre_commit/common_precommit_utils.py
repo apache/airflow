@@ -30,6 +30,8 @@ from rich.console import Console
 
 AIRFLOW_SOURCES_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze"
+AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_SOURCES_ROOT_PATH / "providers"
+
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
 
 console = Console(width=400, color_system="standard")
@@ -233,22 +235,73 @@ def validate_cmd_result(cmd_result, include_ci_env_check=False):
     sys.exit(cmd_result.returncode)
 
 
-def get_provider_from_path(file_path: Path) -> str | None:
+def get_provider_id_from_path(file_path: Path) -> str | None:
     """
-    Get the provider name from the path of the file it belongs to.
+    Get the provider id from the path of the file it belongs to.
     """
     for parent in file_path.parents:
+        # This works fine for both new and old providers structure - because we moved provider.yaml to
+        # the top-level of the provider and this code finding "providers"  will find the "providers" package
+        # in old structure and "providers" directory in new structure - in both cases we can determine
+        # the provider id from the relative folders
         if (parent / "provider.yaml").exists():
-            for providers_candidate in parent.parents:
-                if providers_candidate.name == "providers":
-                    return parent.relative_to(providers_candidate).as_posix().replace("/", ".")
+            for providers_root_candidate in parent.parents:
+                if providers_root_candidate.name == "providers":
+                    return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
             else:
                 return None
     return None
 
 
-def get_provider_dir(provider_id: str) -> Path:
+def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
     """
-    Get the provider directory from the provider =id.
+    Get the provider base dir (where provider.yaml is) from the path of the file it belongs to.
     """
-    return Path("providers") / "src" / "airflow" / "providers" / provider_id.replace(".", os.sep)
+    for parent in file_path.parents:
+        if (parent / "provider.yaml").exists():
+            return parent
+    return None
+
+
+# TODO(potiuk): rename this function when all providers are moved to new structure
+def get_all_new_provider_ids() -> list[str]:
+    """
+    Get all providers from the new provider structure
+    """
+    all_provider_ids = []
+    for provider_file in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
+        if provider_file.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH / "src"):
+            continue
+        provider_id = get_provider_id_from_path(provider_file)
+        if provider_id:
+            all_provider_ids.append(provider_id)
+    return all_provider_ids
+
+
+# TODO(potiuk): rename this function when all providers are moved to new structure
+def get_all_new_provider_yaml_files() -> list[Path]:
+    """
+    Get all providers from the new provider structure
+    """
+    all_provider_yaml_files = []
+    for provider_file in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
+        if provider_file.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH / "src"):
+            continue
+        all_provider_yaml_files.append(provider_file)
+    return all_provider_yaml_files
+
+
+# TODO(potiuk): rename this function when all providers are moved to new structure
+def get_all_new_provider_info_dicts() -> dict[str, dict]:
+    """
+    Get provider yaml info for all providers from the new provider structure
+    """
+    providers: dict[str, dict] = {}
+    for provider_file in get_all_new_provider_yaml_files():
+        provider_id = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)).replace(os.sep, ".")
+        import yaml
+
+        provider_info = yaml.safe_load(provider_file.read_text())
+        if provider_info["state"] != "suspended":
+            providers[provider_id] = provider_info
+    return providers

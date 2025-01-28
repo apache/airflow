@@ -33,10 +33,9 @@ from pydantic.v1.utils import deep_update
 from requests.adapters import Response
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.executors import executor_loader
+from airflow.executors import executor_constants, executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import Trigger
@@ -56,10 +55,6 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -91,24 +86,17 @@ class TestFileTaskLogHandler:
         handler = handlers[0]
         assert handler.name == FILE_TASK_HANDLER
 
-    def test_file_task_handler_when_ti_value_is_invalid(self):
+    def test_file_task_handler_when_ti_value_is_invalid(self, dag_maker):
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dagrun = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            state=State.RUNNING,
-            logical_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
-        task = PythonOperator(
-            task_id="task_for_testing_file_log_handler",
-            dag=dag,
-            python_callable=task_callable,
-        )
+        with dag_maker("dag_for_testing_file_task_handler", schedule=None):
+            task = PythonOperator(
+                task_id="task_for_testing_file_log_handler",
+                python_callable=task_callable,
+            )
+
+        dagrun = dag_maker.create_dagrun()
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
 
         logger = ti.log
@@ -146,26 +134,22 @@ class TestFileTaskLogHandler:
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
-    def test_file_task_handler(self):
+    def test_file_task_handler(self, dag_maker, session):
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dagrun = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            state=State.RUNNING,
-            logical_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
-        task = PythonOperator(
-            task_id="task_for_testing_file_log_handler",
-            dag=dag,
-            python_callable=task_callable,
-        )
-        ti = TaskInstance(task=task, run_id=dagrun.run_id)
+        with dag_maker("dag_for_testing_file_task_handler", schedule=None, session=session):
+            PythonOperator(
+                task_id="task_for_testing_file_log_handler",
+                python_callable=task_callable,
+            )
+
+        dagrun = dag_maker.create_dagrun()
+
+        (ti,) = dagrun.get_task_instances()
         ti.try_number += 1
+        session.merge(ti)
+        session.flush()
         logger = ti.log
         ti.log.disabled = False
 
@@ -203,24 +187,105 @@ class TestFileTaskLogHandler:
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
-    def test_file_task_handler_running(self):
+    @pytest.mark.parametrize(
+        "executor_name",
+        [
+            (executor_constants.LOCAL_KUBERNETES_EXECUTOR),
+            (executor_constants.CELERY_KUBERNETES_EXECUTOR),
+            (executor_constants.KUBERNETES_EXECUTOR),
+            (None),
+        ],
+    )
+    @conf_vars(
+        {
+            ("core", "EXECUTOR"): ",".join(
+                [
+                    executor_constants.LOCAL_KUBERNETES_EXECUTOR,
+                    executor_constants.CELERY_KUBERNETES_EXECUTOR,
+                    executor_constants.KUBERNETES_EXECUTOR,
+                ]
+            ),
+        }
+    )
+    @patch(
+        "airflow.executors.executor_loader.ExecutorLoader.load_executor",
+        wraps=executor_loader.ExecutorLoader.load_executor,
+    )
+    @patch(
+        "airflow.executors.executor_loader.ExecutorLoader.get_default_executor",
+        wraps=executor_loader.ExecutorLoader.get_default_executor,
+    )
+    def test_file_task_handler_with_multiple_executors(
+        self,
+        mock_get_default_executor,
+        mock_load_executor,
+        executor_name,
+        create_task_instance,
+        clean_executor_loader,
+    ):
+        executors_mapping = executor_loader.ExecutorLoader.executors
+        default_executor_name = executor_loader.ExecutorLoader.get_default_executor_name()
+        path_to_executor_class: str
+        if executor_name is None:
+            path_to_executor_class = executors_mapping.get(default_executor_name.alias)
+        else:
+            path_to_executor_class = executors_mapping.get(executor_name)
+
+        with patch(f"{path_to_executor_class}.get_task_log", return_value=([], [])) as mock_get_task_log:
+            mock_get_task_log.return_value = ([], [])
+            ti = create_task_instance(
+                dag_id="dag_for_testing_multiple_executors",
+                task_id="task_for_testing_multiple_executors",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            if executor_name is not None:
+                ti.executor = executor_name
+            ti.try_number = 1
+            ti.state = TaskInstanceState.RUNNING
+            logger = ti.log
+            ti.log.disabled = False
+
+            file_handler = next(
+                (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
+            )
+            assert file_handler is not None
+
+            set_context(logger, ti)
+            # clear executor_instances cache
+            file_handler.executor_instances = {}
+            assert file_handler.handler is not None
+            # We expect set_context generates a file locally.
+            log_filename = file_handler.handler.baseFilename
+            assert os.path.isfile(log_filename)
+            assert log_filename.endswith("1.log"), log_filename
+
+            file_handler.flush()
+            file_handler.close()
+
+            assert hasattr(file_handler, "read")
+            file_handler.read(ti)
+            os.remove(log_filename)
+            mock_get_task_log.assert_called_once()
+
+            if executor_name is None:
+                mock_get_default_executor.assert_called_once()
+                # will be called in `ExecutorLoader.get_default_executor` method
+                mock_load_executor.assert_called_once_with(default_executor_name)
+            else:
+                mock_get_default_executor.assert_not_called()
+                mock_load_executor.assert_called_once_with(executor_name)
+
+    def test_file_task_handler_running(self, dag_maker):
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
-        task = PythonOperator(
-            task_id="task_for_testing_file_log_handler",
-            python_callable=task_callable,
-            dag=dag,
-        )
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dagrun = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            state=State.RUNNING,
-            logical_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        with dag_maker("dag_for_testing_file_task_handler", schedule=None):
+            task = PythonOperator(
+                task_id="task_for_testing_file_log_handler",
+                python_callable=task_callable,
+            )
+        dagrun = dag_maker.create_dagrun()
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
 
         ti.try_number = 2
@@ -256,7 +321,7 @@ class TestFileTaskLogHandler:
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
-    def test_file_task_handler_rotate_size_limit(self):
+    def test_file_task_handler_rotate_size_limit(self, dag_maker):
         def reset_log_config(update_conf):
             import logging.config
 
@@ -270,20 +335,12 @@ class TestFileTaskLogHandler:
         max_bytes_size = 60000
         update_conf = {"handlers": {"task": {"max_bytes": max_bytes_size, "backup_count": 1}}}
         reset_log_config(update_conf)
-        dag = DAG("dag_for_testing_file_task_handler_rotate_size_limit", start_date=DEFAULT_DATE)
-        task = PythonOperator(
-            task_id="task_for_testing_file_log_handler_rotate_size_limit",
-            python_callable=task_callable,
-            dag=dag,
-        )
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dagrun = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            state=State.RUNNING,
-            logical_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        with dag_maker("dag_for_testing_file_task_handler_rotate_size_limit"):
+            task = PythonOperator(
+                task_id="task_for_testing_file_log_handler_rotate_size_limit",
+                python_callable=task_callable,
+            )
+        dagrun = dag_maker.create_dagrun()
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
 
         ti.try_number = 1

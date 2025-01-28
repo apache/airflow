@@ -84,9 +84,7 @@
       "common.compat",
       "google"
     ],
-    "excluded-python-versions": [
-      "3.12"
-    ],
+    "excluded-python-versions": [],
     "state": "ready"
   },
   "apache.cassandra": {
@@ -535,9 +533,7 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [
-      "common.compat"
-    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
@@ -574,7 +570,7 @@
     "deps": [
       "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=3.0.0.dev0",
-      "flask-appbuilder==4.5.2",
+      "flask-appbuilder==4.5.3",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
       "google-re2>=1.0",
@@ -656,7 +652,7 @@
       "google-cloud-datacatalog>=3.23.0",
       "google-cloud-dataflow-client>=0.8.6",
       "google-cloud-dataform>=0.5.0",
-      "google-cloud-dataplex>=1.10.0",
+      "google-cloud-dataplex>=2.6.0",
       "google-cloud-dataproc-metastore>=1.12.0",
       "google-cloud-dataproc>=5.12.0",
       "google-cloud-dlp>=3.12.0",
@@ -860,7 +856,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "common.sql"
+      "common.sql",
+      "openlineage"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -1048,7 +1045,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -1083,7 +1082,7 @@
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
       "asyncpg>=0.30.0",
-      "psycopg2-binary>=2.9.4"
+      "psycopg2-binary>=2.9.7"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1240,7 +1239,7 @@
       "pandas>=2.1.2,<2.2",
       "pyarrow>=14.0.1",
       "snowflake-connector-python>=3.7.1",
-      "snowflake-snowpark-python>=1.17.0;python_version<\"3.12\"",
+      "snowflake-snowpark-python>=1.17.0;python_version<'3.12'",
       "snowflake-sqlalchemy>=1.4.0"
     ],
     "devel-deps": [],

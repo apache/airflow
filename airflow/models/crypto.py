@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import logging
+from typing import Protocol
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.typing_compat import Protocol
 
 log = logging.getLogger(__name__)
 

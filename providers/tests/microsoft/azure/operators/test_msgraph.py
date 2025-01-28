@@ -31,14 +31,19 @@ from providers.tests.microsoft.azure.base import Base
 from providers.tests.microsoft.conftest import (
     load_file,
     load_json,
-    mock_context,
     mock_json_response,
     mock_response,
 )
+from tests_common.test_utils.mock_context import mock_context
+from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class TestMSGraphAsyncOperator(Base):
@@ -56,7 +61,7 @@ class TestMSGraphAsyncOperator(Base):
                 result_processor=lambda context, result: result.get("value"),
             )
 
-            results, events = self.execute_operator(operator)
+            results, events = execute_operator(operator)
 
             assert len(results) == 30
             assert results == users.get("value") + next_users.get("value")
@@ -84,7 +89,7 @@ class TestMSGraphAsyncOperator(Base):
                 do_xcom_push=False,
             )
 
-            results, events = self.execute_operator(operator)
+            results, events = execute_operator(operator)
 
             assert isinstance(results, dict)
             assert len(events) == 1
@@ -104,7 +109,7 @@ class TestMSGraphAsyncOperator(Base):
             )
 
             with pytest.raises(AirflowException):
-                self.execute_operator(operator)
+                execute_operator(operator)
 
     @pytest.mark.db_test
     def test_execute_when_an_exception_occurs_on_custom_event_handler(self):
@@ -124,7 +129,7 @@ class TestMSGraphAsyncOperator(Base):
                 event_handler=custom_event_handler,
             )
 
-            results, events = self.execute_operator(operator)
+            results, events = execute_operator(operator)
 
             assert not results
             assert len(events) == 1
@@ -148,7 +153,7 @@ class TestMSGraphAsyncOperator(Base):
                 path_parameters={"drive_id": drive_id},
             )
 
-            results, events = self.execute_operator(operator)
+            results, events = execute_operator(operator)
 
             assert operator.path_parameters == {"drive_id": drive_id}
             assert results == base64_encoded_content
@@ -175,7 +180,7 @@ class TestMSGraphAsyncOperator(Base):
                 path_parameters=lambda context, jinja_env: {"drive_id": drive_id},
             )
 
-            results, events = self.execute_operator(operator)
+            results, events = execute_operator(operator)
 
             assert operator.path_parameters == {"drive_id": drive_id}
             assert results == base64_encoded_content

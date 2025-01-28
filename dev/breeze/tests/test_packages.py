@@ -30,11 +30,12 @@ from airflow_breeze.utils.packages import (
     get_available_packages,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
-    get_documentation_package_path,
-    get_install_requirements,
+    get_install_requirements_for_old_providers,
     get_long_package_name,
     get_min_airflow_version,
-    get_package_extras,
+    get_old_documentation_package_path,
+    get_old_source_providers_package_path,
+    get_package_extras_for_old_providers,
     get_pip_package_name,
     get_provider_details,
     get_provider_info_dict,
@@ -42,7 +43,6 @@ from airflow_breeze.utils.packages import (
     get_provider_requirements,
     get_removed_provider_ids,
     get_short_package_name,
-    get_source_package_path,
     get_suspended_provider_folders,
     get_suspended_provider_ids,
     validate_provider_info_with_runtime_schema,
@@ -151,15 +151,19 @@ def test_find_matching_long_package_name_bad_filter():
 
 
 def test_get_source_package_path():
-    assert get_source_package_path("apache.hdfs") == AIRFLOW_SOURCES_ROOT.joinpath(
+    assert get_old_source_providers_package_path("apache.hdfs") == AIRFLOW_SOURCES_ROOT.joinpath(
         "providers", "src", "airflow", "providers", "apache", "hdfs"
     )
 
 
-def test_get_documentation_package_path():
-    assert get_documentation_package_path("apache.hdfs") == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
+def test_get_old_documentation_package_path():
+    assert (
+        get_old_documentation_package_path("apache.hdfs")
+        == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
+    )
 
 
+# TODO(potiuk) - remove when all providers are new-style
 @pytest.mark.parametrize(
     "provider, version_suffix, expected",
     [
@@ -169,7 +173,7 @@ def test_get_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow>=3.0.0.dev0",
-    "flask-appbuilder==4.5.2",
+    "flask-appbuilder==4.5.3",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -183,7 +187,7 @@ def test_get_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1.dev0",
     "apache-airflow>=3.0.0.dev0",
-    "flask-appbuilder==4.5.2",
+    "flask-appbuilder==4.5.3",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -197,7 +201,7 @@ def test_get_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1b0",
     "apache-airflow>=3.0.0b0",
-    "flask-appbuilder==4.5.2",
+    "flask-appbuilder==4.5.3",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -212,7 +216,7 @@ def test_get_documentation_package_path():
     "apache-airflow-providers-common-sql>=1.20.0b0",
     "apache-airflow>=2.9.0b0",
     "asyncpg>=0.30.0",
-    "psycopg2-binary>=2.9.4",
+    "psycopg2-binary>=2.9.7",
     """,
             id="beta0 suffix postgres",
         ),
@@ -223,17 +227,18 @@ def test_get_documentation_package_path():
     "apache-airflow-providers-common-sql>=1.20.0",
     "apache-airflow>=2.9.0",
     "asyncpg>=0.30.0",
-    "psycopg2-binary>=2.9.4",
+    "psycopg2-binary>=2.9.7",
     """,
             id="No suffix postgres",
         ),
     ],
 )
 def test_get_install_requirements(provider: str, version_suffix: str, expected: str):
-    actual = get_install_requirements(provider, version_suffix)
+    actual = get_install_requirements_for_old_providers(provider, version_suffix)
     assert actual.strip() == expected.strip()
 
 
+# TODO(potiuk) - remove when all providers are new-style
 @pytest.mark.parametrize(
     "version_suffix, expected",
     [
@@ -308,31 +313,44 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
         ),
     ],
 )
-def test_get_package_extras(version_suffix: str, expected: dict[str, list[str]]):
-    actual = get_package_extras("google", version_suffix=version_suffix)
-    assert actual == expected
+def test_get_package_extras_for_old_providers(version_suffix: str, expected: dict[str, list[str]]):
+    actual = get_package_extras_for_old_providers("google", version_suffix=version_suffix)
+    expected_as_list: list[str] = []
+    for package, extras in expected.items():
+        expected_as_list.append(f'"{package}" = [')
+        for extra in extras:
+            expected_as_list.append(f'     "{extra}",')
+        expected_as_list.append("]")
+    expected_as_str = "\n".join(expected_as_list)
+    assert actual == expected_as_str
 
 
-def test_get_provider_details():
-    provider_details = get_provider_details("asana")
-    assert provider_details.provider_id == "asana"
-    assert provider_details.full_package_name == "airflow.providers.asana"
-    assert provider_details.pypi_package_name == "apache-airflow-providers-asana"
-    assert provider_details.source_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
+# TODO(potiuk) - remove when all providers are new-style
+def test_get_new_provider_details():
+    provider_details = get_provider_details("airbyte")
+    assert provider_details.provider_id == "airbyte"
+    assert provider_details.full_package_name == "airflow.providers.airbyte"
+    assert provider_details.pypi_package_name == "apache-airflow-providers-airbyte"
+    assert provider_details.root_provider_path == AIRFLOW_SOURCES_ROOT.joinpath(
         "providers",
+        "airbyte",
+    )
+    assert provider_details.base_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers",
+        "airbyte",
         "src",
         "airflow",
         "providers",
-        "asana",
+        "airbyte",
     )
-    assert (
-        provider_details.documentation_provider_package_path == DOCS_ROOT / "apache-airflow-providers-asana"
+    assert provider_details.documentation_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers", "airbyte", "docs"
     )
-    assert "Asana" in provider_details.provider_description
+    assert "Airbyte" in provider_details.provider_description
     assert len(provider_details.versions) > 11
     assert provider_details.excluded_python_versions == []
     assert provider_details.plugins == []
-    assert provider_details.changelog_path == provider_details.source_provider_package_path / "CHANGELOG.rst"
+    assert provider_details.changelog_path == provider_details.root_provider_path / "docs" / "changelog.rst"
     assert not provider_details.removed
 
 
@@ -484,7 +502,8 @@ def test_get_provider_info_dict():
     assert len(provider_info_dict["executors"]) > 0
 
 
-def test_provider_jinja_context():
+# TODO(potiuk) - remove when all providers are new-style
+def test_old_provider_jinja_context():
     provider_info = get_provider_info_dict("amazon")
     version = provider_info["versions"][0]
     context = get_provider_jinja_context(
@@ -509,5 +528,7 @@ def test_provider_jinja_context():
 
     for key, value in expected.items():
         assert context[key] == value
-    assert context["EXTRAS_REQUIREMENTS"]["google"] == ["apache-airflow-providers-google"]
+    assert """"google" = [
+     "apache-airflow-providers-google",
+]""" in context["EXTRAS_REQUIREMENTS"]
     assert len(context["PIP_REQUIREMENTS"]) > 10

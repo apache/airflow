@@ -115,7 +115,7 @@ images:
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2024.09.19-1.22.1
+    tag: airflow-pgbouncer-2025.01.10-1.24.0
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
@@ -831,6 +831,7 @@ workers:
     # Detailed default security context for logGroomerSidecar for container level
     securityContexts:
       container: {}
+    env: []
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1034,6 +1035,7 @@ scheduler:
       container: {}
     # container level lifecycle hooks
     containerLifecycleHooks: {}
+    env: []
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1748,6 +1750,8 @@ triggerer:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+    env: []
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
@@ -1798,7 +1802,7 @@ triggerer:
 
 # Airflow Dag Processor Config
 dagProcessor:
-  enabled: false
+  enabled: ~
   # Number of airflow dag processors in the deployment
   replicas: 1
   # Max number of old replicasets to retain
@@ -1928,6 +1932,8 @@ dagProcessor:
     securityContexts:
       container: {}
 
+    env: []
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
@@ -1955,6 +1961,13 @@ flower:
     timeoutSeconds: 5
     failureThreshold: 10
     periodSeconds: 5
+
+  # Wait for at most 1 minute (6*10s) for the flower container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
+  startupProbe:
+    timeoutSeconds: 20
+    failureThreshold: 6
+    periodSeconds: 10
 
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
@@ -2173,6 +2186,10 @@ pgbouncer:
   auth_type: scram-sha-256
   auth_file: /etc/pgbouncer/users.txt
 
+  # Whether to mount the config secret files at a default location (/etc/pgbouncer/*).
+  # Can be skipped to allow for other means to get the values, e.g. secrets provider class.
+  mountConfigSecret: true
+
   # annotations to be added to the PgBouncer deployment
   annotations: {}
 
@@ -2279,6 +2296,8 @@ pgbouncer:
   #     - name: my-templated-extra-volume
   #       mountPath: "{{ .Values.my_custom_path }}"
   #       readOnly: true
+  # Volumes apply to all pgbouncer containers, while volume mounts apply to the pgbouncer
+  # container itself. Metrics exporter container has its own mounts.
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -2352,6 +2371,15 @@ pgbouncer:
       periodSeconds: 10
       timeoutSeconds: 1
 
+    # Mount additional volumes into the metrics exporter. It can be templated like in the following example:
+    #   extraVolumeMounts:
+    #     - name: my-templated-extra-volume
+    #       mountPath: "{{ .Values.my_custom_path }}"
+    #       readOnly: true
+    extraVolumeMounts: []
+
+  # Labels specific to pgbouncer objects and pods
+  labels: {}
   # Environment variables to add to pgbouncer container
   env: []
 
@@ -2625,7 +2653,7 @@ config:
     flower_url_prefix: '{{ ternary "" .Values.ingress.flower.path (eq .Values.ingress.flower.path "/") }}'
     worker_concurrency: 16
   scheduler:
-    standalone_dag_processor: '{{ ternary "True" "False" .Values.dagProcessor.enabled }}'
+    standalone_dag_processor: '{{ ternary "True" "False" (or (semverCompare ">=3.0.0" .Values.airflowVersion) (.Values.dagProcessor.enabled | default false)) }}'
     # statsd params included for Airflow 1.10 backward compatibility; moved to [metrics] in 2.0
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
     statsd_port: 9125

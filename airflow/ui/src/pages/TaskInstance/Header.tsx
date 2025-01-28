@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
-import { MdOutlineModeComment, MdOutlineTask } from "react-icons/md";
+import { Box, Flex, Heading, HStack, SimpleGrid } from "@chakra-ui/react";
+import { FiMessageSquare } from "react-icons/fi";
+import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { ClearTaskInstanceButton } from "src/components/Clear";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { Stat } from "src/components/Stat";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Status } from "src/components/ui";
 import { getDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => (
@@ -34,20 +37,23 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
           <strong>Task Instance: </strong>
           {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
         </Heading>
-        <Status state={taskInstance.state}>{taskInstance.state}</Status>
+        <StateBadge state={taskInstance.state}>{taskInstance.state}</StateBadge>
         <Flex>
           <div />
         </Flex>
       </HStack>
+      <HStack>
+        {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
+          <DisplayMarkdownButton
+            header="Task Instance Note"
+            icon={<FiMessageSquare color="black" />}
+            mdContent={taskInstance.note}
+            text="Note"
+          />
+        )}
+        <ClearTaskInstanceButton taskInstance={taskInstance} />
+      </HStack>
     </Flex>
-    {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
-      <Flex alignItems="flex-start" justifyContent="space-between" mr={16}>
-        <MdOutlineModeComment size="3rem" />
-        <Text fontSize="sm" ml={3}>
-          {taskInstance.note}
-        </Text>
-      </Flex>
-    )}
     <SimpleGrid columns={6} gap={4} my={2}>
       <Stat label="Operator">{taskInstance.operator}</Stat>
       {taskInstance.map_index > -1 ? (
