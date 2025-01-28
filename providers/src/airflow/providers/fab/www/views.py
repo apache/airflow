@@ -51,7 +51,7 @@ class FabIndexView(IndexView):
             token = get_auth_manager().get_jwt_token(g.user)
             return redirect(f"/webapp?token={token}", code=302)
         else:
-            super().index(self)
+            return super().index()
 
 
 def show_traceback(error):
