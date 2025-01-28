@@ -100,8 +100,8 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
               )}
             </Select.ValueText>
           </Select.Trigger>
-          <Select.Content>
-            {tryOptions.items.reverse().map((option) => (
+          <Select.Content flexDirection="column-reverse">
+            {tryOptions.items.map((option) => (
               <Select.Item item={option} key={option.value}>
                 <span>
                   {option.value}:
