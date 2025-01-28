@@ -19,8 +19,9 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
+
 from airflow import DAG
-from airflow.providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 from airflow.providers.standard.operators.python import PythonOperator
 
 

@@ -30,11 +30,15 @@ from contextlib import ExitStack
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable
 
+from providers.apache.beam.src.airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
+from providers.apache.beam.src.airflow.providers.apache.beam.triggers.beam import (
+    BeamJavaPipelineTrigger,
+    BeamPythonPipelineTrigger,
+)
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
-from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
 from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowHook,
     process_line_and_extract_dataflow_job_id_callback,
