@@ -16,29 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, type BadgeProps } from "@chakra-ui/react";
-import * as React from "react";
-
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 
-import { StateIcon } from "./StateIcon";
-
-export type Props = {
-  state?: TaskInstanceState | null;
-} & BadgeProps;
-
-export const StateBadge = React.forwardRef<HTMLDivElement, Props>(({ children, state, ...rest }, ref) => (
-  <Badge
-    borderRadius="full"
-    colorPalette={state === null ? "none" : state}
-    fontSize="sm"
-    px={children === undefined ? 1 : 2}
-    py={1}
-    ref={ref}
-    variant="solid"
-    {...rest}
-  >
-    {state === undefined ? undefined : <StateIcon state={state} />}
-    {children}
-  </Badge>
-));
+export const isStatePending = (state?: TaskInstanceState | null) =>
+  state === "deferred" ||
+  state === "scheduled" ||
+  state === "running" ||
+  state === "up_for_reschedule" ||
+  state === "up_for_retry" ||
+  state === "queued" ||
+  state === "restarting" ||
+  !Boolean(state);
