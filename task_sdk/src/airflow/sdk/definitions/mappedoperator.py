@@ -32,6 +32,8 @@ from airflow.models.expandinput import (
     ListOfDictsExpandInput,
     is_mappable,
 )
+from airflow.models.xcom_arg import XComArg
+from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -74,8 +76,6 @@ if TYPE_CHECKING:
     )
     from airflow.models.iterableoperator import IterableOperator
     from airflow.models.param import ParamsDict
-    from airflow.models.xcom_arg import XComArg
-    from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.types import Operator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep

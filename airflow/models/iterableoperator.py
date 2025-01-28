@@ -78,6 +78,8 @@ def event_loop() -> Generator[AbstractEventLoop, None, None]:
 
 
 class TaskExecutor(LoggingMixin):
+    """Base class to run an operator or trigger with given task context and task instance."""
+
     def __init__(
         self,
         context: Context,
