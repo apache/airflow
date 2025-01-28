@@ -241,17 +241,13 @@ class DagFileProcessorManager:
             last_parsed = {
                 fp: stat.last_finish_time for fp, stat in self._file_stats.items() if stat.last_finish_time
             }
-            self.deactivate_stale_dags(
-                last_parsed=last_parsed,
-                stale_dag_threshold=self.stale_dag_threshold,
-            )
+            self.deactivate_stale_dags(last_parsed=last_parsed)
             self._last_deactivate_stale_dags_time = time.monotonic()
 
     @provide_session
     def deactivate_stale_dags(
         self,
         last_parsed: dict[DagFileInfo, datetime | None],
-        stale_dag_threshold: int,
         session: Session = NEW_SESSION,
     ):
         """Detect and deactivate DAGs which are no longer present in files."""
@@ -278,7 +274,7 @@ class DagFileProcessorManager:
             )
             if (
                 dag_file_path in last_parsed
-                and (dag.last_parsed_time + timedelta(seconds=stale_dag_threshold))
+                and (dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold))
                 < last_parsed[dag_file_path]
             ):
                 self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
