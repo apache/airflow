@@ -51,12 +51,11 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.9.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
-=======================================  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.9.0``
+==================  ==================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-standard/0.0.3/changelog.html>`_.
