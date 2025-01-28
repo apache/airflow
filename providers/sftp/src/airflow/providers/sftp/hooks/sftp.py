@@ -28,7 +28,7 @@ from contextlib import closing, contextmanager
 from fnmatch import fnmatch
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Generator
 
 import asyncssh
 from asgiref.sync import sync_to_async
@@ -108,7 +108,7 @@ class SFTPHook(SSHHook):
         super().__init__(*args, **kwargs)
 
     @contextmanager
-    def get_sftp_conn(self) -> SFTPClient:
+    def get_sftp_conn(self) -> Generator[SFTPClient, None, None]:
         """Context manager that closes the connection after use."""
         with closing(self.get_conn().open_sftp()) as conn:
             yield conn
@@ -122,7 +122,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory
         """
-        with self.get_sftp_conn() as conn:
+        with self.get_sftp_conn() as conn:  # type: SFTPClient
             flist = sorted(conn.listdir_attr(path), key=lambda x: x.filename)
             files = {}
             for f in flist:
