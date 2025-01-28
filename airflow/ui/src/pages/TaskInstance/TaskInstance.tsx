@@ -100,7 +100,12 @@ export const TaskInstance = () => {
           );
         })}
       </Breadcrumb.Root>
-      {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
+      {taskInstance === undefined ? undefined : (
+        <Header
+          isRefreshing={Boolean(isStatePending(taskInstance.state) && autoRefreshInterval)}
+          taskInstance={taskInstance}
+        />
+      )}
     </DetailsLayout>
   );
 };
