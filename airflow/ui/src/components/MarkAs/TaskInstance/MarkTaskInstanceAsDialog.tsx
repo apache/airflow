@@ -21,13 +21,13 @@ import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+import { ActionAccordion } from "src/components/ActionAccordion";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Button, Dialog, Status } from "src/components/ui";
+import { Button, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
-
-import MarkAsAccordion from "../MarkAsAccordion";
 
 type Props = {
   readonly onClose: () => void;
@@ -88,7 +88,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
           <VStack align="start" gap={4}>
             <Heading size="xl">
               <strong>Mark Task Instance as {state}:</strong> {taskInstance.task_display_name}{" "}
-              <Time datetime={taskInstance.start_date} /> <Status state={state} />
+              <Time datetime={taskInstance.start_date} /> <StateBadge state={state} />
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -108,7 +108,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
               ]}
             />
           </Flex>
-          <MarkAsAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"

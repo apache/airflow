@@ -23,8 +23,8 @@ import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/req
 import ReactMarkdown from "src/components/ReactMarkdown";
 import { Accordion } from "src/components/ui";
 
-import { columns } from "../Clear/columns";
 import { DataTable } from "../DataTable";
+import { columns } from "./columns";
 
 type Props = {
   readonly affectedTasks?: TaskInstanceCollectionResponse;
@@ -32,7 +32,9 @@ type Props = {
   readonly setNote: (value: string) => void;
 };
 
-const MarkAsAccordion = ({ affectedTasks, note, setNote }: Props) => {
+// Table is in memory, pagination and sorting are disabled.
+// TODO: Make a front-end only unconnected table component with client side ordering and pagination
+const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
   const showTaskSection = affectedTasks !== undefined;
 
   return (
@@ -107,4 +109,4 @@ const MarkAsAccordion = ({ affectedTasks, note, setNote }: Props) => {
   );
 };
 
-export default MarkAsAccordion;
+export default ActionAccordion;

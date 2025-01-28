@@ -21,7 +21,8 @@ import { useState } from "react";
 import { MdArrowDropDown } from "react-icons/md";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
-import { Menu, Status } from "src/components/ui";
+import { StateBadge } from "src/components/StateBadge";
+import { Menu } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
 import { allowedStates } from "../utils";
@@ -63,7 +64,7 @@ const MarkTaskInstanceAsButton = ({ taskInstance, withText = true }: Props) => {
               }}
               value={menuState}
             >
-              <Status state={menuState}>{menuState}</Status>
+              <StateBadge state={menuState}>{menuState}</StateBadge>
             </Menu.Item>
           ))}
         </Menu.Content>
