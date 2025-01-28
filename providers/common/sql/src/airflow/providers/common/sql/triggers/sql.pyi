@@ -35,7 +35,7 @@ isort:skip_file
 from collections.abc import AsyncIterator
 from typing import Any
 
-from airflow.triggers.base import BaseTrigger, TriggerEvent as TriggerEvent
+from airflow.triggers.base import BaseTrigger as BaseTrigger, TriggerEvent as TriggerEvent
 
 class SQLExecuteQueryTrigger(BaseTrigger):
     def __init__(
