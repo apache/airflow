@@ -43,8 +43,10 @@ services:
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/apache/beam/tests:/opt/airflow/providers/apache/beam/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
+      - ../../../providers/apache/kafka/tests:/opt/airflow/providers/apache/kafka/tests
       - ../../../providers/apache/kylin/tests:/opt/airflow/providers/apache/kylin/tests
       - ../../../providers/apache/pig/tests:/opt/airflow/providers/apache/pig/tests
+      - ../../../providers/apache/pinot/tests:/opt/airflow/providers/apache/pinot/tests
       - ../../../providers/apache/spark/tests:/opt/airflow/providers/apache/spark/tests
       - ../../../providers/asana/tests:/opt/airflow/providers/asana/tests
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
@@ -53,12 +55,15 @@ services:
       - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
+      - ../../../providers/discord/tests:/opt/airflow/providers/discord/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
       - ../../../providers/exasol/tests:/opt/airflow/providers/exasol/tests
       - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
+      - ../../../providers/http/tests:/opt/airflow/providers/http/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
+      - ../../../providers/mongo/tests:/opt/airflow/providers/mongo/tests
       - ../../../providers/mysql/tests:/opt/airflow/providers/mysql/tests
       - ../../../providers/neo4j/tests:/opt/airflow/providers/neo4j/tests
       - ../../../providers/odbc/tests:/opt/airflow/providers/odbc/tests
@@ -75,6 +80,7 @@ services:
       - ../../../providers/qdrant/tests:/opt/airflow/providers/qdrant/tests
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
+      - ../../../providers/sftp/tests:/opt/airflow/providers/sftp/tests
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
       - ../../../providers/snowflake/tests:/opt/airflow/providers/snowflake/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests

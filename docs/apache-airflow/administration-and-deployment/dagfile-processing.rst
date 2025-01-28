@@ -149,7 +149,7 @@ There are several areas of resource usage that you should pay attention to:
   but in case new classes are imported after forking this can lead to extra memory pressure.
   You need to observe if your system is using more memory than it has - which results with using swap disk,
   which dramatically decreases performance. Make sure when you look at memory usage, pay attention to the
-  kind of memory you are observing. Usually you should look at ``working memory``(names might vary depending
+  kind of memory you are observing. Usually you should look at ``working memory`` (names might vary depending
   on your deployment) rather than ``total memory used``.
 
 What can you do, to improve DAG processor's performance
