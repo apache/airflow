@@ -114,25 +114,15 @@ class SmtpHook(BaseHook):
         smtp_kwargs["timeout"] = self.timeout
 
         if self.use_ssl:
-            from airflow.configuration import conf
-
-            extra_ssl_context = self.conn.extra_dejson.get("ssl_context", None)
-            if extra_ssl_context:
-                ssl_context_string = extra_ssl_context
-            else:
-                ssl_context_string = conf.get("smtp_provider", "SSL_CONTEXT", fallback=None)
-            if ssl_context_string is None:
-                ssl_context_string = conf.get("email", "SSL_CONTEXT", fallback=None)
-            if ssl_context_string is None:
-                ssl_context_string = "default"
-            if ssl_context_string == "default":
+            ssl_context_string = self.ssl_context
+            if ssl_context_string is None or ssl_context_string == "default":
                 ssl_context = ssl.create_default_context()
             elif ssl_context_string == "none":
                 ssl_context = None
             else:
                 raise RuntimeError(
-                    f"The email.ssl_context configuration variable must "
-                    f"be set to 'default' or 'none' and is '{ssl_context_string}'."
+                    f"The connection extra field `ssl_context` must "
+                    f"be set to 'default' or 'none' but it is set to '{ssl_context_string}'."
                 )
             smtp_kwargs["context"] = ssl_context
         return SMTP(**smtp_kwargs)
@@ -410,6 +400,10 @@ class SmtpHook(BaseHook):
     @property
     def html_content_template(self) -> str | None:
         return self.conn.extra_dejson.get("html_content_template")
+
+    @property
+    def ssl_context(self) -> str | None:
+        return self.conn.extra_dejson.get("ssl_context")
 
     @staticmethod
     def _read_template(template_path: str) -> str:

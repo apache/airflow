@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+.. warning::
+  The argument ``from_email`` is now an optional kwarg in ``SmtpNotifier``, and the argument ``to`` became the first
+  positional argument.
+
+  Configuring the ``SmtpNotifier`` and ``SmtpHook`` default values via Airflow SMTP configurations is not supported
+  anymore. You can instead use the SMTP connection configuration to set the default values, where you can use:
+
+  * the connection extra field ``ssl_context`` instead of the configuration ``smtp_provider.ssl_context`` or
+    ``email.ssl_context`` in the SMTP hook.
+  * the connection extra field ``from_email`` instead of the configuration ``smtp.smtp_mail_from`` in ``SmtpNotifier``.
+  * the connection extra field ``subject_template`` instead of the configuration ``smtp.templated_email_subject_path``
+    in ``SmtpNotifier``.
+  * the connection extra field ``html_content_template`` instead of the configuration
+    ``smtp.templated_html_content_path`` in ``SmtpNotifier``.
+
+
 1.9.0
 .....
 
