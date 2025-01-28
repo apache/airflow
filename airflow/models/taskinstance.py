@@ -1944,6 +1944,8 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             raise ValueError("DagModel is empty")
 
+        if TYPE_CHECKING:
+            assert dag.relative_fileloc
         path = Path(dag.relative_fileloc)
 
         if path:
