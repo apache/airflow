@@ -477,7 +477,7 @@ class DbtCloudHook(HttpHook):
         """
         Retrieve metadata for a specific job by combination of project, environment, and job name.
 
-        Raises AirflowException if the job is not found or cannot be uniquely identified by provided parameters.
+        Raises DbtCloudResourceLookupError if the job is not found or cannot be uniquely identified by provided parameters.
 
         :param project_name: The name of a dbt Cloud project.
         :param environment_name: The name of a dbt Cloud environment.
