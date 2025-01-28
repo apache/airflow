@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
+from flask import session
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
@@ -128,7 +129,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     def is_logged_in(self) -> bool:
         # Remove this method when legacy UI is removed
-        raise NotImplementedError()
+        return "user" in session or conf.getboolean("core", "simple_auth_manager_all_admins")
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
@@ -140,7 +141,12 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     def get_user(self) -> SimpleAuthManagerUser | None:
         # Remove this method when legacy UI is removed
-        raise NotImplementedError()
+        if not self.is_logged_in():
+            return None
+        if conf.getboolean("core", "simple_auth_manager_all_admins"):
+            return SimpleAuthManagerUser(username="anonymous", role="admin")
+        else:
+            return session["user"]
 
     def deserialize_user(self, token: dict[str, Any]) -> SimpleAuthManagerUser:
         return SimpleAuthManagerUser(username=token["username"], role=token["role"])
