@@ -43,6 +43,7 @@ apache-airflow-providers-presto
 apache-airflow-providers-qdrant
 apache-airflow-providers-samba
 apache-airflow-providers-segment
+apache-airflow-providers-sftp
 apache-airflow-providers-singularity
 apache-airflow-providers-ssh
 apache-airflow-providers-snowflake
