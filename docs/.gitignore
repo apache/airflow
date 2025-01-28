@@ -21,6 +21,7 @@ apache-airflow-providers-docker
 apache-airflow-providers-edge
 apache-airflow-providers-exasol
 apache-airflow-providers-facebook
+apache-airflow-providers-ftp
 apache-airflow-providers-http
 apache-airflow-providers-mongo
 apache-airflow-providers-openlineage
