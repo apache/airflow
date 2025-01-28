@@ -43,7 +43,6 @@ from airflow.models import BaseOperator
 from airflow.providers.common.sql.hooks.sql import DbApiHook as DbApiHook
 from airflow.utils.context import Context as Context
 
-
 class GenericTransfer(BaseOperator):
     template_fields: Sequence[str]
     template_ext: Sequence[str]

@@ -31,11 +31,11 @@
 Definition of the public interface for airflow.providers.common.sql.triggers.sql
 isort:skip_file
 """
+
 from collections.abc import AsyncIterator
 from typing import Any
 
 from airflow.triggers.base import BaseTrigger, TriggerEvent as TriggerEvent
-
 
 class SQLExecuteQueryTrigger(BaseTrigger):
     def __init__(
