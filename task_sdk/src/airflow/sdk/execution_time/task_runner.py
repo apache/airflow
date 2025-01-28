@@ -514,7 +514,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
                 for x in ti.task.outlets
                 if isinstance(x, Asset)
             ]
-            SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlet=inlets, outlet=outlets), log=log)  # type: ignore
+            SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlets=inlets, outlets=outlets), log=log)  # type: ignore
             msg = SUPERVISOR_COMMS.get_message()  # type: ignore
         if isinstance(msg, OKResponse) and not msg.ok:
             log.info("Runtime checks failed for task, marking task as failed..")

@@ -254,5 +254,5 @@ class PrevSuccessfulDagRunResponse(BaseModel):
 class TIRuntimeCheckPayload(BaseModel):
     """Payload for performing Runtime checks on the TaskInstance model as requested by the SDK."""
 
-    inlet: list[AssetProfile] | None = None
-    outlet: list[AssetProfile] | None = None
+    inlets: list[AssetProfile] | None = None
+    outlets: list[AssetProfile] | None = None

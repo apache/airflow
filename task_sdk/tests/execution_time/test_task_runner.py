@@ -678,11 +678,11 @@ def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
     run(ti, log=mock.MagicMock())
 
     expected = RuntimeCheckOnTask(
-        inlet=[
+        inlets=[
             AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
             AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
         ],
-        outlet=[
+        outlets=[
             AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
             AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
         ],

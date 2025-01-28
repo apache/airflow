@@ -471,7 +471,7 @@ def ti_runtime_checks(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT)
 
     try:
-        TI.validate_inlet_outlet_assets_activeness(payload.inlet, payload.outlet, session)  # type: ignore
+        TI.validate_inlet_outlet_assets_activeness(payload.inlets, payload.outlets, session)  # type: ignore
     except AirflowInactiveAssetInInletOrOutletException as e:
         log.error("Task Instance %s fails the runtime checks.", ti_id_str)
         raise HTTPException(

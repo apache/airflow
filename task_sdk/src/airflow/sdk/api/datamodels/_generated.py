@@ -153,8 +153,8 @@ class TIRuntimeCheckPayload(BaseModel):
     Payload for performing Runtime checks on the TaskInstance model as requested by the SDK.
     """
 
-    inlet: Annotated[list[AssetProfile] | None, Field(title="Inlet")] = None
-    outlet: Annotated[list[AssetProfile] | None, Field(title="Outlet")] = None
+    inlets: Annotated[list[AssetProfile] | None, Field(title="Inlets")] = None
+    outlets: Annotated[list[AssetProfile] | None, Field(title="Outlets")] = None
 
 
 class TISuccessStatePayload(BaseModel):
