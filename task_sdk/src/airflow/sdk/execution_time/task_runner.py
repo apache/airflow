@@ -520,17 +520,14 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             with set_current_context(context):
                 jinja_env = ti.task.dag.get_template_env()
                 ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
+                # TODO: Get things from _execute_task_with_callbacks
+                #   - Pre Execute
+                #   etc
                 result = _execute_task(context, ti.task)
 
             _push_xcom_if_needed(result, ti)
 
             task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
-
-            # TODO: Get things from _execute_task_with_callbacks
-            #   - Clearing XCom
-            #   - Update RTIF
-            #   - Pre Execute
-            #   etc
             msg = SucceedTask(
                 end_date=datetime.now(tz=timezone.utc),
                 task_outlets=task_outlets,

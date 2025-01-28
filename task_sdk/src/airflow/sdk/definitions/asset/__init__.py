@@ -430,7 +430,11 @@ class Asset(os.PathLike, BaseAsset):
         )
 
     def asprofile(self) -> AssetProfile:
-        """Profiles Asset to AssetProfile."""
+        """
+        Profiles Asset to AssetProfile.
+
+        :meta private:
+        """
         return AssetProfile(name=self.name or None, uri=self.uri or None, asset_type=Asset.__name__)
 
 
