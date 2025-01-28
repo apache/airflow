@@ -81,7 +81,7 @@ class GitHook(BaseHook):
             raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
         if self.private_key:
             self._setup_inline_key()
-        if self.key_file:
+        if self.key_file or self.private_key:
             self.env["GIT_SSH_COMMAND"] = (
                 f"ssh -i {self.key_file} -o IdentitiesOnly=yes -o StrictHostKeyChecking={strict_host_key_checking}"
             )
