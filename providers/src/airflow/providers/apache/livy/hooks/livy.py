@@ -25,7 +25,6 @@ from collections.abc import Sequence
 from enum import Enum
 from typing import Any
 
-import aiohttp
 import requests
 
 from airflow.exceptions import AirflowException
@@ -530,6 +529,7 @@ class LivyAsyncHook(HttpAsyncHook):
         :param endpoint: endpoint
         :param data: request payload
         :param headers: headers
+        :param extra_options: Additional kwargs to pass when creating a request.
         :return: http response
         """
         if method not in ("GET", "POST", "PUT", "DELETE", "HEAD"):
@@ -538,18 +538,15 @@ class LivyAsyncHook(HttpAsyncHook):
         back_method = self.method
         self.method = method
         try:
-            async with aiohttp.ClientSession() as session:
-                try:
-                    result = await super().run(
-                        session=session,
-                        endpoint=endpoint,
-                        data=data,
-                        headers=headers,
-                        extra_options=extra_options or self.extra_options,
-                    )
-                except HttpErrorException as e:
-                    status, message = str(e).split(":", 1)
-                    return {"Response": {message}, "Status Code": {status}, "status": "error"}
+            result = await super().run(
+                endpoint=endpoint,
+                data=data,
+                headers=headers,
+                extra_options=extra_options or self.extra_options,
+            )
+        except HttpErrorException as e:
+            status, message = str(e).split(":", 1)
+            return {"Response": {message}, "Status Code": {status}, "status": "error"}
         finally:
             self.method = back_method
         return {"status": "success", "response": result}
