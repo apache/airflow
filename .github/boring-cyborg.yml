@@ -34,10 +34,7 @@ labelPRBasedOnFilePath:
     - providers/apache/beam/**
 
   provider:apache-cassandra:
-    - providers/src/airflow/providers/apache/cassandra/**/*
-    - docs/apache-airflow-providers-apache-cassandra/**/*
-    - providers/tests/apache/cassandra/**/*
-    - providers/tests/system/apache/cassandra/**/*
+    - providers/apache/cassandra/**
 
   provider:apache-drill:
     - providers/src/airflow/providers/apache/drill/**/*

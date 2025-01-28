@@ -22,6 +22,8 @@ from __future__ import annotations
 import re
 from typing import Any, Union
 
+from airflow.hooks.base import BaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.cluster import Cluster, Session
 from cassandra.policies import (
@@ -30,9 +32,6 @@ from cassandra.policies import (
     TokenAwarePolicy,
     WhiteListRoundRobinPolicy,
 )
-
-from airflow.hooks.base import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 Policy = Union[DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, WhiteListRoundRobinPolicy]
 

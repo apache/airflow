@@ -35,6 +35,7 @@ services:
       - ../../../empty:/opt/airflow/providers/airbyte/src
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/apache/beam/src
+      - ../../../empty:/opt/airflow/providers/apache/cassandra/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
       - ../../../empty:/opt/airflow/providers/apache/kafka/src
       - ../../../empty:/opt/airflow/providers/apache/kylin/src
