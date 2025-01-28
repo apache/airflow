@@ -26,7 +26,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
-from flask import session, url_for
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
@@ -35,7 +34,6 @@ from termcolor import colored
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
 from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.settings import AIRFLOW_PATH
 
@@ -53,7 +51,6 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class SimpleAuthManagerRole(namedtuple("SimpleAuthManagerRole", "name order"), Enum):
@@ -85,9 +82,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     Default auth manager used in Airflow. This auth manager should not be used in production.
     This auth manager is very basic and only intended for development and testing purposes.
     """
-
-    # TODO: Needs to be deleted when Airflow 2 legacy UI is gone
-    appbuilder: AirflowAppBuilder | None = None
 
     @staticmethod
     def get_generated_password_file() -> str:
@@ -133,22 +127,20 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             file.write(json.dumps(passwords))
 
     def is_logged_in(self) -> bool:
-        return "user" in session or conf.getboolean("core", "simple_auth_manager_all_admins")
+        # Remove this method when legacy UI is removed
+        raise NotImplementedError()
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return url_for("SimpleAuthManagerAuthenticationViews.login", next=kwargs.get("next_url"))
+        return "/auth/webapp/login"
 
     def get_url_logout(self) -> str:
-        return url_for("SimpleAuthManagerAuthenticationViews.logout")
+        # Remove this method when legacy UI is removed
+        raise NotImplementedError()
 
     def get_user(self) -> SimpleAuthManagerUser | None:
-        if not self.is_logged_in():
-            return None
-        if conf.getboolean("core", "simple_auth_manager_all_admins"):
-            return SimpleAuthManagerUser(username="anonymous", role="admin")
-        else:
-            return session["user"]
+        # Remove this method when legacy UI is removed
+        raise NotImplementedError()
 
     def deserialize_user(self, token: dict[str, Any]) -> SimpleAuthManagerUser:
         return SimpleAuthManagerUser(username=token["username"], role=token["role"])
@@ -236,17 +228,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
         return menu_items
-
-    def register_views(self) -> None:
-        if not self.appbuilder:
-            return
-        users = self.get_users()
-        self.appbuilder.add_view_no_menu(
-            SimpleAuthManagerAuthenticationViews(
-                users=users,
-                passwords=self.get_passwords(users),
-            )
-        )
 
     def get_fastapi_app(self) -> FastAPI | None:
         """
