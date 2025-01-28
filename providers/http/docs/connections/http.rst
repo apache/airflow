@@ -39,7 +39,7 @@ Authenticating via Basic auth
 The simplest way to authenticate is to specify a *Login* and *Password* in the
 Connection.
 
-.. image:: /img/connection_username_password.png
+.. image:: img/connection_username_password.png
 
 By default, when a *Login* or *Password* is provided, the HTTP operators and
 Hooks will perform a basic authentication via the
@@ -52,7 +52,7 @@ If :ref:`Basic authentication<auth_basic>` is not enough, you can also add
 
 Headers can be passed in json format in the *Headers* field:
 
-.. image:: /img/connection_headers.png
+.. image:: img/connection_headers.png
 
 .. note:: Login and Password authentication can be used along custom Headers.
 
@@ -62,7 +62,7 @@ For more complex use-cases, you can inject a Auth class into the HTTP operators
 and Hooks via the *Auth type* setting. This is particularly useful when you
 need token refresh or advanced authentication methods like kerberos, oauth, ...
 
-.. image:: /img/connection_auth_type.png
+.. image:: img/connection_auth_type.png
 
 By default, only `requests Auth classes <https://github.com/psf/requests/blob/main/src/requests/auth.py>`_
 are available. But you can install any classes based on ``requests.auth.AuthBase``
@@ -75,7 +75,7 @@ pass extra keywords arguments with the *Auth kwargs* setting.
 
 Example with the ``HTTPKerberosAuth`` from `requests-kerberos <https://pypi.org/project/requests-kerberos>`_ :
 
-.. image:: /img/connection_auth_kwargs.png
+.. image:: img/connection_auth_kwargs.png
 
 .. tip::
 
