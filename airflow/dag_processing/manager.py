@@ -133,31 +133,33 @@ class DagFileProcessorManager:
     processors finish, more are launched. The files are processed over and
     over again, but no more often than the specified interval.
 
-    :param max_runs: The number of times to parse and schedule each file. -1
-        for unlimited.
+    :param max_runs: The number of times to parse each file. -1 for unlimited.
     :param processor_timeout: How long to wait before timing out a DAG file processor
-    :param signal_conn: connection to communicate signal with processor agent.
     """
 
     max_runs: int
-    processor_timeout: float = attrs.field(factory=_config_int_factory("core", "dag_file_processor_timeout"))
+    processor_timeout: float = attrs.field(
+        factory=_config_int_factory("dag_processor", "dag_file_processor_timeout")
+    )
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
 
-    _parallelism: int = attrs.field(factory=_config_int_factory("scheduler", "parsing_processes"))
+    _parallelism: int = attrs.field(factory=_config_int_factory("dag_processor", "parsing_processes"))
 
     parsing_cleanup_interval: float = attrs.field(
         factory=_config_int_factory("scheduler", "parsing_cleanup_interval")
     )
     _file_process_interval: float = attrs.field(
-        factory=_config_int_factory("scheduler", "min_file_process_interval")
+        factory=_config_int_factory("dag_processor", "min_file_process_interval")
     )
-    stale_dag_threshold: float = attrs.field(factory=_config_int_factory("scheduler", "stale_dag_threshold"))
+    stale_dag_threshold: float = attrs.field(
+        factory=_config_int_factory("dag_processor", "stale_dag_threshold")
+    )
 
     log: logging.Logger = attrs.field(default=log, init=False)
 
     _last_deactivate_stale_dags_time: float = attrs.field(default=0, init=False)
     print_stats_interval: float = attrs.field(
-        factory=_config_int_factory("scheduler", "print_stats_interval")
+        factory=_config_int_factory("dag_processor", "print_stats_interval")
     )
     last_stat_print_time: float = attrs.field(default=0, init=False)
 
@@ -183,7 +185,7 @@ class DagFileProcessorManager:
     )
 
     max_callbacks_per_loop: int = attrs.field(
-        factory=_config_int_factory("scheduler", "max_callbacks_per_loop")
+        factory=_config_int_factory("dag_processor", "max_callbacks_per_loop")
     )
 
     base_log_dir: str = attrs.field(factory=_config_get_factory("scheduler", "CHILD_PROCESS_LOG_DIRECTORY"))
@@ -802,7 +804,7 @@ class DagFileProcessorManager:
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode
-        list_mode = conf.get("scheduler", "file_parsing_sort_mode")
+        list_mode = conf.get("dag_processor", "file_parsing_sort_mode")
 
         files_with_mtime: dict[str, datetime] = {}
         file_paths = []
@@ -841,7 +843,7 @@ class DagFileProcessorManager:
         elif list_mode == "alphabetical":
             file_paths.sort()
         elif list_mode == "random_seeded_by_host":
-            # Shuffle the list seeded by hostname so multiple schedulers can work on different
+            # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
             random.Random(get_hostname()).shuffle(file_paths)
 
@@ -860,7 +862,7 @@ class DagFileProcessorManager:
         )
 
         # Do not convert the following list to set as set does not preserve the order
-        # and we need to maintain the order of file_paths for `[scheduler] file_parsing_sort_mode`
+        # and we need to maintain the order of file_paths for `[dag_processor] file_parsing_sort_mode`
         files_paths_to_queue = [
             file_path for file_path in file_paths if file_path not in file_paths_to_exclude
         ]
