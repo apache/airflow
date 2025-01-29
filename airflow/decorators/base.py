@@ -533,37 +533,11 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         )
         return XComArg(operator=operator)
 
-    def stream(self, **mapped_kwargs: OperatorExpandArgument) -> XComArg:
-        from airflow.models.streamedoperator import StreamedOperator
+    def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> XComArg:
+        raise NotImplementedError
 
-        if not mapped_kwargs:
-            raise TypeError("no arguments to expand against")
-        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
-
-        expand_input = DictOfListsExpandInput(mapped_kwargs)
-        ensure_xcomarg_return_value(expand_input.value)
-
-        partial_kwargs = self.kwargs.copy()
-        task_id = partial_kwargs.pop("task_id")
-        dag = partial_kwargs.pop("dag", None) or DagContext.get_current_dag()
-        task_group = partial_kwargs.pop("task_group", None) or TaskGroupContext.get_current_task_group(dag)
-        start_date = partial_kwargs.pop("start_date")
-        end_date = partial_kwargs.pop("end_date")
-        max_active_tis_per_dag = partial_kwargs.pop("max_active_tis_per_dag", None)
-
-        operator = StreamedOperator(
-            task_id=task_id,
-            dag=dag,
-            task_group=task_group,
-            start_date=start_date,
-            end_date=end_date,
-            max_active_tis_per_dag=max_active_tis_per_dag,
-            operator_class=self.operator_class,
-            expand_input=expand_input,
-            retries=0,
-            partial_kwargs=self.kwargs.copy(),
-        )
-        return XComArg(operator=operator)
+    def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
+        raise NotImplementedError
 
     def partial(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         self._validate_arg_names("partial", kwargs)
