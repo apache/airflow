@@ -374,7 +374,7 @@ def test_get_tasks_details():
             ],
         },
         "task_4.test.dot": {
-            "operator": "airflow.operators.empty.EmptyOperator",
+            "operator": "airflow.providers.standard.operators.empty.EmptyOperator",
             "task_group": None,
             "emits_ol_events": False,
             "ui_color": EmptyOperator.ui_color,
@@ -424,7 +424,7 @@ def test_get_tasks_details():
             ],
         },
         "section_1.section_2.task_11": {
-            "operator": "airflow.operators.empty.EmptyOperator",
+            "operator": "airflow.providers.standard.operators.empty.EmptyOperator",
             "task_group": "section_1.section_2",
             "emits_ol_events": False,
             "ui_color": EmptyOperator.ui_color,
