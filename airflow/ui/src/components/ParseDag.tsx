@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { LuFolderSync } from "react-icons/lu";
+import { AiOutlineFileSync } from "react-icons/ai";
 
 import { Button } from "src/components/ui";
 import { useDagParsing } from "src/queries/useDagParsing.ts";
@@ -31,7 +31,7 @@ const ParseDag = ({ dagId, fileToken }: Props) => {
 
   return (
     <Button loading={isPending} onClick={() => mutate({ fileToken })} variant="outline">
-      <LuFolderSync height={5} width={5} />
+      <AiOutlineFileSync height={5} width={5} />
       Reparse Dag
     </Button>
   );
