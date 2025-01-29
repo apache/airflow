@@ -22,14 +22,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-from requests.exceptions import RequestException
-
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, LivyHook
 from airflow.utils import db
-
-from tests_common.test_utils.db import clear_db_connections
+from requests.exceptions import RequestException
 
 LIVY_CONN_ID = LivyHook.default_conn_name
 DEFAULT_CONN_ID = LivyHook.default_conn_name
@@ -49,41 +46,32 @@ INVALID_SESSION_ID_TEST_CASES = [
     pytest.param("forty two", id="invalid string"),
     pytest.param({"a": "b"}, id="dictionary"),
 ]
-
-
-@pytest.mark.db_test
-class TestLivyDbHook:
-    @classmethod
-    def setup_class(cls):
-        clear_db_connections(add_default_connections_back=False)
-        db.merge_conn(
-            Connection(
+CONNECTIONS: dict[str, Connection] = {
+    DEFAULT_CONN_ID: Connection(
                 conn_id=DEFAULT_CONN_ID,
                 conn_type="http",
                 host=DEFAULT_HOST,
                 schema=DEFAULT_SCHEMA,
                 port=DEFAULT_PORT,
-            )
-        )
-        db.merge_conn(Connection(conn_id="default_port", conn_type="http", host="http://host"))
-        db.merge_conn(Connection(conn_id="default_protocol", conn_type="http", host="host"))
-        db.merge_conn(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="schema_set", host="host", conn_type="http", schema="https"))
-        db.merge_conn(
-            Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="https")
-        )
-        db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
-        db.merge_conn(
-            Connection(
-                conn_id="with_credentials", login="login", password="secret", conn_type="http", host="host"
-            )
-        )
+            ),
+    "default_port": Connection(conn_id="default_port", conn_type="http", host="http://host"),
+    "default_protocol": Connection(conn_id="default_protocol", conn_type="http", host="host"),
+    "port_set": Connection(conn_id="port_set", host="host", conn_type="http", port=1234),
+    "schema_set": Connection(conn_id="schema_set", host="host", conn_type="http", schema="https"),
+    "dont_override_schema": Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="https"),
+    "missing_host": Connection(conn_id="missing_host", conn_type="http", port=1234),
+    "invalid_uri": Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"),
+    "with_credentials": Connection(
+        conn_id="with_credentials", login="login", password="secret", conn_type="http", host="host"
+    ),
+}
 
-    @classmethod
-    def teardown_class(cls):
-        clear_db_connections(add_default_connections_back=True)
 
+def get_connection(conn_id: str) -> Connection:
+    return CONNECTIONS[conn_id]
+
+
+class TestLivyDbHook:
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "conn_id, expected",
@@ -95,10 +83,15 @@ class TestLivyDbHook:
             pytest.param("dont_override_schema", "http://host", id="ignore-defined-schema"),
         ],
     )
+    #@mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_connection)
     def test_build_get_hook(self, conn_id, expected):
-        hook = LivyHook(livy_conn_id=conn_id)
-        hook.get_conn()
-        assert hook.base_url == expected
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_connection,
+        ):
+            hook = LivyHook(livy_conn_id=conn_id)
+            hook.get_conn()
+            assert hook.base_url == expected
 
     @pytest.mark.skip("Inherited HttpHook does not handle missing hostname")
     def test_missing_host(self):
@@ -307,8 +300,12 @@ class TestLivyDbHook:
         mock_get_conn.assert_not_called()
 
     def test_invalid_uri(self):
-        with pytest.raises(RequestException):
-            LivyHook(livy_conn_id="invalid_uri").post_batch(file="sparkapp")
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_connection,
+        ):
+            with pytest.raises(RequestException):
+                LivyHook(livy_conn_id="invalid_uri").post_batch(file="sparkapp")
 
     def test_get_batch_state_success(self, requests_mock):
         running = BatchState.RUNNING
@@ -416,15 +413,19 @@ class TestLivyDbHook:
         hook.post_batch(file="sparkapp")
 
     def test_alternate_auth_type(self):
-        auth_type = MagicMock()
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_connection,
+        ):
+            auth_type = MagicMock()
 
-        hook = LivyHook(livy_conn_id="with_credentials", auth_type=auth_type)
+            hook = LivyHook(livy_conn_id="with_credentials", auth_type=auth_type)
 
-        auth_type.assert_not_called()
+            auth_type.assert_not_called()
 
-        hook.get_conn()
+            hook.get_conn()
 
-        auth_type.assert_called_once_with("login", "secret")
+            auth_type.assert_called_once_with("login", "secret")
 
 
 class TestLivyAsyncHook:
