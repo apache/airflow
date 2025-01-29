@@ -20,64 +20,60 @@ import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Button, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
-import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
-import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
+import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
 
 type Props = {
   readonly onClose: () => void;
   readonly open: boolean;
+  readonly state: TaskInstanceState;
   readonly taskInstance: TaskInstanceResponse;
 };
 
-const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
+const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props) => {
+  const dagId = taskInstance.dag_id;
+  const dagRunId = taskInstance.dag_run_id;
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
 
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-
-  const { isPending, mutate } = useClearTaskInstances({
-    dagId,
-    dagRunId,
-    onSuccessConfirm: onClose,
-  });
-
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
 
-  const onlyFailed = selectedOptions.includes("onlyFailed");
   const past = selectedOptions.includes("past");
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
-  const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
+
+  const { isPending, mutate } = usePatchTaskInstance({
     dagId,
     dagRunId,
     mapIndex,
+    onSuccess: onClose,
     taskId,
   });
-
-  const { data } = useClearTaskInstancesDryRun({
+  const { data, isPending: isPendingDryRun } = usePatchTaskInstanceDryRun({
     dagId,
+    dagRunId,
+    mapIndex,
     options: {
       enabled: open,
     },
     requestBody: {
-      dag_run_id: dagRunId,
       include_downstream: downstream,
       include_future: future,
       include_past: past,
       include_upstream: upstream,
-      only_failed: onlyFailed,
-      task_ids: [taskId],
+      new_state: state,
+      note,
     },
+    taskId,
   });
 
   const affectedTasks = data ?? {
@@ -91,8 +87,8 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
         <Dialog.Header>
           <VStack align="start" gap={4}>
             <Heading size="xl">
-              <strong>Clear Task Instance:</strong> {taskInstance.task_display_name}{" "}
-              <Time datetime={taskInstance.start_date} />
+              <strong>Mark Task Instance as {state}:</strong> {taskInstance.task_display_name}{" "}
+              <Time datetime={taskInstance.start_date} /> <StateBadge state={state} />
             </Heading>
           </VStack>
         </Dialog.Header>
@@ -109,7 +105,6 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                 { label: "Future", value: "future" },
                 { label: "Upstream", value: "upstream" },
                 { label: "Downstream", value: "downstream" },
-                { label: "Only Failed", value: "onlyFailed" },
               ]}
             />
           </Flex>
@@ -117,31 +112,22 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
-              disabled={affectedTasks.total_entries === 0}
-              loading={isPending || isPendingPatchDagRun}
+              loading={isPending || isPendingDryRun}
               onClick={() => {
                 mutate({
                   dagId,
+                  dagRunId,
+                  mapIndex,
                   requestBody: {
-                    dag_run_id: dagRunId,
-                    dry_run: false,
                     include_downstream: downstream,
                     include_future: future,
                     include_past: past,
                     include_upstream: upstream,
-                    only_failed: onlyFailed,
-                    task_ids: [taskId],
+                    new_state: state,
+                    note,
                   },
+                  taskId,
                 });
-                if (note !== taskInstance.note) {
-                  mutatePatchTaskInstance({
-                    dagId,
-                    dagRunId,
-                    mapIndex,
-                    requestBody: { note },
-                    taskId,
-                  });
-                }
               }}
             >
               <FiRefreshCw /> Confirm
@@ -153,4 +139,4 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
   );
 };
 
-export default ClearTaskInstanceDialog;
+export default MarkTaskInstanceAsDialog;

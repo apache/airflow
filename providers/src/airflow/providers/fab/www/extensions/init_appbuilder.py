@@ -36,7 +36,7 @@ from flask_appbuilder.const import (
 )
 from flask_appbuilder.filters import TemplateFilters
 from flask_appbuilder.menu import Menu
-from flask_appbuilder.views import IndexView
+from flask_appbuilder.views import IndexView, UtilView
 
 from airflow import settings
 from airflow.api_fastapi.app import create_auth_manager, get_auth_manager
@@ -296,6 +296,7 @@ class AirflowAppBuilder:
         """Register indexview, utilview (back function), babel views and Security views."""
         self.indexview = self._check_and_init(self.indexview)
         self.add_view_no_menu(self.indexview)
+        self.add_view_no_menu(UtilView())
         get_auth_manager().register_views()
 
     def _add_addon_views(self):
