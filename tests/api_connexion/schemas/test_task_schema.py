@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 
 class TestTaskSchema:

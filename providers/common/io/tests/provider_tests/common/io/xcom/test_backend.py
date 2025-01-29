@@ -21,8 +21,8 @@ import pytest
 
 import airflow.models.xcom
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.xcom import XCOM_RETURN_KEY
 

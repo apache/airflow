@@ -26,7 +26,7 @@ import pytest
 
 from airflow.models import DagBag, DagRun
 from airflow.models.param import Param
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.json import WebEncoder

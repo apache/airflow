@@ -26,7 +26,6 @@ from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
     _get_task_groups_details,
@@ -38,6 +37,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_operator_class,
     get_user_provided_run_facets,
 )
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
