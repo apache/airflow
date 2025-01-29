@@ -196,13 +196,11 @@ def logging_processors(
         else:
             exc_group_processor = None
 
-        encoder = msgspec.json.Encoder()
-
         def json_dumps(msg, default):
-            return encoder.encode(msg)
+            return msgspec.json.encode(msg, enc_hook=default)
 
         def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-            return encoder.encode(event_dict).decode("utf-8")
+            return msgspec.json.encode(event_dict).decode("utf-8")
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 

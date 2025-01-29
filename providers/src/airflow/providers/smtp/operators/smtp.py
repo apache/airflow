@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 
@@ -58,8 +60,8 @@ class EmailOperator(BaseOperator):
         self,
         *,
         to: list[str] | str,
-        subject: str,
-        html_content: str,
+        subject: str | None = None,
+        html_content: str | None = None,
         from_email: str | None = None,
         files: list | None = None,
         cc: list[str] | str | None = None,
@@ -83,8 +85,36 @@ class EmailOperator(BaseOperator):
         self.conn_id = conn_id
         self.custom_headers = custom_headers
 
+    @staticmethod
+    def _read_template(template_path: str) -> str:
+        return Path(template_path).read_text().replace("\n", "").strip()
+
     def execute(self, context: Context):
         with SmtpHook(smtp_conn_id=self.conn_id) as smtp_hook:
+            fields_to_re_render = []
+            if self.from_email is None:
+                if smtp_hook.from_email is None:
+                    raise AirflowException("You should provide `from_email` or define it in the connection.")
+                self.from_email = smtp_hook.from_email
+                fields_to_re_render.append("from_email")
+            if self.subject is None:
+                if smtp_hook.subject_template is None:
+                    raise AirflowException(
+                        "You should provide `subject` or define `subject_template` in the connection."
+                    )
+                self.subject = self._read_template(smtp_hook.subject_template)
+                fields_to_re_render.append("subject")
+            if self.html_content is None:
+                if smtp_hook.html_content_template is None:
+                    raise AirflowException(
+                        "You should provide `html_content` or define `html_content_template` in the connection."
+                    )
+                self.html_content = self._read_template(smtp_hook.html_content_template)
+                fields_to_re_render.append("html_content")
+            if fields_to_re_render:
+                self._do_render_template_fields(
+                    self, fields_to_re_render, context, self.get_template_env(), set()
+                )
             return smtp_hook.send_email_smtp(
                 to=self.to,
                 subject=self.subject,
