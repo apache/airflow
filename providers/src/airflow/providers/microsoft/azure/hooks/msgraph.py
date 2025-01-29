@@ -46,8 +46,8 @@ from msgraph_core._enums import NationalClouds
 
 from airflow.exceptions import (
     AirflowBadRequest,
-    AirflowException,
     AirflowConfigException,
+    AirflowException,
     AirflowNotFoundException,
 )
 from airflow.hooks.base import BaseHook
