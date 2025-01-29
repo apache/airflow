@@ -24,7 +24,6 @@ import sys
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from io import FileIO
-from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
 
 import attrs
@@ -320,10 +319,11 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
         name=bundle_info.name,
         version=bundle_info.version,
     )
+    bundle_instance.initialize()
 
-    dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
+    # TODO AIP-66: switch to specific file once relative_fileloc work is done
     bag = DagBag(
-        dag_folder=dag_absolute_path,
+        dag_folder=bundle_instance.path,
         include_examples=False,
         safe_mode=False,
         load_op_links=False,
