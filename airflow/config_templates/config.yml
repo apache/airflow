@@ -2044,6 +2044,22 @@ webserver:
       type: boolean
       example: ~
       default: "False"
+    max_form_memory_size:
+      description: |
+        The maximum size in bytes any non-file form field may be in a multipart/form-data body.
+        If this limit is exceeded, a 413 RequestEntityTooLarge error is raised by webserver.
+      version_added: 2.10.5
+      type: integer
+      example: ~
+      default: "500000"
+    max_form_parts:
+      description: |
+        The maximum number of fields that may be present in a multipart/form-data body.
+        If this limit is exceeded, a 413 RequestEntityTooLarge error is raised by webserver.
+      version_added: 2.10.5
+      type: integer
+      example: ~
+      default: "1000"
 email:
   description: |
     Configuration email backend and whether to
