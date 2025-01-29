@@ -70,8 +70,8 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                     f"You are trying to use `common-sql` with {hook.__class__.__name__},"
                     " but its provider does not support it. Please upgrade the provider to a version that"
                     " supports `common-sql`. The hook class should be a subclass of"
-                    " `airflow.providers.common.sql.hooks.sql.DbApiHook`."
-                    f" Got {hook.__class__.__name__} Hook with class hierarchy: {hook.__class__.mro()}"
+                    f" `{hook.__class__.__module__}.{hook.__class__.__name__}`."
+                    f" Got {hook.__class__.__name__} hook with class hierarchy: {hook.__class__.mro()}"
                 )
 
             self.log.info("Extracting data from %s", self.conn_id)
