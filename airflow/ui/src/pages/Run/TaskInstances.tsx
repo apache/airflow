@@ -40,8 +40,10 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { capitalize, getDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
+import { isStatePending } from "src/utils/refresh";
 
 const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   {
@@ -178,6 +180,8 @@ export const TaskInstances = () => {
     setSearchParams(searchParams);
   };
 
+  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
+
   const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
@@ -189,7 +193,13 @@ export const TaskInstances = () => {
       taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
     },
     undefined,
-    { enabled: !isNaN(pagination.pageSize) },
+    {
+      enabled: !isNaN(pagination.pageSize),
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state))
+          ? autoRefreshInterval * 1000
+          : false,
+    },
   );
 
   return (

@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import dayjs from "dayjs";
+
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { isStatePending } from "src/utils/refresh";
+
+import { useConfig } from "./useConfig";
 
 type Props = {
   dagId: string;
-  mapIndex?: number;
-  runId: string;
-  taskId: string;
+  taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
 };
 
@@ -57,14 +61,26 @@ const parseLogs = ({ data }: ParseLogsProps) => {
   };
 };
 
-export const useLogs = ({ dagId, mapIndex = -1, runId, taskId, tryNumber = 1 }: Props) => {
-  const { data, ...rest } = useTaskInstanceServiceGetLog({
-    dagId,
-    dagRunId: runId,
-    mapIndex,
-    taskId,
-    tryNumber,
-  });
+export const useLogs = ({ dagId, taskInstance, tryNumber = 1 }: Props) => {
+  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
+  const { data, ...rest } = useTaskInstanceServiceGetLog(
+    {
+      dagId,
+      dagRunId: taskInstance?.dag_run_id ?? "",
+      mapIndex: taskInstance?.map_index ?? -1,
+      taskId: taskInstance?.task_id ?? "",
+      tryNumber,
+    },
+    undefined,
+    {
+      enabled: Boolean(taskInstance),
+      refetchInterval: (query) =>
+        isStatePending(taskInstance?.state) ||
+        dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)
+          ? autoRefreshInterval * 1000
+          : autoRefreshInterval * 10 * 1000,
+    },
+  );
 
   const parsedData = parseLogs({
     data: data?.content,
