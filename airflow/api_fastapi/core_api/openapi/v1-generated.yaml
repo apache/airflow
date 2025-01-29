@@ -6566,6 +6566,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - asset_aliases
@@ -6583,6 +6584,7 @@ components:
         group:
           type: string
           title: Group
+      additionalProperties: false
       type: object
       required:
       - id
@@ -6600,6 +6602,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - assets
@@ -6616,6 +6619,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - asset_events
@@ -6677,6 +6681,7 @@ components:
           type: string
           format: date-time
           title: Timestamp
+      additionalProperties: false
       type: object
       required:
       - id
@@ -6728,6 +6733,7 @@ components:
             $ref: '#/components/schemas/AssetAliasResponse'
           type: array
           title: Aliases
+      additionalProperties: false
       type: object
       required:
       - id
@@ -6751,6 +6757,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - backfills
@@ -6785,6 +6792,7 @@ components:
           type: integer
           title: Max Active Runs
           default: 10
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -6833,6 +6841,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - id
@@ -6855,6 +6864,7 @@ components:
           - type: string
           - type: 'null'
           title: Status
+      additionalProperties: false
       type: object
       required:
       - status
@@ -6900,6 +6910,7 @@ components:
           description: A list of errors encountered during the operation, each containing
             details about the issue.
           default: []
+      additionalProperties: false
       type: object
       title: BulkActionResponse
       description: 'Serializer for individual bulk action responses.
@@ -6922,6 +6933,7 @@ components:
             - $ref: '#/components/schemas/BulkDeleteAction_ConnectionBody_'
           type: array
           title: Actions
+      additionalProperties: false
       type: object
       required:
       - actions
@@ -6936,6 +6948,7 @@ components:
             - $ref: '#/components/schemas/BulkDeleteAction_PoolBody_'
           type: array
           title: Actions
+      additionalProperties: false
       type: object
       required:
       - actions
@@ -6950,6 +6963,7 @@ components:
             - $ref: '#/components/schemas/BulkDeleteAction_VariableBody_'
           type: array
           title: Actions
+      additionalProperties: false
       type: object
       required:
       - actions
@@ -6968,6 +6982,7 @@ components:
         action_on_existence:
           $ref: '#/components/schemas/BulkActionOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6987,6 +7002,7 @@ components:
         action_on_existence:
           $ref: '#/components/schemas/BulkActionOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7006,6 +7022,7 @@ components:
         action_on_existence:
           $ref: '#/components/schemas/BulkActionOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7025,6 +7042,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7044,6 +7062,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7063,6 +7082,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7088,6 +7108,7 @@ components:
           - type: 'null'
           description: Details of the bulk delete operation, including successful
             keys and errors.
+      additionalProperties: false
       type: object
       title: BulkResponse
       description: 'Serializer for responses to bulk entity operations.
@@ -7115,6 +7136,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7134,6 +7156,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7153,6 +7176,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7223,6 +7247,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: ClearTaskInstancesBody
       description: Request body for Clear Task Instances endpoint.
@@ -7233,6 +7258,7 @@ components:
             $ref: '#/components/schemas/ConfigSection'
           type: array
           title: Sections
+      additionalProperties: false
       type: object
       required:
       - sections
@@ -7253,6 +7279,7 @@ components:
             maxItems: 2
             minItems: 2
           title: Value
+      additionalProperties: false
       type: object
       required:
       - key
@@ -7355,6 +7382,7 @@ components:
             $ref: '#/components/schemas/ConfigOption'
           type: array
           title: Options
+      additionalProperties: false
       type: object
       required:
       - name
@@ -7406,6 +7434,7 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+      additionalProperties: false
       type: object
       required:
       - connection_id
@@ -7422,6 +7451,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - connections
@@ -7471,6 +7501,7 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+      additionalProperties: false
       type: object
       required:
       - connection_id
@@ -7492,6 +7523,7 @@ components:
         message:
           type: string
           title: Message
+      additionalProperties: false
       type: object
       required:
       - status
@@ -7522,6 +7554,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - dags
@@ -7700,6 +7733,7 @@ components:
           title: Concurrency
           description: Return max_active_tasks as concurrency.
           readOnly: true
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -7745,6 +7779,7 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
+      additionalProperties: false
       type: object
       required:
       - is_paused
@@ -7855,6 +7890,7 @@ components:
           title: File Token
           description: Return file token.
           readOnly: true
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -7892,6 +7928,7 @@ components:
           type: boolean
           title: Only Failed
           default: false
+      additionalProperties: false
       type: object
       title: DAGRunClearBody
       description: DAG Run serializer for clear endpoint body.
@@ -7905,6 +7942,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - dag_runs
@@ -7923,6 +7961,7 @@ components:
             maxLength: 1000
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       title: DAGRunPatchBody
       description: DAG Run Serializer for PATCH requests.
@@ -8001,6 +8040,7 @@ components:
           - type: string
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       required:
       - dag_run_id
@@ -8034,6 +8074,7 @@ components:
         failed:
           type: integer
           title: Failed
+      additionalProperties: false
       type: object
       required:
       - queued
@@ -8056,6 +8097,7 @@ components:
         asset_triggered:
           type: integer
           title: Asset Triggered
+      additionalProperties: false
       type: object
       required:
       - backfill
@@ -8133,6 +8175,7 @@ components:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      additionalProperties: false
       type: object
       title: DAGRunsBatchBody
       description: List DAG Runs body for batch endpoint.
@@ -8151,6 +8194,7 @@ components:
           - type: integer
           - type: 'null'
           title: Version Number
+      additionalProperties: false
       type: object
       required:
       - content
@@ -8168,6 +8212,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - tags
@@ -8184,6 +8229,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - dag_warnings
@@ -8204,6 +8250,7 @@ components:
           type: string
           format: date-time
           title: Timestamp
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -8222,6 +8269,7 @@ components:
             $ref: '#/components/schemas/DAGWithLatestDagRunsResponse'
           type: array
           title: Dags
+      additionalProperties: false
       type: object
       required:
       - total_entries
@@ -8338,6 +8386,7 @@ components:
           title: File Token
           description: Return file token.
           readOnly: true
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -8378,6 +8427,7 @@ components:
           - type: string
           - type: 'null'
           title: Latest Dag Processor Heartbeat
+      additionalProperties: false
       type: object
       required:
       - status
@@ -8417,6 +8467,7 @@ components:
           type: string
           format: date-time
           title: Data Interval End
+      additionalProperties: false
       type: object
       required:
       - run_id
@@ -8480,6 +8531,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -8497,6 +8549,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - dags
@@ -8513,6 +8566,7 @@ components:
             $ref: '#/components/schemas/DagStatsStateResponse'
           type: array
           title: Stats
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -8526,6 +8580,7 @@ components:
         count:
           type: integer
           title: Count
+      additionalProperties: false
       type: object
       required:
       - state
@@ -8540,6 +8595,7 @@ components:
         dag_id:
           type: string
           title: Dag Id
+      additionalProperties: false
       type: object
       required:
       - name
@@ -8568,6 +8624,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - backfills
@@ -8580,6 +8637,7 @@ components:
           type: string
           format: date-time
           title: Logical Date
+      additionalProperties: false
       type: object
       required:
       - logical_date
@@ -8608,6 +8666,7 @@ components:
           - type: boolean
           - type: 'null'
           title: Is Source Asset
+      additionalProperties: false
       type: object
       required:
       - source_id
@@ -8624,6 +8683,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - event_logs
@@ -8683,6 +8743,7 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+      additionalProperties: false
       type: object
       required:
       - event_log_id
@@ -8898,6 +8959,7 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagProcessorInfoResponse'
           - type: 'null'
+      additionalProperties: false
       type: object
       required:
       - metadatabase
@@ -8913,6 +8975,7 @@ components:
           $ref: '#/components/schemas/DAGRunStates'
         task_instance_states:
           $ref: '#/components/schemas/TaskInstanceStateCount'
+      additionalProperties: false
       type: object
       required:
       - dag_run_types
@@ -8930,6 +8993,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - import_errors
@@ -8954,6 +9018,7 @@ components:
         stack_trace:
           type: string
           title: Stack Trace
+      additionalProperties: false
       type: object
       required:
       - import_error_id
@@ -8973,6 +9038,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - jobs
@@ -9033,6 +9099,7 @@ components:
           - type: string
           - type: 'null'
           title: Unixname
+      additionalProperties: false
       type: object
       required:
       - id
@@ -9105,6 +9172,7 @@ components:
             - and-gate
           - type: 'null'
           title: Asset Condition Type
+      additionalProperties: false
       type: object
       required:
       - id
@@ -9140,6 +9208,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: PatchTaskInstanceBody
       description: Request body for Clear Task Instances endpoint.
@@ -9153,6 +9222,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - plugins
@@ -9212,6 +9282,7 @@ components:
             type: string
           type: array
           title: Timetables
+      additionalProperties: false
       type: object
       required:
       - name
@@ -9245,6 +9316,7 @@ components:
           type: boolean
           title: Include Deferred
           default: false
+      additionalProperties: false
       type: object
       required:
       - name
@@ -9261,6 +9333,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - pools
@@ -9289,6 +9362,7 @@ components:
           - type: boolean
           - type: 'null'
           title: Include Deferred
+      additionalProperties: false
       type: object
       title: PoolPatchBody
       description: Pool serializer for patch bodies.
@@ -9326,6 +9400,7 @@ components:
         deferred_slots:
           type: integer
           title: Deferred Slots
+      additionalProperties: false
       type: object
       required:
       - name
@@ -9350,6 +9425,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - providers
@@ -9367,6 +9443,7 @@ components:
         version:
           type: string
           title: Version
+      additionalProperties: false
       type: object
       required:
       - package_name
@@ -9384,6 +9461,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - queued_events
@@ -9402,6 +9480,7 @@ components:
           type: string
           format: date-time
           title: Created At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -9432,6 +9511,7 @@ components:
           - type: string
           - type: 'null'
           title: Latest Scheduler Heartbeat
+      additionalProperties: false
       type: object
       required:
       - status
@@ -9458,6 +9538,7 @@ components:
           - RL
           - TB
           title: Arrange
+      additionalProperties: false
       type: object
       required:
       - edges
@@ -9475,6 +9556,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - tasks
@@ -9488,6 +9570,7 @@ components:
             $ref: '#/components/schemas/TaskDependencyResponse'
           type: array
           title: Dependencies
+      additionalProperties: false
       type: object
       required:
       - dependencies
@@ -9501,6 +9584,7 @@ components:
         reason:
           type: string
           title: Reason
+      additionalProperties: false
       type: object
       required:
       - name
@@ -9517,6 +9601,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - task_instances
@@ -9533,6 +9618,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - task_instances
@@ -9633,6 +9719,7 @@ components:
         executor_config:
           type: string
           title: Executor Config
+      additionalProperties: false
       type: object
       required:
       - task_id
@@ -9782,6 +9869,7 @@ components:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
           - type: 'null'
+      additionalProperties: false
       type: object
       required:
       - id
@@ -9875,6 +9963,7 @@ components:
         deferred:
           type: integer
           title: Deferred
+      additionalProperties: false
       type: object
       required:
       - no_status
@@ -10006,6 +10095,7 @@ components:
           - type: string
           - type: 'null'
           title: Order By
+      additionalProperties: false
       type: object
       title: TaskInstancesBatchBody
       description: Task Instance body for get batch.
@@ -10041,6 +10131,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -10186,6 +10277,7 @@ components:
           title: Extra Links
           description: Extract and return extra_links.
           readOnly: true
+      additionalProperties: false
       type: object
       required:
       - task_id
@@ -10266,6 +10358,7 @@ components:
           - type: string
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.
@@ -10289,6 +10382,7 @@ components:
           - type: integer
           - type: 'null'
           title: Triggerer Id
+      additionalProperties: false
       type: object
       required:
       - id
@@ -10310,6 +10404,7 @@ components:
           - type: string
           - type: 'null'
           title: Latest Triggerer Heartbeat
+      additionalProperties: false
       type: object
       required:
       - status
@@ -10351,6 +10446,7 @@ components:
           - type: string
           - type: 'null'
           title: Description
+      additionalProperties: false
       type: object
       required:
       - key
@@ -10367,6 +10463,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - variables
@@ -10389,6 +10486,7 @@ components:
         is_encrypted:
           type: boolean
           title: Is Encrypted
+      additionalProperties: false
       type: object
       required:
       - key
@@ -10407,6 +10505,7 @@ components:
           - type: string
           - type: 'null'
           title: Git Version
+      additionalProperties: false
       type: object
       required:
       - version
@@ -10423,6 +10522,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - xcom_entries
@@ -10454,6 +10554,7 @@ components:
         run_id:
           type: string
           title: Run Id
+      additionalProperties: false
       type: object
       required:
       - key
@@ -10492,6 +10593,7 @@ components:
           title: Run Id
         value:
           title: Value
+      additionalProperties: false
       type: object
       required:
       - key
@@ -10534,6 +10636,7 @@ components:
           - type: string
           - type: 'null'
           title: Value
+      additionalProperties: false
       type: object
       required:
       - key

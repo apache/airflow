@@ -26,4 +26,14 @@ class BaseModel(PydanticBaseModel):
     :meta private:
     """
 
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
+
+
+class ResponseBaseModel(BaseModel):
+    """
+    Base pydantic model for REST API.
+
+    :meta private:
+    """
+
     model_config = ConfigDict(from_attributes=True)
