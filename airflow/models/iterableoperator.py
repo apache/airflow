@@ -31,7 +31,6 @@ from multiprocessing.pool import ThreadPool
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
-from airflow import XComArg
 from airflow.exceptions import (
     AirflowException,
     AirflowRescheduleTaskInstanceException,
@@ -49,10 +48,17 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.sdk.definitions.xcom_arg import _MapResult
 from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
-from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.task_instance_session import get_current_task_instance_session
+
+try:
+    from airflow.sdk.definitions.context import Context, context_get_outlet_events
+    from airflow.sdk.definitions.xcom_args import XComArg
+except ImportError:
+    # TODO: Remove once provider drops support for Airflow 2
+    from airflow.utils.context import Context, context_get_outlet_events
+    from airflow import XComArg
 
 if TYPE_CHECKING:
     import jinja2
