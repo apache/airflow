@@ -219,8 +219,8 @@ class TriggerExecutor(TaskExecutor):
 
             if task_deferred.method_name:
                 try:
-                    next_method = BaseOperator.next_callable(
-                        self.operator, task_deferred.method_name, task_deferred.kwargs
+                    next_method = self.operator.next_callable(
+                        task_deferred.method_name, task_deferred.kwargs
                     )
                     outlet_events = context_get_outlet_events(self.context)
                     return ExecutionCallableRunner(

@@ -154,7 +154,7 @@ class ExecutorSafeguard:
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             from airflow.decorators.base import DecoratedOperator
-            from airflow.models.streamedoperator import StreamedOperator
+            from airflow.models.iterableoperator import IterableOperator
 
             sentinel_key = f"{self.__class__.__name__}__sentinel"
             sentinel = kwargs.pop(sentinel_key, None)
@@ -170,7 +170,7 @@ class ExecutorSafeguard:
                 not cls.test_mode
                 and not sentinel == _sentinel
                 and not isinstance(self, DecoratedOperator)
-                and not isinstance(self, StreamedOperator)
+                and not isinstance(self, IterableOperator)
             ):
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
                 if not self.allow_nested_operators:
@@ -761,8 +761,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
-    @classmethod
-    def next_callable(cls, operator, next_method, next_kwargs) -> Callable[..., Any]:
+    def next_callable(self, next_method, next_kwargs) -> Callable[..., Any]:
         """Get the next callable from given operator."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
@@ -770,13 +769,13 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             next_kwargs = next_kwargs or {}
             traceback = next_kwargs.get("traceback")
             if traceback is not None:
-                cls.log.error("Trigger failed:\n%s", "\n".join(traceback))
+                self.log.error("Trigger failed:\n%s", "\n".join(traceback))
             if (error := next_kwargs.get("error", "Unknown")) == TriggerFailureReason.TRIGGER_TIMEOUT:
                 raise TaskDeferralTimeout(error)
             else:
                 raise TaskDeferralError(error)
         # Grab the callable off the Operator/Task and add in any kwargs
-        execute_callable = getattr(operator, next_method)
+        execute_callable = getattr(self, next_method)
         if next_kwargs:
             execute_callable = functools.partial(execute_callable, **next_kwargs)
         return execute_callable
