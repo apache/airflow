@@ -19,10 +19,10 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
-class LoginResponse(BaseModel):
+class LoginResponse(StrictBaseModel):
     """Login serializer for responses."""
 
     jwt_token: str

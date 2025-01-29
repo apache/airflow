@@ -21,7 +21,7 @@ from typing import Annotated, Any
 
 from pydantic import BeforeValidator, ConfigDict, field_validator
 
-from airflow.api_fastapi.core_api.base import BaseModel, ResponseBaseModel
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.plugins_manager import AirflowPluginSource
 
 
@@ -60,7 +60,7 @@ class AppBuilderMenuItemResponse(BaseModel):
     category: str | None = None
 
 
-class PluginResponse(ResponseBaseModel):
+class PluginResponse(BaseModel):
     """Plugin serializer."""
 
     name: str
@@ -83,7 +83,7 @@ class PluginResponse(ResponseBaseModel):
         return data
 
 
-class PluginCollectionResponse(ResponseBaseModel):
+class PluginCollectionResponse(BaseModel):
     """Plugin Collection serializer."""
 
     plugins: list[PluginResponse]

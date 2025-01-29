@@ -32,7 +32,7 @@ from pydantic import (
     model_validator,
 )
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
 from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
@@ -97,7 +97,7 @@ class TaskDependencyCollectionResponse(BaseModel):
     dependencies: list[TaskDependencyResponse]
 
 
-class TaskInstancesBatchBody(BaseModel):
+class TaskInstancesBatchBody(StrictBaseModel):
     """Task Instance body for get batch."""
 
     dag_ids: list[str] | None = None
@@ -159,7 +159,7 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
     total_entries: int
 
 
-class ClearTaskInstancesBody(BaseModel):
+class ClearTaskInstancesBody(StrictBaseModel):
     """Request body for Clear Task Instances endpoint."""
 
     dry_run: bool = True
@@ -195,7 +195,7 @@ class ClearTaskInstancesBody(BaseModel):
         return data
 
 
-class PatchTaskInstanceBody(BaseModel):
+class PatchTaskInstanceBody(StrictBaseModel):
     """Request body for Clear Task Instances endpoint."""
 
     new_state: TaskInstanceState | None = None

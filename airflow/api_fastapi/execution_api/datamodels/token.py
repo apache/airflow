@@ -17,11 +17,11 @@
 
 from __future__ import annotations
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
 # TODO: This is a placeholder for Task Identity Token schema.
-class TIToken(BaseModel):
+class TIToken(StrictBaseModel):
     """Task Identity Token."""
 
     ti_key: str

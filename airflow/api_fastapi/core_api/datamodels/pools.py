@@ -21,7 +21,7 @@ from typing import Annotated, Callable
 
 from pydantic import BeforeValidator, ConfigDict, Field
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
 def _call_function(function: Callable[[], int]) -> int:
@@ -53,14 +53,14 @@ class PoolResponse(BasePool):
     deferred_slots: Annotated[int, BeforeValidator(_call_function)]
 
 
-class PoolCollectionResponse(BaseModel):
+class PoolCollectionResponse(StrictBaseModel):
     """Pool Collection serializer for responses."""
 
     pools: list[PoolResponse]
     total_entries: int
 
 
-class PoolPatchBody(BaseModel):
+class PoolPatchBody(StrictBaseModel):
     """Pool serializer for patch bodies."""
 
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
@@ -71,7 +71,7 @@ class PoolPatchBody(BaseModel):
     include_deferred: bool | None = None
 
 
-class PoolBody(BasePool):
+class PoolBody(StrictBaseModel, BasePool):
     """Pool serializer for post bodies."""
 
     pool: str = Field(alias="name", max_length=256)
