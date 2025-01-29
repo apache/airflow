@@ -46,19 +46,21 @@ from airflow.models.expandinput import (
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.sdk.definitions.xcom_arg import _MapResult
+from airflow.sdk.definitions._internal.abstractoperator import Operator
 from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
+from airflow.utils.context import context_get_outlet_events
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.task_instance_session import get_current_task_instance_session
 
 try:
-    from airflow.sdk.definitions.context import Context, context_get_outlet_events
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.xcom_args import XComArg
 except ImportError:
     # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context, context_get_outlet_events
     from airflow import XComArg
+    from airflow.utils.context import Contexts
 
 if TYPE_CHECKING:
     import jinja2
@@ -107,7 +109,7 @@ class TaskExecutor(LoggingMixin):
         return {**self.__context, **{"ti": self.task_instance}}
 
     @property
-    def operator(self) -> BaseOperator:
+    def operator(self) -> Operator:
         return self.task_instance.task
 
     @property
