@@ -2601,7 +2601,6 @@ dag_processor:
                 "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
                 "kwargs": {
                     "subdir": "dags",
-                    "repo_url": "https://github.com/example/my-dags.git",
                     "tracking_ref": "main",
                     "refresh_interval": 0
             }
