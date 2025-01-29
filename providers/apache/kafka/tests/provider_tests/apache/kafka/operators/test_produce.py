@@ -69,7 +69,7 @@ class TestProduceToTopic:
         operator = ProduceToTopicOperator(
             kafka_config_id="kafka_d",
             topic="test_1",
-            producer_function="providers.tests.apache.kafka.operators.test_produce._simple_producer",
+            producer_function="provider_tests.apache.kafka.operators.test_produce._simple_producer",
             producer_function_args=(b"test", b"test"),
             task_id="test",
             synchronous=False,
