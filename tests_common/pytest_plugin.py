@@ -971,6 +971,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             serialized=want_serialized,
             activate_assets=want_activate_assets,
             fileloc=None,
+            relative_fileloc=None,
             bundle_name=None,
             session=None,
             **kwargs,
@@ -1001,6 +1002,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             # other scheduling arguments are set.
             self.dag = DAG(dag_id, schedule=schedule, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
+            self.dag.relative_fileloc = relative_fileloc or Path(request.module.__file__).name
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
             self.bundle_name = bundle_name or "dag_maker"

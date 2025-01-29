@@ -43,6 +43,7 @@ from airflow.exceptions import (
     ParamValidationError,
     UnknownExecutorException,
 )
+from airflow.models import DagBag
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -136,6 +137,15 @@ def clear_assets():
     clear_db_assets()
     yield
     clear_db_assets()
+
+
+TEST_DAGS_FOLDER = Path(__file__).parent.parent / "dags"
+
+
+@pytest.fixture
+def test_dags_bundle(configure_testing_dag_bundle):
+    with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
+        yield
 
 
 def _create_dagrun(
@@ -2355,18 +2365,14 @@ class TestDagModel:
         needed = query.all()
         assert needed == []
 
-    @pytest.mark.parametrize(
-        ("fileloc", "expected_relative"),
-        [
-            (os.path.join(settings.DAGS_FOLDER, "a.py"), Path("a.py")),
-            ("/tmp/foo.py", Path("/tmp/foo.py")),
-        ],
-    )
-    def test_relative_fileloc(self, fileloc, expected_relative):
-        dag = DAG(dag_id="test", schedule=None)
-        dag.fileloc = fileloc
-
-        assert dag.relative_fileloc == expected_relative
+    def test_relative_fileloc(self):
+        rel_path = "test_assets.py"
+        bundle_path = TEST_DAGS_FOLDER
+        file_path = bundle_path / rel_path
+        bag = DagBag(dag_folder=file_path, bundle_path=bundle_path)
+        dag = bag.get_dag("dag_with_skip_task")
+        assert dag.fileloc == str(file_path)
+        assert dag.relative_fileloc == str(rel_path)
 
     @pytest.mark.parametrize(
         "reader_dags_folder", [settings.DAGS_FOLDER, str(repo_root / "airflow/example_dags")]
