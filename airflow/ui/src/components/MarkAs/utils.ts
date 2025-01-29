@@ -16,6 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { DAGRunPatchStates } from "openapi/requests/types.gen";
 
-export { default as MarkRunAsButton } from "./Run";
-export { default as MarkTaskInstanceAsButton } from "./TaskInstance";
+export const allowedStates: Array<DAGRunPatchStates> = ["success", "failed"];

@@ -34,6 +34,7 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
@@ -97,6 +98,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     cell: ({ row }) => (
       <Flex justifyContent="end">
         <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
+        <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
