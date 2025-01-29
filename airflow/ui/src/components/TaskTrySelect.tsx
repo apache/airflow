@@ -56,7 +56,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
     {
       enabled: Boolean(finalTryNumber && finalTryNumber > 1), // Only try to look up task tries if try number > 1
       refetchInterval: (query) =>
-        // We actually wan tot use || here
+        // We actually want to use || here
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) || isStatePending(state)
           ? autoRefreshInterval * 1000
