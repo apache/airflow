@@ -511,7 +511,7 @@ class LivyAsyncHook(HttpAsyncHook):
         )
 
         return await self.run_method(
-            endpoint=endpoint, method=self.method, data=data, headers=headers, extra_options=extra_options
+            endpoint=endpoint or "", method=self.method, data=data, headers=headers, extra_options=extra_options
         )
 
     async def run_method(
