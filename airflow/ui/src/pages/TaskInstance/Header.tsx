@@ -23,6 +23,7 @@ import { MdOutlineTask } from "react-icons/md";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { Stat } from "src/components/Stat";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
@@ -52,6 +53,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
           />
         )}
         <ClearTaskInstanceButton taskInstance={taskInstance} />
+        <MarkTaskInstanceAsButton taskInstance={taskInstance} />
       </HStack>
     </Flex>
     <SimpleGrid columns={6} gap={4} my={2}>
