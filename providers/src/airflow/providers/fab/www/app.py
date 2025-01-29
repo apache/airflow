@@ -46,6 +46,7 @@ def create_app(enable_plugins: bool):
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+    flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not isabs(url.database):
