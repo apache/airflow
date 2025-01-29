@@ -111,10 +111,10 @@ jobs:
         timeout-minutes: 25
         env:
           CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
-        run: >
+        run: |
           for PYTHON in $PYTHON_VERSIONS; do
-            breeze release-management generate-constraints
-            --airflow-constraints-mode constraints --answer yes
+            breeze release-management generate-constraints \
+            --airflow-constraints-mode constraints --answer yes \
             --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}"
           done
       - name: "Dependency upgrade summary"
