@@ -216,7 +216,7 @@ If you'd like to reproduce local task job heartbeat timeouts for development/tes
     sleep_dag()
 
 
-Run the above DAG and wait for a while. You should see the task experience a heartbeat timeout and then being killed by the scheduler.
+Run the above DAG and wait for a while. You should see the task experience a heartbeat timeout and then get killed by the scheduler.
 
 
 
