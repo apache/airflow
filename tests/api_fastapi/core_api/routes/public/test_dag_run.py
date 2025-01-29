@@ -1189,7 +1189,7 @@ class TestTriggerDagRun:
         }
 
         assert response.json() == expected_response_json
-        _check_last_log(session, dag_id=DAG1_ID, event=f"public.dags.{DAG1_ID}.dagRuns", logical_date=None)
+        _check_last_log(session, dag_id=DAG1_ID, event=f"/public/dags/{DAG1_ID}/dagRuns", logical_date=None)
 
     @pytest.mark.parametrize(
         "post_body, expected_detail",

@@ -21,11 +21,10 @@ import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
+import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import { Button, Dialog } from "src/components/ui";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
-
-import MarkAsAccordion from "../MarkAsAccordion";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
@@ -42,7 +41,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
   const { isPending, mutate } = usePatchDagRun({ dagId, dagRunId, onSuccess: onClose });
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
@@ -55,7 +54,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
         <Dialog.CloseTrigger />
 
         <Dialog.Body width="full">
-          <MarkAsAccordion note={note} setNote={setNote} />
+          <ActionAccordion note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"
