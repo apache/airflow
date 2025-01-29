@@ -37,10 +37,7 @@ labelPRBasedOnFilePath:
     - providers/apache/cassandra/**
 
   provider:apache-drill:
-    - providers/src/airflow/providers/apache/drill/**/*
-    - docs/apache-airflow-providers-apache-drill/**/*
-    - providers/tests/apache/drill/**/*
-    - providers/tests/system/apache/drill/**/*
+    - providers/apache/drill/**
 
   provider:apache-druid:
     - providers/apache/druid/**
