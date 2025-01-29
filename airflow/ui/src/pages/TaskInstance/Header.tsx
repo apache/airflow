@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack, SimpleGrid } from "@chakra-ui/react";
+import { Box, Flex, Heading, HStack, SimpleGrid, Spinner } from "@chakra-ui/react";
 import { FiMessageSquare } from "react-icons/fi";
 import { MdOutlineTask } from "react-icons/md";
 
@@ -29,7 +29,13 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
 
-export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => (
+export const Header = ({
+  isRefreshing,
+  taskInstance,
+}: {
+  readonly isRefreshing?: boolean;
+  readonly taskInstance: TaskInstanceResponse;
+}) => (
   <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
     <Flex alignItems="center" justifyContent="space-between" mb={2}>
       <HStack alignItems="center" gap={2}>
@@ -39,9 +45,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
           {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
         </Heading>
         <StateBadge state={taskInstance.state}>{taskInstance.state}</StateBadge>
-        <Flex>
-          <div />
-        </Flex>
+        {isRefreshing ? <Spinner /> : <div />}
       </HStack>
       <HStack>
         {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
