@@ -21,6 +21,7 @@ apache-airflow-providers-edge
 apache-airflow-providers-exasol
 apache-airflow-providers-facebook
 apache-airflow-providers-http
+apache-airflow-providers-microsoft-azure
 apache-airflow-providers-mongo
 apache-airflow-providers-openlineage
 apache-airflow-providers-hashicorp

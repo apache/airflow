@@ -638,7 +638,7 @@ repos:
           ^providers/src/airflow/providers/google/cloud/operators/cloud_build.py$|
           ^providers/src/airflow/providers/google/cloud/operators/dataproc.py$|
           ^providers/src/airflow/providers/google/cloud/operators/mlengine.py$|
-          ^providers/src/airflow/providers/microsoft/azure/hooks/cosmos.py$|
+          ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos.py$|
           ^providers/src/airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
