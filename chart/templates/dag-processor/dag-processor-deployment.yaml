@@ -215,6 +215,10 @@ spec:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
           {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.frequencyMinutes }}
+            - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
+              value: "{{ .Values.workers.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
           {{- if .Values.dagProcessor.logGroomerSidecar.env }}

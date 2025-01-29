@@ -191,6 +191,31 @@ class LogGroomerTestBase:
         else:
             assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 1
 
+    @pytest.mark.parametrize("frequency_minutes, frequency_result", [(None, None), (20, "20")])
+    def test_log_groomer_frequency_minutes_overrides(self, frequency_minutes, frequency_result):
+        if self.obj_name == "dag-processor":
+            values = {
+                "dagProcessor": {"enabled": True, "logGroomerSidecar": {"frequencyMinutes": frequency_minutes}}
+            }
+        else:
+            values = {f"{self.folder}": {"logGroomerSidecar": {"frequencyMinutes": frequency_minutes}}}
+
+        docs = render_chart(
+            values=values,
+            show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
+        )
+
+        if frequency_result:
+            assert (
+                jmespath.search("spec.template.spec.containers[1].env[0].name", docs[0])
+                == "AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES"
+            )
+            assert frequency_result == jmespath.search(
+                "spec.template.spec.containers[1].env[0].value", docs[0]
+            )
+        else:
+            assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 1
+
     def test_log_groomer_resources(self):
         if self.obj_name == "dag-processor":
             values = {

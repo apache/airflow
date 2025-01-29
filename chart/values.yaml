@@ -821,6 +821,8 @@ workers:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1023,6 +1025,8 @@ scheduler:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1736,6 +1740,8 @@ triggerer:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1922,6 +1928,8 @@ dagProcessor:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
