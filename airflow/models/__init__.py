@@ -100,7 +100,6 @@ __lazy_imports = {
     "MappedOperator": "airflow.models.mappedoperator",
     "Operator": "airflow.models.operator",
     "Param": "airflow.sdk.definitions.param",
-    "ParamsDict": "airflow.sdk.definitions.param",
     "Pool": "airflow.models.pool",
     "RenderedTaskInstanceFields": "airflow.models.renderedtifields",
     "SkipMixin": "airflow.models.skipmixin",
