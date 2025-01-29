@@ -349,6 +349,7 @@ repos:
           (?x)
           ^providers/[^\/]*/src/airflow/providers/[^\/]*/__init__.py$|
           ^providers/[^\/]*/[^\/]*/src/airflow/providers/[^\/]*/[^\/]*/__init__.py$|
+          ^providers/.*/pyproject\.toml$|
           ^providers/.*/provider.yaml$|
           ^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2$
           ^airflow_breeze/templates/get_provider_info_TEMPLATE.py.jinja2$
@@ -467,6 +468,7 @@ repos:
         language: python
         files: |
           (?x)
+          ^providers/.*/pyproject\.toml$|
           ^providers/.*/provider\.yaml$|
           ^scripts/ci/pre_commit/update_providers_dependencies\.py$
         pass_filenames: false
