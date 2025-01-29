@@ -759,9 +759,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         container_name = "container-name"
         prefix = "prefix"
         self.set_up_operator(
-            awslogs_group="awslogs-group",
-            awslogs_stream_prefix=prefix,
-            container_name=container_name
+            awslogs_group="awslogs-group", awslogs_stream_prefix=prefix, container_name=container_name
         )
 
         assert self.ecs._get_logs_stream_name().startswith(f"{prefix}/{container_name}/")
