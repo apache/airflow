@@ -62,6 +62,8 @@ Extra (optional)
     * ``ssl_context``: Can be "default" or "none". Only valid when SSL is used. The "default" context provides a balance between security and compatibility, "none" is not recommended
       as it disables validation of certificates and allow MITM attacks, and is only needed in case your certificates are wrongly configured in your system. If not specified, defaults are taken from the
       "smtp_provider", "ssl_context" configuration with the fallback to "email". "ssl_context" configuration. If none of it is specified, "default" is used.
+    * ``subject_template``: A path to a file containing the email subject template.
+    * ``html_content_template``: A path to a file containing the email html content template.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
