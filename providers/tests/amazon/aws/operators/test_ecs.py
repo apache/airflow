@@ -184,12 +184,12 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "awslogs_region",
             "awslogs_stream_prefix",
             "awslogs_fetch_interval",
+            "container_name",
             "propagate_tags",
             "reattach",
             "number_logs_exception",
             "wait_for_completion",
             "deferrable",
-            "container_name",
         )
 
     @pytest.mark.parametrize(
