@@ -26,8 +26,8 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 from airflow.triggers.base import TriggerEvent
-
 from provider_tests.microsoft.azure.base import Base
+
 from providers.tests.microsoft.conftest import (
     load_file,
     load_json,

@@ -485,5 +485,11 @@ def get_provider_info():
             "microsoft-kiota-serialization-text==1.0.0",
             "microsoft-kiota-abstractions<1.4.0",
         ],
+        "optional-dependencies": {
+            "amazon": ["apache-airflow-providers-amazon"],
+            "common.compat": ["apache-airflow-providers-common-compat"],
+            "oracle": ["apache-airflow-providers-oracle"],
+            "sftp": ["apache-airflow-providers-sftp"],
+        },
         "devel-dependencies": ["pywinrm>=0.4"],
     }

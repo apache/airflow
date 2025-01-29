@@ -30,8 +30,8 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.utils import timezone
-
 from provider_tests.microsoft.azure.base import Base
+
 from providers.tests.microsoft.conftest import get_airflow_connection
 from tests_common.test_utils.mock_context import mock_context
 

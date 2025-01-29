@@ -33,8 +33,8 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
     ResponseSerializer,
 )
 from airflow.triggers.base import TriggerEvent
-
 from provider_tests.microsoft.azure.base import Base
+
 from providers.tests.microsoft.conftest import (
     get_airflow_connection,
     load_file,

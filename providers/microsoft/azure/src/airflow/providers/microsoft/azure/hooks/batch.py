@@ -22,8 +22,6 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from azure.batch import BatchServiceClient, batch_auth, models as batch_models
-
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
@@ -32,6 +30,7 @@ from airflow.providers.microsoft.azure.utils import (
     get_field,
 )
 from airflow.utils import timezone
+from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 
 if TYPE_CHECKING:
     from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter

@@ -19,11 +19,6 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any, Union
 
-from azure.core.exceptions import ServiceRequestError
-from azure.identity import ClientSecretCredential, DefaultAzureCredential
-from azure.synapse.artifacts import ArtifactsClient
-from azure.synapse.spark import SparkClient
-
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
@@ -31,6 +26,10 @@ from airflow.providers.microsoft.azure.utils import (
     get_field,
     get_sync_default_azure_credential,
 )
+from azure.core.exceptions import ServiceRequestError
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.synapse.artifacts import ArtifactsClient
+from azure.synapse.spark import SparkClient
 
 if TYPE_CHECKING:
     from azure.synapse.artifacts.models import CreateRunResponse, PipelineRun
