@@ -4044,7 +4044,6 @@ export const $PluginCollectionResponse = {
       title: "Total Entries",
     },
   },
-  additionalProperties: false,
   type: "object",
   required: ["plugins", "total_entries"],
   title: "PluginCollectionResponse",
@@ -4125,7 +4124,6 @@ export const $PluginResponse = {
       title: "Timetables",
     },
   },
-  additionalProperties: false,
   type: "object",
   required: [
     "name",

@@ -9222,7 +9222,6 @@ components:
         total_entries:
           type: integer
           title: Total Entries
-      additionalProperties: false
       type: object
       required:
       - plugins
@@ -9282,7 +9281,6 @@ components:
             type: string
           type: array
           title: Timetables
-      additionalProperties: false
       type: object
       required:
       - name

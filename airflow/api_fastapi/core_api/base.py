@@ -29,11 +29,11 @@ class BaseModel(PydanticBaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
 
 
-class ResponseBaseModel(BaseModel):
+class ResponseBaseModel(PydanticBaseModel):
     """
     Base pydantic model for REST API.
 
     :meta private:
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
