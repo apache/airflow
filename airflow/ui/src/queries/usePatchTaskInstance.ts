@@ -38,16 +38,18 @@ export const usePatchTaskInstance = ({
   dagId,
   dagRunId,
   mapIndex,
+  onSuccess,
   taskId,
 }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  onSuccess?: () => void;
   taskId: string;
 }) => {
   const queryClient = useQueryClient();
 
-  const onSuccess = async () => {
+  const onSuccessFn = async () => {
     const queryKeys = [
       UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
       UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
@@ -55,10 +57,14 @@ export const usePatchTaskInstance = ({
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+
+    if (onSuccess) {
+      onSuccess();
+    }
   };
 
   return useTaskInstanceServicePatchTaskInstance({
     onError,
-    onSuccess,
+    onSuccess: onSuccessFn,
   });
 };

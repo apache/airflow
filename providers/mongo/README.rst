@@ -56,7 +56,7 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.9.0``
 ``dnspython``       ``>=1.13.0``
-``pymongo``         ``>=4.0.0``
+``pymongo``         ``>=4.0.0,!=4.11``
 ==================  ==================
 
 The changelog for the provider package can be found in the

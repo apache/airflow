@@ -2667,15 +2667,6 @@ dag_processor:
                     "repo_url": "git@github.com:example.com/my-dags.git",
                     "tracking_ref": "main",
                     "refresh_interval": 0
-            },
-            {
-                "name": "my-git-repo",
-                "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
-                "kwargs": {
-                    "subdir": "dags",
-                    "repo_url": "https://github.com/example/my-dags.git",
-                    "tracking_ref": "main",
-                    "refresh_interval": 0
             }
             ]
       default: >

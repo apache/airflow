@@ -72,6 +72,6 @@ def get_provider_info():
         "connection-types": [
             {"hook-class-name": "airflow.providers.mongo.hooks.mongo.MongoHook", "connection-type": "mongo"}
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "dnspython>=1.13.0", "pymongo>=4.0.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "dnspython>=1.13.0", "pymongo>=4.0.0,!=4.11"],
         "devel-dependencies": ["mongomock>=4.0.0"],
     }
