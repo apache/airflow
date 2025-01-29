@@ -332,7 +332,9 @@ class KiotaRequestAdapterHook(BaseHook):
             with suppress(Exception):
                 proxies = literal_eval(proxies)
         if not isinstance(proxies, dict):
-            raise AirflowConfigException(f"Proxies must be of type dict, got {type(proxies).__name__} instead!")
+            raise AirflowConfigException(
+                f"Proxies must be of type dict, got {type(proxies).__name__} instead!"
+            )
         return proxies
 
     def get_credentials(
