@@ -30,7 +30,7 @@ export type Props = {
 export const StateBadge = React.forwardRef<HTMLDivElement, Props>(({ children, state, ...rest }, ref) => (
   <Badge
     borderRadius="full"
-    colorPalette={state ?? undefined}
+    colorPalette={state === null ? "none" : state}
     fontSize="sm"
     px={children === undefined ? 1 : 2}
     py={1}
@@ -38,7 +38,7 @@ export const StateBadge = React.forwardRef<HTMLDivElement, Props>(({ children, s
     variant="solid"
     {...rest}
   >
-    {state ? <StateIcon state={state} /> : undefined}
+    {state === undefined ? undefined : <StateIcon state={state} />}
     {children}
   </Badge>
 ));

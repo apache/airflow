@@ -16,15 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Progress as ChakraProgress } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
 
-export const ProgressBar = forwardRef<HTMLDivElement, ChakraProgress.RootProps>((props, ref) => (
-  // default to indeterminate
-  // eslint-disable-next-line unicorn/no-null
-  <ChakraProgress.Root value={null} {...props} ref={ref}>
-    <ChakraProgress.Track>
-      <ChakraProgress.Range />
-    </ChakraProgress.Track>
-  </ChakraProgress.Root>
-));
+export const isStatePending = (state?: TaskInstanceState | null) =>
+  state === "deferred" ||
+  state === "scheduled" ||
+  state === "running" ||
+  state === "up_for_reschedule" ||
+  state === "up_for_retry" ||
+  state === "queued" ||
+  state === "restarting" ||
+  !Boolean(state);
