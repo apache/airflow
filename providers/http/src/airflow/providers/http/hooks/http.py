@@ -591,6 +591,8 @@ class HttpAsyncHook(BaseHook):
 
             return response
 
+        raise NotImplementedError  # should not reach this, but makes mypy happy
+
     @classmethod
     def _process_extra_options_from_connection(cls, conn: Connection, extra_options: dict) -> dict:
         extra = conn.extra_dejson
