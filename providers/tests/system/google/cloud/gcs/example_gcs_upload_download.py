@@ -29,8 +29,8 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from airflow.providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 from airflow.utils.trigger_rule import TriggerRule
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
