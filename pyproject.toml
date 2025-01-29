@@ -645,6 +645,7 @@ dev = [
   "apache-airflow-providers-docker",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-dbt-cloud",
+  "apache-airflow-providers-dingding",
   "apache-airflow-providers-discord",
   "apache-airflow-providers-edge",
   "apache-airflow-providers-elasticsearch",
@@ -720,6 +721,7 @@ apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-dbt-cloud = { workspace = true }
+apache-airflow-providers-dingding = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-docker = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
@@ -794,6 +796,7 @@ members = [
     "providers/common/sql",
     "providers/datadog",
     "providers/dbt/cloud",
+    "providers/dingding",
     "providers/discord",
     "providers/docker",
     "providers/edge",
