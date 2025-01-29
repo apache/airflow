@@ -51,17 +51,16 @@ def upgrade():
             existing_type=TIMESTAMP(timezone=True),
             existing_nullable=True,
         )
-    with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.drop_constraint("dag_run_dag_id_execution_date_key", type_="unique")
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.create_unique_constraint(
-            "dag_run_dag_id_run_id_key",
-            columns=["dag_id", "run_id"],
-        )
+        batch_op.drop_constraint("dag_run_dag_id_execution_date_key", type_="unique")
         batch_op.create_unique_constraint(
             "dag_run_dag_id_logical_date_key",
             columns=["dag_id", "logical_date"],
+        )
+        batch_op.create_unique_constraint(
+            "dag_run_dag_id_run_id_key",
+            columns=["dag_id", "run_id"],
         )
 
 
@@ -75,17 +74,14 @@ def downgrade():
         )
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        with op.batch_alter_table("dag_run", schema=None) as batch_op:
-            batch_op.drop_constraint(
-                "dag_run_dag_id_run_id_key",
-                columns=["dag_id", "run_id"],
-            )
-            batch_op.drop_constraint(
-                "dag_run_dag_id_logical_date_key",
-                columns=["dag_id", "logical_date"],
-            )
-
-    with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        batch_op.drop_constraint(
+            "dag_run_dag_id_run_id_key",
+            columns=["dag_id", "run_id"],
+        )
+        batch_op.drop_constraint(
+            "dag_run_dag_id_logical_date_key",
+            columns=["dag_id", "logical_date"],
+        )
         batch_op.create_unique_constraint(
             "dag_run_dag_id_execution_date_key",
             columns=["dag_id", "execution_date"],
