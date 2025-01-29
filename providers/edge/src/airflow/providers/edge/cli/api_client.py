@@ -106,13 +106,15 @@ def worker_set_state(
     hostname: str, state: EdgeWorkerState, jobs_active: int, queues: list[str] | None, sysinfo: dict
 ) -> WorkerSetStateReturn:
     """Update the state of the worker in the central site and thereby implicitly heartbeat."""
-    return _make_generic_request(
+    result = _make_generic_request(
         "PATCH",
         f"worker/{quote(hostname)}",
         WorkerStateBody(state=state, jobs_active=jobs_active, queues=queues, sysinfo=sysinfo).model_dump_json(
             exclude_unset=True
         ),
     )
+    return WorkerSetStateReturn(**result)
+
 
 
 def jobs_fetch(hostname: str, queues: list[str] | None, free_concurrency: int) -> EdgeJobFetched | None:
