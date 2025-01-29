@@ -27,7 +27,7 @@ from typing import Any
 
 import requests
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.http.exceptions import HttpErrorException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
@@ -506,7 +506,7 @@ class LivyAsyncHook(HttpAsyncHook):
     ) -> Any:
         warnings.warn(
             "The '_do_api_call_async' method is deprecated, use 'run_method' instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
 

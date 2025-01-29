@@ -503,6 +503,18 @@ class TestLivyAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.http.hooks.http.HttpAsyncHook.run")
+    async def test_do_api_call_async_gives_deprecation_warning(self, mock_run):
+        """Asserts the run_method for success response."""
+        from airflow.exceptions import AirflowProviderDeprecationWarning
+
+        mock_run.return_value = {"status": "error", "response": {"id": 1}}
+        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="deprecated"):
+            response = await hook._do_api_call_async("localhost")
+            assert response["status"] == "success"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.http.hooks.http.HttpAsyncHook.run")
     async def test_run_method_success(self, mock_run):
         """Asserts the run_method for success response."""
         mock_run.return_value = {"status": "error", "response": {"id": 1}}
