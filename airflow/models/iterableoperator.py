@@ -439,7 +439,6 @@ class IterableOperator(BaseOperator):
         task_instance = TaskInstance(
             task=operator,
             run_id=context["ti"].run_id,
-            state=context["ti"].state,
             map_index=index,
         )
         return task_instance
