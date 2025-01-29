@@ -687,6 +687,7 @@
       "proto-plus>=1.19.6",
       "pyarrow>=14.0.1",
       "python-slugify>=7.0.0",
+      "scikit-learn>=1.6.1",
       "sqlalchemy-bigquery>=1.2.1",
       "sqlalchemy-spanner>=1.6.2",
       "tenacity>=8.1.0"
