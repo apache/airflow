@@ -33,7 +33,7 @@ from airflow.models.dag import DAG
 from airflow.models.variable import Variable
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.compat.standard.operators import PythonOperator
-from airflow.sdk.definitions.param import Param
+from airflow.sdk import Param
 from airflow.utils.trigger_rule import TriggerRule
 
 try:
