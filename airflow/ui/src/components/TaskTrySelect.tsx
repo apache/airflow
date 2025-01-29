@@ -94,8 +94,8 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
               ) => <StateBadge state={items[0]?.task_instance.state}>{items[0]?.value}</StateBadge>}
             </Select.ValueText>
           </Select.Trigger>
-          <Select.Content>
-            {tryOptions.items.reverse().map((option) => (
+          <Select.Content flexDirection="column-reverse">
+            {tryOptions.items.map((option) => (
               <Select.Item item={option} key={option.value}>
                 <span>
                   {option.value}:

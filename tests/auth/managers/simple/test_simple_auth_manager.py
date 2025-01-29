@@ -17,15 +17,13 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import Mock, patch
 
 import pytest
-from flask import Flask, session
+from flask import Flask
 
 from airflow.auth.managers.models.resource_details import AccessView
 from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 from tests_common.test_utils.config import conf_vars
@@ -83,74 +81,9 @@ class TestSimpleAuthManager:
 
                 assert len(user_passwords_from_file) == 2
 
-    @pytest.mark.db_test
-    def test_is_logged_in(self, auth_manager, app, test_user):
-        with app.test_request_context():
-            session["user"] = test_user
-            result = auth_manager.is_logged_in()
-        assert result
-
-    @pytest.mark.db_test
-    def test_is_logged_in_return_false_when_no_user_in_session(self, auth_manager, app):
-        with app.test_request_context():
-            result = auth_manager.is_logged_in()
-
-        assert result is False
-
-    @pytest.mark.db_test
-    def test_is_logged_in_with_all_admins(self, auth_manager, app):
-        with conf_vars(
-            {
-                ("core", "simple_auth_manager_all_admins"): "True",
-            }
-        ):
-            with app.test_request_context():
-                result = auth_manager.is_logged_in()
-            assert result
-
-    @patch("airflow.auth.managers.simple.simple_auth_manager.url_for")
-    def test_get_url_login(self, mock_url_for, auth_manager):
-        auth_manager.get_url_login()
-        mock_url_for.assert_called_once_with("SimpleAuthManagerAuthenticationViews.login", next=None)
-
-    @patch("airflow.auth.managers.simple.simple_auth_manager.url_for")
-    def test_get_url_logout(self, mock_url_for, auth_manager):
-        auth_manager.get_url_logout()
-        mock_url_for.assert_called_once_with("SimpleAuthManagerAuthenticationViews.logout")
-
-    @pytest.mark.db_test
-    @patch.object(SimpleAuthManager, "is_logged_in")
-    def test_get_user(self, mock_is_logged_in, auth_manager, app, test_user):
-        mock_is_logged_in.return_value = True
-
-        with app.test_request_context():
-            session["user"] = test_user
-            result = auth_manager.get_user()
-
-        assert result == test_user
-
-    @pytest.mark.db_test
-    @patch.object(SimpleAuthManager, "is_logged_in")
-    def test_get_user_with_all_admins(self, mock_is_logged_in, auth_manager, app):
-        mock_is_logged_in.return_value = True
-
-        with conf_vars(
-            {
-                ("core", "simple_auth_manager_all_admins"): "True",
-            }
-        ):
-            with app.test_request_context():
-                result = auth_manager.get_user()
-
-        assert result.username == "anonymous"
-        assert result.role == "admin"
-
-    @patch.object(SimpleAuthManager, "is_logged_in")
-    def test_get_user_return_none_when_not_logged_in(self, mock_is_logged_in, auth_manager):
-        mock_is_logged_in.return_value = False
-        result = auth_manager.get_user()
-
-        assert result is None
+    def test_get_url_login(self, auth_manager):
+        result = auth_manager.get_url_login()
+        assert result == "/auth/webapp/login"
 
     def test_deserialize_user(self, auth_manager):
         result = auth_manager.deserialize_user({"username": "test", "role": "admin"})
@@ -301,13 +234,3 @@ class TestSimpleAuthManager:
                 )
                 is result
             )
-
-    @pytest.mark.db_test
-    def test_register_views(self, auth_manager_with_appbuilder):
-        auth_manager_with_appbuilder.appbuilder.add_view_no_menu = Mock()
-        auth_manager_with_appbuilder.register_views()
-        auth_manager_with_appbuilder.appbuilder.add_view_no_menu.assert_called_once()
-        assert isinstance(
-            auth_manager_with_appbuilder.appbuilder.add_view_no_menu.call_args.args[0],
-            SimpleAuthManagerAuthenticationViews,
-        )

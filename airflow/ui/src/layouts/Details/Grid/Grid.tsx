@@ -139,9 +139,11 @@ export const Grid = () => {
               </>
             )}
           </Flex>
-          {runs.reverse().map((dr, index) => (
-            <Bar index={index} key={dr.dag_run_id} limit={limit} max={max} nodes={flatNodes} run={dr} />
-          ))}
+          <Flex flexDirection="row-reverse">
+            {runs.map((dr, index) => (
+              <Bar index={index} key={dr.dag_run_id} limit={limit} max={max} nodes={flatNodes} run={dr} />
+            ))}
+          </Flex>
           <IconButton
             aria-label={`+${OFFSET_CHANGE} newer dag runs`}
             disabled={offset === 0}
