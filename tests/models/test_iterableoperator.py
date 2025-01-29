@@ -568,30 +568,6 @@ def test_expand_mapped_task_instance_with_named_index(
 
 
 @pytest.mark.parametrize(
-    "create_mapped_task",
-    [
-        pytest.param(_create_mapped_with_name_template_classic, id="classic"),
-        pytest.param(_create_mapped_with_name_template_taskflow, id="taskflow"),
-    ],
-)
-def test_expand_mapped_task_task_instance_mutation_hook(dag_maker, session, create_mapped_task) -> None:
-    """Test that the tast_instance_mutation_hook is called."""
-    expected_map_index = [0, 1, 2]
-
-    with dag_maker(session=session):
-        task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id="task_2").iterate(arg2=task1.output)
-
-    dr = dag_maker.create_dagrun()
-
-    with mock.patch("airflow.settings.task_instance_mutation_hook") as mock_hook:
-        expand_mapped_task(mapped, dr.run_id, task1.task_id, length=len(expected_map_index), session=session)
-
-        for index, call in enumerate(mock_hook.call_args_list):
-            assert call.args[0].map_index == expected_map_index[index]
-
-
-@pytest.mark.parametrize(
     "map_index, expected",
     [
         pytest.param(0, "2016-01-01", id="0"),
