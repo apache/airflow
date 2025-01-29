@@ -133,31 +133,33 @@ class DagFileProcessorManager:
     processors finish, more are launched. The files are processed over and
     over again, but no more often than the specified interval.
 
-    :param max_runs: The number of times to parse and schedule each file. -1
-        for unlimited.
+    :param max_runs: The number of times to parse each file. -1 for unlimited.
     :param processor_timeout: How long to wait before timing out a DAG file processor
-    :param signal_conn: connection to communicate signal with processor agent.
     """
 
     max_runs: int
-    processor_timeout: float = attrs.field(factory=_config_int_factory("core", "dag_file_processor_timeout"))
+    processor_timeout: float = attrs.field(
+        factory=_config_int_factory("dag_processor", "dag_file_processor_timeout")
+    )
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
 
-    _parallelism: int = attrs.field(factory=_config_int_factory("scheduler", "parsing_processes"))
+    _parallelism: int = attrs.field(factory=_config_int_factory("dag_processor", "parsing_processes"))
 
     parsing_cleanup_interval: float = attrs.field(
         factory=_config_int_factory("scheduler", "parsing_cleanup_interval")
     )
     _file_process_interval: float = attrs.field(
-        factory=_config_int_factory("scheduler", "min_file_process_interval")
+        factory=_config_int_factory("dag_processor", "min_file_process_interval")
     )
-    stale_dag_threshold: float = attrs.field(factory=_config_int_factory("scheduler", "stale_dag_threshold"))
+    stale_dag_threshold: float = attrs.field(
+        factory=_config_int_factory("dag_processor", "stale_dag_threshold")
+    )
 
     log: logging.Logger = attrs.field(default=log, init=False)
 
     _last_deactivate_stale_dags_time: float = attrs.field(default=0, init=False)
     print_stats_interval: float = attrs.field(
-        factory=_config_int_factory("scheduler", "print_stats_interval")
+        factory=_config_int_factory("dag_processor", "print_stats_interval")
     )
     last_stat_print_time: float = attrs.field(default=0, init=False)
 
@@ -183,7 +185,7 @@ class DagFileProcessorManager:
     )
 
     max_callbacks_per_loop: int = attrs.field(
-        factory=_config_int_factory("scheduler", "max_callbacks_per_loop")
+        factory=_config_int_factory("dag_processor", "max_callbacks_per_loop")
     )
 
     base_log_dir: str = attrs.field(factory=_config_get_factory("scheduler", "CHILD_PROCESS_LOG_DIRECTORY"))
@@ -445,21 +447,11 @@ class DagFileProcessorManager:
                 elapsed_time_since_refresh = (
                     now - (bundle_model.last_refreshed or timezone.utc_epoch())
                 ).total_seconds()
-                if bundle.supports_versioning:
-                    # we will also check the version of the bundle to see if another DAG processor has seen
-                    # a new version
-                    pre_refresh_version = (
-                        self._bundle_versions.get(bundle.name) or bundle.get_current_version()
-                    )
-                    current_version_matches_db = pre_refresh_version == bundle_model.version
-                else:
-                    # With no versioning, it always "matches"
-                    current_version_matches_db = True
-
+                pre_refresh_version = bundle.get_current_version()
                 previously_seen = bundle.name in self._bundle_versions
                 if (
                     elapsed_time_since_refresh < bundle.refresh_interval
-                    and current_version_matches_db
+                    and bundle_model.version == pre_refresh_version
                     and previously_seen
                 ):
                     self.log.info("Not time to refresh %s", bundle.name)
@@ -473,17 +465,13 @@ class DagFileProcessorManager:
 
                 bundle_model.last_refreshed = now
 
+                version_after_refresh = bundle.get_current_version()
                 if bundle.supports_versioning:
                     # We can short-circuit the rest of this if (1) bundle was seen before by
                     # this dag processor and (2) the version of the bundle did not change
                     # after refreshing it
-                    version_after_refresh = bundle.get_current_version()
                     if previously_seen and pre_refresh_version == version_after_refresh:
-                        self.log.debug(
-                            "Bundle %s version not changed after refresh: %s",
-                            bundle.name,
-                            version_after_refresh,
-                        )
+                        self.log.debug("Bundle %s version not changed after refresh", bundle.name)
                         continue
 
                     bundle_model.version = version_after_refresh
@@ -491,10 +479,6 @@ class DagFileProcessorManager:
                     self.log.info(
                         "Version changed for %s, new version: %s", bundle.name, version_after_refresh
                     )
-                else:
-                    version_after_refresh = None
-
-            self._bundle_versions[bundle.name] = version_after_refresh
 
             bundle_file_paths = self._find_files_in_bundle(bundle)
 
@@ -506,6 +490,8 @@ class DagFileProcessorManager:
 
             self.deactivate_deleted_dags(bundle_file_paths)
             self.clear_nonexistent_import_errors()
+
+            self._bundle_versions[bundle.name] = bundle.get_current_version()
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[str]:
         """Refresh file paths from bundle dir."""
@@ -818,7 +804,7 @@ class DagFileProcessorManager:
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode
-        list_mode = conf.get("scheduler", "file_parsing_sort_mode")
+        list_mode = conf.get("dag_processor", "file_parsing_sort_mode")
 
         files_with_mtime: dict[str, datetime] = {}
         file_paths = []
@@ -857,7 +843,7 @@ class DagFileProcessorManager:
         elif list_mode == "alphabetical":
             file_paths.sort()
         elif list_mode == "random_seeded_by_host":
-            # Shuffle the list seeded by hostname so multiple schedulers can work on different
+            # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
             random.Random(get_hostname()).shuffle(file_paths)
 
@@ -876,7 +862,7 @@ class DagFileProcessorManager:
         )
 
         # Do not convert the following list to set as set does not preserve the order
-        # and we need to maintain the order of file_paths for `[scheduler] file_parsing_sort_mode`
+        # and we need to maintain the order of file_paths for `[dag_processor] file_parsing_sort_mode`
         files_paths_to_queue = [
             file_path for file_path in file_paths if file_path not in file_paths_to_exclude
         ]

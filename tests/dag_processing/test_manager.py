@@ -62,7 +62,6 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_callbacks,
-    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_import_errors,
     clear_db_runs,
@@ -94,7 +93,6 @@ class TestDagFileProcessorManager:
         clear_db_dags()
         clear_db_callbacks()
         clear_db_import_errors()
-        clear_db_dag_bundles()
 
     def teardown_class(self):
         clear_db_assets()
@@ -103,7 +101,6 @@ class TestDagFileProcessorManager:
         clear_db_dags()
         clear_db_callbacks()
         clear_db_import_errors()
-        clear_db_dag_bundles()
 
     def mock_processor(self) -> DagFileProcessorProcess:
         proc = MagicMock()
@@ -178,7 +175,7 @@ class TestDagFileProcessorManager:
         with mock.patch.object(DagFileProcessorManager, "_create_process"):
             manager._start_new_processes()
 
-        # Because of the config: '[scheduler] parsing_processes = 2'
+        # Because of the config: '[dag_processor] parsing_processes = 2'
         # verify that only one extra process is created
         # and since a processor with 'file_1' already exists,
         # even though it is first in '_file_path_queue'
@@ -210,7 +207,7 @@ class TestDagFileProcessorManager:
         manager.set_file_paths([file])
         assert manager._processors == {file: mock_processor}
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "alphabetical"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
     def test_file_paths_in_queue_sorted_alphabetically(self):
         """Test dag files are sorted alphabetically"""
         file_names = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
@@ -224,7 +221,7 @@ class TestDagFileProcessorManager:
         manager.prepare_file_path_queue()
         assert manager._file_path_queue == deque(ordered_dag_files)
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "random_seeded_by_host"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "random_seeded_by_host"})
     def test_file_paths_in_queue_sorted_random_seeded_by_host(self):
         """Test files are randomly sorted and seeded by host name"""
         dag_files = _get_dag_file_paths(["file_3.py", "file_2.py", "file_4.py", "file_1.py"])
@@ -244,7 +241,7 @@ class TestDagFileProcessorManager:
         manager.prepare_file_path_queue()
         assert manager._file_path_queue == expected_order
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_file_paths_in_queue_sorted_by_modified_time(self, mock_getmtime):
         """Test files are sorted by modified time"""
@@ -260,7 +257,7 @@ class TestDagFileProcessorManager:
         ordered_files = _get_dag_file_paths(["file_4.py", "file_1.py", "file_3.py", "file_2.py"])
         assert manager._file_path_queue == deque(ordered_files)
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_file_paths_in_queue_excludes_missing_file(self, mock_getmtime):
         """Check that a file is not enqueued for processing if it has been deleted"""
@@ -275,7 +272,7 @@ class TestDagFileProcessorManager:
         ordered_files = _get_dag_file_paths(["file_2.py", "file_3.py"])
         assert manager._file_path_queue == deque(ordered_files)
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_add_new_file_to_parsing_queue(self, mock_getmtime):
         """Check that new file is added to parsing queue"""
@@ -294,7 +291,7 @@ class TestDagFileProcessorManager:
         ordered_files = _get_dag_file_paths(["file_4.py", "file_3.py", "file_2.py", "file_1.py"])
         assert manager._file_path_queue == deque(ordered_files)
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_recently_modified_file_is_parsed_with_mtime_mode(self, mock_getmtime):
         """
@@ -530,9 +527,7 @@ class TestDagFileProcessorManager:
             any_order=True,
         )
 
-    def test_refresh_dags_dir_doesnt_delete_zipped_dags(
-        self, tmp_path, testing_dag_bundle, configure_testing_dag_bundle
-    ):
+    def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmp_path, configure_testing_dag_bundle):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
         dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
         zipped_dag_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
@@ -610,7 +605,7 @@ class TestDagFileProcessorManager:
 
     @conf_vars(
         {
-            ("scheduler", "max_callbacks_per_loop"): "2",
+            ("dag_processor", "max_callbacks_per_loop"): "2",
             ("core", "load_examples"): "False",
         }
     )
@@ -796,7 +791,7 @@ class TestDagFileProcessorManager:
     def test_bundles_versions_are_stored(self):
         config = [
             {
-                "name": "bundleone",
+                "name": "mybundle",
                 "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
                 "kwargs": {"path": "/dev/null", "refresh_interval": 0},
             },
@@ -821,61 +816,3 @@ class TestDagFileProcessorManager:
         with create_session() as session:
             model = session.get(DagBundleModel, "bundleone")
             assert model.version == "123"
-
-    def test_non_versioned_bundle_get_version_not_called(self):
-        config = [
-            {
-                "name": "bundleone",
-                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
-            },
-        ]
-
-        mybundle = MagicMock()
-        mybundle.name = "bundleone"
-        mybundle.refresh_interval = 0
-        mybundle.supports_versioning = False
-
-        with conf_vars({("dag_bundles", "config_list"): json.dumps(config)}):
-            DagBundlesManager().sync_bundles_to_db()
-            with mock.patch(
-                "airflow.dag_processing.bundles.manager.DagBundlesManager"
-            ) as mock_bundle_manager:
-                mock_bundle_manager.return_value._bundle_config = {"bundleone": None}
-                mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [mybundle]
-                manager = DagFileProcessorManager(max_runs=1)
-                manager.run()
-
-        mybundle.get_current_version.assert_not_called()
-
-    def test_versioned_bundle_get_version_called_once(self):
-        """Make sure in a normal "warm" loop, get_current_version is called just once after refresha"""
-
-        config = [
-            {
-                "name": "bundleone",
-                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
-            },
-        ]
-
-        mybundle = MagicMock()
-        mybundle.name = "bundleone"
-        mybundle.refresh_interval = 0
-        mybundle.supports_versioning = True
-        mybundle.get_current_version.return_value = "123"
-
-        with conf_vars({("dag_bundles", "config_list"): json.dumps(config)}):
-            DagBundlesManager().sync_bundles_to_db()
-            with mock.patch(
-                "airflow.dag_processing.bundles.manager.DagBundlesManager"
-            ) as mock_bundle_manager:
-                mock_bundle_manager.return_value._bundle_config = {"bundleone": None}
-                mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [mybundle]
-                manager = DagFileProcessorManager(max_runs=1)
-                manager.run()  # run it once to warm up
-
-                # now run it again so we can check we only call get_current_version once
-                mybundle.get_current_version.reset_mock()
-                manager.run()
-                mybundle.get_current_version.assert_called_once()

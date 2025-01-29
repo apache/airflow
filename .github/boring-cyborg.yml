@@ -91,10 +91,7 @@ labelPRBasedOnFilePath:
     - providers/apache/pig/**
 
   provider:apache-pinot:
-    - providers/src/airflow/providers/apache/pinot/**/*
-    - docs/apache-airflow-providers-apache-pinot/**/*
-    - providers/tests/apache/pinot/**/*
-    - providers/tests/system/apache/pinot/**/*
+    - providers/apache/pinot/**
 
   provider:apache-spark:
     - providers/apache/spark/**
@@ -271,9 +268,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/microsoft/winrm/**/*
 
   provider:mongo:
-    - providers/src/airflow/providers/mongo/**/*
-    - docs/apache-airflow-providers-mongo/**/*
-    - providers/tests/mongo/**/*
+    - providers/mongo/**
 
   provider:mysql:
     - providers/mysql/**
@@ -349,9 +344,7 @@ labelPRBasedOnFilePath:
     - providers/segment/**
 
   provider:sftp:
-    - providers/src/airflow/providers/sftp/**/*
-    - docs/apache-airflow-providers-sftp/**/*
-    - providers/tests/sftp/**/*
+    - providers/sftp/**
 
   provider:singularity:
     - providers/singularity/**

@@ -628,6 +628,7 @@ dev = [
   "apache-airflow-providers-apache-kafka",
   "apache-airflow-providers-apache-kylin",
   "apache-airflow-providers-apache-pig",
+  "apache-airflow-providers-apache-pinot",
   "apache-airflow-providers-apache-spark",
   "apache-airflow-providers-asana",
   "apache-airflow-providers-celery",
@@ -641,6 +642,7 @@ dev = [
   "apache-airflow-providers-exasol",
   "apache-airflow-providers-facebook",
   "apache-airflow-providers-http",
+  "apache-airflow-providers-mongo",
   "apache-airflow-providers-openlineage",
   "apache-airflow-providers-hashicorp",
   "apache-airflow-providers-imap",
@@ -654,6 +656,7 @@ dev = [
   "apache-airflow-providers-odbc",
   "apache-airflow-providers-jenkins",
   "apache-airflow-providers-pagerduty",
+  "apache-airflow-providers-sftp",
   "apache-airflow-providers-snowflake",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
@@ -685,6 +688,7 @@ apache-airflow-providers-apache-iceberg = {workspace = true}
 apache-airflow-providers-apache-kafka = { workspace = true }
 apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
+apache-airflow-providers-apache-pinot = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
@@ -698,6 +702,7 @@ apache-airflow-providers-edge = {workspace = true}
 apache-airflow-providers-exasol = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
+apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
@@ -717,6 +722,7 @@ apache-airflow-providers-presto = { workspace = true }
 apache-airflow-providers-qdrant = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
+apache-airflow-providers-sftp = { workspace = true }
 apache-airflow-providers-singularity = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-snowflake = { workspace = true }
@@ -740,6 +746,7 @@ members = [
     "providers/apache/kafka",
     "providers/apache/kylin",
     "providers/apache/pig",
+    "providers/apache/pinot",
     "providers/apache/spark",
     "providers/asana",
     "providers/celery",
@@ -756,6 +763,7 @@ members = [
     "providers/http",
     "providers/imap",
     "providers/jenkins",
+    "providers/mongo",
     "providers/mysql",
     "providers/neo4j",
     "providers/odbc",
@@ -772,6 +780,7 @@ members = [
     "providers/qdrant",
     "providers/samba",
     "providers/segment",
+    "providers/sftp",
     "providers/singularity",
     "providers/ssh",
     "providers/snowflake",

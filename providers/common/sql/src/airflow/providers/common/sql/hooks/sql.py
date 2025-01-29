@@ -207,7 +207,7 @@ class DbApiHook(BaseHook):
     @property
     def insert_statement_format(self) -> str:
         """Return the insert statement format."""
-        if not self._insert_statement_format:
+        if self._insert_statement_format is None:
             self._insert_statement_format = self.connection_extra.get(
                 "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
             )
@@ -216,7 +216,7 @@ class DbApiHook(BaseHook):
     @property
     def replace_statement_format(self) -> str:
         """Return the replacement statement format."""
-        if not self._replace_statement_format:
+        if self._replace_statement_format is None:
             self._replace_statement_format = self.connection_extra.get(
                 "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
             )
@@ -225,14 +225,14 @@ class DbApiHook(BaseHook):
     @property
     def escape_word_format(self) -> str:
         """Return the escape word format."""
-        if not self._escape_word_format:
+        if self._escape_word_format is None:
             self._escape_word_format = self.connection_extra.get("escape_word_format", '"{}"')
         return self._escape_word_format
 
     @property
     def escape_column_names(self) -> bool:
         """Return the escape column names flag."""
-        if not self._escape_column_names:
+        if self._escape_column_names is None:
             self._escape_column_names = self.connection_extra.get("escape_column_names", False)
         return self._escape_column_names
 

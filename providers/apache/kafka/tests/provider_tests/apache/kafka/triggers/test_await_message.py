@@ -100,7 +100,7 @@ class TestTrigger:
 
         trigger = AwaitMessageTrigger(
             kafka_config_id="kafka_d",
-            apply_function="providers.tests.apache.kafka.triggers.test_await_message.apply_function_true",
+            apply_function="provider_tests.apache.kafka.triggers.test_await_message.apply_function_true",
             topics=["noop"],
             poll_timeout=0.0001,
             poll_interval=5,
@@ -117,7 +117,7 @@ class TestTrigger:
 
         trigger = AwaitMessageTrigger(
             kafka_config_id="kafka_d",
-            apply_function="providers.tests.apache.kafka.triggers.test_await_message.apply_function_false",
+            apply_function="provider_tests.apache.kafka.triggers.test_await_message.apply_function_false",
             topics=["noop"],
             poll_timeout=0.0001,
             poll_interval=5,
