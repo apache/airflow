@@ -376,8 +376,8 @@ FILEFORMAT = {self._file_format}
         """Parse file_location to build the input dataset."""
         from airflow.providers.common.compat.openlineage.facet import Dataset, Error
 
-        input_datasets = []
-        extraction_errors = []
+        input_datasets: list[Dataset] = []
+        extraction_errors: list[Error] = []
 
         if not self.file_location:
             return input_datasets, extraction_errors
@@ -407,7 +407,7 @@ FILEFORMAT = {self._file_format}
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         job_facets = {}
-        extraction_errors = []
+        extraction_errors: list[Error] = []
 
         try:
             import re
