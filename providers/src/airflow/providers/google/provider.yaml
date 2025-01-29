@@ -119,6 +119,7 @@ dependencies:
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
   # Google cloud aiplatform 1.79.0 has a dependency on sklearn which we don't use directly.
+  # See https://github.com/apache/airflow/issues/46258
   - google-cloud-aiplatform>=1.73.0,!=1.79.0
   - google-cloud-alloydb>=0.4.0
   - google-cloud-automl>=2.12.0
