@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 export const ExtraLinks = () => {
+  // TODO: Add support for mapped tasks using map_index once API support is available
   const { dagId = "", runId = "", taskId = "" } = useParams();
   const { data, isLoading } = useTaskInstanceServiceGetExtraLinks({ dagId, dagRunId: runId, taskId });
 
@@ -31,7 +32,7 @@ export const ExtraLinks = () => {
       <HStack gap={2} py={2}>
         {Object.keys(data).map((key) =>
           data[key] === null ? undefined : (
-            <Button asChild colorPalette="blue" key={key}>
+            <Button asChild colorPalette="blue" key={key} variant="surface">
               <a href={data[key]} rel="noreferrer" target="_blank">
                 {key}
               </a>
