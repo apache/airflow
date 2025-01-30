@@ -269,10 +269,7 @@ class DagFileProcessorManager:
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
-            bundle_path = Path(dag.fileloc[: -len(str(dag.relative_fileloc))])
-            dag_file_path = DagFileInfo(
-                path=dag.fileloc, bundle_path=bundle_path, bundle_name=dag.bundle_name
-            )
+            dag_file_path = DagFileInfo(path=dag.fileloc, bundle_name=dag.bundle_name)
             if (
                 dag_file_path in last_parsed
                 and (dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold))
