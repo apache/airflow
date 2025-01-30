@@ -52,7 +52,7 @@ You can also use XComs in :ref:`templates <concepts:jinja-templating>`::
 
 XComs are a relative of :doc:`variables`, with the main difference being that XComs are per-task-instance and designed for communication within a DAG run, while Variables are global and designed for overall configuration and value sharing.
 
-If you want to push multiple XComs at once or rename the pushed XCom key, you can use set ``do_xcom_push`` and ``multiple_outputs`` arguments to ``True``, and then return a dictionary of values.
+If you want to push multiple XComs at once you can set ``do_xcom_push`` and ``multiple_outputs`` arguments to ``True``, and then return a dictionary of values.
 
 .. note::
 
