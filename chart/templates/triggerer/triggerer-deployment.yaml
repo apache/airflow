@@ -245,9 +245,9 @@ spec:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.triggerer.logGroomerSidecar.retentionDays }}"
           {{- end }}
-          {{- if .Values.workers.logGroomerSidecar.frequencyMinutes }}
+          {{- if .Values.triggerer.logGroomerSidecar.frequencyMinutes }}
             - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
-              value: "{{ .Values.workers.logGroomerSidecar.frequencyMinutes }}"
+              value: "{{ .Values.triggerer.logGroomerSidecar.frequencyMinutes }}"
           {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
