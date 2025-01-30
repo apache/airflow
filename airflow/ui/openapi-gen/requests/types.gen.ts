@@ -1665,6 +1665,7 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type StructureDataData = {
   dagId: string;
+  dagVersion?: number | null;
   externalDependencies?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
