@@ -19,11 +19,16 @@ from __future__ import annotations
 from unittest.mock import Mock, patch
 
 import pytest
-from flask import session, url_for
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.www import app as application
+
+if not AIRFLOW_V_3_0_PLUS:
+    pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
+
+from fastapi.testclient import TestClient
+from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
+
+from airflow.api_fastapi.app import create_app
 
 from tests_common.test_utils.config import conf_vars
 
@@ -47,7 +52,7 @@ SAML_METADATA_PARSED = {
 
 
 @pytest.fixture
-def aws_app():
+def test_client():
     with conf_vars(
         {
             (
@@ -58,42 +63,26 @@ def aws_app():
         }
     ):
         with (
-            patch(
-                "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
-            ) as mock_parser,
+            patch.object(OneLogin_Saml2_IdPMetadataParser, "parse_remote") as mock_parse_remote,
             patch(
                 "airflow.providers.amazon.aws.auth_manager.avp.facade.AwsAuthManagerAmazonVerifiedPermissionsFacade.is_policy_store_schema_up_to_date"
             ) as mock_is_policy_store_schema_up_to_date,
         ):
             mock_is_policy_store_schema_up_to_date.return_value = True
-            mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
-            return application.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})
+            mock_parse_remote.return_value = SAML_METADATA_PARSED
+            yield TestClient(create_app())
 
 
-@pytest.mark.skipif(
-    not AIRFLOW_V_3_0_PLUS, reason="AWS auth manager is only compatible with Airflow >= 3.0.0"
-)
-@pytest.mark.db_test
-class TestAwsAuthManagerAuthenticationViews:
-    def test_login_redirect_to_identity_center(self, aws_app):
-        with aws_app.test_client() as client:
-            response = client.get("/login")
-            assert response.status_code == 302
-            assert response.location.startswith("https://portal.sso.us-east-1.amazonaws.com/saml/assertion/")
+class TestLoginRouter:
+    def test_login(self, test_client):
+        response = test_client.get("/auth/login", follow_redirects=False)
+        assert response.status_code == 307
+        assert "location" in response.headers
+        assert response.headers["location"].startswith(
+            "https://portal.sso.us-east-1.amazonaws.com/saml/assertion/"
+        )
 
-    def test_logout_redirect_to_identity_center(self, aws_app):
-        with aws_app.test_client() as client:
-            response = client.post("/logout")
-            assert response.status_code == 302
-            assert response.location.startswith("https://portal.sso.us-east-1.amazonaws.com/saml/logout/")
-
-    def test_login_metadata_return_xml_file(self, aws_app):
-        with aws_app.test_client() as client:
-            response = client.get("/login_metadata")
-            assert response.status_code == 200
-            assert response.headers["Content-Type"] == "text/xml"
-
-    def test_login_callback_set_user_in_session(self):
+    def test_login_callback_successful(self):
         with conf_vars(
             {
                 (
@@ -104,18 +93,16 @@ class TestAwsAuthManagerAuthenticationViews:
             }
         ):
             with (
+                patch.object(OneLogin_Saml2_IdPMetadataParser, "parse_remote") as mock_parse_remote,
                 patch(
-                    "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
-                ) as mock_parser,
-                patch(
-                    "airflow.providers.amazon.aws.auth_manager.views.auth.AwsAuthManagerAuthenticationViews._init_saml_auth"
+                    "airflow.providers.amazon.aws.auth_manager.router.login._init_saml_auth"
                 ) as mock_init_saml_auth,
                 patch(
                     "airflow.providers.amazon.aws.auth_manager.avp.facade.AwsAuthManagerAmazonVerifiedPermissionsFacade.is_policy_store_schema_up_to_date"
                 ) as mock_is_policy_store_schema_up_to_date,
             ):
                 mock_is_policy_store_schema_up_to_date.return_value = True
-                mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
+                mock_parse_remote.return_value = SAML_METADATA_PARSED
 
                 auth = Mock()
                 auth.is_authenticated.return_value = True
@@ -126,16 +113,13 @@ class TestAwsAuthManagerAuthenticationViews:
                     "email": ["email"],
                 }
                 mock_init_saml_auth.return_value = auth
-                app = application.create_app(testing=True)
-                with app.test_client() as client:
-                    response = client.get("/login_callback")
-                    assert response.status_code == 302
-                    assert response.location == url_for("Airflow.index")
-                    assert session["aws_user"] is not None
-                    assert session["aws_user"].get_id() == "1"
-                    assert session["aws_user"].get_name() == "user_id"
+                client = TestClient(create_app())
+                response = client.post("/auth/login_callback", follow_redirects=False)
+                assert response.status_code == 303
+                assert "location" in response.headers
+                assert response.headers["location"].startswith("/webapp?token=")
 
-    def test_login_callback_raise_exception_if_errors(self):
+    def test_login_callback_unsuccessful(self):
         with conf_vars(
             {
                 (
@@ -146,28 +130,20 @@ class TestAwsAuthManagerAuthenticationViews:
             }
         ):
             with (
+                patch.object(OneLogin_Saml2_IdPMetadataParser, "parse_remote") as mock_parse_remote,
                 patch(
-                    "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
-                ) as mock_parser,
-                patch(
-                    "airflow.providers.amazon.aws.auth_manager.views.auth.AwsAuthManagerAuthenticationViews._init_saml_auth"
+                    "airflow.providers.amazon.aws.auth_manager.router.login._init_saml_auth"
                 ) as mock_init_saml_auth,
                 patch(
                     "airflow.providers.amazon.aws.auth_manager.avp.facade.AwsAuthManagerAmazonVerifiedPermissionsFacade.is_policy_store_schema_up_to_date"
                 ) as mock_is_policy_store_schema_up_to_date,
             ):
                 mock_is_policy_store_schema_up_to_date.return_value = True
-                mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
+                mock_parse_remote.return_value = SAML_METADATA_PARSED
 
                 auth = Mock()
                 auth.is_authenticated.return_value = False
                 mock_init_saml_auth.return_value = auth
-                app = application.create_app(testing=True)
-                with app.test_client() as client:
-                    with pytest.raises(AirflowException):
-                        client.get("/login_callback")
-
-    def test_logout_callback_raise_not_implemented_error(self, aws_app):
-        with aws_app.test_client() as client:
-            with pytest.raises(NotImplementedError):
-                client.get("/logout_callback")
+                client = TestClient(create_app())
+                response = client.post("/auth/login_callback")
+                assert response.status_code == 500
