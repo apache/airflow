@@ -28,6 +28,7 @@ import sys
 import textwrap
 from collections.abc import Generator
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
@@ -299,7 +300,9 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
     if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
         from airflow.executors import workloads
 
-        workload = workloads.ExecuteTask.make(ti, dag_rel_path=dag.relative_fileloc)
+        if TYPE_CHECKING:
+            assert dag.relative_fileloc
+        workload = workloads.ExecuteTask.make(ti, dag_rel_path=Path(dag.relative_fileloc))
         with create_session() as session:
             executor.queue_workload(workload, session)
     else:

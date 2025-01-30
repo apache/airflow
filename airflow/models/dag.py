@@ -21,7 +21,6 @@ import asyncio
 import copy
 import functools
 import logging
-import pathlib
 import sys
 import time
 from collections import defaultdict
@@ -734,20 +733,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     @property
     def timetable_summary(self) -> str:
         return self.timetable.summary
-
-    @property
-    def relative_fileloc(self) -> pathlib.Path:
-        """File location of the importable dag 'file' relative to the configured DAGs folder."""
-        path = pathlib.Path(self.fileloc)
-        try:
-            rel_path = path.relative_to(self._processor_dags_folder or settings.DAGS_FOLDER)
-            if rel_path == pathlib.Path("."):
-                return path
-            else:
-                return rel_path
-        except ValueError:
-            # Not relative to DAGS_FOLDER.
-            return path
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
@@ -2045,6 +2030,7 @@ class DagModel(Base):
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
     fileloc = Column(String(2000))
+    relative_fileloc = Column(String(2000))
     bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=True)
     # The version of the bundle the last time the DAG was processed
     bundle_version = Column(String(200), nullable=True)
@@ -2213,18 +2199,6 @@ class DagModel(Base):
     @property
     def safe_dag_id(self):
         return self.dag_id.replace(".", "__dot__")
-
-    @property
-    def relative_fileloc(self) -> pathlib.Path | None:
-        """File location of the importable dag 'file' relative to the configured DAGs folder."""
-        if self.fileloc is None:
-            return None
-        path = pathlib.Path(self.fileloc)
-        try:
-            return path.relative_to(settings.DAGS_FOLDER)
-        except ValueError:
-            # Not relative to DAGS_FOLDER.
-            return path
 
     @provide_session
     def set_is_paused(self, is_paused: bool, session=NEW_SESSION) -> None:
