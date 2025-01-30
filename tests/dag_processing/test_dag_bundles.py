@@ -121,6 +121,7 @@ class TestGitHook:
                 conn_id=CONN_DEFAULT,
                 host=AIRFLOW_GIT,
                 conn_type="git",
+                extra='{"key_file": "/files/pkey.pem"}',
             )
         )
         db.merge_conn(
@@ -133,10 +134,7 @@ class TestGitHook:
         )
         db.merge_conn(
             Connection(
-                conn_id=CONN_HTTPS_PASSWORD,
-                host=AIRFLOW_HTTPS_URL,
-                conn_type="git",
-                password=ACCESS_TOKEN,
+                conn_id=CONN_HTTPS_PASSWORD, host=AIRFLOW_HTTPS_URL, conn_type="git", password=ACCESS_TOKEN
             )
         )
         db.merge_conn(
@@ -159,6 +157,25 @@ class TestGitHook:
     def test_correct_repo_urls(self, conn_id, expected_repo_url):
         hook = GitHook(git_conn_id=conn_id)
         assert hook.repo_url == expected_repo_url
+
+    def test_env_var(self, session):
+        hook = GitHook(git_conn_id=CONN_DEFAULT)
+        assert hook.env == {
+            "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+        }
+        db.merge_conn(
+            Connection(
+                conn_id="my_git_conn_strict",
+                host=AIRFLOW_GIT,
+                conn_type="git",
+                extra='{"key_file": "/files/pkey.pem", "strict_host_key_checking": "yes"}',
+            )
+        )
+
+        hook = GitHook(git_conn_id="my_git_conn_strict")
+        assert hook.env == {
+            "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+        }
 
 
 class TestGitDagBundle:
@@ -414,7 +431,10 @@ class TestGitDagBundle:
                 "git@myorg.github.com:apache/airflow.git",
                 "https://myorg.github.com/apache/airflow/tree/0f0f0f",
             ),
-            ("https://github.com/apache/airflow.git", "https://github.com/apache/airflow/tree/0f0f0f"),
+            (
+                "https://myorg.github.com/apache/airflow.git",
+                "https://myorg.github.com/apache/airflow/tree/0f0f0f",
+            ),
         ],
     )
     @mock.patch("airflow.dag_processing.bundles.git.Repo")

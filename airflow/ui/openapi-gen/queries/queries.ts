@@ -585,6 +585,7 @@ export const useDashboardServiceHistoricalMetrics = <
  * @param data.includeDownstream
  * @param data.root
  * @param data.externalDependencies
+ * @param data.dagVersion
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -595,12 +596,14 @@ export const useStructureServiceStructureData = <
 >(
   {
     dagId,
+    dagVersion,
     externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    dagVersion?: number;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
@@ -611,12 +614,13 @@ export const useStructureServiceStructureData = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, externalDependencies, includeDownstream, includeUpstream, root },
+      { dagId, dagVersion, externalDependencies, includeDownstream, includeUpstream, root },
       queryKey,
     ),
     queryFn: () =>
       StructureService.structureData({
         dagId,
+        dagVersion,
         externalDependencies,
         includeDownstream,
         includeUpstream,
@@ -1077,15 +1081,15 @@ export const useDagStatsServiceGetDagStats = <
     ...options,
   });
 /**
- * Get Dag Report
+ * Get Dag Reports
  * Get DAG report.
  * @param data The data for the request.
  * @param data.subdir
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useDagReportServiceGetDagReport = <
-  TData = Common.DagReportServiceGetDagReportDefaultResponse,
+export const useDagReportServiceGetDagReports = <
+  TData = Common.DagReportServiceGetDagReportsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -1098,8 +1102,8 @@ export const useDagReportServiceGetDagReport = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }, queryKey),
-    queryFn: () => DagReportService.getDagReport({ subdir }) as TData,
+    queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }, queryKey),
+    queryFn: () => DagReportService.getDagReports({ subdir }) as TData,
     ...options,
   });
 /**
@@ -2512,7 +2516,7 @@ export const useXcomServiceGetXcomEntry = <
  * @param data.mapIndex
  * @param data.limit
  * @param data.offset
- * @returns XComCollection Successful Response
+ * @returns XComCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useXcomServiceGetXcomEntries = <
@@ -3605,7 +3609,7 @@ export const useDagServicePatchDag = <
   });
 /**
  * Patch Task Instance
- * Update the state of a task instance.
+ * Update a task instance.
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
@@ -3664,7 +3668,7 @@ export const useTaskInstanceServicePatchTaskInstance = <
   });
 /**
  * Patch Task Instance
- * Update the state of a task instance.
+ * Update a task instance.
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
@@ -3712,6 +3716,124 @@ export const useTaskInstanceServicePatchTaskInstance1 = <
   >({
     mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) =>
       TaskInstanceService.patchTaskInstance1({
+        dagId,
+        dagRunId,
+        mapIndex,
+        requestBody,
+        taskId,
+        updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Patch Task Instance Dry Run
+ * Update a task instance dry_run mode.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns TaskInstanceCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServicePatchTaskInstanceDryRun = <
+  TData = Common.TaskInstanceServicePatchTaskInstanceDryRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex: number;
+        requestBody: PatchTaskInstanceBody;
+        taskId: string;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex: number;
+      requestBody: PatchTaskInstanceBody;
+      taskId: string;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) =>
+      TaskInstanceService.patchTaskInstanceDryRun({
+        dagId,
+        dagRunId,
+        mapIndex,
+        requestBody,
+        taskId,
+        updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Patch Task Instance Dry Run
+ * Update a task instance dry_run mode.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.requestBody
+ * @param data.mapIndex
+ * @param data.updateMask
+ * @returns TaskInstanceCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServicePatchTaskInstanceDryRun1 = <
+  TData = Common.TaskInstanceServicePatchTaskInstanceDryRun1MutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex?: number;
+        requestBody: PatchTaskInstanceBody;
+        taskId: string;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex?: number;
+      requestBody: PatchTaskInstanceBody;
+      taskId: string;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskId, updateMask }) =>
+      TaskInstanceService.patchTaskInstanceDryRun1({
         dagId,
         dagRunId,
         mapIndex,

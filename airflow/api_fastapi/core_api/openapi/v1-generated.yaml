@@ -258,6 +258,14 @@ paths:
           type: boolean
           default: false
           title: External Dependencies
+      - name: dag_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Dag Version
       responses:
         '200':
           description: Successful Response
@@ -2590,9 +2598,9 @@ paths:
     get:
       tags:
       - DagReport
-      summary: Get Dag Report
+      summary: Get Dag Reports
       description: Get DAG report.
-      operationId: get_dag_report
+      operationId: get_dag_reports
       parameters:
       - name: subdir
         in: query
@@ -4433,7 +4441,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/XComCollection'
+                $ref: '#/components/schemas/XComCollectionResponse'
         '401':
           content:
             application/json:
@@ -4525,7 +4533,7 @@ paths:
       tags:
       - Task Instance
       summary: Patch Task Instance
-      description: Update the state of a task instance.
+      description: Update a task instance.
       operationId: patch_task_instance
       parameters:
       - name: dag_id
@@ -5132,7 +5140,7 @@ paths:
       tags:
       - Task Instance
       summary: Patch Task Instance
-      description: Update the state of a task instance.
+      description: Update a task instance.
       operationId: patch_task_instance
       parameters:
       - name: dag_id
@@ -5670,6 +5678,177 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run:
+    patch:
+      tags:
+      - Task Instance
+      summary: Patch Task Instance Dry Run
+      description: Update a task instance dry_run mode.
+      operationId: patch_task_instance_dry_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInstanceBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run:
+    patch:
+      tags:
+      - Task Instance
+      summary: Patch Task Instance Dry Run
+      description: Update a task instance dry_run mode.
+      operationId: patch_task_instance_dry_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInstanceBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -6609,6 +6788,7 @@ components:
           type: integer
           title: Max Active Runs
           default: 10
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -6746,6 +6926,7 @@ components:
             - $ref: '#/components/schemas/BulkDeleteAction_ConnectionBody_'
           type: array
           title: Actions
+      additionalProperties: false
       type: object
       required:
       - actions
@@ -6760,6 +6941,7 @@ components:
             - $ref: '#/components/schemas/BulkDeleteAction_PoolBody_'
           type: array
           title: Actions
+      additionalProperties: false
       type: object
       required:
       - actions
@@ -6774,6 +6956,7 @@ components:
             - $ref: '#/components/schemas/BulkDeleteAction_VariableBody_'
           type: array
           title: Actions
+      additionalProperties: false
       type: object
       required:
       - actions
@@ -6792,6 +6975,7 @@ components:
         action_on_existence:
           $ref: '#/components/schemas/BulkActionOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6811,6 +6995,7 @@ components:
         action_on_existence:
           $ref: '#/components/schemas/BulkActionOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6830,6 +7015,7 @@ components:
         action_on_existence:
           $ref: '#/components/schemas/BulkActionOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6849,6 +7035,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6868,6 +7055,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6887,6 +7075,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6939,6 +7128,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6958,6 +7148,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6977,6 +7168,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7015,7 +7207,14 @@ components:
         task_ids:
           anyOf:
           - items:
-              type: string
+              anyOf:
+              - type: string
+              - prefixItems:
+                - type: string
+                - type: integer
+                type: array
+                maxItems: 2
+                minItems: 2
             type: array
           - type: 'null'
           title: Task Ids
@@ -7040,6 +7239,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: ClearTaskInstancesBody
       description: Request body for Clear Task Instances endpoint.
@@ -7050,6 +7250,7 @@ components:
             $ref: '#/components/schemas/ConfigSection'
           type: array
           title: Sections
+      additionalProperties: false
       type: object
       required:
       - sections
@@ -7070,6 +7271,7 @@ components:
             maxItems: 2
             minItems: 2
           title: Value
+      additionalProperties: false
       type: object
       required:
       - key
@@ -7172,6 +7374,7 @@ components:
             $ref: '#/components/schemas/ConfigOption'
           type: array
           title: Options
+      additionalProperties: false
       type: object
       required:
       - name
@@ -7223,6 +7426,7 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+      additionalProperties: false
       type: object
       required:
       - connection_id
@@ -7562,6 +7766,7 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
+      additionalProperties: false
       type: object
       required:
       - is_paused
@@ -7709,6 +7914,7 @@ components:
           type: boolean
           title: Only Failed
           default: false
+      additionalProperties: false
       type: object
       title: DAGRunClearBody
       description: DAG Run serializer for clear endpoint body.
@@ -7740,6 +7946,7 @@ components:
             maxLength: 1000
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       title: DAGRunPatchBody
       description: DAG Run Serializer for PATCH requests.
@@ -7950,6 +8157,7 @@ components:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      additionalProperties: false
       type: object
       title: DAGRunsBatchBody
       description: List DAG Runs body for batch endpoint.
@@ -8234,6 +8442,7 @@ components:
           type: string
           format: date-time
           title: Data Interval End
+      additionalProperties: false
       type: object
       required:
       - run_id
@@ -8297,6 +8506,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -8931,15 +9141,10 @@ components:
       description: Node serializer for responses.
     PatchTaskInstanceBody:
       properties:
-        dry_run:
-          type: boolean
-          title: Dry Run
-          default: true
         new_state:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
-          title: New State
         note:
           anyOf:
           - type: string
@@ -8962,6 +9167,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: PatchTaskInstanceBody
       description: Request body for Clear Task Instances endpoint.
@@ -9067,6 +9273,7 @@ components:
           type: boolean
           title: Include Deferred
           default: false
+      additionalProperties: false
       type: object
       required:
       - name
@@ -9111,6 +9318,7 @@ components:
           - type: boolean
           - type: 'null'
           title: Include Deferred
+      additionalProperties: false
       type: object
       title: PoolPatchBody
       description: Pool serializer for patch bodies.
@@ -9828,6 +10036,7 @@ components:
           - type: string
           - type: 'null'
           title: Order By
+      additionalProperties: false
       type: object
       title: TaskInstancesBatchBody
       description: Task Instance body for get batch.
@@ -9863,6 +10072,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -10088,6 +10298,7 @@ components:
           - type: string
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.
@@ -10173,6 +10384,7 @@ components:
           - type: string
           - type: 'null'
           title: Description
+      additionalProperties: false
       type: object
       required:
       - key
@@ -10235,7 +10447,7 @@ components:
       - git_version
       title: VersionInfo
       description: Version information serializer for responses.
-    XComCollection:
+    XComCollectionResponse:
       properties:
         xcom_entries:
           items:
@@ -10249,8 +10461,8 @@ components:
       required:
       - xcom_entries
       - total_entries
-      title: XComCollection
-      description: List of XCom items.
+      title: XComCollectionResponse
+      description: XCom Collection serializer for responses.
     XComResponse:
       properties:
         key:

@@ -475,6 +475,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * @param data.includeDownstream
  * @param data.root
  * @param data.externalDependencies
+ * @param data.dagVersion
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -482,12 +483,14 @@ export const prefetchUseStructureServiceStructureData = (
   queryClient: QueryClient,
   {
     dagId,
+    dagVersion,
     externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    dagVersion?: number;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
@@ -497,6 +500,7 @@ export const prefetchUseStructureServiceStructureData = (
   queryClient.prefetchQuery({
     queryKey: Common.UseStructureServiceStructureDataKeyFn({
       dagId,
+      dagVersion,
       externalDependencies,
       includeDownstream,
       includeUpstream,
@@ -505,6 +509,7 @@ export const prefetchUseStructureServiceStructureData = (
     queryFn: () =>
       StructureService.structureData({
         dagId,
+        dagVersion,
         externalDependencies,
         includeDownstream,
         includeUpstream,
@@ -889,14 +894,14 @@ export const prefetchUseDagStatsServiceGetDagStats = (
     queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });
 /**
- * Get Dag Report
+ * Get Dag Reports
  * Get DAG report.
  * @param data The data for the request.
  * @param data.subdir
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagReportServiceGetDagReport = (
+export const prefetchUseDagReportServiceGetDagReports = (
   queryClient: QueryClient,
   {
     subdir,
@@ -905,8 +910,8 @@ export const prefetchUseDagReportServiceGetDagReport = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }),
-    queryFn: () => DagReportService.getDagReport({ subdir }),
+    queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }),
+    queryFn: () => DagReportService.getDagReports({ subdir }),
   });
 /**
  * List Dag Warnings
@@ -2129,7 +2134,7 @@ export const prefetchUseXcomServiceGetXcomEntry = (
  * @param data.mapIndex
  * @param data.limit
  * @param data.offset
- * @returns XComCollection Successful Response
+ * @returns XComCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseXcomServiceGetXcomEntries = (

@@ -23,10 +23,13 @@ import {
   useTaskInstanceServiceGetMappedTaskInstance,
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
+import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton, Status } from "src/components/ui";
+import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 import { getDuration } from "src/utils";
+import { isStatePending } from "src/utils/refresh";
 
 export const Details = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
@@ -35,6 +38,8 @@ export const Details = () => {
   const mapIndexParam = searchParams.get("map_index");
   const tryNumberParam = searchParams.get("try_number");
   const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
+
+  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
@@ -54,13 +59,20 @@ export const Details = () => {
 
   const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
-  const { data: tryInstance } = useTaskInstanceServiceGetTaskInstanceTryDetails({
-    dagId,
-    dagRunId: runId,
-    mapIndex,
-    taskId,
-    taskTryNumber: tryNumber ?? 1,
-  });
+  const { data: tryInstance } = useTaskInstanceServiceGetTaskInstanceTryDetails(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex,
+      taskId,
+      taskTryNumber: tryNumber ?? 1,
+    },
+    undefined,
+    {
+      refetchInterval: (query) =>
+        isStatePending(query.state.data?.state) ? autoRefreshInterval * 1000 : false,
+    },
+  );
 
   return (
     <Box p={2}>
@@ -76,10 +88,10 @@ export const Details = () => {
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
-            <Table.Cell>Status</Table.Cell>
+            <Table.Cell>State</Table.Cell>
             <Table.Cell>
               <Flex gap={1}>
-                <Status state={tryInstance?.state ?? null} />
+                <StateBadge state={tryInstance?.state} />
                 {tryInstance?.state ?? "no status"}
               </Flex>
             </Table.Cell>

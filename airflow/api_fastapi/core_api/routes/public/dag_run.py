@@ -60,6 +60,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
@@ -147,13 +148,13 @@ def patch_dag_run(
 
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
         try:
             DAGRunPatchBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
     for attr_name, attr_value in data.items():
         if attr_name == "state":
@@ -331,9 +332,13 @@ def get_dag_runs(
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def trigger_dag_run(
-    dag_id, body: TriggerDAGRunPostBody, request: Request, session: SessionDep
+    dag_id,
+    body: TriggerDAGRunPostBody,
+    request: Request,
+    session: SessionDep,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))

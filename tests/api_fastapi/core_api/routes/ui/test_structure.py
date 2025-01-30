@@ -17,11 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import copy
+
 import pendulum
 import pytest
 from deepdiff import DeepDiff
 
 from airflow.models import DagBag
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
@@ -33,6 +36,53 @@ pytestmark = pytest.mark.db_test
 
 DAG_ID = "test_dag_id"
 DAG_ID_EXTERNAL_TRIGGER = "external_trigger"
+LATEST_VERSION_DAG_RESPONSE: dict = {
+    "edges": [],
+    "nodes": [
+        {
+            "children": None,
+            "id": "task1",
+            "is_mapped": None,
+            "label": "task1",
+            "tooltip": None,
+            "setup_teardown_type": None,
+            "type": "task",
+            "operator": "EmptyOperator",
+            "asset_condition_type": None,
+        },
+        {
+            "children": None,
+            "id": "task2",
+            "is_mapped": None,
+            "label": "task2",
+            "tooltip": None,
+            "setup_teardown_type": None,
+            "type": "task",
+            "operator": "EmptyOperator",
+            "asset_condition_type": None,
+        },
+        {
+            "children": None,
+            "id": "task3",
+            "is_mapped": None,
+            "label": "task3",
+            "tooltip": None,
+            "setup_teardown_type": None,
+            "type": "task",
+            "operator": "EmptyOperator",
+            "asset_condition_type": None,
+        },
+    ],
+    "arrange": "LR",
+}
+SECOND_VERSION_DAG_RESPONSE: dict = copy.deepcopy(LATEST_VERSION_DAG_RESPONSE)
+SECOND_VERSION_DAG_RESPONSE["nodes"] = [
+    node for node in SECOND_VERSION_DAG_RESPONSE["nodes"] if node["id"] != "task3"
+]
+FIRST_VERSION_DAG_RESPONSE: dict = copy.deepcopy(SECOND_VERSION_DAG_RESPONSE)
+FIRST_VERSION_DAG_RESPONSE["nodes"] = [
+    node for node in FIRST_VERSION_DAG_RESPONSE["nodes"] if node["id"] != "task2"
+]
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -79,6 +129,21 @@ def make_dag(dag_maker, session, time_machine):
         )
 
     dag_maker.sync_dagbag_to_db()
+
+
+@pytest.fixture
+def make_dag_with_multiple_version(dag_maker):
+    """
+    Create DAG with multiple versions
+
+    Version 1 will have 1 task, version 2 will have 2 tasks, and version 3 will have 3 tasks.
+    """
+    for version_number in range(1, 4):
+        with dag_maker(DAG_ID) as dag:
+            for i in range(version_number):
+                EmptyOperator(task_id=f"task{i+1}")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
 
 
 class TestStructureDataEndpoint:
@@ -407,7 +472,45 @@ class TestStructureDataEndpoint:
         assert response.status_code == 200
         assert not DeepDiff(response.json(), expected, ignore_order=True)
 
+    @pytest.mark.parametrize(
+        "params, expected",
+        [
+            pytest.param(
+                {"dag_id": DAG_ID},
+                LATEST_VERSION_DAG_RESPONSE,
+                id="get_default_version",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID, "dag_version": 1},
+                FIRST_VERSION_DAG_RESPONSE,
+                id="get_oldest_version",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID, "dag_version": 2},
+                SECOND_VERSION_DAG_RESPONSE,
+                id="get_specific_version",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID, "dag_version": 3},
+                LATEST_VERSION_DAG_RESPONSE,
+                id="get_latest_version",
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("make_dag_with_multiple_version")
+    def test_should_return_200_with_multiple_versions(self, test_client, params, expected):
+        response = test_client.get("/ui/structure/structure_data", params=params)
+        assert response.status_code == 200
+        assert response.json() == expected
+
     def test_should_return_404(self, test_client):
         response = test_client.get("/ui/structure/structure_data", params={"dag_id": "not_existing"})
         assert response.status_code == 404
         assert response.json()["detail"] == "Dag with id not_existing was not found"
+
+    def test_should_return_404_when_dag_version_not_found(self, test_client):
+        response = test_client.get(
+            "/ui/structure/structure_data", params={"dag_id": DAG_ID, "dag_version": 999}
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Dag with id test_dag_id and version 999 was not found"
