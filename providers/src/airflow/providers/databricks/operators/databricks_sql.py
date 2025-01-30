@@ -384,6 +384,7 @@ FILEFORMAT = {self._file_format}
 
         try:
             from urllib.parse import urlparse
+
             parsed_uri = urlparse(self.file_location)
             # Only process known schemes
             if parsed_uri.scheme not in ("s3", "s3a", "s3n", "gs", "azure", "abfss", "wasbs"):
@@ -411,6 +412,7 @@ FILEFORMAT = {self._file_format}
 
         try:
             import re
+
             normalized_sql = SQLParser.normalize_sql(self._sql)
             normalized_sql = re.sub(r"\n+", "\n", re.sub(r" +", " ", normalized_sql))
             job_facets["sql"] = SQLJobFacet(query=normalized_sql)
@@ -427,7 +429,7 @@ FILEFORMAT = {self._file_format}
         from airflow.providers.common.compat.openlineage.facet import Dataset, Error
 
         output_dataset = None
-        extraction_errors = []
+        extraction_errors: list[Error] = []
 
         if not self.table_name:
             return output_dataset, extraction_errors
