@@ -1,7 +1,7 @@
 Removed deprecated configuration.
 
       * Removed deprecated configuration ``worker_precheck`` from ``core``. Please use ``worker_precheck`` from ``celery`` instead.
-      * Removed deprecated configuration ``max_threads`` from ``scheduler``. Please use ``parsing_processes`` from ``scheduler`` instead.
+      * Removed deprecated configuration ``max_threads`` from ``scheduler``. Please use ``parsing_processes`` from ``dag_processor`` instead.
       * Removed deprecated configuration ``default_queue`` from ``celery``. Please use ``default_queue`` from ``operators`` instead.
       * Removed deprecated configuration ``hide_sensitive_variable_fields`` from ``admin``. Please use ``hide_sensitive_var_conn_fields`` from ``core`` instead.
       * Removed deprecated configuration ``sensitive_variable_fields`` from ``admin``. Please use ``sensitive_var_conn_names`` from ``core`` instead.
@@ -32,7 +32,7 @@ Removed deprecated configuration.
   * ``airflow config lint``
 
     * [x] ``core.worker_precheck`` → ``celery.worker_precheck``
-    * [x] ``scheduler.max_threads`` → ``scheduler.parsing_processes``
+    * [x] ``scheduler.max_threads`` → ``dag_processor.parsing_processes``
     * [x] ``celery.default_queue`` → ``operators.default_queue``
     * [x] ``admin.hide_sensitive_variable_fields`` → ``core.hide_sensitive_var_conn_fields``
     * [x] ``admin.sensitive_variable_fields`` → ``core.sensitive_var_conn_names``
