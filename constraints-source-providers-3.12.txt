@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-28T13:55:06.248522
+# This constraints file was automatically generated on 2025-01-30T07:51:59.885510
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -121,8 +121,8 @@ backoff==1.10.0
 bcrypt==4.2.1
 beautifulsoup4==4.12.3
 billiard==4.2.1
-bitarray==3.0.0
-black==24.10.0
+bitarray==2.9.3
+black==25.1.0
 blinker==1.9.0
 boto3==1.36.3
 botocore==1.36.3
@@ -133,7 +133,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2024.12.14
 cffi==1.17.1
-cfn-lint==1.22.7
+cfn-lint==1.23.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -210,7 +210,7 @@ google-api-python-client==2.160.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.38.0
-google-cloud-aiplatform==1.78.0
+google-cloud-aiplatform==1.79.0
 google-cloud-alloydb==0.4.1
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
@@ -232,7 +232,7 @@ google-cloud-dataproc==5.16.0
 google-cloud-dlp==3.26.0
 google-cloud-kms==3.2.2
 google-cloud-language==2.16.0
-google-cloud-logging==3.11.3
+google-cloud-logging==3.11.4
 google-cloud-memcache==1.11.0
 google-cloud-monitoring==2.26.0
 google-cloud-orchestration-airflow==1.16.1
@@ -278,7 +278,7 @@ httplib2==0.22.0
 httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
-huggingface-hub==0.27.1
+huggingface-hub==0.28.0
 humanize==4.11.0
 hvac==2.3.0
 hyperframe==6.1.0
@@ -291,7 +291,7 @@ ijson==3.3.0
 imagesize==1.4.1
 immutabledict==4.2.1
 importlib_metadata==8.4.0
-impyla==0.19.0
+impyla==0.20.0
 incremental==24.7.2
 inflection==0.5.1
 influxdb-client==1.48.0
@@ -308,6 +308,7 @@ jedi==0.19.2
 jeepney==0.8.0
 jiter==0.8.2
 jmespath==0.10.0
+joblib==1.4.2
 joserfc==1.0.2
 jpype1==1.5.2
 json-merge-patch==0.2
@@ -367,7 +368,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.36.0
 mypy-boto3-rds==1.36.0
 mypy-boto3-redshift-data==1.36.0
-mypy-boto3-s3==1.36.0
+mypy-boto3-s3==1.36.9
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.2.0
@@ -523,6 +524,8 @@ rsa==4.9
 ruff==0.8.1
 s3fs==2024.12.0
 s3transfer==0.11.2
+scikit-learn==1.6.1
+scipy==1.15.1
 scramp==1.4.5
 scrapbook==0.5.0
 semver==3.0.4
@@ -540,7 +543,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.13.0
+snowflake-connector-python==3.13.2
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.6
@@ -582,6 +585,7 @@ teradatasql==20.0.0.23
 teradatasqlalchemy==20.0.0.3
 termcolor==2.5.0
 text-unidecode==1.3
+threadpoolctl==3.5.0
 thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.16.0
