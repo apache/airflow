@@ -349,6 +349,7 @@ repos:
           (?x)
           ^providers/[^\/]*/src/airflow/providers/[^\/]*/__init__.py$|
           ^providers/[^\/]*/[^\/]*/src/airflow/providers/[^\/]*/[^\/]*/__init__.py$|
+          ^providers/.*/pyproject\.toml$|
           ^providers/.*/provider.yaml$|
           ^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2$
           ^airflow_breeze/templates/get_provider_info_TEMPLATE.py.jinja2$
@@ -467,6 +468,7 @@ repos:
         language: python
         files: |
           (?x)
+          ^providers/.*/pyproject\.toml$|
           ^providers/.*/provider\.yaml$|
           ^scripts/ci/pre_commit/update_providers_dependencies\.py$
         pass_filenames: false
@@ -625,7 +627,7 @@ repos:
           ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/src/airflow/providers/amazon/aws/hooks/emr.py$|
           ^providers/src/airflow/providers/amazon/aws/operators/emr.py$|
-          ^providers/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
+          ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^providers/src/airflow/providers/apache/hive/operators/hive_stats.py$|
           ^providers/src/airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
