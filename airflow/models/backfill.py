@@ -140,7 +140,7 @@ class BackfillDagRunExceptionReason(str, Enum):
     IN_FLIGHT = "in flight"
     ALREADY_EXISTS = "already exists"
     UNKNOWN = "unknown"
-    CLEARED_RUN = "cleared run"
+    CLEARED_RUN = "cleared existing run"
 
 
 class BackfillDagRun(Base):
@@ -297,7 +297,6 @@ def _create_backfill_dag_run(
                 # which releases the lock on the latest dag run, since we
                 # are not creating a new one
                 nested.rollback()
-                print("inside non creation")
                 session.add(
                     BackfillDagRun(
                         backfill_id=backfill_id,
