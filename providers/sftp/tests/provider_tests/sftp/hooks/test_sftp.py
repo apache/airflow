@@ -142,8 +142,9 @@ class TestSFTPHook:
         assert new_dir_name in output
         # test the directory has default permissions to 777 - umask
         umask = 0o022
-        output = self.hook.get_conn().lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
-        assert output.st_mode & 0o777 == 0o777 - umask
+        with self.hook.get_conn() as conn:
+            output = conn.lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
+            assert output.st_mode & 0o777 == 0o777 - umask
 
     def test_create_and_delete_directory(self):
         new_dir_name = "new_dir"
@@ -152,8 +153,9 @@ class TestSFTPHook:
         assert new_dir_name in output
         # test the directory has default permissions to 777
         umask = 0o022
-        output = self.hook.get_conn().lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
-        assert output.st_mode & 0o777 == 0o777 - umask
+        with self.hook.get_conn() as conn:
+            output = conn.lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
+            assert output.st_mode & 0o777 == 0o777 - umask
         # test directory already exists for code coverage, should not raise an exception
         self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
         # test path already exists and is a file, should raise an exception
