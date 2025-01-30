@@ -513,7 +513,7 @@ class TestUpdateDagParsingResults:
             dr1 = DagRun(logical_date=dt, run_id="test_run_id_1", **dr_kwargs, start_date=dt)
             session.add(dr1)
             session.commit()
-
+        dag.relative_fileloc = "your face"
         update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
 
         orm_dag = session.get(DagModel, ("dag",))
