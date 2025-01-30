@@ -23,16 +23,13 @@ import re
 import warnings
 from collections.abc import Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import requests
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.http.exceptions import HttpErrorException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
-
-if TYPE_CHECKING:
-    from airflow.models import Connection
 
 
 class BatchState(Enum):
@@ -94,7 +91,6 @@ class LivyHook(HttpHook):
         auth_type: Any | None = None,
     ) -> None:
         super().__init__(http_conn_id=livy_conn_id, auth_type=auth_type)
-        self.method = "POST"
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
 
@@ -496,7 +492,6 @@ class LivyAsyncHook(HttpAsyncHook):
         auth_type: Any | None = None,
     ) -> None:
         super().__init__(http_conn_id=livy_conn_id, auth_type=auth_type)
-        self.method = "POST"
         self.extra_headers = extra_headers or {}
         self.extra_options = extra_options or {}
 
