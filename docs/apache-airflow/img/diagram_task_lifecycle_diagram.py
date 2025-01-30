@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from diagrams import Diagram
+from diagrams import Diagram, Edge
 from diagrams.custom import Custom
 from diagrams.programming.flowchart import StartEnd
 from rich.console import Console
@@ -63,6 +63,9 @@ node_attr = {
 edge_attr = {
     "minlen": "2",
     "penwidth": "4.0",
+    "labelloc": "t",
+    "fontsize": "14",
+    "fontname": "Sans-Serif",
 }
 
 
@@ -111,7 +114,9 @@ def generate_task_lifecycle_diagram():
             "\n\n\n\n\nTask instance is still available?", CONDITION_IMG, **CONDITION_NODE_ATTRS
         )
         cond_task_restore = Custom(
-            "\n\n\n\n\nTask instance got restored?", CONDITION_IMG, **CONDITION_NODE_ATTRS
+            "\n\n\n\n\n                                   Task instance got restored?",
+            CONDITION_IMG,
+            **CONDITION_NODE_ATTRS,
         )
         cond_trigger_task_1 = Custom(
             "\n\n\n\n\nA triggerer task?\n(can execute just only with triggerer)",
@@ -119,7 +124,9 @@ def generate_task_lifecycle_diagram():
             **CONDITION_NODE_ATTRS,
         )
         cond_trigger_task_2 = Custom("\n\n\n\n\nA triggerer task?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
-        cond_task_complete_1 = Custom("\n\n\n\n\nTask completes?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
+        cond_task_complete_1 = Custom(
+            "\n\n\n\n\n                       Task completes?", CONDITION_IMG, **CONDITION_NODE_ATTRS
+        )
         cond_task_complete_2 = Custom("\n\n\n\n\nTask completes?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
         cond_defer_signal_raised = Custom(
             "\n\n\n\n\nTask is deferrable,\nand defer signal is raised?",
@@ -132,38 +139,51 @@ def generate_task_lifecycle_diagram():
             CONDITION_IMG,
             **CONDITION_NODE_ATTRS,
         )
-        cond_fail_mark = Custom("\n\n\n\n\nTask marked as failed?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
+        cond_fail_mark = Custom(
+            "\n\n\n\n\nTask marked as failed?",
+            CONDITION_IMG,
+            **CONDITION_NODE_ATTRS,
+        )
         cond_clear_mark = Custom("\n\n\n\n\nTask marked as cleared?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
         cond_task_error = Custom("\n\n\n\n\nTask got error?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
         cond_retriable = Custom("\n\n\n\n\nEligible for retry?", CONDITION_IMG, **CONDITION_NODE_ATTRS)
 
-        start_node >> state_none
-        (
-            state_none
-            >> component_scheduler
-            >> cond_upstream_task_failure
-            >> [state_upstream_failed, cond_scheduled_skip]
-        )
-        cond_scheduled_skip >> [state_skipped, cond_task_def_existence]
-        cond_task_def_existence >> [state_removed, state_scheduled]
-        state_removed >> cond_task_restore >> [state_none, state_removed]
-        state_scheduled >> component_executor >> state_queued
-        state_queued >> cond_trigger_task_1 >> [component_triggerer, component_worker]
-        component_triggerer >> state_deferred
-        state_deferred >> cond_trigger_task_2 >> [cond_task_complete_1, component_scheduler]
-        cond_task_complete_1 >> [cond_defer_signal_raised, state_deferred]
+        start_node >> state_none >> component_scheduler >> cond_upstream_task_failure
+        cond_upstream_task_failure >> Edge(label="NO") >> state_upstream_failed
+        cond_upstream_task_failure >> Edge(label="YES") >> cond_scheduled_skip
+        cond_scheduled_skip >> Edge(label="NO") >> cond_task_def_existence
+        (cond_scheduled_skip >> Edge(label="YES") >> state_skipped,)
+        (cond_task_def_existence >> Edge(label="NO") >> state_removed,)
+        (cond_task_def_existence >> Edge(label="YES") >> state_scheduled,)
+        state_removed >> cond_task_restore
+        cond_task_restore >> Edge(label="NO") >> state_removed
+        cond_task_restore >> Edge(label="YES") >> state_none
+        state_scheduled >> component_executor >> state_queued >> cond_trigger_task_1
+        cond_trigger_task_1 >> Edge(label="NO") >> component_worker
+        cond_trigger_task_1 >> Edge(label="YES") >> component_triggerer
+        component_triggerer >> state_deferred >> cond_trigger_task_2
+        cond_trigger_task_2 >> Edge(label="NO") >> component_scheduler
+        cond_trigger_task_2 >> Edge(label="YES") >> cond_task_complete_1
+        cond_task_complete_1 >> Edge(label="NO") >> state_deferred
+        cond_task_complete_1 >> Edge(label="YES") >> cond_defer_signal_raised
         component_worker >> state_running >> cond_defer_signal_raised
-        cond_defer_signal_raised >> [component_triggerer, cond_skip_signal]
-        cond_skip_signal >> [state_skipped, cond_sensor_reschedule]
-        cond_sensor_reschedule >> state_up_for_reschedule >> component_scheduler
-        cond_sensor_reschedule >> cond_fail_mark
-        cond_fail_mark >> [state_failed, cond_clear_mark]
-        cond_clear_mark >> state_restarting >> state_up_for_retry >> component_scheduler
-        cond_clear_mark >> cond_task_error
-        cond_task_error >> [cond_retriable, cond_task_complete_2]
-        cond_retriable >> state_up_for_retry >> component_scheduler
-        cond_retriable >> state_failed
-        cond_task_complete_2 >> [state_success, state_failed]
+        cond_defer_signal_raised >> Edge(label="NO") >> cond_skip_signal
+        cond_defer_signal_raised >> Edge(label="YES") >> component_triggerer
+        cond_skip_signal >> Edge(label="NO") >> cond_sensor_reschedule
+        cond_skip_signal >> Edge(label="YES") >> state_skipped
+        cond_sensor_reschedule >> Edge(label="NO") >> cond_fail_mark
+        cond_sensor_reschedule >> Edge(label="YES") >> state_up_for_reschedule >> component_scheduler
+        cond_fail_mark >> Edge(label="NO") >> cond_clear_mark
+        cond_fail_mark >> Edge(label="YES") >> state_failed
+        cond_clear_mark >> Edge(label="NO") >> cond_task_error
+        cond_clear_mark >> Edge(label="YES") >> state_restarting >> state_up_for_retry
+        cond_task_error >> Edge(label="NO") >> cond_task_complete_2
+        cond_task_error >> Edge(label="YES") >> cond_retriable
+        cond_retriable >> Edge(label="NO") >> state_failed
+        cond_retriable >> Edge(label="YES") >> state_up_for_retry
+        state_up_for_retry >> component_scheduler
+        cond_task_complete_2 >> Edge(label="NO") >> state_running
+        cond_task_complete_2 >> Edge(label="YES") >> state_success
 
     console.print(f"[green]Generating architecture image {image_file}")
 
