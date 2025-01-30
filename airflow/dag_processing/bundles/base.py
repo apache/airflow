@@ -106,7 +106,7 @@ class BaseDagBundle(ABC):
 
     def view_url(self, version: str | None = None) -> str | None:
         """
-        URL to view the bundle.
+        URL to view the bundle on an external website. This is shown to users in the Airflow UI, allowing them to navigate to this url for more details about that version of the bundle.
 
         This needs to function without `initialize` being called.
 
