@@ -19,6 +19,7 @@ apache-airflow-providers-common-compat
 apache-airflow-providers-common-io
 apache-airflow-providers-common-sql
 apache-airflow-providers-datadog
+apache-airflow-providers-dbt-cloud
 apache-airflow-providers-discord
 apache-airflow-providers-docker
 apache-airflow-providers-edge
