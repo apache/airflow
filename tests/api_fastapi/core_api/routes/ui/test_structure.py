@@ -501,7 +501,7 @@ class TestStructureDataEndpoint:
     def test_should_return_200_with_multiple_versions(self, test_client, params, expected):
         response = test_client.get("/ui/structure/structure_data", params=params)
         assert response.status_code == 200
-        assert not DeepDiff(response.json(), expected, ignore_order=True)
+        assert response.json() == expected
 
     def test_should_return_404(self, test_client):
         response = test_client.get("/ui/structure/structure_data", params={"dag_id": "not_existing"})
@@ -513,4 +513,4 @@ class TestStructureDataEndpoint:
             "/ui/structure/structure_data", params={"dag_id": DAG_ID, "dag_version": 999}
         )
         assert response.status_code == 404
-        assert response.json()["detail"] == "Dag with id test_dag_id with version 999 was not found"
+        assert response.json()["detail"] == "Dag with id test_dag_id and version 999 was not found"

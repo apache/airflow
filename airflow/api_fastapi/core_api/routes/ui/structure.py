@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -40,7 +40,6 @@ structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 def structure_data(
     session: SessionDep,
     dag_id: str,
-    request: Request,
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
     root: str | None = None,
@@ -49,22 +48,25 @@ def structure_data(
 ) -> StructureDataResponse:
     """Get Structure Data."""
     if dag_version is None:
-        dag = request.app.state.dag_bag.get_dag(dag_id)
-    else:
-        serialized_dag: SerializedDagModel = session.scalar(
-            select(SerializedDagModel)
-            .join(DagVersion)
-            .where(SerializedDagModel.dag_id == dag_id, DagVersion.version_number == dag_version)
-        )
-        if serialized_dag is None:
+        dag_version_model = DagVersion.get_latest_version(dag_id)
+        if dag_version_model is None:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
-                f"Dag with id {dag_id} with version {dag_version} was not found",
+                f"Dag with id {dag_id} was not found",
             )
-        dag = serialized_dag.dag
+        dag_version = dag_version_model.version_number
 
-    if dag is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+    serialized_dag: SerializedDagModel = session.scalar(
+        select(SerializedDagModel)
+        .join(DagVersion)
+        .where(SerializedDagModel.dag_id == dag_id, DagVersion.version_number == dag_version)
+    )
+    if serialized_dag is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Dag with id {dag_id} and version {dag_version} was not found",
+        )
+    dag = serialized_dag.dag
 
     if root:
         dag = dag.partial_subset(
