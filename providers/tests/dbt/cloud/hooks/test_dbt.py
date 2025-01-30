@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from datetime import timedelta
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from requests.models import Response
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
@@ -30,6 +32,7 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
     DbtCloudJobRunStatus,
+    DbtCloudResourceLookupError,
     TokenAuth,
     fallback_to_default_account,
 )
@@ -47,11 +50,46 @@ SINGLE_TENANT_DOMAIN = "single.tenant.getdbt.com"
 EXTRA_PROXIES = {"proxies": {"https": "http://myproxy:1234"}}
 TOKEN = "token"
 PROJECT_ID = 33333
+PROJECT_NAME = "project_name"
+ENVIRONMENT_ID = 44444
+ENVIRONMENT_NAME = "environment_name"
 JOB_ID = 4444
+JOB_NAME = "job_name"
 RUN_ID = 5555
 
 BASE_URL = "https://cloud.getdbt.com/"
 SINGLE_TENANT_URL = "https://single.tenant.getdbt.com/"
+
+DEFAULT_LIST_PROJECTS_RESPONSE = {
+    "data": [
+        {
+            "id": PROJECT_ID,
+            "name": PROJECT_NAME,
+        }
+    ]
+}
+DEFAULT_LIST_ENVIRONMENTS_RESPONSE = {
+    "data": [
+        {
+            "id": ENVIRONMENT_ID,
+            "name": ENVIRONMENT_NAME,
+        }
+    ]
+}
+DEFAULT_LIST_JOBS_RESPONSE = {
+    "data": [
+        {
+            "id": JOB_ID,
+            "name": JOB_NAME,
+        }
+    ]
+}
+
+
+def mock_response_json(response: dict):
+    run_response = MagicMock(**response, spec=Response)
+    run_response.json.return_value = response
+    return run_response
 
 
 class TestDbtCloudJobRunStatus:
@@ -247,7 +285,32 @@ class TestDbtCloudHook:
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_not_called()
         hook._paginate.assert_called_once_with(
-            endpoint=f"api/v3/accounts/{_account_id}/projects/", payload=None, proxies=None
+            endpoint=f"api/v3/accounts/{_account_id}/projects/",
+            payload=None,
+            proxies=None,
+        )
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id, name_contains",
+        argvalues=[(ACCOUNT_ID_CONN, None, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID, PROJECT_NAME)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
+    def test_list_projects_with_payload(
+        self, mock_http_run, mock_paginate, conn_id, account_id, name_contains
+    ):
+        hook = DbtCloudHook(conn_id)
+        hook.list_projects(account_id=account_id, name_contains=name_contains)
+
+        assert hook.method == "GET"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_not_called()
+        hook._paginate.assert_called_once_with(
+            endpoint=f"api/v3/accounts/{_account_id}/projects/",
+            payload={"name__icontains": name_contains} if name_contains else None,
+            proxies=None,
         )
 
     @pytest.mark.parametrize(
@@ -268,6 +331,191 @@ class TestDbtCloudHook:
             endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/", data=None, extra_options=None
         )
         hook._paginate.assert_not_called()
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(
+        DbtCloudHook, "list_projects", return_value=[mock_response_json(DEFAULT_LIST_PROJECTS_RESPONSE)]
+    )
+    def test_get_project_by_name(self, mock_list_projects, conn_id, account_id):
+        """Test retrieving a project by name returns the correct project details."""
+        hook = DbtCloudHook(conn_id)
+        project_details = hook.get_project_by_name(project_name=PROJECT_NAME, account_id=account_id)
+
+        assert project_details == DEFAULT_LIST_PROJECTS_RESPONSE["data"][0]
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        mock_list_projects.assert_called_once_with(name_contains=PROJECT_NAME, account_id=_account_id)
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "list_projects")
+    def test_get_project_by_name_not_found(self, mock_list_projects, conn_id, account_id):
+        """Test retrieving a non-existent project by name raises an error."""
+        hook = DbtCloudHook(conn_id)
+        mock_list_projects.return_value = [mock_response_json({"data": []})]
+
+        with pytest.raises(DbtCloudResourceLookupError, match="Found 0 projects"):
+            hook.get_project_by_name(project_name="non_existent_project", account_id=account_id)
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "list_projects")
+    def test_get_project_by_name_multiple_found(self, mock_list_projects, conn_id, account_id):
+        """Test retrieving a project by name when multiple matches exist raises an error."""
+        hook = DbtCloudHook(conn_id)
+        duplicate_projects_response = {
+            "data": [
+                {"id": PROJECT_ID, "name": PROJECT_NAME},
+                {"id": PROJECT_ID + 1, "name": PROJECT_NAME},
+            ]
+        }
+        mock_list_projects.return_value = [mock_response_json(duplicate_projects_response)]
+
+        with pytest.raises(DbtCloudResourceLookupError, match="Found 2 projects"):
+            hook.get_project_by_name(project_name=PROJECT_NAME, account_id=account_id)
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
+    def test_list_environments(self, mock_http_run, mock_paginate, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        hook.list_environments(project_id=PROJECT_ID, account_id=account_id)
+
+        assert hook.method == "GET"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_not_called()
+        hook._paginate.assert_called_once_with(
+            endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/environments/",
+            payload=None,
+            proxies=None,
+        )
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id, name_contains",
+        argvalues=[(ACCOUNT_ID_CONN, None, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID, ENVIRONMENT_NAME)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
+    def test_list_environments_with_payload(
+        self, mock_http_run, mock_paginate, conn_id, account_id, name_contains
+    ):
+        hook = DbtCloudHook(conn_id)
+        hook.list_environments(project_id=PROJECT_ID, account_id=account_id, name_contains=name_contains)
+
+        assert hook.method == "GET"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_not_called()
+        hook._paginate.assert_called_once_with(
+            endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/environments/",
+            payload={"name__icontains": name_contains} if name_contains else None,
+            proxies=None,
+        )
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
+    def test_get_environment(self, mock_http_run, mock_paginate, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        hook.get_environment(project_id=PROJECT_ID, environment_id=ENVIRONMENT_ID, account_id=account_id)
+
+        assert hook.method == "GET"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_called_once_with(
+            endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/environments/{ENVIRONMENT_ID}/",
+            data=None,
+            extra_options=None,
+        )
+        hook._paginate.assert_not_called()
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(
+        DbtCloudHook,
+        "list_environments",
+        return_value=[mock_response_json(DEFAULT_LIST_ENVIRONMENTS_RESPONSE)],
+    )
+    def test_get_environment_by_name(self, mock_list_environments, conn_id, account_id):
+        """Test retrieving an environment by name returns the correct environment details."""
+        hook = DbtCloudHook(conn_id)
+        environment_details = hook.get_environment_by_name(
+            project_id=PROJECT_ID,
+            environment_name=ENVIRONMENT_NAME,
+            account_id=account_id,
+        )
+
+        assert environment_details == DEFAULT_LIST_ENVIRONMENTS_RESPONSE["data"][0]
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        mock_list_environments.assert_called_once_with(
+            project_id=PROJECT_ID,
+            name_contains=ENVIRONMENT_NAME,
+            account_id=_account_id,
+        )
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "list_environments")
+    def test_get_environment_by_name_not_found(self, mock_list_environments, conn_id, account_id):
+        """Test retrieving a non-existent environment by name raises an error."""
+        hook = DbtCloudHook(conn_id)
+        mock_list_environments.return_value = [mock_response_json({"data": []})]
+
+        with pytest.raises(DbtCloudResourceLookupError, match="Found 0 environments"):
+            hook.get_environment_by_name(
+                project_id=PROJECT_ID,
+                environment_name="non_existent_environment",
+                account_id=account_id,
+            )
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "list_environments")
+    def test_get_environment_by_name_multiple_found(self, mock_list_environments, conn_id, account_id):
+        """Test retrieving an environment by name when multiple matches exist raises an error."""
+        hook = DbtCloudHook(conn_id)
+        duplicate_environments_response = {
+            "data": [
+                {"id": ENVIRONMENT_ID, "name": ENVIRONMENT_NAME},
+                {"id": ENVIRONMENT_ID + 1, "name": ENVIRONMENT_NAME},
+            ]
+        }
+        mock_list_environments.return_value = [mock_response_json(duplicate_environments_response)]
+
+        with pytest.raises(DbtCloudResourceLookupError, match="Found 2 environments"):
+            hook.get_environment_by_name(
+                project_id=PROJECT_ID,
+                environment_name=ENVIRONMENT_NAME,
+                account_id=account_id,
+            )
 
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",
@@ -299,14 +547,25 @@ class TestDbtCloudHook:
     @patch.object(DbtCloudHook, "_paginate")
     def test_list_jobs_with_payload(self, mock_http_run, mock_paginate, conn_id, account_id):
         hook = DbtCloudHook(conn_id)
-        hook.list_jobs(project_id=PROJECT_ID, account_id=account_id, order_by="-id")
+        hook.list_jobs(
+            project_id=PROJECT_ID,
+            account_id=account_id,
+            order_by="-id",
+            environment_id=ENVIRONMENT_ID,
+            name_contains=JOB_NAME,
+        )
 
         assert hook.method == "GET"
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook._paginate.assert_called_once_with(
             endpoint=f"api/v2/accounts/{_account_id}/jobs/",
-            payload={"order_by": "-id", "project_id": PROJECT_ID},
+            payload={
+                "order_by": "-id",
+                "project_id": PROJECT_ID,
+                "environment_id": ENVIRONMENT_ID,
+                "name__icontains": JOB_NAME,
+            },
             proxies=None,
         )
         hook.run.assert_not_called()
@@ -329,6 +588,148 @@ class TestDbtCloudHook:
             endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}", data=None, extra_options=None
         )
         hook._paginate.assert_not_called()
+
+    @pytest.mark.parametrize(
+        argnames="project_id, project_name, environment_id, environment_name, job_name",
+        argvalues=[
+            (PROJECT_ID, None, ENVIRONMENT_ID, None, JOB_NAME),
+            (None, PROJECT_NAME, None, ENVIRONMENT_NAME, JOB_NAME),
+            (PROJECT_ID, None, None, ENVIRONMENT_NAME, JOB_NAME),
+            (None, PROJECT_NAME, ENVIRONMENT_ID, None, JOB_NAME),
+        ],
+    )
+    @patch.object(DbtCloudHook, "list_jobs", return_value=[mock_response_json(DEFAULT_LIST_JOBS_RESPONSE)])
+    @patch.object(
+        DbtCloudHook,
+        "get_environment_by_name",
+        return_value=DEFAULT_LIST_ENVIRONMENTS_RESPONSE["data"][0],
+    )
+    @patch.object(DbtCloudHook, "get_project_by_name", return_value=DEFAULT_LIST_PROJECTS_RESPONSE["data"][0])
+    def test_get_job_by_name_returns_response(
+        self,
+        mock_get_project_by_name,
+        mock_get_environment_by_name,
+        mock_list_jobs,
+        project_id,
+        project_name,
+        environment_id,
+        environment_name,
+        job_name,
+    ):
+        """Test retrieving a job by project, environment, and job name."""
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+        job_details = hook.get_job_by_name(
+            project_id=project_id,
+            project_name=project_name,
+            environment_id=environment_id,
+            environment_name=environment_name,
+            job_name=job_name,
+            account_id=DEFAULT_ACCOUNT_ID,
+        )
+
+        assert job_details == DEFAULT_LIST_JOBS_RESPONSE["data"][0]
+        if project_id is None:
+            mock_get_project_by_name.assert_called_once_with(
+                project_name=project_name, account_id=DEFAULT_ACCOUNT_ID
+            )
+        else:
+            mock_get_project_by_name.assert_not_called()
+        if environment_id is None:
+            mock_get_environment_by_name.assert_called_once_with(
+                project_id=PROJECT_ID, environment_name=environment_name, account_id=DEFAULT_ACCOUNT_ID
+            )
+        else:
+            mock_get_environment_by_name.assert_not_called()
+
+    @pytest.mark.parametrize(
+        argnames="project_name, environment_name, job_name",
+        argvalues=[
+            ("dummy_name", ENVIRONMENT_NAME, JOB_NAME),
+            (PROJECT_NAME, "dummy_name", JOB_NAME),
+            (PROJECT_NAME, ENVIRONMENT_NAME, JOB_NAME.upper()),
+            (None, ENVIRONMENT_NAME, JOB_NAME),
+            (PROJECT_NAME, "", JOB_NAME),
+            ("", "", ""),
+        ],
+    )
+    @patch.object(DbtCloudHook, "list_jobs", return_value=[mock_response_json(DEFAULT_LIST_JOBS_RESPONSE)])
+    @patch.object(
+        DbtCloudHook,
+        "list_environments",
+        return_value=[mock_response_json(DEFAULT_LIST_ENVIRONMENTS_RESPONSE)],
+    )
+    @patch.object(
+        DbtCloudHook, "list_projects", return_value=[mock_response_json(DEFAULT_LIST_PROJECTS_RESPONSE)]
+    )
+    def test_get_job_by_incorrect_name_raises_exception(
+        self,
+        mock_list_projects,
+        mock_list_environments,
+        mock_list_jobs,
+        project_name,
+        environment_name,
+        job_name,
+    ):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+        with pytest.raises(DbtCloudResourceLookupError, match="Found 0"):
+            hook.get_job_by_name(
+                project_name=project_name,
+                environment_name=environment_name,
+                job_name=job_name,
+                account_id=None,
+            )
+
+    @pytest.mark.parametrize("duplicated", ["projects", "environments", "jobs"])
+    def test_get_job_by_duplicate_name_raises_exception(self, duplicated):
+        hook = DbtCloudHook(ACCOUNT_ID_CONN)
+        mock_list_jobs_response = deepcopy(DEFAULT_LIST_JOBS_RESPONSE)
+        mock_list_environments_response = deepcopy(DEFAULT_LIST_ENVIRONMENTS_RESPONSE)
+        mock_list_projects_response = deepcopy(DEFAULT_LIST_PROJECTS_RESPONSE)
+
+        if duplicated == "projects":
+            mock_list_projects_response["data"].append(
+                {
+                    "id": PROJECT_ID + 1,
+                    "name": PROJECT_NAME,
+                }
+            )
+        elif duplicated == "environments":
+            mock_list_environments_response["data"].append(
+                {
+                    "id": ENVIRONMENT_ID + 1,
+                    "name": ENVIRONMENT_NAME,
+                }
+            )
+        elif duplicated == "jobs":
+            mock_list_jobs_response["data"].append(
+                {
+                    "id": JOB_ID + 1,
+                    "name": JOB_NAME,
+                }
+            )
+
+        with (
+            patch.object(
+                DbtCloudHook, "list_jobs", return_value=[mock_response_json(mock_list_jobs_response)]
+            ),
+            patch.object(
+                DbtCloudHook,
+                "list_environments",
+                return_value=[mock_response_json(mock_list_environments_response)],
+            ),
+            patch.object(
+                DbtCloudHook,
+                "list_projects",
+                return_value=[mock_response_json(mock_list_projects_response)],
+            ),
+        ):
+            with pytest.raises(DbtCloudResourceLookupError, match=f"Found 2 {duplicated}"):
+                hook.get_job_by_name(
+                    project_name=PROJECT_NAME,
+                    environment_name=ENVIRONMENT_NAME,
+                    job_name=JOB_NAME,
+                    account_id=None,
+                )
 
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",

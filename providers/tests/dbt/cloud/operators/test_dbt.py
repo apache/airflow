@@ -43,7 +43,11 @@ DEFAULT_ACCOUNT_ID = 11111
 ACCOUNT_ID = 22222
 TOKEN = "token"
 PROJECT_ID = 33333
+PROJECT_NAME = "project_name"
+ENVIRONMENT_ID = 44444
+ENVIRONMENT_NAME = "environment_name"
 JOB_ID = 4444
+JOB_NAME = "job_name"
 RUN_ID = 5555
 EXPECTED_JOB_RUN_OP_EXTRA_LINK = (
     "https://cloud.getdbt.com/#/accounts/{account_id}/projects/{project_id}/runs/{run_id}/"
@@ -74,6 +78,12 @@ JOB_RUN_ERROR_RESPONSE = {
             "status": DbtCloudJobRunStatus.ERROR.value,
         }
     ]
+}
+DEFAULT_ACCOUNT_JOB_RESPONSE = {
+    "data": {
+        "id": JOB_ID,
+        "account_id": DEFAULT_ACCOUNT_ID,
+    }
 }
 
 
@@ -199,6 +209,120 @@ class TestDbtCloudRunJobOperator:
         with pytest.raises(TaskDeferred) as exc:
             dbt_op.execute(MagicMock())
         assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
+
+    @pytest.mark.parametrize(
+        argnames="project_id, project_name, environment_id, environment_name, job_name",
+        argvalues=[
+            (PROJECT_ID, None, ENVIRONMENT_ID, None, JOB_NAME),
+            (None, PROJECT_NAME, None, ENVIRONMENT_NAME, JOB_NAME),
+            (PROJECT_ID, None, None, ENVIRONMENT_NAME, JOB_NAME),
+            (None, PROJECT_NAME, ENVIRONMENT_ID, None, JOB_NAME),
+        ],
+    )
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_by_name",
+        return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RESPONSE),
+    )
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_status",
+        return_value=DbtCloudJobRunStatus.SUCCESS.value,
+    )
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run",
+        return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
+    )
+    def test_dbt_run_job_by_name(
+        self,
+        mock_trigger_job_run,
+        mock_dbt_hook,
+        mock_job_run_status,
+        mock_job_by_name,
+        project_id,
+        project_name,
+        environment_id,
+        environment_name,
+        job_name,
+    ):
+        """Test running a job by project, environment, and job name."""
+        dbt_op = DbtCloudRunJobOperator(
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            task_id=TASK_ID,
+            project_id=project_id,
+            project_name=project_name,
+            environment_id=environment_id,
+            environment_name=environment_name,
+            job_name=job_name,
+            check_interval=1,
+            timeout=3,
+            dag=self.dag,
+        )
+        dbt_op.execute(MagicMock())
+        mock_trigger_job_run.assert_called_once()
+
+    @pytest.mark.parametrize(
+        argnames="project_id, project_name, environment_id, environment_name, job_name",
+        argvalues=[
+            # Missing all required fields
+            (None, None, None, None, None),
+            # Missing project (both id and name)
+            (None, None, ENVIRONMENT_ID, None, JOB_NAME),
+            (None, None, None, ENVIRONMENT_NAME, JOB_NAME),
+            (None, "", None, ENVIRONMENT_NAME, JOB_NAME),
+            # Missing environment (both id and name)
+            (PROJECT_ID, None, None, None, JOB_NAME),
+            (None, PROJECT_NAME, None, None, JOB_NAME),
+            (None, PROJECT_NAME, None, "", JOB_NAME),
+            # Missing job name
+            (PROJECT_ID, None, ENVIRONMENT_ID, None, None),
+            (None, PROJECT_NAME, None, ENVIRONMENT_NAME, None),
+            (None, PROJECT_NAME, ENVIRONMENT_ID, None, ""),
+        ],
+    )
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_by_name",
+        return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RESPONSE),
+    )
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_status",
+        return_value=DbtCloudJobRunStatus.SUCCESS.value,
+    )
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run",
+        return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
+    )
+    def test_dbt_run_job_by_incorrect_name_raises_exception(
+        self,
+        mock_trigger_job_run,
+        mock_dbt_hook,
+        mock_job_run_status,
+        mock_job_by_name,
+        project_id,
+        project_name,
+        environment_id,
+        environment_name,
+        job_name,
+    ):
+        """Test that the operator raises an exception when job lookup information is invalid."""
+        dbt_op = DbtCloudRunJobOperator(
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            task_id=TASK_ID,
+            project_id=project_id,
+            project_name=project_name,
+            environment_id=environment_id,
+            environment_name=environment_name,
+            job_name=job_name,
+            check_interval=1,
+            timeout=3,
+            dag=self.dag,
+        )
+        with pytest.raises(
+            ValueError,
+            match="Not enough information to lookup the job_id.",
+        ):
+            dbt_op.execute(MagicMock())
+        mock_trigger_job_run.assert_not_called()
 
     @patch.object(
         DbtCloudHook, "trigger_job_run", return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE)

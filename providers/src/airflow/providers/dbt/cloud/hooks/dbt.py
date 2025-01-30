@@ -135,6 +135,10 @@ class DbtCloudJobRunException(AirflowException):
     """An exception that indicates a job run failed to complete."""
 
 
+class DbtCloudResourceLookupError(AirflowException):
+    """Exception raised when a dbt Cloud resource cannot be uniquely identified."""
+
+
 T = TypeVar("T", bound=Any)
 
 
@@ -356,14 +360,23 @@ class DbtCloudHook(HttpHook):
         return self._run_and_get_response(endpoint=f"{account_id}/")
 
     @fallback_to_default_account
-    def list_projects(self, account_id: int | None = None) -> list[Response]:
+    def list_projects(
+        self, account_id: int | None = None, name_contains: str | None = None
+    ) -> list[Response]:
         """
         Retrieve metadata for all projects tied to a specified dbt Cloud account.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
+        :param name_contains: Optional. The case-insensitive substring of a dbt Cloud project name to filter by.
         :return: List of request responses.
         """
-        return self._run_and_get_response(endpoint=f"{account_id}/projects/", paginate=True, api_version="v3")
+        payload = {"name__icontains": name_contains} if name_contains else None
+        return self._run_and_get_response(
+            endpoint=f"{account_id}/projects/",
+            payload=payload,
+            paginate=True,
+            api_version="v3",
+        )
 
     @fallback_to_default_account
     def get_project(self, project_id: int, account_id: int | None = None) -> Response:
@@ -377,26 +390,125 @@ class DbtCloudHook(HttpHook):
         return self._run_and_get_response(endpoint=f"{account_id}/projects/{project_id}/", api_version="v3")
 
     @fallback_to_default_account
+    def get_project_by_name(self, project_name: str, account_id: int | None = None) -> dict:
+        """
+        Retrieve metadata for a specific project using project_name.
+
+        Raises DbtCloudResourceLookupError if the project is not found or cannot be uniquely identified by provided parameters.
+
+        :param project_name: The name of a dbt Cloud project.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :return: The details of a project.
+        """
+        list_projects_responses = self.list_projects(name_contains=project_name, account_id=account_id)
+        # flatten & filter the list of responses to find the exact match
+        projects = [
+            project
+            for response in list_projects_responses
+            for project in response.json()["data"]
+            if project["name"] == project_name
+        ]
+        if len(projects) != 1:
+            raise DbtCloudResourceLookupError(f"Found {len(projects)} projects with name `{project_name}`.")
+        return projects[0]
+
+    @fallback_to_default_account
+    def list_environments(
+        self, project_id: int, *, name_contains: str | None = None, account_id: int | None = None
+    ) -> list[Response]:
+        """
+        Retrieve metadata for all environments tied to a specified dbt Cloud project.
+
+        :param project_id: The ID of a dbt Cloud project.
+        :param name_contains: Optional. The case-insensitive substring of a dbt Cloud environment name to filter by.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :return: List of request responses.
+        """
+        payload = {"name__icontains": name_contains} if name_contains else None
+        return self._run_and_get_response(
+            endpoint=f"{account_id}/projects/{project_id}/environments/",
+            payload=payload,
+            paginate=True,
+            api_version="v3",
+        )
+
+    @fallback_to_default_account
+    def get_environment(
+        self, project_id: int, environment_id: int, *, account_id: int | None = None
+    ) -> Response:
+        """
+        Retrieve metadata for a specific project's environment.
+
+        :param project_id: The ID of a dbt Cloud project.
+        :param environment_id: The ID of a dbt Cloud environment.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :return: The request response.
+        """
+        return self._run_and_get_response(
+            endpoint=f"{account_id}/projects/{project_id}/environments/{environment_id}/", api_version="v3"
+        )
+
+    @fallback_to_default_account
+    def get_environment_by_name(
+        self, project_id: int, environment_name: str, *, account_id: int | None = None
+    ) -> dict:
+        """
+        Retrieve metadata for a specific project's environment using project_id and environment_name.
+
+        Raises DbtCloudResourceLookupError if the environment is not found or cannot be uniquely identified by provided parameters.
+
+        :param project_id: The ID of a dbt Cloud project.
+        :param environment_name: The name of a dbt Cloud environment.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :return: The details of an environment.
+        """
+        list_environments_responses = self.list_environments(
+            project_id=project_id, name_contains=environment_name, account_id=account_id
+        )
+        # flatten & filter the list of responses to find the exact match
+        environments = [
+            env
+            for response in list_environments_responses
+            for env in response.json()["data"]
+            if env["name"] == environment_name
+        ]
+        if len(environments) != 1:
+            raise DbtCloudResourceLookupError(
+                f"Found {len(environments)} environments with name `{environment_name}` in project `{project_id}`."
+            )
+        return environments[0]
+
+    @fallback_to_default_account
     def list_jobs(
         self,
         account_id: int | None = None,
         order_by: str | None = None,
         project_id: int | None = None,
+        environment_id: int | None = None,
+        name_contains: str | None = None,
     ) -> list[Response]:
         """
         Retrieve metadata for all jobs tied to a specified dbt Cloud account.
 
         If a ``project_id`` is supplied, only jobs pertaining to this project will be retrieved.
+        If an ``environment_id`` is supplied, only jobs pertaining to this environment will be retrieved.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
         :param order_by: Optional. Field to order the result by. Use '-' to indicate reverse order.
             For example, to use reverse order by the run ID use ``order_by=-id``.
-        :param project_id: The ID of a dbt Cloud project.
+        :param project_id: Optional. The ID of a dbt Cloud project.
+        :param environment_id: Optional. The ID of a dbt Cloud environment.
+        :param name_contains: Optional. The case-insensitive substring of a dbt Cloud job name to filter by.
         :return: List of request responses.
         """
+        payload = {"order_by": order_by, "project_id": project_id}
+        if environment_id:
+            payload["environment_id"] = environment_id
+        if name_contains:
+            payload["name__icontains"] = name_contains
         return self._run_and_get_response(
             endpoint=f"{account_id}/jobs/",
-            payload={"order_by": order_by, "project_id": project_id},
+            payload=payload,
             paginate=True,
         )
 
@@ -410,6 +522,63 @@ class DbtCloudHook(HttpHook):
         :return: The request response.
         """
         return self._run_and_get_response(endpoint=f"{account_id}/jobs/{job_id}")
+
+    @fallback_to_default_account
+    def get_job_by_name(
+        self,
+        *,
+        project_id: int | None = None,
+        project_name: str | None = None,
+        environment_id: int | None = None,
+        environment_name: str | None = None,
+        job_name: str,
+        account_id: int | None = None,
+    ) -> dict:
+        """
+        Retrieve metadata for a specific job by combination of project, environment, and job name.
+
+        Raises DbtCloudResourceLookupError if the job is not found or cannot be uniquely identified by provided parameters.
+
+        :param project_id: The ID of the dbt Cloud project. Can be used interchangeably with
+            project_name. Either project_id or project_name must be provided.
+        :param project_name: The name of the dbt Cloud project. Can be used interchangeably with
+            project_id. Either project_id or project_name must be provided.
+        :param environment_id: The ID of the dbt Cloud environment. Can be used interchangeably with
+            environment_name. Either environment_id or environment_name must be provided.
+        :param environment_name: The name of the dbt Cloud environment. Can be used interchangeably with
+            environment_id. Either environment_id or environment_name must be provided.
+        :param job_name: The name of the dbt Cloud job to look up. Required.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :return: The details of a job.
+        """
+        if not project_id:
+            project_id = self.get_project_by_name(project_name=project_name, account_id=account_id)["id"]
+
+        if not environment_id:
+            environment_id = self.get_environment_by_name(
+                project_id=project_id, environment_name=environment_name, account_id=account_id
+            )["id"]
+
+        # get job using project_id, environment_id and job_name
+        list_jobs_responses = self.list_jobs(
+            project_id=project_id,
+            environment_id=environment_id,
+            name_contains=job_name,
+            account_id=account_id,
+        )
+        # flatten & filter the list of responses to find the exact match
+        jobs = [
+            job
+            for response in list_jobs_responses
+            for job in response.json()["data"]
+            if job["name"] == job_name
+        ]
+        if len(jobs) != 1:
+            raise DbtCloudResourceLookupError(
+                f"Found {len(jobs)} jobs with name `{job_name}` in environment `{(environment_id or environment_name)}` in project `{(project_id or project_name)}`."
+            )
+
+        return jobs[0]
 
     @fallback_to_default_account
     def trigger_job_run(

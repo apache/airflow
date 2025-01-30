@@ -67,6 +67,17 @@ with DAG(
     )
     # [END howto_operator_dbt_cloud_run_job_async]
 
+    # [START howto_operator_dbt_cloud_run_job_without_job_id]
+    trigger_job_run3 = DbtCloudRunJobOperator(
+        task_id="trigger_job_run3",
+        project_name="my_dbt_project",
+        environment_name="prod",
+        job_name="my_dbt_job",
+        check_interval=10,
+        timeout=300,
+    )
+    # [END howto_operator_dbt_cloud_run_job_without_job_id]
+
     # [START howto_operator_dbt_cloud_run_job_sensor]
     job_run_sensor = DbtCloudJobRunSensor(
         task_id="job_run_sensor", run_id=trigger_job_run2.output, timeout=20
