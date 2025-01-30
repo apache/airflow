@@ -29,7 +29,7 @@ import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 import { getDuration } from "src/utils";
-import { isStatePending } from "src/utils/refresh";
+import { isStatePending } from "src/utils";
 
 export const Details = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();

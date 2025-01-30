@@ -23,7 +23,7 @@ import { useDagServiceGetDagDetails, useTaskInstanceServiceGetMappedTaskInstance
 import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useConfig } from "src/queries/useConfig";
-import { isStatePending } from "src/utils/refresh";
+import { isStatePending } from "src/utils";
 
 import { Header } from "./Header";
 

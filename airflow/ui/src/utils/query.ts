@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { Query } from "@tanstack/react-query";
+
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 export const isStatePending = (state?: TaskInstanceState | null) =>
@@ -27,3 +29,21 @@ export const isStatePending = (state?: TaskInstanceState | null) =>
   state === "queued" ||
   state === "restarting" ||
   !Boolean(state);
+
+export type PartialQueryKey = { baseKey: string; options?: Record<string, unknown> };
+
+export const doQueriesMatch = (query: Query, queriesToMatch: Array<PartialQueryKey>) => {
+  const [baseKey, options] = query.queryKey;
+
+  const matchedKey = queriesToMatch.find((qk) => qk.baseKey === baseKey);
+
+  if (!matchedKey) {
+    return false;
+  }
+
+  return matchedKey.options
+    ? Object.entries(matchedKey.options).every(
+        ([key, value]) => typeof options === "object" && (options as Record<string, unknown>)[key] === value,
+      )
+    : true;
+};

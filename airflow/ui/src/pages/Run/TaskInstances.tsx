@@ -42,8 +42,8 @@ import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { capitalize, getDuration } from "src/utils";
+import { isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
-import { isStatePending } from "src/utils/refresh";
 
 const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   {
@@ -182,7 +182,7 @@ export const TaskInstances = () => {
 
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
 
-  const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances(
+  const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
       dagRunId: runId,
@@ -258,7 +258,6 @@ export const TaskInstances = () => {
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="Task Instance"
         onStateChange={setTableURLState}

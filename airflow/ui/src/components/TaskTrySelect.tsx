@@ -22,7 +22,7 @@ import { useTaskInstanceServiceGetMappedTaskInstanceTries } from "openapi/querie
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { useConfig } from "src/queries/useConfig";
-import { isStatePending } from "src/utils/refresh";
+import { isStatePending } from "src/utils";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
 import { Select } from "./ui";

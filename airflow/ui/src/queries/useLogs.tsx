@@ -20,7 +20,7 @@ import dayjs from "dayjs";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import { isStatePending } from "src/utils/refresh";
+import { isStatePending } from "src/utils";
 
 import { useConfig } from "./useConfig";
 
