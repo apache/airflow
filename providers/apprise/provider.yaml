@@ -47,10 +47,6 @@ integrations:
     external-doc-url: https://github.com/caronc/apprise
     tags: [software]
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apprise>=1.8.0
-
 hooks:
   - integration-name: Apprise
     python-modules:

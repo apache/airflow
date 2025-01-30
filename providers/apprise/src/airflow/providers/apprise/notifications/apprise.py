@@ -20,10 +20,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from functools import cached_property
 
-from apprise import AppriseConfig, NotifyFormat, NotifyType
-
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.apprise.hooks.apprise import AppriseHook
+from apprise import AppriseConfig, NotifyFormat, NotifyType
 
 
 class AppriseNotifier(BaseNotifier):

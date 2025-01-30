@@ -631,6 +631,7 @@ dev = [
   "apache-airflow-providers-apache-pig",
   "apache-airflow-providers-apache-pinot",
   "apache-airflow-providers-apache-spark",
+  "apache-airflow-providers-apprise",
   "apache-airflow-providers-asana",
   "apache-airflow-providers-atlassian-jira",
   "apache-airflow-providers-celery",
@@ -695,6 +696,7 @@ apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
+apache-airflow-providers-apprise = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-atlassian-jira = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
@@ -757,6 +759,7 @@ members = [
     "providers/apache/pig",
     "providers/apache/pinot",
     "providers/apache/spark",
+    "providers/apprise",
     "providers/asana",
     "providers/atlassian/jira",
     "providers/celery",
