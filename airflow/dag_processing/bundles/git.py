@@ -163,7 +163,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
                     to_path=self.repo_path,
                 )
             except NoSuchPathError as e:
-                # Protection should the path be removed manually
+                # Protection should the bare repo be removed manually
                 raise AirflowException("Repository path: %s not found: %s", self.bare_repo_path, e)
 
         self.repo = Repo(self.repo_path)
@@ -183,8 +183,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             except GitCommandError as e:
                 # log the error to appear in dag-processor stdout and raise exception to appear
                 # in the dag-processor logs
-                self.log.info("Error cloning repository %s: %s", self.repo_url, e)
-                raise AirflowException("Error cloning repository: %s", e)
+                raise AirflowException("Error cloning repository") from e
         self.bare_repo = Repo(self.bare_repo_path)
 
     def _ensure_version_in_bare_repo(self) -> None:
