@@ -422,6 +422,7 @@ class DagModelOperation(NamedTuple):
         for dag_id, dm in sorted(orm_dags.items()):
             dag = self.dags[dag_id]
             dm.fileloc = dag.fileloc
+            dm.relative_fileloc = dag.relative_fileloc
             dm.owners = dag.owner or conf.get("operators", "default_owner")
             dm.is_active = True
             dm.has_import_errors = False
