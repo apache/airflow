@@ -113,6 +113,7 @@ def worker_set_state(
             exclude_unset=True
         ),
     )
+    logger.info("The request result: %s", result)
     return WorkerSetStateReturn(**result)
 
 
