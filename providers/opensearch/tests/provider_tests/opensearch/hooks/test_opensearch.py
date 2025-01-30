@@ -20,14 +20,13 @@ import json
 from unittest import mock
 
 import pytest
-
-opensearchpy = pytest.importorskip("opensearchpy")
 from opensearchpy import Urllib3HttpConnection
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
+opensearchpy = pytest.importorskip("opensearchpy")
 pytestmark = pytest.mark.db_test
 
 

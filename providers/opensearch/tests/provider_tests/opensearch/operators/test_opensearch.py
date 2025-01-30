@@ -17,9 +17,6 @@
 from __future__ import annotations
 
 import pytest
-
-opensearchpy = pytest.importorskip("opensearchpy")
-
 from opensearchpy import Document, Keyword, Text
 
 from airflow.models import DAG
@@ -30,6 +27,7 @@ from airflow.providers.opensearch.operators.opensearch import (
 )
 from airflow.utils.timezone import datetime
 
+opensearchpy = pytest.importorskip("opensearchpy")
 pytestmark = pytest.mark.db_test
 
 

@@ -657,6 +657,7 @@ dev = [
   "apache-airflow-providers-neo4j",
   "apache-airflow-providers-openai",
   "apache-airflow-providers-openfaas",
+  "apache-airflow-providers-opensearch",
   "apache-airflow-providers-opsgenie",
   "apache-airflow-providers-papermill",
   "apache-airflow-providers-pgvector",
@@ -729,6 +730,7 @@ apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
 apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-odbc = { workspace = true }
+apache-airflow-providers-opensearch = { workspace = true }
 apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-openfaas = { workspace = true }
 apache-airflow-providers-opsgenie = { workspace = true }
@@ -798,6 +800,7 @@ members = [
     "providers/openai",
     "providers/openfaas",
     "providers/openlineage",
+    "providers/opensearch",
     "providers/opsgenie",
     "providers/pagerduty",
     "providers/papermill",

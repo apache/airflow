@@ -24,12 +24,11 @@ import logging
 import pendulum
 import pytest
 
-opensearchpy = pytest.importorskip("opensearchpy")
-
 from airflow.providers.opensearch.log.os_task_handler import (
     OpensearchJSONFormatter,
 )
 
+opensearchpy = pytest.importorskip("opensearchpy")
 pytestmark = pytest.mark.db_test
 
 
