@@ -61,6 +61,7 @@ services:
       - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
+      - ../../../providers/dbt/cloud/tests:/opt/airflow/providers/dbt/cloud/tests
       - ../../../providers/discord/tests:/opt/airflow/providers/discord/tests
       - ../../../providers/docker/tests:/opt/airflow/providers/docker/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
