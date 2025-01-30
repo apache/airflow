@@ -43,10 +43,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/drill/**/*
 
   provider:apache-druid:
-    - providers/src/airflow/providers/apache/druid/**/*
-    - docs/apache-airflow-providers-apache-druid/**/*
-    - providers/tests/apache/druid/**/*
-    - providers/tests/system/apache/druid/**/*
+    - providers/apache/druid/**
 
   provider:apache-flink:
     - providers/src/airflow/providers/apache/flink/**/*
