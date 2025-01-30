@@ -142,7 +142,8 @@ class LivyOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> Any:
-        self._batch_id = self.hook.post_batch(**self.spark_params)
+        _batch_id: int | str = self.hook.post_batch(**self.spark_params)
+        self._batch_id = _batch_id
         self.log.info("Generated batch-id is %s", self._batch_id)
 
         # Wait for the job to complete
