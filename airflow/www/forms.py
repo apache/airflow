@@ -178,7 +178,6 @@ class TaskInstanceEditForm(DynamicForm):
 
 
 class BS3AccordionTextAreaFieldWidget(BS3TextAreaFieldWidget):
-
     @staticmethod
     def _make_collapsable_panel(field: Field, content: Markup) -> str:
         collapsable_id: str = f"collapsable_{field.id}"
