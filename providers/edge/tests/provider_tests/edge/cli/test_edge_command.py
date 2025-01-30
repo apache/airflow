@@ -376,7 +376,7 @@ class TestEdgeWorkerCli:
 
         mock_register.assert_called_once()
         mock_loop.assert_called_once()
-        mock_set_state.assert_called_once()
+        assert mock_set_state.call_count == 2
 
     def test_get_sysinfo(self, worker_with_job: _EdgeWorkerCli):
         concurrency = 8
