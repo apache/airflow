@@ -50,7 +50,7 @@ Extra (optional)
     are supported:
 
     * ``load_balancing_policy`` - This parameter specifies the load balancing policy to be used. There are four available policies:
-      ``RoundRobinPolicy``, ``DCAwareRoundRobinPolicy``, ``WhiteListRoundRobinPolicy`` and ``TokenAwarePolicy``. ``RoundRobinPolicy`` is the default load balancing policy.
+      ``RoundRobinPolicy``, ``DCAwareRoundRobinPolicy``, ``AllowListRoundRobinPolicy`` and ``TokenAwarePolicy``. ``RoundRobinPolicy`` is the default load balancing policy.
     * ``load_balancing_policy_args`` - This parameter specifies the arguments for the load balancing policy being used.
     * ``cql_version`` - This parameter specifies the CQL version of cassandra.
     * ``protocol_version`` - This parameter specifies the maximum version of the native protocol to use.
@@ -88,12 +88,12 @@ DCAwareRoundRobinPolicy:
       }
     }
 
-WhiteListRoundRobinPolicy:
+AllowListRoundRobinPolicy
 
 .. code-block:: json
 
     {
-      "load_balancing_policy": "WhiteListRoundRobinPolicy",
+      "load_balancing_policy": "AllowListRoundRobinPolicy",
       "load_balancing_policy_args": {
         "hosts": ["HOST1", "HOST2", "HOST3"]
       }
