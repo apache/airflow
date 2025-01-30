@@ -265,10 +265,7 @@ labelPRBasedOnFilePath:
     - providers/openlineage/**
 
   provider:opensearch:
-    - providers/src/airflow/providers/opensearch/**/*
-    - docs/apache-airflow-providers-opensearch/**/*
-    - providers/tests/opensearch/**/*
-    - providers/tests/system/opensearch/**/*
+    - providers/opensearch/**
 
   provider:opsgenie:
     - providers/opsgenie/**

@@ -22,8 +22,6 @@ from typing import Any
 
 import pytest
 
-opensearchpy = pytest.importorskip("opensearchpy")
-
 from airflow.providers.opensearch.log.os_response import (
     AttributeList,
     Hit,
@@ -32,6 +30,7 @@ from airflow.providers.opensearch.log.os_response import (
 )
 from airflow.providers.opensearch.log.os_task_handler import OpensearchTaskHandler
 
+opensearchpy = pytest.importorskip("opensearchpy")
 pytestmark = pytest.mark.db_test
 
 

@@ -79,6 +79,7 @@ services:
       - ../../../providers/openai/tests:/opt/airflow/providers/openai/tests
       - ../../../providers/openfaas/tests:/opt/airflow/providers/openfaas/tests
       - ../../../providers/openlineage/tests:/opt/airflow/providers/openlineage/tests
+      - ../../../providers/opensearch/tests:/opt/airflow/providers/opensearch/tests
       - ../../../providers/opsgenie/tests:/opt/airflow/providers/opsgenie/tests
       - ../../../providers/pagerduty/tests:/opt/airflow/providers/pagerduty/tests
       - ../../../providers/papermill/tests:/opt/airflow/providers/papermill/tests
