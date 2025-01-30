@@ -288,7 +288,8 @@ class _EdgeWorkerCli:
         signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
         signal.signal(signal.SIGTERM, self.shutdown_handler)
         try:
-            self.last_hb = self.heartbeat()
+            self.heartbeat()
+            self.last_hb = datetime.now()
             while not _EdgeWorkerCli.drain or self.jobs:
                 self.loop()
 
@@ -311,8 +312,8 @@ class _EdgeWorkerCli:
         if (
             _EdgeWorkerCli.drain
             or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval
-            or worker_state_changed # send heartbeat immediately if the state is different in db
-            or bool(previous_jobs) != bool(self.jobs) # when number of jobs changes from/to 0
+            or worker_state_changed  # send heartbeat immediately if the state is different in db
+            or bool(previous_jobs) != bool(self.jobs)  # when number of jobs changes from/to 0
         ):
             worker_state_changed = self.heartbeat()
             self.last_hb = datetime.now()
