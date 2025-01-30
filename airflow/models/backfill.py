@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -141,6 +140,7 @@ class BackfillDagRunExceptionReason(str, Enum):
     IN_FLIGHT = "in flight"
     ALREADY_EXISTS = "already exists"
     UNKNOWN = "unknown"
+    CLEARED_RUN = "cleared run"
 
 
 class BackfillDagRun(Base):
@@ -194,7 +194,11 @@ def _get_latest_dag_run_row_query(info, session):
 def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> str | None:
     non_create_reason = None
     if dr.state not in (DagRunState.SUCCESS, DagRunState.FAILED):
-        non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
+        if dr.clear_number == 0:
+            non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
+        else:
+            non_create_reason = BackfillDagRunExceptionReason.CLEARED_RUN
+
     elif reprocess_behavior is ReprocessBehavior.NONE:
         non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
     elif reprocess_behavior is ReprocessBehavior.FAILED:
@@ -262,7 +266,23 @@ def _create_backfill_dag_run(
     dag_run_conf,
     backfill_sort_ordinal,
     session,
+    from_date,
+    to_date,
 ):
+    from airflow.models import DAG
+
+    dr = session.scalar(_get_latest_dag_run_row_query(info, session))
+    if (
+        dr
+        and dr.state not in {DagRunState.RUNNING}
+        and reprocess_behavior in {ReprocessBehavior.COMPLETED, ReprocessBehavior.FAILED}
+    ):
+        DAG.clear_dags(
+            [dag],
+            start_date=from_date,
+            end_date=to_date,
+            dag_run_state=DagRunState.QUEUED,
+        )
     with session.begin_nested() as nested:
         dr = session.scalar(
             with_row_locks(
@@ -277,6 +297,7 @@ def _create_backfill_dag_run(
                 # which releases the lock on the latest dag run, since we
                 # are not creating a new one
                 nested.rollback()
+                print("inside non creation")
                 session.add(
                     BackfillDagRun(
                         backfill_id=backfill_id,
@@ -411,6 +432,8 @@ def _create_backfill(
                 reprocess_behavior=br.reprocess_behavior,
                 backfill_sort_ordinal=backfill_sort_ordinal,
                 session=session,
+                from_date=from_date,
+                to_date=to_date,
             )
             log.info(
                 "created backfill dag run dag_id=%s backfill_id=%s, info=%s",
