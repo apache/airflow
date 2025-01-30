@@ -303,6 +303,7 @@ class _EdgeWorkerCli:
     def loop(self):
         """Run a loop of scheduling and monitoring tasks."""
         new_job = False
+        previous_jobs = self.jobs
         if not any((_EdgeWorkerCli.drain, _EdgeWorkerCli.maintenance_mode)) and self.free_concurrency > 0:
             new_job = self.fetch_job()
         self.check_running_jobs()
@@ -311,14 +312,13 @@ class _EdgeWorkerCli:
             _EdgeWorkerCli.drain
             or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval
             or worker_state_changed # send heartbeat immediately if the state is different in db
-            or previous_jobs != self.jobs
+            or bool(previous_jobs) != bool(self.jobs) # when number of jobs changes from/to 0
         ):
             worker_state_changed = self.heartbeat()
             self.last_hb = datetime.now()
 
         if not new_job:
             self.interruptible_sleep()
-        previous_jobs = self.jobs
 
     def fetch_job(self) -> bool:
         """Fetch and start a new job from central site."""
