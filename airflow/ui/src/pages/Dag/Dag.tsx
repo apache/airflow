@@ -21,8 +21,7 @@ import { useParams } from "react-router-dom";
 import { useDagServiceGetDagDetails, useDagsServiceRecentDagRuns } from "openapi/queries";
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
-import { useConfig } from "src/queries/useConfig";
-import { isStatePending } from "src/utils";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
@@ -45,7 +44,7 @@ export const Dag = () => {
     dagId,
   });
 
-  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
+  const refetchInterval = useAutoRefresh({ dagId });
 
   // TODO: replace with with a list dag runs by dag id request
   const {
@@ -58,7 +57,7 @@ export const Dag = () => {
       query.state.data?.dags
         .find((recentDag) => recentDag.dag_id === dagId)
         ?.latest_dag_runs.some((run) => isStatePending(run.state))
-        ? autoRefreshInterval * 1000
+        ? refetchInterval
         : false,
   });
 
@@ -82,7 +81,7 @@ export const Dag = () => {
         }
         dagId={dagId}
         isRefreshing={Boolean(
-          dagWithRuns?.latest_dag_runs.some((dr) => isStatePending(dr.state)) && autoRefreshInterval,
+          dagWithRuns?.latest_dag_runs.some((dr) => isStatePending(dr.state)) && Boolean(refetchInterval),
         )}
       />
     </DetailsLayout>

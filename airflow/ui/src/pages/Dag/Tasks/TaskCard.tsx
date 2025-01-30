@@ -24,8 +24,7 @@ import type { TaskResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import Time from "src/components/Time";
-import { useConfig } from "src/queries/useConfig.tsx";
-import { isStatePending } from "src/utils";
+import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
@@ -36,7 +35,8 @@ type Props = {
 };
 
 export const TaskCard = ({ dagId, task }: Props) => {
-  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
+  const refetchInterval = useAutoRefresh({ dagId });
+
   const { data } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
@@ -49,9 +49,7 @@ export const TaskCard = ({ dagId, task }: Props) => {
     {
       enabled: Boolean(dagId) && Boolean(task.task_id),
       refetchInterval: (query) =>
-        query.state.data?.task_instances.some((ti) => isStatePending(ti.state))
-          ? autoRefreshInterval * 1000
-          : false,
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
   );
 

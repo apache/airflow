@@ -18,7 +18,9 @@
  */
 import type { Query } from "@tanstack/react-query";
 
+import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
+import { useConfig } from "src/queries/useConfig";
 
 export const isStatePending = (state?: TaskInstanceState | null) =>
   state === "deferred" ||
@@ -46,4 +48,20 @@ export const doQueriesMatch = (query: Query, queriesToMatch: Array<PartialQueryK
         ([key, value]) => typeof options === "object" && (options as Record<string, unknown>)[key] === value,
       )
     : true;
+};
+
+export const useAutoRefresh = ({ dagId }: { dagId?: string }) => {
+  const autoRefreshInterval = useConfig("auto_refresh_interval") as number | undefined;
+  const { data: dag } = useDagServiceGetDagDetails(
+    {
+      dagId: dagId ?? "",
+    },
+    undefined,
+    { enabled: dagId !== undefined },
+  );
+
+  const canRefresh = autoRefreshInterval !== undefined && (dagId === undefined ? true : !dag?.is_paused);
+
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+  return (canRefresh ? autoRefreshInterval * 1000 : false) as number | false;
 };

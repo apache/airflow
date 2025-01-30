@@ -40,9 +40,7 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
-import { useConfig } from "src/queries/useConfig";
-import { capitalize, getDuration } from "src/utils";
-import { isStatePending } from "src/utils";
+import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
   {
@@ -131,7 +129,7 @@ export const Runs = () => {
 
   const filteredState = searchParams.get(STATE_PARAM);
 
-  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
@@ -145,9 +143,7 @@ export const Runs = () => {
     {
       enabled: !isNaN(pagination.pageSize),
       refetchInterval: (query) =>
-        query.state.data?.dag_runs.some((run) => isStatePending(run.state))
-          ? autoRefreshInterval * 1000
-          : false,
+        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
   );
 
