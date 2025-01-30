@@ -36,6 +36,7 @@ apache-airflow-providers-ftp
 apache-airflow-providers-github
 apache-airflow-providers-grpc
 apache-airflow-providers-http
+apache-airflow-providers-jdbc
 apache-airflow-providers-influxdb
 apache-airflow-providers-mongo
 apache-airflow-providers-openlineage
