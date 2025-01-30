@@ -238,6 +238,29 @@ with DAG(
     )
     # [END howto_operator_databricks_task_sql]
 
+    # [START howto_operator_databricks_task_python]
+    environments = [
+        {
+            "environment_key": "default_environment",
+            "spec": {
+                "client": "1",
+                "dependencies": ["library1"],
+            },
+        }
+    ]
+    task_operator_python_query = DatabricksTaskOperator(
+        task_id="python_task",
+        databricks_conn_id="databricks_conn",
+        task_config={
+            "spark_python_task": {
+                "python_file": "/Users/jsmith@example.com/example_file.py",
+            },
+            "environment_key": "default_environment",
+        },
+        environments=environments,
+    )
+    # [END howto_operator_databricks_task_python]
+
     from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure

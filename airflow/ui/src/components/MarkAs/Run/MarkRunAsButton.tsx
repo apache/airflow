@@ -25,14 +25,13 @@ import { StateBadge } from "src/components/StateBadge";
 import { Menu } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
+import { allowedStates } from "../utils";
 import MarkRunAsDialog from "./MarkRunAsDialog";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
   readonly withText?: boolean;
 };
-
-const allowedStates: Array<DAGRunPatchStates> = ["success", "failed"];
 
 const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
@@ -51,7 +50,7 @@ const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
           />
         </Menu.Trigger>
         <Menu.Content>
-          {allowedStates.map((menuState: DAGRunPatchStates) => (
+          {allowedStates.map((menuState) => (
             <Menu.Item
               asChild
               disabled={dagRun.state === menuState}
@@ -64,7 +63,9 @@ const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
               }}
               value={menuState}
             >
-              <StateBadge state={menuState}>{menuState}</StateBadge>
+              <StateBadge my={1} state={menuState}>
+                {menuState}
+              </StateBadge>
             </Menu.Item>
           ))}
         </Menu.Content>

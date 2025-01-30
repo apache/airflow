@@ -34,10 +34,7 @@ labelPRBasedOnFilePath:
     - providers/apache/beam/**
 
   provider:apache-cassandra:
-    - providers/src/airflow/providers/apache/cassandra/**/*
-    - docs/apache-airflow-providers-apache-cassandra/**/*
-    - providers/tests/apache/cassandra/**/*
-    - providers/tests/system/apache/cassandra/**/*
+    - providers/apache/cassandra/**
 
   provider:apache-drill:
     - providers/src/airflow/providers/apache/drill/**/*
@@ -46,10 +43,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/drill/**/*
 
   provider:apache-druid:
-    - providers/src/airflow/providers/apache/druid/**/*
-    - docs/apache-airflow-providers-apache-druid/**/*
-    - providers/tests/apache/druid/**/*
-    - providers/tests/system/apache/druid/**/*
+    - providers/apache/druid/**
 
   provider:apache-flink:
     - providers/src/airflow/providers/apache/flink/**/*
@@ -76,36 +70,25 @@ labelPRBasedOnFilePath:
     - providers/tests/apache/impala/**/*
 
   provider:apache-kafka:
-    - providers/src/airflow/providers/apache/kafka/**/*
-    - docs/apache-airflow-providers-apache-kafka/**/*
-    - providers/tests/apache/kafka/**/*
-    - providers/tests/system/apache/kafka/**/*
+    - providers/apache/kafka/**
 
   provider:apache-kylin:
     - providers/apache/kylin/**
 
   provider:apache-livy:
-    - providers/src/airflow/providers/apache/livy/**/*
-    - docs/apache-airflow-providers-apache-livy/**/*
-    - providers/tests/apache/livy/**/*
-    - providers/tests/system/apache/livy/**/*
+    - providers/apache/livy/**
 
   provider:apache-pig:
     - providers/apache/pig/**
 
   provider:apache-pinot:
-    - providers/src/airflow/providers/apache/pinot/**/*
-    - docs/apache-airflow-providers-apache-pinot/**/*
-    - providers/tests/apache/pinot/**/*
-    - providers/tests/system/apache/pinot/**/*
+    - providers/apache/pinot/**
 
   provider:apache-spark:
     - providers/apache/spark/**
 
   provider:apprise:
-    - providers/src/airflow/providers/apprise/**/*
-    - docs/apache-airflow-providers-apprise/**/*
-    - providers/tests/apprise/**/*
+    - providers/apprise/**
 
   provider:arangodb:
     - providers/src/airflow/providers/arangodb/**/*
@@ -116,9 +99,7 @@ labelPRBasedOnFilePath:
     - providers/asana/**
 
   provider:atlassian-jira:
-    - providers/src/airflow/providers/atlassian/jira/**/*
-    - docs/apache-airflow-providers-atlassian-jira/**/*
-    - providers/tests/atlassian/jira/**/*
+    - providers/atlassian/jira/**
 
   provider:celery:
     - providers/celery/**
@@ -175,24 +156,16 @@ labelPRBasedOnFilePath:
     - providers/tests/system/dingding/**/*
 
   provider:discord:
-    - providers/src/airflow/providers/discord/**/*
-    - docs/apache-airflow-providers-discord/**/*
-    - providers/tests/discord/**/*
+    - providers/discord/**
 
   provider:docker:
-    - providers/src/airflow/providers/docker/**/*
-    - docs/apache-airflow-providers-docker/**/*
-    - providers/tests/docker/**/*
-    - providers/tests/system/docker/**/*
+    - providers/docker/**
 
   provider:edge:
     - providers/edge/**
 
   provider:elasticsearch:
-    - providers/src/airflow/providers/elasticsearch/**/*
-    - docs/apache-airflow-providers-elasticsearch/**/*
-    - providers/tests/elasticsearch/**/*
-    - providers/tests/system/elasticsearch/**/*
+    - providers/elasticsearch/**
 
   provider:exasol:
     - providers/exasol/**
@@ -206,10 +179,7 @@ labelPRBasedOnFilePath:
     - providers/facebook/**
 
   provider:ftp:
-    - providers/src/airflow/providers/ftp/**/*
-    - docs/apache-airflow-providers-ftp/**/*
-    - providers/tests/ftp/**/*
-    - providers/tests/system/ftp/**/*
+    - providers/ftp/**
 
   provider:github:
     - providers/src/airflow/providers/github/**/*
@@ -232,19 +202,13 @@ labelPRBasedOnFilePath:
     - providers/hashicorp/**
 
   provider:http:
-    - providers/src/airflow/providers/http/**/*
-    - docs/apache-airflow-providers-http/**/*
-    - providers/tests/http/**/*
-    - providers/tests/system/http/**/*
+    - providers/http/**
 
   provider:imap:
     - providers/imap/**
 
   provider:influxdb:
-    - providers/src/airflow/providers/influxdb/**/*
-    - docs/apache-airflow-providers-influxdb/**/*
-    - providers/tests/influxdb/**/*
-    - providers/tests/system/influxdb/**/*
+    - providers/influxdb/**
 
   provider:jdbc:
     - providers/src/airflow/providers/jdbc/**/*
@@ -279,9 +243,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/microsoft/winrm/**/*
 
   provider:mongo:
-    - providers/src/airflow/providers/mongo/**/*
-    - docs/apache-airflow-providers-mongo/**/*
-    - providers/tests/mongo/**/*
+    - providers/mongo/**
 
   provider:mysql:
     - providers/mysql/**
@@ -302,10 +264,7 @@ labelPRBasedOnFilePath:
     - providers/openlineage/**
 
   provider:opensearch:
-    - providers/src/airflow/providers/opensearch/**/*
-    - docs/apache-airflow-providers-opensearch/**/*
-    - providers/tests/opensearch/**/*
-    - providers/tests/system/opensearch/**/*
+    - providers/opensearch/**
 
   provider:opsgenie:
     - providers/opsgenie/**
@@ -357,18 +316,13 @@ labelPRBasedOnFilePath:
     - providers/segment/**
 
   provider:sftp:
-    - providers/src/airflow/providers/sftp/**/*
-    - docs/apache-airflow-providers-sftp/**/*
-    - providers/tests/sftp/**/*
+    - providers/sftp/**
 
   provider:singularity:
     - providers/singularity/**
 
   provider:slack:
-    - providers/src/airflow/providers/slack/**/*
-    - docs/apache-airflow-providers-slack/**/*
-    - providers/tests/slack/**/*
-    - providers/tests/system/slack/**/*
+    - providers/slack/**
 
   provider:smtp:
     - providers/src/airflow/providers/smtp/**/*
@@ -397,10 +351,7 @@ labelPRBasedOnFilePath:
     - providers/teradata/**
 
   provider:trino:
-    - providers/src/airflow/providers/trino/**/*
-    - docs/apache-airflow-providers-trino/**/*
-    - providers/tests/trino/**/*
-    - providers/tests/system/trino/**/*
+    - providers/trino/**
 
   provider:vertica:
     - providers/vertica/**
