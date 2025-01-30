@@ -68,7 +68,17 @@ export const Dag = () => {
     <DetailsLayout dag={dag} error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={tabs}>
       <Header
         dag={
-          dag ? ({ ...dag, ...dagWithRuns } as DAGDetailsResponse & DAGWithLatestDagRunsResponse) : undefined
+          dag
+            ? ({
+                ...dag,
+                // We only need to refresh latest runs and next run
+                latest_dag_runs: dagWithRuns?.latest_dag_runs,
+                next_dagrun: dagWithRuns?.next_dagrun,
+                next_dagrun_create_after: dagWithRuns?.next_dagrun_create_after,
+                next_dagrun_data_interval_end: dagWithRuns?.next_dagrun_data_interval_end,
+                next_dagrun_data_interval_start: dagWithRuns?.next_dagrun_data_interval_start,
+              } as DAGDetailsResponse & DAGWithLatestDagRunsResponse)
+            : undefined
         }
         dagId={dagId}
         isRefreshing={Boolean(
