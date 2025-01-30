@@ -22,9 +22,8 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 import apprise
-from apprise import AppriseConfig, NotifyFormat, NotifyType
-
 from airflow.hooks.base import BaseHook
+from apprise import AppriseConfig, NotifyFormat, NotifyType
 
 if TYPE_CHECKING:
     from apprise import AppriseAttachment

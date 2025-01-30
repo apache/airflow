@@ -94,9 +94,7 @@ labelPRBasedOnFilePath:
     - providers/apache/spark/**
 
   provider:apprise:
-    - providers/src/airflow/providers/apprise/**/*
-    - docs/apache-airflow-providers-apprise/**/*
-    - providers/tests/apprise/**/*
+    - providers/apprise/**
 
   provider:arangodb:
     - providers/src/airflow/providers/arangodb/**/*
