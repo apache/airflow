@@ -57,6 +57,7 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.9.0``
 ``apache-beam``     ``>=2.53.0``
 ``pyarrow``         ``>=14.0.1``
+``numpy``           ``>=1.26.0``
 ==================  ==================
 
 Cross provider package dependencies
