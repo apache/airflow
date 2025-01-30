@@ -976,28 +976,33 @@ class TestAsyncKubernetesHook:
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("read_namespaced_pod_log"))
-    async def test_read_logs(self, lib_method, kube_config_loader, caplog):
+    async def test_read_logs(self, lib_method, kube_config_loader):
         lib_method.return_value = self.mock_await_result("2023-01-11 Some string logs...")
-
         hook = AsyncKubernetesHook(
             conn_id=None,
             in_cluster=False,
             config_file=None,
             cluster_context=None,
         )
-        await hook.read_logs(
-            name=POD_NAME,
-            namespace=NAMESPACE,
-        )
+        with mock.patch(
+            "airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook.log",
+            new_callable=PropertyMock,
+        ) as log:
+            await hook.read_logs(
+                name=POD_NAME,
+                namespace=NAMESPACE,
+            )
 
-        lib_method.assert_called_once()
-        lib_method.assert_called_with(
-            name=POD_NAME,
-            namespace=NAMESPACE,
-            follow=False,
-            timestamps=True,
-        )
-        assert "Container logs from 2023-01-11 Some string logs..." in caplog.text
+            lib_method.assert_called_once()
+            lib_method.assert_called_with(
+                name=POD_NAME,
+                namespace=NAMESPACE,
+                follow=False,
+                timestamps=True,
+            )
+            log.return_value.info.assert_called_with(
+                "Container logs from %s", "2023-01-11 Some string logs..."
+            )
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))
