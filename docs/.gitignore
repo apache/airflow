@@ -10,6 +10,7 @@ apache-airflow-providers-apache-pig
 apache-airflow-providers-apache-pinot
 apache-airflow-providers-apache-spark
 apache-airflow-providers-asana
+apache-airflow-providers-atlassian-jira
 apache-airflow-providers-celery
 apache-airflow-providers-cohere
 apache-airflow-providers-common-compat
