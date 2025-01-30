@@ -195,7 +195,10 @@ class LogGroomerTestBase:
     def test_log_groomer_frequency_minutes_overrides(self, frequency_minutes, frequency_result):
         if self.obj_name == "dag-processor":
             values = {
-                "dagProcessor": {"enabled": True, "logGroomerSidecar": {"frequencyMinutes": frequency_minutes}}
+                "dagProcessor": {
+                    "enabled": True,
+                    "logGroomerSidecar": {"frequencyMinutes": frequency_minutes},
+                }
             }
         else:
             values = {f"{self.folder}": {"logGroomerSidecar": {"frequencyMinutes": frequency_minutes}}}
