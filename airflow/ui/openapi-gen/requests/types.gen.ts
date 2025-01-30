@@ -1469,9 +1469,9 @@ export type VersionInfo = {
 };
 
 /**
- * List of XCom items.
+ * XCom Collection serializer for responses.
  */
-export type XComCollection = {
+export type XComCollectionResponse = {
   xcom_entries: Array<XComResponse>;
   total_entries: number;
 };
@@ -1665,6 +1665,7 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type StructureDataData = {
   dagId: string;
+  dagVersion?: number | null;
   externalDependencies?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
@@ -2300,7 +2301,7 @@ export type GetXcomEntriesData = {
   xcomKey?: string | null;
 };
 
-export type GetXcomEntriesResponse = XComCollection;
+export type GetXcomEntriesResponse = XComCollectionResponse;
 
 export type GetTasksData = {
   dagId: string;
@@ -4690,7 +4691,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: XComCollection;
+        200: XComCollectionResponse;
         /**
          * Bad Request
          */
