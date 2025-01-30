@@ -66,27 +66,20 @@ versions:
   - 2.0.0
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-  - slack_sdk>=3.19.0
-
 integrations:
   - integration-name: Slack
     external-doc-url: https://slack.com/
-    logo: /integration-logos/slack/Slack.png
+    logo: /docs/integration-logos/Slack.png
     tags: [service]
   - integration-name: Slack API
     external-doc-url: https://api.slack.com/
     how-to-guide:
       - /docs/apache-airflow-providers-slack/operators/slack_api.rst
-    logo: /integration-logos/slack/Slack.png
     tags: [service]
   - integration-name: Slack Incoming Webhook
     external-doc-url: https://api.slack.com/messaging/webhooks
     how-to-guide:
       - /docs/apache-airflow-providers-slack/operators/slack_webhook.rst
-    logo: /integration-logos/slack/Slack.png
     tags: [service]
 
 operators:

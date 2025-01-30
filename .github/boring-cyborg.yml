@@ -334,10 +334,7 @@ labelPRBasedOnFilePath:
     - providers/singularity/**
 
   provider:slack:
-    - providers/src/airflow/providers/slack/**/*
-    - docs/apache-airflow-providers-slack/**/*
-    - providers/tests/slack/**/*
-    - providers/tests/system/slack/**/*
+    - providers/slack/**
 
   provider:smtp:
     - providers/src/airflow/providers/smtp/**/*
