@@ -75,6 +75,7 @@ components:
         password:
           type: string
           title: Password
+      additionalProperties: false
       type: object
       required:
       - username
