@@ -88,7 +88,6 @@ class BaseDagBundle(ABC):
         Path for this bundle.
 
         Airflow will use this path to find/load/execute the DAGs from the bundle.
-        The path can change when `refresh` is called, but it cannot change between refreshes.
         After `initialize` has been called, all dag files in the bundle should be accessible from this path.
         """
 
