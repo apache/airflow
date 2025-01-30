@@ -662,9 +662,9 @@ repos:
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
           ^providers/apache/kafka/docs/connections/kafka.rst$|
           ^providers/apache/spark/docs/decorators/pyspark.rst$|
+          ^providers/microsoft/azure/docs/connections/azure_cosmos.rst$|
           ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
-          ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|

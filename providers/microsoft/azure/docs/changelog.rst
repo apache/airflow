@@ -616,7 +616,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix updating account url for WasbHook (#33457)``
-* ``Fix Azure Batch Hook instantation (#33731)``
+* ``Fix Azure Batch Hook instantiation (#33731)``
 * ``Truncate Wasb storage account name if it's more than 24 characters (#33851)``
 * ``Remove duplicated message commit in Azure MessageHook (#33776)``
 * ``fix(providers/azure): remove json.dumps when querying AzureCosmosDBHook (#33653)``
