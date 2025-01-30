@@ -846,7 +846,7 @@ class DagFileProcessorManager:
         if is_mtime_mode:
             file_paths = sorted(files_with_mtime, key=files_with_mtime.get, reverse=True)
         elif list_mode == "alphabetical":
-            file_paths.sort()
+            file_paths.sort(key=lambda f: f.path)
         elif list_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
