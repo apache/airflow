@@ -6751,7 +6751,6 @@ components:
         total_entries:
           type: integer
           title: Total Entries
-      additionalProperties: false
       type: object
       required:
       - backfills
@@ -6835,7 +6834,6 @@ components:
           type: string
           format: date-time
           title: Updated At
-      additionalProperties: false
       type: object
       required:
       - id
@@ -8594,7 +8592,6 @@ components:
         total_entries:
           type: integer
           title: Total Entries
-      additionalProperties: false
       type: object
       required:
       - backfills
@@ -8607,7 +8604,6 @@ components:
           type: string
           format: date-time
           title: Logical Date
-      additionalProperties: false
       type: object
       required:
       - logical_date
@@ -9291,7 +9287,6 @@ components:
         total_entries:
           type: integer
           title: Total Entries
-      additionalProperties: false
       type: object
       required:
       - pools

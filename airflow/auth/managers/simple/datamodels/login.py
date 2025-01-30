@@ -22,13 +22,13 @@ from pydantic import Field
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
-class LoginResponse(StrictBaseModel):
+class LoginResponse(BaseModel):
     """Login serializer for responses."""
 
     jwt_token: str
 
 
-class LoginBody(BaseModel):
+class LoginBody(StrictBaseModel):
     """Login serializer for post bodies."""
 
     username: str = Field()

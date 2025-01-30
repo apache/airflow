@@ -53,7 +53,7 @@ class PoolResponse(BasePool):
     deferred_slots: Annotated[int, BeforeValidator(_call_function)]
 
 
-class PoolCollectionResponse(StrictBaseModel):
+class PoolCollectionResponse(BaseModel):
     """Pool Collection serializer for responses."""
 
     pools: list[PoolResponse]
@@ -71,7 +71,7 @@ class PoolPatchBody(StrictBaseModel):
     include_deferred: bool | None = None
 
 
-class PoolBody(StrictBaseModel, BasePool):
+class PoolBody(BasePool, StrictBaseModel):
     """Pool serializer for post bodies."""
 
     pool: str = Field(alias="name", max_length=256)

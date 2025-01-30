@@ -32,7 +32,7 @@ from pydantic import (
 )
 
 from airflow.api_fastapi.common.types import UtcDateTime
-from airflow.api_fastapi.core_api.base import StrictBaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
@@ -226,7 +226,7 @@ class DagRun(StrictBaseModel):
     external_trigger: bool = False
 
 
-class TIRunContext(StrictBaseModel):
+class TIRunContext(BaseModel):
     """Response schema for TaskInstance run context."""
 
     dag_run: DagRun
@@ -242,7 +242,7 @@ class TIRunContext(StrictBaseModel):
     """Connections that can be accessed by the task instance."""
 
 
-class PrevSuccessfulDagRunResponse(StrictBaseModel):
+class PrevSuccessfulDagRunResponse(BaseModel):
     """Schema for response with previous successful DagRun information for Task Template Context."""
 
     data_interval_start: UtcDateTime | None = None

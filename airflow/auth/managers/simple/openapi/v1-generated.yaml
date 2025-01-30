@@ -75,6 +75,7 @@ components:
         password:
           type: string
           title: Password
+      additionalProperties: false
       type: object
       required:
       - username
@@ -86,7 +87,6 @@ components:
         jwt_token:
           type: string
           title: Jwt Token
-      additionalProperties: false
       type: object
       required:
       - jwt_token

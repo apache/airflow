@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.api_fastapi.core_api.base import StrictBaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models.backfill import ReprocessBehavior
 
 
@@ -35,7 +35,7 @@ class BackfillPostBody(StrictBaseModel):
     max_active_runs: int = 10
 
 
-class BackfillResponse(StrictBaseModel):
+class BackfillResponse(BaseModel):
     """Base serializer for Backfill."""
 
     id: int
@@ -51,20 +51,20 @@ class BackfillResponse(StrictBaseModel):
     updated_at: datetime
 
 
-class BackfillCollectionResponse(StrictBaseModel):
+class BackfillCollectionResponse(BaseModel):
     """Backfill Collection serializer for responses."""
 
     backfills: list[BackfillResponse]
     total_entries: int
 
 
-class DryRunBackfillResponse(StrictBaseModel):
+class DryRunBackfillResponse(BaseModel):
     """Backfill serializer for responses in dry-run mode."""
 
     logical_date: datetime
 
 
-class DryRunBackfillCollectionResponse(StrictBaseModel):
+class DryRunBackfillCollectionResponse(BaseModel):
     """Backfill collection serializer for responses in dry-run mode."""
 
     backfills: list[DryRunBackfillResponse]
