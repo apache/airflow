@@ -172,10 +172,7 @@ labelPRBasedOnFilePath:
     - providers/discord/**
 
   provider:docker:
-    - providers/src/airflow/providers/docker/**/*
-    - docs/apache-airflow-providers-docker/**/*
-    - providers/tests/docker/**/*
-    - providers/tests/system/docker/**/*
+    - providers/docker/**
 
   provider:edge:
     - providers/edge/**

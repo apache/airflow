@@ -73,19 +73,14 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - docker>=7.1.0
-  - python-dotenv>=0.21.0
-
 integrations:
   - integration-name: Docker
     external-doc-url: https://docs.docker.com/
-    logo: /integration-logos/docker/Docker.png
+    logo: /docs/integration-logos/Docker.png
     tags: [software]
   - integration-name: Docker Swarm
     external-doc-url: https://docs.docker.com/engine/swarm/
-    logo: /integration-logos/docker/Docker-Swarm.png
+    logo: /docs/integration-logos/Docker-Swarm.png
     tags: [software]
 
 operators:
