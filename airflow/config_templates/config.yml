@@ -229,13 +229,6 @@ core:
       type: integer
       example: ~
       default: "2"
-    dag_file_processor_timeout:
-      description: |
-        How long before timing out a DagFileProcessor, which processes a dag file
-      version_added: 1.10.6
-      type: string
-      example: ~
-      default: "50"
     default_impersonation:
       description: |
         If set, tasks without a ``run_as_user`` argument will be run with this user
@@ -2044,6 +2037,22 @@ webserver:
       type: boolean
       example: ~
       default: "False"
+    max_form_memory_size:
+      description: |
+        The maximum size in bytes any non-file form field may be in a multipart/form-data body.
+        If this limit is exceeded, a 413 RequestEntityTooLarge error is raised by webserver.
+      version_added: 2.10.5
+      type: integer
+      example: ~
+      default: "500000"
+    max_form_parts:
+      description: |
+        The maximum number of fields that may be present in a multipart/form-data body.
+        If this limit is exceeded, a 413 RequestEntityTooLarge error is raised by webserver.
+      version_added: 2.10.5
+      type: integer
+      example: ~
+      default: "1000"
 email:
   description: |
     Configuration email backend and whether to
@@ -2248,15 +2257,6 @@ scheduler:
       type: float
       example: ~
       default: "1"
-    min_file_process_interval:
-      description: |
-        Number of seconds after which a DAG file is parsed. The DAG file is parsed every
-        ``[scheduler] min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
-        this interval. Keeping this number low will increase CPU usage.
-      version_added: ~
-      type: integer
-      example: ~
-      default: "30"
     parsing_cleanup_interval:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
@@ -2266,25 +2266,6 @@ scheduler:
       type: integer
       example: ~
       default: "60"
-    stale_dag_threshold:
-      description: |
-        How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
-        DAGs (DAGs which are no longer present in the expected files). The reason why we need
-        this threshold is to account for the time between when the file is parsed and when the
-        DAG is loaded. The absolute maximum that this could take is ``[core] dag_file_processor_timeout``,
-        but when you have a long timeout configured, it results in a significant delay in the
-        deactivation of stale dags.
-      version_added: 2.6.0
-      type: integer
-      example: ~
-      default: "50"
-    print_stats_interval:
-      description: |
-        How often should stats be printed to the logs. Setting to 0 will disable printing stats
-      version_added: ~
-      type: integer
-      example: ~
-      default: "30"
     pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
@@ -2424,36 +2405,6 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
-    parsing_processes:
-      description: |
-        The scheduler can run multiple processes in parallel to parse dags.
-        This defines how many processes will run.
-      version_added: 1.10.14
-      type: integer
-      example: ~
-      default: "2"
-    file_parsing_sort_mode:
-      description: |
-        One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
-        The scheduler will list and sort the dag files to decide the parsing order.
-
-        * ``modified_time``: Sort by modified time of the files. This is useful on large scale to parse the
-          recently modified DAGs first.
-        * ``random_seeded_by_host``: Sort randomly across multiple Schedulers but with same order on the
-          same host. This is useful when running with Scheduler in HA mode where each scheduler can
-          parse different DAG files.
-        * ``alphabetical``: Sort by filename
-      version_added: 2.1.0
-      type: string
-      example: ~
-      default: "modified_time"
-    max_callbacks_per_loop:
-      description: |
-        The maximum number of callbacks that are fetched during a single loop.
-      version_added: 2.3.0
-      type: integer
-      example: ~
-      default: "20"
     dag_stale_not_seen_duration:
       description: |
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
@@ -2664,7 +2615,6 @@ dag_processor:
                 "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
                 "kwargs": {
                     "subdir": "dags",
-                    "repo_url": "git@github.com:example.com/my-dags.git",
                     "tracking_ref": "main",
                     "refresh_interval": 0
             }
@@ -2684,3 +2634,67 @@ dag_processor:
       type: integer
       example: ~
       default: "300"
+    parsing_processes:
+      description: |
+        The DAG processor can run multiple processes in parallel to parse dags.
+        This defines how many processes will run.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "2"
+    file_parsing_sort_mode:
+      description: |
+        One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
+        The DAG processor will list and sort the dag files to decide the parsing order.
+
+        * ``modified_time``: Sort by modified time of the files. This is useful on large scale to parse the
+          recently modified DAGs first.
+        * ``random_seeded_by_host``: Sort randomly across multiple DAG processors but with same order on the
+          same host, allowing each processor to parse the files in a different order.
+        * ``alphabetical``: Sort by filename
+      version_added: ~
+      type: string
+      example: ~
+      default: "modified_time"
+    max_callbacks_per_loop:
+      description: |
+        The maximum number of callbacks that are fetched during a single loop.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "20"
+    min_file_process_interval:
+      description: |
+        Number of seconds after which a DAG file is parsed. The DAG file is parsed every
+        ``[dag_processor] min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
+        this interval. Keeping this number low will increase CPU usage.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "30"
+    stale_dag_threshold:
+      description: |
+        How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
+        DAGs (DAGs which are no longer present in the expected files). The reason why we need
+        this threshold is to account for the time between when the file is parsed and when the
+        DAG is loaded. The absolute maximum that this could take is
+        ``[dag_processor] dag_file_processor_timeout``, but when you have a long timeout configured,
+        it results in a significant delay in the deactivation of stale dags.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "50"
+    dag_file_processor_timeout:
+      description: |
+        How long before timing out a DagFileProcessor, which processes a dag file
+      version_added: ~
+      type: string
+      example: ~
+      default: "50"
+    print_stats_interval:
+      description: |
+        How often should DAG processor stats be printed to the logs. Setting to 0 will disable printing stats
+      version_added: ~
+      type: integer
+      example: ~
+      default: "30"

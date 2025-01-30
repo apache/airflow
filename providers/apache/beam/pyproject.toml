@@ -59,6 +59,7 @@ dependencies = [
     # Apache Beam > 2.53.0 and pyarrow > 14.0.1 fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
     "apache-beam>=2.53.0",
     "pyarrow>=14.0.1",
+    "numpy>=1.26.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file

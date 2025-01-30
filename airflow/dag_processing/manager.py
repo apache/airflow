@@ -32,10 +32,11 @@ import time
 import zipfile
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import attrs
 import structlog
@@ -97,11 +98,13 @@ class DagFileStat:
 log = logging.getLogger("airflow.processor_manager")
 
 
-class DagFileInfo(NamedTuple):
+@dataclass(frozen=True)
+class DagFileInfo:
     """Information about a DAG file."""
 
     path: str  # absolute path of the file
     bundle_name: str
+    bundle_path: Path | None = field(compare=False, default=None)
 
 
 def _config_int_factory(section: str, key: str):
@@ -133,31 +136,33 @@ class DagFileProcessorManager:
     processors finish, more are launched. The files are processed over and
     over again, but no more often than the specified interval.
 
-    :param max_runs: The number of times to parse and schedule each file. -1
-        for unlimited.
+    :param max_runs: The number of times to parse each file. -1 for unlimited.
     :param processor_timeout: How long to wait before timing out a DAG file processor
-    :param signal_conn: connection to communicate signal with processor agent.
     """
 
     max_runs: int
-    processor_timeout: float = attrs.field(factory=_config_int_factory("core", "dag_file_processor_timeout"))
+    processor_timeout: float = attrs.field(
+        factory=_config_int_factory("dag_processor", "dag_file_processor_timeout")
+    )
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
 
-    _parallelism: int = attrs.field(factory=_config_int_factory("scheduler", "parsing_processes"))
+    _parallelism: int = attrs.field(factory=_config_int_factory("dag_processor", "parsing_processes"))
 
     parsing_cleanup_interval: float = attrs.field(
         factory=_config_int_factory("scheduler", "parsing_cleanup_interval")
     )
     _file_process_interval: float = attrs.field(
-        factory=_config_int_factory("scheduler", "min_file_process_interval")
+        factory=_config_int_factory("dag_processor", "min_file_process_interval")
     )
-    stale_dag_threshold: float = attrs.field(factory=_config_int_factory("scheduler", "stale_dag_threshold"))
+    stale_dag_threshold: float = attrs.field(
+        factory=_config_int_factory("dag_processor", "stale_dag_threshold")
+    )
 
     log: logging.Logger = attrs.field(default=log, init=False)
 
     _last_deactivate_stale_dags_time: float = attrs.field(default=0, init=False)
     print_stats_interval: float = attrs.field(
-        factory=_config_int_factory("scheduler", "print_stats_interval")
+        factory=_config_int_factory("dag_processor", "print_stats_interval")
     )
     last_stat_print_time: float = attrs.field(default=0, init=False)
 
@@ -183,7 +188,7 @@ class DagFileProcessorManager:
     )
 
     max_callbacks_per_loop: int = attrs.field(
-        factory=_config_int_factory("scheduler", "max_callbacks_per_loop")
+        factory=_config_int_factory("dag_processor", "max_callbacks_per_loop")
     )
 
     base_log_dir: str = attrs.field(factory=_config_get_factory("scheduler", "CHILD_PROCESS_LOG_DIRECTORY"))
@@ -238,23 +243,23 @@ class DagFileProcessorManager:
             last_parsed = {
                 fp: stat.last_finish_time for fp, stat in self._file_stats.items() if stat.last_finish_time
             }
-            self.deactivate_stale_dags(
-                last_parsed=last_parsed,
-                stale_dag_threshold=self.stale_dag_threshold,
-            )
+            self.deactivate_stale_dags(last_parsed=last_parsed)
             self._last_deactivate_stale_dags_time = time.monotonic()
 
     @provide_session
     def deactivate_stale_dags(
         self,
         last_parsed: dict[DagFileInfo, datetime | None],
-        stale_dag_threshold: int,
         session: Session = NEW_SESSION,
     ):
         """Detect and deactivate DAGs which are no longer present in files."""
         to_deactivate = set()
         query = select(
-            DagModel.dag_id, DagModel.bundle_name, DagModel.fileloc, DagModel.last_parsed_time
+            DagModel.dag_id,
+            DagModel.bundle_name,
+            DagModel.fileloc,
+            DagModel.last_parsed_time,
+            DagModel.relative_fileloc,
         ).where(DagModel.is_active)
         # TODO: AIP-66 by bundle!
         dags_parsed = session.execute(query)
@@ -267,7 +272,7 @@ class DagFileProcessorManager:
             dag_file_path = DagFileInfo(path=dag.fileloc, bundle_name=dag.bundle_name)
             if (
                 dag_file_path in last_parsed
-                and (dag.last_parsed_time + timedelta(seconds=stale_dag_threshold))
+                and (dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold))
                 < last_parsed[dag_file_path]
             ):
                 self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
@@ -482,7 +487,8 @@ class DagFileProcessorManager:
 
             new_file_paths = [f for f in self._file_paths if f.bundle_name != bundle.name]
             new_file_paths.extend(
-                DagFileInfo(path=path, bundle_name=bundle.name) for path in bundle_file_paths
+                DagFileInfo(path=path, bundle_path=bundle.path, bundle_name=bundle.name)
+                for path in bundle_file_paths
             )
             self.set_file_paths(new_file_paths)
 
@@ -763,6 +769,7 @@ class DagFileProcessorManager:
         return DagFileProcessorProcess.start(
             id=id,
             path=dag_file.path,
+            bundle_path=cast(Path, dag_file.bundle_path),
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
             logger=self._get_logger_for_dag_file(dag_file),
@@ -802,7 +809,7 @@ class DagFileProcessorManager:
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode
-        list_mode = conf.get("scheduler", "file_parsing_sort_mode")
+        list_mode = conf.get("dag_processor", "file_parsing_sort_mode")
 
         files_with_mtime: dict[str, datetime] = {}
         file_paths = []
@@ -839,9 +846,9 @@ class DagFileProcessorManager:
         if is_mtime_mode:
             file_paths = sorted(files_with_mtime, key=files_with_mtime.get, reverse=True)
         elif list_mode == "alphabetical":
-            file_paths.sort()
+            file_paths.sort(key=lambda f: f.path)
         elif list_mode == "random_seeded_by_host":
-            # Shuffle the list seeded by hostname so multiple schedulers can work on different
+            # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
             random.Random(get_hostname()).shuffle(file_paths)
 
@@ -860,7 +867,7 @@ class DagFileProcessorManager:
         )
 
         # Do not convert the following list to set as set does not preserve the order
-        # and we need to maintain the order of file_paths for `[scheduler] file_parsing_sort_mode`
+        # and we need to maintain the order of file_paths for `[dag_processor] file_parsing_sort_mode`
         files_paths_to_queue = [
             file_path for file_path in file_paths if file_path not in file_paths_to_exclude
         ]
