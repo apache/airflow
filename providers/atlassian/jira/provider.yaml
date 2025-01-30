@@ -42,14 +42,10 @@ versions:
   - 1.1.0
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - atlassian-python-api>3.41.10
-
 integrations:
   - integration-name: Atlassian Jira
     external-doc-url: https://www.atlassian.com/software/jira
-    logo: /integration-logos/jira/Jira.png
+    logo: /docs/integration-logos/Jira.png
     tags: [software]
 
 operators:

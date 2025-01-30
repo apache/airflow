@@ -110,9 +110,7 @@ labelPRBasedOnFilePath:
     - providers/asana/**
 
   provider:atlassian-jira:
-    - providers/src/airflow/providers/atlassian/jira/**/*
-    - docs/apache-airflow-providers-atlassian-jira/**/*
-    - providers/tests/atlassian/jira/**/*
+    - providers/atlassian/jira/**
 
   provider:celery:
     - providers/celery/**
