@@ -22,11 +22,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from requests.exceptions import RequestException
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, LivyHook
 from airflow.utils import db
-from requests.exceptions import RequestException
 
 LIVY_CONN_ID = LivyHook.default_conn_name
 DEFAULT_CONN_ID = LivyHook.default_conn_name
@@ -48,17 +49,19 @@ INVALID_SESSION_ID_TEST_CASES = [
 ]
 CONNECTIONS: dict[str, Connection] = {
     DEFAULT_CONN_ID: Connection(
-                conn_id=DEFAULT_CONN_ID,
-                conn_type="http",
-                host=DEFAULT_HOST,
-                schema=DEFAULT_SCHEMA,
-                port=DEFAULT_PORT,
-            ),
+        conn_id=DEFAULT_CONN_ID,
+        conn_type="http",
+        host=DEFAULT_HOST,
+        schema=DEFAULT_SCHEMA,
+        port=DEFAULT_PORT,
+    ),
     "default_port": Connection(conn_id="default_port", conn_type="http", host="http://host"),
     "default_protocol": Connection(conn_id="default_protocol", conn_type="http", host="host"),
     "port_set": Connection(conn_id="port_set", host="host", conn_type="http", port=1234),
     "schema_set": Connection(conn_id="schema_set", host="host", conn_type="http", schema="https"),
-    "dont_override_schema": Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="https"),
+    "dont_override_schema": Connection(
+        conn_id="dont_override_schema", conn_type="http", host="http://host", schema="https"
+    ),
     "missing_host": Connection(conn_id="missing_host", conn_type="http", port=1234),
     "invalid_uri": Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"),
     "with_credentials": Connection(
@@ -83,7 +86,6 @@ class TestLivyDbHook:
             pytest.param("dont_override_schema", "http://host", id="ignore-defined-schema"),
         ],
     )
-    #@mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_connection)
     def test_build_get_hook(self, conn_id, expected):
         with patch(
             "airflow.hooks.base.BaseHook.get_connection",

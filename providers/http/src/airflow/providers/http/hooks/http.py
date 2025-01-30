@@ -182,6 +182,14 @@ class HttpHook(BaseHook):
         return auth_types
 
     @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Hive Client Wrapper connection."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {},
+        }
+
+    @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to the connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget
@@ -218,34 +226,6 @@ class HttpHook(BaseHook):
                     "field instead."
                 ),
             ),
-        }
-
-    @classmethod
-    def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Return custom UI field behaviour for Hive Client Wrapper connection."""
-        return {
-            "hidden_fields": ["extra"],
-            "relabeling": {},
-        }
-
-    @classmethod
-    def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, Select2Widget
-        from flask_babel import lazy_gettext
-        from wtforms.fields import SelectField, TextAreaField
-
-        default_auth_type: str = ""
-        auth_types_choices = frozenset({default_auth_type}) | get_auth_types()
-        return {
-            "auth_type": SelectField(
-                lazy_gettext("Auth type"),
-                choices=[(clazz, clazz) for clazz in auth_types_choices],
-                widget=Select2Widget(),
-                default=default_auth_type
-            ),
-            "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
-            "extra_headers": TextAreaField(lazy_gettext("Extra Headers"), widget=BS3TextAreaFieldWidget()),
         }
 
     # headers may be passed through directly or in the "extra" field in the connection
