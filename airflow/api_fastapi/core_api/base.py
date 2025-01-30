@@ -31,7 +31,9 @@ class BaseModel(PydanticBaseModel):
 
 class StrictBaseModel(BaseModel):
     """
-    Base pydantic model for REST API.
+    StrictBaseModel is a base Pydantic model for REST API that does not allow any extra fields.
+
+    Use this class for models that should not have any extra fields in the payload.
 
     :meta private:
     """
