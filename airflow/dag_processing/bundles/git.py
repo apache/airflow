@@ -71,9 +71,12 @@ class GitHook(BaseHook):
         self.repo_url = connection.host
         self.auth_token = connection.password
         self.key_file = connection.extra_dejson.get("key_file")
+        strict_host_key_checking = connection.extra_dejson.get("strict_host_key_checking", "no")
         self.env: dict[str, str] = {}
         if self.key_file:
-            self.env["GIT_SSH_COMMAND"] = f"ssh -i {self.key_file} -o IdentitiesOnly=yes"
+            self.env["GIT_SSH_COMMAND"] = (
+                f"ssh -i {self.key_file} -o IdentitiesOnly=yes -o StrictHostKeyChecking={strict_host_key_checking}"
+            )
         self._process_git_auth_url()
 
     def _process_git_auth_url(self):
