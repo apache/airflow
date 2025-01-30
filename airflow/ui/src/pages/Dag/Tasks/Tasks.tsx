@@ -19,18 +19,17 @@
 import { Heading, Skeleton, Box } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
-import { useTaskServiceGetTasks, useDagRunServiceGetDagRuns } from "openapi/queries";
+import { useTaskServiceGetTasks } from "openapi/queries";
 import type { TaskResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { useConfig } from "src/queries/useConfig";
 import { pluralize } from "src/utils";
 
 import { TaskCard } from "./TaskCard";
 
-const cardDef = (dagId: string, areActiveRuns?: boolean): CardDef<TaskResponse> => ({
-  card: ({ row }) => <TaskCard areActiveRuns={areActiveRuns} dagId={dagId} task={row} />,
+const cardDef = (dagId: string): CardDef<TaskResponse> => ({
+  card: ({ row }) => <TaskCard dagId={dagId} task={row} />,
   meta: {
     customSkeleton: <Skeleton height="120px" width="100%" />,
   },
@@ -47,24 +46,6 @@ export const Tasks = () => {
     dagId,
   });
 
-  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
-
-  const { data: runsData } = useDagRunServiceGetDagRuns(
-    {
-      dagId,
-      limit: 14,
-      orderBy: "-logical_date",
-      state: ["queued", "running"],
-    },
-    undefined,
-    {
-      refetchInterval: (query) =>
-        Boolean(query.state.data?.dag_runs.length) ? autoRefreshInterval * 1000 : false,
-    },
-  );
-
-  const runs = runsData?.dag_runs ?? [];
-
   return (
     <Box>
       <ErrorAlert error={tasksError} />
@@ -72,7 +53,7 @@ export const Tasks = () => {
         {pluralize("Task", data ? data.total_entries : 0)}
       </Heading>
       <DataTable
-        cardDef={cardDef(dagId, runs.length > 0)}
+        cardDef={cardDef(dagId)}
         columns={[]}
         data={data ? data.tasks : []}
         displayMode="card"

@@ -31,12 +31,11 @@ import { getTaskInstanceLink } from "src/utils/links";
 import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
 
 type Props = {
-  readonly areActiveRuns?: boolean;
   readonly dagId: string;
   readonly task: TaskResponse;
 };
 
-export const TaskCard = ({ areActiveRuns, dagId, task }: Props) => {
+export const TaskCard = ({ dagId, task }: Props) => {
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
   const { data } = useTaskInstanceServiceGetTaskInstances(
     {
@@ -50,8 +49,7 @@ export const TaskCard = ({ areActiveRuns, dagId, task }: Props) => {
     {
       enabled: Boolean(dagId) && Boolean(task.task_id),
       refetchInterval: (query) =>
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-        areActiveRuns || query.state.data?.task_instances.some((ti) => isStatePending(ti.state))
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state))
           ? autoRefreshInterval * 1000
           : false,
     },
