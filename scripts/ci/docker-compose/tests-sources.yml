@@ -42,13 +42,17 @@ services:
       - ../../../providers/airbyte/tests:/opt/airflow/providers/airbyte/tests
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/apache/beam/tests:/opt/airflow/providers/apache/beam/tests
+      - ../../../providers/apache/cassandra/tests:/opt/airflow/providers/apache/cassandra/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
       - ../../../providers/apache/kafka/tests:/opt/airflow/providers/apache/kafka/tests
       - ../../../providers/apache/kylin/tests:/opt/airflow/providers/apache/kylin/tests
+      - ../../../providers/apache/livy/tests:/opt/airflow/providers/apache/livy/tests
       - ../../../providers/apache/pig/tests:/opt/airflow/providers/apache/pig/tests
       - ../../../providers/apache/pinot/tests:/opt/airflow/providers/apache/pinot/tests
       - ../../../providers/apache/spark/tests:/opt/airflow/providers/apache/spark/tests
+      - ../../../providers/apprise/tests:/opt/airflow/providers/apprise/tests
       - ../../../providers/asana/tests:/opt/airflow/providers/asana/tests
+      - ../../../providers/atlassian/jira/tests:/opt/airflow/providers/atlassian/jira/tests
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/compat/tests:/opt/airflow/providers/common/compat/tests
@@ -56,12 +60,15 @@ services:
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
       - ../../../providers/discord/tests:/opt/airflow/providers/discord/tests
+      - ../../../providers/docker/tests:/opt/airflow/providers/docker/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
       - ../../../providers/exasol/tests:/opt/airflow/providers/exasol/tests
       - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
+      - ../../../providers/ftp/tests:/opt/airflow/providers/ftp/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
+      - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
       - ../../../providers/mongo/tests:/opt/airflow/providers/mongo/tests
       - ../../../providers/mysql/tests:/opt/airflow/providers/mysql/tests
@@ -82,12 +89,14 @@ services:
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
       - ../../../providers/sftp/tests:/opt/airflow/providers/sftp/tests
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
+      - ../../../providers/slack/tests:/opt/airflow/providers/slack/tests
       - ../../../providers/snowflake/tests:/opt/airflow/providers/snowflake/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
       - ../../../providers/tableau/tests:/opt/airflow/providers/tableau/tests
       - ../../../providers/telegram/tests:/opt/airflow/providers/telegram/tests
       - ../../../providers/teradata/tests:/opt/airflow/providers/teradata/tests
+      - ../../../providers/trino/tests:/opt/airflow/providers/trino/tests
       - ../../../providers/vertica/tests:/opt/airflow/providers/vertica/tests
       - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
       - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests

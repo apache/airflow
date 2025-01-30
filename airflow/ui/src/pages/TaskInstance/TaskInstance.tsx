@@ -22,6 +22,8 @@ import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom
 import { useDagServiceGetDagDetails, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useConfig } from "src/queries/useConfig";
+import { isStatePending } from "src/utils/refresh";
 
 import { Header } from "./Header";
 
@@ -40,16 +42,25 @@ export const TaskInstance = () => {
   const mapIndexParam = searchParams.get("map_index");
   const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
 
+  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
+
   const {
     data: taskInstance,
     error,
     isLoading,
-  } = useTaskInstanceServiceGetMappedTaskInstance({
-    dagId,
-    dagRunId: runId,
-    mapIndex,
-    taskId,
-  });
+  } = useTaskInstanceServiceGetMappedTaskInstance(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex,
+      taskId,
+    },
+    undefined,
+    {
+      refetchInterval: (query) =>
+        isStatePending(query.state.data?.state) ? autoRefreshInterval * 1000 : false,
+    },
+  );
 
   const {
     data: dag,
@@ -89,7 +100,12 @@ export const TaskInstance = () => {
           );
         })}
       </Breadcrumb.Root>
-      {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
+      {taskInstance === undefined ? undefined : (
+        <Header
+          isRefreshing={Boolean(isStatePending(taskInstance.state) && autoRefreshInterval)}
+          taskInstance={taskInstance}
+        />
+      )}
     </DetailsLayout>
   );
 };
