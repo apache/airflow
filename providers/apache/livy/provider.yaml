@@ -56,18 +56,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-http
-  - aiohttp>=3.9.2
-  - asgiref>=2.3.0
-
 integrations:
   - integration-name: Apache Livy
     external-doc-url: https://livy.apache.org/
     how-to-guide:
       - /docs/apache-airflow-providers-apache-livy/operators.rst
-    logo: /integration-logos/apache/Livy.png
+    logo: /docs/integration-logos/Livy.png
     tags: [apache]
 
 operators:
