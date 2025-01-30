@@ -22,6 +22,7 @@ apache-airflow-providers-datadog
 apache-airflow-providers-discord
 apache-airflow-providers-docker
 apache-airflow-providers-edge
+apache-airflow-providers-elasticsearch
 apache-airflow-providers-exasol
 apache-airflow-providers-facebook
 apache-airflow-providers-ftp

@@ -645,6 +645,7 @@ dev = [
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-discord",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-elasticsearch",
   "apache-airflow-providers-exasol",
   "apache-airflow-providers-facebook",
   "apache-airflow-providers-ftp",
@@ -716,6 +717,7 @@ apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-docker = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-elasticsearch = { workspace = true }
 apache-airflow-providers-exasol = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-ftp = { workspace = true }
@@ -785,6 +787,7 @@ members = [
     "providers/discord",
     "providers/docker",
     "providers/edge",
+    "providers/elasticsearch",
     "providers/exasol",
     "providers/facebook",
     "providers/ftp",
