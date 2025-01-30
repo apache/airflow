@@ -324,8 +324,6 @@ def dag_next_execution(args) -> None:
 @provide_session
 def dag_list_dags(args, session=NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
-    from airflow.dag_processing.bundles.manager import DagBundlesManager
-
     cols = args.columns if args.columns else []
     invalid_cols = [c for c in cols if c not in dag_schema.fields]
     valid_cols = [c for c in cols if c in dag_schema.fields]
@@ -339,23 +337,8 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
-    # Initialize bundle manager
-    manager = DagBundlesManager()
-    manager.sync_bundles_to_db(session=session)
-    session.commit()
-
-    if args.bundle_name:
-        bundle = manager.get_bundle(name=args.bundle_name, version=args.latest_bundle_version)
-        if not bundle:
-            raise SystemExit(f"Bundle {args.bundle_name} not found")
-        dagbag = DagBag(bundle.path, include_examples=False)
-        dagbag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
-    else:
-        # Default Case - Read all the configured bundles.
-        bundles = manager.get_all_dag_bundles()
-        for bundle in bundles:
-            dagbag = DagBag(bundle.path, include_examples=False)
-            dagbag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
+    dagbag = DagBag(read_dags_from_db=True)
+    dagbag.collect_dags_from_db()
 
     if dagbag.import_errors:
         from rich import print as rich_print
