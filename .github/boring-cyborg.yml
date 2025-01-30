@@ -222,10 +222,7 @@ labelPRBasedOnFilePath:
     - providers/imap/**
 
   provider:influxdb:
-    - providers/src/airflow/providers/influxdb/**/*
-    - docs/apache-airflow-providers-influxdb/**/*
-    - providers/tests/influxdb/**/*
-    - providers/tests/system/influxdb/**/*
+    - providers/influxdb/**
 
   provider:jdbc:
     - providers/src/airflow/providers/jdbc/**/*
