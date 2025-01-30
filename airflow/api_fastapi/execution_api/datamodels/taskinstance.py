@@ -249,3 +249,10 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     data_interval_end: UtcDateTime | None = None
     start_date: UtcDateTime | None = None
     end_date: UtcDateTime | None = None
+
+
+class TIRuntimeCheckPayload(BaseModel):
+    """Payload for performing Runtime checks on the TaskInstance model as requested by the SDK."""
+
+    inlets: list[AssetProfile] | None = None
+    outlets: list[AssetProfile] | None = None
