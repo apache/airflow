@@ -254,7 +254,7 @@ def list_py_file_paths(
         contains Airflow DAG definitions. If not provided, use the
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
         to safe.
-    :return: a list of paths to Python files in the specified directory
+    :return: a list of relative paths to Python files in the specified directory
     """
     file_paths: list[str] = []
     if directory is None:

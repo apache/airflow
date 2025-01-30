@@ -210,7 +210,7 @@ def _serialize_dag_capturing_errors(
     except Exception:
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
         dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
-        return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
+        return [(dag, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
 
 
 def _sync_dag_perms(dag: MaybeSerializedDAG, session: Session):
