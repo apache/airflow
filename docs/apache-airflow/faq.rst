@@ -158,10 +158,8 @@ configure local settings.
 When there are a lot (>1000) of DAG files, how to speed up parsing of new files?
 ---------------------------------------------------------------------------------
 
-(only valid for Airflow >= 2.1.1)
-
-Change the :ref:`config:scheduler__file_parsing_sort_mode` to ``modified_time``, raise
-the :ref:`config:scheduler__min_file_process_interval` to ``600`` (10 minutes), ``6000`` (100 minutes)
+Change the :ref:`config:dag_processor__file_parsing_sort_mode` to ``modified_time``, raise
+the :ref:`config:dag_processor__min_file_process_interval` to ``600`` (10 minutes), ``6000`` (100 minutes)
 or a higher value.
 
 The DAG parser will skip the ``min_file_process_interval`` check if a file is recently modified.

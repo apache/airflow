@@ -27,6 +27,9 @@ import {
 import type { ClearTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
+import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
+import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
+
 const onError = () => {
   toaster.create({
     description: "Clear Task Instance request failed",
@@ -76,6 +79,8 @@ export const useClearTaskInstances = ({
       ...taskInstanceKeys,
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
+      [useClearTaskInstancesDryRunKey, dagId],
+      [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

@@ -3492,7 +3492,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         assert mock_set_ti_state.call_count == set_ti_state_call_count
 
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
-    def test_should_raise_409_for_updating_same_task_instance_state(
+    def test_should_return_empty_list_for_updating_same_task_instance_state(
         self, mock_set_ti_state, test_client, session
     ):
         self.create_task_instances(session)
@@ -3505,5 +3505,5 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 "new_state": "success",
             },
         )
-        assert response.status_code == 409
-        assert "Task id print_the_context is already in success state" in response.text
+        assert response.status_code == 200
+        assert response.json() == {"task_instances": [], "total_entries": 0}
