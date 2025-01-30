@@ -7,6 +7,7 @@ apache-airflow-providers-apache-cassandra
 apache-airflow-providers-apache-iceberg
 apache-airflow-providers-apache-kafka
 apache-airflow-providers-apache-kylin
+apache-airflow-providers-apache-livy
 apache-airflow-providers-apache-pig
 apache-airflow-providers-apache-pinot
 apache-airflow-providers-apache-spark
@@ -24,6 +25,7 @@ apache-airflow-providers-docker
 apache-airflow-providers-edge
 apache-airflow-providers-exasol
 apache-airflow-providers-facebook
+apache-airflow-providers-ftp
 apache-airflow-providers-http
 apache-airflow-providers-microsoft-azure
 apache-airflow-providers-influxdb
@@ -51,12 +53,14 @@ apache-airflow-providers-samba
 apache-airflow-providers-segment
 apache-airflow-providers-sftp
 apache-airflow-providers-singularity
+apache-airflow-providers-slack
 apache-airflow-providers-ssh
 apache-airflow-providers-snowflake
 apache-airflow-providers-standard
 apache-airflow-providers-teradata
 apache-airflow-providers-tableau
 apache-airflow-providers-telegram
+apache-airflow-providers-trino
 apache-airflow-providers-vertica
 apache-airflow-providers-weaviate
 apache-airflow-providers-ydb

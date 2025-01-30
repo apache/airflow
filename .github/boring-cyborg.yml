@@ -79,10 +79,7 @@ labelPRBasedOnFilePath:
     - providers/apache/kylin/**
 
   provider:apache-livy:
-    - providers/src/airflow/providers/apache/livy/**/*
-    - docs/apache-airflow-providers-apache-livy/**/*
-    - providers/tests/apache/livy/**/*
-    - providers/tests/system/apache/livy/**/*
+    - providers/apache/livy/**
 
   provider:apache-pig:
     - providers/apache/pig/**
@@ -188,10 +185,7 @@ labelPRBasedOnFilePath:
     - providers/facebook/**
 
   provider:ftp:
-    - providers/src/airflow/providers/ftp/**/*
-    - docs/apache-airflow-providers-ftp/**/*
-    - providers/tests/ftp/**/*
-    - providers/tests/system/ftp/**/*
+    - providers/ftp/**
 
   provider:github:
     - providers/src/airflow/providers/github/**/*
@@ -334,10 +328,7 @@ labelPRBasedOnFilePath:
     - providers/singularity/**
 
   provider:slack:
-    - providers/src/airflow/providers/slack/**/*
-    - docs/apache-airflow-providers-slack/**/*
-    - providers/tests/slack/**/*
-    - providers/tests/system/slack/**/*
+    - providers/slack/**
 
   provider:smtp:
     - providers/src/airflow/providers/smtp/**/*
@@ -366,10 +357,7 @@ labelPRBasedOnFilePath:
     - providers/teradata/**
 
   provider:trino:
-    - providers/src/airflow/providers/trino/**/*
-    - docs/apache-airflow-providers-trino/**/*
-    - providers/tests/trino/**/*
-    - providers/tests/system/trino/**/*
+    - providers/trino/**
 
   provider:vertica:
     - providers/vertica/**
