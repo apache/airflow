@@ -494,13 +494,14 @@ class TestUpdateDagParsingResults:
         ],
     )
     @pytest.mark.usefixtures("clean_db")
-    def test_dagmodel_properties(self, attrs, expected, session, time_machine, testing_dag_bundle):
+    def test_dagmodel_properties(self, attrs, expected, session, time_machine, testing_dag_bundle, dag_maker):
         """Test that properties on the dag model are correctly set when dealing with a LazySerializedDag"""
         dt = tz.datetime(2020, 1, 5, 0, 0, 0)
         time_machine.move_to(dt, tick=False)
 
         tasks = attrs.pop("_tasks_", None)
-        dag = DAG("dag", **attrs)
+        with dag_maker("dag", **attrs) as dag:
+            ...
         if tasks:
             dag.add_tasks(tasks)
 
@@ -513,7 +514,6 @@ class TestUpdateDagParsingResults:
             dr1 = DagRun(logical_date=dt, run_id="test_run_id_1", **dr_kwargs, start_date=dt)
             session.add(dr1)
             session.commit()
-
         update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
 
         orm_dag = session.get(DagModel, ("dag",))
@@ -526,20 +526,23 @@ class TestUpdateDagParsingResults:
 
         assert orm_dag.last_parsed_time == dt
 
-    def test_existing_dag_is_paused_upon_creation(self, testing_dag_bundle, session):
-        dag = DAG("dag_paused", schedule=None)
+    def test_existing_dag_is_paused_upon_creation(self, testing_dag_bundle, session, dag_maker):
+        with dag_maker("dag_paused", schedule=None) as dag:
+            ...
         update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
 
-        dag = DAG("dag_paused", schedule=None, is_paused_upon_creation=True)
+        with dag_maker("dag_paused", schedule=None, is_paused_upon_creation=True) as dag:
+            ...
         update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
         # Since the dag existed before, it should not follow the pause flag upon creation
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
 
-    def test_bundle_name_and_version_are_stored(self, testing_dag_bundle, session):
-        dag = DAG("mydag", schedule=None)
+    def test_bundle_name_and_version_are_stored(self, testing_dag_bundle, session, dag_maker):
+        with dag_maker("mydag", schedule=None) as dag:
+            ...
         update_dag_parsing_results_in_db("testing", "1.0", [self.dag_to_lazy_serdag(dag)], {}, set(), session)
         orm_dag = session.get(DagModel, "mydag")
         assert orm_dag.bundle_name == "testing"

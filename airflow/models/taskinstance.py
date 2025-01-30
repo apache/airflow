@@ -32,6 +32,7 @@ from collections.abc import Collection, Generator, Iterable, Mapping
 from datetime import timedelta
 from enum import Enum
 from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import quote
 
@@ -1946,7 +1947,9 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             raise ValueError("DagModel is empty")
 
-        path = dag.relative_fileloc
+        path = None
+        if dag.relative_fileloc:
+            path = Path(dag.relative_fileloc)
 
         if path:
             if not path.is_absolute():

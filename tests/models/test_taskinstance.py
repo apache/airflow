@@ -3906,9 +3906,11 @@ class TestTaskInstance:
         assert call("ti.start", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}) in stats_mock.mock_calls
         assert stats_mock.call_count == (2 * len(State.task_states)) + 7
 
-    def test_command_as_list(self, create_task_instance):
-        ti = create_task_instance()
-        ti.task.dag.fileloc = os.path.join(TEST_DAGS_FOLDER, "x.py")
+    def test_command_as_list(self, dag_maker):
+        with dag_maker():
+            PythonOperator(python_callable=print, task_id="hi")
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         assert ti.command_as_list() == [
             "airflow",
             "tasks",
@@ -3917,7 +3919,7 @@ class TestTaskInstance:
             ti.task_id,
             ti.run_id,
             "--subdir",
-            "DAGS_FOLDER/x.py",
+            "DAGS_FOLDER/test_taskinstance.py",
         ]
 
     def test_generate_command_default_param(self):
