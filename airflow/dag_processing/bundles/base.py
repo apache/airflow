@@ -75,7 +75,7 @@ class BaseDagBundle(ABC):
         """
         Where bundles can store DAGs on disk (if local disk is required).
 
-        This is the root path, shared by various bundles. Each bundle should use its own subdirectory.
+        This is the root bundle storage path, common to all bundles. Each bundle should use a subdirectory of this path.
         """
         if configured_location := conf.get("dag_processor", "dag_bundle_storage_path", fallback=None):
             return Path(configured_location)
@@ -89,7 +89,7 @@ class BaseDagBundle(ABC):
 
         Airflow will use this path to find/load/execute the DAGs from the bundle.
         The path can change when `refresh` is called, but it cannot change between refreshes.
-        It is also should be retrievable once the bundle has been initialized.
+        After `initialize` has been called, all dag files in the bundle should be accessible from this path.
         """
 
     @abstractmethod
