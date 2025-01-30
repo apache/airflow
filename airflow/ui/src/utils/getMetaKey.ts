@@ -17,7 +17,4 @@
  * under the License.
  */
 
-export { capitalize } from "./capitalize";
-export { pluralize } from "./pluralize";
-export { getDuration } from "./datetime_utils";
-export { getMetaKey } from "./getMetaKey";
+export const getMetaKey = () => (navigator.appVersion.includes("Mac") ? "⌘" : "Ctrl");
