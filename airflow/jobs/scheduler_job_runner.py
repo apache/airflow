@@ -775,7 +775,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor=%s, executor_state=%s, try_number=%s, max_tries=%s, "
-                "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
+                "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, scheduled_dttm=%s,"
                 "queued_by_job_id=%s, pid=%s"
             )
             cls.logger().info(
@@ -797,6 +797,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.priority_weight,
                 ti.operator,
                 ti.queued_dttm,
+                ti.scheduled_dttm,
                 ti.queued_by_job_id,
                 ti.pid,
             )
@@ -1808,6 +1809,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .values(
                 state=TaskInstanceState.SCHEDULED,
                 queued_dttm=None,
+                scheduled_dttm=timezone.utcnow(),
             )
             .execution_options(synchronize_session=False)
         )
@@ -1962,6 +1964,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         state=TaskInstanceState.SCHEDULED,
                         next_method=TRIGGER_FAIL_REPR,
                         next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                        scheduled_dttm=timezone.utcnow(),
                         trigger_id=None,
                     )
                 ).rowcount
