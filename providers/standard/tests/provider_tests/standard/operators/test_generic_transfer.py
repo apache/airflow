@@ -65,7 +65,7 @@ class TestMySql:
         ],
     )
     def test_mysql_to_mysql(self, client):
-        from providers.mysql.tests.provider_tests.mysql.hooks.test_mysql import MySqlContext
+        from tests_common.test_utils.common_sql import MySqlContext
 
         with MySqlContext(client):
             sql = "SELECT * FROM connection;"

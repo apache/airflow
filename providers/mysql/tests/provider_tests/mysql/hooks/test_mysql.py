@@ -29,6 +29,8 @@ import sqlalchemy
 from airflow.models import Connection
 from airflow.models.dag import DAG
 
+from tests_common.test_utils.common_sql import MySqlContext
+
 try:
     import MySQLdb.cursors
 
@@ -410,19 +412,6 @@ DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = "unit_test_dag"
-
-
-class MySqlContext:
-    def __init__(self, client):
-        self.client = client
-        self.connection = MySqlHook.get_connection(MySqlHook.default_conn_name)
-        self.init_client = self.connection.extra_dejson.get("client", "mysqlclient")
-
-    def __enter__(self):
-        self.connection.set_extra(f'{{"client": "{self.client}"}}')
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.connection.set_extra(f'{{"client": "{self.init_client}"}}')
 
 
 @pytest.mark.backend("mysql")

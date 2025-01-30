@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 from airflow.models import Connection
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 if TYPE_CHECKING:
     from airflow.hooks.base import BaseHook
@@ -55,3 +56,18 @@ def mock_db_hook(hook_class: type[BaseHook], hook_params=None, conn_params=None)
             return conn
 
     return MockedHook(**hook_params)
+
+
+class MySqlContext:
+    """MySqlContext to be used in tests as context manager."""
+
+    def __init__(self, client):
+        self.client = client
+        self.connection = MySqlHook.get_connection(MySqlHook.default_conn_name)
+        self.init_client = self.connection.extra_dejson.get("client", "mysqlclient")
+
+    def __enter__(self):
+        self.connection.set_extra(f'{{"client": "{self.client}"}}')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.connection.set_extra(f'{{"client": "{self.init_client}"}}')
