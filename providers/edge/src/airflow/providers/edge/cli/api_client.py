@@ -114,7 +114,7 @@ def worker_set_state(
         ),
     )
     logger.info("The request result: %s", result)
-    return WorkerSetStateReturn(**result)
+    return WorkerSetStateReturn(**result["__data__"])
 
 
 
