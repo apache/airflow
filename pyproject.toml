@@ -645,6 +645,7 @@ dev = [
   "apache-airflow-providers-edge",
   "apache-airflow-providers-exasol",
   "apache-airflow-providers-facebook",
+  "apache-airflow-providers-ftp",
   "apache-airflow-providers-http",
   "apache-airflow-providers-influxdb",
   "apache-airflow-providers-mongo",
@@ -710,6 +711,7 @@ apache-airflow-providers-docker = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
 apache-airflow-providers-exasol = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
+apache-airflow-providers-ftp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
@@ -773,6 +775,7 @@ members = [
     "providers/edge",
     "providers/exasol",
     "providers/facebook",
+    "providers/ftp",
     "providers/hashicorp",
     "providers/http",
     "providers/imap",
