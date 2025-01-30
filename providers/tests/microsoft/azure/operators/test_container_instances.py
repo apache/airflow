@@ -453,30 +453,24 @@ class TestACIOperator:
         )
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
-    def test_execute_correct_sleep_cycle(self, aci_mock):
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.time.sleep")
+    def test_execute_correct_sleep_cycle(self, sleep_mock, aci_mock):
         expected_cg1 = make_mock_container(state="Running", exit_code=0, detail_status="test")
         expected_cg2 = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
 
-        import time
+        aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg1, expected_cg2]
+        aci_mock.return_value.exists.return_value = False
 
-        original_time_sleep = time.sleep
-        with mock.patch(
-            "airflow.providers.microsoft.azure.operators.container_instances.time.sleep"
-        ) as sleep_mock:
-            sleep_mock.side_effect = lambda _: original_time_sleep(0.1)
-            aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg1, expected_cg2]
-            aci_mock.return_value.exists.return_value = False
-
-            aci = AzureContainerInstancesOperator(
-                ci_conn_id=None,
-                registry_conn_id=None,
-                resource_group="resource-group",
-                name="container-name",
-                image="container-image",
-                region="region",
-                task_id="task",
-            )
-            aci.execute(None)
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+        )
+        aci.execute(None)
 
         # sleep is called at the end of cycles. Thus, the Terminated call does not trigger sleep
         assert sleep_mock.call_count == 2
