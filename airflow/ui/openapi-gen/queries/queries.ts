@@ -3157,7 +3157,7 @@ export const usePoolServicePostPool = <
  * @param data.taskId
  * @param data.dagRunId
  * @param data.requestBody
- * @returns XComCreateResponse Successful Response
+ * @returns XComResponseNative Successful Response
  * @throws ApiError
  */
 export const useXcomServiceCreateXcomEntry = <

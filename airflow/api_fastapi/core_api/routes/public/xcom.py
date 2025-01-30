@@ -28,11 +28,11 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollection,
     XComCreateRequest,
-    XComCreateResponse,
     XComResponseNative,
     XComResponseString,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.exceptions import TaskNotFound
 from airflow.models import DAG, DagRun as DR, XCom
 from airflow.settings import conf
 
@@ -162,15 +162,17 @@ def create_xcom_entry(
     request_body: XComCreateRequest,
     session: SessionDep,
     request: Request,
-) -> XComCreateResponse:
+) -> XComResponseNative:
     """Create an XCom entry."""
     # Validate DAG ID
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with ID: `{dag_id}` was not found")
 
     # Validate Task ID
-    if not dag.get_task(task_id):
+    try:
+        dag.get_task(task_id)
+    except TaskNotFound:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in DAG: `{dag_id}`"
         )
@@ -219,4 +221,4 @@ def create_xcom_entry(
         .limit(1)
     )
 
-    return xcom
+    return XComResponseNative.model_validate(xcom)

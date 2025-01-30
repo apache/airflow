@@ -2930,7 +2930,7 @@ export class XcomService {
    * @param data.taskId
    * @param data.dagRunId
    * @param data.requestBody
-   * @returns XComCreateResponse Successful Response
+   * @returns XComResponseNative Successful Response
    * @throws ApiError
    */
   public static createXcomEntry(data: CreateXcomEntryData): CancelablePromise<CreateXcomEntryResponse> {

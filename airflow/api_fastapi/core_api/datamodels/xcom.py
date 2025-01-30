@@ -65,20 +65,3 @@ class XComCreateRequest(BaseModel):
     key: str
     value: Any
     map_index: int = -1
-
-
-class XComCreateResponse(BaseModel):
-    """Serializer for a xcom create response."""
-
-    key: str
-    dag_run_id: int
-    timestamp: datetime
-    map_index: int
-    task_id: str
-    dag_id: str
-    run_id: str
-    value: str | None
-
-    @field_validator("value", mode="before")
-    def value_to_string(cls, v):
-        return str(v) if v is not None else None

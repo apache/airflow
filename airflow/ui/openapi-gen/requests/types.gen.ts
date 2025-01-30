@@ -1585,20 +1585,6 @@ export type XComCreateRequest = {
 };
 
 /**
- * Serializer for a xcom create response.
- */
-export type XComCreateResponse = {
-  key: string;
-  dag_run_id: number;
-  timestamp: string;
-  map_index: number;
-  task_id: string;
-  dag_id: string;
-  run_id: string;
-  value: string | null;
-};
-
-/**
  * Serializer for a xcom item.
  */
 export type XComResponse = {
@@ -2409,7 +2395,7 @@ export type CreateXcomEntryData = {
   taskId: string;
 };
 
-export type CreateXcomEntryResponse = XComCreateResponse;
+export type CreateXcomEntryResponse = XComResponseNative;
 
 export type GetTasksData = {
   dagId: string;
@@ -4766,7 +4752,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        201: XComCreateResponse;
+        201: XComResponseNative;
         /**
          * Bad Request
          */
