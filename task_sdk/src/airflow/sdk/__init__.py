@@ -49,7 +49,7 @@ __lazy_imports: dict[str, str] = {
     "BaseOperator": ".definitions.baseoperator",
     "Connection": ".definitions.connection",
     "Param": ".definitions.param",
-    "ParamDict": ".definitions.param",
+    "ParamsDict": ".definitions.param",
     "DAG": ".definitions.dag",
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",
