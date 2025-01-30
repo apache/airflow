@@ -24,7 +24,6 @@ import pytest
 from deepdiff import DeepDiff
 
 from airflow.models import DagBag
-from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
@@ -133,25 +132,18 @@ def make_dag(dag_maker, session, time_machine):
 
 
 @pytest.fixture
-def make_dag_with_multiple_version(dag_maker, session):
-    with dag_maker(DAG_ID) as dag:
-        EmptyOperator(task_id="task1")
-    dag.sync_to_db()
-    SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
-    with dag_maker(DAG_ID) as dag2:
-        EmptyOperator(task_id="task1")
-        EmptyOperator(task_id="task2")
-    dag2.sync_to_db()
-    SerializedDagModel.write_dag(dag2, bundle_name="dag_maker")
-    with dag_maker(DAG_ID) as dag3:
-        EmptyOperator(task_id="task1")
-        EmptyOperator(task_id="task2")
-        EmptyOperator(task_id="task3")
-    dag3.sync_to_db()
-    SerializedDagModel.write_dag(dag3, bundle_name="dag_maker")
+def make_dag_with_multiple_version(dag_maker):
+    """
+    Create DAG with multiple versions
 
-    latest_version = DagVersion.get_latest_version(dag.dag_id)
-    assert latest_version.version_number == 3
+    Version 1 will have 1 task, version 2 will have 2 tasks, and version 3 will have 3 tasks.
+    """
+    for version_number in range(1, 4):
+        with dag_maker(DAG_ID) as dag:
+            for i in range(version_number):
+                EmptyOperator(task_id=f"task{i+1}")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
 
 
 class TestStructureDataEndpoint:
@@ -505,9 +497,8 @@ class TestStructureDataEndpoint:
             ),
         ],
     )
-    def test_should_return_200_with_multiple_versions(
-        self, test_client, make_dag_with_multiple_version, params, expected
-    ):
+    @pytest.mark.usefixtures("make_dag_with_multiple_version")
+    def test_should_return_200_with_multiple_versions(self, test_client, params, expected):
         response = test_client.get("/ui/structure/structure_data", params=params)
         assert response.status_code == 200
         assert not DeepDiff(response.json(), expected, ignore_order=True)
