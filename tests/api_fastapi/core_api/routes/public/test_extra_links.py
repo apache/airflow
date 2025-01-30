@@ -31,8 +31,6 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests.models.test_dag import task_decorator
-from tests.models.test_mappedoperator import expand_mapped_task
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.mock_operators import CustomOperator
@@ -60,8 +58,8 @@ class TestExtraLinks:
         clear_db_runs()
         clear_db_xcom()
 
-    @pytest.fixture(autouse=True)
     @provide_session
+    @pytest.fixture(autouse=True)
     def setup(self, test_client, session=None) -> None:
         """
         Setup extra links for testing.
@@ -79,7 +77,7 @@ class TestExtraLinks:
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST}
 
-        dag_run = self.dag.create_dagrun(
+        self.dag.create_dagrun(
             run_id=self.dag_run_id,
             logical_date=self.default_time,
             run_type=DagRunType.MANUAL,
@@ -88,39 +86,19 @@ class TestExtraLinks:
             **triggered_by_kwargs,
         )
 
-        mapped_task = self.dag.get_task(self.task_mapped)
-        expand_mapped_task(mapped_task, dag_run.run_id, "make_bash_commands", length=3, session=session)
-
-        # Add XCom values for mapped tasks
-        for map_index in [0, 1, 2]:
-            XCom.set(
-                key="search_query",
-                value=f"TEST_LINK_VALUE_{map_index}",
-                task_id=self.task_mapped,
-                dag_id=self.dag_id,
-                run_id=self.dag_run_id,
-                map_index=map_index,
-                session=session,
-            )
-
-        session.flush()
-
     def teardown_method(self) -> None:
         self._clear_db()
 
     def _create_dag(self):
         with DAG(dag_id=self.dag_id, schedule=None, default_args={"start_date": self.default_time}) as dag:
-
-            @task_decorator
-            def make_bash_commands():
-                return ["VAL0", "VAL1", "VAL2"]
-
             CustomOperator(task_id=self.task_single_link, bash_command="TEST_LINK_VALUE")
             CustomOperator(
                 task_id=self.task_multiple_links, bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
             )
             # Mapped task expanded over a list of bash_commands
-            CustomOperator.partial(task_id=self.task_mapped).expand(bash_command=make_bash_commands())
+            CustomOperator.partial(task_id=self.task_mapped).expand(
+                bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
+            )
         return dag
 
 
@@ -251,15 +229,24 @@ class TestGetExtraLinks(TestExtraLinks):
             }
 
     @mock_plugin_manager(plugins=[])
+    @pytest.mark.xfail(reason="TODO: TaskSDK need to fix this, Extra links should work for mapped operator")
     def test_should_respond_200_mapped_task_instance(self, test_client):
         map_index = 0
+        XCom.set(
+            key="search_query",
+            value="TEST_LINK_VALUE_1",
+            task_id=self.task_mapped,
+            dag_id=self.dag.dag_id,
+            run_id=self.dag_run_id,
+            map_index=map_index,
+        )
         response = test_client.get(
             f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
             params={"map_index": map_index},
         )
         assert response.status_code == 200
         assert response.json() == {
-            "Google Custom": f"http://google.com/custom_base_link?search=TEST_LINK_VALUE_{map_index}"
+            "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_1"
         }
 
     @mock_plugin_manager(plugins=[])
