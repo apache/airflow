@@ -2595,14 +2595,6 @@ dag_processor:
                     "subdir": "dags",
                     "tracking_ref": "main",
                     "refresh_interval": 0
-            },
-            {
-                "name": "my-git-repo",
-                "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
-                "kwargs": {
-                    "subdir": "dags",
-                    "tracking_ref": "main",
-                    "refresh_interval": 0
             }
             ]
       default: >
