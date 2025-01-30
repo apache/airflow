@@ -88,6 +88,7 @@ services:
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
       - ../../../providers/sftp/tests:/opt/airflow/providers/sftp/tests
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
+      - ../../../providers/slack/tests:/opt/airflow/providers/slack/tests
       - ../../../providers/snowflake/tests:/opt/airflow/providers/snowflake/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
