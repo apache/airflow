@@ -19,7 +19,7 @@ from __future__ import annotations
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
-from flask import Response, g
+from flask import Response
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 from airflow.api_fastapi.app import get_auth_manager
@@ -271,4 +271,4 @@ def requires_access_custom_view(
 
 
 def get_readable_dags() -> set[str]:
-    return get_auth_manager().get_permitted_dag_ids(user=g.user)
+    return get_auth_manager().get_permitted_dag_ids(user=get_auth_manager().get_user())

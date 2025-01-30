@@ -399,7 +399,8 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         with pytest.raises(
-            AirflowException, match=f"Invalid git URL: {repo_url}. URL must start with git@ and end with .git"
+            AirflowException,
+            match=f"Invalid git URL: {repo_url}. URL must start with git@ or https and end with .git",
         ):
             bundle.initialize()
 
@@ -411,6 +412,10 @@ class TestGitDagBundle:
             ("git@bitbucket.org:apache/airflow.git", "https://bitbucket.org/apache/airflow/src/0f0f0f"),
             (
                 "git@myorg.github.com:apache/airflow.git",
+                "https://myorg.github.com/apache/airflow/tree/0f0f0f",
+            ),
+            (
+                "https://myorg.github.com/apache/airflow.git",
                 "https://myorg.github.com/apache/airflow/tree/0f0f0f",
             ),
         ],

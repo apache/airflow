@@ -45,6 +45,7 @@ import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
 import { pluralize } from "src/utils";
 
+import { DAGImportErrors } from "../Dashboard/Stats/DAGImportErrors";
 import { DagCard } from "./DagCard";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
@@ -223,9 +224,12 @@ export const DagsList = () => {
         />
         <DagsFilters />
         <HStack justifyContent="space-between">
-          <Heading py={3} size="md">
-            {pluralize("Dag", data.total_entries)}
-          </Heading>
+          <HStack>
+            <Heading py={3} size="md">
+              {pluralize("Dag", data.total_entries)}
+            </Heading>
+            <DAGImportErrors iconOnly />
+          </HStack>
           {display === "card" ? (
             <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
           ) : undefined}
