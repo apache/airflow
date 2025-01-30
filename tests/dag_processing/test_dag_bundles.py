@@ -163,13 +163,16 @@ class TestGitHook:
         assert hook.env == {
             "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
         }
+        db.merge_conn(
+            Connection(
+                conn_id="my_git_conn_strict",
+                host=AIRFLOW_GIT,
+                conn_type="git",
+                extra='{"key_file": "/files/pkey.pem", "strict_host_key_checking": "yes"}',
+            )
+        )
 
-        conn = session.query(Connection).filter(Connection.conn_id == CONN_DEFAULT).one()
-        conn.extra = '{"key_file":"/files/pkey.pem", "strict_host_key_checking": "yes"}'
-        session.merge(conn)
-        session.commit()
-
-        hook = GitHook(git_conn_id=CONN_DEFAULT)
+        hook = GitHook(git_conn_id="my_git_conn_strict")
         assert hook.env == {
             "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
         }
