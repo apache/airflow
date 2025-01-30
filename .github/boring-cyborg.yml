@@ -43,10 +43,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/apache/drill/**/*
 
   provider:apache-druid:
-    - providers/src/airflow/providers/apache/druid/**/*
-    - docs/apache-airflow-providers-apache-druid/**/*
-    - providers/tests/apache/druid/**/*
-    - providers/tests/system/apache/druid/**/*
+    - providers/apache/druid/**
 
   provider:apache-flink:
     - providers/src/airflow/providers/apache/flink/**/*
@@ -168,10 +165,7 @@ labelPRBasedOnFilePath:
     - providers/edge/**
 
   provider:elasticsearch:
-    - providers/src/airflow/providers/elasticsearch/**/*
-    - docs/apache-airflow-providers-elasticsearch/**/*
-    - providers/tests/elasticsearch/**/*
-    - providers/tests/system/elasticsearch/**/*
+    - providers/elasticsearch/**
 
   provider:exasol:
     - providers/exasol/**
@@ -188,10 +182,7 @@ labelPRBasedOnFilePath:
     - providers/ftp/**
 
   provider:github:
-    - providers/src/airflow/providers/github/**/*
-    - docs/apache-airflow-providers-github/**/*
-    - providers/tests/github/**/*
-    - providers/tests/system/github/**/*
+    - providers/github/**
 
   provider:google:
     - providers/src/airflow/providers/google/**/*
@@ -270,10 +261,7 @@ labelPRBasedOnFilePath:
     - providers/openlineage/**
 
   provider:opensearch:
-    - providers/src/airflow/providers/opensearch/**/*
-    - docs/apache-airflow-providers-opensearch/**/*
-    - providers/tests/opensearch/**/*
-    - providers/tests/system/opensearch/**/*
+    - providers/opensearch/**
 
   provider:opsgenie:
     - providers/opsgenie/**

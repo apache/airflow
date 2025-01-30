@@ -4667,6 +4667,18 @@ export const $TaskInstanceHistoryResponse = {
       ],
       title: "Queued When",
     },
+    scheduled_when: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Scheduled When",
+    },
     pid: {
       anyOf: [
         {
@@ -4715,6 +4727,7 @@ export const $TaskInstanceHistoryResponse = {
     "priority_weight",
     "operator",
     "queued_when",
+    "scheduled_when",
     "pid",
     "executor",
     "executor_config",
@@ -4882,6 +4895,18 @@ export const $TaskInstanceResponse = {
       ],
       title: "Queued When",
     },
+    scheduled_when: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Scheduled When",
+    },
     pid: {
       anyOf: [
         {
@@ -4979,6 +5004,7 @@ export const $TaskInstanceResponse = {
     "priority_weight",
     "operator",
     "queued_when",
+    "scheduled_when",
     "pid",
     "executor",
     "executor_config",

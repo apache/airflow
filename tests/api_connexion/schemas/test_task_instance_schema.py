@@ -87,6 +87,7 @@ class TestTaskInstanceSchema:
             "priority_weight": 1,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "TEST_TASK_ID",

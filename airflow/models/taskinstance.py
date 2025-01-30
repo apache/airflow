@@ -824,6 +824,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.operator = source.operator
     target.custom_operator_name = source.custom_operator_name
     target.queued_dttm = source.queued_dttm
+    target.scheduled_dttm = source.scheduled_dttm
     target.queued_by_job_id = source.queued_by_job_id
     target.last_heartbeat_at = source.last_heartbeat_at
     target.pid = source.pid
@@ -1712,6 +1713,7 @@ class TaskInstance(Base, LoggingMixin):
     operator = Column(String(1000))
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
+    scheduled_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
 
     last_heartbeat_at = Column(UtcDateTime)
@@ -2705,23 +2707,24 @@ class TaskInstance(Base, LoggingMixin):
             timing = timezone.utcnow() - self.queued_dttm
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
-            if self.start_date is None:
-                # This check does not work correctly before fields like `scheduled_dttm` are implemented.
-                # TODO: Change the level to WARNING once it's viable.
-                # see #30612 #34493 and #34771 for more details
-                self.log.debug(
+            if self.scheduled_dttm is None:
+                self.log.warning(
                     "cannot record %s for task %s because previous state change time has not been saved",
                     metric_name,
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.start_date
+            timing = timezone.utcnow() - self.scheduled_dttm
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
         # send metric twice, once (legacy) with tags in the name and once with tags as tags
         Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
-        Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
+        Stats.timing(
+            f"task.{metric_name}",
+            timing,
+            tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+        )
 
     def clear_next_method_args(self) -> None:
         """Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them."""

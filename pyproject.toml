@@ -625,6 +625,7 @@ dev = [
   "apache-airflow-providers-alibaba",
   "apache-airflow-providers-apache-beam",
   "apache-airflow-providers-apache-cassandra",
+  "apache-airflow-providers-apache-druid",
   "apache-airflow-providers-apache-iceberg",
   "apache-airflow-providers-apache-kafka",
   "apache-airflow-providers-apache-kylin",
@@ -644,9 +645,11 @@ dev = [
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-discord",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-elasticsearch",
   "apache-airflow-providers-exasol",
   "apache-airflow-providers-facebook",
   "apache-airflow-providers-ftp",
+  "apache-airflow-providers-github",
   "apache-airflow-providers-http",
   "apache-airflow-providers-influxdb",
   "apache-airflow-providers-mongo",
@@ -656,6 +659,7 @@ dev = [
   "apache-airflow-providers-neo4j",
   "apache-airflow-providers-openai",
   "apache-airflow-providers-openfaas",
+  "apache-airflow-providers-opensearch",
   "apache-airflow-providers-opsgenie",
   "apache-airflow-providers-papermill",
   "apache-airflow-providers-pgvector",
@@ -694,6 +698,7 @@ apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
+apache-airflow-providers-apache-druid = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
 apache-airflow-providers-apache-kafka = { workspace = true }
 apache-airflow-providers-apache-kylin = { workspace = true }
@@ -713,9 +718,11 @@ apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-docker = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-elasticsearch = { workspace = true }
 apache-airflow-providers-exasol = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-ftp = { workspace = true }
+apache-airflow-providers-github = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
@@ -727,6 +734,7 @@ apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
 apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-odbc = { workspace = true }
+apache-airflow-providers-opensearch = { workspace = true }
 apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-openfaas = { workspace = true }
 apache-airflow-providers-opsgenie = { workspace = true }
@@ -761,6 +769,7 @@ members = [
     "providers/alibaba",
     "providers/apache/beam",
     "providers/apache/cassandra",
+    "providers/apache/druid",
     "providers/apache/iceberg",
     "providers/apache/kafka",
     "providers/apache/kylin",
@@ -780,9 +789,11 @@ members = [
     "providers/discord",
     "providers/docker",
     "providers/edge",
+    "providers/elasticsearch",
     "providers/exasol",
     "providers/facebook",
     "providers/ftp",
+    "providers/github",
     "providers/hashicorp",
     "providers/http",
     "providers/imap",
@@ -795,6 +806,7 @@ members = [
     "providers/openai",
     "providers/openfaas",
     "providers/openlineage",
+    "providers/opensearch",
     "providers/opsgenie",
     "providers/pagerduty",
     "providers/papermill",
