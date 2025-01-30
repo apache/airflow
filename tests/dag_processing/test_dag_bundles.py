@@ -490,9 +490,7 @@ class TestGitDagBundle:
             bundle = GitDagBundle(name="test", tracking_ref="main")
             with pytest.raises(
                 AirflowException,
-                match=re.escape(
-                    "('Error cloning repository: %s', GitCommandError('clone', 'Simulated error'))"
-                ),
+                match=re.escape("Error cloning repository"),
             ):
                 bundle.initialize()
 
