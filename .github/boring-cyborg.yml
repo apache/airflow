@@ -188,10 +188,7 @@ labelPRBasedOnFilePath:
     - providers/facebook/**
 
   provider:ftp:
-    - providers/src/airflow/providers/ftp/**/*
-    - docs/apache-airflow-providers-ftp/**/*
-    - providers/tests/ftp/**/*
-    - providers/tests/system/ftp/**/*
+    - providers/ftp/**
 
   provider:github:
     - providers/src/airflow/providers/github/**/*
