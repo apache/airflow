@@ -307,7 +307,7 @@ Below is an example of using the ``@task.docker`` decorator to run a Python task
 
 .. _taskflow/docker_example:
 
-.. exampleinclude:: /../../providers/tests/system/docker/example_taskflow_api_docker_virtualenv.py
+.. exampleinclude:: /../../providers/docker/tests/system/docker/example_taskflow_api_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START transform_docker]

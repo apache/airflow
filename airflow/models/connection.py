@@ -432,7 +432,7 @@ class Connection(Base, LoggingMixin):
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
 
             # Mask sensitive keys from this list
-            mask_secret(extra)
+            mask_secret(obj)
 
         return extra
 

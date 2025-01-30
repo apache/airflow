@@ -29,6 +29,8 @@ ROOT_FOLDER = pathlib.Path(__file__).parents[2]
 PROVIDERS_SRC = ROOT_FOLDER.joinpath("providers", "src")
 PROVIDERS_TESTS = ROOT_FOLDER.joinpath("providers", "tests")
 
+NEW_PROVIDER_SRC = ROOT_FOLDER.joinpath("providers")
+
 
 class TestProjectStructure:
     def test_reference_to_providers_from_core(self):
@@ -205,8 +207,8 @@ def get_imports_from_file(filepath: str):
     return import_names
 
 
-def filepath_to_module(path: pathlib.Path):
-    path = path.relative_to(PROVIDERS_SRC)
+def filepath_to_module(path: pathlib.Path, src_folder: pathlib.Path = PROVIDERS_SRC):
+    path = path.relative_to(src_folder)
     return path.as_posix().replace("/", ".")[: -(len(".py"))]
 
 
@@ -229,24 +231,45 @@ class ProjectStructureTest:
             resource_files = filter(lambda f: f.name != "__init__.py", python_files)
             yield from resource_files
 
+    def new_class_paths(self):
+        for resource_type in self.CLASS_DIRS:
+            python_files = NEW_PROVIDER_SRC.glob(
+                f"{self.PROVIDER}/**/{resource_type}/**/*.py",
+            )
+            # Make path relative
+            resource_files = filter(lambda f: f.name != "__init__.py", python_files)
+            yield from resource_files
+
     def list_of_classes(self):
         classes = {}
         for operator_file in self.class_paths():
-            operators_paths = self.get_classes_from_file(operator_file)
+            operators_paths = self.get_classes_from_file(operator_file, PROVIDERS_SRC)
+            classes.update(operators_paths)
+        for operator_file in self.new_class_paths():
+            operators_paths = self.get_classes_from_file(operator_file, NEW_PROVIDER_SRC, is_new=True)
             classes.update(operators_paths)
         return classes
 
-    def get_classes_from_file(self, filepath: pathlib.Path):
+    def get_classes_from_file(
+        self, filepath: pathlib.Path, src_folder: pathlib.Path = PROVIDERS_SRC, is_new: bool = False
+    ):
         with open(filepath) as py_file:
             content = py_file.read()
         doc_node = ast.parse(content, filepath)
-        module = filepath_to_module(filepath)
+        module = filepath_to_module(filepath, src_folder)
         results: dict = {}
         for current_node in ast.walk(doc_node):
             if isinstance(current_node, ast.ClassDef) and current_node.name.endswith(
                 tuple(self.CLASS_SUFFIXES)
             ):
-                results[f"{module}.{current_node.name}"] = current_node
+                if "provider_tests" in module:
+                    continue
+
+                if is_new:
+                    results[f"{'.'.join(module.split('.')[2:])}.{current_node.name}"] = current_node
+                else:
+                    results[f"{module}.{current_node.name}"] = current_node
+        print(f"{results}")
         return results
 
 
@@ -272,6 +295,12 @@ class ExampleCoverageTest(ProjectStructureTest):
         # new_design:
         yield from glob.glob(
             f"{ROOT_FOLDER}/providers/tests/system/{self.PROVIDER}/**/example_*.py", recursive=True
+        )
+        # new_design v2:
+        # TODO remove #new_design when movement is finished
+        yield from glob.glob(
+            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/tests/system/{self.PROVIDER}/example_*.py",
+            recursive=True,
         )
 
     def test_missing_examples(self):

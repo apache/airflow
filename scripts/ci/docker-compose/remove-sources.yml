@@ -35,13 +35,17 @@ services:
       - ../../../empty:/opt/airflow/providers/airbyte/src
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/apache/beam/src
+      - ../../../empty:/opt/airflow/providers/apache/cassandra/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
       - ../../../empty:/opt/airflow/providers/apache/kafka/src
       - ../../../empty:/opt/airflow/providers/apache/kylin/src
+      - ../../../empty:/opt/airflow/providers/apache/livy/src
       - ../../../empty:/opt/airflow/providers/apache/pig/src
       - ../../../empty:/opt/airflow/providers/apache/pinot/src
       - ../../../empty:/opt/airflow/providers/apache/spark/src
+      - ../../../empty:/opt/airflow/providers/apprise/src
       - ../../../empty:/opt/airflow/providers/asana/src
+      - ../../../empty:/opt/airflow/providers/atlassian/jira/src
       - ../../../empty:/opt/airflow/providers/celery/src
       - ../../../empty:/opt/airflow/providers/cohere/src
       - ../../../empty:/opt/airflow/providers/common/compat/src
@@ -49,12 +53,15 @@ services:
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/datadog/src
       - ../../../empty:/opt/airflow/providers/discord/src
+      - ../../../empty:/opt/airflow/providers/docker/src
       - ../../../empty:/opt/airflow/providers/edge/src
       - ../../../empty:/opt/airflow/providers/exasol/src
       - ../../../empty:/opt/airflow/providers/facebook/src
+      - ../../../empty:/opt/airflow/providers/ftp/src
       - ../../../empty:/opt/airflow/providers/hashicorp/src
       - ../../../empty:/opt/airflow/providers/http/src
       - ../../../empty:/opt/airflow/providers/imap/src
+      - ../../../empty:/opt/airflow/providers/influxdb/src
       - ../../../empty:/opt/airflow/providers/jenkins/src
       - ../../../empty:/opt/airflow/providers/mongo/src
       - ../../../empty:/opt/airflow/providers/mysql/src
@@ -75,12 +82,14 @@ services:
       - ../../../empty:/opt/airflow/providers/segment/src
       - ../../../empty:/opt/airflow/providers/sftp/src
       - ../../../empty:/opt/airflow/providers/singularity/src
+      - ../../../empty:/opt/airflow/providers/slack/src
       - ../../../empty:/opt/airflow/providers/snowflake/src
       - ../../../empty:/opt/airflow/providers/ssh/src
       - ../../../empty:/opt/airflow/providers/standard/src
       - ../../../empty:/opt/airflow/providers/tableau/src
       - ../../../empty:/opt/airflow/providers/telegram/src
       - ../../../empty:/opt/airflow/providers/teradata/src
+      - ../../../empty:/opt/airflow/providers/trino/src
       - ../../../empty:/opt/airflow/providers/vertica/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
       - ../../../empty:/opt/airflow/providers/ydb/src
