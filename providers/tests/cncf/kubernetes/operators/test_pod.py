@@ -1156,7 +1156,8 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.parametrize("randomize", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion", new=MagicMock)
-    def test_name_normalized_on_execution(self, randomize):
+    @patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs")
+    def test_name_normalized_on_execution(self, fetch_container_mock, randomize):
         name_base = "test_extra-123"
         normalized_name = "test-extra-123"
 
@@ -1169,6 +1170,8 @@ class TestKubernetesPodOperator:
 
         pod, _ = self.run_pod(k)
         if randomize:
+            # To avoid
+            assert isinstance(pod.metadata.name, str)
             assert pod.metadata.name.startswith(normalized_name)
             assert k.name.startswith(normalized_name)
         else:
