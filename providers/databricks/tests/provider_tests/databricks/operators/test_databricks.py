@@ -2208,7 +2208,7 @@ class TestDatabricksNotebookOperator:
         exception_message = "Both new_cluster and existing_cluster_id are set. Only one should be set."
         assert str(exc_info.value) == exception_message
 
-    def test_both_new_and_existing_cluster_unset(self, caplog):
+    def test_both_new_and_existing_cluster_unset(self):
         operator = DatabricksNotebookOperator(
             task_id="test_task",
             notebook_path="test_path",
