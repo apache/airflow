@@ -258,6 +258,14 @@ paths:
           type: boolean
           default: false
           title: External Dependencies
+      - name: dag_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Dag Version
       responses:
         '200':
           description: Successful Response
