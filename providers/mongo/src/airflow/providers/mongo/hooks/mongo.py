@@ -193,6 +193,9 @@ class MongoHook(BaseHook):
         self.client = MongoClient(self.uri, **options)
         return self.client
 
+    def close(self):
+        self.client.close()
+
     def _create_uri(self) -> str:
         """
         Create URI string from the given credentials.
