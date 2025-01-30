@@ -342,6 +342,10 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TC001"]
 
+# The FastAPI models are not parsed well with Pydantic when __future__.annotations is used
+# It is forcing for Union to replace with `|` pipe instead
+"airflow/api_fastapi/core_api/datamodels/common.py" = ["UP007"]
+
 # Provider's get_provider_info.py files are generated and do not need "from __future__ import annotations"
 "providers/**/get_provider_info.py" = ["I002"]
 
@@ -378,6 +382,9 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
@@ -616,14 +623,66 @@ dev = [
   "local-providers",
   "apache-airflow-providers-airbyte",
   "apache-airflow-providers-alibaba",
+  "apache-airflow-providers-apache-beam",
+  "apache-airflow-providers-apache-cassandra",
   "apache-airflow-providers-apache-iceberg",
+  "apache-airflow-providers-apache-kafka",
+  "apache-airflow-providers-apache-kylin",
+  "apache-airflow-providers-apache-livy",
+  "apache-airflow-providers-apache-pig",
+  "apache-airflow-providers-apache-pinot",
+  "apache-airflow-providers-apache-spark",
+  "apache-airflow-providers-apprise",
+  "apache-airflow-providers-asana",
+  "apache-airflow-providers-atlassian-jira",
   "apache-airflow-providers-celery",
   "apache-airflow-providers-cohere",
+  "apache-airflow-providers-common-compat",
+  "apache-airflow-providers-common-io",
   "apache-airflow-providers-common-sql",
+  "apache-airflow-providers-docker",
+  "apache-airflow-providers-datadog",
+  "apache-airflow-providers-discord",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-exasol",
+  "apache-airflow-providers-facebook",
+  "apache-airflow-providers-ftp",
+  "apache-airflow-providers-http",
+  "apache-airflow-providers-influxdb",
+  "apache-airflow-providers-mongo",
+  "apache-airflow-providers-openlineage",
+  "apache-airflow-providers-hashicorp",
+  "apache-airflow-providers-imap",
+  "apache-airflow-providers-neo4j",
+  "apache-airflow-providers-openai",
+  "apache-airflow-providers-openfaas",
+  "apache-airflow-providers-opsgenie",
+  "apache-airflow-providers-papermill",
+  "apache-airflow-providers-pgvector",
+  "apache-airflow-providers-mysql",
+  "apache-airflow-providers-odbc",
+  "apache-airflow-providers-jenkins",
+  "apache-airflow-providers-pagerduty",
+  "apache-airflow-providers-sftp",
+  "apache-airflow-providers-slack",
+  "apache-airflow-providers-snowflake",
   "apache-airflow-providers-pinecone",
+  "apache-airflow-providers-postgres",
+  "apache-airflow-providers-presto",
+  "apache-airflow-providers-qdrant",
+  "apache-airflow-providers-samba",
+  "apache-airflow-providers-segment",
+  "apache-airflow-providers-singularity",
+  "apache-airflow-providers-ssh",
   "apache-airflow-providers-standard",
+  "apache-airflow-providers-tableau",
+  "apache-airflow-providers-telegram",
+  "apache-airflow-providers-teradata",
+  "apache-airflow-providers-trino",
+  "apache-airflow-providers-vertica",
   "apache-airflow-providers-weaviate",
+  "apache-airflow-providers-ydb",
+  "apache-airflow-providers-zendesk",
   "apache-airflow-task-sdk",
 ]
 
@@ -633,14 +692,66 @@ dev = [
 local-providers = { workspace = true }
 apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
+apache-airflow-providers-apache-beam = { workspace = true }
+apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
+apache-airflow-providers-apache-kafka = { workspace = true }
+apache-airflow-providers-apache-kylin = { workspace = true }
+apache-airflow-providers-apache-livy = { workspace = true }
+apache-airflow-providers-apache-pig = { workspace = true }
+apache-airflow-providers-apache-pinot = { workspace = true }
+apache-airflow-providers-apache-spark = { workspace = true }
+apache-airflow-providers-apprise = { workspace = true }
+apache-airflow-providers-asana = { workspace = true }
+apache-airflow-providers-atlassian-jira = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
+apache-airflow-providers-common-compat = { workspace = true }
+apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
+apache-airflow-providers-datadog = { workspace = true }
+apache-airflow-providers-discord = { workspace = true }
+apache-airflow-providers-docker = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-exasol = { workspace = true }
+apache-airflow-providers-facebook = { workspace = true }
+apache-airflow-providers-ftp = { workspace = true }
+apache-airflow-providers-http = { workspace = true }
+apache-airflow-providers-influxdb = { workspace = true }
+apache-airflow-providers-mongo = { workspace = true }
+apache-airflow-providers-openlineage = { workspace = true }
+apache-airflow-providers-hashicorp = { workspace = true }
+apache-airflow-providers-imap = { workspace = true }
+apache-airflow-providers-neo4j = { workspace = true }
+apache-airflow-providers-openai = { workspace = true }
+apache-airflow-providers-jenkins = { workspace = true }
+apache-airflow-providers-mysql = { workspace = true }
+apache-airflow-providers-odbc = { workspace = true }
+apache-airflow-providers-pagerduty = { workspace = true }
+apache-airflow-providers-openfaas = { workspace = true }
+apache-airflow-providers-opsgenie = { workspace = true }
+apache-airflow-providers-papermill = { workspace = true }
 apache-airflow-providers-pinecone = { workspace = true }
+apache-airflow-providers-postgres = { workspace = true }
+apache-airflow-providers-pgvector = { workspace = true }
+apache-airflow-providers-presto = { workspace = true }
+apache-airflow-providers-qdrant = { workspace = true }
+apache-airflow-providers-samba = { workspace = true }
+apache-airflow-providers-segment = { workspace = true }
+apache-airflow-providers-sftp = { workspace = true }
+apache-airflow-providers-singularity = { workspace = true }
+apache-airflow-providers-slack = { workspace = true }
+apache-airflow-providers-ssh = { workspace = true }
+apache-airflow-providers-snowflake = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
+apache-airflow-providers-tableau = { workspace = true }
+apache-airflow-providers-telegram = { workspace = true }
+apache-airflow-providers-teradata = { workspace = true }
+apache-airflow-providers-trino = { workspace = true }
+apache-airflow-providers-vertica = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
+apache-airflow-providers-ydb = { workspace = true }
+apache-airflow-providers-zendesk = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 
 [tool.uv.workspace]
@@ -648,13 +759,65 @@ members = [
     "providers",
     "providers/airbyte",
     "providers/alibaba",
+    "providers/apache/beam",
+    "providers/apache/cassandra",
     "providers/apache/iceberg",
+    "providers/apache/kafka",
+    "providers/apache/kylin",
+    "providers/apache/livy",
+    "providers/apache/pig",
+    "providers/apache/pinot",
+    "providers/apache/spark",
+    "providers/apprise",
+    "providers/asana",
+    "providers/atlassian/jira",
     "providers/celery",
     "providers/cohere",
+    "providers/common/compat",
+    "providers/common/io",
     "providers/common/sql",
+    "providers/datadog",
+    "providers/discord",
+    "providers/docker",
     "providers/edge",
+    "providers/exasol",
+    "providers/facebook",
+    "providers/ftp",
+    "providers/hashicorp",
+    "providers/http",
+    "providers/imap",
+    "providers/influxdb",
+    "providers/jenkins",
+    "providers/mongo",
+    "providers/mysql",
+    "providers/neo4j",
+    "providers/odbc",
+    "providers/openai",
+    "providers/openfaas",
+    "providers/openlineage",
+    "providers/opsgenie",
+    "providers/pagerduty",
+    "providers/papermill",
     "providers/pinecone",
+    "providers/postgres",
+    "providers/pgvector",
+    "providers/presto",
+    "providers/qdrant",
+    "providers/samba",
+    "providers/segment",
+    "providers/sftp",
+    "providers/singularity",
+    "providers/slack",
+    "providers/ssh",
+    "providers/snowflake",
     "providers/standard",
+    "providers/tableau",
+    "providers/telegram",
+    "providers/teradata",
+    "providers/trino",
+    "providers/vertica",
     "providers/weaviate",
+    "providers/ydb",
+    "providers/zendesk",
     "task_sdk",
 ]

@@ -52,6 +52,8 @@ Misc
    * ``move Celery provider to new provider code structure (#45786)``
    * ``Move new provider tests to "provider_tests" submodule (#45955)``
    * ``Add script to move providers to the new directory structure (#45945)``
+   * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+   * ``Prepare docs for ad hoc release celery provider Jan 2025 (#45942)``
 
 3.9.0
 .....

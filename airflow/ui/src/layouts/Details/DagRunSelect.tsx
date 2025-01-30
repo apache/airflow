@@ -22,7 +22,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { useGridServiceGridData } from "openapi/queries";
 import type { GridDAGRunwithTIs } from "openapi/requests/types.gen";
-import { Select, Status } from "src/components/ui";
+import { StateBadge } from "src/components/StateBadge";
+import { Select } from "src/components/ui";
 
 type DagRunSelected = {
   run: GridDAGRunwithTIs;
@@ -65,7 +66,7 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
       colorPalette="blue"
       data-testid="dag-run-select"
       disabled={isLoading}
-      maxWidth="400px"
+      maxWidth="500px"
       onValueChange={selectDagRun}
       value={runId === undefined ? [] : [runId]}
       variant="subtle"
@@ -73,19 +74,14 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
       <Select.Trigger>
         <Select.ValueText placeholder="Run">
           {(items: Array<DagRunSelected>) => (
-            <Status
-              // eslint-disable-next-line unicorn/no-null
-              state={items[0]?.run.state ?? null}
-            >
-              {items[0]?.value}
-            </Status>
+            <StateBadge state={items[0]?.run.state}>{items[0]?.value}</StateBadge>
           )}
         </Select.ValueText>
       </Select.Trigger>
       <Select.Content portalRef={ref as RefObject<HTMLElement>} zIndex="popover">
         {runOptions.items.map((option) => (
           <Select.Item item={option} key={option.value}>
-            <Status state={option.run.state}>{option.value}</Status>
+            <StateBadge state={option.run.state}>{option.value}</StateBadge>
           </Select.Item>
         ))}
       </Select.Content>

@@ -783,6 +783,21 @@ class TestTriggererKedaAutoScaler:
         assert "replicas" not in jmespath.search("spec", docs[0])
 
     @pytest.mark.parametrize(
+        "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
+    )
+    def test_include_event_source_container_name_in_scaled_object_for_triggerer(self, executor):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+
+        assert jmespath.search("spec.scaleTargetRef.envSourceContainerName", docs[0]) == "triggerer"
+
+    @pytest.mark.parametrize(
         "query, expected_query",
         [
             # default query

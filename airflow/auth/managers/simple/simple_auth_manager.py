@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
-from flask import session, url_for
+from flask import session
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
@@ -35,7 +35,6 @@ from termcolor import colored
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
 from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.settings import AIRFLOW_PATH
 
@@ -53,7 +52,6 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class SimpleAuthManagerRole(namedtuple("SimpleAuthManagerRole", "name order"), Enum):
@@ -85,9 +83,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     Default auth manager used in Airflow. This auth manager should not be used in production.
     This auth manager is very basic and only intended for development and testing purposes.
     """
-
-    # TODO: Needs to be deleted when Airflow 2 legacy UI is gone
-    appbuilder: AirflowAppBuilder | None = None
 
     @staticmethod
     def get_generated_password_file() -> str:
@@ -133,16 +128,19 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             file.write(json.dumps(passwords))
 
     def is_logged_in(self) -> bool:
+        # Remove this method when legacy UI is removed
         return "user" in session or conf.getboolean("core", "simple_auth_manager_all_admins")
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return url_for("SimpleAuthManagerAuthenticationViews.login", next=kwargs.get("next_url"))
+        return "/auth/webapp/login"
 
     def get_url_logout(self) -> str:
-        return url_for("SimpleAuthManagerAuthenticationViews.logout")
+        # Remove this method when legacy UI is removed
+        raise NotImplementedError()
 
     def get_user(self) -> SimpleAuthManagerUser | None:
+        # Remove this method when legacy UI is removed
         if not self.is_logged_in():
             return None
         if conf.getboolean("core", "simple_auth_manager_all_admins"):
@@ -160,8 +158,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         details: ConfigurationDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP, user=user)
 
@@ -169,8 +167,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         details: ConnectionDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP, user=user)
 
@@ -178,9 +176,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         access_entity: DagAccessEntity | None = None,
         details: DagDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -193,8 +191,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         details: AssetDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -207,8 +205,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         details: PoolDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -221,34 +219,21 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         details: VariableDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP, user=user)
 
-    def is_authorized_view(
-        self, *, access_view: AccessView, user: SimpleAuthManagerUser | None = None
-    ) -> bool:
+    def is_authorized_view(self, *, access_view: AccessView, user: SimpleAuthManagerUser) -> bool:
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser | None = None
+        self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
     def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
         return menu_items
-
-    def register_views(self) -> None:
-        if not self.appbuilder:
-            return
-        users = self.get_users()
-        self.appbuilder.add_view_no_menu(
-            SimpleAuthManagerAuthenticationViews(
-                users=users,
-                passwords=self.get_passwords(users),
-            )
-        )
 
     def get_fastapi_app(self) -> FastAPI | None:
         """
@@ -290,13 +275,13 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
         return app
 
+    @staticmethod
     def _is_authorized(
-        self,
         *,
         method: ResourceMethod,
         allow_role: SimpleAuthManagerRole,
+        user: SimpleAuthManagerUser,
         allow_get_role: SimpleAuthManagerRole | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ):
         """
         Return whether the user is authorized to access a given resource.
@@ -304,14 +289,10 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         :param method: the method to perform
         :param allow_role: minimal role giving access to the resource, if the user's role is greater or
             equal than this role, they have access
+        :param user: the user to check the authorization for
         :param allow_get_role: minimal role giving access to the resource, if the user's role is greater or
             equal than this role, they have access. If not provided, ``allow_role`` is used
-        :param user: the user to check the authorization for. If not provided, the current user is used
         """
-        user = user or self.get_user()
-        if not user:
-            return False
-
         user_role = user.get_role()
         if not user_role:
             return False

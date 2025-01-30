@@ -59,7 +59,7 @@ def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Resp
         raise NotFound("File not found")
 
     # Check if user has read access to all the DAGs defined in the file
-    if not get_auth_manager().batch_is_authorized_dag(requests):
+    if not get_auth_manager().batch_is_authorized_dag(requests, user=get_auth_manager().get_user()):
         raise PermissionDenied()
 
     parsing_request = DagPriorityParsingRequest(fileloc=path)

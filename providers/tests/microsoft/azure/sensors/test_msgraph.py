@@ -26,6 +26,7 @@ from airflow.triggers.base import TriggerEvent
 
 from providers.tests.microsoft.azure.base import Base
 from providers.tests.microsoft.conftest import load_json, mock_json_response
+from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 
@@ -45,7 +46,7 @@ class TestMSGraphSensor(Base):
                 timeout=350.0,
             )
 
-            results, events = self.execute_operator(sensor)
+            results, events = execute_operator(sensor)
 
             assert sensor.path_parameters == {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"}
             assert isinstance(results, str)
@@ -78,7 +79,7 @@ class TestMSGraphSensor(Base):
                 timeout=350.0,
             )
 
-            results, events = self.execute_operator(sensor)
+            results, events = execute_operator(sensor)
 
             assert sensor.path_parameters == {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"}
             assert isinstance(results, str)

@@ -20,9 +20,9 @@ import { Heading, VStack, Box, SimpleGrid, Text, Link } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import Time from "src/components/Time";
-import { Status } from "src/components/ui";
 import { getTaskInstanceLink } from "src/utils/links.ts";
 
 import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
@@ -63,7 +63,7 @@ export const TaskCard = ({ dagId, task, taskInstances }: Props) => (
             <Link asChild color="fg.info" fontSize="sm">
               <RouterLink to={getTaskInstanceLink(taskInstances[0])}>
                 <Time datetime={taskInstances[0].start_date} />
-                {taskInstances[0].state === null ? undefined : <Status state={taskInstances[0].state} />}
+                {taskInstances[0].state === null ? undefined : <StateBadge state={taskInstances[0].state} />}
               </RouterLink>
             </Link>
           </TaskInstanceTooltip>
