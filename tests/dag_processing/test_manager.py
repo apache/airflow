@@ -175,7 +175,7 @@ class TestDagFileProcessorManager:
         with mock.patch.object(DagFileProcessorManager, "_create_process"):
             manager._start_new_processes()
 
-        # Because of the config: '[scheduler] parsing_processes = 2'
+        # Because of the config: '[dag_processor] parsing_processes = 2'
         # verify that only one extra process is created
         # and since a processor with 'file_1' already exists,
         # even though it is first in '_file_path_queue'
@@ -207,7 +207,7 @@ class TestDagFileProcessorManager:
         manager.set_file_paths([file])
         assert manager._processors == {file: mock_processor}
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "alphabetical"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
     def test_file_paths_in_queue_sorted_alphabetically(self):
         """Test dag files are sorted alphabetically"""
         file_names = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
@@ -221,7 +221,7 @@ class TestDagFileProcessorManager:
         manager.prepare_file_path_queue()
         assert manager._file_path_queue == deque(ordered_dag_files)
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "random_seeded_by_host"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "random_seeded_by_host"})
     def test_file_paths_in_queue_sorted_random_seeded_by_host(self):
         """Test files are randomly sorted and seeded by host name"""
         dag_files = _get_dag_file_paths(["file_3.py", "file_2.py", "file_4.py", "file_1.py"])
@@ -241,7 +241,7 @@ class TestDagFileProcessorManager:
         manager.prepare_file_path_queue()
         assert manager._file_path_queue == expected_order
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_file_paths_in_queue_sorted_by_modified_time(self, mock_getmtime):
         """Test files are sorted by modified time"""
@@ -257,7 +257,7 @@ class TestDagFileProcessorManager:
         ordered_files = _get_dag_file_paths(["file_4.py", "file_1.py", "file_3.py", "file_2.py"])
         assert manager._file_path_queue == deque(ordered_files)
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_file_paths_in_queue_excludes_missing_file(self, mock_getmtime):
         """Check that a file is not enqueued for processing if it has been deleted"""
@@ -272,7 +272,7 @@ class TestDagFileProcessorManager:
         ordered_files = _get_dag_file_paths(["file_2.py", "file_3.py"])
         assert manager._file_path_queue == deque(ordered_files)
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_add_new_file_to_parsing_queue(self, mock_getmtime):
         """Check that new file is added to parsing queue"""
@@ -291,7 +291,7 @@ class TestDagFileProcessorManager:
         ordered_files = _get_dag_file_paths(["file_4.py", "file_3.py", "file_2.py", "file_1.py"])
         assert manager._file_path_queue == deque(ordered_files)
 
-    @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_recently_modified_file_is_parsed_with_mtime_mode(self, mock_getmtime):
         """
@@ -605,7 +605,7 @@ class TestDagFileProcessorManager:
 
     @conf_vars(
         {
-            ("scheduler", "max_callbacks_per_loop"): "2",
+            ("dag_processor", "max_callbacks_per_loop"): "2",
             ("core", "load_examples"): "False",
         }
     )

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from flask import g
 from sqlalchemy import func, select
 
 from airflow.api_connexion import security
@@ -49,7 +48,9 @@ def get_dag_stats(
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get Dag statistics."""
-    allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
+    allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(
+        methods=["GET"], user=get_auth_manager().get_user()
+    )
     if dag_ids:
         dags_list = set(dag_ids.split(","))
         filter_dag_ids = dags_list.intersection(allowed_dag_ids)
