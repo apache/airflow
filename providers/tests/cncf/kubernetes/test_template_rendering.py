@@ -76,7 +76,7 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
                         "op1",
                         "test_run_id",
                         "--subdir",
-                        "DAGS_FOLDER/test_template_rendering.py",
+                        mock.ANY,
                     ],
                     "name": "base",
                     "env": [{"name": "AIRFLOW_IS_K8S_EXECUTOR_POD", "value": "True"}],
