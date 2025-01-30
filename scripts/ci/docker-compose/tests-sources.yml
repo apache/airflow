@@ -94,6 +94,7 @@ services:
       - ../../../providers/tableau/tests:/opt/airflow/providers/tableau/tests
       - ../../../providers/telegram/tests:/opt/airflow/providers/telegram/tests
       - ../../../providers/teradata/tests:/opt/airflow/providers/teradata/tests
+      - ../../../providers/trino/tests:/opt/airflow/providers/trino/tests
       - ../../../providers/vertica/tests:/opt/airflow/providers/vertica/tests
       - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
       - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests
