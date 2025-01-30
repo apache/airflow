@@ -27,15 +27,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import paramiko
 import pytest
-from asyncssh import SFTPAttrs, SFTPNoSuchFile
-from asyncssh.sftp import SFTPName
-from paramiko.client import SSHClient
-from paramiko.sftp_client import SFTPClient
-
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
 from airflow.utils.session import provide_session
+from asyncssh import SFTPAttrs, SFTPNoSuchFile
+from asyncssh.sftp import SFTPName
+from paramiko.client import SSHClient
+from paramiko.sftp_client import SFTPClient
 
 pytestmark = pytest.mark.db_test
 
@@ -104,14 +103,23 @@ class TestSFTPHook:
         self.update_connection(self.old_login)
 
     def test_get_conn(self):
-        output = self.hook.get_conn()
-        assert isinstance(output, paramiko.SFTPClient)
+        with self.hook.get_conn() as conn:
+            assert isinstance(conn, paramiko.SFTPClient)
 
-    def test_close_conn(self):
-        self.hook.conn = self.hook.get_conn()
-        assert self.hook.conn is not None
-        self.hook.close_conn()
-        assert self.hook.conn is None
+    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
+    def test_get_close_conn(self, mock_get_conn):
+        # Mock SSHClient and SFTPClient
+        mock_sftp_client = MagicMock(spec=SFTPClient)
+        mock_ssh_client = MagicMock(spec=SSHClient)
+        mock_ssh_client.open_sftp.return_value = mock_sftp_client
+        mock_get_conn.return_value = mock_ssh_client
+
+        # Call the method under test
+        with SFTPHook().get_conn() as conn:
+            assert conn == mock_sftp_client
+
+        # Assert that the connection was closed
+        mock_sftp_client.close.assert_called_once()
 
     def test_describe_directory(self):
         output = self.hook.describe_directory(self.temp_dir)
