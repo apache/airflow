@@ -2181,7 +2181,7 @@ class TestStringifiedDAGs:
                 "timezone": "UTC",
                 "params": {
                     "my_param": {
-                        "__class": "airflow.sdk.definitions.param.Param",
+                        "__class": "airflow.models.param.Param",
                         "default": "str",
                     }
                 },
@@ -2204,7 +2204,7 @@ class TestStringifiedDAGs:
                 "fileloc": "/path/to/file.py",
                 "tasks": [],
                 "timezone": "UTC",
-                "params": [["str", {"__class": "airflow.sdk.definitions.param.Param", "default": "str"}]],
+                "params": [["str", {"__class": "airflow.models.param.Param", "default": "str"}]],
             },
         }
         SerializedDAG.validate_schema(serialized)
@@ -2228,7 +2228,7 @@ class TestStringifiedDAGs:
                             "default": "a string value",
                             "description": "hello",
                             "schema": {"__var": {"type": "string"}, "__type": "dict"},
-                            "__class": "airflow.sdk.definitions.param.Param",
+                            "__class": "airflow.models.param.Param",
                         },
                     ]
                 ],
