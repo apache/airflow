@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Union, overload
 
 import attrs
 
+from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.serialization.dag_dependency import DagDependency
 
 if TYPE_CHECKING:
@@ -427,6 +428,14 @@ class Asset(os.PathLike, BaseAsset):
             dependency_type="asset",
             dependency_id=self.name,
         )
+
+    def asprofile(self) -> AssetProfile:
+        """
+        Profiles Asset to AssetProfile.
+
+        :meta private:
+        """
+        return AssetProfile(name=self.name or None, uri=self.uri or None, asset_type=Asset.__name__)
 
 
 class AssetRef(BaseAsset, AttrsInstance):

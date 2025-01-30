@@ -2976,7 +2976,7 @@ export class XcomService {
    * @param data.mapIndex
    * @param data.limit
    * @param data.offset
-   * @returns XComCollection Successful Response
+   * @returns XComCollectionResponse Successful Response
    * @throws ApiError
    */
   public static getXcomEntries(data: GetXcomEntriesData): CancelablePromise<GetXcomEntriesResponse> {

@@ -32,6 +32,7 @@ from collections.abc import Collection, Generator, Iterable, Mapping
 from datetime import timedelta
 from enum import Enum
 from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import quote
 
@@ -260,7 +261,10 @@ def _run_raw_task(
         context = ti.get_template_context(ignore_param_exceptions=False, session=session)
 
         try:
-            ti._validate_inlet_outlet_assets_activeness(session=session)
+            if ti.task:
+                inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+                outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
+                TaskInstance.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
             if not mark_success:
                 TaskInstance._execute_task_with_callbacks(
                     self=ti,  # type: ignore[arg-type]
@@ -1943,7 +1947,9 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             raise ValueError("DagModel is empty")
 
-        path = dag.relative_fileloc
+        path = None
+        if dag.relative_fileloc:
+            path = Path(dag.relative_fileloc)
 
         if path:
             if not path.is_absolute():
@@ -3715,16 +3721,20 @@ class TaskInstance(Base, LoggingMixin):
             }
         )
 
-    def _validate_inlet_outlet_assets_activeness(self, session: Session) -> None:
-        if not self.task or not (self.task.outlets or self.task.inlets):
+    @staticmethod
+    def validate_inlet_outlet_assets_activeness(
+        inlets: list[AssetProfile], outlets: list[AssetProfile], session: Session
+    ) -> None:
+        if not (inlets or outlets):
             return
 
         all_asset_unique_keys = {
-            AssetUniqueKey.from_asset(inlet_or_outlet)
-            for inlet_or_outlet in itertools.chain(self.task.inlets, self.task.outlets)
-            if isinstance(inlet_or_outlet, Asset)
+            AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
+            for inlet_or_outlet in itertools.chain(inlets, outlets)
         }
-        inactive_asset_unique_keys = self._get_inactive_asset_unique_keys(all_asset_unique_keys, session)
+        inactive_asset_unique_keys = TaskInstance._get_inactive_asset_unique_keys(
+            all_asset_unique_keys, session
+        )
         if inactive_asset_unique_keys:
             raise AirflowInactiveAssetInInletOrOutletException(inactive_asset_unique_keys)
 
