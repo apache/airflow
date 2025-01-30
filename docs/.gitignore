@@ -27,6 +27,7 @@ apache-airflow-providers-elasticsearch
 apache-airflow-providers-exasol
 apache-airflow-providers-facebook
 apache-airflow-providers-ftp
+apache-airflow-providers-github
 apache-airflow-providers-http
 apache-airflow-providers-influxdb
 apache-airflow-providers-mongo

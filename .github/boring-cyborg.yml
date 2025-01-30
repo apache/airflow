@@ -180,10 +180,7 @@ labelPRBasedOnFilePath:
     - providers/ftp/**
 
   provider:github:
-    - providers/src/airflow/providers/github/**/*
-    - docs/apache-airflow-providers-github/**/*
-    - providers/tests/github/**/*
-    - providers/tests/system/github/**/*
+    - providers/github/**
 
   provider:google:
     - providers/src/airflow/providers/google/**/*
