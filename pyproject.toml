@@ -624,13 +624,16 @@ dev = [
   "apache-airflow-providers-airbyte",
   "apache-airflow-providers-alibaba",
   "apache-airflow-providers-apache-beam",
+  "apache-airflow-providers-apache-cassandra",
   "apache-airflow-providers-apache-iceberg",
   "apache-airflow-providers-apache-kafka",
   "apache-airflow-providers-apache-kylin",
   "apache-airflow-providers-apache-pig",
   "apache-airflow-providers-apache-pinot",
   "apache-airflow-providers-apache-spark",
+  "apache-airflow-providers-apprise",
   "apache-airflow-providers-asana",
+  "apache-airflow-providers-atlassian-jira",
   "apache-airflow-providers-celery",
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-compat",
@@ -644,6 +647,7 @@ dev = [
   "apache-airflow-providers-facebook",
   "apache-airflow-providers-http",
   "apache-airflow-providers-microsoft-azure",
+  "apache-airflow-providers-influxdb",
   "apache-airflow-providers-mongo",
   "apache-airflow-providers-openlineage",
   "apache-airflow-providers-hashicorp",
@@ -686,13 +690,16 @@ local-providers = { workspace = true }
 apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-apache-beam = { workspace = true }
+apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
 apache-airflow-providers-apache-kafka = { workspace = true }
 apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
+apache-airflow-providers-apprise = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
+apache-airflow-providers-atlassian-jira = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
@@ -706,6 +713,7 @@ apache-airflow-providers-exasol = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-microsoft-azure = { workspace = true }
+apache-airflow-providers-influxdb = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
@@ -746,13 +754,16 @@ members = [
     "providers/airbyte",
     "providers/alibaba",
     "providers/apache/beam",
+    "providers/apache/cassandra",
     "providers/apache/iceberg",
     "providers/apache/kafka",
     "providers/apache/kylin",
     "providers/apache/pig",
     "providers/apache/pinot",
     "providers/apache/spark",
+    "providers/apprise",
     "providers/asana",
+    "providers/atlassian/jira",
     "providers/celery",
     "providers/cohere",
     "providers/common/compat",
@@ -767,6 +778,7 @@ members = [
     "providers/hashicorp",
     "providers/http",
     "providers/imap",
+    "providers/influxdb",
     "providers/jenkins",
     "providers/microsoft/azure",
     "providers/mongo",
