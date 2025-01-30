@@ -190,6 +190,7 @@ def request_maintenance(worker_name: str, session: Session = NEW_SESSION) -> Non
     worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
     session.commit()
 
+
 @provide_session
 def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Writes maintenance exit to the db"""

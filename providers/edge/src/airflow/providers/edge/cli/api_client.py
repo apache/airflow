@@ -113,9 +113,7 @@ def worker_set_state(
             exclude_unset=True
         ),
     )
-    logger.info("The request result: %s", result)
     return WorkerSetStateReturn(**result["__data__"])
-
 
 
 def jobs_fetch(hostname: str, queues: list[str] | None, free_concurrency: int) -> EdgeJobFetched | None:

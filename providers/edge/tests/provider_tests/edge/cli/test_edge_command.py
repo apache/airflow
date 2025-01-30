@@ -322,7 +322,9 @@ class TestEdgeWorkerCli:
             worker_with_job.jobs = []
         _EdgeWorkerCli.drain = drain
         _EdgeWorkerCli.maintenance_mode = maintenance_mode
-        mock_set_state.return_value = WorkerSetStateReturn(state=EdgeWorkerState.RUNNING, queues=["queue1", "queue2"])
+        mock_set_state.return_value = WorkerSetStateReturn(
+            state=EdgeWorkerState.RUNNING, queues=["queue1", "queue2"]
+        )
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.heartbeat()
         assert mock_set_state.call_args.args[1] == expected_state

@@ -288,6 +288,7 @@ class _EdgeWorkerCli:
         signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
         signal.signal(signal.SIGTERM, self.shutdown_handler)
         try:
+            self.last_hb = self.heartbeat()
             while not _EdgeWorkerCli.drain or self.jobs:
                 self.loop()
 
@@ -306,13 +307,18 @@ class _EdgeWorkerCli:
             new_job = self.fetch_job()
         self.check_running_jobs()
 
-        if _EdgeWorkerCli.drain or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval:
+        if (
+            _EdgeWorkerCli.drain
+            or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval
+            or worker_state_changed # send heartbeat immediately if the state is different in db
+            or previous_jobs != self.jobs
+        ):
             worker_state_changed = self.heartbeat()
-            # If worker state changed, send heartbeat immdediately.
-            self.last_hb = datetime.now() if not worker_state_changed else self.last_hb
+            self.last_hb = datetime.now()
 
         if not new_job:
             self.interruptible_sleep()
+        previous_jobs = self.jobs
 
     def fetch_job(self) -> bool:
         """Fetch and start a new job from central site."""
