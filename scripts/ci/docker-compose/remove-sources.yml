@@ -56,6 +56,7 @@ services:
       - ../../../empty:/opt/airflow/providers/discord/src
       - ../../../empty:/opt/airflow/providers/docker/src
       - ../../../empty:/opt/airflow/providers/edge/src
+      - ../../../empty:/opt/airflow/providers/elasticsearch/src
       - ../../../empty:/opt/airflow/providers/exasol/src
       - ../../../empty:/opt/airflow/providers/facebook/src
       - ../../../empty:/opt/airflow/providers/ftp/src

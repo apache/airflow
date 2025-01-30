@@ -165,10 +165,7 @@ labelPRBasedOnFilePath:
     - providers/edge/**
 
   provider:elasticsearch:
-    - providers/src/airflow/providers/elasticsearch/**/*
-    - docs/apache-airflow-providers-elasticsearch/**/*
-    - providers/tests/elasticsearch/**/*
-    - providers/tests/system/elasticsearch/**/*
+    - providers/elasticsearch/**
 
   provider:exasol:
     - providers/exasol/**

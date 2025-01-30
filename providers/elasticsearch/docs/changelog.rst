@@ -104,7 +104,7 @@ Misc
 ~~~~
 
 * ``Generalize caching of connection in DbApiHook to improve performance (#40751)``
-* ``filename template arg in providers file task handlers backward compitability support (#41633)``
+* ``filename template arg in providers file task handlers backward compatibility support (#41633)``
 * ``Remove deprecated log handler argument filename_template (#41552)``
 
 

@@ -1,3 +1,5 @@
+"""Elastic mock module used for testing"""
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -38,12 +40,11 @@ from __future__ import annotations
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""Elastic mock module used for testing"""
 from functools import wraps
 from unittest.mock import patch
 from urllib.parse import unquote, urlparse
 
-from providers.tests.elasticsearch.log.elasticmock.fake_elasticsearch import FakeElasticsearch
+from provider_tests.elasticsearch.log.elasticmock.fake_elasticsearch import FakeElasticsearch
 
 ELASTIC_INSTANCES: dict[str, FakeElasticsearch] = {}
 

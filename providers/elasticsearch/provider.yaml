@@ -70,15 +70,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-  - elasticsearch>=8.10,<9
-
 integrations:
   - integration-name: Elasticsearch
     external-doc-url: https://www.elastic.co/elasticsearch
-    logo: /integration-logos/elasticsearch/Elasticsearch.png
+    logo: /docs/integration-logos/Elasticsearch.png
     tags: [software]
 
 hooks:
