@@ -47,16 +47,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - cassandra-driver>=3.29.1
-
 integrations:
   - integration-name: Apache Cassandra
     external-doc-url: https://cassandra.apache.org/
     how-to-guide:
       - /docs/apache-airflow-providers-apache-cassandra/operators.rst
-    logo: /integration-logos/apache/cassandra-3.png
+    logo: /docs/integration-logos/cassandra-3.png
     tags: [apache]
 
 sensors:
