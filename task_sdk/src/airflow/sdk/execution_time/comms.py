@@ -60,6 +60,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRunContext,
+    TIRuntimeCheckPayload,
     TISuccessStatePayload,
     VariableResponse,
     XComResponse,
@@ -169,6 +170,11 @@ class ErrorResponse(BaseModel):
     type: Literal["ErrorResponse"] = "ErrorResponse"
 
 
+class OKResponse(BaseModel):
+    ok: bool
+    type: Literal["OKResponse"] = "OKResponse"
+
+
 ToTask = Annotated[
     Union[
         AssetResult,
@@ -178,6 +184,7 @@ ToTask = Annotated[
         StartupDetails,
         VariableResult,
         XComResult,
+        OKResponse,
     ],
     Field(discriminator="type"),
 ]
@@ -218,6 +225,10 @@ class RescheduleTask(TIRescheduleStatePayload):
     """Update a task instance state to reschedule/up_for_reschedule."""
 
     type: Literal["RescheduleTask"] = "RescheduleTask"
+
+
+class RuntimeCheckOnTask(TIRuntimeCheckPayload):
+    type: Literal["RuntimeCheckOnTask"] = "RuntimeCheckOnTask"
 
 
 class GetXCom(BaseModel):
@@ -317,6 +328,7 @@ ToSupervisor = Annotated[
         SetRenderedFields,
         SetXCom,
         TaskState,
+        RuntimeCheckOnTask,
     ],
     Field(discriminator="type"),
 ]
