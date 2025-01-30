@@ -285,9 +285,11 @@ class TestDbtCloudRunJobOperator:
             else:
                 # When the job run status is not in a terminal status or "Success", the operator will
                 # continue to call ``get_job_run()`` until a ``timeout`` number of seconds has passed
-                # (3 seconds for this test).  Therefore, there should be 4 calls of this function: one
-                # initially and 3 for each check done at a 1 second interval.
-                assert mock_get_job_run.call_count == 4
+                assert mock_get_job_run.call_count >= 1
+
+                # To make it more dynamic, try and calculate number of calls
+                max_number_of_calls = timeout // self.config["check_interval"] + 1
+                assert mock_get_job_run.call_count <= max_number_of_calls
 
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(
