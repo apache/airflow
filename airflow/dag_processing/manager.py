@@ -32,10 +32,11 @@ import time
 import zipfile
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import attrs
 import structlog
@@ -97,12 +98,13 @@ class DagFileStat:
 log = logging.getLogger("airflow.processor_manager")
 
 
-class DagFileInfo(NamedTuple):
+@dataclass(frozen=True)
+class DagFileInfo:
     """Information about a DAG file."""
 
     path: str  # absolute path of the file
-    bundle_path: Path
     bundle_name: str
+    bundle_path: Path | None = field(compare=False, default=None)
 
 
 def _config_int_factory(section: str, key: str):
@@ -770,7 +772,7 @@ class DagFileProcessorManager:
         return DagFileProcessorProcess.start(
             id=id,
             path=dag_file.path,
-            bundle_path=dag_file.bundle_path,
+            bundle_path=cast(Path, dag_file.bundle_path),
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
             logger=self._get_logger_for_dag_file(dag_file),
