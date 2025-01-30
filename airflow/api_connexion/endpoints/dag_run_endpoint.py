@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING
 
 import pendulum
 from connexion import NoContent
-from flask import g
 from marshmallow import ValidationError
 from sqlalchemy import delete, or_, select
 
@@ -233,7 +232,9 @@ def get_dag_runs(
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
     if dag_id == "~":
         query = query.where(
-            DagRun.dag_id.in_(get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user))
+            DagRun.dag_id.in_(
+                get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=get_auth_manager().get_user())
+            )
         )
     else:
         query = query.where(DagRun.dag_id == dag_id)
@@ -276,7 +277,9 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    readable_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
+    readable_dag_ids = get_auth_manager().get_permitted_dag_ids(
+        methods=["GET"], user=get_auth_manager().get_user()
+    )
     query = select(DagRun)
     if data.get("dag_ids"):
         dag_ids = set(data["dag_ids"]) & set(readable_dag_ids)

@@ -62,18 +62,19 @@ def pytest_runtest_setup(item):
 
 class LogCapture:
     # Like structlog.typing.LogCapture, but that doesn't add log_level in to the event dict
-    entries: list[EventDict]
+    entries: list[EventDict | bytes]
 
     def __init__(self) -> None:
         self.entries = []
 
-    def __call__(self, _: WrappedLogger, method_name: str, event_dict: EventDict) -> NoReturn:
+    def __call__(self, _: WrappedLogger, method_name: str, event: EventDict | bytes) -> NoReturn:
         from structlog.exceptions import DropEvent
 
-        if "level" not in event_dict:
-            event_dict["_log_level"] = method_name
+        if isinstance(event, dict):
+            if "level" not in event:
+                event["_log_level"] = method_name
 
-        self.entries.append(event_dict)
+        self.entries.append(event)
 
         raise DropEvent
 
@@ -93,20 +94,29 @@ def captured_logs(request):
     reset_logging()
     configure_logging(enable_pretty_log=False)
 
-    # Get log level from test parameter, defaulting to INFO if not provided
-    log_level = getattr(request, "param", logging.INFO)
+    # Get log level from test parameter, which can either be a single log level or a
+    # tuple of log level and desired output type, defaulting to INFO if not provided
+    log_level = logging.INFO
+    output = "dict"
+    param = getattr(request, "param", logging.INFO)
+    if isinstance(param, int):
+        log_level = param
+    elif isinstance(param, tuple):
+        log_level = param[0]
+        output = param[1]
 
     # We want to capture all logs, but we don't want to see them in the test output
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
 
-    # But we need to replace remove the last processor (the one that turns JSON into text, as we want the
-    # event dict for tests)
     cur_processors = structlog.get_config()["processors"]
     processors = cur_processors.copy()
-    proc = processors.pop()
-    assert isinstance(
-        proc, (structlog.dev.ConsoleRenderer, structlog.processors.JSONRenderer)
-    ), "Pre-condition"
+    if output == "dict":
+        # We need to replace remove the last processor (the one that turns JSON into text, as we want the
+        # event dict for tests)
+        proc = processors.pop()
+        assert isinstance(
+            proc, (structlog.dev.ConsoleRenderer, structlog.processors.JSONRenderer)
+        ), "Pre-condition"
     try:
         cap = LogCapture()
         processors.append(cap)

@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
-    processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
+    processor_timeout_seconds: int = conf.getint("dag_processor", "dag_file_processor_timeout")
     return DagProcessorJobRunner(
         job=Job(),
         processor=DagFileProcessorManager(

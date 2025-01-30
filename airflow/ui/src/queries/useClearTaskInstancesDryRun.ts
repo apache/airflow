@@ -27,6 +27,8 @@ type Props<TData, TError> = {
   requestBody: ClearTaskInstancesBody;
 };
 
+export const useClearTaskInstancesDryRunKey = "clearTaskInstanceDryRun";
+
 export const useClearTaskInstancesDryRun = <TData = PostClearTaskInstancesResponse, TError = unknown>({
   dagId,
   options,
@@ -42,15 +44,5 @@ export const useClearTaskInstancesDryRun = <TData = PostClearTaskInstancesRespon
           ...requestBody,
         },
       }) as TData,
-    queryKey: [
-      "clearTaskInstance",
-      dagId,
-      requestBody.dag_run_id,
-      requestBody.only_failed,
-      requestBody.task_ids,
-      requestBody.include_downstream,
-      requestBody.include_future,
-      requestBody.include_past,
-      requestBody.include_upstream,
-    ],
+    queryKey: [useClearTaskInstancesDryRunKey, dagId, requestBody],
   });
