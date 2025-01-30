@@ -7,6 +7,7 @@ apache-airflow-providers-apache-cassandra
 apache-airflow-providers-apache-iceberg
 apache-airflow-providers-apache-kafka
 apache-airflow-providers-apache-kylin
+apache-airflow-providers-apache-livy
 apache-airflow-providers-apache-pig
 apache-airflow-providers-apache-pinot
 apache-airflow-providers-apache-spark

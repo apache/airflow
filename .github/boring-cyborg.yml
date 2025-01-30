@@ -79,10 +79,7 @@ labelPRBasedOnFilePath:
     - providers/apache/kylin/**
 
   provider:apache-livy:
-    - providers/src/airflow/providers/apache/livy/**/*
-    - docs/apache-airflow-providers-apache-livy/**/*
-    - providers/tests/apache/livy/**/*
-    - providers/tests/system/apache/livy/**/*
+    - providers/apache/livy/**
 
   provider:apache-pig:
     - providers/apache/pig/**
