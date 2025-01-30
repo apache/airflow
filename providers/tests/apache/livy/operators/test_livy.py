@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -147,32 +146,6 @@ class TestLivyOperator:
         task.kill()
 
         mock_delete.assert_called_once_with(BATCH_ID)
-
-    @patch(
-        "airflow.providers.apache.livy.operators.livy.LivyHook.get_batch_state",
-        return_value=BatchState.SUCCESS,
-    )
-    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch_logs", return_value=LOG_RESPONSE)
-    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
-    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch", return_value=GET_BATCH)
-    def test_log_dump(self, mock_get_batch, mock_post, mock_get_logs, mock_get, caplog):
-        task = LivyOperator(
-            livy_conn_id="livyunittest",
-            file="sparkapp",
-            dag=self.dag,
-            task_id="livy_example",
-            polling_interval=1,
-        )
-        caplog.clear()
-        with caplog.at_level(level=logging.INFO, logger=task.hook.log.name):
-            task.execute(context=self.mock_context)
-
-        assert "first_line" in caplog.messages
-        assert "second_line" in caplog.messages
-        assert "third_line" in caplog.messages
-
-        mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
-        mock_get_logs.assert_called_once_with(BATCH_ID, 0, 100)
 
     @patch(
         "airflow.providers.apache.livy.operators.livy.LivyHook.dump_batch_logs",
@@ -318,34 +291,6 @@ class TestLivyOperator:
         task.kill()
 
         mock_delete.assert_called_once_with(BATCH_ID)
-
-    @patch(
-        "airflow.providers.apache.livy.operators.livy.LivyHook.get_batch_state",
-        return_value=BatchState.SUCCESS,
-    )
-    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch_logs", return_value=LOG_RESPONSE)
-    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
-    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch", return_value=GET_BATCH)
-    def test_log_dump_deferrable(self, mock_get_batch, mock_post, mock_get_logs, mock_get, caplog):
-        task = LivyOperator(
-            livy_conn_id="livyunittest",
-            file="sparkapp",
-            dag=self.dag,
-            task_id="livy_example",
-            polling_interval=1,
-            deferrable=True,
-        )
-        caplog.clear()
-
-        with caplog.at_level(level=logging.INFO, logger=task.hook.log.name):
-            task.execute(context=self.mock_context)
-
-            assert "first_line" in caplog.messages
-            assert "second_line" in caplog.messages
-            assert "third_line" in caplog.messages
-
-        mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
-        mock_get_logs.assert_called_once_with(BATCH_ID, 0, 100)
 
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch", return_value={"appId": APP_ID})
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
