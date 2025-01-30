@@ -19,17 +19,15 @@
 import type { IconBaseProps } from "react-icons";
 import {
   FiActivity,
-  FiAlertCircle,
   FiAlertOctagon,
   FiCalendar,
   FiCheckCircle,
-  FiCircle,
   FiRepeat,
   FiSkipForward,
   FiSlash,
   FiWatch,
 } from "react-icons/fi";
-import { LuCalendarSync, LuRedo2 } from "react-icons/lu";
+import { LuCalendarSync, LuCircleDashed, LuCircleFadingArrowUp, LuRedo2 } from "react-icons/lu";
 import { PiQueue } from "react-icons/pi";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
@@ -63,8 +61,8 @@ export const StateIcon = ({ state, ...rest }: Props) => {
     case "up_for_retry":
       return <LuRedo2 {...rest} />;
     case "upstream_failed":
-      return <FiAlertCircle {...rest} />;
+      return <LuCircleFadingArrowUp {...rest} />;
     default:
-      return <FiCircle {...rest} />;
+      return <LuCircleDashed {...rest} />;
   }
 };
