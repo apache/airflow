@@ -105,7 +105,7 @@ def _all_new_providers() -> list[str]:
                 "providers/tests",
                 "--ignore=providers/tests/amazon",
                 "--ignore=providers/tests/google",
-                "--ignore=providers/microsoft/azure/tests",
+                # "--ignore=providers/microsoft/azure/tests",
             ],
         ),
         (
