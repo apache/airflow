@@ -946,7 +946,9 @@ class TestRuntimeTaskInstance:
                 ),
             )
 
-    def test_get_param_from_context(self, mocked_parse, make_ti_context, mock_supervisor_comms):
+    def test_get_param_from_context(
+        self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
+    ):
         """Test that a params can be retrieved from context."""
 
         class CustomOperator(BaseOperator):
@@ -955,32 +957,19 @@ class TestRuntimeTaskInstance:
                 print("The dag params are", value)
 
         task = CustomOperator(task_id="print-params")
-        what = StartupDetails(
-            ti=TaskInstance(
-                id=uuid7(), task_id="print-params", dag_id="basic_param_dag", run_id="c", try_number=1
-            ),
-            bundle_info=FAKE_BUNDLE,
-            dag_rel_path="",
-            requests_fd=0,
-            ti_context=make_ti_context(),
-        )
-        ti = mocked_parse(
-            what,
-            "basic_param_dag",
-            task,
-            dag_params={
+        runtime_ti = create_runtime_ti(
+            dag_id="basic_param_dag",
+            task=task,
+            conf={
                 "x": 3,
                 "text": "Hello World!",
                 "flag": False,
                 "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
             },
         )
-        mock_supervisor_comms.get_message.return_value = what
+        run(runtime_ti, log=mock.MagicMock())
 
-        startup()
-        run(ti, log=mock.MagicMock())
-
-        assert ti.task.dag.params == {
+        assert runtime_ti.task.dag.params == {
             "x": 3,
             "text": "Hello World!",
             "flag": False,
@@ -1109,8 +1098,7 @@ class TestDagParamRuntime:
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
-                # important to use self.dag here
-                assert self.dag.params["value"] == "NOTSET"
+                assert dag.params["value"] == "NOTSET"
 
         task = CustomOperator(task_id="task_with_dag_params")
         runtime_ti = create_runtime_ti(task=task, dag_id="dag_with_dag_params")

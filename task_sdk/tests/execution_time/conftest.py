@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -72,7 +72,7 @@ def mocked_parse(spy_agency):
 
         dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
         if what.ti_context.dag_run.conf:
-            dag.params = what.ti_context.dag_run.conf
+            dag.params = what.ti_context.dag_run.conf  # type: ignore[assignment]
         task.dag = dag
         t = dag.task_dict[task.task_id]
         ti = RuntimeTaskInstance.model_construct(
@@ -122,7 +122,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
         start_date: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         try_number: int = 1,
-        conf: dict[str, Any] = None,
+        conf=None,
         ti_id=None,
     ) -> RuntimeTaskInstance:
         if not ti_id:
