@@ -32,6 +32,7 @@ from collections.abc import Collection, Generator, Iterable, Mapping
 from datetime import timedelta
 from enum import Enum
 from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import quote
 
@@ -98,7 +99,6 @@ from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
-from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
@@ -108,6 +108,7 @@ from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
@@ -260,7 +261,10 @@ def _run_raw_task(
         context = ti.get_template_context(ignore_param_exceptions=False, session=session)
 
         try:
-            ti._validate_inlet_outlet_assets_activeness(session=session)
+            if ti.task:
+                inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+                outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
+                TaskInstance.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
             if not mark_success:
                 TaskInstance._execute_task_with_callbacks(
                     self=ti,  # type: ignore[arg-type]
@@ -820,6 +824,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.operator = source.operator
     target.custom_operator_name = source.custom_operator_name
     target.queued_dttm = source.queued_dttm
+    target.scheduled_dttm = source.scheduled_dttm
     target.queued_by_job_id = source.queued_by_job_id
     target.last_heartbeat_at = source.last_heartbeat_at
     target.pid = source.pid
@@ -1708,6 +1713,7 @@ class TaskInstance(Base, LoggingMixin):
     operator = Column(String(1000))
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
+    scheduled_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
 
     last_heartbeat_at = Column(UtcDateTime)
@@ -1943,7 +1949,9 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             raise ValueError("DagModel is empty")
 
-        path = dag.relative_fileloc
+        path = None
+        if dag.relative_fileloc:
+            path = Path(dag.relative_fileloc)
 
         if path:
             if not path.is_absolute():
@@ -2699,23 +2707,24 @@ class TaskInstance(Base, LoggingMixin):
             timing = timezone.utcnow() - self.queued_dttm
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
-            if self.start_date is None:
-                # This check does not work correctly before fields like `scheduled_dttm` are implemented.
-                # TODO: Change the level to WARNING once it's viable.
-                # see #30612 #34493 and #34771 for more details
-                self.log.debug(
+            if self.scheduled_dttm is None:
+                self.log.warning(
                     "cannot record %s for task %s because previous state change time has not been saved",
                     metric_name,
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.start_date
+            timing = timezone.utcnow() - self.scheduled_dttm
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
         # send metric twice, once (legacy) with tags in the name and once with tags as tags
         Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
-        Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
+        Stats.timing(
+            f"task.{metric_name}",
+            timing,
+            tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+        )
 
     def clear_next_method_args(self) -> None:
         """Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them."""
@@ -3715,16 +3724,20 @@ class TaskInstance(Base, LoggingMixin):
             }
         )
 
-    def _validate_inlet_outlet_assets_activeness(self, session: Session) -> None:
-        if not self.task or not (self.task.outlets or self.task.inlets):
+    @staticmethod
+    def validate_inlet_outlet_assets_activeness(
+        inlets: list[AssetProfile], outlets: list[AssetProfile], session: Session
+    ) -> None:
+        if not (inlets or outlets):
             return
 
         all_asset_unique_keys = {
-            AssetUniqueKey.from_asset(inlet_or_outlet)
-            for inlet_or_outlet in itertools.chain(self.task.inlets, self.task.outlets)
-            if isinstance(inlet_or_outlet, Asset)
+            AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
+            for inlet_or_outlet in itertools.chain(inlets, outlets)
         }
-        inactive_asset_unique_keys = self._get_inactive_asset_unique_keys(all_asset_unique_keys, session)
+        inactive_asset_unique_keys = TaskInstance._get_inactive_asset_unique_keys(
+            all_asset_unique_keys, session
+        )
         if inactive_asset_unique_keys:
             raise AirflowInactiveAssetInInletOrOutletException(inactive_asset_unique_keys)
 

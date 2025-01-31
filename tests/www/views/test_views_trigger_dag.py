@@ -25,8 +25,8 @@ from urllib.parse import quote
 import pytest
 
 from airflow.models import DagBag, DagRun
-from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.param import Param
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.json import WebEncoder

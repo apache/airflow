@@ -22,19 +22,14 @@ import pytest
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
 
-from google.cloud.automl_v1beta1 import Model
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.translate import (
     TRANSLATION_BASE_LINK,
     TranslationDatasetListLink,
     TranslationLegacyDatasetLink,
     TranslationLegacyModelLink,
-    TranslationLegacyModelPredictLink,
     TranslationLegacyModelTrainLink,
 )
 from airflow.providers.google.cloud.operators.automl import (
-    AutoMLBatchPredictOperator,
     AutoMLCreateDatasetOperator,
     AutoMLListDatasetOperator,
     AutoMLTrainModelOperator,
@@ -134,39 +129,6 @@ class TestTranslationLegacyModelTrainLink:
             context={"ti": ti},
             task_instance=ti.task,
             project_id=GCP_PROJECT_ID,
-        )
-        actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
-        assert actual_url == expected_url
-
-
-class TestTranslationLegacyModelPredictLink:
-    @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
-        expected_url = (
-            f"{TRANSLATION_BASE_LINK}/locations/{GCP_LOCATION}/datasets/{DATASET}/"
-            f"predict;modelId={MODEL}?project={GCP_PROJECT_ID}"
-        )
-        link = TranslationLegacyModelPredictLink()
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            ti = create_task_instance_of_operator(
-                AutoMLBatchPredictOperator,
-                dag_id="test_legacy_model_predict_link_dag",
-                task_id="test_legacy_model_predict_link_task",
-                model_id=MODEL,
-                project_id=GCP_PROJECT_ID,
-                location=GCP_LOCATION,
-                input_config="input_config",
-                output_config="input_config",
-            )
-        ti.task.model = Model(dataset_id=DATASET, display_name=MODEL)
-        session.add(ti)
-        session.commit()
-        link.persist(
-            context={"ti": ti},
-            task_instance=ti.task,
-            model_id=MODEL,
-            project_id=GCP_PROJECT_ID,
-            dataset_id=DATASET,
         )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url

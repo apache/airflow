@@ -564,6 +564,7 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
  * @param data.includeDownstream
  * @param data.root
  * @param data.externalDependencies
+ * @param data.dagVersion
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -574,12 +575,14 @@ export const useStructureServiceStructureDataSuspense = <
 >(
   {
     dagId,
+    dagVersion,
     externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    dagVersion?: number;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
@@ -590,12 +593,13 @@ export const useStructureServiceStructureDataSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, externalDependencies, includeDownstream, includeUpstream, root },
+      { dagId, dagVersion, externalDependencies, includeDownstream, includeUpstream, root },
       queryKey,
     ),
     queryFn: () =>
       StructureService.structureData({
         dagId,
+        dagVersion,
         externalDependencies,
         includeDownstream,
         includeUpstream,
@@ -2482,7 +2486,7 @@ export const useXcomServiceGetXcomEntrySuspense = <
  * @param data.mapIndex
  * @param data.limit
  * @param data.offset
- * @returns XComCollection Successful Response
+ * @returns XComCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useXcomServiceGetXcomEntriesSuspense = <
