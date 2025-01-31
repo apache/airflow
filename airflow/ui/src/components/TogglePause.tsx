@@ -20,12 +20,7 @@ import { useDisclosure } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
-import {
-  UseDagServiceGetDagDetailsKeyFn,
-  useDagServiceGetDagsKey,
-  useDagServicePatchDag,
-} from "openapi/queries";
-import type { DAGDetailsResponse } from "openapi/requests/types.gen";
+import { useDagServiceGetDagsKey, useDagServicePatchDag } from "openapi/queries";
 import { useConfig } from "src/queries/useConfig";
 
 import { ConfirmationModal } from "./ConfirmationModal";
@@ -43,17 +38,10 @@ export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm }: Pr
   const { onClose, onOpen, open } = useDisclosure();
 
   const onSuccess = async () => {
-    // We can just update dag details
-    queryClient.setQueryData<DAGDetailsResponse>(UseDagServiceGetDagDetailsKeyFn({ dagId }), (oldData) =>
-      oldData
-        ? {
-            ...oldData,
-            is_paused: !oldData.is_paused,
-          }
-        : undefined,
-    );
+    await queryClient.invalidateQueries({
+      queryKey: [useDagServiceGetDagsKey],
+    });
 
-    // But we need to invalidate the dag list, or we need to check which exact query caches to update
     await queryClient.invalidateQueries({
       queryKey: [useDagServiceGetDagsKey],
     });
