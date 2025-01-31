@@ -26,8 +26,7 @@ from airflow.configuration import conf
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.apache.hive.operators.hive import HiveOperator
 from airflow.utils import timezone
-
-from providers.tests.apache.hive import DEFAULT_DATE, MockSubProcess, TestHiveEnvironment
+from provider_tests.apache.hive import DEFAULT_DATE, MockSubProcess, TestHiveEnvironment
 
 
 class HiveOperatorConfigTest(TestHiveEnvironment):
