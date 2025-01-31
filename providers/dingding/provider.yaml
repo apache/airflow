@@ -44,16 +44,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-http
-
 integrations:
   - integration-name: DingTalk
     external-doc-url: https://www.dingtalk.com
     how-to-guide:
       - /docs/apache-airflow-providers-dingding/operators.rst
-    logo: /integration-logos/dingding/Dingding.png
+    logo: /docs/integration-logos/Dingding.png
     tags: [service]
 
 operators:
