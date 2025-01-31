@@ -94,6 +94,7 @@ services:
       - ../../../providers/qdrant/tests:/opt/airflow/providers/qdrant/tests
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
+      - ../../../providers/sendgrid/tests:/opt/airflow/providers/sendgrid/tests
       - ../../../providers/sftp/tests:/opt/airflow/providers/sftp/tests
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
       - ../../../providers/slack/tests:/opt/airflow/providers/slack/tests
