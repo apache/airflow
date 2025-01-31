@@ -181,8 +181,6 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
                     env=self.hook.env,
                 )
             except GitCommandError as e:
-                # log the error to appear in dag-processor stdout and raise exception to appear
-                # in the dag-processor logs
                 raise AirflowException("Error cloning repository") from e
         self.bare_repo = Repo(self.bare_repo_path)
 
