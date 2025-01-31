@@ -518,7 +518,8 @@ class DagFileProcessorManager(LoggingMixin):
             new_files.extend(found_files)
             self.set_files(new_files)
 
-            self.deactivate_deleted_dags(active_files=found_files)
+            # TODO AIP-66: this just removes all DAGs
+            # self.deactivate_deleted_dags(active_files=found_file_infos)
             self.clear_nonexistent_import_errors()
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
