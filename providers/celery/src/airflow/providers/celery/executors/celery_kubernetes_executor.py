@@ -97,9 +97,9 @@ class CeleryKubernetesExecutor(BaseExecutor):
     def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
         """Return queued tasks from celery and kubernetes executor."""
         queued_tasks = self.celery_executor.queued_tasks.copy()
-        queued_tasks.update(self.kubernetes_executor.queued_tasks)
+        queued_tasks.update(self.kubernetes_executor.queued_tasks)  # type: ignore[arg-type]
 
-        return queued_tasks
+        return queued_tasks  # type: ignore[return-value]
 
     @queued_tasks.setter
     def queued_tasks(self, value) -> None:
