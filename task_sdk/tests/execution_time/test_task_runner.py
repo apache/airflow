@@ -647,6 +647,9 @@ def test_run_with_asset_outlets(
     ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
+    mock_supervisor_comms.get_message.return_value = OKResponse(
+        ok=True,
+    )
 
     run(ti, log=mock.MagicMock())
 
