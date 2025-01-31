@@ -64,6 +64,7 @@ class TaskInstanceResponse(BaseModel):
     priority_weight: int | None
     operator: str | None
     queued_dttm: datetime | None = Field(alias="queued_when")
+    scheduled_dttm: datetime | None = Field(alias="scheduled_when")
     pid: int | None
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
@@ -147,6 +148,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     priority_weight: int | None
     operator: str | None
     queued_dttm: datetime | None = Field(alias="queued_when")
+    scheduled_dttm: datetime | None = Field(alias="scheduled_when")
     pid: int | None
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]

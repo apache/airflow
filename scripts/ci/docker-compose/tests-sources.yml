@@ -43,6 +43,8 @@ services:
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/apache/beam/tests:/opt/airflow/providers/apache/beam/tests
       - ../../../providers/apache/cassandra/tests:/opt/airflow/providers/apache/cassandra/tests
+      - ../../../providers/apache/drill/tests:/opt/airflow/providers/apache/drill/tests
+      - ../../../providers/apache/druid/tests:/opt/airflow/providers/apache/druid/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
       - ../../../providers/apache/kafka/tests:/opt/airflow/providers/apache/kafka/tests
       - ../../../providers/apache/kylin/tests:/opt/airflow/providers/apache/kylin/tests
@@ -59,12 +61,15 @@ services:
       - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
+      - ../../../providers/dbt/cloud/tests:/opt/airflow/providers/dbt/cloud/tests
       - ../../../providers/discord/tests:/opt/airflow/providers/discord/tests
       - ../../../providers/docker/tests:/opt/airflow/providers/docker/tests
       - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
+      - ../../../providers/elasticsearch/tests:/opt/airflow/providers/elasticsearch/tests
       - ../../../providers/exasol/tests:/opt/airflow/providers/exasol/tests
       - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
       - ../../../providers/ftp/tests:/opt/airflow/providers/ftp/tests
+      - ../../../providers/github/tests:/opt/airflow/providers/github/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
@@ -77,6 +82,7 @@ services:
       - ../../../providers/openai/tests:/opt/airflow/providers/openai/tests
       - ../../../providers/openfaas/tests:/opt/airflow/providers/openfaas/tests
       - ../../../providers/openlineage/tests:/opt/airflow/providers/openlineage/tests
+      - ../../../providers/opensearch/tests:/opt/airflow/providers/opensearch/tests
       - ../../../providers/opsgenie/tests:/opt/airflow/providers/opsgenie/tests
       - ../../../providers/pagerduty/tests:/opt/airflow/providers/pagerduty/tests
       - ../../../providers/papermill/tests:/opt/airflow/providers/papermill/tests
