@@ -144,10 +144,7 @@ labelPRBasedOnFilePath:
     - providers/dbt/cloud/**
 
   provider:dingding:
-    - providers/src/airflow/providers/dingding/**/*
-    - docs/apache-airflow-providers-dingding/**/*
-    - providers/tests/dingding/**/*
-    - providers/tests/system/dingding/**/*
+    - providers/dingding/**
 
   provider:discord:
     - providers/discord/**
