@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import collections.abc
 import contextlib
 import hashlib
 import itertools
@@ -163,7 +162,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
-    from airflow.typing_compat import Literal, TypeGuard
+    from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
 
@@ -666,20 +665,6 @@ def _xcom_pull(
         order_by=ordering,
         session=session,
     )
-
-
-def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
-    """
-    Whether a value can be used for task mapping.
-
-    We only allow collections with guaranteed ordering, but exclude character
-    sequences since that's usually not what users would expect to be mappable.
-    """
-    if not isinstance(value, (collections.abc.Sequence, dict)):
-        return False
-    if isinstance(value, (bytearray, bytes, str)):
-        return False
-    return True
 
 
 def _creator_note(val):
@@ -1217,7 +1202,7 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator, is_mappable_value
 
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
@@ -1229,7 +1214,7 @@ def _record_task_map_for_downstreams(
         return
     if value is None:
         raise XComForMappingNotPushed()
-    if not _is_mappable_value(value):
+    if not is_mappable_value(value):
         raise UnmappableXComTypePushed(value)
     task_map = TaskMap.from_task_instance_xcom(task_instance, value)
     max_map_length = conf.getint("core", "max_map_length", fallback=1024)

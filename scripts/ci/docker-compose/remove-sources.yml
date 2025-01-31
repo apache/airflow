@@ -38,6 +38,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/cassandra/src
       - ../../../empty:/opt/airflow/providers/apache/drill/src
       - ../../../empty:/opt/airflow/providers/apache/druid/src
+      - ../../../empty:/opt/airflow/providers/apache/hive/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
       - ../../../empty:/opt/airflow/providers/apache/kafka/src
       - ../../../empty:/opt/airflow/providers/apache/kylin/src
@@ -55,11 +56,13 @@ services:
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/datadog/src
       - ../../../empty:/opt/airflow/providers/dbt/cloud/src
+      - ../../../empty:/opt/airflow/providers/dingding/src
       - ../../../empty:/opt/airflow/providers/discord/src
       - ../../../empty:/opt/airflow/providers/docker/src
       - ../../../empty:/opt/airflow/providers/edge/src
       - ../../../empty:/opt/airflow/providers/elasticsearch/src
       - ../../../empty:/opt/airflow/providers/exasol/src
+      - ../../../empty:/opt/airflow/providers/fab/src
       - ../../../empty:/opt/airflow/providers/facebook/src
       - ../../../empty:/opt/airflow/providers/ftp/src
       - ../../../empty:/opt/airflow/providers/github/src
@@ -77,6 +80,7 @@ services:
       - ../../../empty:/opt/airflow/providers/openlineage/src
       - ../../../empty:/opt/airflow/providers/opensearch/src
       - ../../../empty:/opt/airflow/providers/opsgenie/src
+      - ../../../empty:/opt/airflow/providers/oracle/src
       - ../../../empty:/opt/airflow/providers/pagerduty/src
       - ../../../empty:/opt/airflow/providers/papermill/src
       - ../../../empty:/opt/airflow/providers/pgvector/src
@@ -84,12 +88,15 @@ services:
       - ../../../empty:/opt/airflow/providers/postgres/src
       - ../../../empty:/opt/airflow/providers/presto/src
       - ../../../empty:/opt/airflow/providers/qdrant/src
+      - ../../../empty:/opt/airflow/providers/redis/src
       - ../../../empty:/opt/airflow/providers/samba/src
       - ../../../empty:/opt/airflow/providers/segment/src
+      - ../../../empty:/opt/airflow/providers/sendgrid/src
       - ../../../empty:/opt/airflow/providers/sftp/src
       - ../../../empty:/opt/airflow/providers/singularity/src
       - ../../../empty:/opt/airflow/providers/slack/src
       - ../../../empty:/opt/airflow/providers/snowflake/src
+      - ../../../empty:/opt/airflow/providers/sqlite/src
       - ../../../empty:/opt/airflow/providers/ssh/src
       - ../../../empty:/opt/airflow/providers/standard/src
       - ../../../empty:/opt/airflow/providers/tableau/src

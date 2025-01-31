@@ -53,10 +53,7 @@ labelPRBasedOnFilePath:
     - providers/tests/apache/hdfs/**/*
 
   provider:apache-hive:
-    - providers/src/airflow/providers/apache/hive/**/*
-    - docs/apache-airflow-providers-apache-hive/**/*
-    - providers/tests/apache/hive/**/*
-    - providers/tests/system/apache/hive/**/*
+    - providers/apache/hive/**
 
   provider:apache-iceberg:
     - providers/apache/iceberg/**
@@ -144,10 +141,7 @@ labelPRBasedOnFilePath:
     - providers/dbt/cloud/**
 
   provider:dingding:
-    - providers/src/airflow/providers/dingding/**/*
-    - docs/apache-airflow-providers-dingding/**/*
-    - providers/tests/dingding/**/*
-    - providers/tests/system/dingding/**/*
+    - providers/dingding/**
 
   provider:discord:
     - providers/discord/**
@@ -165,9 +159,7 @@ labelPRBasedOnFilePath:
     - providers/exasol/**
 
   provider:fab:
-    - providers/src/airflow/providers/fab/**/*
-    - docs/apache-airflow-providers-fab/**/*
-    - providers/tests/fab/**/*
+    - providers/fab/**
 
   provider:facebook:
     - providers/facebook/**
@@ -261,9 +253,7 @@ labelPRBasedOnFilePath:
     - providers/opsgenie/**
 
   provider:Oracle:
-    - providers/src/airflow/providers/oracle/**/*
-    - docs/apache-airflow-providers-oracle/**/*
-    - providers/tests/oracle/**/*
+    - providers/oracle/**
 
   provider:pagerduty:
     - providers/pagerduty/**
@@ -287,9 +277,7 @@ labelPRBasedOnFilePath:
     - providers/qdrant/**
 
   provider:redis:
-    - providers/src/airflow/providers/redis/**/*
-    - docs/apache-airflow-providers-redis/**/*
-    - providers/tests/redis/**/*
+    - providers/redis/**
 
   provider:salesforce:
     - providers/src/airflow/providers/salesforce/**/*
@@ -304,7 +292,7 @@ labelPRBasedOnFilePath:
     - providers/segment/**
 
   provider:sendgrid:
-    - providers/segment/**
+    - providers/sendgrid/**
 
   provider:sftp:
     - providers/sftp/**
@@ -324,10 +312,7 @@ labelPRBasedOnFilePath:
     - providers/snowflake/**
 
   provider:sqlite:
-    - providers/src/airflow/providers/sqlite/**/*
-    - docs/apache-airflow-providers-sqlite/**/*
-    - providers/tests/sqlite/**/*
-    - providers/tests/system/sqlite/**/*
+    - providers/sqlite/**
 
   provider:ssh:
     - providers/ssh/**
