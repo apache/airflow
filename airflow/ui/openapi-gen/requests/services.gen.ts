@@ -740,6 +740,7 @@ export class StructureService {
    * @param data.includeDownstream
    * @param data.root
    * @param data.externalDependencies
+   * @param data.dagVersion
    * @returns StructureDataResponse Successful Response
    * @throws ApiError
    */
@@ -753,6 +754,7 @@ export class StructureService {
         include_downstream: data.includeDownstream,
         root: data.root,
         external_dependencies: data.externalDependencies,
+        dag_version: data.dagVersion,
       },
       errors: {
         404: "Not Found",
@@ -2976,7 +2978,7 @@ export class XcomService {
    * @param data.mapIndex
    * @param data.limit
    * @param data.offset
-   * @returns XComCollection Successful Response
+   * @returns XComCollectionResponse Successful Response
    * @throws ApiError
    */
   public static getXcomEntries(data: GetXcomEntriesData): CancelablePromise<GetXcomEntriesResponse> {

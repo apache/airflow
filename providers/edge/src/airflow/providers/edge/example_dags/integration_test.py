@@ -30,10 +30,10 @@ from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models.dag import DAG
-from airflow.models.param import Param
 from airflow.models.variable import Variable
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.compat.standard.operators import PythonOperator
+from airflow.sdk import Param
 from airflow.utils.trigger_rule import TriggerRule
 
 try:
