@@ -130,7 +130,7 @@ class LivyHook(HttpHook):
         if not self.extra_options:
             self.extra_options = {"check_response": False}
 
-        back_method = self.method
+        back_method = self.method  # type: ignore
         self.method = method
         try:
             if retry_args:
@@ -510,7 +510,7 @@ class LivyAsyncHook(HttpAsyncHook):
 
         return await self.run_method(
             endpoint=endpoint or "",
-            method=self.method,
+            method=self.method,  # type: ignore
             data=data,
             headers=headers,
             extra_options=extra_options,
@@ -537,7 +537,7 @@ class LivyAsyncHook(HttpAsyncHook):
         if method not in ("GET", "POST", "PUT", "DELETE", "HEAD"):
             return {"status": "error", "response": f"Invalid http method {method}"}
 
-        back_method = self.method
+        back_method = self.method  # type: ignore
         self.method = method
         try:
             result = await super().run(
