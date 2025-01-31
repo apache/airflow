@@ -49,7 +49,7 @@ def minimal_app_for_auth_api():
                 (
                     "api",
                     "auth_backends",
-                ): "providers_tests.fab.auth_manager.api_endpoints.remote_user_api_auth_backend,airflow.providers.fab.auth_manager.api.auth.backend.session",
+                ): "provider_tests.fab.auth_manager.api_endpoints.remote_user_api_auth_backend,airflow.providers.fab.auth_manager.api.auth.backend.session",
                 (
                     "core",
                     "auth_manager",
