@@ -728,7 +728,7 @@ class TestDagFileProcessorManager:
             manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
 
             dag1_path = DagFileInfo(
-                bundle_name="testing", path=f"{tmp_path}/file1.py", bundle_path=Path(tmp_path)
+                bundle_name="testing", rel_path=Path("file1.py"), bundle_path=Path(tmp_path)
             )
             dag1_req1 = DagCallbackRequest(
                 filepath="file1.py",
@@ -750,7 +750,7 @@ class TestDagFileProcessorManager:
             )
 
             dag2_path = DagFileInfo(
-                bundle_name="testing", path=f"{tmp_path}/file2.py", bundle_path=Path(tmp_path)
+                bundle_name="testing", rel_path=Path("file2.py"), bundle_path=Path(tmp_path)
             )
             dag2_req1 = DagCallbackRequest(
                 filepath="file2.py",
@@ -780,7 +780,7 @@ class TestDagFileProcessorManager:
             # when
             manager._add_callback_to_queue(dag1_req2)
             # Since dag1_req2 is same as dag1_req1, we now have 2 items in file_path_queue
-            assert manager._file_path_queue == deque([dag2_path, dag1_path])
+            assert manager._file_queue == deque([dag2_path, dag1_path])
             assert manager._callback_to_execute[dag1_path] == [
                 dag1_req1,
                 dag1_req2,
@@ -794,7 +794,7 @@ class TestDagFileProcessorManager:
             assert start.call_args_list == [
                 mock.call(
                     id=mock.ANY,
-                    path=dag2_path.path,
+                    path=Path(dag2_path.bundle_path, dag2_path.rel_path),
                     bundle_path=dag2_path.bundle_path,
                     callbacks=[dag2_req1],
                     selector=mock.ANY,
@@ -802,7 +802,7 @@ class TestDagFileProcessorManager:
                 ),
                 mock.call(
                     id=mock.ANY,
-                    path=dag1_path.path,
+                    path=Path(dag1_path.bundle_path, dag1_path.rel_path),
                     bundle_path=dag1_path.bundle_path,
                     callbacks=[dag1_req1, dag1_req2],
                     selector=mock.ANY,

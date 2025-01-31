@@ -415,10 +415,8 @@ class DagFileProcessorManager:
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return None
 
-        dag_absolute_path = os.fspath(Path(bundle.path, request.filepath))
-
         file_info = DagFileInfo(
-            path=dag_absolute_path,
+            rel_path=Path(request.filepath),
             bundle_path=bundle.path,
             bundle_name=request.bundle_name,
             bundle_version=request.bundle_version,
