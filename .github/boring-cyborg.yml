@@ -261,9 +261,7 @@ labelPRBasedOnFilePath:
     - providers/opsgenie/**
 
   provider:Oracle:
-    - providers/src/airflow/providers/oracle/**/*
-    - docs/apache-airflow-providers-oracle/**/*
-    - providers/tests/oracle/**/*
+    - providers/oracle/**
 
   provider:pagerduty:
     - providers/pagerduty/**

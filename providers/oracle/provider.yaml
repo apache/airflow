@@ -61,21 +61,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-  - oracledb>=2.0.0
-
-additional-extras:
-  - name: numpy
-    dependencies:
-      - numpy
-
-
 integrations:
   - integration-name: Oracle
     external-doc-url: https://www.oracle.com/en/database/
-    logo: /integration-logos/oracle/Oracle.png
+    logo: /docs/integration-logos/Oracle.png
     tags: [software]
 
 operators:
