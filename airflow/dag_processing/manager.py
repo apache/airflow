@@ -498,7 +498,8 @@ class DagFileProcessorManager:
             new_file_paths.extend(found_file_infos)
             self.set_file_paths(new_file_paths)
 
-            self.deactivate_deleted_dags(active_files=found_file_infos)
+            # TODO AIP-66: this just removes all DAGs
+            # self.deactivate_deleted_dags(active_files=found_file_infos)
             self.clear_nonexistent_import_errors()
 
             self._bundle_versions[bundle.name] = bundle.get_current_version()
