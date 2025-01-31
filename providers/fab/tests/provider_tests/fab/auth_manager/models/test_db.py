@@ -19,12 +19,12 @@ from __future__ import annotations
 import re
 from unittest import mock
 
+import providers.fab.src.airflow.providers.fab as provider_fab
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
 
-import airflow.providers
 from airflow.settings import engine
 from airflow.utils.db import (
     compare_server_default,
@@ -37,16 +37,16 @@ try:
 
     class TestFABDBManager:
         def setup_method(self):
-            self.providers_dir: str = airflow.providers.__path__[0]
+            self.providers_dir: str = provider_fab.__path__[0]
 
         def test_version_table_name_set(self, session):
             assert FABDBManager(session=session).version_table_name == "alembic_version_fab"
 
         def test_migration_dir_set(self, session):
-            assert FABDBManager(session=session).migration_dir == f"{self.providers_dir}/fab/migrations"
+            assert FABDBManager(session=session).migration_dir == f"{self.providers_dir}/migrations"
 
         def test_alembic_file_set(self, session):
-            assert FABDBManager(session=session).alembic_file == f"{self.providers_dir}/fab/alembic.ini"
+            assert FABDBManager(session=session).alembic_file == f"{self.providers_dir}/alembic.ini"
 
         def test_supports_table_dropping_set(self, session):
             assert FABDBManager(session=session).supports_table_dropping is True
@@ -128,5 +128,6 @@ try:
                 mock_initdb.assert_not_called()
             else:
                 mock_initdb.assert_called_once()
+
 except ModuleNotFoundError:
     pass
