@@ -27,9 +27,9 @@ from sqlalchemy import select
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
-from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.param import Param
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
@@ -41,6 +41,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
+from tests_common.test_utils.www import _check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -1016,8 +1017,11 @@ class TestGetDagRunAssetTriggerEvents:
                 {
                     "timestamp": from_datetime_to_zulu(event.timestamp),
                     "asset_id": asset1_id,
+                    "uri": "file:///da1",
                     "extra": {},
                     "id": event.id,
+                    "group": "asset",
+                    "name": "ds1",
                     "source_dag_id": ti.dag_id,
                     "source_map_index": ti.map_index,
                     "source_run_id": ti.run_id,
@@ -1137,12 +1141,7 @@ class TestTriggerDagRun:
         ],
     )
     def test_should_respond_200(
-        self,
-        test_client,
-        dag_run_id,
-        note,
-        data_interval_start,
-        data_interval_end,
+        self, test_client, dag_run_id, note, data_interval_start, data_interval_end, session
     ):
         fixed_now = timezone.utcnow().isoformat()
 
@@ -1190,6 +1189,7 @@ class TestTriggerDagRun:
         }
 
         assert response.json() == expected_response_json
+        _check_last_log(session, dag_id=DAG1_ID, event=f"/public/dags/{DAG1_ID}/dagRuns", logical_date=None)
 
     @pytest.mark.parametrize(
         "post_body, expected_detail",

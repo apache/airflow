@@ -60,7 +60,6 @@ from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
-from airflow.models.param import process_params
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
@@ -81,6 +80,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.param import process_params
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.stats import Stats
@@ -1901,13 +1901,13 @@ class TestTaskInstance:
         with pytest.raises(TestError):
             ti.run()
 
-    def test_check_and_change_state_before_execution(self, create_task_instance):
+    def test_check_and_change_state_before_execution(self, create_task_instance, testing_dag_bundle):
         expected_external_executor_id = "banana"
         ti = create_task_instance(
             dag_id="test_check_and_change_state_before_execution",
             external_executor_id=expected_external_executor_id,
         )
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1919,14 +1919,16 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.state == State.RUNNING
         assert ti_from_deserialized_task.try_number == 0
 
-    def test_check_and_change_state_before_execution_provided_id_overrides(self, create_task_instance):
+    def test_check_and_change_state_before_execution_provided_id_overrides(
+        self, create_task_instance, testing_dag_bundle
+    ):
         expected_external_executor_id = "banana"
         ti = create_task_instance(
             dag_id="test_check_and_change_state_before_execution",
             external_executor_id="apple",
         )
         assert ti.external_executor_id == "apple"
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1944,7 +1946,7 @@ class TestTaskInstance:
         expected_external_executor_id = "minions"
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         assert ti.external_executor_id is None
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1958,23 +1960,27 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.state == State.RUNNING
         assert ti_from_deserialized_task.try_number == 0
 
-    def test_check_and_change_state_before_execution_dep_not_met(self, create_task_instance):
+    def test_check_and_change_state_before_execution_dep_not_met(
+        self, create_task_instance, testing_dag_bundle
+    ):
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         task2 = EmptyOperator(task_id="task2", dag=ti.task.dag, start_date=DEFAULT_DATE)
         ti.task >> task2
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti2 = TI(task=serialized_dag.get_task(task2.task_id), run_id=ti.run_id)
         assert not ti2.check_and_change_state_before_execution()
 
-    def test_check_and_change_state_before_execution_dep_not_met_already_running(self, create_task_instance):
+    def test_check_and_change_state_before_execution_dep_not_met_already_running(
+        self, create_task_instance, testing_dag_bundle
+    ):
         """return False if the task instance state is running"""
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         with create_session() as _:
             ti.state = State.RUNNING
 
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1984,14 +1990,14 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.external_executor_id is None
 
     def test_check_and_change_state_before_execution_dep_not_met_not_runnable_state(
-        self, create_task_instance
+        self, create_task_instance, testing_dag_bundle
     ):
         """return False if the task instance state is failed"""
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         with create_session() as _:
             ti.state = State.FAILED
 
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -3900,9 +3906,11 @@ class TestTaskInstance:
         assert call("ti.start", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}) in stats_mock.mock_calls
         assert stats_mock.call_count == (2 * len(State.task_states)) + 7
 
-    def test_command_as_list(self, create_task_instance):
-        ti = create_task_instance()
-        ti.task.dag.fileloc = os.path.join(TEST_DAGS_FOLDER, "x.py")
+    def test_command_as_list(self, dag_maker):
+        with dag_maker():
+            PythonOperator(python_callable=print, task_id="hi")
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         assert ti.command_as_list() == [
             "airflow",
             "tasks",
@@ -3911,7 +3919,7 @@ class TestTaskInstance:
             ti.task_id,
             ti.run_id,
             "--subdir",
-            "DAGS_FOLDER/x.py",
+            "DAGS_FOLDER/test_taskinstance.py",
         ]
 
     def test_generate_command_default_param(self):
@@ -3999,6 +4007,7 @@ class TestTaskInstance:
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
             "queued_dttm": run_date + datetime.timedelta(hours=1),
+            "scheduled_dttm": run_date + datetime.timedelta(hours=1),
             "rendered_map_index": None,
             "queued_by_job_id": 321,
             "pid": 123,

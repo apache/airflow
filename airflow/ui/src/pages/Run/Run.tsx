@@ -22,6 +22,8 @@ import { useParams, Link as RouterLink } from "react-router-dom";
 import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useConfig } from "src/queries/useConfig";
+import { isStatePending } from "src/utils/refresh";
 
 import { Header } from "./Header";
 
@@ -29,19 +31,29 @@ const tabs = [
   { label: "Task Instances", value: "" },
   { label: "Events", value: "events" },
   { label: "Code", value: "code" },
+  { label: "Details", value: "details" },
 ];
 
 export const Run = () => {
   const { dagId = "", runId = "" } = useParams();
 
+  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
+
   const {
     data: dagRun,
     error,
     isLoading,
-  } = useDagRunServiceGetDagRun({
-    dagId,
-    dagRunId: runId,
-  });
+  } = useDagRunServiceGetDagRun(
+    {
+      dagId,
+      dagRunId: runId,
+    },
+    undefined,
+    {
+      refetchInterval: (query) =>
+        isStatePending(query.state.data?.state) ? autoRefreshInterval * 1000 : false,
+    },
+  );
 
   const {
     data: dag,
@@ -62,7 +74,9 @@ export const Run = () => {
         </Breadcrumb.Link>
         <Breadcrumb.CurrentLink>{runId}</Breadcrumb.CurrentLink>
       </Breadcrumb.Root>
-      {dagRun === undefined ? undefined : <Header dagRun={dagRun} />}
+      {dagRun === undefined ? undefined : (
+        <Header dagRun={dagRun} isRefreshing={Boolean(isStatePending(dagRun.state) && autoRefreshInterval)} />
+      )}
     </DetailsLayout>
   );
 };

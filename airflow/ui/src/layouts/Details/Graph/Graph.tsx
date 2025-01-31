@@ -24,7 +24,6 @@ import { useParams } from "react-router-dom";
 import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
-import { stateColor } from "src/utils/stateColor";
 
 import Edge from "./Edge";
 import { JoinNode } from "./JoinNode";
@@ -42,7 +41,7 @@ const nodeColor = (
   }
 
   if (taskInstance?.state !== undefined && !isOpen) {
-    return stateColor[taskInstance.state ?? "null"];
+    return `var(--chakra-colors-${taskInstance.state}-solid)`;
   }
 
   if (isOpen && depth !== undefined && depth % 2 === 0) {
@@ -91,7 +90,7 @@ export const Graph = () => {
   const { data: gridData } = useGridServiceGridData(
     {
       dagId,
-      limit: 14,
+      limit: 25,
       offset: 0,
       orderBy: "-start_date",
     },

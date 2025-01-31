@@ -37,7 +37,8 @@ from airflow.exceptions import (
     AirflowTaskTerminated,
 )
 from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
@@ -46,9 +47,12 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetXCom,
+    OKResponse,
     PrevSuccessfulDagRunResult,
+    RuntimeCheckOnTask,
     SetRenderedFields,
     StartupDetails,
+    SucceedTask,
     TaskState,
     VariableResult,
     XComResult,
@@ -136,7 +140,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     with patch.dict(
         os.environ,
         {
-            "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
+            "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
                 [
                     {
                         "name": "my-bundle",
@@ -172,7 +176,8 @@ def test_run_basic(time_machine, create_runtime_ti, spy_agency, mock_supervisor_
     assert ti.task._lock_for_execution
 
     mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
+        msg=SucceedTask(state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]),
+        log=mock.ANY,
     )
 
 
@@ -443,7 +448,12 @@ def test_startup_and_run_dag_with_rtif(
             log=mock.ANY,
         ),
         mock.call.send_request(
-            msg=TaskState(end_date=instant, state=TerminalTIState.SUCCESS),
+            msg=SucceedTask(
+                end_date=instant,
+                state=TerminalTIState.SUCCESS,
+                task_outlets=[],
+                outlet_events=[],
+            ),
             log=mock.ANY,
         ),
     ]
@@ -498,7 +508,8 @@ def test_get_context_in_task(create_runtime_ti, time_machine, mock_supervisor_co
 
     # Ensure the task is Successful
     mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
+        msg=SucceedTask(state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]),
+        log=mock.ANY,
     )
 
 
@@ -580,12 +591,103 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
         ]
     )
 
-    monkeypatch.setenv("AIRFLOW__DAG_BUNDLES__CONFIG_LIST", dag_bundle_val)
+    monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", dag_bundle_val)
     ti, _ = startup()
 
     # Presence of `conditional_task` below means DAG ID is properly set in the parsing context!
     # Check the dag file for the actual logic!
     assert ti.task.dag.task_dict.keys() == {"visible_task", "conditional_task"}
+
+
+@pytest.mark.parametrize(
+    ["task_outlets", "expected_msg"],
+    [
+        pytest.param(
+            [Asset(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[
+                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", asset_type="Asset")
+                ],
+                outlet_events=[
+                    {
+                        "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                        "asset_alias_events": [],
+                    }
+                ],
+            ),
+            id="asset",
+        ),
+        pytest.param(
+            [AssetAlias(name="example-alias", group="asset")],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[AssetProfile(asset_type="AssetAlias")],
+                outlet_events=[],
+            ),
+            id="asset-alias",
+        ),
+    ],
+)
+def test_run_with_asset_outlets(
+    time_machine, create_runtime_ti, mock_supervisor_comms, task_outlets, expected_msg
+):
+    """Test running a basic task that contains asset outlets."""
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(
+        outlets=task_outlets,
+        task_id="asset-outlet-task",
+        bash_command="echo 'hi'",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, log=mock.MagicMock())
+
+    mock_supervisor_comms.send_request.assert_any_call(msg=expected_msg, log=mock.ANY)
+
+
+def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
+    """Test running a basic tasks with inlets and outlets."""
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(
+        outlets=[
+            Asset(name="name", uri="s3://bucket/my-task"),
+            Asset(name="new-name", uri="s3://bucket/my-task"),
+        ],
+        inlets=[
+            Asset(name="name", uri="s3://bucket/my-task"),
+            Asset(name="new-name", uri="s3://bucket/my-task"),
+        ],
+        task_id="inlets-and-outlets",
+        bash_command="echo 'hi'",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_inlets_and_outlets")
+    mock_supervisor_comms.get_message.return_value = OKResponse(
+        ok=True,
+    )
+
+    run(ti, log=mock.MagicMock())
+
+    expected = RuntimeCheckOnTask(
+        inlets=[
+            AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
+            AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+        ],
+        outlets=[
+            AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
+            AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+        ],
+    )
+    mock_supervisor_comms.send_request.assert_any_call(msg=expected, log=mock.ANY)
 
 
 class TestRuntimeTaskInstance:
@@ -609,6 +711,7 @@ class TestRuntimeTaskInstance:
 
         # Verify the context keys and values
         assert context == {
+            "params": {},
             "var": {
                 "json": VariableAccessor(deserialize_json=True),
                 "value": VariableAccessor(deserialize_json=False),
@@ -649,6 +752,7 @@ class TestRuntimeTaskInstance:
         context = runtime_ti.get_template_context()
 
         assert context == {
+            "params": {},
             "var": {
                 "json": VariableAccessor(deserialize_json=True),
                 "value": VariableAccessor(deserialize_json=False),
@@ -881,6 +985,36 @@ class TestRuntimeTaskInstance:
                 ),
             )
 
+    def test_get_param_from_context(
+        self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
+    ):
+        """Test that a params can be retrieved from context."""
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                value = context["params"]
+                print("The dag params are", value)
+
+        task = CustomOperator(task_id="print-params")
+        runtime_ti = create_runtime_ti(
+            dag_id="basic_param_dag",
+            task=task,
+            conf={
+                "x": 3,
+                "text": "Hello World!",
+                "flag": False,
+                "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
+            },
+        )
+        run(runtime_ti, log=mock.MagicMock())
+
+        assert runtime_ti.task.dag.params == {
+            "x": 3,
+            "text": "Hello World!",
+            "flag": False,
+            "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
+        }
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(
@@ -989,4 +1123,86 @@ class TestXComAfterTaskExecution:
 
         assert str(exc_info.value) == (
             f"Returned dictionary keys must be strings when using multiple_outputs, found 2 ({int}) instead"
+        )
+
+
+class TestDagParamRuntime:
+    def test_dag_param_resolves_from_task(self, create_runtime_ti, mock_supervisor_comms, time_machine):
+        """Test dagparam resolves on operator execution"""
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        dag = DAG(dag_id="dag_with_dag_params", start_date=timezone.datetime(2024, 12, 3))
+        dag.param("value", default="NOTSET")
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                assert dag.params["value"] == "NOTSET"
+
+        task = CustomOperator(task_id="task_with_dag_params")
+        runtime_ti = create_runtime_ti(task=task, dag_id="dag_with_dag_params")
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SucceedTask(
+                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+            ),
+            log=mock.ANY,
+        )
+
+    def test_dag_param_dag_overwrite(self, create_runtime_ti, mock_supervisor_comms, time_machine):
+        """Test dag param is overwritten from dagrun config"""
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        dag = DAG(dag_id="dag_with_dag_params_overwrite", start_date=timezone.datetime(2024, 12, 3))
+        dag.param("value", default="NOTSET")
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                # important to use self.dag here
+                assert self.dag.params["value"] == "new_value"
+
+        # asserting on the default value when not set in dag run
+        assert dag.params["value"] == "NOTSET"
+        task = CustomOperator(task_id="task_with_dag_params_overwrite")
+
+        # we reparse the dag here, and if conf passed, added as params
+        runtime_ti = create_runtime_ti(
+            task=task, dag_id="dag_with_dag_params_overwrite", conf={"value": "new_value"}
+        )
+        run(runtime_ti, log=mock.MagicMock())
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SucceedTask(
+                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+            ),
+            log=mock.ANY,
+        )
+
+    def test_dag_param_dag_default(self, create_runtime_ti, mock_supervisor_comms, time_machine):
+        """ "Test dag param is retrieved from default config"""
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        dag = DAG(
+            dag_id="dag_with_dag_params_default",
+            start_date=timezone.datetime(2024, 12, 3),
+            params={"value": "test"},
+        )
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                assert dag.params["value"] == "test"
+
+        assert dag.params["value"] == "test"
+        task = CustomOperator(task_id="task_with_dag_params_default")
+        runtime_ti = create_runtime_ti(task=task, dag_id="dag_with_dag_params_default")
+
+        run(runtime_ti, log=mock.MagicMock())
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SucceedTask(
+                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+            ),
+            log=mock.ANY,
         )

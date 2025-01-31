@@ -33,6 +33,7 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
@@ -160,6 +161,12 @@ class SmtpHook(BaseHook):
             ),
             "disable_tls": BooleanField(lazy_gettext("Disable TLS"), default=False),
             "disable_ssl": BooleanField(lazy_gettext("Disable SSL"), default=False),
+            "subject_template": StringField(
+                lazy_gettext("Path to the subject template"), widget=BS3TextFieldWidget()
+            ),
+            "html_content_template": StringField(
+                lazy_gettext("Path to the html content template"), widget=BS3TextFieldWidget()
+            ),
         }
 
     def test_connection(self) -> tuple[bool, str]:
@@ -178,8 +185,8 @@ class SmtpHook(BaseHook):
         self,
         *,
         to: str | Iterable[str],
-        subject: str,
-        html_content: str,
+        subject: str | None = None,
+        html_content: str | None = None,
         from_email: str | None = None,
         files: list[str] | None = None,
         dryrun: bool = False,
@@ -194,8 +201,10 @@ class SmtpHook(BaseHook):
         Send an email with html content.
 
         :param to: Recipient email address or list of addresses.
-        :param subject: Email subject.
-        :param html_content: Email body in HTML format.
+        :param subject: Email subject. If it's None, the hook will check if there is a path to a subject
+            file provided in the connection, and raises an exception if not.
+        :param html_content: Email body in HTML format. If it's None, the hook will check if there is a path
+            to a html content file provided in the connection, and raises an exception if not.
         :param from_email: Sender email address. If it's None, the hook will check if there is an email
             provided in the connection, and raises an exception if not.
         :param files: List of file paths to attach to the email.
@@ -216,6 +225,18 @@ class SmtpHook(BaseHook):
         from_email = from_email or self.from_email
         if not from_email:
             raise AirflowException("You should provide `from_email` or define it in the connection.")
+        if not subject:
+            if self.subject_template is None:
+                raise AirflowException(
+                    "You should provide `subject` or define `subject_template` in the connection."
+                )
+            subject = self._read_template(self.subject_template)
+        if not html_content:
+            if self.html_content_template is None:
+                raise AirflowException(
+                    "You should provide `html_content` or define `html_content_template` in the connection."
+                )
+            html_content = self._read_template(self.html_content_template)
 
         mime_msg, recipients = self._build_mime_message(
             mail_from=from_email,
@@ -381,6 +402,24 @@ class SmtpHook(BaseHook):
     @property
     def use_ssl(self) -> bool:
         return not bool(self.conn.extra_dejson.get("disable_ssl", False))
+
+    @property
+    def subject_template(self) -> str | None:
+        return self.conn.extra_dejson.get("subject_template")
+
+    @property
+    def html_content_template(self) -> str | None:
+        return self.conn.extra_dejson.get("html_content_template")
+
+    @staticmethod
+    def _read_template(template_path: str) -> str:
+        """
+        Read the content of a template file.
+
+        :param template_path: The path to the template file.
+        :return: The content of the template file.
+        """
+        return Path(template_path).read_text()
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:

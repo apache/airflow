@@ -99,7 +99,7 @@ def testing_dag_bundle():
 
 @pytest.fixture
 def configure_testing_dag_bundle():
-    """Configure the testing DAG bundle with the provided path, and disable the DAGs folder bundle."""
+    """Configure a "testing" DAG bundle with the provided path"""
     from tests_common.test_utils.config import conf_vars
 
     @contextmanager
@@ -111,7 +111,7 @@ def configure_testing_dag_bundle():
                 "kwargs": {"path": str(path_to_parse), "refresh_interval": 0},
             }
         ]
-        with conf_vars({("dag_bundles", "config_list"): json.dumps(bundle_config)}):
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
             yield
 
     return _config_bundle

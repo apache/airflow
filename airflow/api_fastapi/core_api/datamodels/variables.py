@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from pydantic import ConfigDict, Field, model_validator
 
-from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction, BulkBaseAction
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models.base import ID_LEN
 from airflow.typing_compat import Self
 from airflow.utils.log.secrets_masker import redact
@@ -54,7 +52,7 @@ class VariableResponse(BaseModel):
             return self
 
 
-class VariableBody(BaseModel):
+class VariableBody(StrictBaseModel):
     """Variable serializer for bodies."""
 
     key: str = Field(max_length=ID_LEN)
@@ -75,71 +73,3 @@ class VariablesImportResponse(BaseModel):
     created_variable_keys: list[str]
     import_count: int
     created_count: int
-
-
-class VariableBulkCreateAction(BulkBaseAction):
-    """Bulk Create Variable serializer for request bodies."""
-
-    action: BulkAction = BulkAction.CREATE
-    variables: list[VariableBody] = Field(..., description="A list of variables to be created.")
-
-
-class VariableBulkUpdateAction(BulkBaseAction):
-    """Bulk Update Variable serializer for request bodies."""
-
-    action: BulkAction = BulkAction.UPDATE
-    variables: list[VariableBody] = Field(..., description="A list of variables to be updated.")
-
-
-class VariableBulkDeleteAction(BulkBaseAction):
-    """Bulk Delete Variable serializer for request bodies."""
-
-    action: BulkAction = BulkAction.DELETE
-    keys: list[str] = Field(..., description="A list of variable keys to be deleted.")
-
-
-class VariableBulkBody(BaseModel):
-    """Request body for bulk variable operations (create, update, delete)."""
-
-    actions: list[VariableBulkCreateAction | VariableBulkUpdateAction | VariableBulkDeleteAction] = Field(
-        ..., description="A list of variable actions to perform."
-    )
-
-
-class VariableBulkActionResponse(BaseModel):
-    """
-    Serializer for individual bulk action responses.
-
-    Represents the outcome of a single bulk operation (create, update, or delete).
-    The response includes a list of successful keys and any errors encountered during the operation.
-    This structure helps users understand which key actions succeeded and which failed.
-    """
-
-    success: list[str] = Field(default=[], description="A list of keys representing successful operations.")
-    errors: list[dict[str, Any]] = Field(
-        default=[],
-        description="A list of errors encountered during the operation, each containing details about the issue.",
-    )
-
-
-class VariableBulkResponse(BaseModel):
-    """
-    Serializer for responses to bulk variable operations.
-
-    This represents the results of create, update, and delete actions performed on variables in bulk.
-    Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
-    Fields are populated in the response only if the respective action was part of the request, else are set None.
-    """
-
-    create: VariableBulkActionResponse | None = Field(
-        default=None,
-        description="Details of the bulk create operation, including successful keys and errors.",
-    )
-    update: VariableBulkActionResponse | None = Field(
-        default=None,
-        description="Details of the bulk update operation, including successful keys and errors.",
-    )
-    delete: VariableBulkActionResponse | None = Field(
-        default=None,
-        description="Details of the bulk delete operation, including successful keys and errors.",
-    )

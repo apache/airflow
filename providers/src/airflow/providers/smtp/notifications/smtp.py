@@ -46,10 +46,7 @@ class SmtpNotifier(BaseNotifier):
             ),
         )
 
-    Default template can be overridden via the following provider configuration data:
-        - templated_email_subject_path
-        - templated_html_content_path
-
+    You can define a default template for subject and html_content in the SMTP connection configuration.
 
     :param smtp_conn_id: The :ref:`smtp connection id <howto/connection:smtp>`
         that contains the information used to authenticate the client.
@@ -96,28 +93,14 @@ class SmtpNotifier(BaseNotifier):
         self.mime_subtype = mime_subtype
         self.mime_charset = mime_charset
         self.custom_headers = custom_headers
+        self.subject = subject
+        self.html_content = html_content
+        if self.html_content is None and template is not None:
+            self.html_content = self._read_template(template)
 
-        smtp_default_templated_subject_path = conf.get(
-            "smtp",
-            "templated_email_subject_path",
-            fallback=(Path(__file__).parent / "templates" / "email_subject.jinja2").as_posix(),
-        )
-        self.subject = (
-            subject or Path(smtp_default_templated_subject_path).read_text().replace("\n", "").strip()
-        )
-        # If html_content is passed, prioritize it. Otherwise, if template is passed, use
-        # it to populate html_content. Else, fall back to defaults defined in settings
-        if html_content is not None:
-            self.html_content = html_content
-        elif template is not None:
-            self.html_content = Path(template).read_text()
-        else:
-            smtp_default_templated_html_content_path = conf.get(
-                "smtp",
-                "templated_html_content_path",
-                fallback=(Path(__file__).parent / "templates" / "email.html").as_posix(),
-            )
-            self.html_content = Path(smtp_default_templated_html_content_path).read_text()
+    @staticmethod
+    def _read_template(template_path: str) -> str:
+        return Path(template_path).read_text().replace("\n", "").strip()
 
     @cached_property
     def hook(self) -> SmtpHook:
@@ -126,6 +109,34 @@ class SmtpNotifier(BaseNotifier):
 
     def notify(self, context):
         """Send a email via smtp server."""
+        fields_to_re_render = []
+        if self.subject is None:
+            smtp_default_templated_subject_path: str
+            if self.hook.subject_template:
+                smtp_default_templated_subject_path = self.hook.subject_template
+            else:
+                smtp_default_templated_subject_path = conf.get(
+                    "smtp",
+                    "templated_email_subject_path",
+                    fallback=(Path(__file__).parent / "templates" / "email_subject.jinja2").as_posix(),
+                )
+            self.subject = self._read_template(smtp_default_templated_subject_path)
+            fields_to_re_render.append("subject")
+        if self.html_content is None:
+            smtp_default_templated_html_content_path: str
+            if self.hook.html_content_template:
+                smtp_default_templated_html_content_path = self.hook.html_content_template
+            else:
+                smtp_default_templated_html_content_path = conf.get(
+                    "smtp",
+                    "templated_html_content_path",
+                    fallback=(Path(__file__).parent / "templates" / "email.html").as_posix(),
+                )
+            self.html_content = self._read_template(smtp_default_templated_html_content_path)
+            fields_to_re_render.append("html_content")
+        if fields_to_re_render:
+            jinja_env = self.get_template_env(dag=context["dag"])
+            self._do_render_template_fields(self, fields_to_re_render, context, jinja_env, set())
         with self.hook as smtp:
             smtp.send_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,

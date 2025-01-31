@@ -1,1 +1,20 @@
 Removed deprecated ``TaskStateTrigger`` from ``airflow.triggers.external_task`` module.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.triggers.external_task.TaskStateTrigger``

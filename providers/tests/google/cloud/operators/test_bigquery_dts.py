@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig, TransferRun
 
@@ -156,3 +157,258 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
         op.execute({"ti": ti})
 
         defer_method.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("data_source_id", "params", "expected_input_namespace", "expected_input_name"),
+        (
+            (
+                "google_cloud_storage",
+                {
+                    "data_path_template": "gs://bucket/path/to/file.txt",
+                    "destination_table_name_template": "bq_table",
+                },
+                "gs://bucket",
+                "path/to/file.txt",
+            ),
+            (
+                "amazon_s3",
+                {
+                    "data_path": "s3://bucket/path/to/file.txt",
+                    "destination_table_name_template": "bq_table",
+                },
+                "s3://bucket",
+                "path/to/file.txt",
+            ),
+            (
+                "azure_blob_storage",
+                {
+                    "storage_account": "account_id",
+                    "container": "container_id",
+                    "data_path": "/path/to/file.txt",
+                    "destination_table_name_template": "bq_table",
+                },
+                "abfss://container_id@account_id.dfs.core.windows.net",
+                "path/to/file.txt",
+            ),
+        ),
+    )
+    @mock.patch(
+        f"{OPERATOR_MODULE_PATH}.BigQueryDataTransferServiceStartTransferRunsOperator"
+        f"._wait_for_transfer_to_be_done"
+    )
+    @mock.patch(f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook")
+    def test_get_openlineage_facets_on_complete_with_blob_storage_sources(
+        self, mock_hook, mock_wait, data_source_id, params, expected_input_namespace, expected_input_name
+    ):
+        mock_hook.return_value.start_manual_transfer_runs.return_value = StartManualTransferRunsResponse(
+            runs=[TransferRun(name=RUN_NAME)]
+        )
+        mock_wait.return_value = {
+            "error_status": {"code": 0, "message": "", "details": []},
+            "data_source_id": data_source_id,
+            "destination_dataset_id": "bq_dataset",
+            "params": params,
+        }
+
+        op = BigQueryDataTransferServiceStartTransferRunsOperator(
+            transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
+        )
+        op.execute({"ti": mock.MagicMock()})
+        result = op.get_openlineage_facets_on_complete(None)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert len(result.inputs) == 1
+        assert len(result.outputs) == 1
+        assert result.inputs[0].namespace == expected_input_namespace
+        assert result.inputs[0].name == expected_input_name
+        assert result.outputs[0].namespace == "bigquery"
+        assert result.outputs[0].name == f"{PROJECT_ID}.bq_dataset.bq_table"
+
+    @pytest.mark.parametrize(
+        ("data_source_id", "params", "expected_input_namespace", "expected_input_names"),
+        (
+            (
+                "postgresql",
+                {
+                    "connector.endpoint.host": "127.0.0.1",
+                    "connector.endpoint.port": 5432,
+                    "assets": [
+                        "db1/sch1/tb1",
+                        "db2/sch2/tb2",
+                    ],
+                },
+                "postgres://127.0.0.1:5432",
+                ["db1.sch1.tb1", "db2.sch2.tb2"],
+            ),
+            (
+                "oracle",
+                {
+                    "connector.endpoint.host": "127.0.0.1",
+                    "connector.endpoint.port": 1234,
+                    "assets": [
+                        "db1/sch1/tb1",
+                        "db2/sch2/tb2",
+                    ],
+                },
+                "oracle://127.0.0.1:1234",
+                ["db1.sch1.tb1", "db2.sch2.tb2"],
+            ),
+            (
+                "mysql",
+                {
+                    "connector.endpoint.host": "127.0.0.1",
+                    "connector.endpoint.port": 3306,
+                    "assets": [
+                        "db1/tb1",
+                        "db2/tb2",
+                    ],
+                },
+                "mysql://127.0.0.1:3306",
+                ["db1.tb1", "db2.tb2"],
+            ),
+        ),
+    )
+    @mock.patch(
+        f"{OPERATOR_MODULE_PATH}.BigQueryDataTransferServiceStartTransferRunsOperator"
+        f"._wait_for_transfer_to_be_done"
+    )
+    @mock.patch(f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook")
+    def test_get_openlineage_facets_on_complete_with_sql_sources(
+        self, mock_hook, mock_wait, data_source_id, params, expected_input_namespace, expected_input_names
+    ):
+        mock_hook.return_value.start_manual_transfer_runs.return_value = StartManualTransferRunsResponse(
+            runs=[TransferRun(name=RUN_NAME)]
+        )
+        mock_wait.return_value = {
+            "error_status": {"code": 0, "message": "", "details": []},
+            "data_source_id": data_source_id,
+            "destination_dataset_id": "bq_dataset",
+            "params": params,
+        }
+
+        op = BigQueryDataTransferServiceStartTransferRunsOperator(
+            transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
+        )
+        op.execute({"ti": mock.MagicMock()})
+        result = op.get_openlineage_facets_on_complete(None)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert len(result.inputs) == 2
+        assert len(result.outputs) == 2
+        assert result.inputs[0].namespace == expected_input_namespace
+        assert result.inputs[0].name == expected_input_names[0]
+        assert result.inputs[1].namespace == expected_input_namespace
+        assert result.inputs[1].name == expected_input_names[1]
+        assert result.outputs[0].namespace == "bigquery"
+        assert result.outputs[0].name == f"{PROJECT_ID}.bq_dataset.{expected_input_names[0].split('.')[-1]}"
+        assert result.outputs[1].namespace == "bigquery"
+        assert result.outputs[1].name == f"{PROJECT_ID}.bq_dataset.{expected_input_names[1].split('.')[-1]}"
+
+    @mock.patch(
+        f"{OPERATOR_MODULE_PATH}.BigQueryDataTransferServiceStartTransferRunsOperator"
+        f"._wait_for_transfer_to_be_done"
+    )
+    @mock.patch(f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook")
+    def test_get_openlineage_facets_on_complete_with_scheduled_query(self, mock_hook, mock_wait):
+        mock_hook.return_value.start_manual_transfer_runs.return_value = StartManualTransferRunsResponse(
+            runs=[TransferRun(name=RUN_NAME)]
+        )
+        mock_wait.return_value = {
+            "error_status": {"code": 0, "message": "", "details": []},
+            "data_source_id": "scheduled_query",
+            "destination_dataset_id": "bq_dataset",
+            "params": {"query": "SELECT a,b,c from x.y.z;", "destination_table_name_template": "bq_table"},
+        }
+
+        op = BigQueryDataTransferServiceStartTransferRunsOperator(
+            transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
+        )
+        op.execute({"ti": mock.MagicMock()})
+        result = op.get_openlineage_facets_on_complete(None)
+        assert len(result.job_facets) == 1
+        assert result.job_facets["sql"].query == "SELECT a,b,c from x.y.z"
+        assert not result.run_facets
+        assert len(result.inputs) == 1
+        assert len(result.outputs) == 1
+        assert result.inputs[0].namespace == "bigquery"
+        assert result.inputs[0].name == "x.y.z"
+        assert result.outputs[0].namespace == "bigquery"
+        assert result.outputs[0].name == f"{PROJECT_ID}.bq_dataset.bq_table"
+
+    @mock.patch(
+        f"{OPERATOR_MODULE_PATH}.BigQueryDataTransferServiceStartTransferRunsOperator"
+        f"._wait_for_transfer_to_be_done"
+    )
+    @mock.patch(f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook")
+    def test_get_openlineage_facets_on_complete_with_error(self, mock_hook, mock_wait):
+        mock_hook.return_value.start_manual_transfer_runs.return_value = StartManualTransferRunsResponse(
+            runs=[TransferRun(name=RUN_NAME)]
+        )
+        mock_wait.return_value = {
+            "error_status": {
+                "code": 1,
+                "message": "Sample message error.",
+                "details": [{"@type": "123", "field1": "test1"}, {"@type": "456", "field2": "test2"}],
+            },
+            "data_source_id": "google_cloud_storage",
+            "destination_dataset_id": "bq_dataset",
+            "params": {
+                "data_path_template": "gs://bucket/path/to/file.txt",
+                "destination_table_name_template": "bq_table",
+            },
+        }
+
+        op = BigQueryDataTransferServiceStartTransferRunsOperator(
+            transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID
+        )
+        op.execute({"ti": mock.MagicMock()})
+        result = op.get_openlineage_facets_on_complete(None)
+        assert not result.job_facets
+        assert len(result.run_facets) == 1
+        assert result.run_facets["errorMessage"].message == "Sample message error."
+        assert (
+            result.run_facets["errorMessage"].stackTrace
+            == "[{'@type': '123', 'field1': 'test1'}, {'@type': '456', 'field2': 'test2'}]"
+        )
+        assert len(result.inputs) == 1
+        assert len(result.outputs) == 1
+        assert result.inputs[0].namespace == "gs://bucket"
+        assert result.inputs[0].name == "path/to/file.txt"
+        assert result.outputs[0].namespace == "bigquery"
+        assert result.outputs[0].name == f"{PROJECT_ID}.bq_dataset.bq_table"
+
+    @mock.patch(f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook")
+    @mock.patch(f"{OPERATOR_MODULE_PATH}.BigQueryDataTransferServiceStartTransferRunsOperator.defer")
+    def test_get_openlineage_facets_on_complete_deferred(self, mock_defer, mock_hook):
+        mock_hook.return_value.start_manual_transfer_runs.return_value = StartManualTransferRunsResponse(
+            runs=[TransferRun(name=RUN_NAME)]
+        )
+        mock_hook.return_value.get_transfer_run.return_value = TransferRun(
+            {
+                "error_status": {"code": 0, "message": "", "details": []},
+                "data_source_id": "google_cloud_storage",
+                "destination_dataset_id": "bq_dataset",
+                "params": {
+                    "data_path_template": "gs://bucket/path/to/file.txt",
+                    "destination_table_name_template": "bq_table",
+                },
+            }
+        )
+
+        op = BigQueryDataTransferServiceStartTransferRunsOperator(
+            transfer_config_id=TRANSFER_CONFIG_ID, task_id="id", project_id=PROJECT_ID, deferrable=True
+        )
+        op.execute({"ti": mock.MagicMock()})
+        # `defer` is mocked so it will not call the `execute_completed`, so we do it manually.
+        op.execute_completed(
+            mock.MagicMock(), {"status": "done", "run_id": 123, "config_id": 321, "message": "msg"}
+        )
+        result = op.get_openlineage_facets_on_complete(None)
+        assert not result.job_facets
+        assert not result.run_facets
+        assert len(result.inputs) == 1
+        assert len(result.outputs) == 1
+        assert result.inputs[0].namespace == "gs://bucket"
+        assert result.inputs[0].name == "path/to/file.txt"
+        assert result.outputs[0].namespace == "bigquery"
+        assert result.outputs[0].name == f"{PROJECT_ID}.bq_dataset.bq_table"

@@ -10,3 +10,28 @@ Removed deprecated functions and modules from ``airflow.www`` module.
   ``airflow.utils.log.secrets_masker.get_sensitive_variables_fields`` instead.
 - Removed the method ``should_hide_value_for_key()`` from ``airflow.www.utils``: Please use
   ``airflow.utils.log.secrets_masker.should_hide_value_for_key`` instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.www.auth.has_access`` → ``airflow.www.auth.has_access_*``
+      * [x] ``airflow.www.utils.get_sensitive_variables_fields`` → ``airflow.utils.log.secrets_masker.get_sensitive_variables_fields``
+      * [x] ``airflow.www.utils.should_hide_value_for_key`` → ``airflow.utils.log.secrets_masker.should_hide_value_for_key``
+
+    * AIR303
+
+      * [x] ``airflow.www.security.FabAirflowSecurityManagerOverride`` → ``airflow.providers.fab.auth_manager.security_manager.override.FabAirflowSecurityManagerOverride``

@@ -19,16 +19,13 @@
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import sys
-from contextlib import contextmanager
 from pathlib import Path
 from shutil import rmtree
 from tempfile import mkdtemp
 
 import yaml
-from packaging.version import Version
 from rich.console import Console
 
 console = Console(color_system="standard", width=200)
@@ -131,50 +128,10 @@ def build_airflow_packages(package_format: str):
         console.print("[green]Airflow packages built successfully")
 
 
-def set_package_version(version: str) -> None:
-    console.print(f"\n[yellow]Setting {version} for Airflow package\n")
-    # replace __version__ with the version passed as argument in python
-    init_content = AIRFLOW_INIT_FILE.read_text()
-    init_content = re.sub(r'__version__ = "[^"]+"', f'__version__ = "{version}"', init_content)
-    AIRFLOW_INIT_FILE.write_text(init_content)
-
-
-@contextmanager
-def package_version(version_suffix: str):
-    release_version_matcher = re.compile(r"^\d+\.\d+\.\d+$")
-    airflow_version = get_current_airflow_version()
-
-    update_version = False
-    if version_suffix:
-        if airflow_version.endswith(f".{version_suffix}"):
-            console.print(
-                f"[bright_blue]The {airflow_version} already has suffix {version_suffix}. Not updating it.\n"
-            )
-        elif not release_version_matcher.match(airflow_version):
-            console.print(
-                f"[warning]You should only pass version suffix if {airflow_version} "
-                f"does not have suffix in code. The version in code is: {airflow_version}.\n"
-                f"Overriding the version in code with the {version_suffix}."
-            )
-            airflow_version = Version(airflow_version).base_version
-            update_version = True
-        else:
-            update_version = True
-    if update_version:
-        set_package_version(f"{airflow_version}.{version_suffix}")
-    try:
-        yield
-    finally:
-        # Set the version back to the original version
-        if update_version:
-            set_package_version(airflow_version)
-
-
 clean_build_directory()
 mark_git_directory_as_safe()
 
-with package_version(VERSION_SUFFIX):
-    build_airflow_packages(PACKAGE_FORMAT)
+build_airflow_packages(PACKAGE_FORMAT)
 
 for file in (AIRFLOW_SOURCES_ROOT / "dist").glob("apache*"):
     console.print(file.name)

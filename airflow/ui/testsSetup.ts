@@ -18,7 +18,21 @@
  */
 import * as matchers from "@testing-library/jest-dom/matchers";
 import "@testing-library/jest-dom/vitest";
-import { expect } from "vitest";
+import type { HttpHandler } from "msw";
+import { setupServer, type SetupServerApi } from "msw/node";
+import { afterEach, expect, beforeAll, afterAll } from "vitest";
+
+import { handlers } from "src/mocks/handlers";
+
+let server: SetupServerApi;
 
 // extends vitest matchers with react-testing-library's ones
 expect.extend(matchers);
+
+beforeAll(() => {
+  server = setupServer(...(handlers as Array<HttpHandler>));
+  server.listen({ onUnhandledRequest: "bypass" });
+});
+
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());

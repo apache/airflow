@@ -564,6 +564,7 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
  * @param data.includeDownstream
  * @param data.root
  * @param data.externalDependencies
+ * @param data.dagVersion
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -574,12 +575,14 @@ export const useStructureServiceStructureDataSuspense = <
 >(
   {
     dagId,
+    dagVersion,
     externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    dagVersion?: number;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
@@ -590,12 +593,13 @@ export const useStructureServiceStructureDataSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, externalDependencies, includeDownstream, includeUpstream, root },
+      { dagId, dagVersion, externalDependencies, includeDownstream, includeUpstream, root },
       queryKey,
     ),
     queryFn: () =>
       StructureService.structureData({
         dagId,
+        dagVersion,
         externalDependencies,
         includeDownstream,
         includeUpstream,
@@ -1056,15 +1060,15 @@ export const useDagStatsServiceGetDagStatsSuspense = <
     ...options,
   });
 /**
- * Get Dag Report
+ * Get Dag Reports
  * Get DAG report.
  * @param data The data for the request.
  * @param data.subdir
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useDagReportServiceGetDagReportSuspense = <
-  TData = Common.DagReportServiceGetDagReportDefaultResponse,
+export const useDagReportServiceGetDagReportsSuspense = <
+  TData = Common.DagReportServiceGetDagReportsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -1077,8 +1081,8 @@ export const useDagReportServiceGetDagReportSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }, queryKey),
-    queryFn: () => DagReportService.getDagReport({ subdir }) as TData,
+    queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }, queryKey),
+    queryFn: () => DagReportService.getDagReports({ subdir }) as TData,
     ...options,
   });
 /**
@@ -2482,7 +2486,7 @@ export const useXcomServiceGetXcomEntrySuspense = <
  * @param data.mapIndex
  * @param data.limit
  * @param data.offset
- * @returns XComCollection Successful Response
+ * @returns XComCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useXcomServiceGetXcomEntriesSuspense = <

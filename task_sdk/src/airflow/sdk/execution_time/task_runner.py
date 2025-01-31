@@ -33,16 +33,21 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState, TIRunContext
+from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
 from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     GetXCom,
+    OKResponse,
     RescheduleTask,
+    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     StartupDetails,
+    SucceedTask,
     TaskState,
     ToSupervisor,
     ToTask,
@@ -82,6 +87,16 @@ class RuntimeTaskInstance(TaskInstance):
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
 
+        dag_run_conf = None
+        if (
+            self._ti_context_from_server
+            and self._ti_context_from_server.dag_run
+            and self._ti_context_from_server.dag_run.conf
+        ):
+            dag_run_conf = self._ti_context_from_server.dag_run.conf
+
+        validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
+
         # TODO: Assess if we need to it through airflow.utils.timezone.coerce_datetime()
         context: Context = {
             # From the Task Execution interface
@@ -98,7 +113,7 @@ class RuntimeTaskInstance(TaskInstance):
             "outlet_events": OutletEventAccessors(),
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
             "macros": MacrosAccessor(),
-            # "params": validated_params,
+            "params": validated_params,
             # TODO: Make this go through Public API longer term.
             # "test_mode": task_instance.test_mode,
             # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
@@ -318,6 +333,7 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
         name=bundle_info.name,
         version=bundle_info.version,
     )
+    bundle_instance.initialize()
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
     bag = DagBag(
@@ -446,6 +462,36 @@ def _get_rendered_fields(task: BaseOperator) -> dict[str, JsonValue]:
     return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
 
 
+def _process_outlets(context: Context, outlets: list[AssetProfile]):
+    added_alias_to_task_outlet = False
+    task_outlets: list[AssetProfile] = []
+    outlet_events: list[Any] = []
+    events = context["outlet_events"]
+
+    for obj in outlets or []:
+        # Lineage can have other types of objects besides assets
+        asset_type = type(obj).__name__
+        if isinstance(obj, Asset):
+            task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
+            outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
+        elif isinstance(obj, AssetNameRef):
+            task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
+            # Send all events, filtering can be done in API server.
+            outlet_events.append(attrs.asdict(events))  # type: ignore
+        elif isinstance(obj, AssetUriRef):
+            task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
+            # Send all events, filtering can be done in API server.
+            outlet_events.append(attrs.asdict(events))  # type: ignore
+        elif isinstance(obj, AssetAlias):
+            if not added_alias_to_task_outlet:
+                task_outlets.append(AssetProfile(asset_type=asset_type))
+                added_alias_to_task_outlet = True
+            for asset_alias_event in events[obj].asset_alias_events:
+                outlet_events.append(attrs.asdict(asset_alias_event))
+
+    return task_outlets, outlet_events
+
+
 def run(ti: RuntimeTaskInstance, log: Logger):
     """Run the task in this process."""
     from airflow.exceptions import (
@@ -469,20 +515,36 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO: Get a real context object
         ti.hostname = get_hostname()
         ti.task = ti.task.prepare_for_execution()
-        context = ti.get_template_context()
-        with set_current_context(context):
-            jinja_env = ti.task.dag.get_template_env()
-            ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
-            result = _execute_task(context, ti.task)
+        if ti.task.inlets or ti.task.outlets:
+            inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+            outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
+            SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlets=inlets, outlets=outlets), log=log)  # type: ignore
+            msg = SUPERVISOR_COMMS.get_message()  # type: ignore
 
-        _push_xcom_if_needed(result, ti)
+        if isinstance(msg, OKResponse) and not msg.ok:
+            log.info("Runtime checks failed for task, marking task as failed..")
+            msg = TaskState(
+                state=TerminalTIState.FAILED,
+                end_date=datetime.now(tz=timezone.utc),
+            )
+        else:
+            context = ti.get_template_context()
+            with set_current_context(context):
+                jinja_env = ti.task.dag.get_template_env()
+                ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
+                # TODO: Get things from _execute_task_with_callbacks
+                #   - Pre Execute
+                #   etc
+                result = _execute_task(context, ti.task)
 
-        # TODO: Get things from _execute_task_with_callbacks
-        #   - Clearing XCom
-        #   - Update RTIF
-        #   - Pre Execute
-        #   etc
-        msg = TaskState(state=TerminalTIState.SUCCESS, end_date=datetime.now(tz=timezone.utc))
+            _push_xcom_if_needed(result, ti)
+
+            task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
+            msg = SucceedTask(
+                end_date=datetime.now(tz=timezone.utc),
+                task_outlets=task_outlets,
+                outlet_events=outlet_events,
+            )
     except TaskDeferred as defer:
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)

@@ -39,7 +39,7 @@ from uuid6 import uuid7
 from airflow.executors.workloads import BundleInfo
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
@@ -50,11 +50,14 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
+    SucceedTask,
     TaskState,
     VariableResult,
     XComResult,
@@ -79,7 +82,7 @@ def lineno():
 
 def local_dag_bundle_cfg(path, name="my-bundle"):
     return {
-        "AIRFLOW__DAG_BUNDLES__CONFIG_LIST": json.dumps(
+        "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(
             [
                 {
                     "name": name,
@@ -979,6 +982,20 @@ class TestHandleRequest:
                 id="get_asset_by_uri",
             ),
             pytest.param(
+                SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+                b"",
+                "task_instances.succeed",
+                (),
+                {
+                    "id": TI_ID,
+                    "outlet_events": None,
+                    "task_outlets": None,
+                    "when": timezone.parse("2024-10-31T12:00:00Z"),
+                },
+                "",
+                id="succeed_task",
+            ),
+            pytest.param(
                 GetPrevSuccessfulDagRun(ti_id=TI_ID),
                 (
                     b'{"data_interval_start":"2025-01-10T12:00:00Z","data_interval_end":"2025-01-10T14:00:00Z",'
@@ -996,12 +1013,32 @@ class TestHandleRequest:
                 ),
                 id="get_prev_successful_dagrun",
             ),
+            pytest.param(
+                RuntimeCheckOnTask(
+                    inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
+                    outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
+                ),
+                b'{"ok":true,"type":"OKResponse"}\n',
+                "task_instances.runtime_checks",
+                (),
+                {
+                    "id": TI_ID,
+                    "msg": RuntimeCheckOnTask(
+                        inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        type="RuntimeCheckOnTask",
+                    ),
+                },
+                OKResponse(ok=True),
+                id="runtime_check_on_task",
+            ),
         ],
     )
     def test_handle_requests(
         self,
         watched_subprocess,
         mocker,
+        time_machine,
         message,
         expected_buffer,
         client_attr_path,
@@ -1030,6 +1067,7 @@ class TestHandleRequest:
         next(generator)
         msg = message.model_dump_json().encode() + b"\n"
         generator.send(msg)
+        time_machine.move_to(timezone.datetime(2024, 10, 31), tick=False)
 
         # Verify the correct client method was called
         if client_attr_path:

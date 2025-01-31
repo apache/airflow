@@ -60,6 +60,8 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRunContext,
+    TIRuntimeCheckPayload,
+    TISuccessStatePayload,
     VariableResponse,
     XComResponse,
 )
@@ -168,6 +170,11 @@ class ErrorResponse(BaseModel):
     type: Literal["ErrorResponse"] = "ErrorResponse"
 
 
+class OKResponse(BaseModel):
+    ok: bool
+    type: Literal["OKResponse"] = "OKResponse"
+
+
 ToTask = Annotated[
     Union[
         AssetResult,
@@ -177,6 +184,7 @@ ToTask = Annotated[
         StartupDetails,
         VariableResult,
         XComResult,
+        OKResponse,
     ],
     Field(discriminator="type"),
 ]
@@ -191,9 +199,20 @@ class TaskState(BaseModel):
     - anything else = FAILED
     """
 
-    state: TerminalTIState
+    state: Literal[
+        TerminalTIState.FAILED,
+        TerminalTIState.SKIPPED,
+        TerminalTIState.REMOVED,
+        TerminalTIState.FAIL_WITHOUT_RETRY,
+    ]
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
+
+
+class SucceedTask(TISuccessStatePayload):
+    """Update a task's state to success. Includes task_outlets and outlet_events for registering asset events."""
+
+    type: Literal["SucceedTask"] = "SucceedTask"
 
 
 class DeferTask(TIDeferredStatePayload):
@@ -206,6 +225,10 @@ class RescheduleTask(TIRescheduleStatePayload):
     """Update a task instance state to reschedule/up_for_reschedule."""
 
     type: Literal["RescheduleTask"] = "RescheduleTask"
+
+
+class RuntimeCheckOnTask(TIRuntimeCheckPayload):
+    type: Literal["RuntimeCheckOnTask"] = "RuntimeCheckOnTask"
 
 
 class GetXCom(BaseModel):
@@ -292,6 +315,7 @@ class GetPrevSuccessfulDagRun(BaseModel):
 
 ToSupervisor = Annotated[
     Union[
+        SucceedTask,
         DeferTask,
         GetAssetByName,
         GetAssetByUri,
@@ -304,6 +328,7 @@ ToSupervisor = Annotated[
         SetRenderedFields,
         SetXCom,
         TaskState,
+        RuntimeCheckOnTask,
     ],
     Field(discriminator="type"),
 ]

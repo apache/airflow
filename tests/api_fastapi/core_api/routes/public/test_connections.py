@@ -528,12 +528,12 @@ class TestPatchConnection(TestConnectionEndpoint):
                 {
                     "connection_id": TEST_CONN_ID,
                     "conn_type": TEST_CONN_TYPE,
-                    "description": None,
+                    "description": "some_description_a",
                     "extra": None,
-                    "host": None,
-                    "login": None,
+                    "host": "some_host_a",
+                    "login": "some_login",
                     "password": "***",
-                    "port": None,
+                    "port": 8080,
                     "schema": None,
                 },
             ),
@@ -542,12 +542,12 @@ class TestPatchConnection(TestConnectionEndpoint):
                 {
                     "connection_id": TEST_CONN_ID,
                     "conn_type": TEST_CONN_TYPE,
-                    "description": None,
+                    "description": "some_description_a",
                     "extra": None,
-                    "host": None,
-                    "login": None,
+                    "host": "some_host_a",
+                    "login": "some_login",
                     "password": "***",
-                    "port": None,
+                    "port": 8080,
                     "schema": None,
                 },
             ),
@@ -561,12 +561,12 @@ class TestPatchConnection(TestConnectionEndpoint):
                 {
                     "connection_id": TEST_CONN_ID,
                     "conn_type": TEST_CONN_TYPE,
-                    "description": None,
+                    "description": "some_description_a",
                     "extra": '{"password": "***"}',
-                    "host": None,
-                    "login": None,
+                    "host": "some_host_a",
+                    "login": "some_login",
                     "password": "***",
-                    "port": None,
+                    "port": 8080,
                     "schema": None,
                 },
             ),
@@ -647,7 +647,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "connections": [
+                            "entities": [
                                 {
                                     "connection_id": "NOT_EXISTING_CONN_ID",
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
@@ -670,7 +670,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "connections": [
+                            "entities": [
                                 {
                                     "connection_id": TEST_CONN_ID,
                                     "conn_type": TEST_CONN_TYPE,
@@ -697,7 +697,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "connections": [
+                            "entities": [
                                 {
                                     "connection_id": TEST_CONN_ID,
                                     "conn_type": TEST_CONN_TYPE,
@@ -721,7 +721,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "connections": [
+                            "entities": [
                                 {
                                     "connection_id": TEST_CONN_ID,
                                     "conn_type": TEST_CONN_TYPE,
@@ -753,14 +753,14 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "connections": [
+                            "entities": [
                                 {
                                     "connection_id": TEST_CONN_ID,
                                     "conn_type": TEST_CONN_TYPE,
                                     "description": "new_description",
                                 }
                             ],
-                            "action_on_existence": "skip",
+                            "action_on_non_existence": "skip",
                         }
                     ]
                 },
@@ -777,13 +777,13 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "connections": [
+                            "entities": [
                                 {
                                     "connection_id": "NOT_EXISTING_CONN_ID",
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
                                 }
                             ],
-                            "action_on_existence": "skip",
+                            "action_on_non_existence": "skip",
                         }
                     ]
                 },
@@ -800,13 +800,13 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "connections": [
+                            "entities": [
                                 {
                                     "connection_id": "NOT_EXISTING_CONN_ID",
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
                                 }
                             ],
-                            "action_on_existence": "fail",
+                            "action_on_non_existence": "fail",
                         }
                     ]
                 },
@@ -828,7 +828,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "delete",
-                            "connection_ids": [TEST_CONN_ID],
+                            "entities": [TEST_CONN_ID],
                         }
                     ]
                 },
@@ -845,8 +845,8 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "delete",
-                            "connection_ids": ["NOT_EXISTING_CONN_ID"],
-                            "action_on_existence": "skip",
+                            "entities": ["NOT_EXISTING_CONN_ID"],
+                            "action_on_non_existence": "skip",
                         }
                     ]
                 },
@@ -863,8 +863,8 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "delete",
-                            "connection_ids": ["NOT_EXISTING_CONN_ID"],
-                            "action_on_existence": "fail",
+                            "entities": ["NOT_EXISTING_CONN_ID"],
+                            "action_on_non_existence": "fail",
                         }
                     ]
                 },
@@ -886,7 +886,7 @@ class TestBulkConnections(TestConnectionEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "connections": [
+                            "entities": [
                                 {
                                     "connection_id": "NOT_EXISTING_CONN_ID",
                                     "conn_type": "NOT_EXISTING_CONN_TYPE",
@@ -896,19 +896,19 @@ class TestBulkConnections(TestConnectionEndpoint):
                         },
                         {
                             "action": "update",
-                            "connections": [
+                            "entities": [
                                 {
                                     "connection_id": TEST_CONN_ID,
                                     "conn_type": TEST_CONN_TYPE,
                                     "description": "new_description",
                                 }
                             ],
-                            "action_on_existence": "skip",
+                            "action_on_non_existence": "skip",
                         },
                         {
                             "action": "delete",
-                            "connection_ids": [TEST_CONN_ID],
-                            "action_on_existence": "skip",
+                            "entities": [TEST_CONN_ID],
+                            "action_on_non_existence": "skip",
                         },
                     ]
                 },

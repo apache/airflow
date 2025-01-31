@@ -77,6 +77,7 @@ class TaskInstanceHistory(Base):
     operator = Column(String(1000))
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
+    scheduled_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor = Column(String(1000))

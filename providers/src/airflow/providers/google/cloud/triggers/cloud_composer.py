@@ -169,6 +169,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: int = 10,
+        composer_airflow_version: int = 2,
     ):
         super().__init__()
         self.project_id = project_id
@@ -181,6 +182,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
+        self.composer_airflow_version = composer_airflow_version
 
         self.gcp_hook = CloudComposerAsyncHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -201,18 +203,24 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,
                 "poll_interval": self.poll_interval,
+                "composer_airflow_version": self.composer_airflow_version,
             },
         )
 
     async def _pull_dag_runs(self) -> list[dict]:
         """Pull the list of dag runs."""
+        cmd_parameters = (
+            ["-d", self.composer_dag_id, "-o", "json"]
+            if self.composer_airflow_version < 3
+            else [self.composer_dag_id, "-o", "json"]
+        )
         dag_runs_cmd = await self.gcp_hook.execute_airflow_command(
             project_id=self.project_id,
             region=self.region,
             environment_id=self.environment_id,
             command="dags",
             subcommand="list-runs",
-            parameters=["-d", self.composer_dag_id, "-o", "json"],
+            parameters=cmd_parameters,
         )
         cmd_result = await self.gcp_hook.wait_command_execution_result(
             project_id=self.project_id,
@@ -232,7 +240,9 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         for dag_run in dag_runs:
             if (
                 start_date.timestamp()
-                < parser.parse(dag_run["logical_date"]).timestamp()
+                < parser.parse(
+                    dag_run["execution_date" if self.composer_airflow_version < 3 else "logical_date"]
+                ).timestamp()
                 < end_date.timestamp()
             ) and dag_run["state"] not in self.allowed_states:
                 return False
