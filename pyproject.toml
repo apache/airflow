@@ -676,6 +676,7 @@ dev = [
   "apache-airflow-providers-jenkins",
   "apache-airflow-providers-pagerduty",
   "apache-airflow-providers-redis",
+  "apache-airflow-providers-salesforce",
   "apache-airflow-providers-sendgrid",
   "apache-airflow-providers-sftp",
   "apache-airflow-providers-slack",
@@ -762,6 +763,7 @@ apache-airflow-providers-pgvector = { workspace = true }
 apache-airflow-providers-presto = { workspace = true }
 apache-airflow-providers-qdrant = { workspace = true }
 apache-airflow-providers-redis = { workspace = true }
+apache-airflow-providers-salesforce = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-sendgrid = { workspace = true }
@@ -842,6 +844,7 @@ members = [
     "providers/presto",
     "providers/qdrant",
     "providers/redis",
+    "providers/salesforce",
     "providers/samba",
     "providers/segment",
     "providers/sendgrid",

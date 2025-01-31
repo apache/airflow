@@ -59,6 +59,7 @@ apache-airflow-providers-postgres
 apache-airflow-providers-presto
 apache-airflow-providers-qdrant
 apache-airflow-providers-redis
+apache-airflow-providers-salesforce
 apache-airflow-providers-samba
 apache-airflow-providers-segment
 apache-airflow-providers-sendgrid
