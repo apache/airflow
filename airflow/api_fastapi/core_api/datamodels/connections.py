@@ -22,7 +22,7 @@ import json
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.utils.log.secrets_masker import redact
 
 
@@ -76,7 +76,7 @@ class ConnectionTestResponse(BaseModel):
 
 
 # Request Models
-class ConnectionBody(BaseModel):
+class ConnectionBody(StrictBaseModel):
     """Connection Serializer for requests body."""
 
     connection_id: str = Field(serialization_alias="conn_id", max_length=200, pattern=r"^[\w.-]+$")

@@ -411,7 +411,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             map_index=map_index,
             date=None,
             run_id=run_id,
-            args=command,
+            args=list(command),
             pod_override_object=kube_executor_config,
             base_worker_pod=base_worker_pod,
             with_mutation_hook=True,
