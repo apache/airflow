@@ -137,7 +137,11 @@ class CustomOpLink(BaseOperatorLink):
 
     def get_link(self, operator, *, ti_key):
         search_query = XCom.get_one(
-            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
+            task_id=ti_key.task_id,
+            dag_id=ti_key.dag_id,
+            run_id=ti_key.run_id,
+            map_index=ti_key.map_index,
+            key="search_query",
         )
         if not search_query:
             return None
@@ -164,6 +168,19 @@ class CustomOperator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Hello World!")
         context["task_instance"].xcom_push(key="search_query", value="dummy_value")
+
+
+class MappedCustomOperator(BaseOperator):
+    operator_extra_links = (CustomOpLink(),)
+
+    def __init__(self, bash_command: Any, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bash_command = bash_command
+
+    def execute(self, context: Context):
+        pass
+        # self.log.info("Processing value: %s", self.bash_command)
+        # return f"Processed {self.bash_command}"
 
 
 class GoogleLink(BaseOperatorLink):

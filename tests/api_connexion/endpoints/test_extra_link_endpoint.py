@@ -34,7 +34,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.compat import BaseOperatorLink
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
-from tests.test_utils.mock_operators import CustomOperator
+from tests.test_utils.mock_operators import CustomOperator, MappedCustomOperator
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -99,6 +99,10 @@ class TestGetExtraLinks:
             CustomOperator(task_id="TEST_SINGLE_LINK", bash_command="TEST_LINK_VALUE")
             CustomOperator(
                 task_id="TEST_MULTIPLE_LINK", bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
+            )
+            # Mapped task expanded over a list of bash_commands
+            MappedCustomOperator.partial(task_id="TEST_MAPPED_TASK").expand(
+                bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
             )
         return dag
 
@@ -241,3 +245,32 @@ class TestGetExtraLinks:
                     "TEST_DAG_ID/TEST_SINGLE_LINK/2020-01-01T00%3A00%3A00%2B00%3A00"
                 ),
             } == response.json
+
+    @mock_plugin_manager(plugins=[])
+    def test_should_respond_200_mapped_task_instance(self):
+        map_index = 0
+        XCom.set(
+            key="search_query",
+            value="TEST_LINK_VALUE_1",
+            task_id="TEST_MAPPED_TASK",
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            map_index=map_index,
+        )
+        response = self.client.get(
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MAPPED_TASK/links?map_index=0",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_1"
+        }
+
+    @mock_plugin_manager(plugins=[])
+    def test_should_respond_404_invalid_map_index(self):
+        response = self.client.get(
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MAPPED_TASK/links?map_index=6",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+        assert response.json["detail"] == 'DAG Run with ID = "TEST_DAG_RUN_ID" not found'

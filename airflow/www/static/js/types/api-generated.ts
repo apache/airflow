@@ -638,6 +638,10 @@ export interface paths {
         /** The task ID. */
         task_id: components["parameters"]["TaskID"];
       };
+      query: {
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
+      };
     };
   };
   "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}": {
@@ -4741,6 +4745,10 @@ export interface operations {
         /** The task ID. */
         task_id: components["parameters"]["TaskID"];
       };
+      query: {
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
+      };
     };
     responses: {
       /** Success. */
@@ -5990,7 +5998,8 @@ export type GetXcomEntryVariables = CamelCasedPropertiesDeep<
     operations["get_xcom_entry"]["parameters"]["query"]
 >;
 export type GetExtraLinksVariables = CamelCasedPropertiesDeep<
-  operations["get_extra_links"]["parameters"]["path"]
+  operations["get_extra_links"]["parameters"]["path"] &
+    operations["get_extra_links"]["parameters"]["query"]
 >;
 export type GetLogVariables = CamelCasedPropertiesDeep<
   operations["get_log"]["parameters"]["path"] &
