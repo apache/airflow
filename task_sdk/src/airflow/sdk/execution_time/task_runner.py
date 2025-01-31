@@ -519,32 +519,31 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
             outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
             SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlets=inlets, outlets=outlets), log=log)  # type: ignore
-            msg = SUPERVISOR_COMMS.get_message()  # type: ignore
+            ok_response = SUPERVISOR_COMMS.get_message()  # type: ignore
+            if not isinstance(ok_response, OKResponse) or not ok_response.ok:
+                log.info("Runtime checks failed for task, marking task as failed..")
+                msg = TaskState(
+                    state=TerminalTIState.FAILED,
+                    end_date=datetime.now(tz=timezone.utc),
+                )
+                return
+        context = ti.get_template_context()
+        with set_current_context(context):
+            jinja_env = ti.task.dag.get_template_env()
+            ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
+            # TODO: Get things from _execute_task_with_callbacks
+            #   - Pre Execute
+            #   etc
+            result = _execute_task(context, ti.task)
 
-        if isinstance(msg, OKResponse) and not msg.ok:
-            log.info("Runtime checks failed for task, marking task as failed..")
-            msg = TaskState(
-                state=TerminalTIState.FAILED,
-                end_date=datetime.now(tz=timezone.utc),
-            )
-        else:
-            context = ti.get_template_context()
-            with set_current_context(context):
-                jinja_env = ti.task.dag.get_template_env()
-                ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
-                # TODO: Get things from _execute_task_with_callbacks
-                #   - Pre Execute
-                #   etc
-                result = _execute_task(context, ti.task)
+        _push_xcom_if_needed(result, ti)
 
-            _push_xcom_if_needed(result, ti)
-
-            task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
-            msg = SucceedTask(
-                end_date=datetime.now(tz=timezone.utc),
-                task_outlets=task_outlets,
-                outlet_events=outlet_events,
-            )
+        task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
+        msg = SucceedTask(
+            end_date=datetime.now(tz=timezone.utc),
+            task_outlets=task_outlets,
+            outlet_events=outlet_events,
+        )
     except TaskDeferred as defer:
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
@@ -610,8 +609,9 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         log.exception("Task failed with exception")
         # TODO: Run task failure callbacks here
         msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
-    if msg:
-        SUPERVISOR_COMMS.send_request(msg=msg, log=log)
+    finally:
+        if msg:
+            SUPERVISOR_COMMS.send_request(msg=msg, log=log)
 
 
 def _execute_task(context: Context, task: BaseOperator):
