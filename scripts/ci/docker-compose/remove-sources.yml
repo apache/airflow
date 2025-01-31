@@ -36,6 +36,8 @@ services:
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/apache/beam/src
       - ../../../empty:/opt/airflow/providers/apache/cassandra/src
+      - ../../../empty:/opt/airflow/providers/apache/drill/src
+      - ../../../empty:/opt/airflow/providers/apache/druid/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
       - ../../../empty:/opt/airflow/providers/apache/kafka/src
       - ../../../empty:/opt/airflow/providers/apache/kylin/src
@@ -52,12 +54,15 @@ services:
       - ../../../empty:/opt/airflow/providers/common/io/src
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/datadog/src
+      - ../../../empty:/opt/airflow/providers/dbt/cloud/src
       - ../../../empty:/opt/airflow/providers/discord/src
       - ../../../empty:/opt/airflow/providers/docker/src
       - ../../../empty:/opt/airflow/providers/edge/src
+      - ../../../empty:/opt/airflow/providers/elasticsearch/src
       - ../../../empty:/opt/airflow/providers/exasol/src
       - ../../../empty:/opt/airflow/providers/facebook/src
       - ../../../empty:/opt/airflow/providers/ftp/src
+      - ../../../empty:/opt/airflow/providers/github/src
       - ../../../empty:/opt/airflow/providers/hashicorp/src
       - ../../../empty:/opt/airflow/providers/http/src
       - ../../../empty:/opt/airflow/providers/imap/src
@@ -70,6 +75,7 @@ services:
       - ../../../empty:/opt/airflow/providers/openai/src
       - ../../../empty:/opt/airflow/providers/openfaas/src
       - ../../../empty:/opt/airflow/providers/openlineage/src
+      - ../../../empty:/opt/airflow/providers/opensearch/src
       - ../../../empty:/opt/airflow/providers/opsgenie/src
       - ../../../empty:/opt/airflow/providers/pagerduty/src
       - ../../../empty:/opt/airflow/providers/papermill/src

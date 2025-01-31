@@ -48,6 +48,8 @@ if TYPE_CHECKING:
 __lazy_imports: dict[str, str] = {
     "BaseOperator": ".definitions.baseoperator",
     "Connection": ".definitions.connection",
+    "Param": ".definitions.param",
+    "ParamsDict": ".definitions.param",
     "DAG": ".definitions.dag",
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",

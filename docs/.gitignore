@@ -4,6 +4,8 @@ apache-airflow-providers-airbyte
 apache-airflow-providers-alibaba
 apache-airflow-providers-apache-beam
 apache-airflow-providers-apache-cassandra
+apache-airflow-providers-apache-drill
+apache-airflow-providers-apache-druid
 apache-airflow-providers-apache-iceberg
 apache-airflow-providers-apache-kafka
 apache-airflow-providers-apache-kylin
@@ -20,12 +22,15 @@ apache-airflow-providers-common-compat
 apache-airflow-providers-common-io
 apache-airflow-providers-common-sql
 apache-airflow-providers-datadog
+apache-airflow-providers-dbt-cloud
 apache-airflow-providers-discord
 apache-airflow-providers-docker
 apache-airflow-providers-edge
+apache-airflow-providers-elasticsearch
 apache-airflow-providers-exasol
 apache-airflow-providers-facebook
 apache-airflow-providers-ftp
+apache-airflow-providers-github
 apache-airflow-providers-http
 apache-airflow-providers-influxdb
 apache-airflow-providers-mongo
@@ -35,6 +40,7 @@ apache-airflow-providers-imap
 apache-airflow-providers-neo4j
 apache-airflow-providers-openai
 apache-airflow-providers-openfaas
+apache-airflow-providers-opensearch
 apache-airflow-providers-opsgenie
 apache-airflow-providers-papermill
 apache-airflow-providers-pgvector
