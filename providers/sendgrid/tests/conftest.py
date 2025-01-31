@@ -14,37 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
----
-package-name: apache-airflow-providers-sendgrid
-name: Sendgrid
-description: |
-    `Sendgrid <https://sendgrid.com/>`__
+import pathlib
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - sendgrid>=6.0.0
+import pytest
 
-state: ready
-source-date-epoch: 1734536500
-# note that those versions are maintained by release manager - do not update them manually
-versions:
-  - 4.0.0
-  - 3.6.0
-  - 3.5.1
-  - 3.5.0
-  - 3.4.0
-  - 3.3.0
-  - 3.2.2
-  - 3.2.1
-  - 3.2.0
-  - 3.1.0
-  - 3.0.0
-  - 2.0.4
-  - 2.0.3
-  - 2.0.2
-  - 2.0.1
-  - 2.0.0
-  - 1.0.2
-  - 1.0.1
-  - 1.0.0
+pytest_plugins = "tests_common.pytest_plugin"
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:
+    deprecations_ignore_path = pathlib.Path(__file__).parent.joinpath("deprecations_ignore.yml")
+    dep_path = [deprecations_ignore_path] if deprecations_ignore_path.exists() else []
+    config.inicfg["airflow_deprecations_ignore"] = (
+        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
+    )

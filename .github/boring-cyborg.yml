@@ -304,7 +304,7 @@ labelPRBasedOnFilePath:
     - providers/segment/**
 
   provider:sendgrid:
-    - providers/segment/**
+    - providers/sendgrid/**
 
   provider:sftp:
     - providers/sftp/**
