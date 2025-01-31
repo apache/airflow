@@ -30,7 +30,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.edge.models.edge_worker import exit_maintenance, request_maintenance
 from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
@@ -122,6 +121,8 @@ class EdgeWorkerHosts(BaseView):
     @provide_session
     @csrf.exempt
     def worker_to_maintenance(self, worker_name: str, session: Session = NEW_SESSION):
+        from airflow.providers.edge.models.edge_worker import request_maintenance
+
         request_maintenance(worker_name, session)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
@@ -130,6 +131,8 @@ class EdgeWorkerHosts(BaseView):
     @provide_session
     @csrf.exempt
     def remove_worker_from_maintenance(self, worker_name: str, session: Session = NEW_SESSION):
+        from airflow.providers.edge.models.edge_worker import exit_maintenance
+
         exit_maintenance(worker_name, session)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
