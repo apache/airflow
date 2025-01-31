@@ -79,6 +79,7 @@ services:
       - ../../../empty:/opt/airflow/providers/openlineage/src
       - ../../../empty:/opt/airflow/providers/opensearch/src
       - ../../../empty:/opt/airflow/providers/opsgenie/src
+      - ../../../empty:/opt/airflow/providers/oracle/src
       - ../../../empty:/opt/airflow/providers/pagerduty/src
       - ../../../empty:/opt/airflow/providers/papermill/src
       - ../../../empty:/opt/airflow/providers/pgvector/src
