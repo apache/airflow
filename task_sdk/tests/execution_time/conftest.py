@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -65,16 +65,14 @@ def mocked_parse(spy_agency):
             )
     """
 
-    def set_dag(
-        what: StartupDetails, dag_id: str, task: BaseOperator, dag_params=None
-    ) -> RuntimeTaskInstance:
+    def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
         from airflow.sdk.definitions.dag import DAG
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
         from airflow.utils import timezone
 
         dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
-        if dag_params:
-            dag.params = dag_params
+        if what.ti_context.dag_run.conf:
+            dag.params = what.ti_context.dag_run.conf
         task.dag = dag
         t = dag.task_dict[task.task_id]
         ti = RuntimeTaskInstance.model_construct(
@@ -124,6 +122,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
         start_date: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         try_number: int = 1,
+        conf: dict[str, Any] = None,
         ti_id=None,
     ) -> RuntimeTaskInstance:
         if not ti_id:
@@ -137,6 +136,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
             data_interval_end=data_interval_end,
             start_date=start_date,
             run_type=run_type,
+            conf=conf,
         )
 
         startup_details = StartupDetails(

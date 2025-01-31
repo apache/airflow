@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import nullcontext
+
 import pytest
 
 from airflow.exceptions import ParamValidationError
@@ -232,6 +234,25 @@ class TestParam:
         assert isinstance(restored_param, Param)
         assert restored_param.description == param.description
         assert restored_param.schema == param.schema
+
+    @pytest.mark.parametrize(
+        "default, should_raise",
+        [
+            pytest.param({0, 1, 2}, True, id="default-non-JSON-serializable"),
+            pytest.param(None, False, id="default-None"),  # Param init should not warn
+            pytest.param({"b": 1}, False, id="default-JSON-serializable"),  # Param init should not warn
+        ],
+    )
+    def test_param_json_validation(self, default, should_raise):
+        exception_msg = "All provided parameters must be json-serializable"
+        cm = pytest.raises(ParamValidationError, match=exception_msg) if should_raise else nullcontext()
+        with cm:
+            p = Param(default=default)
+        if not should_raise:
+            p.resolve()  # when resolved with NOTSET, should not warn.
+            p.resolve(value={"a": 1})  # when resolved with JSON-serializable, should not warn.
+            with pytest.raises(ParamValidationError, match=exception_msg):
+                p.resolve(value={1, 2, 3})  # when resolved with not JSON-serializable, should warn.
 
 
 class TestParamsDict:
