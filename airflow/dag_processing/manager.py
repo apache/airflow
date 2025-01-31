@@ -35,6 +35,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from importlib import import_module
+from operator import itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
@@ -861,7 +862,7 @@ class DagFileProcessorManager:
         # Sort file paths via last modified time
         if is_mtime_mode:
             file_infos = [
-                info for info, ts in sorted(files_with_mtime.items(), key=lambda x: x[1], reverse=True)
+                info for info, ts in sorted(files_with_mtime.items(), key=itemgetter(1), reverse=True)
             ]
         elif list_mode == "alphabetical":
             file_infos.sort(key=lambda f: f.rel_path)
