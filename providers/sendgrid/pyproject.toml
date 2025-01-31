@@ -24,9 +24,9 @@ requires = ["flit_core==3.10.1"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "apache-airflow-providers-celery"
-version = "3.10.0"
-description = "Provider package apache-airflow-providers-celery for Apache Airflow"
+name = "apache-airflow-providers-sendgrid"
+version = "4.0.0"
+description = "Provider package apache-airflow-providers-sendgrid for Apache Airflow"
 readme = "README.rst"
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
@@ -34,7 +34,7 @@ authors = [
 maintainers = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
-keywords = [ "airflow-provider", "celery", "airflow", "integration" ]
+keywords = [ "airflow-provider", "sendgrid", "airflow", "integration" ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -56,24 +56,12 @@ requires-python = "~=3.9"
 # Any change in the dependencies is preserved when the file is regenerated
 dependencies = [
     "apache-airflow>=2.9.0",
-    # The Celery is known to introduce problems when upgraded to a MAJOR version. Airflow Core
-    # Uses Celery for CeleryExecutor, and we also know that Kubernetes Python client follows SemVer
-    # (https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions).
-    "celery[redis]>=5.4.0,<6",
-    "flower>=1.0.0",
-    "google-re2>=1.0",
-]
-
-# The optional dependencies should be modified in place in the generated file
-# Any change in the dependencies is preserved when the file is regenerated
-[project.optional-dependencies]
-"cncf.kubernetes" = [
-    "apache-airflow-providers-cncf-kubernetes>=7.4.0",
+    "sendgrid>=6.0.0",
 ]
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-celery/3.10.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-celery/3.10.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -81,10 +69,10 @@ dependencies = [
 "YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [project.entry-points."apache_airflow_provider"]
-provider_info = "airflow.providers.celery.get_provider_info:get_provider_info"
+provider_info = "airflow.providers.sendgrid.get_provider_info:get_provider_info"
 
 [tool.flit.module]
-name = "airflow.providers.celery"
+name = "airflow.providers.sendgrid"
 
 [tool.pytest.ini_options]
 ignore = "tests/system/"
