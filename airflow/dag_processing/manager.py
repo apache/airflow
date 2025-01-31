@@ -102,15 +102,9 @@ log = logging.getLogger("airflow.processor_manager")
 class DagFileInfo:
     """Information about a DAG file."""
 
-    rel_path: Path
+    path: str  # absolute path of the file
     bundle_name: str
     bundle_path: Path | None = field(compare=False, default=None)
-
-    @property
-    def absolute_path(self) -> Path:
-        if not self.bundle_path:
-            raise ValueError("bundle_path not set")
-        return self.bundle_path / self.rel_path
 
 
 def _config_int_factory(section: str, key: str):
@@ -247,9 +241,7 @@ class DagFileProcessorManager:
         elapsed_time_since_refresh = now - self._last_deactivate_stale_dags_time
         if elapsed_time_since_refresh > self.parsing_cleanup_interval:
             last_parsed = {
-                file_info: stat.last_finish_time
-                for file_info, stat in self._file_stats.items()
-                if stat.last_finish_time
+                fp: stat.last_finish_time for fp, stat in self._file_stats.items() if stat.last_finish_time
             }
             self.deactivate_stale_dags(last_parsed=last_parsed)
             self._last_deactivate_stale_dags_time = time.monotonic()
@@ -277,11 +269,14 @@ class DagFileProcessorManager:
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
-            file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
-            if last_finish_time := last_parsed.get(file_info, None):
-                if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
-                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
-                    to_deactivate.add(dag.dag_id)
+            dag_file_path = DagFileInfo(path=dag.fileloc, bundle_name=dag.bundle_name)
+            if (
+                dag_file_path in last_parsed
+                and (dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold))
+                < last_parsed[dag_file_path]
+            ):
+                self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
+                to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
             deactivated_dagmodel = session.execute(
@@ -488,30 +483,30 @@ class DagFileProcessorManager:
                         "Version changed for %s, new version: %s", bundle.name, version_after_refresh
                     )
 
-            found_file_infos = [
-                DagFileInfo(rel_path=p, bundle_name=bundle.name, bundle_path=bundle.path)
-                for p in self._find_files_in_bundle(bundle)
-            ]
+            bundle_file_paths = self._find_files_in_bundle(bundle)
 
             new_file_paths = [f for f in self._file_paths if f.bundle_name != bundle.name]
-            new_file_paths.extend(found_file_infos)
+            new_file_paths.extend(
+                DagFileInfo(path=path, bundle_path=bundle.path, bundle_name=bundle.name)
+                for path in bundle_file_paths
+            )
             self.set_file_paths(new_file_paths)
 
-            self.deactivate_deleted_dags(active_files=found_file_infos)
+            self.deactivate_deleted_dags(bundle_file_paths)
             self.clear_nonexistent_import_errors()
 
             self._bundle_versions[bundle.name] = bundle.get_current_version()
 
-    def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
-        """Get relative file paths from bundle dir."""
+    def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[str]:
+        """Refresh file paths from bundle dir."""
         # Build up a list of Python files that could contain DAGs
         self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
-        file_paths = [Path(x).relative_to(bundle.path) for x in list_py_file_paths(bundle.path)]
+        file_paths = list_py_file_paths(bundle.path)
         self.log.info("Found %s files for bundle %s", len(file_paths), bundle.name)
 
         return file_paths
 
-    def deactivate_deleted_dags(self, active_files: list[DagFileInfo]) -> None:
+    def deactivate_deleted_dags(self, file_paths: set[str]) -> None:
         """Deactivate DAGs that come from files that are no longer present."""
 
         def _iter_dag_filelocs(fileloc: str) -> Iterator[str]:
@@ -531,20 +526,10 @@ class DagFileProcessorManager:
             except zipfile.BadZipFile:
                 self.log.exception("There was an error accessing ZIP file %s %s", fileloc)
 
-        active_subpaths: set[tuple[str, str]] = set()
-        """
-        'subpath' here means bundle + modified rel path.  What does modified rel path mean?
-        Well, '_iter_dag_filelocs' walks through zip files and may return a "path" that is,
-        rel path to the zip, plus the rel path within the zip.  So, since this is is a bit different
-        from most uses of the word "rel path", I wanted to call it something different.
-        A set is used presumably since many dags can be in one file.
-        """
+        dag_filelocs = {full_loc for path in file_paths for full_loc in _iter_dag_filelocs(path)}
 
-        for info in active_files:
-            for path in _iter_dag_filelocs(str(info.absolute_path)):
-                active_subpaths.add((info.bundle_name, path))
-
-        DagModel.deactivate_deleted_dags(active_subpaths)
+        # TODO: AIP-66: make bundle aware, as fileloc won't be unique long term.
+        DagModel.deactivate_deleted_dags(dag_filelocs)
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed."""
@@ -568,8 +553,7 @@ class DagFileProcessorManager:
             if self._file_paths:
                 query = query.where(
                     tuple_(ParseImportError.filename, ParseImportError.bundle_name).notin_(
-                        # todo AIP-66: ParseImportError should have rel fileloce + bundle name
-                        [(str(f.absolute_path), f.bundle_name) for f in self._file_paths]
+                        [(f.path, f.bundle_name) for f in self._file_paths]
                     ),
                 )
 
@@ -614,7 +598,7 @@ class DagFileProcessorManager:
             proc = self._processors.get(file_path)
             num_dags = stat.num_dags
             num_errors = stat.import_errors
-            file_name = Path(file_path.rel_path).stem
+            file_name = Path(file_path.path).stem
             processor_pid = proc.pid if proc else None
             processor_start_time = proc.start_time if proc else None
             runtime = (now - processor_start_time) if processor_start_time else None
@@ -766,7 +750,7 @@ class DagFileProcessorManager:
             self._latest_log_symlink_date = datetime.today()
 
         bundle = next(b for b in self._dag_bundles if b.name == dag_file.bundle_name)
-        relative_path = Path(dag_file.rel_path)
+        relative_path = Path(dag_file.path).relative_to(bundle.path)
         return os.path.join(self._get_log_dir(), bundle.name, f"{relative_path}.log")
 
     def _get_logger_for_dag_file(self, dag_file: DagFileInfo):
@@ -784,7 +768,7 @@ class DagFileProcessorManager:
 
         return DagFileProcessorProcess.start(
             id=id,
-            path=dag_file.absolute_path,
+            path=dag_file.path,
             bundle_path=cast(Path, dag_file.bundle_path),
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
@@ -836,7 +820,7 @@ class DagFileProcessorManager:
         for file_path in self._file_paths:
             if is_mtime_mode:
                 try:
-                    files_with_mtime[file_path] = os.path.getmtime(file_path.absolute_path)
+                    files_with_mtime[file_path] = os.path.getmtime(file_path.path)
                 except FileNotFoundError:
                     self.log.warning("Skipping processing of missing file: %s", file_path)
                     self._file_stats.pop(file_path, None)
@@ -862,7 +846,7 @@ class DagFileProcessorManager:
         if is_mtime_mode:
             file_paths = sorted(files_with_mtime, key=files_with_mtime.get, reverse=True)
         elif list_mode == "alphabetical":
-            file_paths.sort(key=lambda f: f.rel_path)
+            file_paths.sort(key=lambda f: f.path)
         elif list_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
