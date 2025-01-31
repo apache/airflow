@@ -30,6 +30,7 @@ from airflow.www.app import create_app
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests_common.test_utils.www import client_with_login
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -106,3 +107,18 @@ def app(examples_dag_bag):
 
     for user_dict in test_users:
         delete_user(app, user_dict["username"])
+
+
+@pytest.fixture
+def user_client(app):
+    return client_with_login(app, username="test_user", password="test_user")
+
+
+@pytest.fixture
+def viewer_client(app):
+    return client_with_login(app, username="test_viewer", password="test_viewer")
+
+
+@pytest.fixture
+def admin_client(app):
+    return client_with_login(app, username="test_admin", password="test_admin")
