@@ -881,7 +881,7 @@ class TestDagFileProcessorManager:
         ]
 
         mybundle = MagicMock()
-        mybundle.name = "mybundle"
+        mybundle.name = "bundleone"
         mybundle.path = "/dev/null"
         mybundle.refresh_interval = 0
         mybundle.supports_versioning = True
@@ -890,13 +890,13 @@ class TestDagFileProcessorManager:
         with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
             with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundle_manager:
-                mock_bundle_manager.return_value._bundle_config = {"mybundle": None}
+                mock_bundle_manager.return_value._bundle_config = {"bundleone": None}
                 mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [mybundle]
                 manager = DagFileProcessorManager(max_runs=1)
                 manager.run()
 
         with create_session() as session:
-            model = session.get(DagBundleModel, "mybundle")
+            model = session.get(DagBundleModel, "bundleone")
             assert model.version == "123"
 
     def test_non_versioned_bundle_get_version_not_called(self):
@@ -923,7 +923,36 @@ class TestDagFileProcessorManager:
                 manager = DagFileProcessorManager(max_runs=1)
                 manager.run()
 
-        mybundle.get_current_version.assert_not_called()
+        with create_session() as session:
+            model = session.get(DagBundleModel, "bundleone")
+            assert model.version == "123"
+
+    def test_non_versioned_bundle_get_version_not_called(self):
+        config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+            },
+        ]
+
+        bundleone = MagicMock()
+        bundleone.name = "bundleone"
+        bundleone.refresh_interval = 0
+        bundleone.supports_versioning = False
+        bundleone.path = Path("/dev/null")
+
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
+            DagBundlesManager().sync_bundles_to_db()
+            with mock.patch(
+                "airflow.dag_processing.bundles.manager.DagBundlesManager"
+            ) as mock_bundle_manager:
+                mock_bundle_manager.return_value._bundle_config = {"bundleone": None}
+                mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [bundleone]
+                manager = DagFileProcessorManager(max_runs=1)
+                manager.run()
+
+        bundleone.get_current_version.assert_not_called()
 
     def test_versioned_bundle_get_version_called_once(self):
         """Make sure in a normal "warm" loop, get_current_version is called just once after refresha"""
@@ -936,11 +965,12 @@ class TestDagFileProcessorManager:
             },
         ]
 
-        mybundle = MagicMock()
-        mybundle.name = "bundleone"
-        mybundle.refresh_interval = 0
-        mybundle.supports_versioning = True
-        mybundle.get_current_version.return_value = "123"
+        bundleone = MagicMock()
+        bundleone.name = "bundleone"
+        bundleone.refresh_interval = 0
+        bundleone.supports_versioning = True
+        bundleone.get_current_version.return_value = "123"
+        bundleone.path = Path("/dev/null")
 
         with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
@@ -948,11 +978,11 @@ class TestDagFileProcessorManager:
                 "airflow.dag_processing.bundles.manager.DagBundlesManager"
             ) as mock_bundle_manager:
                 mock_bundle_manager.return_value._bundle_config = {"bundleone": None}
-                mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [mybundle]
+                mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [bundleone]
                 manager = DagFileProcessorManager(max_runs=1)
                 manager.run()  # run it once to warm up
 
                 # now run it again so we can check we only call get_current_version once
-                mybundle.get_current_version.reset_mock()
+                bundleone.get_current_version.reset_mock()
                 manager.run()
-                mybundle.get_current_version.assert_called_once()
+                bundleone.get_current_version.assert_called_once()
