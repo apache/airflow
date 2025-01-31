@@ -20,7 +20,11 @@ import { useDisclosure } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
-import { useDagServiceGetDagsKey, useDagServicePatchDag } from "openapi/queries";
+import {
+  UseDagServiceGetDagDetailsKeyFn,
+  useDagServiceGetDagsKey,
+  useDagServicePatchDag,
+} from "openapi/queries";
 import { useConfig } from "src/queries/useConfig";
 
 import { ConfirmationModal } from "./ConfirmationModal";
@@ -43,7 +47,7 @@ export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm }: Pr
     });
 
     await queryClient.invalidateQueries({
-      queryKey: [useDagServiceGetDagsKey],
+      queryKey: UseDagServiceGetDagDetailsKeyFn({ dagId }),
     });
   };
 
