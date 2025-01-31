@@ -76,10 +76,8 @@ export const Logs = () => {
     isLoading: isLoadingLogs,
   } = useLogs({
     dagId,
-    mapIndex,
-    runId,
-    taskId,
-    tryNumber: tryNumber ?? 1,
+    taskInstance,
+    tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });
 
   return (

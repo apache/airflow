@@ -31,6 +31,7 @@ import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
 import { TaskInstances } from "src/pages/Run/TaskInstances";
@@ -69,6 +70,10 @@ export const routerConfig = [
       {
         element: <Pools />,
         path: "pools",
+      },
+      {
+        element: <Providers />,
+        path: "providers",
       },
       {
         children: [

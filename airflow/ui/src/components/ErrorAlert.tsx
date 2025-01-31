@@ -23,7 +23,7 @@ import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/req
 import { Alert } from "./ui";
 
 type ExpandedApiError = {
-  body: HTTPExceptionResponse | HTTPValidationError;
+  body: HTTPExceptionResponse | HTTPValidationError | undefined;
 } & ApiError;
 
 type Props = {
@@ -37,7 +37,7 @@ export const ErrorAlert = ({ error: err }: Props) => {
     return undefined;
   }
 
-  const details = error.body.detail;
+  const details = error.body?.detail;
   let detailMessage;
 
   if (details !== undefined) {
