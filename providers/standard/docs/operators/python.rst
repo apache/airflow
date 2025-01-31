@@ -113,25 +113,6 @@ It can be used implicitly, such as with ``**kwargs``,
 but can also be used explicitly with ``get_current_context()``.
 In this case, the type hint can be used for static analysis.
 
-.. tab-set::
-
-    .. tab-item:: @task
-        :sync: taskflow
-
-        .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START get_current_context]
-            :end-before: [END get_current_context]
-
-    .. tab-item:: PythonOperator
-        :sync: operator
-
-        .. exampleinclude:: /../../airflow/example_dags/example_python_context_operator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START get_current_context]
-            :end-before: [END get_current_context]
 
 .. _howto/operator:PythonVirtualenvOperator:
 
