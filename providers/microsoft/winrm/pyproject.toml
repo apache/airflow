@@ -24,7 +24,7 @@ requires = ["flit_core==3.10.1"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "apache-airflow-microsoft-mssql"
+name = "apache-airflow-microsoft-winrm"
 version = "3.7.0"
 description = "Provider package apache-airflow-microsoft-winrm for Apache Airflow"
 readme = "README.rst"
