@@ -207,6 +207,12 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
         else:
             if run_state.is_successful:
                 log.info("%s completed successfully.", operator.task_id)
+            else:
+                error_message = (
+                    f"{operator.task_id} failed with terminal state: {run_state} "
+                    f"and with the error {run_state.state_message}"
+                )
+                raise AirflowException(error_message)
 
 
 def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) -> None:
