@@ -46,7 +46,8 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
 1. **(Recommended) Create and Activate a Virtual Environment**:
 
-   To avoid issues such as the `externally-managed-environment` error, particularly on modern Linux distributions like Ubuntu 22.04+ and Debian 12+, it is highly recommended to install Airflow inside a Python virtual environment. This approach prevents conflicts with system-level Python packages and ensures smooth installation.
+   To avoid issues such as the `externally-managed-environment` error, particularly on modern Linux distributions like Ubuntu 22.04+ and Debian 12+, it is highly recommended to install Airflow inside a Python virtual environment. This approach prevents conflicts with system-level Python packages and ensures smooth installation. For more details on this error, see the Python Packaging Authority's explanation in the `PEP 668 documentation <https://peps.python.org/pep-0668/>`_.
+  
 
    .. code-block:: bash
 
