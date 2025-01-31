@@ -50,22 +50,22 @@ def aioresponse():
 
 
 def get_airflow_connection(conn_id: str = "http_default"):
-    return Connection(conn_id=conn_id, conn_type="http", host="test:8080/", extra='{"bearer": "test"}')
+    return Connection(conn_id=conn_id, conn_type="HTTP", host="test:8080/", extra='{"bearer": "test"}')
 
 
 def get_airflow_connection_with_extra(extra: dict):
     def inner(conn_id: str = "http_default"):
-        return Connection(conn_id=conn_id, conn_type="http", host="test:8080/", extra=json.dumps(extra))
+        return Connection(conn_id=conn_id, conn_type="HTTP", host="test:8080/", extra=json.dumps(extra))
 
     return inner
 
 
 def get_airflow_connection_with_port(conn_id: str = "http_default"):
-    return Connection(conn_id=conn_id, conn_type="http", host="test.com", port=1234)
+    return Connection(conn_id=conn_id, conn_type="HTTP", host="test.com", port=1234)
 
 
 def get_airflow_connection_with_login_and_password(conn_id: str = "http_default"):
-    return Connection(conn_id=conn_id, conn_type="http", host="test.com", login="username", password="pass")
+    return Connection(conn_id=conn_id, conn_type="HTTP", host="test.com", login="username", password="pass")
 
 
 class CustomAuthBase(HTTPBasicAuth):
