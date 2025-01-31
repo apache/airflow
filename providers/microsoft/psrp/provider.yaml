@@ -49,10 +49,6 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - pypsrp>=0.8.0
-
 integrations:
   - integration-name: Windows PowerShell Remoting Protocol
     external-doc-url: https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/
