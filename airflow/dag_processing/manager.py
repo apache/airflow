@@ -35,7 +35,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from importlib import import_module
-from operator import itemgetter
+from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
@@ -865,7 +865,7 @@ class DagFileProcessorManager:
                 info for info, ts in sorted(files_with_mtime.items(), key=itemgetter(1), reverse=True)
             ]
         elif list_mode == "alphabetical":
-            file_infos.sort(key=lambda f: f.rel_path)
+            file_infos.sort(key=attrgetter("rel_path"))
         elif list_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
