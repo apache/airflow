@@ -48,6 +48,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
@@ -633,6 +634,17 @@ QueryTIExecutorFilter = Annotated[
 ]
 QueryTITaskDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
+]
+QueryTIDagVersionFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            DagVersion.version_number,
+            list[int],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+        )
+    ),
 ]
 
 # Assets
