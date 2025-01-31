@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from diagrams import Diagram, Edge
+from diagrams import Cluster, Diagram, Edge
 from diagrams.custom import Custom
 from diagrams.programming.flowchart import StartEnd
 from rich.console import Console
@@ -29,7 +29,7 @@ COMPONENT_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "component.
 CONDITION_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "condition.png").as_posix()
 SHARED_STATE_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "shared_state.png").as_posix()
 TERMINAL_STATE_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "terminal_state.png").as_posix()
-SENSOR_STATE = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "sensor_state.png").as_posix()
+SENSOR_STATE_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "sensor_state.png").as_posix()
 DEFERRABLE_STATE_IMG = (MY_DIR.parents[1] / "diagrams" / "task_lifecycle" / "deferrable_state.png").as_posix()
 
 STATE_NODE_ATTRS = {"width": "4.16", "height": "1", "fontname": "Monospace", "fontsize": "20"}
@@ -48,6 +48,7 @@ CONDITION_NODE_ATTRS = {
     "margin": "1.5,0.5",
 }
 START_NODE_ATTRS = {"width": "4", "height": "4", "fontname": "Sans-Serif", "fontsize": "28"}
+LEGEND_NODE_ATTRS = {"fontname": "Sans-Serif", "fontsize": "24", "labelloc": "t"}
 
 console = Console(width=400, color_system="standard")
 
@@ -91,7 +92,7 @@ def generate_task_lifecycle_diagram():
         state_queued = Custom("queued", SHARED_STATE_IMG, **STATE_NODE_ATTRS)
         state_deferred = Custom("deferred", DEFERRABLE_STATE_IMG, **STATE_NODE_ATTRS)
         state_running = Custom("running", SHARED_STATE_IMG, **STATE_NODE_ATTRS)
-        state_up_for_reschedule = Custom("up_for_reschedule", SENSOR_STATE, **STATE_NODE_ATTRS)
+        state_up_for_reschedule = Custom("up_for_reschedule", SENSOR_STATE_IMG, **STATE_NODE_ATTRS)
         state_restarting = Custom("restarting", SHARED_STATE_IMG, **STATE_NODE_ATTRS)
         state_up_for_retry = Custom("up_for_retry", SHARED_STATE_IMG, **STATE_NODE_ATTRS)
         state_failed = Custom("failed", TERMINAL_STATE_IMG, **STATE_NODE_ATTRS)
@@ -184,6 +185,26 @@ def generate_task_lifecycle_diagram():
         state_up_for_retry >> component_scheduler
         cond_task_complete_2 >> Edge(label="NO") >> state_running
         cond_task_complete_2 >> Edge(label="YES") >> state_success
+
+        with Cluster("", graph_attr={"margin": "40,40"}):
+            Custom("\n\nCondition", CONDITION_IMG, width="0.7", height="0.7", **LEGEND_NODE_ATTRS)
+            Custom(
+                "\n\nState for Deferrable Tasks",
+                DEFERRABLE_STATE_IMG,
+                width="3.2",
+                height="0.77",
+                **LEGEND_NODE_ATTRS,
+            )
+            Custom(
+                "\n\nState for Sensors",
+                SENSOR_STATE_IMG,
+                width="3.2",
+                height="0.77",
+                **LEGEND_NODE_ATTRS,
+            )
+            Custom("\n\nTerminal State", TERMINAL_STATE_IMG, width="3.2", height="0.77", **LEGEND_NODE_ATTRS)
+            Custom("\n\nShared State", SHARED_STATE_IMG, width="3.2", height="0.77", **LEGEND_NODE_ATTRS)
+            Custom("\n\nComponent", COMPONENT_IMG, width="2.53", height="0.77", **LEGEND_NODE_ATTRS)
 
     console.print(f"[green]Generating architecture image {image_file}")
 
