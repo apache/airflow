@@ -594,7 +594,7 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         commands = [
             ["rm -rf airflow/www/static/dist"],
             ["rm -rf airflow/www/node_modules"],
-            ["rm -rf airflow/ui/static/dist"],
+            ["rm -rf airflow/ui/dist"],
             ["rm -rf airflow/ui/node_modules"],
         ]
         for cmd in commands:
@@ -613,7 +613,7 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         ]
         for cmd in commands:
             run(cmd, cwd=work_dir.as_posix(), check=True, shell=True)
-        dist_path = work_dir / "airflow" / "ui" / "static" / "dist"
+        dist_path = work_dir / "airflow" / "ui" / "dist"
         return dist_path.resolve().as_posix()
 
     def get_git_version(self) -> str:

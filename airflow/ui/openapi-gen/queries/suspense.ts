@@ -564,7 +564,7 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
  * @param data.includeDownstream
  * @param data.root
  * @param data.externalDependencies
- * @param data.dagVersion
+ * @param data.versionNumber
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -575,35 +575,35 @@ export const useStructureServiceStructureDataSuspense = <
 >(
   {
     dagId,
-    dagVersion,
     externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
+    versionNumber,
   }: {
     dagId: string;
-    dagVersion?: number;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
+    versionNumber?: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, dagVersion, externalDependencies, includeDownstream, includeUpstream, root },
+      { dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber },
       queryKey,
     ),
     queryFn: () =>
       StructureService.structureData({
         dagId,
-        dagVersion,
         externalDependencies,
         includeDownstream,
         includeUpstream,
         root,
+        versionNumber,
       }) as TData,
     ...options,
   });

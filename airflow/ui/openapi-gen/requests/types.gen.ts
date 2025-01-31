@@ -1667,11 +1667,11 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type StructureDataData = {
   dagId: string;
-  dagVersion?: number | null;
   externalDependencies?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string | null;
+  versionNumber?: number | null;
 };
 
 export type StructureDataResponse2 = StructureDataResponse;
