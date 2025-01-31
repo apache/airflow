@@ -1178,11 +1178,10 @@ class TestKubernetesPodOperator:
             assert pod.metadata.name == normalized_name
             assert k.name == normalized_name
 
-    def test_name_validation_on_execution(self):
-        name_base = "name@extra"
-
+    @pytest.mark.parametrize("name", ["name@extra", "a" * 300], ids=["bad", "long"])
+    def test_name_validation_on_execution(self, name):
         k = KubernetesPodOperator(
-            name=name_base,
+            name=name,
             task_id="task",
         )
 
