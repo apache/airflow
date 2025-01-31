@@ -647,14 +647,58 @@ def test_run_with_asset_outlets(
     ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
+    mock_supervisor_comms.get_message.return_value = OKResponse(
+        ok=True,
+    )
 
     run(ti, log=mock.MagicMock())
 
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_msg, log=mock.ANY)
 
 
-def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
+@pytest.mark.parametrize(
+    ["ok", "last_expected_msg"],
+    [
+        pytest.param(
+            True,
+            SucceedTask(
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[
+                    AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
+                    AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+                ],
+                outlet_events=[
+                    {
+                        "asset_alias_events": [],
+                        "extra": {},
+                        "key": {"name": "name", "uri": "s3://bucket/my-task"},
+                    },
+                    {
+                        "asset_alias_events": [],
+                        "extra": {},
+                        "key": {"name": "new-name", "uri": "s3://bucket/my-task"},
+                    },
+                ],
+            ),
+            id="runtime_checks_pass",
+        ),
+        pytest.param(
+            False,
+            TaskState(
+                state=TerminalTIState.FAILED,
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+            ),
+            id="runtime_checks_fail",
+        ),
+    ],
+)
+def test_run_with_inlets_and_outlets(
+    create_runtime_ti, mock_supervisor_comms, time_machine, ok, last_expected_msg
+):
     """Test running a basic tasks with inlets and outlets."""
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
     from airflow.providers.standard.operators.bash import BashOperator
 
     task = BashOperator(
@@ -672,7 +716,7 @@ def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
 
     ti = create_runtime_ti(task=task, dag_id="dag_with_inlets_and_outlets")
     mock_supervisor_comms.get_message.return_value = OKResponse(
-        ok=True,
+        ok=ok,
     )
 
     run(ti, log=mock.MagicMock())
@@ -688,6 +732,7 @@ def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
         ],
     )
     mock_supervisor_comms.send_request.assert_any_call(msg=expected, log=mock.ANY)
+    mock_supervisor_comms.send_request.assert_any_call(msg=last_expected_msg, log=mock.ANY)
 
 
 class TestRuntimeTaskInstance:
