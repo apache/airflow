@@ -39,7 +39,7 @@ from uuid6 import uuid7
 from airflow.executors.workloads import BundleInfo
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
@@ -50,9 +50,11 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SucceedTask,
@@ -1010,6 +1012,25 @@ class TestHandleRequest:
                     data_interval_end=timezone.parse("2025-01-10T14:00:00Z"),
                 ),
                 id="get_prev_successful_dagrun",
+            ),
+            pytest.param(
+                RuntimeCheckOnTask(
+                    inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
+                    outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
+                ),
+                b'{"ok":true,"type":"OKResponse"}\n',
+                "task_instances.runtime_checks",
+                (),
+                {
+                    "id": TI_ID,
+                    "msg": RuntimeCheckOnTask(
+                        inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        type="RuntimeCheckOnTask",
+                    ),
+                },
+                OKResponse(ok=True),
+                id="runtime_check_on_task",
             ),
         ],
     )

@@ -77,7 +77,12 @@ class TestDagFileProcessor:
         self, file_path, callback_requests: list[CallbackRequest] | None = None
     ) -> DagFileParsingResult:
         return _parse_file(
-            DagFileParseRequest(file=file_path, requests_fd=1, callback_requests=callback_requests or []),
+            DagFileParseRequest(
+                file=file_path,
+                bundle_path=TEST_DAG_FOLDER,
+                requests_fd=1,
+                callback_requests=callback_requests or [],
+            ),
             log=structlog.get_logger(),
         )
 
@@ -185,7 +190,7 @@ def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
     _, w2 = socketpair()
 
     w.makefile("wb").write(
-        b'{"file":"/files/dags/wait.py","requests_fd":'
+        b'{"file":"/files/dags/wait.py","bundle_path":"/files/dags","requests_fd":'
         + str(w2.fileno()).encode("ascii")
         + b',"callback_requests": [{"full_filepath": "/files/dags/wait.py", '
         b'"msg": "task_failure", "dag_id": "wait_to_fail", "run_id": '
@@ -237,7 +242,8 @@ def test_parse_file_with_dag_callbacks(spy_agency):
         )
     ]
     _parse_file(
-        DagFileParseRequest(file="A", requests_fd=1, callback_requests=requests), log=structlog.get_logger()
+        DagFileParseRequest(file="A", bundle_path="no matter", requests_fd=1, callback_requests=requests),
+        log=structlog.get_logger(),
     )
 
     assert called is True
