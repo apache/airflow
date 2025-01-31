@@ -119,7 +119,7 @@ class DagBag(LoggingMixin):
 
     def __init__(
         self,
-        dag_folder: str | Path | None = None,  # todo AIP-66: rename this to path
+        dag_folder: str | Path | None = None,
         include_examples: bool | ArgNotSet = NOTSET,
         safe_mode: bool | ArgNotSet = NOTSET,
         read_dags_from_db: bool = False,
