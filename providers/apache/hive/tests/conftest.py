@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,26 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from unittest.mock import patch
+import pathlib
 
 import pytest
 
-from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
-
-from providers.tests.apache.hive import DEFAULT_DATE, MockHiveMetastoreHook, TestHiveEnvironment
+pytest_plugins = "tests_common.pytest_plugin"
 
 
-@pytest.mark.skipif(
-    "AIRFLOW_RUNALL_TESTS" not in os.environ, reason="Skipped because AIRFLOW_RUNALL_TESTS is not set"
-)
-@patch(
-    "airflow.providers.apache.hive.sensors.hive_partition.HiveMetastoreHook",
-    side_effect=MockHiveMetastoreHook,
-)
-class TestHivePartitionSensor(TestHiveEnvironment):
-    def test_hive_partition_sensor(self, mock_hive_metastore_hook):
-        op = HivePartitionSensor(
-            task_id="hive_partition_check", table="airflow.static_babynames_partitioned", dag=self.dag
-        )
-        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:
+    deprecations_ignore_path = pathlib.Path(__file__).parent.joinpath("deprecations_ignore.yml")
+    dep_path = [deprecations_ignore_path] if deprecations_ignore_path.exists() else []
+    config.inicfg["airflow_deprecations_ignore"] = (
+        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
+    )

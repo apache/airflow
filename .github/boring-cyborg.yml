@@ -53,10 +53,7 @@ labelPRBasedOnFilePath:
     - providers/tests/apache/hdfs/**/*
 
   provider:apache-hive:
-    - providers/src/airflow/providers/apache/hive/**/*
-    - docs/apache-airflow-providers-apache-hive/**/*
-    - providers/tests/apache/hive/**/*
-    - providers/tests/system/apache/hive/**/*
+    - providers/apache/hive/**
 
   provider:apache-iceberg:
     - providers/apache/iceberg/**
