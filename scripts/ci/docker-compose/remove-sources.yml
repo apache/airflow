@@ -84,6 +84,7 @@ services:
       - ../../../empty:/opt/airflow/providers/postgres/src
       - ../../../empty:/opt/airflow/providers/presto/src
       - ../../../empty:/opt/airflow/providers/qdrant/src
+      - ../../../empty:/opt/airflow/providers/redis/src
       - ../../../empty:/opt/airflow/providers/samba/src
       - ../../../empty:/opt/airflow/providers/segment/src
       - ../../../empty:/opt/airflow/providers/sendgrid/src
@@ -91,6 +92,7 @@ services:
       - ../../../empty:/opt/airflow/providers/singularity/src
       - ../../../empty:/opt/airflow/providers/slack/src
       - ../../../empty:/opt/airflow/providers/snowflake/src
+      - ../../../empty:/opt/airflow/providers/sqlite/src
       - ../../../empty:/opt/airflow/providers/ssh/src
       - ../../../empty:/opt/airflow/providers/standard/src
       - ../../../empty:/opt/airflow/providers/tableau/src

@@ -27,9 +27,8 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from redis import Redis
-
     from airflow.models import TaskInstance
+    from redis import Redis
 
 
 class RedisTaskHandler(FileTaskHandler, LoggingMixin):

@@ -91,6 +91,7 @@ services:
       - ../../../providers/postgres/tests:/opt/airflow/providers/postgres/tests
       - ../../../providers/presto/tests:/opt/airflow/providers/presto/tests
       - ../../../providers/qdrant/tests:/opt/airflow/providers/qdrant/tests
+      - ../../../providers/redis/tests:/opt/airflow/providers/redis/tests
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
       - ../../../providers/sendgrid/tests:/opt/airflow/providers/sendgrid/tests
@@ -98,6 +99,7 @@ services:
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
       - ../../../providers/slack/tests:/opt/airflow/providers/slack/tests
       - ../../../providers/snowflake/tests:/opt/airflow/providers/snowflake/tests
+      - ../../../providers/sqlite/tests:/opt/airflow/providers/sqlite/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests
       - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
       - ../../../providers/tableau/tests:/opt/airflow/providers/tableau/tests

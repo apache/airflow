@@ -54,12 +54,14 @@ apache-airflow-providers-pinecone
 apache-airflow-providers-postgres
 apache-airflow-providers-presto
 apache-airflow-providers-qdrant
+apache-airflow-providers-redis
 apache-airflow-providers-samba
 apache-airflow-providers-segment
 apache-airflow-providers-sendgrid
 apache-airflow-providers-sftp
 apache-airflow-providers-singularity
 apache-airflow-providers-slack
+apache-airflow-providers-sqlite
 apache-airflow-providers-ssh
 apache-airflow-providers-snowflake
 apache-airflow-providers-standard
