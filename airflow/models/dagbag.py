@@ -473,7 +473,6 @@ class DagBag(LoggingMixin):
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
         top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
-
         top_level_dags.update(DagContext.autoregistered_dags)
 
         DagContext.current_autoregister_module_name = None
@@ -481,24 +480,48 @@ class DagBag(LoggingMixin):
 
         found_dags = []
 
+        # Process each DAG independently
         for dag, mod in top_level_dags:
-            dag.fileloc = mod.__file__
-            if self.bundle_path:
-                dag.relative_fileloc = str(Path(mod.__file__).relative_to(self.bundle_path))
-            else:
-                dag.relative_fileloc = dag.fileloc
             try:
-                dag.validate()
-                self.bag_dag(dag=dag)
-            except AirflowClusterPolicySkipDag:
-                pass
-            except Exception as e:
-                self.log.exception("Failed to bag_dag: %s", dag.fileloc)
-                self.import_errors[dag.fileloc] = f"{type(e).__name__}: {e}"
-                self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
-            else:
+                # Set file location information
+                dag.fileloc = mod.__file__
+                if self.bundle_path:
+                    dag.relative_fileloc = str(Path(mod.__file__).relative_to(self.bundle_path))
+                else:
+                    dag.relative_fileloc = dag.fileloc
+
+                # Process single DAG in isolation
+                self._process_single_dag(dag, file_last_changed_on_disk)
                 found_dags.append(dag)
+            except Exception as e:
+                # Log error but continue processing other DAGs
+                self.log.exception("Failed to process DAG %s: %s", dag.dag_id if hasattr(dag, 'dag_id') else '<unknown>', str(e))
+                self.import_errors[getattr(dag, 'fileloc', filepath)] = f"{type(e).__name__}: {e}"
+                continue
+
         return found_dags
+
+    def _process_single_dag(self, dag, file_last_changed_on_disk):
+        """Process a single DAG object independently of others."""
+        try:
+            # Validate the DAG
+            dag.validate()
+
+            # Try to bag the DAG
+            self.bag_dag(dag=dag)
+
+            # Update file change timestamp
+            self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
+
+        except AirflowClusterPolicySkipDag:
+            # Skip this DAG but don't treat as error
+            raise
+        except Exception as e:
+            # Capture any errors specific to this DAG
+            self.log.exception("Failed to bag DAG '%s': %s", dag.dag_id, str(e))
+            self.import_errors[dag.fileloc] = f"{type(e).__name__}: {e}"
+            self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
+            raise
 
     def bag_dag(self, dag: DAG):
         """
