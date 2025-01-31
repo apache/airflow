@@ -295,31 +295,39 @@ class RuntimeTaskInstance(TaskInstance):
         Make an XCom available for tasks to pull.
 
         :param key: Key to store the value under.
-        :param value: Value to store. Only be JSON-serializable may be used otherwise.
+        :param value: Value to store. Only be JSON-serializable values may be used.
         """
-        from airflow.models.xcom import XCom
-
-        # TODO: Move XCom serialization & deserialization to Task SDK
-        #   https://github.com/apache/airflow/issues/45231
-        value = XCom.serialize_value(value)
-
-        log = structlog.get_logger(logger_name="task")
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=SetXCom(
-                key=key,
-                value=value,
-                dag_id=self.dag_id,
-                task_id=self.task_id,
-                run_id=self.run_id,
-            ),
-        )
+        _xcom_push(self, key, value)
 
     def get_relevant_upstream_map_indexes(
         self, upstream: BaseOperator, ti_count: int | None, session: Any
     ) -> int | range | None:
         # TODO: Implement this method
         return None
+
+
+def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
+    # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
+    # consumers
+    from airflow.models.xcom import XCom
+
+    # TODO: Move XCom serialization & deserialization to Task SDK
+    #   https://github.com/apache/airflow/issues/45231
+    value = XCom.serialize_value(value)
+
+    log = structlog.get_logger(logger_name="task")
+    SUPERVISOR_COMMS.send_request(
+        log=log,
+        msg=SetXCom(
+            key=key,
+            value=value,
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            mapped_length=mapped_length,
+        ),
+    )
 
 
 def parse(what: StartupDetails) -> RuntimeTaskInstance:
@@ -645,9 +653,24 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
     else:
         xcom_value = None
 
-    # If the task returns a result, push an XCom containing it.
+    is_mapped = next(ti.task.iter_mapped_dependants(), None) is not None or ti.task.is_mapped
+
     if xcom_value is None:
+        if is_mapped:
+            # Uhoh, a downstream mapped task depends on us to push something to map over
+            from airflow.sdk.exceptions import XComForMappingNotPushed
+
+            raise XComForMappingNotPushed()
         return
+
+    mapped_length: int | None = None
+    if is_mapped:
+        from airflow.sdk.definitions.mappedoperator import is_mappable_value
+        from airflow.sdk.exceptions import UnmappableXComTypePushed
+
+        if not is_mappable_value(xcom_value):
+            raise UnmappableXComTypePushed(xcom_value)
+        mapped_length = len(xcom_value)
 
     # If the task has multiple outputs, push each output as a separate XCom.
     if ti.task.multiple_outputs:
@@ -665,7 +688,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
             ti.xcom_push(k, v)
 
     # TODO: Use constant for XCom return key & use serialize_value from Task SDK
-    ti.xcom_push("return_value", result)
+    _xcom_push(ti, "return_value", result, mapped_length=mapped_length)
 
 
 def finalize(log: Logger): ...
