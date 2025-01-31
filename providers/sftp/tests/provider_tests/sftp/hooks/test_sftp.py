@@ -27,15 +27,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import paramiko
 import pytest
-from asyncssh import SFTPAttrs, SFTPNoSuchFile
-from asyncssh.sftp import SFTPName
-from paramiko.client import SSHClient
-from paramiko.sftp_client import SFTPClient
-
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
 from airflow.utils.session import provide_session
+from asyncssh import SFTPAttrs, SFTPNoSuchFile
+from asyncssh.sftp import SFTPName
+from paramiko.client import SSHClient
+from paramiko.sftp_client import SFTPClient
 
 pytestmark = pytest.mark.db_test
 
@@ -109,17 +108,14 @@ class TestSFTPHook:
 
     @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
     def test_get_close_conn(self, mock_get_conn):
-        # Mock SSHClient and SFTPClient
         mock_sftp_client = MagicMock(spec=SFTPClient)
         mock_ssh_client = MagicMock(spec=SSHClient)
         mock_ssh_client.open_sftp.return_value = mock_sftp_client
         mock_get_conn.return_value = mock_ssh_client
 
-        # Call the method under test
         with SFTPHook().get_conn() as conn:
             assert conn == mock_sftp_client
 
-        # Assert that the connection was closed
         mock_sftp_client.close.assert_called_once()
 
     def test_describe_directory(self):
@@ -390,20 +386,17 @@ class TestSFTPHook:
         assert dirs == [os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR)]
         assert unknowns == [os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS)]
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
-    def test_connection_failure(self, mock_get_connection):
-        connection = Connection(
-            login="login",
-            host="host",
+    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
+    def test_connection_failure(self, mock_get_conn):
+        mock_ssh_client = MagicMock(spec=SSHClient)
+        type(mock_ssh_client.open_sftp.return_value).normalize = mock.PropertyMock(
+            side_effect=Exception("Connection Error")
         )
-        mock_get_connection.return_value = connection
-        with mock.patch.object(SFTPHook, "get_conn") as get_conn:
-            type(get_conn.return_value).normalize = mock.PropertyMock(
-                side_effect=Exception("Connection Error")
-            )
+        mock_get_conn.return_value = mock_ssh_client
 
-            hook = SFTPHook()
-            status, msg = hook.test_connection()
+        hook = SFTPHook()
+        status, msg = hook.test_connection()
+
         assert status is False
         assert msg == "Connection Error"
 
@@ -414,13 +407,16 @@ class TestSFTPHook:
             (lambda arg: RuntimeError("Test connection failed")),
         ],
     )
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_conn")
+    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
     def test_context_manager(self, mock_get_conn, test_connection_side_effect):
-        ssh_conn = MagicMock(spec=SSHClient)
-        mock_get_conn.return_value = ssh_conn
-        sftp_conn = MagicMock(spec=SFTPClient)
-        ssh_conn.open_sftp.return_value = sftp_conn
-        sftp_conn.normalize.side_effect = test_connection_side_effect
+        mock_sftp_client = MagicMock(spec=SFTPClient)
+        mock_ssh_client = MagicMock(spec=SSHClient)
+        mock_ssh_client.open_sftp.return_value = mock_sftp_client
+        mock_get_conn.return_value = mock_ssh_client
+
+        type(mock_sftp_client.normalize.return_value).normalize = mock.PropertyMock(
+            side_effect=test_connection_side_effect
+        )
 
         hook = SFTPHook()
         if isinstance(test_connection_side_effect, RuntimeError):
@@ -432,8 +428,8 @@ class TestSFTPHook:
             assert status is True
             assert msg == "Connection successfully tested"
 
-        ssh_conn.open_sftp.assert_called_once()
-        sftp_conn.close.assert_called()
+        mock_ssh_client.open_sftp.assert_called_once()
+        mock_sftp_client.close.assert_called()
 
     def test_get_suffix_pattern_match(self):
         output = self.hook.get_file_by_pattern(self.temp_dir, "*.txt")
