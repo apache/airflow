@@ -1081,16 +1081,18 @@ class TestDag:
         dag.clear()
         self._clean_up(dag_id)
 
-    def test_dag_is_deactivated_upon_dagfile_deletion(self, dag_maker):
+    def test_dag_is_deactivated_upon_dagfile_deletion(self):
         dag_id = "old_existing_dag"
-        with dag_maker(dag_id, schedule=None, is_paused_upon_creation=True) as dag:
-            ...
+        dag_fileloc = "/usr/local/airflow/dags/non_existing_path.py"
+        dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
+        dag.fileloc = dag_fileloc
         session = settings.Session()
         dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
         assert orm_dag.is_active
+        assert orm_dag.fileloc == dag_fileloc
 
         DagModel.deactivate_deleted_dags(list_py_file_paths(settings.DAGS_FOLDER))
 

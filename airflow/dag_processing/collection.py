@@ -210,7 +210,6 @@ def _serialize_dag_capturing_errors(
     except Exception:
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
         dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
-        # todo AIP-66: this needs to use bundle name / rel fileloc instead
         return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
 
 

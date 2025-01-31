@@ -24,7 +24,7 @@ import logging
 import sys
 import time
 from collections import defaultdict
-from collections.abc import Collection, Generator, Iterable, Sequence
+from collections.abc import Collection, Container, Generator, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
@@ -2241,25 +2241,25 @@ class DagModel(Base):
     @provide_session
     def deactivate_deleted_dags(
         cls,
-        active: set[tuple[str, str]],
+        alive_dag_filelocs: Container[str],
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
-        :param active_paths: file paths of alive DAGs
+        :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
         dag_models = session.scalars(
             select(cls).where(
-                cls.relative_fileloc.is_not(None),
+                cls.fileloc.is_not(None),
             )
         )
 
-        for dm in dag_models:
-            if (dm.bundle_name, dm.relative_fileloc) not in active:
-                dm.is_active = False
+        for dag_model in dag_models:
+            if dag_model.fileloc not in alive_dag_filelocs:
+                dag_model.is_active = False
 
     @classmethod
     def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:
