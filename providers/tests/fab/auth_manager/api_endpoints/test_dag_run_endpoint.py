@@ -22,8 +22,8 @@ import pytest
 
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
-from airflow.models.param import Param
 from airflow.providers.fab.www.security import permissions
+from airflow.sdk.definitions.param import Param
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState

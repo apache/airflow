@@ -37,6 +37,7 @@ from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, Te
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
 from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     GetXCom,
@@ -86,6 +87,16 @@ class RuntimeTaskInstance(TaskInstance):
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
 
+        dag_run_conf = None
+        if (
+            self._ti_context_from_server
+            and self._ti_context_from_server.dag_run
+            and self._ti_context_from_server.dag_run.conf
+        ):
+            dag_run_conf = self._ti_context_from_server.dag_run.conf
+
+        validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
+
         # TODO: Assess if we need to it through airflow.utils.timezone.coerce_datetime()
         context: Context = {
             # From the Task Execution interface
@@ -102,7 +113,7 @@ class RuntimeTaskInstance(TaskInstance):
             "outlet_events": OutletEventAccessors(),
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
             "macros": MacrosAccessor(),
-            # "params": validated_params,
+            "params": validated_params,
             # TODO: Make this go through Public API longer term.
             # "test_mode": task_instance.test_mode,
             # "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
