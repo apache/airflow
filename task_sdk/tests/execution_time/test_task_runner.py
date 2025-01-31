@@ -67,6 +67,7 @@ from airflow.sdk.execution_time.task_runner import (
     CommsDecoder,
     RuntimeTaskInstance,
     _push_xcom_if_needed,
+    _xcom_push,
     parse,
     run,
     startup,
@@ -1089,16 +1090,16 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
 
         spy_agency.spy_on(_push_xcom_if_needed, call_original=True)
-        spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
+        spy_agency.spy_on(_xcom_push, call_original=False)
 
         run(runtime_ti, log=mock.MagicMock())
 
         spy_agency.assert_spy_called(_push_xcom_if_needed)
 
         if should_push_xcom:
-            spy_agency.assert_spy_called_with(runtime_ti.xcom_push, "return_value", expected_xcom_value)
+            spy_agency.assert_spy_called_with(_xcom_push, runtime_ti, "return_value", expected_xcom_value)
         else:
-            spy_agency.assert_spy_not_called(runtime_ti.xcom_push)
+            spy_agency.assert_spy_not_called(_xcom_push)
 
     def test_xcom_with_multiple_outputs(self, create_runtime_ti, spy_agency):
         """Test that the task pushes to XCom when multiple outputs are returned."""
@@ -1114,7 +1115,7 @@ class TestXComAfterTaskExecution:
 
         runtime_ti = create_runtime_ti(task=task)
 
-        spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
+        spy_agency.spy_on(_xcom_push, call_original=False)
         _push_xcom_if_needed(result=result, ti=runtime_ti)
 
         expected_calls = [
@@ -1122,9 +1123,9 @@ class TestXComAfterTaskExecution:
             ("key2", "value2"),
             ("return_value", result),
         ]
-        spy_agency.assert_spy_call_count(runtime_ti.xcom_push, len(expected_calls))
+        spy_agency.assert_spy_call_count(_xcom_push, len(expected_calls))
         for key, value in expected_calls:
-            spy_agency.assert_spy_called_with(runtime_ti.xcom_push, key, value)
+            spy_agency.assert_spy_called_with(_xcom_push, runtime_ti, key, value, mapped_length=None)
 
     def test_xcom_with_multiple_outputs_and_no_mapping_result(self, create_runtime_ti, spy_agency):
         """Test that error is raised when multiple outputs are returned without mapping."""
