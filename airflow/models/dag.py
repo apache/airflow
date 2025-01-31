@@ -1666,6 +1666,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         s.try_number += 1
                     s.state = TaskInstanceState.SCHEDULED
+                    s.scheduled_dttm = timezone.utcnow()
                 session.commit()
                 # triggerer may mark tasks scheduled so we read from DB
                 all_tis = set(dr.get_task_instances(session=session))

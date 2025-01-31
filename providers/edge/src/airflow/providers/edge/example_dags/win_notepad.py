@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.param import Param
+from airflow.sdk import Param
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

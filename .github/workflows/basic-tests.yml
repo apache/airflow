@@ -85,7 +85,7 @@ jobs:
       - run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
         working-directory: ./dev/breeze/
   tests-ui:
-    timeout-minutes: 10
+    timeout-minutes: 15
     name: React UI tests
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     if: inputs.run-ui-tests == 'true'
@@ -115,7 +115,7 @@ jobs:
         with:
           path: airflow/ui/node_modules/
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
-        id: restore-eslint-cache
+        id: restore-eslint-cache-ui
       - run: cd airflow/ui && pnpm install --frozen-lockfile
       - run: cd airflow/ui && pnpm test
         env:
@@ -127,7 +127,29 @@ jobs:
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
           if-no-files-found: 'error'
           retention-days: '2'
-        if: steps.restore-eslint-cache.outputs.stash-hit != 'true'
+        if: steps.restore-eslint-cache-ui.outputs.stash-hit != 'true'
+      - name: "Restore eslint cache (simple auth manager UI)"
+        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          path: airflow/auth/managers/simple/ui/node_modules/
+          key: >
+            cache-simple-am-ui-node-modules-v1-
+            ${{ runner.os }}-${{ hashFiles('airflow/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
+        id: restore-eslint-cache-simple-am-ui
+      - run: cd airflow/auth/managers/simple/ui && pnpm install --frozen-lockfile
+      - run: cd airflow/auth/managers/simple/ui && pnpm test
+        env:
+          FORCE_COLOR: 2
+      - name: "Save eslint cache (ui)"
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          path: airflow/auth/managers/simple/ui/node_modules/
+          key: >
+            cache-simple-am-ui-node-modules-v1-
+            ${{ runner.os }}-${{ hashFiles('airflow/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
+          if-no-files-found: 'error'
+          retention-days: '2'
+        if: steps.restore-eslint-cache-simple-am-ui.outputs.stash-hit != 'true'
 
   tests-www:
     timeout-minutes: 10
