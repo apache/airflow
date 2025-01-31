@@ -21,8 +21,7 @@ import { Button, createListCollection, HStack, VStack, Heading } from "@chakra-u
 import { useTaskInstanceServiceGetMappedTaskInstanceTries } from "openapi/queries";
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { useConfig } from "src/queries/useConfig";
-import { isStatePending } from "src/utils/refresh";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
 import { Select } from "./ui";
@@ -43,7 +42,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
     try_number: finalTryNumber,
   } = taskInstance;
 
-  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: tiHistory } = useTaskInstanceServiceGetMappedTaskInstanceTries(
     {
@@ -59,7 +58,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
         // We actually want to use || here
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) || isStatePending(state)
-          ? autoRefreshInterval * 1000
+          ? refetchInterval
           : false,
     },
   );
