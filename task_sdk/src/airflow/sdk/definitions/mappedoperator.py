@@ -72,10 +72,10 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.types import Operator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.utils.context import Context

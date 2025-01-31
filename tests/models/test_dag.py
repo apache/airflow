@@ -64,7 +64,6 @@ from airflow.models.dag import (
 )
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
-from airflow.models.param import DagParam, Param
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
@@ -74,6 +73,7 @@ from airflow.sdk import TaskGroup
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
+from airflow.sdk.definitions.param import DagParam, Param
 from airflow.security import permissions
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
@@ -159,7 +159,7 @@ def _create_dagrun(
     triggered_by_kwargs: dict = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     run_id = dag.timetable.generate_run_id(
         run_type=run_type,
-        logical_date=logical_date,
+        logical_date=logical_date,  # type: ignore
         data_interval=data_interval,
     )
     return dag.create_dagrun(
