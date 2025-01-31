@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-31T02:17:02.611597
+# This constraints file was automatically generated on 2025-01-31T07:51:00.031457
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -133,7 +133,7 @@ cachetools==5.5.1
 cassandra-driver==3.29.2
 cattrs==24.1.2
 celery==5.4.0
-certifi==2024.12.14
+certifi==2025.1.31
 cffi==1.17.1
 cfn-lint==1.23.1
 cgroupspy==0.2.3
