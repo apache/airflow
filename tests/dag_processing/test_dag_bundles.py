@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import tempfile
 from pathlib import Path
@@ -155,18 +156,7 @@ class TestGitHook:
                 host="path/to/repo",
                 conn_type="git",
                 extra={
-                    "private_key": "inline/key",
-                },
-            )
-        )
-        db.merge_conn(
-            Connection(
-                conn_id=CONN_BOTH_PATH_INLINE,
-                host="path/to/repo",
-                conn_type="git",
-                extra={
-                    "key_file": "path/to/key",
-                    "private_key": "inline/key",
+                    "private_key": "inline_key",
                 },
             )
         )
@@ -204,14 +194,50 @@ class TestGitHook:
         }
 
     def test_given_both_private_key_and_key_file(self):
+        db.merge_conn(
+            Connection(
+                conn_id=CONN_BOTH_PATH_INLINE,
+                host="path/to/repo",
+                conn_type="git",
+                extra={
+                    "key_file": "path/to/key",
+                    "private_key": "inline_key",
+                },
+            )
+        )
+
         with pytest.raises(
             AirflowException, match="Both 'key_file' and 'private_key' cannot be provided at the same time"
         ):
             GitHook(git_conn_id=CONN_BOTH_PATH_INLINE)
 
-    def test_only_inline_connection_has_tmp_keyfile(self):
+    def test_key_file_git_hook_has_env(self):
+        hook = GitHook(git_conn_id=CONN_ONLY_PATH)
+
+        assert hasattr(hook, "env")
+        assert hook.env == {
+            "GIT_SSH_COMMAND": "ssh -i path/to/key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+        }
+
+    def test_private_key_lazy_env_var(self):
         hook = GitHook(git_conn_id=CONN_ONLY_INLINE_KEY)
-        assert hook.tmp_keyfile is not None
+        assert hook.env == {}
+
+        hook.set_git_env("dummy_inline_key")
+        assert hook.env == {
+            "GIT_SSH_COMMAND": "ssh -i dummy_inline_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+        }
+
+    def test_setup_inline_key(self):
+        hook = GitHook(git_conn_id=CONN_ONLY_INLINE_KEY)
+        assert hasattr(hook, "private_key")
+
+        hook.set_git_env("dummy_inline_key")
+
+        with hook.setup_inline_key() as tmp_keyfile:
+            assert os.path.exists(tmp_keyfile)
+
+        assert not os.path.exists(tmp_keyfile)
 
 
 class TestGitDagBundle:
