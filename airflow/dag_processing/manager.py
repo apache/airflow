@@ -828,23 +828,23 @@ class DagFileProcessorManager:
         list_mode = conf.get("dag_processor", "file_parsing_sort_mode")
 
         files_with_mtime: dict[str, datetime] = {}
-        file_paths = []
+        file_infos: list[DagFileInfo] = []
         is_mtime_mode = list_mode == "modified_time"
 
         file_paths_recently_processed = []
         file_paths_to_stop_watching = set()
-        for file_path in self._file_paths:
+        for f_info in self._file_paths:
             if is_mtime_mode:
                 try:
-                    files_with_mtime[file_path] = os.path.getmtime(file_path.absolute_path)
+                    files_with_mtime[f_info] = os.path.getmtime(f_info.absolute_path)
                 except FileNotFoundError:
-                    self.log.warning("Skipping processing of missing file: %s", file_path)
-                    self._file_stats.pop(file_path, None)
-                    file_paths_to_stop_watching.add(file_path)
+                    self.log.warning("Skipping processing of missing file: %s", f_info)
+                    self._file_stats.pop(f_info, None)
+                    file_paths_to_stop_watching.add(f_info)
                     continue
-                file_modified_time = datetime.fromtimestamp(files_with_mtime[file_path], tz=timezone.utc)
+                file_modified_time = datetime.fromtimestamp(files_with_mtime[f_info], tz=timezone.utc)
             else:
-                file_paths.append(file_path)
+                file_infos.append(f_info)
                 file_modified_time = None
 
             # Find file paths that were recently processed to exclude them
@@ -852,41 +852,37 @@ class DagFileProcessorManager:
             # unless they were modified recently and parsing mode is "modified_time"
             # in which case we don't honor "self._file_process_interval" (min_file_process_interval)
             if (
-                (last_finish_time := self._file_stats[file_path].last_finish_time) is not None
+                (last_finish_time := self._file_stats[f_info].last_finish_time) is not None
                 and (now - last_finish_time).total_seconds() < self._file_process_interval
                 and not (is_mtime_mode and file_modified_time and (file_modified_time > last_finish_time))
             ):
-                file_paths_recently_processed.append(file_path)
+                file_paths_recently_processed.append(f_info)
 
         # Sort file paths via last modified time
         if is_mtime_mode:
-            file_paths = sorted(files_with_mtime, key=files_with_mtime.get, reverse=True)
+            file_infos = sorted(files_with_mtime, key=files_with_mtime.get, reverse=True)
         elif list_mode == "alphabetical":
-            file_paths.sort(key=lambda f: f.rel_path)
+            file_infos.sort(key=lambda f: f.rel_path)
         elif list_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
-            random.Random(get_hostname()).shuffle(file_paths)
+            random.Random(get_hostname()).shuffle(file_infos)
 
         if file_paths_to_stop_watching:
-            self.set_file_paths(
-                [path for path in self._file_paths if path not in file_paths_to_stop_watching]
-            )
+            self.set_file_paths([p for p in self._file_paths if p not in file_paths_to_stop_watching])
 
         files_paths_at_run_limit = [
-            file_path for file_path, stat in self._file_stats.items() if stat.run_count == self.max_runs
+            info for info, stat in self._file_stats.items() if stat.run_count == self.max_runs
         ]
 
-        file_paths_to_exclude = file_paths_in_progress.union(
+        to_exclude = file_paths_in_progress.union(
             file_paths_recently_processed,
             files_paths_at_run_limit,
         )
 
         # Do not convert the following list to set as set does not preserve the order
         # and we need to maintain the order of file_paths for `[dag_processor] file_parsing_sort_mode`
-        files_paths_to_queue = [
-            file_path for file_path in file_paths if file_path not in file_paths_to_exclude
-        ]
+        to_queue = [x for x in file_infos if x not in to_exclude]
 
         if self.log.isEnabledFor(logging.DEBUG):
             for path, processor in self._processors.items():
@@ -896,9 +892,9 @@ class DagFileProcessorManager:
 
             self.log.debug(
                 "Queuing the following files for processing:\n\t%s",
-                "\n\t".join(f.path for f in files_paths_to_queue),
+                "\n\t".join(str(f.rel_path) for f in to_queue),
             )
-        self._add_paths_to_queue(files_paths_to_queue, False)
+        self._add_paths_to_queue(to_queue, False)
         Stats.incr("dag_processing.file_path_queue_update_count")
 
     def _kill_timed_out_processors(self):
