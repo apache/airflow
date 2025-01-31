@@ -35,6 +35,35 @@
 Changelog
 ---------
 
+0.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Start porting mapped task to SDK (#45627)``
+* ``AIP-72: Add support for 'get_current_context' in Task SDK (#45486)``
+* ``AIP-72: Add Taskflow API support & template rendering in Task SDK (#45444)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove import from MySQL provider tests in generic transfer test (#46274)``
+* ``Fix failures on main related to DagRun validation (#45917)``
+
+Misc
+~~~~
+
+* ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Remove code for deprecation of Context keys (#45585)``
+* ``AIP-72: Move non-user facing code to '_internal' (#45515)``
+* ``Move Literal alias into TYPE_CHECKING block (#45345)``
+* ``Remove tuple_in_condition helpers (#45201)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.0.3
 .....
 
