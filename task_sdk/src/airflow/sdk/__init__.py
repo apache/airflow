@@ -33,7 +33,7 @@ __all__ = [
     "get_parsing_context",
 ]
 
-__version__ = "1.0.0.dev1"
+__version__ = "1.0.0.alpha1"
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.baseoperator import BaseOperator
@@ -48,6 +48,8 @@ if TYPE_CHECKING:
 __lazy_imports: dict[str, str] = {
     "BaseOperator": ".definitions.baseoperator",
     "Connection": ".definitions.connection",
+    "Param": ".definitions.param",
+    "ParamsDict": ".definitions.param",
     "DAG": ".definitions.dag",
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",

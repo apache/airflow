@@ -47,7 +47,6 @@ from airflow.models.expandinput import (
     create_expand_input,
     get_map_type_key,
 )
-from airflow.models.param import Param, ParamsDict
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers_manager import ProvidersManager
@@ -64,6 +63,7 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
@@ -985,7 +985,7 @@ class BaseSerialization:
                 class_identity = f"{v.__module__}.{v.__class__.__name__}"
             except AttributeError:
                 class_identity = ""
-            if class_identity == "airflow.models.param.Param":
+            if class_identity == "airflow.sdk.definitions.param.Param":
                 serialized_params.append((k, cls._serialize_param(v)))
             else:
                 # Auto-box other values into Params object like it is done by DAG parsing as well

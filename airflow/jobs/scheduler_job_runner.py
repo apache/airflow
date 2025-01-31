@@ -837,7 +837,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 if info is not None:
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
-                cls.logger().error(msg)
                 session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
 
                 # Get task from the Serialized DAG
@@ -850,6 +849,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
                 ti.task = task
                 if task.on_retry_callback or task.on_failure_callback:
+                    # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
+                    # too, which would lead to double logging
+                    cls.logger().error(msg)
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
                         ti=ti,
