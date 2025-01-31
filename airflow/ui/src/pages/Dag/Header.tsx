@@ -18,6 +18,7 @@
  */
 import { Box, Flex, Heading, HStack, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
 import { FiBookOpen, FiCalendar } from "react-icons/fi";
+import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
@@ -33,14 +34,16 @@ import { DagTags } from "../DagsList/DagTags";
 
 export const Header = ({
   dag,
-  dagId,
+  dagWithRuns,
   isRefreshing,
 }: {
-  readonly dag?: DAGDetailsResponse & DAGWithLatestDagRunsResponse;
-  readonly dagId?: string;
+  readonly dag?: DAGDetailsResponse;
+  readonly dagWithRuns?: DAGWithLatestDagRunsResponse;
   readonly isRefreshing?: boolean;
 }) => {
-  const latestRun = dag?.latest_dag_runs ? dag.latest_dag_runs[0] : undefined;
+  // We would still like to show the dagId even if the dag object hasn't loaded yet
+  const { dagId } = useParams();
+  const latestRun = dagWithRuns?.latest_dag_runs ? dagWithRuns.latest_dag_runs[0] : undefined;
 
   return (
     <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
@@ -97,11 +100,11 @@ export const Header = ({
             ) : undefined}
           </Stat>
           <Stat label="Next Run">
-            {Boolean(dag?.next_dagrun) && dag !== undefined ? (
+            {Boolean(dagWithRuns?.next_dagrun) ? (
               <DagRunInfo
-                dataIntervalEnd={dag.next_dagrun_data_interval_end}
-                dataIntervalStart={dag.next_dagrun_data_interval_start}
-                nextDagrunCreateAfter={dag.next_dagrun_create_after}
+                dataIntervalEnd={dagWithRuns?.next_dagrun_data_interval_end}
+                dataIntervalStart={dagWithRuns?.next_dagrun_data_interval_start}
+                nextDagrunCreateAfter={dagWithRuns?.next_dagrun_create_after}
               />
             ) : undefined}
           </Stat>

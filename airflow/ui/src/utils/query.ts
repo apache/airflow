@@ -34,10 +34,12 @@ export const isStatePending = (state?: TaskInstanceState | null) =>
 
 export type PartialQueryKey = { baseKey: string; options?: Record<string, unknown> };
 
-export const doQueriesMatch = (query: Query, queriesToMatch: Array<PartialQueryKey>) => {
+// This allows us to specify what query key values we actually care about and ignore the rest
+// ex: match everything with this dagId and dagRunId but ignore anything related to pagination
+export const doQueryKeysMatch = (query: Query, queryKeysToMatch: Array<PartialQueryKey>) => {
   const [baseKey, options] = query.queryKey;
 
-  const matchedKey = queriesToMatch.find((qk) => qk.baseKey === baseKey);
+  const matchedKey = queryKeysToMatch.find((qk) => qk.baseKey === baseKey);
 
   if (!matchedKey) {
     return false;

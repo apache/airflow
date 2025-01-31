@@ -19,7 +19,6 @@
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useDagsServiceRecentDagRuns } from "openapi/queries";
-import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -66,20 +65,8 @@ export const Dag = () => {
   return (
     <DetailsLayout dag={dag} error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={tabs}>
       <Header
-        dag={
-          dag
-            ? ({
-                ...dag,
-                // We only need to refresh latest runs and next run
-                latest_dag_runs: dagWithRuns?.latest_dag_runs,
-                next_dagrun: dagWithRuns?.next_dagrun,
-                next_dagrun_create_after: dagWithRuns?.next_dagrun_create_after,
-                next_dagrun_data_interval_end: dagWithRuns?.next_dagrun_data_interval_end,
-                next_dagrun_data_interval_start: dagWithRuns?.next_dagrun_data_interval_start,
-              } as DAGDetailsResponse & DAGWithLatestDagRunsResponse)
-            : undefined
-        }
-        dagId={dagId}
+        dag={dag}
+        dagWithRuns={dagWithRuns}
         isRefreshing={Boolean(
           dagWithRuns?.latest_dag_runs.some((dr) => isStatePending(dr.state)) && Boolean(refetchInterval),
         )}
