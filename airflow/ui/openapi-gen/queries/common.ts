@@ -359,12 +359,14 @@ export const useStructureServiceStructureDataKey = "StructureServiceStructureDat
 export const UseStructureServiceStructureDataKeyFn = (
   {
     dagId,
+    dagVersion,
     externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
   }: {
     dagId: string;
+    dagVersion?: number;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
@@ -373,7 +375,7 @@ export const UseStructureServiceStructureDataKeyFn = (
   queryKey?: Array<unknown>,
 ) => [
   useStructureServiceStructureDataKey,
-  ...(queryKey ?? [{ dagId, externalDependencies, includeDownstream, includeUpstream, root }]),
+  ...(queryKey ?? [{ dagId, dagVersion, externalDependencies, includeDownstream, includeUpstream, root }]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills>

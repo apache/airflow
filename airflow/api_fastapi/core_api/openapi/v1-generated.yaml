@@ -258,6 +258,14 @@ paths:
           type: boolean
           default: false
           title: External Dependencies
+      - name: dag_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Dag Version
       responses:
         '200':
           description: Successful Response
@@ -4426,7 +4434,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/XComCollection'
+                $ref: '#/components/schemas/XComCollectionResponse'
         '401':
           content:
             application/json:
@@ -6773,6 +6781,7 @@ components:
           type: integer
           title: Max Active Runs
           default: 10
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -6910,6 +6919,7 @@ components:
             - $ref: '#/components/schemas/BulkDeleteAction_ConnectionBody_'
           type: array
           title: Actions
+      additionalProperties: false
       type: object
       required:
       - actions
@@ -6924,6 +6934,7 @@ components:
             - $ref: '#/components/schemas/BulkDeleteAction_PoolBody_'
           type: array
           title: Actions
+      additionalProperties: false
       type: object
       required:
       - actions
@@ -6938,6 +6949,7 @@ components:
             - $ref: '#/components/schemas/BulkDeleteAction_VariableBody_'
           type: array
           title: Actions
+      additionalProperties: false
       type: object
       required:
       - actions
@@ -6956,6 +6968,7 @@ components:
         action_on_existence:
           $ref: '#/components/schemas/BulkActionOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6975,6 +6988,7 @@ components:
         action_on_existence:
           $ref: '#/components/schemas/BulkActionOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -6994,6 +7008,7 @@ components:
         action_on_existence:
           $ref: '#/components/schemas/BulkActionOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7013,6 +7028,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7032,6 +7048,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7051,6 +7068,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7103,6 +7121,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7122,6 +7141,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7141,6 +7161,7 @@ components:
         action_on_non_existence:
           $ref: '#/components/schemas/BulkActionNotOnExistence'
           default: fail
+      additionalProperties: false
       type: object
       required:
       - action
@@ -7211,6 +7232,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: ClearTaskInstancesBody
       description: Request body for Clear Task Instances endpoint.
@@ -7221,6 +7243,7 @@ components:
             $ref: '#/components/schemas/ConfigSection'
           type: array
           title: Sections
+      additionalProperties: false
       type: object
       required:
       - sections
@@ -7241,6 +7264,7 @@ components:
             maxItems: 2
             minItems: 2
           title: Value
+      additionalProperties: false
       type: object
       required:
       - key
@@ -7343,6 +7367,7 @@ components:
             $ref: '#/components/schemas/ConfigOption'
           type: array
           title: Options
+      additionalProperties: false
       type: object
       required:
       - name
@@ -7394,6 +7419,7 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+      additionalProperties: false
       type: object
       required:
       - connection_id
@@ -7733,6 +7759,7 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
+      additionalProperties: false
       type: object
       required:
       - is_paused
@@ -7880,6 +7907,7 @@ components:
           type: boolean
           title: Only Failed
           default: false
+      additionalProperties: false
       type: object
       title: DAGRunClearBody
       description: DAG Run serializer for clear endpoint body.
@@ -7911,6 +7939,7 @@ components:
             maxLength: 1000
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       title: DAGRunPatchBody
       description: DAG Run Serializer for PATCH requests.
@@ -8121,6 +8150,7 @@ components:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      additionalProperties: false
       type: object
       title: DAGRunsBatchBody
       description: List DAG Runs body for batch endpoint.
@@ -8405,6 +8435,7 @@ components:
           type: string
           format: date-time
           title: Data Interval End
+      additionalProperties: false
       type: object
       required:
       - run_id
@@ -8468,6 +8499,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -9128,6 +9160,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: PatchTaskInstanceBody
       description: Request body for Clear Task Instances endpoint.
@@ -9233,6 +9266,7 @@ components:
           type: boolean
           title: Include Deferred
           default: false
+      additionalProperties: false
       type: object
       required:
       - name
@@ -9277,6 +9311,7 @@ components:
           - type: boolean
           - type: 'null'
           title: Include Deferred
+      additionalProperties: false
       type: object
       title: PoolPatchBody
       description: Pool serializer for patch bodies.
@@ -9608,6 +9643,12 @@ components:
             format: date-time
           - type: 'null'
           title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
         pid:
           anyOf:
           - type: integer
@@ -9642,6 +9683,7 @@ components:
       - priority_weight
       - operator
       - queued_when
+      - scheduled_when
       - pid
       - executor
       - executor_config
@@ -9735,6 +9777,12 @@ components:
             format: date-time
           - type: 'null'
           title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
         pid:
           anyOf:
           - type: integer
@@ -9793,6 +9841,7 @@ components:
       - priority_weight
       - operator
       - queued_when
+      - scheduled_when
       - pid
       - executor
       - executor_config
@@ -9994,6 +10043,7 @@ components:
           - type: string
           - type: 'null'
           title: Order By
+      additionalProperties: false
       type: object
       title: TaskInstancesBatchBody
       description: Task Instance body for get batch.
@@ -10029,6 +10079,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -10254,6 +10305,7 @@ components:
           - type: string
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.
@@ -10339,6 +10391,7 @@ components:
           - type: string
           - type: 'null'
           title: Description
+      additionalProperties: false
       type: object
       required:
       - key
@@ -10401,7 +10454,7 @@ components:
       - git_version
       title: VersionInfo
       description: Version information serializer for responses.
-    XComCollection:
+    XComCollectionResponse:
       properties:
         xcom_entries:
           items:
@@ -10415,8 +10468,8 @@ components:
       required:
       - xcom_entries
       - total_entries
-      title: XComCollection
-      description: List of XCom items.
+      title: XComCollectionResponse
+      description: XCom Collection serializer for responses.
     XComResponse:
       properties:
         key:
