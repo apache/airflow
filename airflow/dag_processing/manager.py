@@ -827,7 +827,7 @@ class DagFileProcessorManager:
         # Sort the file paths by the parsing order mode
         list_mode = conf.get("dag_processor", "file_parsing_sort_mode")
 
-        files_with_mtime: dict[str, datetime] = {}
+        files_with_mtime: dict[DagFileInfo, datetime] = {}
         file_infos: list[DagFileInfo] = []
         is_mtime_mode = list_mode == "modified_time"
 
@@ -860,7 +860,9 @@ class DagFileProcessorManager:
 
         # Sort file paths via last modified time
         if is_mtime_mode:
-            file_infos = sorted(files_with_mtime, key=files_with_mtime.get, reverse=True)
+            file_infos = [
+                info for info, ts in sorted(files_with_mtime.items(), key=lambda x: x[1], reverse=True)
+            ]
         elif list_mode == "alphabetical":
             file_infos.sort(key=lambda f: f.rel_path)
         elif list_mode == "random_seeded_by_host":
