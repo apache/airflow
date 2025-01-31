@@ -180,6 +180,7 @@ exclude = [
 ]
 artifacts = [
     "/airflow/www/static/dist/",
+    "/airflow/ui/dist/",
     "/airflow/git_version",
     "/generated/",
 ]
@@ -190,6 +191,7 @@ include = [
 ]
 artifacts = [
     "/airflow/www/static/dist/",
+    "/airflow/ui/dist/",
     "/airflow/git_version"
 ]
 
