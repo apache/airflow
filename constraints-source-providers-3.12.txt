@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-31T13:53:44.493990
+# This constraints file was automatically generated on 2025-01-31T19:50:33.725638
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -298,7 +298,7 @@ influxdb-client==1.48.0
 iniconfig==2.0.0
 ipdb==0.13.13
 ipykernel==6.29.5
-ipython==8.31.0
+ipython==8.32.0
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
@@ -382,7 +382,7 @@ nh3==0.2.20
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.60.2
+openai==1.61.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.27.0
