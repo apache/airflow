@@ -44,7 +44,7 @@ a single integer argument, val_out. This can be represented with the following
 call using :class:`~airflow.providers.oracle.operators.oracle.OracleStoredProcedureOperator`
 with parameters passed positionally as a list:
 
-.. exampleinclude:: /../../providers/src/airflow/providers/oracle/example_dags/example_oracle.py
+.. exampleinclude:: /../../providers/oracle/src/airflow/providers/oracle/example_dags/example_oracle.py
     :language: python
     :start-after: [START howto_oracle_stored_procedure_operator_with_list_inout]
     :end-before: [END howto_oracle_stored_procedure_operator_with_list_inout]
@@ -53,7 +53,7 @@ with parameters passed positionally as a list:
 Alternatively, parameters can be passed as keyword arguments using a dictionary
 as well.
 
-.. exampleinclude:: /../../providers/src/airflow/providers/oracle/example_dags/example_oracle.py
+.. exampleinclude:: /../../providers/oracle/src/airflow/providers/oracle/example_dags/example_oracle.py
     :language: python
     :start-after: [START howto_oracle_stored_procedure_operator_with_dict_inout]
     :end-before: [END howto_oracle_stored_procedure_operator_with_dict_inout]
