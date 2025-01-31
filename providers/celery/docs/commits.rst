@@ -34,14 +34,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.11.0
+......
+
+Latest change: 2025-01-31
+
+=================================================================================================  ===========  ===================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================
+`984c61d287 <https://github.com/apache/airflow/commit/984c61d2871167056cc727c82b7ee5d3acf9d54a>`_  2025-01-31   ``Swap CeleryExecutor over to use TaskSDK for execution. (#46265)``
+=================================================================================================  ===========  ===================================================================
+
 3.10.0
 ......
 
-Latest change: 2025-01-25
+Latest change: 2025-01-26
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`1018627243 <https://github.com/apache/airflow/commit/1018627243b46c33a9df03bd10fa78b23eff95d3>`_  2025-01-26   ``Prepare docs for ad hoc release celery provider Jan 2025 (rc2) (#46055)``
 `29b9e8ea10 <https://github.com/apache/airflow/commit/29b9e8ea10de7a82ad40a7a2160c64a84004a45e>`_  2025-01-25   ``move standard, alibaba and common.sql provider to the new structure (#45964)``
 `4545ea42ef <https://github.com/apache/airflow/commit/4545ea42efd034686ff26788c6b729ed0a69e358>`_  2025-01-23   ``Prepare docs for ad hoc release celery provider Jan 2025 (#45942)``
 `4dda6ba8c0 <https://github.com/apache/airflow/commit/4dda6ba8c01912db2c2a6518dacd062b10ebf1e0>`_  2025-01-23   ``Move new provider tests to "provider_tests" submodule (#45955)``
