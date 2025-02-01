@@ -280,10 +280,7 @@ labelPRBasedOnFilePath:
     - providers/redis/**
 
   provider:salesforce:
-    - providers/src/airflow/providers/salesforce/**/*
-    - docs/apache-airflow-providers-salesforce/**/*
-    - providers/tests/salesforce/**/*
-    - providers/tests/system/salesforce/**/*
+    - providers/salesforce/**
 
   provider:samba:
     - providers/samba/**

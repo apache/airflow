@@ -175,7 +175,7 @@ Misc
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix SalesforceHook compatiblity with Pandas 2.x (#35145)``
+* ``Fix SalesforceHook compatibility with Pandas 2.x (#35145)``
 
 
 .. Below changes are excluded from the changelog. Move them to

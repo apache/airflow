@@ -96,6 +96,7 @@ services:
       - ../../../providers/presto/tests:/opt/airflow/providers/presto/tests
       - ../../../providers/qdrant/tests:/opt/airflow/providers/qdrant/tests
       - ../../../providers/redis/tests:/opt/airflow/providers/redis/tests
+      - ../../../providers/salesforce/tests:/opt/airflow/providers/salesforce/tests
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
       - ../../../providers/sendgrid/tests:/opt/airflow/providers/sendgrid/tests
