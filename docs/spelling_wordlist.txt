@@ -91,6 +91,8 @@ asciiart
 asctime
 asend
 asia
+AspectType
+AspectTypes
 assertEqualIgnoreMultipleSpaces
 AssetEvent
 AssetEvents
