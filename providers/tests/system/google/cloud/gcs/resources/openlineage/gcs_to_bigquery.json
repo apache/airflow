@@ -1,0 +1,44 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "gcs_to_bigquery_operator.gcs_to_bigquery_example"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "gcs_to_bigquery_operator.gcs_to_bigquery_example"
+        },
+        "inputs": [
+            {
+                "namespace": "gs://cloud-samples-data",
+                "name": "bigquery/us-states/us-states.csv"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_gcs_to_bigquery_operator_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "post_abbr",
+                                "type": "STRING"
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+]

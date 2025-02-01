@@ -1,20 +1,8 @@
 [
     {
         "eventType": "START",
-        "eventTime": "{{ is_datetime(result) }}",
-        "run": {
-            "runId": "{{ is_uuid(result) }}"
-        },
         "job": {
-            "namespace": "default",
-            "name": "gcs_upload_download.upload_file",
-            "facets": {
-                "jobType": {
-                    "integration": "AIRFLOW",
-                    "jobType": "TASK",
-                    "processingType": "BATCH"
-                }
-            }
+            "name": "gcs_upload_download.upload_file"
         },
         "inputs": [
             {
@@ -31,20 +19,8 @@
     },
     {
         "eventType": "COMPLETE",
-        "eventTime": "{{ is_datetime(result) }}",
-        "run": {
-            "runId": "{{ is_uuid(result) }}"
-        },
         "job": {
-            "namespace": "default",
-            "name": "gcs_upload_download.upload_file",
-            "facets": {
-                "jobType": {
-                    "integration": "AIRFLOW",
-                    "jobType": "TASK",
-                    "processingType": "BATCH"
-                }
-            }
+            "name": "gcs_upload_download.upload_file"
         },
         "inputs": [
             {
@@ -61,20 +37,9 @@
     },
     {
         "eventType": "START",
-        "eventTime": "{{ is_datetime(result) }}",
-        "run": {
-            "runId": "{{ is_uuid(result) }}"
-        },
         "job": {
             "namespace": "default",
-            "name": "gcs_upload_download.download_file",
-            "facets": {
-                "jobType": {
-                    "integration": "AIRFLOW",
-                    "jobType": "TASK",
-                    "processingType": "BATCH"
-                }
-            }
+            "name": "gcs_upload_download.download_file"
         },
         "inputs": [
             {
@@ -89,23 +54,10 @@
             }
         ]
     },
-
     {
         "eventType": "COMPLETE",
-        "eventTime": "{{ is_datetime(result) }}",
-        "run": {
-            "runId": "{{ is_uuid(result) }}"
-        },
         "job": {
-            "namespace": "default",
-            "name": "gcs_upload_download.download_file",
-            "facets": {
-                "jobType": {
-                    "integration": "AIRFLOW",
-                    "jobType": "TASK",
-                    "processingType": "BATCH"
-                }
-            }
+            "name": "gcs_upload_download.download_file"
         },
         "inputs": [
             {
