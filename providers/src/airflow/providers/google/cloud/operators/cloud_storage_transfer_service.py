@@ -21,9 +21,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from copy import deepcopy
-from datetime import date, time
-from typing import TYPE_CHECKING
+from datetime import date, time, timedelta
+from typing import TYPE_CHECKING, Any
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
@@ -63,6 +64,9 @@ from airflow.providers.google.cloud.links.cloud_storage_transfer import (
     CloudStorageTransferListLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service import (
+    CloudStorageTransferServiceCheckJobStatusTrigger,
+)
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
@@ -908,6 +912,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
     :param aws_role_arn: Optional AWS role ARN for workload identity federation. This will
         override the `aws_conn_id` for authentication between GCP and AWS; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec#AwsS3Data
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields: Sequence[str] = (
@@ -942,6 +947,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         google_impersonation_chain: str | Sequence[str] | None = None,
         delete_job_after_completion: bool = False,
         aws_role_arn: str | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -961,6 +967,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         self.google_impersonation_chain = google_impersonation_chain
         self.delete_job_after_completion = delete_job_after_completion
         self.aws_role_arn = aws_role_arn
+        self.deferrable = deferrable
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:
@@ -979,9 +986,31 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         job = hook.create_transfer_job(body=body)
 
         if self.wait:
-            hook.wait_for_transfer_job(job, timeout=self.timeout)
-            if self.delete_job_after_completion:
-                hook.delete_transfer_job(job_name=job[NAME], project_id=self.project_id)
+            if not self.deferrable:
+                hook.wait_for_transfer_job(job, timeout=self.timeout)
+                if self.delete_job_after_completion:
+                    hook.delete_transfer_job(job_name=job[NAME], project_id=self.project_id)
+            else:
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout or 60),
+                    trigger=CloudStorageTransferServiceCheckJobStatusTrigger(
+                        job_name=job[NAME],
+                        project_id=job[PROJECT_ID],
+                        gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.google_impersonation_chain,
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        """
+        Act as a callback for when the trigger fires.
+
+        This returns immediately. It relies on trigger to throw an exception,
+        otherwise it assumes execution was successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
 
     def _create_body(self) -> dict:
         body = {
@@ -1079,6 +1108,7 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     :param delete_job_after_completion: If True, delete the job after complete.
         If set to True, 'wait' must be set to True.
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     # [START gcp_transfer_gcs_to_gcs_template_fields]
@@ -1113,6 +1143,7 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         google_impersonation_chain: str | Sequence[str] | None = None,
         delete_job_after_completion: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1130,6 +1161,7 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.google_impersonation_chain = google_impersonation_chain
         self.delete_job_after_completion = delete_job_after_completion
+        self.deferrable = deferrable
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:
@@ -1149,9 +1181,31 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         job = hook.create_transfer_job(body=body)
 
         if self.wait:
-            hook.wait_for_transfer_job(job, timeout=self.timeout)
-            if self.delete_job_after_completion:
-                hook.delete_transfer_job(job_name=job[NAME], project_id=self.project_id)
+            if not self.deferrable:
+                hook.wait_for_transfer_job(job, timeout=self.timeout)
+                if self.delete_job_after_completion:
+                    hook.delete_transfer_job(job_name=job[NAME], project_id=self.project_id)
+            else:
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout or 60),
+                    trigger=CloudStorageTransferServiceCheckJobStatusTrigger(
+                        job_name=job[NAME],
+                        project_id=job[PROJECT_ID],
+                        gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.google_impersonation_chain,
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        """
+        Act as a callback for when the trigger fires.
+
+        This returns immediately. It relies on trigger to throw an exception,
+        otherwise it assumes execution was successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
 
     def _create_body(self) -> dict:
         body = {

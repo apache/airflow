@@ -25,14 +25,19 @@ import os
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataplex import (
+    DataplexCatalogCreateAspectTypeOperator,
     DataplexCatalogCreateEntryGroupOperator,
     DataplexCatalogCreateEntryTypeOperator,
+    DataplexCatalogDeleteAspectTypeOperator,
     DataplexCatalogDeleteEntryGroupOperator,
     DataplexCatalogDeleteEntryTypeOperator,
+    DataplexCatalogGetAspectTypeOperator,
     DataplexCatalogGetEntryGroupOperator,
     DataplexCatalogGetEntryTypeOperator,
+    DataplexCatalogListAspectTypesOperator,
     DataplexCatalogListEntryGroupsOperator,
     DataplexCatalogListEntryTypesOperator,
+    DataplexCatalogUpdateAspectTypeOperator,
     DataplexCatalogUpdateEntryGroupOperator,
     DataplexCatalogUpdateEntryTypeOperator,
 )
@@ -55,6 +60,22 @@ ENTRY_TYPE_NAME = f"{DAG_ID}_entry_type_{ENV_ID}".replace("_", "-")
 # [START howto_dataplex_entry_type_configuration]
 ENTRY_TYPE_BODY = {"display_name": "Display Name", "description": "Some description"}
 # [END howto_dataplex_entry_type_configuration]
+
+ASPECT_TYPE_NAME = f"{DAG_ID}_aspect_type_{ENV_ID}".replace("_", "-")
+# [START howto_dataplex_aspect_type_configuration]
+ASPECT_TYPE_BODY = {
+    "display_name": "Sample AspectType",
+    "description": "A simple AspectType for demonstration purposes.",
+    "metadata_template": {
+        "name": "sample_field",
+        "type": "record",
+        "annotations": {
+            "display_name": "Sample Field",
+            "description": "A sample field within the AspectType.",
+        },
+    },
+}
+# [END howto_dataplex_aspect_type_configuration]
 
 with DAG(
     DAG_ID,
@@ -84,6 +105,17 @@ with DAG(
     )
     # [END howto_operator_dataplex_catalog_create_entry_type]
 
+    # [START howto_operator_dataplex_catalog_create_aspect_type]
+    create_aspect_type = DataplexCatalogCreateAspectTypeOperator(
+        task_id="create_aspect_type",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        aspect_type_id=ASPECT_TYPE_NAME,
+        aspect_type_configuration=ASPECT_TYPE_BODY,
+        validate_request=False,
+    )
+    # [END howto_operator_dataplex_catalog_create_aspect_type]
+
     # [START howto_operator_dataplex_catalog_get_entry_group]
     get_entry_group = DataplexCatalogGetEntryGroupOperator(
         task_id="get_entry_group",
@@ -101,6 +133,15 @@ with DAG(
         entry_type_id=ENTRY_TYPE_NAME,
     )
     # [END howto_operator_dataplex_catalog_get_entry_type]
+
+    # [START howto_operator_dataplex_catalog_get_aspect_type]
+    get_aspect_type = DataplexCatalogGetAspectTypeOperator(
+        task_id="get_aspect_type",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        aspect_type_id=ASPECT_TYPE_NAME,
+    )
+    # [END howto_operator_dataplex_catalog_get_aspect_type]
 
     # [START howto_operator_dataplex_catalog_list_entry_groups]
     list_entry_group = DataplexCatalogListEntryGroupsOperator(
@@ -121,6 +162,16 @@ with DAG(
         filter_by='display_name = "Display Name"',
     )
     # [END howto_operator_dataplex_catalog_list_entry_types]
+
+    # [START howto_operator_dataplex_catalog_list_aspect_types]
+    list_aspect_type = DataplexCatalogListAspectTypesOperator(
+        task_id="list_aspect_type",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        order_by="name",
+        filter_by='display_name = "Display Name"',
+    )
+    # [END howto_operator_dataplex_catalog_list_aspect_types]
 
     # [START howto_operator_dataplex_catalog_update_entry_group]
     update_entry_group = DataplexCatalogUpdateEntryGroupOperator(
@@ -144,6 +195,17 @@ with DAG(
     )
     # [END howto_operator_dataplex_catalog_update_entry_type]
 
+    # [START howto_operator_dataplex_catalog_update_aspect_type]
+    update_aspect_type = DataplexCatalogUpdateAspectTypeOperator(
+        task_id="update_aspect_type",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        aspect_type_id=ASPECT_TYPE_NAME,
+        aspect_type_configuration={"display_name": "Updated Display Name"},
+        update_mask=["display_name"],
+    )
+    # [END howto_operator_dataplex_catalog_update_aspect_type]
+
     # [START howto_operator_dataplex_catalog_delete_entry_group]
     delete_entry_group = DataplexCatalogDeleteEntryGroupOperator(
         task_id="delete_entry_group",
@@ -164,12 +226,24 @@ with DAG(
     )
     # [END howto_operator_dataplex_catalog_delete_entry_type]
 
+    # [START howto_operator_dataplex_catalog_delete_aspect_type]
+    delete_aspect_type = DataplexCatalogDeleteAspectTypeOperator(
+        task_id="delete_aspect_type",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        aspect_type_id=ASPECT_TYPE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_dataplex_catalog_delete_aspect_type]
+
     (
         [
             create_entry_group >> get_entry_group >> update_entry_group >> delete_entry_group,
             list_entry_group,
             create_entry_type >> get_entry_type >> update_entry_type >> delete_entry_type,
             list_entry_type,
+            create_aspect_type >> get_aspect_type >> update_aspect_type >> delete_aspect_type,
+            list_aspect_type,
         ]
     )
 

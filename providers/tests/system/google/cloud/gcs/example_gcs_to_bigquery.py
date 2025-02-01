@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -31,6 +32,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -73,13 +75,18 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    check_openlineage_events = OpenLineageTestOperator(
+        task_id="check_openlineage_events",
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "gcs_to_bigquery.json"),
+    )
+
     (
         # TEST SETUP
         create_test_dataset
         # TEST BODY
         >> load_csv
         # TEST TEARDOWN
-        >> delete_test_dataset
+        >> [delete_test_dataset, check_openlineage_events]
     )
 
     from tests_common.test_utils.watcher import watcher
