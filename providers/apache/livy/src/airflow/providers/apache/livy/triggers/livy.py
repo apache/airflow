@@ -57,6 +57,7 @@ class LivyTrigger(BaseTrigger):
         extra_headers: dict[str, Any] | None = None,
         livy_hook_async: LivyAsyncHook | None = None,
         execution_timeout: timedelta | None = None,
+        endpoint_prefix: str | None = None,
     ):
         super().__init__()
         self._batch_id = batch_id
@@ -67,6 +68,7 @@ class LivyTrigger(BaseTrigger):
         self._extra_headers = extra_headers
         self._livy_hook_async = livy_hook_async
         self._execution_timeout = execution_timeout
+        self._endpoint_prefix = endpoint_prefix
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize LivyTrigger arguments and classpath."""
@@ -170,5 +172,6 @@ class LivyTrigger(BaseTrigger):
                 livy_conn_id=self._livy_conn_id,
                 extra_headers=self._extra_headers,
                 extra_options=self._extra_options,
+                endpoint_prefix=self._endpoint_prefix,
             )
         return self._livy_hook_async
