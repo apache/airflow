@@ -542,7 +542,7 @@ class DagFileProcessorManager:
         """
 
         for info in active_files:
-            for path in _iter_dag_filelocs(str(info.absolute_path)):
+            for path in _iter_dag_filelocs(str(info.rel_path)):
                 active_subpaths.add((info.bundle_name, path))
 
         DagModel.deactivate_deleted_dags(active_subpaths)
