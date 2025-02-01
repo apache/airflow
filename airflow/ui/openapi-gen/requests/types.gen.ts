@@ -889,7 +889,7 @@ export type GridDAGRunwithTIs = {
   run_type: DagRunType;
   data_interval_start: string | null;
   data_interval_end: string | null;
-  version_number: string | null;
+  version_number: number | null;
   note: string | null;
   task_instances: Array<GridTaskInstanceSummary>;
 };
@@ -1667,11 +1667,11 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type StructureDataData = {
   dagId: string;
-  dagVersion?: number | null;
   externalDependencies?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string | null;
+  versionNumber?: number | null;
 };
 
 export type StructureDataResponse2 = StructureDataResponse;

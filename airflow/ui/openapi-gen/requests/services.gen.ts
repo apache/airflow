@@ -740,7 +740,7 @@ export class StructureService {
    * @param data.includeDownstream
    * @param data.root
    * @param data.externalDependencies
-   * @param data.dagVersion
+   * @param data.versionNumber
    * @returns StructureDataResponse Successful Response
    * @throws ApiError
    */
@@ -754,7 +754,7 @@ export class StructureService {
         include_downstream: data.includeDownstream,
         root: data.root,
         external_dependencies: data.externalDependencies,
-        dag_version: data.dagVersion,
+        version_number: data.versionNumber,
       },
       errors: {
         404: "Not Found",

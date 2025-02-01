@@ -3401,8 +3401,7 @@ export const $GridDAGRunwithTIs = {
     version_number: {
       anyOf: [
         {
-          type: "string",
-          format: "uuid",
+          type: "integer",
         },
         {
           type: "null",

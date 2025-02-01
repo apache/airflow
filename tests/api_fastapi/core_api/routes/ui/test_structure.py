@@ -481,17 +481,17 @@ class TestStructureDataEndpoint:
                 id="get_default_version",
             ),
             pytest.param(
-                {"dag_id": DAG_ID, "dag_version": 1},
+                {"dag_id": DAG_ID, "version_number": 1},
                 FIRST_VERSION_DAG_RESPONSE,
                 id="get_oldest_version",
             ),
             pytest.param(
-                {"dag_id": DAG_ID, "dag_version": 2},
+                {"dag_id": DAG_ID, "version_number": 2},
                 SECOND_VERSION_DAG_RESPONSE,
                 id="get_specific_version",
             ),
             pytest.param(
-                {"dag_id": DAG_ID, "dag_version": 3},
+                {"dag_id": DAG_ID, "version_number": 3},
                 LATEST_VERSION_DAG_RESPONSE,
                 id="get_latest_version",
             ),
@@ -510,7 +510,7 @@ class TestStructureDataEndpoint:
 
     def test_should_return_404_when_dag_version_not_found(self, test_client):
         response = test_client.get(
-            "/ui/structure/structure_data", params={"dag_id": DAG_ID, "dag_version": 999}
+            "/ui/structure/structure_data", params={"dag_id": DAG_ID, "version_number": 999}
         )
         assert response.status_code == 404
-        assert response.json()["detail"] == "Dag with id test_dag_id and version 999 was not found"
+        assert response.json()["detail"] == "Dag with id test_dag_id and version number 999 was not found"

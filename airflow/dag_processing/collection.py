@@ -30,7 +30,7 @@ from __future__ import annotations
 import json
 import logging
 import traceback
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 from sqlalchemy import and_, delete, exists, func, insert, select, tuple_
 from sqlalchemy.exc import OperationalError
@@ -53,8 +53,7 @@ from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
-from airflow.serialization.serialized_objects import BaseSerialization
-from airflow.triggers.base import BaseTrigger
+from airflow.serialization.serialized_objects import BaseSerialization, SerializedAssetWatcher
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.timezone import utcnow
@@ -68,7 +67,6 @@ if TYPE_CHECKING:
 
     from airflow.models.dagwarning import DagWarning
     from airflow.serialization.serialized_objects import MaybeSerializedDAG
-    from airflow.triggers.base import BaseTrigger
     from airflow.typing_compat import Self
 
 log = logging.getLogger(__name__)
@@ -210,6 +208,7 @@ def _serialize_dag_capturing_errors(
     except Exception:
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
         dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
+        # todo AIP-66: this needs to use bundle name / rel fileloc instead
         return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
 
 
@@ -746,16 +745,23 @@ class AssetModelOperation(NamedTuple):
         # Update references from assets being used
         refs_to_add: dict[tuple[str, str], set[int]] = {}
         refs_to_remove: dict[tuple[str, str], set[int]] = {}
-        triggers: dict[int, BaseTrigger] = {}
+        triggers: dict[int, dict] = {}
 
         # Optimization: if no asset collected, skip fetching active assets
         active_assets = _find_active_assets(self.assets.keys(), session=session) if self.assets else {}
 
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
-            asset_watchers = asset.watchers if name_uri in active_assets else []
-            trigger_hash_to_trigger_dict: dict[int, BaseTrigger] = {
-                self._get_base_trigger_hash(trigger): trigger for trigger in asset_watchers
+            asset_watchers: list[SerializedAssetWatcher] = (
+                [cast(SerializedAssetWatcher, watcher) for watcher in asset.watchers]
+                if name_uri in active_assets
+                else []
+            )
+            trigger_hash_to_trigger_dict: dict[int, dict] = {
+                self._get_trigger_hash(
+                    watcher.trigger["classpath"], watcher.trigger["kwargs"]
+                ): watcher.trigger
+                for watcher in asset_watchers
             }
             triggers.update(trigger_hash_to_trigger_dict)
             trigger_hash_from_asset: set[int] = set(trigger_hash_to_trigger_dict.keys())
@@ -782,7 +788,10 @@ class AssetModelOperation(NamedTuple):
             }
 
             all_trigger_keys: set[tuple[str, str]] = {
-                self._encrypt_trigger_kwargs(triggers[trigger_hash])
+                (
+                    triggers[trigger_hash]["classpath"],
+                    Trigger.encrypt_kwargs(triggers[trigger_hash]["kwargs"]),
+                )
                 for trigger_hashes in refs_to_add.values()
                 for trigger_hash in trigger_hashes
             }
@@ -799,7 +808,9 @@ class AssetModelOperation(NamedTuple):
             new_trigger_models = [
                 trigger
                 for trigger in [
-                    Trigger.from_object(triggers[trigger_hash])
+                    Trigger(
+                        classpath=triggers[trigger_hash]["classpath"], kwargs=triggers[trigger_hash]["kwargs"]
+                    )
                     for trigger_hash in all_trigger_hashes
                     if trigger_hash not in orm_triggers
                 ]
@@ -836,11 +847,6 @@ class AssetModelOperation(NamedTuple):
                 asset_model.triggers = []
 
     @staticmethod
-    def _encrypt_trigger_kwargs(trigger: BaseTrigger) -> tuple[str, str]:
-        classpath, kwargs = trigger.serialize()
-        return classpath, Trigger.encrypt_kwargs(kwargs)
-
-    @staticmethod
     def _get_trigger_hash(classpath: str, kwargs: dict[str, Any]) -> int:
         """
         Return the hash of the trigger classpath and kwargs. This is used to uniquely identify a trigger.
@@ -851,7 +857,3 @@ class AssetModelOperation(NamedTuple):
         This is not true for event driven scheduling.
         """
         return hash((classpath, json.dumps(BaseSerialization.serialize(kwargs)).encode("utf-8")))
-
-    def _get_base_trigger_hash(self, trigger: BaseTrigger) -> int:
-        classpath, kwargs = trigger.serialize()
-        return self._get_trigger_hash(classpath, kwargs)
