@@ -55,17 +55,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-  - jaydebeapi>=1.1.1
-
 integrations:
   - integration-name: Java Database Connectivity (JDBC)
     external-doc-url: https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/
     how-to-guide:
       - /docs/apache-airflow-providers-jdbc/operators.rst
-    logo: /integration-logos/jdbc/JDBC.png
+    logo: /docs/integration-logos/JDBC.png
     tags: [protocol]
 
 hooks:
