@@ -28,6 +28,7 @@ from pathlib import Path
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.transfers.gcs_to_sftp import GCSToSFTPOperator
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -38,15 +39,15 @@ from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "example_sftp_to_gcs"
+DAG_ID = "example_gcs_to_sftp"
 BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
 
 TMP_PATH = "tmp"
 DIR = "tests_sftp_hook_dir"
 SUBDIR = "subdir"
 
-OBJECT_SRC_1 = "parent-1.bin"
-OBJECT_SRC_2 = "parent-2.bin"
+OBJECT_SRC = "parent-1.bin"
+OBJECT_DEST = "dest.bin"
 
 CURRENT_FOLDER = Path(__file__).parent
 LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources")
@@ -67,41 +68,34 @@ with DAG(
         task_id="unzip_data_file", bash_command=f"tar xvf {LOCAL_PATH}/{FILE_NAME} -C {LOCAL_PATH}"
     )
 
-    # [START howto_operator_sftp_to_gcs_copy_single_file]
     copy_file_from_sftp_to_gcs = SFTPToGCSOperator(
-        task_id="file-copy-sftp-to-gcs",
-        source_path=f"{FILE_LOCAL_PATH}/{OBJECT_SRC_1}",
-        destination_bucket=BUCKET_NAME,
-    )
-    # [END howto_operator_sftp_to_gcs_copy_single_file]
-
-    # [START howto_operator_sftp_to_gcs_move_single_file_destination]
-    move_file_from_sftp_to_gcs_destination = SFTPToGCSOperator(
-        task_id="file-move-sftp-to-gcs-destination",
-        source_path=f"{FILE_LOCAL_PATH}/{OBJECT_SRC_2}",
+        task_id="file-copy-sftp-to-gcs-destination",
+        source_path=f"{FILE_LOCAL_PATH}/{OBJECT_SRC}",
         destination_bucket=BUCKET_NAME,
         destination_path="destination_dir/destination_filename.bin",
-        move_object=True,
     )
-    # [END howto_operator_sftp_to_gcs_move_single_file_destination]
 
-    # [START howto_operator_sftp_to_gcs_copy_directory]
     copy_directory_from_sftp_to_gcs = SFTPToGCSOperator(
         task_id="dir-copy-sftp-to-gcs",
         source_path=f"{FILE_LOCAL_PATH}/{SUBDIR}/*",
         destination_bucket=BUCKET_NAME,
+        destination_path="another_dir/",
     )
-    # [END howto_operator_sftp_to_gcs_copy_directory]
 
-    # [START howto_operator_sftp_to_gcs_move_specific_files]
-    move_specific_files_from_sftp_to_gcs = SFTPToGCSOperator(
-        task_id="dir-move-specific-files-sftp-to-gcs",
-        source_path=f"{FILE_LOCAL_PATH}/{SUBDIR}/*.bin",
-        destination_bucket=BUCKET_NAME,
-        destination_path="specific_files/",
-        move_object=True,
+    copy_file_from_gcs_to_sftp = GCSToSFTPOperator(
+        task_id="file-copy-from-gcs-to-sftp",
+        source_bucket=BUCKET_NAME,
+        source_object="destination_dir/destination_filename.bin",
+        destination_path=f"{FILE_LOCAL_PATH}/",
     )
-    # [END howto_operator_sftp_to_gcs_move_specific_files]
+
+    copy_directory_from_gcs_to_sftp = GCSToSFTPOperator(
+        task_id="dir-copy-gcs-to-sftp",
+        source_bucket=BUCKET_NAME,
+        source_object="another_dir/*",
+        destination_path=f"{FILE_LOCAL_PATH}/{SUBDIR}",
+        keep_directory_structure=False,
+    )
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
@@ -109,7 +103,7 @@ with DAG(
 
     check_openlineage_events = OpenLineageTestOperator(
         task_id="check_openlineage_events",
-        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "sftp_to_gcs.json"),
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "gcs_to_sftp.json"),
     )
 
     chain(
@@ -118,9 +112,9 @@ with DAG(
         unzip_file,
         # TEST BODY
         copy_file_from_sftp_to_gcs,
-        move_file_from_sftp_to_gcs_destination,
         copy_directory_from_sftp_to_gcs,
-        move_specific_files_from_sftp_to_gcs,
+        copy_file_from_gcs_to_sftp,
+        copy_directory_from_gcs_to_sftp,
         # TEST TEARDOWN
         delete_bucket,
         check_openlineage_events,

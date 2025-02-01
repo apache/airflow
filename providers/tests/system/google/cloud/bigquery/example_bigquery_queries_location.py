@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -40,7 +39,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -59,16 +57,14 @@ SCHEMA = [
 ]
 
 
-DAG_ID = "bigquery_queries"
+DAG_ID = "bigquery_queries_location"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 INSERT_DATE = "2030-01-01"
-# [START howto_operator_bigquery_query]
 INSERT_ROWS_QUERY = (
     f"INSERT {DATASET_NAME}.{TABLE_1} VALUES "
     f"(42, 'monty python', '{INSERT_DATE}'), "
     f"(42, 'fishy fish', '{INSERT_DATE}');"
 )
-# [END howto_operator_bigquery_query]
 
 with DAG(
     DAG_ID,
@@ -81,6 +77,7 @@ with DAG(
     create_dataset = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset",
         dataset_id=DATASET_NAME,
+        location=LOCATION,
     )
 
     create_table_1 = BigQueryCreateEmptyTableOperator(
@@ -88,6 +85,7 @@ with DAG(
         dataset_id=DATASET_NAME,
         table_id=TABLE_1,
         schema_fields=SCHEMA,
+        location=LOCATION,
     )
 
     create_table_2 = BigQueryCreateEmptyTableOperator(
@@ -95,9 +93,9 @@ with DAG(
         dataset_id=DATASET_NAME,
         table_id=TABLE_2,
         schema_fields=SCHEMA,
+        location=LOCATION,
     )
 
-    # [START howto_operator_bigquery_insert_job]
     insert_query_job = BigQueryInsertJobOperator(
         task_id="insert_query_job",
         configuration={
@@ -107,10 +105,9 @@ with DAG(
                 "priority": "BATCH",
             }
         },
+        location=LOCATION,
     )
-    # [END howto_operator_bigquery_insert_job]
 
-    # [START howto_operator_bigquery_select_job]
     select_query_job = BigQueryInsertJobOperator(
         task_id="select_query_job",
         configuration={
@@ -119,8 +116,8 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        location=LOCATION,
     )
-    # [END howto_operator_bigquery_select_job]
 
     execute_insert_query = BigQueryInsertJobOperator(
         task_id="execute_insert_query",
@@ -130,6 +127,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        location=LOCATION,
     )
 
     execute_query_save = BigQueryInsertJobOperator(
@@ -145,6 +143,7 @@ with DAG(
                 },
             }
         },
+        location=LOCATION,
     )
 
     bigquery_execute_multi_query = BigQueryInsertJobOperator(
@@ -158,76 +157,64 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        location=LOCATION,
     )
 
-    # [START howto_operator_bigquery_get_data]
     get_data = BigQueryGetDataOperator(
         task_id="get_data",
         dataset_id=DATASET_NAME,
         table_id=TABLE_1,
         max_results=10,
         selected_fields="value,name",
+        location=LOCATION,
     )
-    # [END howto_operator_bigquery_get_data]
 
     get_data_result = BashOperator(
         task_id="get_data_result",
         bash_command=f"echo {get_data.output}",
     )
 
-    # [START howto_operator_bigquery_check]
     check_count = BigQueryCheckOperator(
         task_id="check_count",
         sql=f"SELECT COUNT(*) FROM {DATASET_NAME}.{TABLE_1}",
         use_legacy_sql=False,
+        location=LOCATION,
     )
-    # [END howto_operator_bigquery_check]
 
-    # [START howto_operator_bigquery_value_check]
     check_value = BigQueryValueCheckOperator(
         task_id="check_value",
         sql=f"SELECT COUNT(*) FROM {DATASET_NAME}.{TABLE_1}",
         pass_value=4,
         use_legacy_sql=False,
+        location=LOCATION,
     )
-    # [END howto_operator_bigquery_value_check]
 
-    # [START howto_operator_bigquery_interval_check]
     check_interval = BigQueryIntervalCheckOperator(
         task_id="check_interval",
         table=f"{DATASET_NAME}.{TABLE_1}",
         days_back=1,
         metrics_thresholds={"COUNT(*)": 1.5},
         use_legacy_sql=False,
+        location=LOCATION,
     )
-    # [END howto_operator_bigquery_interval_check]
 
-    # [START howto_operator_bigquery_column_check]
     column_check = BigQueryColumnCheckOperator(
         task_id="column_check",
         table=f"{DATASET_NAME}.{TABLE_1}",
         column_mapping={"value": {"null_check": {"equal_to": 0}}},
     )
-    # [END howto_operator_bigquery_column_check]
 
-    # [START howto_operator_bigquery_table_check]
     table_check = BigQueryTableCheckOperator(
         task_id="table_check",
         table=f"{DATASET_NAME}.{TABLE_1}",
         checks={"row_count_check": {"check_statement": "COUNT(*) = 4"}},
     )
-    # [END howto_operator_bigquery_table_check]
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
         dataset_id=DATASET_NAME,
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,
-    )
-
-    check_openlineage_events = OpenLineageTestOperator(
-        task_id="check_openlineage_events",
-        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "bigquery_queries.json"),
     )
 
     # TEST SETUP
@@ -238,7 +225,6 @@ with DAG(
     execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
     execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
     execute_insert_query >> [column_check, table_check] >> delete_dataset
-    delete_dataset >> check_openlineage_events
 
     from tests_common.test_utils.watcher import watcher
 
