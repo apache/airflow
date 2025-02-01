@@ -27,6 +27,37 @@
 Changelog
 ---------
 
+13.0.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+
+    * Removed ``AutoMLBatchPredictOperator``. Please use the operators from ``airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job`` instead
+    * Removed ``DataflowStartSqlJobOperator``. Please ``DataflowStartYamlJobOperator`` instead
+    * Removed ``PromptLanguageModelOperator``. Please ``TextGenerationModelPredictOperator`` instead
+    * Removed ``GenerateTextEmbeddingsOperator``. Please ``TextEmbeddingModelGetEmbeddingsOperator`` instead
+    * Removed ``PromptMultimodalModelOperator``. Please ``GenerativeModelGenerateContentOperator`` instead
+    * Removed ``PromptMultimodalModelWithMediaOperator``. Please ``GenerativeModelGenerateContentOperator`` instead
+
+  * Hooks
+
+    * Removed ``GenerativeModelHook.prompt_multimodal_model_with_media()``. Please use ``GenerativeModelHook.generative_model_generate_content()`` instead
+    * Removed ``GenerativeModelHook.prompt_multimodal_model()``. Please use ``GenerativeModelHook.generative_model_generate_content()`` instead
+    * Removed ``GenerativeModelHook.get_generative_model_part()``. Please use ``GenerativeModelHook.generative_model_generate_content()`` instead
+    * Removed ``GenerativeModelHook.prompt_language_model()``. Please use ``GenerativeModelHook.text_generation_model_predict()`` instead
+    * Removed ``GenerativeModelHook.generate_text_embeddings()``. Please use ``GenerativeModelHook.text_generation_model_predict()`` instead
+
 12.0.0
 ......
 

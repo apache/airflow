@@ -20,9 +20,7 @@ import dayjs from "dayjs";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
-import { isStatePending } from "src/utils/refresh";
-
-import { useConfig } from "./useConfig";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 type Props = {
   dagId: string;
@@ -62,7 +60,8 @@ const parseLogs = ({ data }: ParseLogsProps) => {
 };
 
 export const useLogs = ({ dagId, taskInstance, tryNumber = 1 }: Props) => {
-  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
+  const refetchInterval = useAutoRefresh({ dagId });
+
   const { data, ...rest } = useTaskInstanceServiceGetLog(
     {
       dagId,
@@ -77,8 +76,8 @@ export const useLogs = ({ dagId, taskInstance, tryNumber = 1 }: Props) => {
       refetchInterval: (query) =>
         isStatePending(taskInstance?.state) ||
         dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)
-          ? autoRefreshInterval * 1000
-          : autoRefreshInterval * 10 * 1000,
+          ? refetchInterval
+          : false,
     },
   );
 

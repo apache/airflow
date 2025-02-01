@@ -258,14 +258,14 @@ paths:
           type: boolean
           default: false
           title: External Dependencies
-      - name: dag_version
+      - name: version_number
         in: query
         required: false
         schema:
           anyOf:
           - type: integer
           - type: 'null'
-          title: Dag Version
+          title: Version Number
       responses:
         '200':
           description: Successful Response
@@ -9643,6 +9643,12 @@ components:
             format: date-time
           - type: 'null'
           title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
         pid:
           anyOf:
           - type: integer
@@ -9677,6 +9683,7 @@ components:
       - priority_weight
       - operator
       - queued_when
+      - scheduled_when
       - pid
       - executor
       - executor_config
@@ -9770,6 +9777,12 @@ components:
             format: date-time
           - type: 'null'
           title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
         pid:
           anyOf:
           - type: integer
@@ -9828,6 +9841,7 @@ components:
       - priority_weight
       - operator
       - queued_when
+      - scheduled_when
       - pid
       - executor
       - executor_config

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import collections.abc
 import contextlib
 import hashlib
 import itertools
@@ -99,7 +98,6 @@ from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
-from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
@@ -109,6 +107,7 @@ from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
@@ -163,7 +162,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
-    from airflow.typing_compat import Literal, TypeGuard
+    from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
 
@@ -668,20 +667,6 @@ def _xcom_pull(
     )
 
 
-def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
-    """
-    Whether a value can be used for task mapping.
-
-    We only allow collections with guaranteed ordering, but exclude character
-    sequences since that's usually not what users would expect to be mappable.
-    """
-    if not isinstance(value, (collections.abc.Sequence, dict)):
-        return False
-    if isinstance(value, (bytearray, bytes, str)):
-        return False
-    return True
-
-
 def _creator_note(val):
     """Creator the ``note`` association proxy."""
     if isinstance(val, str):
@@ -824,6 +809,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.operator = source.operator
     target.custom_operator_name = source.custom_operator_name
     target.queued_dttm = source.queued_dttm
+    target.scheduled_dttm = source.scheduled_dttm
     target.queued_by_job_id = source.queued_by_job_id
     target.last_heartbeat_at = source.last_heartbeat_at
     target.pid = source.pid
@@ -1216,7 +1202,7 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator, is_mappable_value
 
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
@@ -1228,7 +1214,7 @@ def _record_task_map_for_downstreams(
         return
     if value is None:
         raise XComForMappingNotPushed()
-    if not _is_mappable_value(value):
+    if not is_mappable_value(value):
         raise UnmappableXComTypePushed(value)
     task_map = TaskMap.from_task_instance_xcom(task_instance, value)
     max_map_length = conf.getint("core", "max_map_length", fallback=1024)
@@ -1712,6 +1698,7 @@ class TaskInstance(Base, LoggingMixin):
     operator = Column(String(1000))
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
+    scheduled_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
 
     last_heartbeat_at = Column(UtcDateTime)
@@ -2705,23 +2692,24 @@ class TaskInstance(Base, LoggingMixin):
             timing = timezone.utcnow() - self.queued_dttm
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
-            if self.start_date is None:
-                # This check does not work correctly before fields like `scheduled_dttm` are implemented.
-                # TODO: Change the level to WARNING once it's viable.
-                # see #30612 #34493 and #34771 for more details
-                self.log.debug(
+            if self.scheduled_dttm is None:
+                self.log.warning(
                     "cannot record %s for task %s because previous state change time has not been saved",
                     metric_name,
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.start_date
+            timing = timezone.utcnow() - self.scheduled_dttm
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
         # send metric twice, once (legacy) with tags in the name and once with tags as tags
         Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
-        Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
+        Stats.timing(
+            f"task.{metric_name}",
+            timing,
+            tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+        )
 
     def clear_next_method_args(self) -> None:
         """Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them."""
