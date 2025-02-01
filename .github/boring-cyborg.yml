@@ -212,9 +212,7 @@ labelPRBasedOnFilePath:
     - providers/microsoft/mssql/**
 
   provider:microsoft-psrp:
-    - providers/src/airflow/providers/microsoft/psrp/**/*
-    - docs/apache-airflow-providers-microsoft-psrp/**/*
-    - providers/tests/microsoft/psrp/**/*
+    - providers/microsoft/psrp/**
 
   provider:microsoft-winrm:
     - providers/src/airflow/providers/microsoft/winrm/**/*
