@@ -78,6 +78,7 @@ services:
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
+      - ../../../providers/microsoft/mssql/tests:/opt/airflow/providers/microsoft/mssql/tests
       - ../../../providers/mongo/tests:/opt/airflow/providers/mongo/tests
       - ../../../providers/mysql/tests:/opt/airflow/providers/mysql/tests
       - ../../../providers/neo4j/tests:/opt/airflow/providers/neo4j/tests

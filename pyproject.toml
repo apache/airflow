@@ -657,6 +657,7 @@ dev = [
   "apache-airflow-providers-github",
   "apache-airflow-providers-http",
   "apache-airflow-providers-influxdb",
+  "apache-airflow-providers-microsoft-mssql",
   "apache-airflow-providers-mongo",
   "apache-airflow-providers-openlineage",
   "apache-airflow-providers-hashicorp",
@@ -739,6 +740,7 @@ apache-airflow-providers-ftp = { workspace = true }
 apache-airflow-providers-github = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
+apache-airflow-providers-microsoft-mssql = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
@@ -822,6 +824,7 @@ members = [
     "providers/imap",
     "providers/influxdb",
     "providers/jenkins",
+    "providers/microsoft/mssql",
     "providers/mongo",
     "providers/mysql",
     "providers/neo4j",
