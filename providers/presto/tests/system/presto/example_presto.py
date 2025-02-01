@@ -41,7 +41,7 @@ with DAG(
 
     # Example of creating a task that calls a common CREATE TABLE sql command.
     select_presto_task = SQLExecuteQueryOperator(
-        task_id="create_table_presto",
+        task_id="select_presto",
         sql=f"SELECT 1",
     )
 
