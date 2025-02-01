@@ -58,23 +58,13 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - simple-salesforce>=1.0.0
-  # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-  # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-  # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-  # In addition FAB also limit sqlalchemy to < 2.0
-  - pandas>=2.1.2,<2.2
-
-
 integrations:
   - integration-name: Salesforce
     external-doc-url: https://www.salesforce.com/
     how-to-guide:
       - /docs/apache-airflow-providers-salesforce/operators/salesforce_apex_rest.rst
       - /docs/apache-airflow-providers-salesforce/operators/bulk.rst
-    logo: /integration-logos/salesforce/Salesforce.png
+    logo: /docs/integration-logos/Salesforce.png
     tags: [service]
 
 operators:
