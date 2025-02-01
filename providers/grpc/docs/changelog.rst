@@ -206,7 +206,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs for Jan 2023 wave of Providers (#28651)``
    * ``Updated docs for RC3 wave of providers (#27937)``
-   * ``Prepare for follow-up relase for November providers (#27774)``
+   * ``Prepare for follow-up release for November providers (#27774)``
    * ``Add full automation for min Airflow version for providers (#30994)``
    * ``Add mechanism to suspend providers (#30422)``
    * ``Use '__version__' in providers not 'version' (#31393)``
