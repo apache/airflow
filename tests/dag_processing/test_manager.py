@@ -623,6 +623,27 @@ class TestDagFileProcessorManager:
         # assert dag deactivated
         assert not dag.get_is_active()
 
+    def test_deactivate_deleted_dags(self, dag_maker):
+        with dag_maker("test_dag1") as dag1:
+            dag1.relative_fileloc = "test_dag1.py"
+        with dag_maker("test_dag2") as dag2:
+            dag2.relative_fileloc = "test_dag2.py"
+        dag_maker.sync_dagbag_to_db()
+
+        active_files = [
+            DagFileInfo(bundle_name="dag_maker", rel_path=Path("test_dag1.py"), bundle_path=TEST_DAGS_FOLDER),
+            # Mimic that the test_dag2.py file is deleted
+        ]
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.deactivate_deleted_dags(active_files=active_files)
+
+        dagbag = DagBag(read_dags_from_db=True)
+        # The DAG from test_dag1.py is still active
+        assert dagbag.get_dag("test_dag1").get_is_active() is True
+        # and the DAG from test_dag2.py is deactivated
+        assert dagbag.get_dag("test_dag2").get_is_active() is False
+
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, tmp_path, configure_testing_dag_bundle):
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"

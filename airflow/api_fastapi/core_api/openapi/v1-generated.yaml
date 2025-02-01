@@ -8786,8 +8786,7 @@ components:
           title: Data Interval End
         version_number:
           anyOf:
-          - type: string
-            format: uuid
+          - type: integer
           - type: 'null'
           title: Version Number
         note:
