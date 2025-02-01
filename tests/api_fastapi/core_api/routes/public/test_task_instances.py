@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime as dt
 import itertools
 import os
+from datetime import timedelta
 from unittest import mock
 
 import pendulum
@@ -1022,9 +1023,15 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert count == len(response.json()["task_instances"])
 
     @pytest.mark.parametrize(
-        "order_by_field", ["start_date", "logical_date", "data_interval_start", "data_interval_end"]
+        "order_by_field, date",
+        [
+            ("start_date", DEFAULT_DATETIME_1 + timedelta(days=20)),
+            ("logical_date", DEFAULT_DATETIME_2),
+            ("data_interval_start", DEFAULT_DATETIME_1 + timedelta(days=5)),
+            ("data_interval_end", DEFAULT_DATETIME_2 + timedelta(days=8)),
+        ],
     )
-    def test_should_respond_200_for_order_by(self, order_by_field, test_client, session):
+    def test_should_respond_200_for_order_by(self, order_by_field, date, test_client, session):
         dag_id = "example_python_operator"
 
         dag_runs = [
@@ -1032,10 +1039,10 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 dag_id=dag_id,
                 run_id=f"run_{i}",
                 run_type=DagRunType.MANUAL,
-                logical_date=DEFAULT_DATETIME_1 + dt.timedelta(days=i),
+                logical_date=date + dt.timedelta(days=i),
                 data_interval=(
-                    DEFAULT_DATETIME_1 + dt.timedelta(days=i),
-                    DEFAULT_DATETIME_1 + dt.timedelta(days=i, hours=1),
+                    date + dt.timedelta(days=i),
+                    date + dt.timedelta(days=i, hours=1),
                 ),
             )
             for i in range(10)
@@ -1046,8 +1053,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         self.create_task_instances(
             session,
             task_instances=[
-                {"run_id": f"run_{i}", "start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))}
-                for i in range(10)
+                {"run_id": f"run_{i}", "start_date": date + dt.timedelta(minutes=(i + 1))} for i in range(10)
             ],
             dag_id=dag_id,
         )
