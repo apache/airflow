@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-01T02:34:06.670105
+# This constraints file was automatically generated on 2025-02-01T20:08:25.737558
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -227,7 +227,7 @@ azure-storage-file-datalake==12.18.1
 azure-storage-file-share==12.20.1
 azure-synapse-artifacts==0.19.0
 azure-synapse-spark==0.7.0
-babel==2.16.0
+babel==2.17.0
 backoff==2.2.1
 bcrypt==4.2.1
 beautifulsoup4==4.12.3
@@ -305,12 +305,12 @@ fastjsonschema==2.21.1
 filelock==3.17.0
 flower==2.0.1
 frozenlist==1.5.0
-fsspec==2024.12.0
+fsspec==2025.2.0
 future==1.0.0
 gcloud-aio-auth==5.3.2
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.3.0
-gcsfs==2024.12.0
+gcsfs==2025.2.0
 geomet==0.2.1.post1
 gevent==24.11.1
 gitdb==4.0.12
@@ -380,7 +380,7 @@ grpcio==1.65.5
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
-h2==4.1.0
+h2==4.2.0
 hdfs==2.7.3
 hmsclient==0.1.1
 hpack==4.1.0
@@ -633,7 +633,7 @@ rich==13.9.4
 rpds-py==0.22.3
 rsa==4.9
 ruff==0.8.1
-s3fs==2024.12.0
+s3fs==2025.2.0
 s3transfer==0.11.2
 scikit-learn==1.6.1
 scipy==1.15.1
