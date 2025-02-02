@@ -122,91 +122,20 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
     steps:
-      - name: Want more details of disks of runner
-        run: sudo blkid
-        shell: bash
-      - name: Want more details of partitions of runner
-        run: sudo fdisk -l
-        shell: bash
-      - name: Check free space (0)
-        run: df -H
-        shell: bash
-      - name: Disk space consumption details (0)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (0)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
-        shell: bash
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: Check free space (1)
-        run: df -H
-        shell: bash
-      - name: Disk space consumption details (1)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (1)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
-        shell: bash
       - name: "Checkout target branch"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Check free space (2)
-        run: df -H
-        shell: bash
-      - name: Disk space consumption details (2)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (2)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
-        shell: bash
       - name: "Cleanup docker"
         # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh /mnt/var-lib-docker
-      - name: Check free space (3)
-        run: df -H
-        shell: bash
-      - name: Disk space consumption details (3)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (3)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
-        shell: bash
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
           use-uv: ${{ inputs.use-uv }}
-      - name: Check free space (4)
-        run: df -H
-        shell: bash
-      - name: Disk space consumption details (4)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (4)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
-        shell: bash
       - name: "Restore ci-cache mount image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
@@ -224,19 +153,6 @@ jobs:
             exit 1
           fi
         shell: bash
-      - name: Check free space (5)
-        run: df -H
-        shell: bash
-      - name: Disk space consumption details (5)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (5)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
-        shell: bash
       - name: "Import mount-cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -249,19 +165,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
-      - name: Check free space (6)
-        run: df -H
-        shell: bash
-      - name: Disk space consumption details (6)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (6)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
-        shell: bash
       - name: >
           Build ${{ inputs.push-image == 'true' && ' & push ' || '' }}
           ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }} image
@@ -284,18 +187,8 @@ jobs:
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
           PLATFORM: ${{ inputs.platform }}
-      - name: Check free space (org)
+      - name: Check free space
         run: df -H
-        shell: bash
-      - name: Disk space consumption details (org)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (org)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
         shell: bash
       - name: Make /mnt/ directory writeable
         run: sudo chown -R ${USER} /mnt
@@ -305,19 +198,6 @@ jobs:
           PLATFORM: ${{ inputs.platform }}
         run: breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
         if: inputs.upload-image-artifact == 'true'
-      - name: Check free space (7)
-        run: df -H
-        shell: bash
-      - name: Disk space consumption details (7)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (7)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
-        shell: bash
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
@@ -326,19 +206,6 @@ jobs:
           if-no-files-found: 'error'
           retention-days: '2'
         if: inputs.upload-image-artifact == 'true'
-      - name: Check free space (8)
-        run: df -H
-        shell: bash
-      - name: Disk space consumption details (8)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (8)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
-        shell: bash
       - name: "Export mount cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
@@ -346,19 +213,6 @@ jobs:
           breeze ci-image export-mount-cache
           --cache-file /tmp/ci-cache-mount-save-v2-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: inputs.upload-mount-cache-artifact == 'true'
-      - name: Check free space (9)
-        run: df -H
-        shell: bash
-      - name: Disk space consumption details (9)
-        run: sudo du -sm /* 2>/dev/null || true
-        shell: bash
-      - name: Disk space consumption details - some drill down (9)
-        run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
-          echo ----------------------------;
-          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
-          || true
-        shell: bash
       - name: "Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
