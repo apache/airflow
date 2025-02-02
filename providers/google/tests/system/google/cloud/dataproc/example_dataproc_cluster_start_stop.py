@@ -24,6 +24,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
@@ -33,8 +35,6 @@ from airflow.providers.google.cloud.operators.dataproc import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 from google.api_core.retry import Retry
-
-from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dataproc_cluster_start_stop"
 

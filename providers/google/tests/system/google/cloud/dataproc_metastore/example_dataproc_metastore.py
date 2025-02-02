@@ -25,6 +25,8 @@ from __future__ import annotations
 import datetime
 import os
 
+from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc_metastore import (
     DataprocMetastoreCreateMetadataImportOperator,
@@ -41,8 +43,6 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 from google.protobuf.field_mask_pb2 import FieldMask
-
-from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dataproc_metastore"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

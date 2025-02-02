@@ -27,6 +27,8 @@ import os
 from datetime import datetime
 from typing import Any
 
+from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.functions import (
@@ -34,8 +36,6 @@ from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeployFunctionOperator,
     CloudFunctionInvokeFunctionOperator,
 )
-
-from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

@@ -21,12 +21,11 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
+from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-
-from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 try:
     from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator

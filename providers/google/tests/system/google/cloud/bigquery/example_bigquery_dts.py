@@ -27,6 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
+from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from airflow.models.baseoperator import chain
@@ -46,8 +47,6 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

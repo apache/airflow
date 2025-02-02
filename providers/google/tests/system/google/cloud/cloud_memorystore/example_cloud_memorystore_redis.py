@@ -24,6 +24,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreCreateInstanceAndImportOperator,
@@ -46,8 +48,6 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 from google.cloud.redis_v1 import FailoverInstanceRequest, Instance
-
-from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 ENV_ID_LOWER = ENV_ID.lower() if ENV_ID else ""

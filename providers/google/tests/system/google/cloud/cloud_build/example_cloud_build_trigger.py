@@ -27,6 +27,7 @@ from typing import Any, cast
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
@@ -41,8 +42,6 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildUpdateBuildTriggerOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

@@ -23,6 +23,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
@@ -41,8 +43,6 @@ from airflow.providers.google.cloud.operators.datafusion import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [START howto_data_fusion_env_variables]
 SERVICE_ACCOUNT = os.environ.get("GCP_DATAFUSION_SERVICE_ACCOUNT")

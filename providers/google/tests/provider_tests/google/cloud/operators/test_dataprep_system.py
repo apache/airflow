@@ -53,7 +53,7 @@ class TestDataprepExampleDagsSystem(GoogleSystemTest):
         clear_db_connections()
 
     def test_run_example_dag(self):
-        from providers.tests.system.google.cloud.dataprep.example_dataprep import dag
+        from providers.google.tests.google.cloud.dataprep.example_dataprep import dag
 
         run = get_test_run(dag)
         run()
