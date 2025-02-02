@@ -97,7 +97,7 @@ def _all_new_providers() -> list[str]:
             "Providers[amazon,google,apache.hive]",
             [
                 "providers/tests/amazon",
-                "providers/google/tests/provider_tests/google",
+                "providers/google/tests",
                 "providers/apache/hive/tests",
             ],
         ),
@@ -105,10 +105,13 @@ def _all_new_providers() -> list[str]:
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google,microsoft.azure]",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_new_providers()
+                    if provider not in ["amazon", "google", "microsoft/azure"]
+                ],
                 "providers/tests",
                 "--ignore=providers/tests/amazon",
-                "--ignore=providers/google/tests/provider_tests/google",
                 "--ignore=providers/tests/microsoft/azure",
             ],
         ),
