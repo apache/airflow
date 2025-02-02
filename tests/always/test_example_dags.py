@@ -37,7 +37,7 @@ from tests_common.test_utils.asserts import assert_queries_count
 AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
-PROVIDERS_PREFIXES = ("providers/src/airflow/providers/", "providers/tests/system/")
+PROVIDERS_PREFIXES = ["providers/"]
 OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
     # Some examples or system tests may depend on additional packages
     # that are not included in certain CI checks.
@@ -119,7 +119,6 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
         "airflow/**/example_dags/example_*.py",
         "tests/system/**/example_*.py",
         "providers/**/example_*.py",
-        "providers/*/tests/system/**/example_*.py",
     ]
 
     default_branch = os.environ.get("DEFAULT_BRANCH", "main")
