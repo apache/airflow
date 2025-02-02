@@ -248,14 +248,18 @@ def test_pytest_args_for_missing_provider():
             "Providers[amazon] Providers[google]",
             [
                 "providers/tests/amazon",
-                "providers/google/tests/provider_tests/google",
+                "providers/google/tests",
             ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google]",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_new_providers()
+                    if provider not in ["amazon", "google"]
+                ],
                 "providers/tests",
             ],
         ),
@@ -263,8 +267,15 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google] Providers[amazon] Providers[google]",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_new_providers()
+                    if provider not in ["amazon", "google"]
+                ],
                 "providers/tests",
+                *[
+                    "providers/google/tests"
+                ],  # Once amazon is migrated to the new structure, amazon needs to be added to the list here.
             ],
         ),
         (
