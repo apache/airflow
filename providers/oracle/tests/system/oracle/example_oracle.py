@@ -83,12 +83,7 @@ with DAG(
 
     # [END howto_operator_oracle_external_file]
 
-    (
-        create_table_oracle_task 
-        >> insert_data_oracle_task 
-        >> select_data_oracle_task 
-        >> drop_table_oracle_task
-    )
+    (create_table_oracle_task >> insert_data_oracle_task >> select_data_oracle_task >> drop_table_oracle_task)
 
     from tests_common.test_utils.watcher import watcher
 

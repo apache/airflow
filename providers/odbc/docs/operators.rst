@@ -57,11 +57,7 @@ database is listening for new connections.
     password = "password"
 
     conn_str = (
-        f'DRIVER={driver};'
-        f'SERVER={server};'
-        f'DATABASE={database};'
-        f'UID={username};'
-        f'PWD={password};'
+        f"DRIVER={driver};" f"SERVER={server};" f"DATABASE={database};" f"UID={username};" f"PWD={password};"
     )
 
     conn = pyodbc.connect(conn_str)

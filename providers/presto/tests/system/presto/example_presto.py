@@ -42,20 +42,17 @@ with DAG(
     # Example of creating a task that calls a common CREATE TABLE sql command.
     select_presto_task = SQLExecuteQueryOperator(
         task_id="select_presto",
-        sql=f"SELECT 1",
+        sql="SELECT 1",
     )
 
     # [END howto_operator_presto]
 
     drop_table_presto_task = SQLExecuteQueryOperator(
         task_id="drop_table_presto",
-        sql=f"DROP TABLE IF EXISTS hive.default.example_table",
+        sql="DROP TABLE IF EXISTS hive.default.example_table",
     )
 
-    (
-        select_presto_task
-        >> drop_table_presto_task
-    )
+    (select_presto_task >> drop_table_presto_task)
 
     from tests_common.test_utils.watcher import watcher
 

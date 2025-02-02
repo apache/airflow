@@ -27,7 +27,6 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
-
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_odbc_operator"
 
@@ -39,7 +38,6 @@ with DAG(
     tags=["example", "odbc"],
     catchup=False,
 ) as dag:
-    
     # [START howto_operator_odbc]
 
     create_table = SQLExecuteQueryOperator(
@@ -90,7 +88,9 @@ with DAG(
     create_table >> insert_data >> delete_data >> drop_table
 
     from tests_common.test_utils.watcher import watcher
+
     list(dag.tasks) >> watcher()
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
 test_run = get_test_run(dag)

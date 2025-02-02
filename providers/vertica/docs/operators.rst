@@ -51,7 +51,7 @@ the connection metadata is structured as follows:
    * - Port: int
      - Vertica database port (default: 5433)
    * - Extra: JSON
-     - Additional connection configuration (e.g. TLS settings):  
+     - Additional connection configuration (e.g. TLS settings):
        ``{"tlsmode": "disable"}``
 
 An example usage of the ``SQLExecuteQueryOperator`` to connect to Vertica is as follows:
