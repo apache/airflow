@@ -556,8 +556,8 @@ omit = [
     "airflow/example_dags/**",
     "airflow/migrations/**",
     "airflow/www/node_modules/**",
-    "providers/src/airflow/providers/**/example_dags/**",
-    "providers/src/airflow/providers/google/ads/_vendor/**",
+    "providers/google/src/airflow/providers/**/example_dags/**",
+    "providers/google/src/airflow/providers/google/ads/_vendor/**",
 ]
 
 [tool.coverage.report]
