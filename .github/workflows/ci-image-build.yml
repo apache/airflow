@@ -122,6 +122,12 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
     steps:
+      - name: Want more details of disks of runner
+        run: sudo blkid
+        shell: bash
+      - name: Want more details of partitions of runner
+        run: sudo fdisk -l
+        shell: bash
       - name: Check free space (0)
         run: df -H
         shell: bash
@@ -169,7 +175,8 @@ jobs:
           || true
         shell: bash
       - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
+        # Move docker space to second partition to have more space
+        run: ./scripts/ci/cleanup_docker.sh /mnt/var-lib-docker
       - name: Check free space (3)
         run: df -H
         shell: bash
