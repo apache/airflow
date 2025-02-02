@@ -130,7 +130,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (0)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: "Cleanup repo"
@@ -144,7 +146,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (1)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: "Checkout target branch"
@@ -159,7 +163,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (2)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: "Cleanup docker"
@@ -172,7 +178,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (3)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: "Install Breeze"
@@ -187,7 +195,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (4)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: "Restore ci-cache mount image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
@@ -215,7 +225,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (5)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: "Import mount-cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
@@ -238,7 +250,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (6)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: >
@@ -271,7 +285,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (org)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: Make /mnt/ directory writeable
@@ -290,7 +306,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (7)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
@@ -309,7 +327,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (8)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: "Export mount cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
@@ -327,7 +347,9 @@ jobs:
         shell: bash
       - name: Disk space consumption details - some drill down (9)
         run: >
-          sudo du -sm /home/* /mnt/* /opt/* /usr/* /usr/local/* /user/share/* /var/* /var/lib/* 2>/dev/null
+          sudo du -sm /home/* /mnt/* /opt/* /usr/* /var/* 2>/dev/null;
+          echo ----------------------------;
+          sudo du -sm /usr/local/* /user/share/* /var/lib/* 2>/dev/null
           || true
         shell: bash
       - name: "Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
