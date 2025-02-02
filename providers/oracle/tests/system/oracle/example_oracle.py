@@ -74,14 +74,10 @@ with DAG(
         """,
     )
 
-    # [START howto_operator_oracle_external_file]
-
     drop_table_oracle_task = SQLExecuteQueryOperator(
         task_id="drop_table_oracle",
-        sql="oracle_drop_table.sql",
+        sql="DROP TABLE employees",
     )
-
-    # [END howto_operator_oracle_external_file]
 
     (create_table_oracle_task >> insert_data_oracle_task >> select_data_oracle_task >> drop_table_oracle_task)
 

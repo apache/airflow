@@ -61,13 +61,6 @@ An example usage of the ``SQLExecuteQueryOperator`` to connect to Vertica is as 
     :start-after: [START howto_operator_vertica]
     :end-before: [END howto_operator_vertica]
 
-Furthermore, you can use an external file to execute the SQL commands (e.g. DROP TABLE). The script
-folder must be at the same level as the DAG.py file.
-
-.. exampleinclude:: /../../providers/vertica/tests/system/vertica/example_vertica.py
-    :language: python
-    :start-after: [START howto_operator_vertica_external_file]
-    :end-before: [END howto_operator_vertica_external_file]
 
 Reference
 ^^^^^^^^^

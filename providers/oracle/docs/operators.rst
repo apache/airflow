@@ -61,12 +61,6 @@ An example usage of the SQLExecuteQueryOperator to connect to Oracle is as follo
     :start-after: [START howto_operator_oracle]
     :end-before: [END howto_operator_oracle]
 
-Furthermore, you can use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
-
-.. exampleinclude:: /../../providers/oracle/tests/system/oracle/example_oracle.py
-    :language: python
-    :start-after: [START howto_operator_oracle_external_file]
-    :end-before: [END howto_operator_oracle_external_file]
 
 Reference
 ^^^^^^^^^

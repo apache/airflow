@@ -69,14 +69,10 @@ with DAG(
         sql="SELECT * FROM employees",
     )
 
-    # [START howto_operator_vertica_external_file]
-
     drop_table_vertica_task = SQLExecuteQueryOperator(
         task_id="drop_table_vertica",
-        sql="vertica_drop_table.sql",
+        sql="DROP TABLE IF EXISTS employees",
     )
-
-    # [END howto_operator_vertica_external_file]
 
     (
         create_table_vertica_task
