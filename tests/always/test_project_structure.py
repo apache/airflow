@@ -299,12 +299,12 @@ class ExampleCoverageTest(ProjectStructureTest):
         # new_design v2:
         # TODO remove #new_design when movement is finished
         yield from glob.glob(
-            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/tests/system/{self.PROVIDER}/example_*.py",
+            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/tests/system/{self.PROVIDER}/**/example_*.py",
             recursive=True,
         )
 
         yield from glob.glob(
-            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/src/airflow/providers/{self.PROVIDER}/**/example_dags/example_*.py",
+            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/src/airflow/providers/{self.PROVIDER}/**/example_*.py",
             recursive=True,
         )
 
@@ -318,7 +318,6 @@ class ExampleCoverageTest(ProjectStructureTest):
         classes = set(classes.keys())
         for example in self.example_paths():
             classes -= get_imports_from_file(example)
-
         covered_but_omitted = self.MISSING_EXAMPLES_FOR_CLASSES - classes
         classes -= self.MISSING_EXAMPLES_FOR_CLASSES
         classes -= self.DEPRECATED_CLASSES
