@@ -95,7 +95,11 @@ def _all_new_providers() -> list[str]:
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon,google,apache.hive]",
-            ["providers/tests/amazon", "providers/tests/google", "providers/apache/hive/tests"],
+            [
+                "providers/tests/amazon",
+                "providers/google/tests/provider_tests/google",
+                "providers/apache/hive/tests",
+            ],
         ),
         (
             GroupOfTests.PROVIDERS,
@@ -104,7 +108,7 @@ def _all_new_providers() -> list[str]:
                 *[f"providers/{provider}/tests" for provider in _all_new_providers()],
                 "providers/tests",
                 "--ignore=providers/tests/amazon",
-                "--ignore=providers/tests/google",
+                "--ignore=providers/google/tests/provider_tests/google",
                 "--ignore=providers/tests/microsoft/azure",
             ],
         ),
@@ -244,7 +248,7 @@ def test_pytest_args_for_missing_provider():
             "Providers[amazon] Providers[google]",
             [
                 "providers/tests/amazon",
-                "providers/tests/google",
+                "providers/google/tests/provider_tests/google",
             ],
         ),
         (

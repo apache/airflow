@@ -153,8 +153,8 @@ class TableMock(MagicMock):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.inputs = [
-            read_file_json("providers/tests/google/cloud/utils/table_details.json"),
-            read_file_json("providers/tests/google/cloud/utils/out_table_details.json"),
+            read_file_json("providers/google/tests/provider_tests/google/cloud/utils/table_details.json"),
+            read_file_json("providers/google/tests/provider_tests/google/cloud/utils/out_table_details.json"),
         ]
 
     @property
