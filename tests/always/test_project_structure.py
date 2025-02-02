@@ -303,6 +303,11 @@ class ExampleCoverageTest(ProjectStructureTest):
             recursive=True,
         )
 
+        yield from glob.glob(
+            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/src/airflow/providers/{self.PROVIDER}/**/example_dags/example_*.py",
+            recursive=True,
+        )
+
     def test_missing_examples(self):
         """
         Assert that all operators defined under operators, sensors and transfers directories
