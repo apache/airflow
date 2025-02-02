@@ -27,7 +27,7 @@ from typing import Any, cast
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowException

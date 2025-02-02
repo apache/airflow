@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import yaml
-from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 from airflow.decorators import task_group
 from airflow.models.dag import DAG

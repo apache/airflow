@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from airflow.models.dag import DAG

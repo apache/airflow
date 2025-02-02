@@ -25,7 +25,7 @@ import os
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 
-from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator

@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.datastore import (

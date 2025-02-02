@@ -22,7 +22,7 @@ import logging
 import os
 from datetime import datetime
 
-from providers.google.tests.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 from airflow.decorators import task
 from airflow.models import Connection
