@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 import attr
 
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom import XCom
 from tests.test_utils.compat import BaseOperatorLink
 
@@ -157,7 +158,11 @@ class CustomOperator(BaseOperator):
         """
         Return operator extra links
         """
-        if isinstance(self.bash_command, str) or self.bash_command is None:
+        if (
+            isinstance(self, MappedOperator)
+            or isinstance(self.bash_command, str)
+            or self.bash_command is None
+        ):
             return (CustomOpLink(),)
         return (CustomBaseIndexOpLink(i) for i, _ in enumerate(self.bash_command))
 
@@ -168,19 +173,6 @@ class CustomOperator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Hello World!")
         context["task_instance"].xcom_push(key="search_query", value="dummy_value")
-
-
-class MappedCustomOperator(BaseOperator):
-    operator_extra_links = (CustomOpLink(),)
-
-    def __init__(self, bash_command: Any, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.bash_command = bash_command
-
-    def execute(self, context: Context):
-        pass
-        # self.log.info("Processing value: %s", self.bash_command)
-        # return f"Processed {self.bash_command}"
 
 
 class GoogleLink(BaseOperatorLink):
