@@ -21,7 +21,8 @@ function cleanup_docker {
     sudo rm -rf /var/lib/docker
     # If a path is provided, bind mount it to /var/lib/docker
     if [ -n "$1" ]; then
-        sudo mkdir -p "$1"
+        echo "Mounting $1 to /var/lib/docker"
+        sudo mkdir -p "$1" /var/lib/docker
         sudo mount --bind "$1" /var/lib/docker
     fi
     sudo systemctl start docker
