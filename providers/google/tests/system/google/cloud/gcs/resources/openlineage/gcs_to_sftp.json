@@ -7,7 +7,7 @@
         "inputs": [
             {
                 "namespace": "file://localhost:22",
-                "name": "{{ result.endswith('airflow/providers/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/parent-1.bin') }}"
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/parent-1.bin') }}"
             }
         ],
         "outputs": [
@@ -25,7 +25,7 @@
         "inputs": [
             {
                 "namespace": "file://localhost:22",
-                "name": "{{ result.endswith('airflow/providers/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/parent-1.bin') }}"
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/parent-1.bin') }}"
             }
         ],
         "outputs": [
@@ -43,7 +43,7 @@
         "inputs": [
             {
                 "namespace": "file://localhost:22",
-                "name": "{{ result.endswith('airflow/providers/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
             }
         ],
         "outputs": [
@@ -61,7 +61,7 @@
         "inputs": [
             {
                 "namespace": "file://localhost:22",
-                "name": "{{ result.endswith('airflow/providers/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
             }
         ],
         "outputs": [
@@ -85,7 +85,7 @@
         "outputs": [
             {
                 "namespace": "file://localhost:22",
-                "name": "{{ result.endswith('airflow/providers/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/destination_dir/destination_filename.bin') }}"
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/destination_dir/destination_filename.bin') }}"
             }
         ]
     },
@@ -103,7 +103,7 @@
         "outputs": [
             {
                 "namespace": "file://localhost:22",
-                "name": "{{ result.endswith('airflow/providers/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/destination_dir/destination_filename.bin') }}"
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/destination_dir/destination_filename.bin') }}"
             }
         ]
     },
@@ -121,7 +121,7 @@
         "outputs": [
             {
                 "namespace": "file://localhost:22",
-                "name": "{{ result.endswith('airflow/providers/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
             }
         ]
     },
@@ -139,7 +139,7 @@
         "outputs": [
             {
                 "namespace": "file://localhost:22",
-                "name": "{{ result.endswith('airflow/providers/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
             }
         ]
     }

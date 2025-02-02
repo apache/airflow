@@ -7,7 +7,7 @@
         "inputs": [
             {
                 "namespace": "file",
-                "name": "{{ result.endswith('airflow/providers/tests/system/google/cloud/bigquery/resources/us-states.csv') }}"
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/bigquery/resources/us-states.csv') }}"
             }
         ],
         "outputs": [
@@ -25,7 +25,7 @@
         "inputs": [
             {
                 "namespace": "file",
-                "name": "{{ result.endswith('airflow/providers/tests/system/google/cloud/bigquery/resources/us-states.csv') }}"
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/bigquery/resources/us-states.csv') }}"
             }
         ],
         "outputs": [

@@ -976,7 +976,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_system_tests.py
         language: python
         files: ^(providers/)?tests/system/.*/example_[^/]*\.py$
-        exclude: ^providers/tests/system/google/cloud/bigquery/example_bigquery_queries\.py$
+        exclude: ^providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme

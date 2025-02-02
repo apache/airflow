@@ -52,7 +52,7 @@ DAG_ID = "gcp_cloud_build_trigger"
 # If you'd like to run this system test locally, please
 #   1. Create Cloud Source Repository
 #   2. Push into a master branch the following file:
-#   providers/tests/system/google/cloud/cloud_build/resources/example_cloud_build.yaml
+#   providers/google/tests/system/google/cloud/cloud_build/resources/example_cloud_build.yaml
 GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repository"
 
 TRIGGER_NAME = f"cloud-build-trigger-{ENV_ID}".replace("_", "-")

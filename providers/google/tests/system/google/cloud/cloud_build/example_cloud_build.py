@@ -51,7 +51,7 @@ GCP_SOURCE_ARCHIVE_URL = "gs://airflow-system-tests-resources/cloud-build/file.t
 # If you'd like to run this system test locally, please
 #   1. Create Cloud Source Repository
 #   2. Push into a master branch the following file:
-#   providers/tests/system/google/cloud/cloud_build/resources/example_cloud_build.yaml
+#   providers/google/tests/system/google/cloud/cloud_build/resources/example_cloud_build.yaml
 GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repository"
 
 CURRENT_FOLDER = Path(__file__).parent
