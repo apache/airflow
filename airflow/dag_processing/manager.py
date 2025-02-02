@@ -176,8 +176,8 @@ class DagFileProcessorManager:
     heartbeat: Callable[[], None] = attrs.field(default=lambda: None)
     """An overridable heartbeat called once every time around the loop"""
 
-    _file_paths: list[DagFileInfo] = attrs.field(factory=list, init=False)
-    _file_path_queue: deque[DagFileInfo] = attrs.field(factory=deque, init=False)
+    _files: list[DagFileInfo] = attrs.field(factory=list, init=False)
+    _file_queue: deque[DagFileInfo] = attrs.field(factory=deque, init=False)
     _file_stats: dict[DagFileInfo, DagFileStat] = attrs.field(
         factory=lambda: defaultdict(DagFileStat), init=False
     )
@@ -311,15 +311,15 @@ class DagFileProcessorManager:
 
             self._refresh_dag_bundles()
 
-            if not self._file_path_queue:
+            if not self._file_queue:
                 # Generate more file paths to process if we processed all the files already. Note for this to
                 # clear down, we must have cleared all files found from scanning the dags dir _and_ have
                 # cleared all files added as a result of callbacks
-                self.prepare_file_path_queue()
+                self.prepare_file_queue()
                 self.emit_metrics()
             else:
                 # if new files found in dag dir, add them
-                self.add_new_file_path_to_queue()
+                self.add_files_to_queue()
 
             self._refresh_requested_filelocs()
 
@@ -378,11 +378,11 @@ class DagFileProcessorManager:
         for fileloc in filelocs:
             # Try removing the fileloc if already present
             try:
-                self._file_path_queue.remove(fileloc)
+                self._file_queue.remove(fileloc)
             except ValueError:
                 pass
             # enqueue fileloc to the start of the queue.
-            self._file_path_queue.appendleft(fileloc)
+            self._file_queue.appendleft(fileloc)
 
     @provide_session
     @retry_db_transaction
@@ -414,14 +414,14 @@ class DagFileProcessorManager:
         # TODO: AIP-66 make callbacks bundle aware
         return
         self._callback_to_execute[request.full_filepath].append(request)
-        if request.full_filepath in self._file_path_queue:
-            # Remove file paths matching request.full_filepath from self._file_path_queue
+        if request.full_filepath in self._file_queue:
+            # Remove file paths matching request.full_filepath from self._file_queue
             # Since we are already going to use that filepath to run callback,
             # there is no need to have same file path again in the queue
-            self._file_path_queue = deque(
-                file_path for file_path in self._file_path_queue if file_path != request.full_filepath
-            )
-        self._add_paths_to_queue([request.full_filepath], True)
+            # todo (AIP-66): update re bundle and rel loc
+            self._file_queue = deque(f for f in self._file_queue if f != request.full_filepath)
+        # todo (AIP-66): update re bundle and rel loc
+        self._add_files_to_queue([request.full_filepath], True)
         Stats.incr("dag_processing.other_callback_count")
 
     @classmethod
@@ -489,28 +489,28 @@ class DagFileProcessorManager:
                         "Version changed for %s, new version: %s", bundle.name, version_after_refresh
                     )
 
-            found_file_infos = [
+            found_files = [
                 DagFileInfo(rel_path=p, bundle_name=bundle.name, bundle_path=bundle.path)
                 for p in self._find_files_in_bundle(bundle)
             ]
 
-            new_file_paths = [f for f in self._file_paths if f.bundle_name != bundle.name]
-            new_file_paths.extend(found_file_infos)
-            self.set_file_paths(new_file_paths)
+            new_files = [f for f in self._files if f.bundle_name != bundle.name]
+            new_files.extend(found_files)
+            self.set_files(new_files)
 
-            self.deactivate_deleted_dags(active_files=found_file_infos)
+            self.deactivate_deleted_dags(active_files=found_files)
             self.clear_nonexistent_import_errors()
 
             self._bundle_versions[bundle.name] = bundle.get_current_version()
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
-        """Get relative file paths from bundle dir."""
+        """Get relative paths for dag files from bundle dir."""
         # Build up a list of Python files that could contain DAGs
         self.log.info("Searching for files in %s at %s", bundle.name, bundle.path)
-        file_paths = [Path(x).relative_to(bundle.path) for x in list_py_file_paths(bundle.path)]
-        self.log.info("Found %s files for bundle %s", len(file_paths), bundle.name)
+        rel_paths = [Path(x).relative_to(bundle.path) for x in list_py_file_paths(bundle.path)]
+        self.log.info("Found %s files for bundle %s", len(rel_paths), bundle.name)
 
-        return file_paths
+        return rel_paths
 
     def deactivate_deleted_dags(self, active_files: list[DagFileInfo]) -> None:
         """Deactivate DAGs that come from files that are no longer present."""
@@ -542,7 +542,7 @@ class DagFileProcessorManager:
         """
 
         for info in active_files:
-            for path in _iter_dag_filelocs(str(info.absolute_path)):
+            for path in _iter_dag_filelocs(str(info.rel_path)):
                 active_subpaths.add((info.bundle_name, path))
 
         DagModel.deactivate_deleted_dags(active_subpaths)
@@ -550,8 +550,8 @@ class DagFileProcessorManager:
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed."""
         if 0 < self.print_stats_interval < time.monotonic() - self.last_stat_print_time:
-            if self._file_paths:
-                self._log_file_processing_stats(self._file_paths)
+            if self._files:
+                self._log_file_processing_stats(self._files)
             self.last_stat_print_time = time.monotonic()
 
     @provide_session
@@ -559,18 +559,17 @@ class DagFileProcessorManager:
         """
         Clear import errors for files that no longer exist.
 
-        :param file_paths: list of paths to DAG definition files
         :param session: session for ORM operations
         """
         self.log.debug("Removing old import errors")
         try:
             query = delete(ParseImportError)
 
-            if self._file_paths:
+            if self._files:
                 query = query.where(
                     tuple_(ParseImportError.filename, ParseImportError.bundle_name).notin_(
                         # todo AIP-66: ParseImportError should have rel fileloce + bundle name
-                        [(str(f.absolute_path), f.bundle_name) for f in self._file_paths]
+                        [(str(f.absolute_path), f.bundle_name) for f in self._files]
                     ),
                 )
 
@@ -579,11 +578,11 @@ class DagFileProcessorManager:
         except Exception:
             self.log.exception("Error removing old import errors")
 
-    def _log_file_processing_stats(self, known_file_paths):
+    def _log_file_processing_stats(self, known_files):
         """
         Print out stats about how files are getting processed.
 
-        :param known_file_paths: a list of file paths that may contain Airflow
+        :param known_files: a list of file paths that may contain Airflow
             DAG definitions
         :return: None
         """
@@ -598,6 +597,7 @@ class DagFileProcessorManager:
         # Last # of DB Queries: The number of queries performed to the
         # Airflow database during last parsing of the file.
         headers = [
+            "Bundle",
             "File Path",
             "PID",
             "Current Duration",
@@ -610,12 +610,12 @@ class DagFileProcessorManager:
         rows = []
         utcnow = timezone.utcnow()
         now = time.monotonic()
-        for file_path in known_file_paths:
-            stat = self._file_stats[file_path]
-            proc = self._processors.get(file_path)
+        for file in known_files:
+            stat = self._file_stats[file]
+            proc = self._processors.get(file)
             num_dags = stat.num_dags
             num_errors = stat.import_errors
-            file_name = Path(file_path.rel_path).stem
+            file_name = Path(file.rel_path).stem
             processor_pid = proc.pid if proc else None
             processor_start_time = proc.start_time if proc else None
             runtime = (now - processor_start_time) if processor_start_time else None
@@ -626,7 +626,8 @@ class DagFileProcessorManager:
 
             rows.append(
                 (
-                    file_path,
+                    file.bundle_name,
+                    file.rel_path,
                     processor_pid,
                     runtime,
                     num_dags,
@@ -641,7 +642,8 @@ class DagFileProcessorManager:
 
         formatted_rows = []
         for (
-            file_path,
+            bundle_name,
+            relative_path,
             pid,
             runtime,
             num_dags,
@@ -651,7 +653,8 @@ class DagFileProcessorManager:
         ) in rows:
             formatted_rows.append(
                 (
-                    file_path,
+                    bundle_name,
+                    relative_path,
                     pid,
                     f"{runtime:.2f}s" if runtime else None,
                     num_dags,
@@ -672,18 +675,18 @@ class DagFileProcessorManager:
 
         self.log.info(log_str)
 
-    def set_file_paths(self, new_file_paths: list[DagFileInfo]):
+    def set_files(self, files: list[DagFileInfo]):
         """
-        Update this with a new set of DagFilePaths to DAG definition files.
+        Update the set of files to track in the dag processor.
 
-        :param new_file_paths: list of paths to DAG definition files
+        :param files: list of files
         :return: None
         """
-        self._file_paths = new_file_paths
+        self._files = files
 
-        # clean up the queues; remove anything queued which no longer in the list, including callbacks
-        self._file_path_queue = deque(x for x in self._file_path_queue if x in new_file_paths)
-        Stats.gauge("dag_processing.file_path_queue_size", len(self._file_path_queue))
+        # remove from queue any files no longer in the _files list
+        self._file_queue = deque(x for x in self._file_queue if x in files)
+        Stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
         # TODO: AIP-66 make callbacks bundle aware
         # callback_paths_to_del = [x for x in self._callback_to_execute if x not in new_file_paths]
@@ -692,19 +695,19 @@ class DagFileProcessorManager:
 
         # Stop processors that are working on deleted files
         filtered_processors = {}
-        for file_path, processor in self._processors.items():
-            if file_path in new_file_paths:
-                filtered_processors[file_path] = processor
+        for file, processor in self._processors.items():
+            if file in files:
+                filtered_processors[file] = processor
             else:
-                self.log.warning("Stopping processor for %s", file_path)
-                Stats.decr("dag_processing.processes", tags={"file_path": file_path, "action": "stop"})
+                self.log.warning("Stopping processor for %s", file)
+                Stats.decr("dag_processing.processes", tags={"file_path": file, "action": "stop"})
                 processor.kill(signal.SIGKILL)
-                self._file_stats.pop(file_path)
+                self._file_stats.pop(file)
 
-        to_remove = set(self._file_stats).difference(self._file_paths)
-        for key in to_remove:
+        to_remove = set(self._file_stats).difference(self._files)
+        for file in to_remove:
             # Remove the stats for any dag files that don't exist anymore
-            del self._file_stats[key]
+            del self._file_stats[file]
 
         self._processors = filtered_processors
 
@@ -712,25 +715,25 @@ class DagFileProcessorManager:
     def _collect_results(self, session: Session = NEW_SESSION):
         # TODO: Use an explicit session in this fn
         finished = []
-        for dag_file, proc in self._processors.items():
+        for file, proc in self._processors.items():
             if not proc.is_ready:
                 # This processor hasn't finished yet, or we haven't read all the output from it yet
                 continue
-            finished.append(dag_file)
+            finished.append(file)
 
             # Collect the DAGS and import errors into the DB, emit metrics etc.
-            self._file_stats[dag_file] = process_parse_results(
+            self._file_stats[file] = process_parse_results(
                 run_duration=time.time() - proc.start_time,
                 finish_time=timezone.utcnow(),
-                run_count=self._file_stats[dag_file].run_count,
-                bundle_name=dag_file.bundle_name,
-                bundle_version=self._bundle_versions[dag_file.bundle_name],
+                run_count=self._file_stats[file].run_count,
+                bundle_name=file.bundle_name,
+                bundle_version=self._bundle_versions[file.bundle_name],
                 parsing_result=proc.parsing_result,
                 session=session,
             )
 
-        for dag_file in finished:
-            self._processors.pop(dag_file)
+        for file in finished:
+            self._processors.pop(file)
 
     def _get_log_dir(self) -> str:
         return os.path.join(self.base_log_dir, timezone.utcnow().strftime("%Y-%m-%d"))
@@ -794,26 +797,26 @@ class DagFileProcessorManager:
 
     def _start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
-        while self._parallelism > len(self._processors) and self._file_path_queue:
-            file_path = self._file_path_queue.popleft()
+        while self._parallelism > len(self._processors) and self._file_queue:
+            file = self._file_queue.popleft()
             # Stop creating duplicate processor i.e. processor with the same filepath
-            if file_path in self._processors:
+            if file in self._processors:
                 continue
 
-            processor = self._create_process(file_path)
-            Stats.incr("dag_processing.processes", tags={"file_path": file_path, "action": "start"})
+            processor = self._create_process(file)
+            Stats.incr("dag_processing.processes", tags={"file_path": file, "action": "start"})
 
-            self._processors[file_path] = processor
-            Stats.gauge("dag_processing.file_path_queue_size", len(self._file_path_queue))
+            self._processors[file] = processor
+            Stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
-    def add_new_file_path_to_queue(self):
-        for file_path in self._file_paths:
-            if file_path not in self._file_stats:
+    def add_files_to_queue(self):
+        for file in self._files:
+            if file not in self._file_stats:
                 # We found new file after refreshing dir. add to parsing queue at start
-                self.log.info("Adding new file %s to parsing queue", file_path)
-                self._file_path_queue.appendleft(file_path)
+                self.log.info("Adding new file %s to parsing queue", file)
+                self._file_queue.appendleft(file)
 
-    def prepare_file_path_queue(self):
+    def prepare_file_queue(self):
         """
         Scan dags dir to generate more file paths to process.
 
@@ -822,7 +825,7 @@ class DagFileProcessorManager:
         self._parsing_start_time = time.perf_counter()
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
-        file_paths_in_progress = set(self._processors)
+        in_progress = set(self._processors)
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode
@@ -832,32 +835,32 @@ class DagFileProcessorManager:
         file_infos: list[DagFileInfo] = []
         is_mtime_mode = list_mode == "modified_time"
 
-        file_paths_recently_processed = []
-        file_paths_to_stop_watching = set()
-        for f_info in self._file_paths:
+        recently_processed: list[DagFileInfo] = []
+        to_stop = set()
+        for file in self._files:
             if is_mtime_mode:
                 try:
-                    files_with_mtime[f_info] = os.path.getmtime(f_info.absolute_path)
+                    files_with_mtime[file] = os.path.getmtime(file.absolute_path)
                 except FileNotFoundError:
-                    self.log.warning("Skipping processing of missing file: %s", f_info)
-                    self._file_stats.pop(f_info, None)
-                    file_paths_to_stop_watching.add(f_info)
+                    self.log.warning("Skipping processing of missing file: %s", file)
+                    self._file_stats.pop(file, None)
+                    to_stop.add(file)
                     continue
-                file_modified_time = datetime.fromtimestamp(files_with_mtime[f_info], tz=timezone.utc)
+                file_modified_time = datetime.fromtimestamp(files_with_mtime[file], tz=timezone.utc)
             else:
-                file_infos.append(f_info)
+                file_infos.append(file)
                 file_modified_time = None
 
             # Find file paths that were recently processed to exclude them
-            # from being added to file_path_queue
+            # from being added to file_queue
             # unless they were modified recently and parsing mode is "modified_time"
             # in which case we don't honor "self._file_process_interval" (min_file_process_interval)
             if (
-                (last_finish_time := self._file_stats[f_info].last_finish_time) is not None
+                (last_finish_time := self._file_stats[file].last_finish_time) is not None
                 and (now - last_finish_time).total_seconds() < self._file_process_interval
                 and not (is_mtime_mode and file_modified_time and (file_modified_time > last_finish_time))
             ):
-                file_paths_recently_processed.append(f_info)
+                recently_processed.append(file)
 
         # Sort file paths via last modified time
         if is_mtime_mode:
@@ -871,20 +874,18 @@ class DagFileProcessorManager:
             # set of files. Since we set the seed, the sort order will remain same per host
             random.Random(get_hostname()).shuffle(file_infos)
 
-        if file_paths_to_stop_watching:
-            self.set_file_paths([p for p in self._file_paths if p not in file_paths_to_stop_watching])
+        if to_stop:
+            self.set_files([x for x in self._files if x not in to_stop])
 
-        files_paths_at_run_limit = [
-            info for info, stat in self._file_stats.items() if stat.run_count == self.max_runs
-        ]
+        at_run_limit = [info for info, stat in self._file_stats.items() if stat.run_count == self.max_runs]
 
-        to_exclude = file_paths_in_progress.union(
-            file_paths_recently_processed,
-            files_paths_at_run_limit,
+        to_exclude = in_progress.union(
+            recently_processed,
+            at_run_limit,
         )
 
         # Do not convert the following list to set as set does not preserve the order
-        # and we need to maintain the order of file_paths for `[dag_processor] file_parsing_sort_mode`
+        # and we need to maintain the order of files for `[dag_processor] file_parsing_sort_mode`
         to_queue = [x for x in file_infos if x not in to_exclude]
 
         if self.log.isEnabledFor(logging.DEBUG):
@@ -897,50 +898,50 @@ class DagFileProcessorManager:
                 "Queuing the following files for processing:\n\t%s",
                 "\n\t".join(str(f.rel_path) for f in to_queue),
             )
-        self._add_paths_to_queue(to_queue, False)
+        self._add_files_to_queue(to_queue, False)
         Stats.incr("dag_processing.file_path_queue_update_count")
 
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
         now = time.time()
         processors_to_remove = []
-        for file_path, processor in self._processors.items():
+        for file, processor in self._processors.items():
             duration = now - processor.start_time
             if duration > self.processor_timeout:
                 self.log.error(
                     "Processor for %s with PID %s started %d ago killing it.",
-                    file_path,
+                    file,
                     processor.pid,
                     duration,
                 )
-                Stats.decr("dag_processing.processes", tags={"file_path": file_path, "action": "timeout"})
-                Stats.incr("dag_processing.processor_timeouts", tags={"file_path": file_path})
+                Stats.decr("dag_processing.processes", tags={"file_path": file, "action": "timeout"})
+                Stats.incr("dag_processing.processor_timeouts", tags={"file_path": file})
                 processor.kill(signal.SIGKILL)
 
-                processors_to_remove.append(file_path)
+                processors_to_remove.append(file)
 
                 stat = DagFileStat(
                     num_dags=0,
                     import_errors=1,
                     last_finish_time=timezone.utcnow(),
                     last_duration=duration,
-                    run_count=self._file_stats[file_path].run_count + 1,
+                    run_count=self._file_stats[file].run_count + 1,
                     last_num_of_db_queries=0,
                 )
-                self._file_stats[file_path] = stat
+                self._file_stats[file] = stat
 
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
             self._processors.pop(proc)
 
-    def _add_paths_to_queue(self, file_paths_to_enqueue: list[DagFileInfo], add_at_front: bool):
+    def _add_files_to_queue(self, files: list[DagFileInfo], add_at_front: bool):
         """Add stuff to the back or front of the file queue, unless it's already present."""
-        new_file_paths = list(p for p in file_paths_to_enqueue if p not in self._file_path_queue)
+        new_files = list(f for f in files if f not in self._file_queue)
         if add_at_front:
-            self._file_path_queue.extendleft(new_file_paths)
+            self._file_queue.extendleft(new_files)
         else:
-            self._file_path_queue.extend(new_file_paths)
-        Stats.gauge("dag_processing.file_path_queue_size", len(self._file_path_queue))
+            self._file_queue.extend(new_files)
+        Stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
     def max_runs_reached(self):
         """:return: whether all file paths have been processed max_runs times."""
@@ -952,8 +953,9 @@ class DagFileProcessorManager:
 
     def terminate(self):
         """Stop all running processors."""
-        for file_path, processor in self._processors.items():
-            Stats.decr("dag_processing.processes", tags={"file_path": file_path, "action": "terminate"})
+        for file, processor in self._processors.items():
+            # todo: AIP-66 what to do about file_path tag? replace with bundle name and rel path?
+            Stats.decr("dag_processing.processes", tags={"file_path": file, "action": "terminate"})
             # SIGTERM, wait 5s, SIGKILL if still alive
             processor.kill(signal.SIGTERM, escalation_delay=5.0)
 

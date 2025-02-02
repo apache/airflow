@@ -657,8 +657,10 @@ dev = [
   "apache-airflow-providers-facebook",
   "apache-airflow-providers-ftp",
   "apache-airflow-providers-github",
+  "apache-airflow-providers-grpc",
   "apache-airflow-providers-http",
   "apache-airflow-providers-influxdb",
+  "apache-airflow-providers-jdbc",
   "apache-airflow-providers-mongo",
   "apache-airflow-providers-openlineage",
   "apache-airflow-providers-hashicorp",
@@ -740,8 +742,10 @@ apache-airflow-providers-fab = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-ftp = { workspace = true }
 apache-airflow-providers-github = { workspace = true }
+apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
+apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
@@ -821,10 +825,12 @@ members = [
     "providers/facebook",
     "providers/ftp",
     "providers/github",
+    "providers/grpc",
     "providers/hashicorp",
     "providers/http",
     "providers/imap",
     "providers/influxdb",
+    "providers/jdbc",
     "providers/jenkins",
     "providers/mongo",
     "providers/mysql",

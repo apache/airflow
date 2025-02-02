@@ -40,12 +40,14 @@ from google.api_core.exceptions import AlreadyExists, GoogleAPICallError, NotFou
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataplex_v1.types import (
+    AspectType,
     Asset,
     DataScan,
     DataScanJob,
     EntryGroup,
     EntryType,
     Lake,
+    ListAspectTypesResponse,
     ListEntryGroupsResponse,
     ListEntryTypesResponse,
     Task,
@@ -56,6 +58,8 @@ from googleapiclient.errors import HttpError
 from airflow.configuration import conf
 from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanException, DataplexHook
 from airflow.providers.google.cloud.links.dataplex import (
+    DataplexCatalogAspectTypeLink,
+    DataplexCatalogAspectTypesLink,
     DataplexCatalogEntryGroupLink,
     DataplexCatalogEntryGroupsLink,
     DataplexCatalogEntryTypeLink,
@@ -2828,7 +2832,7 @@ class DataplexCatalogListEntryTypesOperator(DataplexCatalogBaseOperator):
 
     :param filter_by: Optional. Filter to apply on the list results.
     :param order_by: Optional. Fields to order the results by.
-    :param page_size: Optional. Maximum number of EntryGroups to return on the page.
+    :param page_size: Optional. Maximum number of EntryTypes to return on the page.
     :param page_token: Optional. Token to retrieve the next page of results.
     :param project_id: Required. The ID of the Google Cloud project where the service is used.
     :param location: Required. The ID of the Google Cloud region where the service is used.
@@ -2887,7 +2891,7 @@ class DataplexCatalogListEntryTypesOperator(DataplexCatalogBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            self.log.info("EntryGroup on page: %s", entry_type_on_page)
+            self.log.info("EntryType on page: %s", entry_type_on_page)
             self.xcom_push(
                 context=context,
                 key="entry_type_page",
@@ -2896,7 +2900,7 @@ class DataplexCatalogListEntryTypesOperator(DataplexCatalogBaseOperator):
         except Exception as ex:
             raise AirflowException(ex)
 
-        # Constructing list to return EntryGroups in readable format
+        # Constructing list to return EntryTypes in readable format
         entry_types_list = [
             MessageToDict(entry_type._pb, preserving_proto_field_name=True)
             for entry_type in next(iter(entry_type_on_page.pages)).entry_types
@@ -2997,3 +3001,417 @@ class DataplexCatalogUpdateEntryTypeOperator(DataplexCatalogBaseOperator):
         if not self.validate_request:
             self.log.info("EntryType %s was successfully updated.", self.entry_type_id)
         return result
+
+
+class DataplexCatalogCreateAspectTypeOperator(DataplexCatalogBaseOperator):
+    """
+    Create an AspectType resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogCreateAspectTypeOperator`
+
+    :param aspect_type_id: Required. AspectType identifier.
+    :param aspect_type_configuration: Required. AspectType configuration.
+        For more details please see API documentation:
+        https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.aspectTypes#AspectType
+    :param validate_request: Optional. If set, performs request validation, but does not actually
+        execute the request.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"aspect_type_id", "aspect_type_configuration"} | set(DataplexCatalogBaseOperator.template_fields)
+    )
+    operator_extra_links = (DataplexCatalogAspectTypeLink(),)
+
+    def __init__(
+        self,
+        aspect_type_id: str,
+        aspect_type_configuration: AspectType | dict,
+        validate_request: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.aspect_type_id = aspect_type_id
+        self.aspect_type_configuration = aspect_type_configuration
+        self.validate_request = validate_request
+
+    def execute(self, context: Context):
+        DataplexCatalogAspectTypeLink.persist(
+            context=context,
+            task_instance=self,
+        )
+
+        if self.validate_request:
+            self.log.info("Validating a Create Dataplex Catalog AspectType request.")
+        else:
+            self.log.info("Creating a Dataplex Catalog AspectType.")
+
+        try:
+            operation = self.hook.create_aspect_type(
+                aspect_type_id=self.aspect_type_id,
+                aspect_type_configuration=self.aspect_type_configuration,
+                location=self.location,
+                project_id=self.project_id,
+                validate_only=self.validate_request,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            aspect_type = self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        except AlreadyExists:
+            aspect_type = self.hook.get_aspect_type(
+                aspect_type_id=self.aspect_type_id,
+                location=self.location,
+                project_id=self.project_id,
+            )
+            self.log.info(
+                "Dataplex Catalog AspectType %s already exists.",
+                self.aspect_type_id,
+            )
+            result = AspectType.to_dict(aspect_type)
+            return result
+        except Exception as ex:
+            raise AirflowException(ex)
+        else:
+            result = AspectType.to_dict(aspect_type) if not self.validate_request else None
+
+        if not self.validate_request:
+            self.log.info("Dataplex Catalog AspectType %s was successfully created.", self.aspect_type_id)
+        return result
+
+
+class DataplexCatalogGetAspectTypeOperator(DataplexCatalogBaseOperator):
+    """
+    Get an AspectType resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogGetAspectTypeOperator`
+
+    :param aspect_type_id: Required. AspectType identifier.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"aspect_type_id"} | set(DataplexCatalogBaseOperator.template_fields)
+    )
+    operator_extra_links = (DataplexCatalogAspectTypeLink(),)
+
+    def __init__(
+        self,
+        aspect_type_id: str,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.aspect_type_id = aspect_type_id
+
+    def execute(self, context: Context):
+        DataplexCatalogAspectTypeLink.persist(
+            context=context,
+            task_instance=self,
+        )
+        self.log.info(
+            "Retrieving Dataplex Catalog AspectType %s.",
+            self.aspect_type_id,
+        )
+        try:
+            aspect_type = self.hook.get_aspect_type(
+                aspect_type_id=self.aspect_type_id,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except NotFound:
+            self.log.info(
+                "Dataplex Catalog AspectType %s not found.",
+                self.aspect_type_id,
+            )
+            raise AirflowException(NotFound)
+        except Exception as ex:
+            raise AirflowException(ex)
+
+        return AspectType.to_dict(aspect_type)
+
+
+class DataplexCatalogListAspectTypesOperator(DataplexCatalogBaseOperator):
+    """
+    List AspectType resources.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogListAspectTypesOperator`
+
+    :param filter_by: Optional. Filter to apply on the list results.
+    :param order_by: Optional. Fields to order the results by.
+    :param page_size: Optional. Maximum number of AspectTypes to return on the page.
+    :param page_token: Optional. Token to retrieve the next page of results.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(DataplexCatalogBaseOperator.template_fields)
+    operator_extra_links = (DataplexCatalogAspectTypesLink(),)
+
+    def __init__(
+        self,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter_by: str | None = None,
+        order_by: str | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.page_size = page_size
+        self.page_token = page_token
+        self.filter_by = filter_by
+        self.order_by = order_by
+
+    def execute(self, context: Context):
+        DataplexCatalogAspectTypesLink.persist(
+            context=context,
+            task_instance=self,
+        )
+        self.log.info(
+            "Listing Dataplex Catalog AspectType from location %s.",
+            self.location,
+        )
+        try:
+            aspect_type_on_page = self.hook.list_aspect_types(
+                location=self.location,
+                project_id=self.project_id,
+                page_size=self.page_size,
+                page_token=self.page_token,
+                filter_by=self.filter_by,
+                order_by=self.order_by,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("AspectType on page: %s", aspect_type_on_page)
+            self.xcom_push(
+                context=context,
+                key="aspect_type_page",
+                value=ListAspectTypesResponse.to_dict(aspect_type_on_page._response),
+            )
+        except Exception as ex:
+            raise AirflowException(ex)
+
+        # Constructing list to return AspectTypes in readable format
+        aspect_types_list = [
+            MessageToDict(aspect_type._pb, preserving_proto_field_name=True)
+            for aspect_type in next(iter(aspect_type_on_page.pages)).aspect_types
+        ]
+        return aspect_types_list
+
+
+class DataplexCatalogUpdateAspectTypeOperator(DataplexCatalogBaseOperator):
+    """
+    Update an AspectType resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogUpdateAspectTypeOperator`
+
+    :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
+    :param location: Required. The ID of the Google Cloud region that the task belongs to.
+    :param update_mask: Optional. Names of fields whose values to overwrite on an entry group.
+        If this parameter is absent or empty, all modifiable fields are overwritten. If such
+        fields are non-required and omitted in the request body, their values are emptied.
+    :param aspect_type_id: Required. ID of the AspectType to update.
+    :param aspect_type_configuration: Required. The updated configuration body of the AspectType.
+        For more details please see API documentation:
+        https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.aspectTypes#AspectType
+    :param validate_only: Optional. The service validates the request without performing any mutations.
+    :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param gcp_conn_id: Optional. The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"aspect_type_id", "aspect_type_configuration", "update_mask"}
+        | set(DataplexCatalogBaseOperator.template_fields)
+    )
+    operator_extra_links = (DataplexCatalogAspectTypeLink(),)
+
+    def __init__(
+        self,
+        aspect_type_id: str,
+        aspect_type_configuration: dict | AspectType,
+        update_mask: list[str] | FieldMask | None = None,
+        validate_request: bool | None = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.aspect_type_id = aspect_type_id
+        self.aspect_type_configuration = aspect_type_configuration
+        self.update_mask = update_mask
+        self.validate_request = validate_request
+
+    def execute(self, context: Context):
+        DataplexCatalogAspectTypeLink.persist(
+            context=context,
+            task_instance=self,
+        )
+
+        if self.validate_request:
+            self.log.info("Validating an Update Dataplex Catalog AspectType request.")
+        else:
+            self.log.info(
+                "Updating Dataplex Catalog AspectType %s.",
+                self.aspect_type_id,
+            )
+        try:
+            operation = self.hook.update_aspect_type(
+                location=self.location,
+                project_id=self.project_id,
+                aspect_type_id=self.aspect_type_id,
+                aspect_type_configuration=self.aspect_type_configuration,
+                update_mask=self.update_mask,
+                validate_only=self.validate_request,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            aspect_type = self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
+
+        except NotFound as ex:
+            self.log.info("Specified AspectType was not found.")
+            raise AirflowException(ex)
+        except Exception as exc:
+            raise AirflowException(exc)
+        else:
+            result = AspectType.to_dict(aspect_type) if not self.validate_request else None
+
+        if not self.validate_request:
+            self.log.info("AspectType %s was successfully updated.", self.aspect_type_id)
+        return result
+
+
+class DataplexCatalogDeleteAspectTypeOperator(DataplexCatalogBaseOperator):
+    """
+    Delete an AspectType resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogDeleteAspectTypeOperator`
+
+    :param aspect_type_id: Required. AspectType identifier.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"aspect_type_id"} | set(DataplexCatalogBaseOperator.template_fields)
+    )
+
+    def __init__(
+        self,
+        aspect_type_id: str,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.aspect_type_id = aspect_type_id
+
+    def execute(self, context: Context):
+        self.log.info(
+            "Deleting Dataplex Catalog AspectType %s.",
+            self.aspect_type_id,
+        )
+        try:
+            operation = self.hook.delete_aspect_type(
+                aspect_type_id=self.aspect_type_id,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.hook.wait_for_operation(timeout=self.timeout, operation=operation)
+
+        except NotFound:
+            self.log.info(
+                "Dataplex Catalog AspectType %s not found.",
+                self.aspect_type_id,
+            )
+            raise AirflowException(NotFound)
+        except Exception as ex:
+            raise AirflowException(ex)
+        return None

@@ -20,8 +20,14 @@ from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.dataplex_v1.services.catalog_service.pagers import ListEntryGroupsPager, ListEntryTypesPager
+from google.cloud.dataplex_v1.services.catalog_service.pagers import (
+    ListAspectTypesPager,
+    ListEntryGroupsPager,
+    ListEntryTypesPager,
+)
 from google.cloud.dataplex_v1.types import (
+    ListAspectTypesRequest,
+    ListAspectTypesResponse,
     ListEntryGroupsRequest,
     ListEntryGroupsResponse,
     ListEntryTypesRequest,
@@ -30,12 +36,16 @@ from google.cloud.dataplex_v1.types import (
 
 from airflow.exceptions import TaskDeferred
 from airflow.providers.google.cloud.operators.dataplex import (
+    DataplexCatalogCreateAspectTypeOperator,
     DataplexCatalogCreateEntryGroupOperator,
     DataplexCatalogCreateEntryTypeOperator,
+    DataplexCatalogDeleteAspectTypeOperator,
     DataplexCatalogDeleteEntryGroupOperator,
     DataplexCatalogDeleteEntryTypeOperator,
+    DataplexCatalogGetAspectTypeOperator,
     DataplexCatalogGetEntryGroupOperator,
     DataplexCatalogGetEntryTypeOperator,
+    DataplexCatalogListAspectTypesOperator,
     DataplexCatalogListEntryGroupsOperator,
     DataplexCatalogListEntryTypesOperator,
     DataplexCreateAssetOperator,
@@ -68,6 +78,7 @@ ZONE_STR = "airflow.providers.google.cloud.operators.dataplex.Zone"
 ASSET_STR = "airflow.providers.google.cloud.operators.dataplex.Asset"
 ENTRY_GROUP_STR = "airflow.providers.google.cloud.operators.dataplex.EntryGroup"
 ENTRY_TYPE_STR = "airflow.providers.google.cloud.operators.dataplex.EntryType"
+ASPECT_TYPE_STR = "airflow.providers.google.cloud.operators.dataplex.AspectType"
 
 PROJECT_ID = "project-id"
 REGION = "region"
@@ -91,6 +102,7 @@ ZONE_ID = "test_zone_id"
 JOB_ID = "test_job_id"
 ENTRY_GROUP_NAME = "test_entry_group"
 ENTRY_TYPE_NAME = "test_entry_type"
+ASPECT_TYPE_NAME = "test_aspect_type"
 
 
 class TestDataplexCreateTaskOperator:
@@ -1013,6 +1025,141 @@ class TestDataplexCatalogListEntryTypesOperator:
         )
 
         hook_mock.return_value.list_entry_types.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location=REGION,
+            page_size=None,
+            page_token=None,
+            filter_by=None,
+            order_by=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCatalogCreateAspectTypeOperator:
+    @mock.patch(ASPECT_TYPE_STR)
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock, aspect_type_mock):
+        op = DataplexCatalogCreateAspectTypeOperator(
+            task_id="create_task",
+            project_id=PROJECT_ID,
+            location=REGION,
+            aspect_type_id=ASPECT_TYPE_NAME,
+            aspect_type_configuration=BODY,
+            validate_request=None,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        aspect_type_mock.return_value.to_dict.return_value = None
+        hook_mock.return_value.wait_for_operation.return_value = None
+        op.execute(context=mock.MagicMock())
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.create_aspect_type.assert_called_once_with(
+            aspect_type_id=ASPECT_TYPE_NAME,
+            aspect_type_configuration=BODY,
+            location=REGION,
+            project_id=PROJECT_ID,
+            validate_only=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCatalogGetAspectTypeOperator:
+    @mock.patch(ASPECT_TYPE_STR)
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock, aspect_type_mock):
+        op = DataplexCatalogGetAspectTypeOperator(
+            project_id=PROJECT_ID,
+            location=REGION,
+            aspect_type_id=ASPECT_TYPE_NAME,
+            task_id="get_task",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=mock.MagicMock())
+        aspect_type_mock.return_value.to_dict.return_value = None
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.get_aspect_type.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location=REGION,
+            aspect_type_id=ASPECT_TYPE_NAME,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCatalogDeleteAspectTypeOperator:
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock):
+        op = DataplexCatalogDeleteAspectTypeOperator(
+            project_id=PROJECT_ID,
+            location=REGION,
+            aspect_type_id=ASPECT_TYPE_NAME,
+            task_id="delete_task",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.wait_for_operation.return_value = None
+        op.execute(context=mock.MagicMock())
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.delete_aspect_type.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location=REGION,
+            aspect_type_id=ASPECT_TYPE_NAME,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCatalogListAspectTypesOperator:
+    @mock.patch(ASPECT_TYPE_STR)
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock, aspect_type_mock):
+        op = DataplexCatalogListAspectTypesOperator(
+            project_id=PROJECT_ID,
+            location=REGION,
+            task_id="list_task",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.list_aspect_types.return_value = ListAspectTypesPager(
+            response=(
+                ListAspectTypesResponse(
+                    aspect_types=[
+                        {
+                            "name": "aaa",
+                            "description": "Test Aspect Type 1",
+                            "display_name": "Aspect Type One",
+                        }
+                    ]
+                )
+            ),
+            method=mock.MagicMock(),
+            request=ListAspectTypesRequest(parent=""),
+        )
+
+        aspect_type_mock.return_value.to_dict.return_value = None
+        op.execute(context=mock.MagicMock())
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        hook_mock.return_value.list_aspect_types.assert_called_once_with(
             project_id=PROJECT_ID,
             location=REGION,
             page_size=None,
