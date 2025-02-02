@@ -58,7 +58,7 @@ Example request body:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_db_create_template_fields]
@@ -96,7 +96,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_db_delete_template_fields]
@@ -143,7 +143,7 @@ Example request body:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_db_patch_template_fields]
@@ -183,7 +183,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_delete_template_fields]
@@ -243,7 +243,7 @@ Also for all this action you can use operator in the deferrable mode:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_export_template_fields]
@@ -328,7 +328,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_import_template_fields]
@@ -399,7 +399,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_create_template_fields]
@@ -450,7 +450,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_patch_template_fields]
@@ -493,7 +493,7 @@ Cloud connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_clone_template_fields]
@@ -622,7 +622,7 @@ format is:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_query_template_fields]

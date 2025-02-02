@@ -50,7 +50,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_deploy_template_fields]
@@ -89,7 +89,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_delete_template_fields]
@@ -129,7 +129,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_database_deploy_template_fields]
@@ -179,7 +179,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_database_update_template_fields]
@@ -216,7 +216,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_query_template_fields]
@@ -255,7 +255,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_delete_template_fields]

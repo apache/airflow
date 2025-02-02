@@ -78,7 +78,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_add_product_to_product_set_template_fields]
@@ -136,7 +136,7 @@ The result can be extracted from XCOM:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_annotate_image_template_fields]
@@ -204,7 +204,7 @@ Or it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_product_create_template_fields]
@@ -256,7 +256,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_product_delete_template_fields]
@@ -304,7 +304,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_product_get_template_fields]
@@ -366,7 +366,7 @@ Or it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_productset_create_template_fields]
@@ -412,7 +412,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_productset_delete_template_fields]
@@ -456,7 +456,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_productset_get_template_fields]
@@ -526,7 +526,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_productset_update_template_fields]
@@ -605,7 +605,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_product_update_template_fields]
@@ -667,7 +667,7 @@ Or it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_reference_image_create_template_fields]
@@ -729,7 +729,7 @@ Or it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_reference_image_create_template_fields]
@@ -794,7 +794,7 @@ Otherwise it can be specified explicitly:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_remove_product_from_product_set_template_fields]
@@ -847,7 +847,7 @@ The result can be extracted from XCOM:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_detect_text_set_template_fields]
@@ -899,7 +899,7 @@ The result can be extracted from XCOM:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_document_detect_text_set_template_fields]
@@ -952,7 +952,7 @@ The result can be extracted from XCOM:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_detect_labels_template_fields]
@@ -1004,7 +1004,7 @@ The result can be extracted from XCOM:
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/vision.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/vision.py
     :language: python
     :dedent: 4
     :start-after: [START vision_detect_safe_search_template_fields]

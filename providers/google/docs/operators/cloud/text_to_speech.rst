@@ -66,7 +66,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/text_to_speech.py
+.. literalinclude:: /../../providers/google/src/airflow/providers/google/cloud/operators/text_to_speech.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_text_to_speech_synthesize_template_fields]
