@@ -858,7 +858,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # too, which would lead to double logging
                     cls.logger().error(msg)
                     request = TaskCallbackRequest(
-                        filepath=ti.dag_version.dag_code.fileloc,
+                        filepath=ti.dag_model.relative_fileloc,
                         bundle_name=ti.dag_version.bundle_name,
                         bundle_version=ti.dag_version.bundle_version,
                         ti=ti,
@@ -1634,7 +1634,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
 
                 callback_to_execute = DagCallbackRequest(
-                    filepath=dag_model.fileloc,
+                    filepath=dag_model.relative_fileloc,
                     dag_id=dag.dag_id,
                     run_id=dag_run.run_id,
                     bundle_name=dag_model.bundle_name,
@@ -2021,9 +2021,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for ti in zombies:
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
-                filepath=ti.dag_version.dag_code.fileloc,
+                filepath=ti.dag_model.relative_fileloc,
                 bundle_name=ti.dag_version.bundle_name,
-                bundle_version=ti.dag_version.bundle_version,
+                bundle_version=ti.dag_run.bundle_version,
                 ti=ti,
                 msg=str(zombie_message_details),
             )

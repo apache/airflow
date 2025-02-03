@@ -403,7 +403,7 @@ class TestSchedulerJob:
         # will be set to failed in dag parsing process
         assert ti1.state == State.QUEUED
         mock_task_callback.assert_called_once_with(
-            filepath=dag.fileloc,
+            filepath=dag.relative_fileloc,
             ti=mock.ANY,
             bundle_name="dag_maker",
             bundle_version=None,
@@ -2420,7 +2420,7 @@ class TestSchedulerJob:
         assert isinstance(orm_dag.next_dagrun_create_after, datetime.datetime)
 
         expected_callback = DagCallbackRequest(
-            filepath=dr.dag.fileloc,
+            filepath=dr.dag.relative_fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
@@ -2461,7 +2461,7 @@ class TestSchedulerJob:
         assert dr.state == State.FAILED
 
         expected_callback = DagCallbackRequest(
-            filepath=dr.dag.fileloc,
+            filepath=dr.dag.relative_fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
@@ -2537,7 +2537,7 @@ class TestSchedulerJob:
             self.job_runner._do_scheduling(session)
 
         expected_callback = DagCallbackRequest(
-            filepath=dag.fileloc,
+            filepath=dag.relative_fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=bool(state == State.FAILED),
             run_id=dr.run_id,
@@ -2616,7 +2616,7 @@ class TestSchedulerJob:
         )
 
         expected_callback = DagCallbackRequest(
-            filepath=dag.fileloc,
+            filepath=dag.relative_fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
@@ -5501,7 +5501,7 @@ class TestSchedulerJob:
         callback_requests = executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
         callback_request = callback_requests[0]
-        assert callback_request.filepath == dag.fileloc
+        assert callback_request.filepath == dag.relative_fileloc
         assert callback_request.msg == str(self.job_runner._generate_zombie_message_details(ti))
         assert callback_request.is_failure_callback is True
         assert callback_request.ti.dag_id == ti.dag_id
@@ -5615,7 +5615,7 @@ class TestSchedulerJob:
 
         expected_failure_callback_requests = [
             TaskCallbackRequest(
-                filepath=dag.fileloc,
+                filepath=dag.relative_fileloc,
                 ti=ti,
                 msg=str(self.job_runner._generate_zombie_message_details(ti)),
                 bundle_name="testing",
