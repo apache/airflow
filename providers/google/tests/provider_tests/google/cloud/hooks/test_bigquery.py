@@ -54,6 +54,8 @@ from airflow.providers.google.cloud.hooks.bigquery import (
 
 from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
+pytestmark = pytest.mark.filterwarnings("error::airflow.exceptions.AirflowProviderDeprecationWarning")
+
 PROJECT_ID = "bq-project"
 CREDENTIALS = "bq-credentials"
 DATASET_ID = "bq_dataset"

@@ -61,6 +61,8 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKESuspendJobOperator,
 )
 
+pytestmark = pytest.mark.filterwarnings("error::airflow.exceptions.AirflowProviderDeprecationWarning")
+
 TEST_PROJECT_ID = "test-id"
 TEST_LOCATION = "test-location"
 TEST_TASK_ID = "test-task-id"
