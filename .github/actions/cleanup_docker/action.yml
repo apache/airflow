@@ -26,7 +26,7 @@ runs:
   using: composite
   steps:
     - name: Cleanup docker
-      run: ./cleanup_docker.sh
+      run: ./.github/actions/cleanup_docker/cleanup_docker.sh
       env:
         TARGET_DOCKER_VOLUME_LOCATION: ${{ inputs.docker-volume-location }}
       shell: bash
