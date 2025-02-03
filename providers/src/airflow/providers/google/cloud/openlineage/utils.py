@@ -332,7 +332,7 @@ class BigQueryJobRunFacet(RunFacet):
 
     cached: bool
     billedBytes: int | None = field(default=None)
-    properties: str | None = field(default=None)
+    properties: dict | None = field(default=None)
 
     @staticmethod
     def _get_schema() -> str:
