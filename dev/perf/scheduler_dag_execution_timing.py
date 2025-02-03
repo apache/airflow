@@ -173,6 +173,7 @@ def create_dag_runs(dag, num_runs, session):
             run_id=f"{id_prefix}{logical_date.isoformat()}",
             logical_date=logical_date,
             data_interval=(logical_date, logical_date),
+            run_after=logical_date,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.TEST,
             external_trigger=False,

@@ -42,7 +42,14 @@ class TestRedisTaskHandler:
         dag = DAG(dag_id="dag_for_testing_redis_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_redis_log_handler", dag=dag)
         if AIRFLOW_V_3_0_PLUS:
-            dag_run = DagRun(dag_id=dag.dag_id, logical_date=date, run_id="test", run_type="scheduled")
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                logical_date=date,
+                data_interval=(date, date),
+                run_after=date,
+                run_id="test",
+                run_type="scheduled",
+            )
         else:
             dag_run = DagRun(dag_id=dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
 

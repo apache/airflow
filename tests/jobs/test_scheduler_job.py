@@ -69,7 +69,7 @@ from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
@@ -90,10 +90,6 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -133,8 +129,6 @@ def _loader_mock(mock_executors):
 
 @pytest.fixture
 def create_dagrun(session):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-
     def _create_dagrun(
         dag: DAG,
         *,
@@ -153,10 +147,11 @@ def create_dagrun(session):
             run_id=run_id,
             logical_date=logical_date,
             data_interval=data_interval,
+            run_after=data_interval.end,
             run_type=run_type,
             state=state,
             start_date=start_date,
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
     return _create_dagrun
@@ -2870,13 +2865,15 @@ class TestSchedulerJob:
             # because it would take the most recent run and start from there
             # That behavior still exists, but now it will only do so if after the
             # start date
+            data_interval_end = DEFAULT_DATE + timedelta(days=1)
             dag.create_dagrun(
                 state="success",
                 triggered_by=DagRunTriggeredByType.TIMETABLE,
                 run_id="abc123",
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.BACKFILL_JOB,
-                data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)),
+                data_interval=DataInterval(DEFAULT_DATE, data_interval_end),
+                run_after=data_interval_end,
             )
             # one task "ran"
             assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
@@ -3061,7 +3058,6 @@ class TestSchedulerJob:
 
         def _create_dagruns(dag: DAG):
             next_info = dag.next_dagrun_info(None)
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             assert next_info is not None
             for i in range(30):
                 yield dag.create_dagrun(
@@ -3069,8 +3065,9 @@ class TestSchedulerJob:
                     run_type=DagRunType.SCHEDULED,
                     logical_date=next_info.logical_date,
                     data_interval=next_info.data_interval,
+                    run_after=next_info.run_after,
                     state=DagRunState.RUNNING,
-                    **triggered_by_kwargs,  # type: ignore
+                    triggered_by=DagRunTriggeredByType.TEST,
                 )
                 next_info = dag.next_dagrun_info(next_info.data_interval)
                 if next_info is None:
@@ -4072,7 +4069,6 @@ class TestSchedulerJob:
 
         # Trigger the Dag externally
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test",
             state=DagRunState.RUNNING,
@@ -4081,7 +4077,8 @@ class TestSchedulerJob:
             session=session,
             external_trigger=True,
             data_interval=data_interval,
-            **triggered_by_kwargs,
+            run_after=DEFAULT_LOGICAL_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         assert dr is not None
         # Run DAG.bulk_write_to_db -- this is run when in DagFileProcessor.process_file
@@ -4158,7 +4155,6 @@ class TestSchedulerJob:
             )
 
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         run1 = dag.create_dagrun(
             run_id="test1",
@@ -4168,22 +4164,25 @@ class TestSchedulerJob:
             start_date=timezone.utcnow() - timedelta(seconds=2),
             session=session,
             data_interval=data_interval,
+            run_after=DEFAULT_LOGICAL_DATE,
             dag_version=dag_version,
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         run1_ti = run1.get_task_instance(task1.task_id, session)
         run1_ti.state = State.RUNNING
 
+        logical_date_2 = DEFAULT_DATE + timedelta(seconds=10)
         run2 = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.SCHEDULED,
-            logical_date=DEFAULT_DATE + timedelta(seconds=10),
+            logical_date=logical_date_2,
             state=State.QUEUED,
             session=session,
             data_interval=data_interval,
+            run_after=logical_date_2,
             dag_version=dag_version,
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         scheduler_job = Job(executor=self.null_exec)
@@ -5720,15 +5719,16 @@ class TestSchedulerJob:
         logical_date = timezone.coerce_datetime(timezone.utcnow() - datetime.timedelta(days=2))
         data_interval = dag.infer_automated_data_interval(logical_date)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id=f"{dag_id}_1",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             session=session,
+            logical_date=logical_date,
             data_interval=data_interval,
-            **triggered_by_kwargs,
+            run_after=data_interval,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         executor = SequentialExecutor()

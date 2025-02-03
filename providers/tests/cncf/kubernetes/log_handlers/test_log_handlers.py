@@ -129,6 +129,7 @@ class TestFileTaskLogHandler:
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs: dict = {
                 "logical_date": DEFAULT_DATE,
+                "run_after": DEFAULT_DATE,
                 "triggered_by": DagRunTriggeredByType.TEST,
             }
         else:
