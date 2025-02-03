@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-03T06:42:10.805288
+# This constraints file was automatically generated on 2025-02-03T17:27:44.299863
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -116,7 +116,7 @@ babel==2.17.0
 backoff==2.2.1
 backports.tarfile==1.2.0
 bcrypt==4.2.1
-beautifulsoup4==4.13.0
+beautifulsoup4==4.13.1
 billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
@@ -331,7 +331,7 @@ lz4==4.4.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.26.0
+marshmallow==3.26.1
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
