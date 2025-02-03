@@ -546,10 +546,12 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
         bundle = manager.get_bundle(args.bundle_name)
         if not bundle:
             raise SystemExit(f"Bundle {args.bundle_name} not found")
+        bundle.initialize()
         dag_bag = DagBag(bundle.path, include_examples=False)
         dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
     else:
         bundles = manager.get_all_dag_bundles()
         for bundle in bundles:
+            bundle.initialize()
             dag_bag = DagBag(bundle.path, include_examples=False)
             dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
