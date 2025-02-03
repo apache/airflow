@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-01T19:52:50.461084
+# This constraints file was automatically generated on 2025-02-03T14:00:48.045958
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -55,7 +55,7 @@ aioitertools==0.12.0
 aiomysql==0.2.0
 aioresponses==0.7.8
 aiosignal==1.3.2
-aiosqlite==0.20.0
+aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==0.7.16
 alembic==1.14.1
@@ -121,7 +121,7 @@ babel==2.17.0
 backoff==1.10.0
 backports.tarfile==1.2.0
 bcrypt==4.2.1
-beautifulsoup4==4.12.3
+beautifulsoup4==4.13.1
 billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
@@ -358,7 +358,7 @@ mmh3==5.1.0
 mongomock==4.3.0
 monotonic==1.6
 more-itertools==10.6.0
-moto==5.0.27
+moto==5.0.28
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.1
@@ -418,7 +418,7 @@ parso==0.8.4
 pathable==0.4.4
 pathspec==0.12.1
 pbr==6.1.0
-pdbr==0.8.9
+pdbr==0.9.0
 pdpyras==5.4.0
 pendulum==3.0.0
 pexpect==4.9.0
@@ -633,7 +633,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==1.26.20
 uuid6==2024.7.10
-uv==0.5.24
+uv==0.5.26
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
