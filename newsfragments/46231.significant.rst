@@ -18,4 +18,8 @@ For new and existing DAGs, users must import ``EmptyOperator`` from ``airflow.pr
 
 * Migration rules needed
 
-  * Rename imports of ``airflow.operators.empty`` → ``airflow.providers.standard.operators.empty``
+  * ruff
+
+    * AIR302
+
+      * [ ] ``airflow.operators....EmptyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
