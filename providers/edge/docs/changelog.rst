@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.11.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Add the option to set edge workers to maintenance mode via UI plugin and API.``
+
 0.10.2pre0
 ..........
 

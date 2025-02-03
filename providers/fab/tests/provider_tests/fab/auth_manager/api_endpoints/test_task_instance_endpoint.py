@@ -166,6 +166,8 @@ class TestTaskInstanceEndpoint:
                     run_id=run_id,
                     dag_id=dag_id,
                     logical_date=logical_date,
+                    data_interval=(logical_date, logical_date),
+                    run_after=logical_date,
                     run_type=DagRunType.MANUAL,
                     state=dag_run_state,
                 )
