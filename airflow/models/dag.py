@@ -2252,7 +2252,7 @@ class DagModel(Base):
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
-        :param active_paths: file paths of alive DAGs
+        :param active: tuples (bundle name, relative fileloc) of files that were observed.
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
