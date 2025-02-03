@@ -461,6 +461,7 @@ class TestDagRun:
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_success"
 
+        relative_fileloc = "test_dagrun_update_state_with_handle_callback_success.py"
         dag = DAG(
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             schedule=datetime.timedelta(days=1),
@@ -468,6 +469,10 @@ class TestDagRun:
             on_success_callback=on_success_callable,
         )
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.relative_fileloc = relative_fileloc
+        session.merge(dm)
+        session.commit()
 
         dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_state_succeeded2", dag=dag)
@@ -480,17 +485,18 @@ class TestDagRun:
 
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        dag.relative_fileloc = relative_fileloc
         SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.dag_model = dm
 
         _, callback = dag_run.update_state(execute_callbacks=False)
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
-
         assert callback == DagCallbackRequest(
-            filepath=dag_run.dag.fileloc,
+            filepath=dag_run.dag.relative_fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             run_id=dag_run.run_id,
             is_failure_callback=False,
@@ -503,6 +509,7 @@ class TestDagRun:
         def on_failure_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
 
+        relative_fileloc = "test_dagrun_update_state_with_handle_callback_failure.py"
         dag = DAG(
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             schedule=datetime.timedelta(days=1),
@@ -510,8 +517,11 @@ class TestDagRun:
             on_failure_callback=on_failure_callable,
         )
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
-        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.relative_fileloc = relative_fileloc
+        session.merge(dm)
         session.commit()
+
         dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_state_failed2", dag=dag)
         dag_task1.set_downstream(dag_task2)
@@ -523,15 +533,19 @@ class TestDagRun:
 
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.dag_model = dm
 
         _, callback = dag_run.update_state(execute_callbacks=False)
         assert dag_run.state == DagRunState.FAILED
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
         assert callback == DagCallbackRequest(
-            filepath=dag_run.dag.fileloc,
+            filepath=dag.relative_fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             run_id=dag_run.run_id,
             is_failure_callback=True,
