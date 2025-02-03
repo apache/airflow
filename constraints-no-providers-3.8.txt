@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-01-30T10:14:07.887586
+# This constraints file was automatically generated on 2025-02-03T06:42:22.696580
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -48,13 +48,13 @@ asgiref==3.8.1
 async-timeout==5.0.1
 atlasclient==1.0.0
 attrs==25.1.0
-babel==2.16.0
+babel==2.17.0
 backports.zoneinfo==0.2.1
 bcrypt==4.2.1
 blinker==1.8.2
 botocore==1.36.3
 cachelib==0.9.0
-certifi==2024.12.14
+certifi==2025.1.31
 cffi==1.17.1
 cgroupspy==0.2.3
 charset-normalizer==3.4.1
@@ -155,7 +155,7 @@ python-ldap==3.4.4
 python-nvd3==0.16.0
 python-slugify==8.0.4
 python3-saml==1.16.0
-pytz==2024.2
+pytz==2025.1
 referencing==0.35.1
 requests-kerberos==0.15.0
 requests-toolbelt==1.0.0
