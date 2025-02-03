@@ -75,9 +75,7 @@ def get_provider_info():
             {
                 "integration-name": "PostgreSQL",
                 "external-doc-url": "https://www.postgresql.org/",
-                "how-to-guide": [
-                    "/docs/apache-airflow-providers-postgres/operators/postgres_operator_howto_guide.rst"
-                ],
+                "how-to-guide": ["/docs/apache-airflow-providers-postgres/operators.rst"],
                 "logo": "/docs/integration-logos/Postgres.png",
                 "tags": ["software"],
             }

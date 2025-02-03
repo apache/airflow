@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/vertica>
+    Operators <operators>
 
 .. toctree::
     :hidden:
@@ -46,8 +47,17 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/vertica/index>
+
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-vertica/|version|/providers/vertica/tests/system/vertica>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-vertica/>
     Installing from sources <installing-providers-from-sources>
 
