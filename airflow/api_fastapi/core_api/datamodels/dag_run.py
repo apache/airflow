@@ -20,6 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
+import pendulum
 from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
@@ -99,7 +100,9 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     @model_validator(mode="after")
     def validate_dag_run_id(self):
         if not self.dag_run_id:
-            self.dag_run_id = DagRun.generate_run_id(DagRunType.MANUAL, self.logical_date)
+            self.dag_run_id = DagRun.generate_run_id(
+                DagRunType.MANUAL, self.logical_date if self.logical_date is not None else pendulum.now("UTC")
+            )
         return self
 
 
