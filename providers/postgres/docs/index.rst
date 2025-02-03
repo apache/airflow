@@ -34,7 +34,8 @@
     :caption: Guides
 
     Connection types <connections/postgres>
-    Operators <operators>
+    PostgresOperator types <operators/postgres_operator_howto_guide>
+
 
 .. toctree::
     :hidden:
