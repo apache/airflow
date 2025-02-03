@@ -23,6 +23,7 @@ function cleanup_docker {
     if [ -n "${TARGET_DOCKER_VOLUME_LOCATION}" ]; then
         echo "Mounting ${TARGET_DOCKER_VOLUME_LOCATION} to /var/lib/docker"
         sudo mkdir -p "${TARGET_DOCKER_VOLUME_LOCATION}" /var/lib/docker
+        sudo chmod 710 "${TARGET_DOCKER_VOLUME_LOCATION}" /var/lib/docker
         sudo mount --bind "${TARGET_DOCKER_VOLUME_LOCATION}" /var/lib/docker
     fi
     sudo systemctl start docker
