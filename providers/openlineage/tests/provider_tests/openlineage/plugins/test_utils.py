@@ -105,6 +105,7 @@ def test_get_dagrun_start_end(dag_maker):
     if AIRFLOW_V_3_0_PLUS:
         dagrun_kwargs = {
             "logical_date": data_interval.start,
+            "run_after": data_interval.end,
             "triggered_by": DagRunTriggeredByType.TEST,
         }
     else:

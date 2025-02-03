@@ -102,6 +102,7 @@ def _trigger_dag(
         run_id=run_id,
         logical_date=logical_date,
         data_interval=data_interval,
+        run_after=data_interval.end,
         conf=run_conf,
         run_type=DagRunType.MANUAL,
         triggered_by=triggered_by,

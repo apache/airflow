@@ -739,7 +739,7 @@ logging:
       default: ""
     delete_local_logs:
       description: |
-        Whether the local log files for GCS, S3, WASB and OSS remote logging should be deleted after
+        Whether the local log files for GCS, S3, WASB, HDFS and OSS remote logging should be deleted after
         they are uploaded to the remote location.
       version_added: 2.6.0
       type: string
