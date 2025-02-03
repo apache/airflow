@@ -265,7 +265,7 @@ class TestCeleryKubernetesExecutor:
                 filepath="fake", dag_id="fake", run_id="fake", bundle_name="testing", bundle_version=None
             )
         else:
-            callback = CallbackRequest(full_filepath="fake", dag_id="fake", run_id="fake")
+            callback = CallbackRequest(full_filepath="fake")
         cel_k8s_exec.send_callback(callback)
 
         cel_k8s_exec.callback_sink.send.assert_called_once_with(callback)
