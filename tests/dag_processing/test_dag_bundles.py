@@ -17,12 +17,14 @@
 
 from __future__ import annotations
 
+import re
 import tempfile
 from pathlib import Path
 from unittest import mock
 
 import pytest
 from git import Repo
+from git.exc import GitCommandError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.git import GitDagBundle, GitHook
@@ -477,3 +479,30 @@ class TestGitDagBundle:
         )
         view_url = bundle.view_url(None)
         assert view_url is None
+
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_clone_bare_repo_git_command_error(self, mock_githook):
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_githook.return_value.env = {}
+
+        with mock.patch("airflow.dag_processing.bundles.git.Repo.clone_from") as mock_clone:
+            mock_clone.side_effect = GitCommandError("clone", "Simulated error")
+            bundle = GitDagBundle(name="test", tracking_ref="main")
+            with pytest.raises(
+                AirflowException,
+                match=re.escape("Error cloning repository"),
+            ):
+                bundle.initialize()
+
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_clone_repo_no_such_path_error(self, mock_githook):
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+
+        with mock.patch("airflow.dag_processing.bundles.git.os.path.exists", return_value=False):
+            with mock.patch("airflow.dag_processing.bundles.git.Repo.clone_from") as mock_clone:
+                mock_clone.side_effect = NoSuchPathError("Path not found")
+                bundle = GitDagBundle(name="test", tracking_ref="main")
+                with pytest.raises(AirflowException) as exc_info:
+                    bundle._clone_repo_if_required()
+
+                assert "Repository path: %s not found" in str(exc_info.value)

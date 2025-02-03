@@ -43,6 +43,7 @@
               <th>Jobs Failed</th>
             -->
             <th>System Information</th>
+            <th>Maintenance mode</th>
         </tr>
         {% for host in hosts %}
           <tr>
@@ -55,7 +56,7 @@
               {%- elif host.last_update.timestamp() <= five_min_ago.timestamp() -%}
                 Reported <span class="label" style="color:white; background-color:red;" title="Current State: {{ host.state }}">{{ host.state }}</span>
                 but no heartbeat
-              {%- elif host.state == "starting" -%}
+              {%- elif host.state in ["starting", "maintenance request", "maintenance exit"] -%}
                 <span class="label" style="color:black; background-color:gold;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- elif host.state == "running" -%}
                 <span class="label" style="color:white; background-color:green;" title="Current State: {{ host.state }}">{{ host.state }}</span>
@@ -63,6 +64,8 @@
                 <span class="label" style="color:black; background-color:gray;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- elif host.state == "terminating" -%}
                 <span class="label" style="color:black; background-color:violet;" title="Current State: {{ host.state }}">{{ host.state }}</span>
+              {%- elif host.state in ["maintenance pending", "maintenance mode"] -%}
+                <span class="label" style="color:black; background-color:orange;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- else -%}
                 <span class="label" style="color:white; background-color:hotpink;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- endif -%}
@@ -96,6 +99,21 @@
                   <li>{{ item }}: {{ host.sysinfo_json[item] }}</li>
                 {% endfor %}
               </ul>
+            </td>
+            <td>
+              {%- if host.state in ["idle", "running"] -%}
+                <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/on" method="POST">
+                  <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
+                      Enter
+                  </button>
+                </form>
+              {%- elif host.state in ["maintenance pending", "maintenance mode", "maintenance request"] -%}
+                <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/off" method="POST">
+                  <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
+                      Exit
+                  </button>
+                </form>
+              {% endif %}
             </td>
           </tr>
         {% endfor %}

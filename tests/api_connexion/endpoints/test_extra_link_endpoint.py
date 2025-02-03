@@ -30,17 +30,13 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_connexion_utils import create_user, delete_user
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.mock_operators import CustomOperator
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -79,15 +75,16 @@ class TestGetExtraLinks:
         self.app.dag_bag.dags = {self.dag.dag_id: self.dag}
         self.app.dag_bag.sync_to_db("dags-folder", None)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        data_interval = DataInterval(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2))
         self.dag.create_dagrun(
             run_id="TEST_DAG_RUN_ID",
             logical_date=self.default_time,
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
             session=session,
-            data_interval=DataInterval(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
-            **triggered_by_kwargs,
+            data_interval=data_interval,
+            run_after=data_interval.end,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         session.flush()
 

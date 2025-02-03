@@ -99,6 +99,7 @@ class TestTIRunState:
                 "logical_date": instant_str,
                 "data_interval_start": instant.subtract(days=1).to_iso8601_string(),
                 "data_interval_end": instant_str,
+                "run_after": instant_str,
                 "start_date": instant_str,
                 "end_date": None,
                 "external_trigger": False,

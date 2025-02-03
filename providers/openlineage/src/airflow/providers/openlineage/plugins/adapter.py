@@ -251,6 +251,7 @@ class OpenLineageAdapter(LoggingMixin):
         run_facets = run_facets or {}
         if task:
             run_facets = {**task.run_facets, **run_facets}
+        run_facets = {**run_facets, **get_processing_engine_facet()}  # type: ignore
         event = RunEvent(
             eventType=RunState.COMPLETE,
             eventTime=end_time,
@@ -296,6 +297,7 @@ class OpenLineageAdapter(LoggingMixin):
         run_facets = run_facets or {}
         if task:
             run_facets = {**task.run_facets, **run_facets}
+        run_facets = {**run_facets, **get_processing_engine_facet()}  # type: ignore
 
         if error:
             stack_trace = None
@@ -391,6 +393,7 @@ class OpenLineageAdapter(LoggingMixin):
                     facets={
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
                         **get_airflow_debug_facet(),
+                        **get_processing_engine_facet(),
                         **run_facets,
                     },
                 ),
@@ -434,6 +437,7 @@ class OpenLineageAdapter(LoggingMixin):
                         ),
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
                         **get_airflow_debug_facet(),
+                        **get_processing_engine_facet(),
                         **run_facets,
                     },
                 ),

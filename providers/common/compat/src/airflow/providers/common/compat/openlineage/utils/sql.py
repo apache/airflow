@@ -69,12 +69,18 @@ else:
                 log.debug("%s failed to get database dialect", hook)
                 return None
 
+            try:
+                sqlalchemy_engine = hook.get_sqlalchemy_engine()
+            except Exception as e:
+                log.debug("Failed to get sql alchemy engine: %s", e)
+                sqlalchemy_engine = None
+
             operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
                 sql=sql,
                 hook=hook,
                 database_info=database_info,
                 database=database,
-                sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+                sqlalchemy_engine=sqlalchemy_engine,
                 use_connection=use_external_connection,
             )
 

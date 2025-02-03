@@ -48,6 +48,7 @@ class TestExtraLinks:
     dag_run_id = "TEST_DAG_RUN_ID"
     task_single_link = "TEST_SINGLE_LINK"
     task_multiple_links = "TEST_MULTIPLE_LINKS"
+    task_mapped = "TEST_MAPPED_TASK"
     default_time = timezone.datetime(2020, 1, 1)
     plugin_name = "test_plugin"
 
@@ -74,15 +75,14 @@ class TestExtraLinks:
         test_client.app.state.dag_bag = dag_bag
         dag_bag.sync_to_db("dags-folder", None)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST}
-
         self.dag.create_dagrun(
             run_id=self.dag_run_id,
             logical_date=self.default_time,
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
             data_interval=(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
-            **triggered_by_kwargs,
+            run_after=timezone.datetime(2020, 1, 2),
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
     def teardown_method(self) -> None:
@@ -93,6 +93,10 @@ class TestExtraLinks:
             CustomOperator(task_id=self.task_single_link, bash_command="TEST_LINK_VALUE")
             CustomOperator(
                 task_id=self.task_multiple_links, bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
+            )
+            # Mapped task expanded over a list of bash_commands
+            CustomOperator.partial(task_id=self.task_mapped).expand(
+                bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
             )
         return dag
 
@@ -222,3 +226,33 @@ class TestGetExtraLinks(TestExtraLinks):
                     "TEST_DAG_ID/TEST_SINGLE_LINK/2020-01-01T00%3A00%3A00%2B00%3A00"
                 ),
             }
+
+    @mock_plugin_manager(plugins=[])
+    @pytest.mark.xfail(reason="TODO: TaskSDK need to fix this, Extra links should work for mapped operator")
+    def test_should_respond_200_mapped_task_instance(self, test_client):
+        map_index = 0
+        XCom.set(
+            key="search_query",
+            value="TEST_LINK_VALUE_1",
+            task_id=self.task_mapped,
+            dag_id=self.dag.dag_id,
+            run_id=self.dag_run_id,
+            map_index=map_index,
+        )
+        response = test_client.get(
+            f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
+            params={"map_index": map_index},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_1"
+        }
+
+    @mock_plugin_manager(plugins=[])
+    def test_should_respond_404_invalid_map_index(self, test_client):
+        response = test_client.get(
+            f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
+            params={"map_index": 4},
+        )
+        assert response.status_code == 404
+        assert response.json() == {"detail": "DAG Run with ID = TEST_DAG_RUN_ID not found"}

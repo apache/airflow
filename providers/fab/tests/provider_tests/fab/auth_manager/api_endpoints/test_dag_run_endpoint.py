@@ -142,18 +142,26 @@ class TestDagRunEndpoint:
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
         dag_runs = []
         dags = []
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
+        def _v3_kwargs(date):
+            if AIRFLOW_V_3_0_PLUS:
+                return {
+                    "data_interval": (date, date),
+                    "logical_date": date,
+                    "run_after": date,
+                    "triggered_by": DagRunTriggeredByType.TEST,
+                }
+            return {"execution_date": date}
 
         for i in range(idx_start, idx_start + 2):
             dagrun_model = DagRun(
                 dag_id="TEST_DAG_ID",
                 run_id=f"TEST_DAG_RUN_ID_{i}",
                 run_type=DagRunType.MANUAL,
-                logical_date=timezone.parse(self.default_time) + timedelta(days=i - 1),
                 start_date=timezone.parse(self.default_time),
                 external_trigger=True,
                 state=state,
-                **triggered_by_kwargs,
+                **_v3_kwargs(timezone.parse(self.default_time) + timedelta(days=i - 1)),
             )
             dagrun_model.updated_at = timezone.parse(self.default_time)
             dag_runs.append(dagrun_model)
@@ -166,10 +174,10 @@ class TestDagRunEndpoint:
                         dag_id=f"TEST_DAG_ID_{i}",
                         run_id=f"TEST_DAG_RUN_ID_{i}",
                         run_type=DagRunType.MANUAL,
-                        logical_date=timezone.parse(self.default_time_2),
                         start_date=timezone.parse(self.default_time),
                         external_trigger=True,
                         state=state,
+                        **_v3_kwargs(timezone.parse(self.default_time_2)),
                     )
                 )
         if commit:
@@ -203,8 +211,8 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
-            "data_interval_end": None,
-            "data_interval_start": None,
+            "data_interval_end": self.default_time,
+            "data_interval_start": self.default_time,
             "last_scheduling_decision": None,
             "run_type": "manual",
             "note": None,
@@ -219,8 +227,8 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
-            "data_interval_end": None,
-            "data_interval_start": None,
+            "data_interval_end": self.default_time_2,
+            "data_interval_start": self.default_time_2,
             "last_scheduling_decision": None,
             "run_type": "manual",
             "note": None,

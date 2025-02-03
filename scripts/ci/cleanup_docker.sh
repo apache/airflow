@@ -19,6 +19,12 @@ function cleanup_docker {
     # This is faster than docker prune
     sudo systemctl stop docker
     sudo rm -rf /var/lib/docker
+    # If a path is provided in ENV, bind mount it to /var/lib/docker
+    if [ -n "${TARGET_DOCKER_VOLUME_LOCATION}" ]; then
+        echo "Mounting ${TARGET_DOCKER_VOLUME_LOCATION} to /var/lib/docker"
+        sudo mkdir -p "${TARGET_DOCKER_VOLUME_LOCATION}" /var/lib/docker
+        sudo mount --bind "${TARGET_DOCKER_VOLUME_LOCATION}" /var/lib/docker
+    fi
     sudo systemctl start docker
 }
 

@@ -42,12 +42,7 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
-from airflow.utils.types import DagRunType
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 pytestmark = pytest.mark.db_test
 
@@ -79,7 +74,6 @@ class TestSqlAlchemyUtils:
         dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
         dag.clear()
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         run = dag.create_dagrun(
             run_id=iso_date,
             run_type=DagRunType.MANUAL,
@@ -88,7 +82,8 @@ class TestSqlAlchemyUtils:
             start_date=start_date,
             session=self.session,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         assert logical_date == run.logical_date
@@ -112,7 +107,6 @@ class TestSqlAlchemyUtils:
         start_date = datetime.datetime.now()
         dag = DAG(dag_id=dag_id, start_date=start_date, schedule=datetime.timedelta(days=1))
         dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         with pytest.raises((ValueError, StatementError)):
             dag.create_dagrun(
@@ -123,7 +117,8 @@ class TestSqlAlchemyUtils:
                 start_date=start_date,
                 session=self.session,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=start_date),
-                **triggered_by_kwargs,
+                run_after=start_date,
+                triggered_by=DagRunTriggeredByType.TEST,
             )
         dag.clear()
 

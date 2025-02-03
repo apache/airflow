@@ -192,6 +192,8 @@ class TestDagRunOperator:
         dag_run = DagRun(
             dag_id=TRIGGERED_DAG_ID,
             logical_date=utc_now,
+            data_interval=(utc_now, utc_now),
+            run_after=utc_now,
             state=State.SUCCESS,
             run_type="manual",
             run_id=run_id,
@@ -230,6 +232,8 @@ class TestDagRunOperator:
         dag_run = DagRun(
             dag_id=TRIGGERED_DAG_ID,
             logical_date=utc_now,
+            data_interval=(utc_now, utc_now),
+            run_after=utc_now,
             state=State.SUCCESS,
             run_type="scheduled",
             run_id=run_id,

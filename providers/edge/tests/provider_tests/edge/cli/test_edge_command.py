@@ -29,7 +29,7 @@ from requests import HTTPError, Response
 
 from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
-from airflow.providers.edge.worker_api.datamodels import EdgeJobFetched
+from airflow.providers.edge.worker_api.datamodels import EdgeJobFetched, WorkerSetStateReturn
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
@@ -302,19 +302,29 @@ class TestEdgeWorkerCli:
         )
 
     @pytest.mark.parametrize(
-        "drain, jobs, expected_state",
+        "drain, maintenance_mode, jobs, expected_state",
         [
-            pytest.param(False, True, EdgeWorkerState.RUNNING, id="running_jobs"),
-            pytest.param(True, True, EdgeWorkerState.TERMINATING, id="shutting_down"),
-            pytest.param(False, False, EdgeWorkerState.IDLE, id="idle"),
+            pytest.param(False, False, True, EdgeWorkerState.RUNNING, id="running_jobs"),
+            pytest.param(True, False, True, EdgeWorkerState.TERMINATING, id="shutting_down"),
+            pytest.param(False, False, False, EdgeWorkerState.IDLE, id="idle"),
+            pytest.param(
+                False, True, True, EdgeWorkerState.MAINTENANCE_PENDING, id="maintenance_running_jobs"
+            ),
+            pytest.param(False, True, False, EdgeWorkerState.MAINTENANCE_MODE, id="maintenance_no_job"),
+            pytest.param(True, True, True, EdgeWorkerState.TERMINATING, id="maintenance_shut_down"),
         ],
     )
     @patch("airflow.providers.edge.cli.edge_command.worker_set_state")
-    def test_heartbeat(self, mock_set_state, drain, jobs, expected_state, worker_with_job: _EdgeWorkerCli):
+    def test_heartbeat(
+        self, mock_set_state, drain, maintenance_mode, jobs, expected_state, worker_with_job: _EdgeWorkerCli
+    ):
         if not jobs:
             worker_with_job.jobs = []
         _EdgeWorkerCli.drain = drain
-        mock_set_state.return_value = ["queue1", "queue2"]
+        _EdgeWorkerCli.maintenance_mode = maintenance_mode
+        mock_set_state.return_value = WorkerSetStateReturn(
+            state=EdgeWorkerState.RUNNING, queues=["queue1", "queue2"]
+        )
         with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.heartbeat()
         assert mock_set_state.call_args.args[1] == expected_state
@@ -366,7 +376,7 @@ class TestEdgeWorkerCli:
 
         mock_register.assert_called_once()
         mock_loop.assert_called_once()
-        mock_set_state.assert_called_once()
+        assert mock_set_state.call_count == 2
 
     def test_get_sysinfo(self, worker_with_job: _EdgeWorkerCli):
         concurrency = 8

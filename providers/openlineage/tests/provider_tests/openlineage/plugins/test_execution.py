@@ -101,6 +101,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             if AIRFLOW_V_3_0_PLUS:
                 dagrun_kwargs = {
                     "logical_date": DEFAULT_DATE,
+                    "run_after": DEFAULT_DATE,
                     "triggered_by": DagRunTriggeredByType.TEST,
                 }
             else:
@@ -207,6 +208,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             if AIRFLOW_V_3_0_PLUS:
                 dagrun_kwargs = {
                     "logical_date": DEFAULT_DATE,
+                    "run_after": DEFAULT_DATE,
                     "triggered_by": DagRunTriggeredByType.TEST,
                 }
             else:

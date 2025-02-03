@@ -17,7 +17,7 @@ Remove ``TriggerRule.NONE_FAILED_OR_SKIPPED``
 
 .. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
 
-* Migrations rules needed
+* Migration rules needed
 
   * ruff
 

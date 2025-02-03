@@ -1129,6 +1129,17 @@ repos:
         # We sometimes won't have newsfragments in the repo, so always run it so `check-hooks-apply` passes
         # This is fast, so not too much downside
         always_run: true
+      - id: check-significant-newsfragments-are-valid
+        name: Check significant newsfragments are valid
+        # Sigifniciant newsfragments follows a special format so that we can group information easily.
+        language: python
+        files: newsfragments/.*\.rst
+        entry: ./scripts/ci/pre_commit/significant_newsfragments_checker.py
+        pass_filenames: false
+        additional_dependencies: ["docutils>=0.21.2", "Pygments>=2.19.1", "Jinja2>=3.1.5"]
+        # We sometimes won't have newsfragments in the repo, so always run it so `check-hooks-apply` passes
+        # This is fast, so not too much downside
+        always_run: true
       - id: update-breeze-cmd-output
         name: Update breeze docs
         description: Update output of breeze commands in Breeze documentation

@@ -163,6 +163,8 @@ class _EdgeWorkerCli:
     """Timestamp of last heart beat sent to server."""
     drain: bool = False
     """Flag if job processing should be completed and no new jobs fetched for a graceful stop/shutdown."""
+    maintenance_mode: bool = False
+    """Flag if job processing should be completed and no new jobs fetched for maintenance mode. """
 
     def __init__(
         self,
@@ -286,6 +288,8 @@ class _EdgeWorkerCli:
         signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
         signal.signal(signal.SIGTERM, self.shutdown_handler)
         try:
+            self.worker_state_changed = self.heartbeat()
+            self.last_hb = datetime.now()
             while not _EdgeWorkerCli.drain or self.jobs:
                 self.loop()
 
@@ -300,12 +304,18 @@ class _EdgeWorkerCli:
     def loop(self):
         """Run a loop of scheduling and monitoring tasks."""
         new_job = False
-        if not _EdgeWorkerCli.drain and self.free_concurrency > 0:
+        previous_jobs = self.jobs
+        if not any((_EdgeWorkerCli.drain, _EdgeWorkerCli.maintenance_mode)) and self.free_concurrency > 0:
             new_job = self.fetch_job()
         self.check_running_jobs()
 
-        if _EdgeWorkerCli.drain or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval:
-            self.heartbeat()
+        if (
+            _EdgeWorkerCli.drain
+            or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval
+            or self.worker_state_changed  # send heartbeat immediately if the state is different in db
+            or bool(previous_jobs) != bool(self.jobs)  # when number of jobs changes from/to 0
+        ):
+            self.worker_state_changed = self.heartbeat()
             self.last_hb = datetime.now()
 
         if not new_job:
@@ -363,19 +373,42 @@ class _EdgeWorkerCli:
 
         self.free_concurrency = self.concurrency - used_concurrency
 
-    def heartbeat(self) -> None:
+    def heartbeat(self) -> bool:
         """Report liveness state of worker to central site with stats."""
-        state = (
-            (EdgeWorkerState.TERMINATING if _EdgeWorkerCli.drain else EdgeWorkerState.RUNNING)
-            if self.jobs
-            else EdgeWorkerState.IDLE
-        )
+        if _EdgeWorkerCli.drain:
+            state = EdgeWorkerState.TERMINATING
+        elif self.jobs:
+            if _EdgeWorkerCli.maintenance_mode:
+                state = EdgeWorkerState.MAINTENANCE_PENDING
+            else:
+                state = EdgeWorkerState.RUNNING
+        else:
+            if _EdgeWorkerCli.maintenance_mode:
+                state = EdgeWorkerState.MAINTENANCE_MODE
+            else:
+                state = EdgeWorkerState.IDLE
         sysinfo = self._get_sysinfo()
+        worker_state_changed: bool = False
         try:
-            self.queues = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
+            worker_info = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
+            self.queues = worker_info.queues
+            if worker_info.state in (
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                EdgeWorkerState.MAINTENANCE_PENDING,
+                EdgeWorkerState.MAINTENANCE_MODE,
+            ):
+                if not _EdgeWorkerCli.maintenance_mode:
+                    logger.info("Maintenance mode requested!")
+                _EdgeWorkerCli.maintenance_mode = True
+            else:
+                if _EdgeWorkerCli.maintenance_mode:
+                    logger.info("Exit Maintenance mode requested!")
+                _EdgeWorkerCli.maintenance_mode = False
+            worker_state_changed = worker_info.state != state
         except EdgeWorkerVersionException:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             _EdgeWorkerCli.drain = True
+        return worker_state_changed
 
     def interruptible_sleep(self):
         """Sleeps but stops sleeping if drain is made."""

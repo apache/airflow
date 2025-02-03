@@ -171,22 +171,26 @@ def _get_dag_run(
         dag_run_logical_date = pendulum.instance(timezone.utcnow())
 
     if create_if_necessary == "memory":
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_id=logical_date_or_run_id,
             run_type=DagRunType.MANUAL,
             external_trigger=True,
             logical_date=dag_run_logical_date,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
+            data_interval=data_interval,
+            run_after=data_interval.end,
             triggered_by=DagRunTriggeredByType.CLI,
             state=DagRunState.RUNNING,
         )
         return dag_run, True
     elif create_if_necessary == "db":
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         dag_run = dag.create_dagrun(
             run_id=_generate_temporary_run_id(),
             logical_date=dag_run_logical_date,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
+            data_interval=data_interval,
+            run_after=data_interval.end,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
             dag_version=None,

@@ -200,6 +200,8 @@ class TestSparkSubmitOperator:
                 dag_id=self.dag.dag_id,
                 run_id="spark_test",
                 logical_date=DEFAULT_DATE,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                run_after=DEFAULT_DATE,
                 run_type=DagRunType.MANUAL,
                 state="running",
             )

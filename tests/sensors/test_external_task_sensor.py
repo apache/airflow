@@ -1244,6 +1244,7 @@ def run_tasks(
             ),
             logical_date=logical_date,
             data_interval=data_interval,
+            run_after=logical_date,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.TEST,
             dag_version=None,

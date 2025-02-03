@@ -1453,6 +1453,7 @@ export const useEventLogServiceGetEventLogsSuspense = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
@@ -1464,18 +1465,20 @@ export const useExtraLinksServiceGetExtraLinksSuspense = <
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }, queryKey),
-    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey),
+    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1485,6 +1488,7 @@ export const useExtraLinksServiceGetExtraLinksSuspense = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
@@ -1496,18 +1500,23 @@ export const useTaskInstanceServiceGetExtraLinksSuspense = <
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }, queryKey),
-    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn(
+      { dagId, dagRunId, mapIndex, taskId },
+      queryKey,
+    ),
+    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**

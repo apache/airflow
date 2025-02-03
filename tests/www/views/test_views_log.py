@@ -39,17 +39,13 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.www.app import create_app
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import client_with_login
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -158,16 +154,16 @@ def dags(log_app, create_dummy_dag, testing_dag_bundle, session):
 @pytest.fixture(autouse=True)
 def tis(dags, session):
     dag, dag_removed = dags
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
         run_id=f"scheduled__{DEFAULT_DATE.isoformat()}",
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        run_after=DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
         start_date=DEFAULT_DATE,
         state=DagRunState.RUNNING,
         session=session,
-        **triggered_by_kwargs,
     )
     (ti,) = dagrun.task_instances
     ti.try_number = 1
@@ -177,10 +173,11 @@ def tis(dags, session):
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        run_after=DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
         start_date=DEFAULT_DATE,
         state=DagRunState.RUNNING,
         session=session,
-        **triggered_by_kwargs,
     )
     (ti_removed_dag,) = dagrun_removed.task_instances
     ti_removed_dag.try_number = 1

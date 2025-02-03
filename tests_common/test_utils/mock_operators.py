@@ -148,7 +148,11 @@ class CustomOpLink(BaseOperatorLink):
 
     def get_link(self, operator, *, ti_key):
         search_query = XCom.get_one(
-            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
+            task_id=ti_key.task_id,
+            dag_id=ti_key.dag_id,
+            run_id=ti_key.run_id,
+            map_index=ti_key.map_index,
+            key="search_query",
         )
         if not search_query:
             return None

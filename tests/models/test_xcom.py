@@ -64,6 +64,8 @@ def task_instance_factory(request, session: Session):
             run_type=DagRunType.SCHEDULED,
             run_id=run_id,
             logical_date=logical_date,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
         )
         session.add(run)
         ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)

@@ -47,6 +47,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/oracle/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/providers-oracle/|version|/airflow/providers/oracle/example_dags>

@@ -377,6 +377,7 @@ def trigger_dag_run(
             run_id=run_id,
             logical_date=logical_date,
             data_interval=data_interval,
+            run_after=data_interval.end,
             conf=body.conf,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,

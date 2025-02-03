@@ -55,6 +55,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -96,11 +97,23 @@ def create_context(task, persist_to_db=False, map_index=None):
     else:
         dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
-    dag_run = DagRun(
-        run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
-        run_type=DagRunType.MANUAL,
-        dag_id=dag.dag_id,
-    )
+    now = timezone.utcnow()
+    if AIRFLOW_V_3_0_PLUS:
+        dag_run = DagRun(
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
+            run_type=DagRunType.MANUAL,
+            dag_id=dag.dag_id,
+            logical_date=now,
+            data_interval=(now, now),
+            run_after=now,
+        )
+    else:
+        dag_run = DagRun(
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
+            run_type=DagRunType.MANUAL,
+            dag_id=dag.dag_id,
+            execution_date=now,
+        )
     task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
     task_instance.dag_run = dag_run
     if map_index is not None:
