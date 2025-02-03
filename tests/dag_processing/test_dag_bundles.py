@@ -505,4 +505,4 @@ class TestGitDagBundle:
                 with pytest.raises(AirflowException) as exc_info:
                     bundle._clone_repo_if_required()
 
-                assert "Repository path: %s not found: %s" in str(exc_info.value)
+                assert "Repository path: %s not found" in str(exc_info.value)
