@@ -51,15 +51,15 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_task_lineage_enabled,
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
-from airflow.sensors.base import BaseSensorOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.utils.context import AirflowContextDeprecationWarning
-from airflow.utils.log.secrets_masker import (
+from airflow.sdk.definitions.secrets_masker import (
     Redactable,
     Redacted,
     SecretsMasker,
     should_hide_value_for_key,
 )
+from airflow.sensors.base import BaseSensorOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 from openlineage.client.utils import RedactMixin

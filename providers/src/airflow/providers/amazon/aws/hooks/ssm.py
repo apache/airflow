@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.log.secrets_masker import mask_secret
+from airflow.sdk.definitions.secrets_masker import mask_secret
 from airflow.utils.types import NOTSET, ArgNotSet
 
 

@@ -1732,7 +1732,7 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
         "sensitive_config_values",
         new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
     )
-    @patch("airflow.utils.log.secrets_masker.mask_secret")
+    @patch("airflow.sdk.definitions.secrets_masker.mask_secret")
     def test_mask_conf_values(self, mock_mask_secret, mock_sensitive_config_values):
         conf.mask_secrets()
 

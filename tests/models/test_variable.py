@@ -302,7 +302,7 @@ class TestVariable:
     ],
 )
 def test_masking_only_secret_values(variable_value, deserialize_json, expected_masked_values, session):
-    from airflow.utils.log.secrets_masker import _secrets_masker
+    from airflow.sdk.definitions.secrets_masker import _secrets_masker
 
     SecretCache.reset()
 
