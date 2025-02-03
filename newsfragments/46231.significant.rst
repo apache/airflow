@@ -17,3 +17,5 @@ For new and existing DAGs, users must import ``EmptyOperator`` from ``airflow.pr
 .. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
 
 * Migration rules needed
+
+  * Rename imports of ``airflow.operators.empty`` → ``airflow.providers.standard.operators.empty``
