@@ -657,8 +657,10 @@ dev = [
   "apache-airflow-providers-facebook",
   "apache-airflow-providers-ftp",
   "apache-airflow-providers-github",
+  "apache-airflow-providers-grpc",
   "apache-airflow-providers-http",
   "apache-airflow-providers-influxdb",
+  "apache-airflow-providers-jdbc",
   "apache-airflow-providers-mongo",
   "apache-airflow-providers-openlineage",
   "apache-airflow-providers-hashicorp",
@@ -676,6 +678,7 @@ dev = [
   "apache-airflow-providers-jenkins",
   "apache-airflow-providers-pagerduty",
   "apache-airflow-providers-redis",
+  "apache-airflow-providers-salesforce",
   "apache-airflow-providers-sendgrid",
   "apache-airflow-providers-sftp",
   "apache-airflow-providers-slack",
@@ -739,8 +742,10 @@ apache-airflow-providers-fab = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-ftp = { workspace = true }
 apache-airflow-providers-github = { workspace = true }
+apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
+apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
@@ -762,6 +767,7 @@ apache-airflow-providers-pgvector = { workspace = true }
 apache-airflow-providers-presto = { workspace = true }
 apache-airflow-providers-qdrant = { workspace = true }
 apache-airflow-providers-redis = { workspace = true }
+apache-airflow-providers-salesforce = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
 apache-airflow-providers-sendgrid = { workspace = true }
@@ -819,10 +825,12 @@ members = [
     "providers/facebook",
     "providers/ftp",
     "providers/github",
+    "providers/grpc",
     "providers/hashicorp",
     "providers/http",
     "providers/imap",
     "providers/influxdb",
+    "providers/jdbc",
     "providers/jenkins",
     "providers/mongo",
     "providers/mysql",
@@ -842,6 +850,7 @@ members = [
     "providers/presto",
     "providers/qdrant",
     "providers/redis",
+    "providers/salesforce",
     "providers/samba",
     "providers/segment",
     "providers/sendgrid",

@@ -66,10 +66,12 @@ services:
       - ../../../empty:/opt/airflow/providers/facebook/src
       - ../../../empty:/opt/airflow/providers/ftp/src
       - ../../../empty:/opt/airflow/providers/github/src
+      - ../../../empty:/opt/airflow/providers/grpc/src
       - ../../../empty:/opt/airflow/providers/hashicorp/src
       - ../../../empty:/opt/airflow/providers/http/src
       - ../../../empty:/opt/airflow/providers/imap/src
       - ../../../empty:/opt/airflow/providers/influxdb/src
+      - ../../../empty:/opt/airflow/providers/jdbc/src
       - ../../../empty:/opt/airflow/providers/jenkins/src
       - ../../../empty:/opt/airflow/providers/mongo/src
       - ../../../empty:/opt/airflow/providers/mysql/src
@@ -89,6 +91,7 @@ services:
       - ../../../empty:/opt/airflow/providers/presto/src
       - ../../../empty:/opt/airflow/providers/qdrant/src
       - ../../../empty:/opt/airflow/providers/redis/src
+      - ../../../empty:/opt/airflow/providers/salesforce/src
       - ../../../empty:/opt/airflow/providers/samba/src
       - ../../../empty:/opt/airflow/providers/segment/src
       - ../../../empty:/opt/airflow/providers/sendgrid/src

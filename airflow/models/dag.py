@@ -250,6 +250,7 @@ def _create_orm_dagrun(
     run_id: str,
     logical_date: datetime | None,
     data_interval: DataInterval | None,
+    run_after: datetime,
     start_date: datetime | None,
     external_trigger: bool,
     conf: Any,
@@ -266,6 +267,7 @@ def _create_orm_dagrun(
         run_id=run_id,
         logical_date=logical_date,
         start_date=start_date,
+        run_after=run_after,
         external_trigger=external_trigger,
         conf=conf,
         state=state,
@@ -1634,11 +1636,12 @@ class DAG(TaskSDKDag, LoggingMixin):
                 dag=scheduler_dag,
                 start_date=logical_date,
                 logical_date=logical_date,
+                data_interval=data_interval,
+                run_after=data_interval.end,
                 run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
-                data_interval=data_interval,
             )
 
             tasks = self.task_dict
@@ -1719,8 +1722,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         self,
         *,
         run_id: str,
-        logical_date: datetime,
+        logical_date: datetime | None,
         data_interval: tuple[datetime, datetime],
+        run_after: datetime,
         conf: dict | None = None,
         run_type: DagRunType,
         triggered_by: DagRunTriggeredByType,
@@ -1743,7 +1747,8 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         :meta private:
         """
-        logical_date = timezone.coerce_datetime(logical_date)
+        if logical_date is not None:
+            logical_date = timezone.coerce_datetime(logical_date)
 
         if data_interval and not isinstance(data_interval, DataInterval):
             data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
@@ -1791,6 +1796,8 @@ class DAG(TaskSDKDag, LoggingMixin):
             dag=self,
             run_id=run_id,
             logical_date=logical_date,
+            data_interval=data_interval,
+            run_after=timezone.coerce_datetime(run_after),
             start_date=timezone.coerce_datetime(start_date),
             external_trigger=external_trigger,
             conf=conf,
@@ -1799,7 +1806,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             dag_version=dag_version,
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
-            data_interval=data_interval,
             triggered_by=triggered_by,
             session=session,
         )
@@ -2439,6 +2445,7 @@ def _get_or_create_dagrun(
     run_id: str,
     logical_date: datetime,
     data_interval: tuple[datetime, datetime],
+    run_after: datetime,
     conf: dict | None,
     triggered_by: DagRunTriggeredByType,
     start_date: datetime,
@@ -2468,6 +2475,7 @@ def _get_or_create_dagrun(
         run_id=run_id,
         logical_date=logical_date,
         data_interval=data_interval,
+        run_after=run_after,
         conf=conf,
         run_type=DagRunType.MANUAL,
         state=DagRunState.RUNNING,

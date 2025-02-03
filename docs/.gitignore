@@ -34,7 +34,9 @@ apache-airflow-providers-fab
 apache-airflow-providers-facebook
 apache-airflow-providers-ftp
 apache-airflow-providers-github
+apache-airflow-providers-grpc
 apache-airflow-providers-http
+apache-airflow-providers-jdbc
 apache-airflow-providers-influxdb
 apache-airflow-providers-mongo
 apache-airflow-providers-openlineage
@@ -59,6 +61,7 @@ apache-airflow-providers-postgres
 apache-airflow-providers-presto
 apache-airflow-providers-qdrant
 apache-airflow-providers-redis
+apache-airflow-providers-salesforce
 apache-airflow-providers-samba
 apache-airflow-providers-segment
 apache-airflow-providers-sendgrid
