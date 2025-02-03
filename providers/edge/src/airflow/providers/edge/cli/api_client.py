@@ -113,7 +113,7 @@ def worker_set_state(
             exclude_unset=True
         ),
     )
-    return WorkerSetStateReturn(**result["__data__"])
+    return WorkerSetStateReturn(**result)
 
 
 def jobs_fetch(hostname: str, queues: list[str] | None, free_concurrency: int) -> EdgeJobFetched | None:
