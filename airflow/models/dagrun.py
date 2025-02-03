@@ -1307,12 +1307,10 @@ class DagRun(Base, LoggingMixin):
                 self.run_type == DagRunType.BACKFILL_JOB
                 or (
                     task.start_date is None
-                    or (self.logical_date is not None and task.start_date <= self.logical_date)
+                    or self.logical_date is None
+                    or task.start_date <= self.logical_date
                 )
-                and (
-                    task.end_date is None
-                    or (self.logical_date is not None and self.logical_date <= task.end_date)
-                )
+                and (task.end_date is None or self.logical_date is None or self.logical_date <= task.end_date)
             )
 
         created_counts: dict[str, int] = defaultdict(int)
