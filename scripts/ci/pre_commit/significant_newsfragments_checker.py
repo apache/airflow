@@ -46,7 +46,8 @@ UNDONE_LIST_TEMPLATE = """
 {%- endif -%}
 {% if undone_config_rules -%}
 ======airflow config lint rules======
-{% for rule in undone_config_rules %}* {{ rule }}{% endfor %}
+{% for rule in undone_config_rules %}* {{ rule }}
+{% endfor %}
 {% endif %}
 """
 
