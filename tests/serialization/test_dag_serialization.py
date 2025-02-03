@@ -66,7 +66,6 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param, ParamsDict
@@ -1474,6 +1473,7 @@ class TestStringifiedDAGs:
         """
         Test TaskGroup serialization/deserialization.
         """
+        from airflow.providers.standard.operators.empty import EmptyOperator
 
         logical_date = datetime(2020, 1, 1)
         with DAG("test_task_group_serialization", schedule=None, start_date=logical_date) as dag:
@@ -1530,6 +1530,7 @@ class TestStringifiedDAGs:
         """
         Test setup and teardown task serialization/deserialization.
         """
+        from airflow.providers.standard.operators.empty import EmptyOperator
 
         logical_date = datetime(2020, 1, 1)
         with DAG(
