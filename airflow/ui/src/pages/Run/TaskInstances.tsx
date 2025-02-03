@@ -40,7 +40,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { capitalize, getDuration } from "src/utils";
+import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 const columns: Array<ColumnDef<TaskInstanceResponse>> = [
@@ -178,7 +178,9 @@ export const TaskInstances = () => {
     setSearchParams(searchParams);
   };
 
-  const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances(
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
       dagRunId: runId,
@@ -189,7 +191,11 @@ export const TaskInstances = () => {
       taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
     },
     undefined,
-    { enabled: !isNaN(pagination.pageSize) },
+    {
+      enabled: !isNaN(pagination.pageSize),
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
+    },
   );
 
   return (
@@ -248,7 +254,6 @@ export const TaskInstances = () => {
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="Task Instance"
         onStateChange={setTableURLState}

@@ -86,7 +86,7 @@ class TestTaskCollectionSchema:
                     "owner": "airflow",
                     "params": {
                         "foo": {
-                            "__class": "airflow.models.param.Param",
+                            "__class": "airflow.sdk.definitions.param.Param",
                             "value": "bar",
                             "description": None,
                             "schema": {},

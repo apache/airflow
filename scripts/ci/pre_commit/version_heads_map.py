@@ -29,7 +29,7 @@ PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DB_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "utils" / "db.py"
 MIGRATION_PATH = PROJECT_SOURCE_ROOT_DIR / "airflow" / "migrations" / "versions"
 
-PROVIDERS_SRC = PROJECT_SOURCE_ROOT_DIR / "providers" / "src"
+PROVIDERS_SRC = PROJECT_SOURCE_ROOT_DIR / "providers" / "fab" / "src"
 FAB_DB_FILE = PROVIDERS_SRC / "airflow" / "providers" / "fab" / "auth_manager" / "models" / "db.py"
 FAB_MIGRATION_PATH = PROVIDERS_SRC / "airflow" / "providers" / "fab" / "migrations" / "versions"
 

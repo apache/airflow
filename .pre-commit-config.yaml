@@ -349,6 +349,7 @@ repos:
           (?x)
           ^providers/[^\/]*/src/airflow/providers/[^\/]*/__init__.py$|
           ^providers/[^\/]*/[^\/]*/src/airflow/providers/[^\/]*/[^\/]*/__init__.py$|
+          ^providers/.*/pyproject\.toml$|
           ^providers/.*/provider.yaml$|
           ^airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE.py.jinja2$
           ^airflow_breeze/templates/get_provider_info_TEMPLATE.py.jinja2$
@@ -467,6 +468,7 @@ repos:
         language: python
         files: |
           (?x)
+          ^providers/.*/pyproject\.toml$|
           ^providers/.*/provider\.yaml$|
           ^scripts/ci/pre_commit/update_providers_dependencies\.py$
         pass_filenames: false
@@ -531,9 +533,9 @@ repos:
           (?x)
           ^scripts/ci/pre_commit/version_heads_map\.py$|
           ^airflow/migrations/versions/.*$|^airflow/migrations/versions|
-          ^providers/src/airflow/providers/fab/migrations/versions/.*$|^providers/src/airflow/providers/fab/migrations/versions|
+          ^providers/fab/src/airflow/providers/fab/migrations/versions/.*$|^providers/fab/src/airflow/providers/fab/migrations/versions|
           ^airflow/utils/db.py$|
-          ^providers/src/airflow/providers/fab/auth_manager/models/db.py$
+          ^providers/fab/src/airflow/providers/fab/auth_manager/models/db.py$
         additional_dependencies: ['packaging','google-re2']
       - id: update-version
         name: Update versions in docs
@@ -622,18 +624,18 @@ repos:
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
           ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute.py$|
-          ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
+          ^providers/fab/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/src/airflow/providers/amazon/aws/hooks/emr.py$|
           ^providers/src/airflow/providers/amazon/aws/operators/emr.py$|
-          ^providers/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
-          ^providers/src/airflow/providers/apache/hive/operators/hive_stats.py$|
-          ^providers/src/airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
+          ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
+          ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats.py$|
+          ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
           ^providers/apache/spark/src/airflow/providers/apache/spark/decorators/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/hooks/|
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
           ^providers/exasol/src/airflow/providers/exasol/hooks/exasol.py$|
-          ^providers/src/airflow/providers/fab/auth_manager/security_manager/|
-          ^providers/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
+          ^providers/fab/src/airflow/providers/fab/auth_manager/security_manager/|
+          ^providers/fab/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/src/airflow/providers/google/cloud/hooks/bigquery.py$|
           ^providers/src/airflow/providers/google/cloud/operators/cloud_build.py$|
           ^providers/src/airflow/providers/google/cloud/operators/dataproc.py$|
@@ -645,7 +647,7 @@ repos:
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^providers/src/airflow/providers/microsoft/winrm/operators/winrm.py$|
           ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
-          ^providers/src/airflow/providers/redis/provider.yaml$|
+          ^providers/redis/src/airflow/providers/redis/provider.yaml$|
           ^airflow/serialization/serialized_objects.py$|
           ^airflow/ui/pnpm-lock.yaml$|
           ^airflow/utils/db.py$|
@@ -660,7 +662,7 @@ repos:
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
           ^providers/apache/kafka/docs/connections/kafka.rst$|
           ^providers/apache/spark/docs/decorators/pyspark.rst$|
-          ^docs/apache-airflow-providers-fab/auth-manager/webserver-authentication.rst$|
+          ^providers/fab/docs/auth-manager/webserver-authentication.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|

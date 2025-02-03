@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import dayjs from "dayjs";
+
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 type Props = {
   dagId: string;
-  mapIndex?: number;
-  runId: string;
-  taskId: string;
+  taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
 };
 
@@ -57,14 +59,27 @@ const parseLogs = ({ data }: ParseLogsProps) => {
   };
 };
 
-export const useLogs = ({ dagId, mapIndex = -1, runId, taskId, tryNumber = 1 }: Props) => {
-  const { data, ...rest } = useTaskInstanceServiceGetLog({
-    dagId,
-    dagRunId: runId,
-    mapIndex,
-    taskId,
-    tryNumber,
-  });
+export const useLogs = ({ dagId, taskInstance, tryNumber = 1 }: Props) => {
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, ...rest } = useTaskInstanceServiceGetLog(
+    {
+      dagId,
+      dagRunId: taskInstance?.dag_run_id ?? "",
+      mapIndex: taskInstance?.map_index ?? -1,
+      taskId: taskInstance?.task_id ?? "",
+      tryNumber,
+    },
+    undefined,
+    {
+      enabled: Boolean(taskInstance),
+      refetchInterval: (query) =>
+        isStatePending(taskInstance?.state) ||
+        dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)
+          ? refetchInterval
+          : false,
+    },
+  );
 
   const parsedData = parseLogs({
     data: data?.content,

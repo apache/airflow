@@ -255,17 +255,10 @@ function check_boto_upgrade() {
     # We need to include few dependencies to pass pip check with other dependencies:
     #   * oss2 as dependency as otherwise jmespath will be bumped (sync with alibaba provider)
     #   * cryptography is kept for snowflake-connector-python limitation (sync with snowflake provider)
-    #   * requests needs to be limited to be compatible with apache beam (sync with apache-beam provider)
-    #   * yandexcloud requirements for requests does not match those of apache.beam and latest botocore
-    #   Both requests and yandexcloud exclusion above might be removed after
-    #   https://github.com/apache/beam/issues/32080 is addressed
-    #   This is already addressed and planned for 2.59.0 release.
-    #   When you remove yandexcloud and opensearch from the above list, you can also remove the
-    #   optional providers_dependencies exclusions from "test_example_dags.py" in "tests/always".
     set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
-       "oss2>=2.14.0" "cryptography<43.0.0" "requests!=2.32.*,<3.0.0,>=2.24.0"
+       "oss2>=2.14.0" "cryptography<43.0.0" "opensearch-py"
     set +x
     pip check
 }

@@ -595,3 +595,87 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUp
     :dedent: 4
     :start-after: [START howto_operator_dataplex_catalog_update_entry_type]
     :end-before: [END howto_operator_dataplex_catalog_update_entry_type]
+
+.. _howto/operator:DataplexCatalogCreateAspectTypeOperator:
+
+Create an AspectType
+--------------------
+
+To create an Aspect Type in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`
+For more information about the available fields to pass when creating an Aspect Type, visit `Aspect Type resource configuration. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.aspectTypes#AspectType>`__
+
+A simple Aspect Group configuration can look as followed:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_dataplex_aspect_type_configuration]
+    :end-before: [END howto_dataplex_aspect_type_configuration]
+
+With this configuration you can create an Aspect Type resource:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_create_aspect_type]
+    :end-before: [END howto_operator_dataplex_catalog_create_aspect_type]
+
+.. _howto/operator:DataplexCatalogDeleteAspectTypeOperator:
+
+Delete an AspectType
+--------------------
+
+To delete an Aspect Type in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteAspectTypeOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_delete_aspect_type]
+    :end-before: [END howto_operator_dataplex_catalog_delete_aspect_type]
+
+.. _howto/operator:DataplexCatalogListAspectTypesOperator:
+
+List AspectTypes
+----------------
+
+To list all Aspect Types in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogListAspectTypesOperator`.
+This operator also supports filtering and ordering the result of the operation.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_list_aspect_types]
+    :end-before: [END howto_operator_dataplex_catalog_list_aspect_types]
+
+.. _howto/operator:DataplexCatalogGetAspectTypeOperator:
+
+Get an AspectType
+-----------------
+
+To retrieve an Aspect Group in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetAspectTypeOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_get_aspect_type]
+    :end-before: [END howto_operator_dataplex_catalog_get_aspect_type]
+
+.. _howto/operator:DataplexCatalogUpdateAspectTypeOperator:
+
+Update an AspectType
+--------------------
+
+To update an Aspect Type in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_update_aspect_type]
+    :end-before: [END howto_operator_dataplex_catalog_update_aspect_type]

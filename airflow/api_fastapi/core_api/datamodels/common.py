@@ -27,7 +27,7 @@ from typing import Annotated, Any, Generic, TypeVar, Union
 
 from pydantic import Discriminator, Field, Tag
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 # Common Bulk Data Models
 T = TypeVar("T")
@@ -57,7 +57,7 @@ class BulkActionNotOnExistence(enum.Enum):
     SKIP = "skip"
 
 
-class BulkBaseAction(BaseModel, Generic[T]):
+class BulkBaseAction(StrictBaseModel, Generic[T]):
     """Base class for bulk actions."""
 
     action: BulkAction = Field(..., description="The action to be performed on the entities.")
@@ -88,7 +88,7 @@ def _action_discriminator(action: Any) -> str:
     return BulkAction(action["action"]).value
 
 
-class BulkBody(BaseModel, Generic[T]):
+class BulkBody(StrictBaseModel, Generic[T]):
     """Serializer for bulk entity operations."""
 
     actions: list[

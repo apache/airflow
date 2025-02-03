@@ -71,9 +71,12 @@ class GitHook(BaseHook):
         self.repo_url = connection.host
         self.auth_token = connection.password
         self.key_file = connection.extra_dejson.get("key_file")
+        strict_host_key_checking = connection.extra_dejson.get("strict_host_key_checking", "no")
         self.env: dict[str, str] = {}
         if self.key_file:
-            self.env["GIT_SSH_COMMAND"] = f"ssh -i {self.key_file} -o IdentitiesOnly=yes"
+            self.env["GIT_SSH_COMMAND"] = (
+                f"ssh -i {self.key_file} -o IdentitiesOnly=yes -o StrictHostKeyChecking={strict_host_key_checking}"
+            )
         self._process_git_auth_url()
 
     def _process_git_auth_url(self):
@@ -95,6 +98,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     :param tracking_ref: Branch or tag for this DAG bundle
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
+    :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
     """
 
     supports_versioning = True
@@ -105,6 +109,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         tracking_ref: str,
         subdir: str | None = None,
         git_conn_id: str = "git_default",
+        repo_url: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -115,10 +120,9 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
         )
         self.git_conn_id = git_conn_id
-        self.repo_url: str | None = None
         try:
             self.hook = GitHook(git_conn_id=self.git_conn_id)
-            self.repo_url = self.hook.repo_url
+            self.repo_url = repo_url or self.hook.repo_url
         except AirflowException as e:
             self.log.error("Error creating GitHook: %s", e)
 
@@ -140,9 +144,11 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             raise AirflowException(f"Connection {self.git_conn_id} doesn't have a host url")
         if isinstance(self.repo_url, os.PathLike):
             self._initialize()
-        elif not self.repo_url.startswith("git@") or not self.repo_url.endswith(".git"):
+        elif not (
+            self.repo_url.startswith("git@") or self.repo_url.startswith("https")
+        ) or not self.repo_url.endswith(".git"):
             raise AirflowException(
-                f"Invalid git URL: {self.repo_url}. URL must start with git@ and end with .git"
+                f"Invalid git URL: {self.repo_url}. URL must start with git@ or https and end with .git"
             )
         else:
             self._initialize()
@@ -236,6 +242,8 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             return None
         if url.startswith("git@"):
             url = self._convert_git_ssh_url_to_https(url)
+        if url.endswith(".git"):
+            url = url[:-4]
         parsed_url = urlparse(url)
         host = parsed_url.hostname
         if not host:

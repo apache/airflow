@@ -215,7 +215,7 @@ that row.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
-    :dedent: 8
+    :dedent: 4
     :start-after: [START howto_operator_bigquery_get_data]
     :end-before: [END howto_operator_bigquery_get_data]
 
@@ -313,7 +313,7 @@ with proper query job configuration that can be Jinja templated.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
-    :dedent: 8
+    :dedent: 4
     :start-after: [START howto_operator_bigquery_insert_job]
     :end-before: [END howto_operator_bigquery_insert_job]
 
@@ -336,7 +336,7 @@ language as follow:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
-    :dedent: 8
+    :dedent: 4
     :start-after: [START howto_operator_bigquery_select_job]
     :end-before: [END howto_operator_bigquery_select_job]
 
@@ -373,7 +373,7 @@ return ``False`` the check is failed and errors out.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
-    :dedent: 8
+    :dedent: 4
     :start-after: [START howto_operator_bigquery_check]
     :end-before: [END howto_operator_bigquery_check]
 
@@ -399,7 +399,7 @@ or numeric value. If numeric, you can also specify ``tolerance``.
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
-    :dedent: 8
+    :dedent: 4
     :start-after: [START howto_operator_bigquery_value_check]
     :end-before: [END howto_operator_bigquery_value_check]
 
@@ -423,7 +423,7 @@ tolerance of the ones from ``days_back`` before you can either use
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
-    :dedent: 8
+    :dedent: 4
     :start-after: [START howto_operator_bigquery_interval_check]
     :end-before: [END howto_operator_bigquery_interval_check]
 
