@@ -26,7 +26,7 @@ T = TypeVar("T", bound=Callable)
 
 
 class _TaskDecoratorRemover(cst.CSTTransformer):
-    def __init__(self, task_decorator_name):
+    def __init__(self, task_decorator_name: str) -> None:
         self.decorators_to_remove: set[str] = {
             "setup",
             "teardown",
