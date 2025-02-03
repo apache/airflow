@@ -51,8 +51,8 @@ def remove_license_header(content: str) -> str:
 
 def load_file(*args: str, mode="r", encoding="utf-8"):
     directory = currentframe().f_back.f_globals["__name__"].split(".")[:-1]  # type: ignore
-    file = join(dirname(realpath(__file__)), join(*directory), join(*args))
-    with open(file, mode=mode, encoding=encoding) as file:
+    filename = join(dirname(realpath(__file__)), join(*directory), join(*args))
+    with open(filename, mode=mode, encoding=encoding) as file:
         if mode == "r":
             return remove_license_header(file.read())
         return file.read()
