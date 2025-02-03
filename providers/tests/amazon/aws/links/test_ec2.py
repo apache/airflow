@@ -41,13 +41,20 @@ class TestEC2InstanceLink(BaseAwsLinksTestCase):
 class TestEC2InstanceDashboardLink(BaseAwsLinksTestCase):
     link_class = EC2InstanceDashboardLink
 
-    STATE = "running"
+    # STATE = "running"
     BASE_URL = "https://console.aws.amazon.com/ec2/home"
+    INSTANCE_IDS = ["i-xxxxxxxxxxxx", "i-yyyyyyyyyyyy"]
+
+    def test_instance_id_filter(self):
+        instance_list = ",:".join(self.INSTANCE_IDS)
+        result = EC2InstanceDashboardLink.format_instance_id_filter(self.INSTANCE_IDS)
+        assert result == instance_list
 
     def test_extra_link(self):
+        instance_list = ",:".join(self.INSTANCE_IDS)
         self.assert_extra_link_url(
-            expected_url=(f"{self.BASE_URL}?region=eu-west-1#Instances:instanceState={self.STATE}"),
+            expected_url=(f"{self.BASE_URL}?region=eu-west-1#Instances:instanceId=:{instance_list}"),
             region_name="eu-west-1",
             aws_partition="aws",
-            state=self.STATE,
+            instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(self.INSTANCE_IDS),
         )

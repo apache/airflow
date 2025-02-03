@@ -23,7 +23,11 @@ from typing import TYPE_CHECKING
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
-from airflow.providers.amazon.aws.links.ec2 import EC2InstanceDashboardLink, EC2InstanceLink
+from airflow.providers.amazon.aws.links.ec2 import (
+    EC2InstanceDashboardLink,
+    EC2InstanceLink,
+    # format_instance_id_filter,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -216,15 +220,16 @@ class EC2CreateInstanceOperator(BaseOperator):
             **self.config,
         )["Instances"]
 
-        # Console link is for EC2 dashboard list, not individual instances
+        instance_ids = self._on_kill_instance_ids = [instance["InstanceId"] for instance in instances]
+        # Console link is for EC2 dashboard list, not individual instances when more than 1 instance
+
         EC2InstanceDashboardLink.persist(
             context=context,
             operator=self,
             region_name=ec2_hook.conn_region_name,
             aws_partition=ec2_hook.conn_partition,
-            state="running",
+            instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(instance_ids),
         )
-        instance_ids = self._on_kill_instance_ids = [instance["InstanceId"] for instance in instances]
         for instance_id in instance_ids:
             self.log.info("Created EC2 instance %s", instance_id)
 
@@ -375,7 +380,7 @@ class EC2RebootInstanceOperator(BaseOperator):
             operator=self,
             region_name=ec2_hook.conn_region_name,
             aws_partition=ec2_hook.conn_partition,
-            state="running",
+            instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(self.instance_ids),
         )
         if self.wait_for_completion:
             ec2_hook.get_waiter("instance_running").wait(
@@ -447,7 +452,7 @@ class EC2HibernateInstanceOperator(BaseOperator):
             operator=self,
             region_name=ec2_hook.conn_region_name,
             aws_partition=ec2_hook.conn_partition,
-            state="stopping",
+            instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(self.instance_ids),
         )
 
         for instance in instances:
