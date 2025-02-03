@@ -418,7 +418,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         skip_on_exit_code: int | Container[int] | None = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_airflow_context: bool = False,
         **kwargs,
     ):
         if (
@@ -460,7 +459,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         )
         self.env_vars = env_vars
         self.inherit_env = inherit_env
-        self.use_airflow_context = use_airflow_context
 
     @abstractmethod
     def _iter_serializable_context_keys(self):
@@ -519,7 +517,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 "pickling_library": self.serializer,
                 "python_callable": self.python_callable.__name__,
                 "python_callable_source": self.get_python_source(),
-                "use_airflow_context": self.use_airflow_context,
             }
 
             if inspect.getfile(self.python_callable) == self.dag.fileloc:
@@ -530,20 +527,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 filename=os.fspath(script_path),
                 render_template_as_native_obj=self.dag.render_template_as_native_obj,
             )
-            if self.use_airflow_context:
-                # TODO: replace with commented code when context serialization is implemented in AIP-72
-                raise AirflowException(
-                    "The `use_airflow_context=True` is not yet implemented. "
-                    "It will work in Airflow 3 after AIP-72 context "
-                    "serialization is ready."
-                )
-                # context = get_current_context()
-                # with create_session() as session:
-                #     dag_run, task_instance = context["dag_run"], context["task_instance"]
-                #     session.add_all([dag_run, task_instance])
-                #     serializable_context: dict[Encoding, Any] = # Get serializable context here
-                # with airflow_context_path.open("w+") as file:
-                #     json.dump(serializable_context, file)
 
             env_vars = dict(os.environ) if self.inherit_env else {}
             if self.env_vars:
@@ -658,8 +641,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         environment. If set to ``True``, the virtual environment will inherit the environment variables
         of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
         executed with a clean environment.
-    :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
-        NOT YET IMPLEMENTED - waits for AIP-72 context serialization.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -687,7 +668,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         venv_cache_path: None | os.PathLike[str] = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_airflow_context: bool = False,
         **kwargs,
     ):
         if (
@@ -703,18 +683,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         if python_version is not None and not isinstance(python_version, str):
             raise AirflowException(
                 "Passing non-string types (e.g. int or float) as python_version not supported"
-            )
-        if use_airflow_context and (not expect_airflow and not system_site_packages):
-            raise AirflowException(
-                "The `use_airflow_context` parameter is set to True, but "
-                "expect_airflow and system_site_packages are set to False."
-            )
-        # TODO: remove when context serialization is implemented in AIP-72
-        if use_airflow_context and not AIRFLOW_V_3_0_PLUS:
-            raise AirflowException(
-                "The `use_airflow_context=True` is not yet implemented. "
-                "It will work in Airflow 3 after AIP-72 context "
-                "serialization is ready."
             )
         if not requirements:
             self.requirements: list[str] = []
@@ -744,7 +712,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             skip_on_exit_code=skip_on_exit_code,
             env_vars=env_vars,
             inherit_env=inherit_env,
-            use_airflow_context=use_airflow_context,
             **kwargs,
         )
 
@@ -960,8 +927,6 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         environment. If set to ``True``, the virtual environment will inherit the environment variables
         of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
         executed with a clean environment.
-    :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
-        NOT YET IMPLEMENTED - waits for AIP-72 context serialization.
     """
 
     template_fields: Sequence[str] = tuple({"python"}.union(PythonOperator.template_fields))
@@ -982,22 +947,10 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_airflow_context: bool = False,
         **kwargs,
     ):
         if not python:
             raise ValueError("Python Path must be defined in ExternalPythonOperator")
-        if use_airflow_context and not expect_airflow:
-            raise AirflowException(
-                "The `use_airflow_context` parameter is set to True, but expect_airflow is set to False."
-            )
-        # TODO: remove when context serialization is implemented in AIP-72
-        if use_airflow_context:
-            raise AirflowException(
-                "The `use_airflow_context=True` is not yet implemented. "
-                "It will work in Airflow 3 after AIP-72 context "
-                "serialization is ready."
-            )
         self.python = python
         self.expect_pendulum = expect_pendulum
         super().__init__(
@@ -1012,7 +965,6 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             skip_on_exit_code=skip_on_exit_code,
             env_vars=env_vars,
             inherit_env=inherit_env,
-            use_airflow_context=use_airflow_context,
             **kwargs,
         )
 

@@ -22,10 +22,10 @@ from datetime import datetime, timedelta
 import pendulum
 import pytest
 
-from airflow.models.param import ParamsDict
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.utils.trigger_rule import TriggerRule
 

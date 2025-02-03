@@ -27,7 +27,7 @@ import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 export const Details = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
@@ -55,13 +55,21 @@ export const Details = () => {
 
   const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
-  const { data: tryInstance } = useTaskInstanceServiceGetTaskInstanceTryDetails({
-    dagId,
-    dagRunId: runId,
-    mapIndex,
-    taskId,
-    taskTryNumber: tryNumber ?? 1,
-  });
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data: tryInstance } = useTaskInstanceServiceGetTaskInstanceTryDetails(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex,
+      taskId,
+      taskTryNumber: tryNumber ?? 1,
+    },
+    undefined,
+    {
+      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+    },
+  );
 
   return (
     <Box p={2}>
@@ -77,7 +85,7 @@ export const Details = () => {
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
-            <Table.Cell>StateBadge</Table.Cell>
+            <Table.Cell>State</Table.Cell>
             <Table.Cell>
               <Flex gap={1}>
                 <StateBadge state={tryInstance?.state} />

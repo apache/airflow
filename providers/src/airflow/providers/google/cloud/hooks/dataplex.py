@@ -32,6 +32,7 @@ from google.cloud.dataplex_v1 import (
 )
 from google.cloud.dataplex_v1.services.catalog_service import CatalogServiceClient
 from google.cloud.dataplex_v1.types import (
+    AspectType,
     Asset,
     DataScan,
     DataScanJob,
@@ -56,6 +57,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
     from google.cloud.dataplex_v1.services.catalog_service.pagers import (
+        ListAspectTypesPager,
         ListEntryGroupsPager,
         ListEntryTypesPager,
     )
@@ -139,6 +141,78 @@ class DataplexHook(GoogleBaseHook):
             raise AirflowException(error)
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def create_aspect_type(
+        self,
+        location: str,
+        aspect_type_id: str,
+        aspect_type_configuration: AspectType | dict,
+        project_id: str = PROVIDE_PROJECT_ID,
+        validate_only: bool = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Create an EntryType resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param aspect_type_id: Required. AspectType identifier.
+        :param aspect_type_configuration: Required. AspectType configuration body.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param validate_only: Optional. If set, performs request validation, but does not actually execute
+            the create request.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.create_aspect_type(
+            request={
+                "parent": client.common_location_path(project_id, location),
+                "aspect_type_id": aspect_type_id,
+                "aspect_type": aspect_type_configuration,
+                "validate_only": validate_only,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_aspect_type(
+        self,
+        location: str,
+        aspect_type_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> AspectType:
+        """
+        Get an AspectType resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param aspect_type_id: Required. AspectType identifier.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.get_aspect_type(
+            request={
+                "name": client.aspect_type_path(project_id, location, aspect_type_id),
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def create_entry_type(
         self,
         location: str,
@@ -204,6 +278,128 @@ class DataplexHook(GoogleBaseHook):
         return client.get_entry_type(
             request={
                 "name": client.entry_type_path(project_id, location, entry_type_id),
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_aspect_type(
+        self,
+        location: str,
+        aspect_type_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Delete an AspectType resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param aspect_type_id: Required. AspectType identifier.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.delete_aspect_type(
+            request={
+                "name": client.aspect_type_path(project_id, location, aspect_type_id),
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_aspect_types(
+        self,
+        location: str,
+        filter_by: str | None = None,
+        order_by: str | None = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> ListAspectTypesPager:
+        """
+        List AspectTypes resources from specific location.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param filter_by: Optional. Filter to apply on the list results.
+        :param order_by: Optional. Fields to order the results by.
+        :param page_size: Optional. Maximum number of EntryGroups to return on one page.
+        :param page_token: Optional. Token to retrieve the next page of results.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.list_aspect_types(
+            request={
+                "parent": client.common_location_path(project_id, location),
+                "filter": filter_by,
+                "order_by": order_by,
+                "page_size": page_size,
+                "page_token": page_token,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_aspect_type(
+        self,
+        location: str,
+        aspect_type_id: str,
+        aspect_type_configuration: dict | AspectType,
+        project_id: str = PROVIDE_PROJECT_ID,
+        update_mask: list[str] | FieldMask | None = None,
+        validate_only: bool | None = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Update an AspectType resource.
+
+        :param aspect_type_id: Required. ID of the AspectType to update.
+        :param aspect_type_configuration: Required. The updated configuration body of the AspectType.
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param update_mask: Optional. Names of fields whose values to overwrite on an entry group.
+            If this parameter is absent or empty, all modifiable fields are overwritten. If such
+            fields are non-required and omitted in the request body, their values are emptied.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param validate_only: Optional. The service validates the request without performing any mutations.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        _aspect_type = (
+            deepcopy(aspect_type_configuration)
+            if isinstance(aspect_type_configuration, dict)
+            else AspectType.to_dict(aspect_type_configuration)
+        )
+        _aspect_type["name"] = client.aspect_type_path(project_id, location, aspect_type_id)
+        return client.update_aspect_type(
+            request={
+                "aspect_type": _aspect_type,
+                "update_mask": FieldMask(paths=update_mask) if type(update_mask) is list else update_mask,
+                "validate_only": validate_only,
             },
             retry=retry,
             timeout=timeout,

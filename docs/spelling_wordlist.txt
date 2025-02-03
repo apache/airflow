@@ -91,6 +91,8 @@ asciiart
 asctime
 asend
 asia
+AspectType
+AspectTypes
 assertEqualIgnoreMultipleSpaces
 AssetEvent
 AssetEvents
@@ -1757,6 +1759,7 @@ traceback
 tracebacks
 tracemalloc
 TrainingPipeline
+TransferOperation
 TranslationServiceClient
 travis
 triage

@@ -113,25 +113,6 @@ It can be used implicitly, such as with ``**kwargs``,
 but can also be used explicitly with ``get_current_context()``.
 In this case, the type hint can be used for static analysis.
 
-.. tab-set::
-
-    .. tab-item:: @task
-        :sync: taskflow
-
-        .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START get_current_context]
-            :end-before: [END get_current_context]
-
-    .. tab-item:: PythonOperator
-        :sync: operator
-
-        .. exampleinclude:: /../../airflow/example_dags/example_python_context_operator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START get_current_context]
-            :end-before: [END get_current_context]
 
 .. _howto/operator:PythonVirtualenvOperator:
 
@@ -240,44 +221,6 @@ In case you have problems during runtime with broken cached virtual environments
 Note that any modification of a cached virtual environment (like temp files in binary path, post-installing further requirements) might pollute a cached virtual environment and the
 operator is not maintaining or cleaning the cache path.
 
-Context
-^^^^^^^
-
-With some limitations, you can also use ``Context`` in virtual environments.
-
-.. important::
-    Using ``Context`` in a virtual environment is a bit of a challenge
-    because it involves library dependencies and serialization issues.
-
-    You can bypass this to some extent by using :ref:`Jinja template variables <templates:variables>` and explicitly passing it as a parameter.
-
-    You can also use ``get_current_context()`` in the same way as before, but with some limitations.
-
-    * Requires ``apache-airflow>=3.0.0``.
-
-    * Set ``use_airflow_context`` to ``True`` to call ``get_current_context()`` in the virtual environment.
-
-    * Set ``system_site_packages`` to ``True`` or set ``expect_airflow`` to ``True``
-
-.. tab-set::
-
-    .. tab-item:: @task.virtualenv
-        :sync: taskflow
-
-        .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START get_current_context_venv]
-            :end-before: [END get_current_context_venv]
-
-    .. tab-item:: PythonVirtualenvOperator
-        :sync: operator
-
-        .. exampleinclude:: /../../airflow/example_dags/example_python_context_operator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START get_current_context_venv]
-            :end-before: [END get_current_context_venv]
 
 .. _howto/operator:ExternalPythonOperator:
 
@@ -347,30 +290,6 @@ Templating
 
 Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
 
-Context
-^^^^^^^
-
-You can use ``Context`` under the same conditions as ``PythonVirtualenvOperator``.
-
-.. tab-set::
-
-    .. tab-item:: @task.external_python
-        :sync: taskflow
-
-        .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START get_current_context_external]
-            :end-before: [END get_current_context_external]
-
-    .. tab-item:: ExternalPythonOperator
-        :sync: operator
-
-        .. exampleinclude:: /../../airflow/example_dags/example_python_context_operator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START get_current_context_external]
-            :end-before: [END get_current_context_external]
 
 .. _howto/operator:PythonBranchOperator:
 

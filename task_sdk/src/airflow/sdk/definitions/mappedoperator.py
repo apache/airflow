@@ -72,12 +72,13 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.param import ParamsDict
     from airflow.sdk.types import Operator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.typing_compat import TypeGuard
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
@@ -134,6 +135,22 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
     elif isinstance(arg, Iterable):
         for v in arg:
             ensure_xcomarg_return_value(v)
+
+
+def is_mappable_value(value: Any) -> TypeGuard[Collection]:
+    """
+    Whether a value can be used for task mapping.
+
+    We only allow collections with guaranteed ordering, but exclude character
+    sequences since that's usually not what users would expect to be mappable.
+
+    :meta private:
+    """
+    if not isinstance(value, (Sequence, dict)):
+        return False
+    if isinstance(value, (bytearray, bytes, str)):
+        return False
+    return True
 
 
 @attrs.define(kw_only=True, repr=False)

@@ -27,6 +27,8 @@ import {
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
+import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
+
 const onError = () => {
   toaster.create({
     description: "Clear Dag Run request failed",
@@ -52,6 +54,7 @@ export const useClearDagRun = ({
       UseDagServiceGetDagDetailsKeyFn({ dagId }),
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
+      [useClearDagRunDryRunKey, dagId],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

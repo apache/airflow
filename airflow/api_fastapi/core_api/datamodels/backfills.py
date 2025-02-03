@@ -19,11 +19,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models.backfill import ReprocessBehavior
 
 
-class BackfillPostBody(BaseModel):
+class BackfillPostBody(StrictBaseModel):
     """Object used for create backfill request."""
 
     dag_id: str

@@ -31,7 +31,7 @@ from pydantic import (
     field_validator,
 )
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.configuration import conf
 
@@ -92,7 +92,7 @@ class DAGResponse(BaseModel):
         return serializer.dumps(self.fileloc)
 
 
-class DAGPatchBody(BaseModel):
+class DAGPatchBody(StrictBaseModel):
     """Dag Serializer for updatable bodies."""
 
     is_paused: bool

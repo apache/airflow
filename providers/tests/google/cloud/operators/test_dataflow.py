@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from copy import deepcopy
 from unittest import mock
 
 import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowJobStatus,
@@ -34,7 +33,6 @@ from airflow.providers.google.cloud.operators.dataflow import (
     DataflowDeletePipelineOperator,
     DataflowRunPipelineOperator,
     DataflowStartFlexTemplateOperator,
-    DataflowStartSqlJobOperator,
     DataflowStartYamlJobOperator,
     DataflowStopJobOperator,
     DataflowTemplatedJobStartOperator,
@@ -346,40 +344,6 @@ class TestDataflowStartFlexTemplateOperator:
             project_id=TEST_PROJECT,
         )
         mock_defer_method.assert_called_once()
-
-
-class TestDataflowStartSqlJobOperator:
-    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
-    def test_execute(self, mock_hook):
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            start_sql = DataflowStartSqlJobOperator(
-                task_id="start_sql_query",
-                job_name=TEST_SQL_JOB_NAME,
-                query=TEST_SQL_QUERY,
-                options=deepcopy(TEST_SQL_OPTIONS),
-                location=TEST_LOCATION,
-                do_xcom_push=True,
-            )
-            start_sql.execute(mock.MagicMock())
-
-        mock_hook.assert_called_once_with(
-            gcp_conn_id="google_cloud_default",
-            drain_pipeline=False,
-            impersonation_chain=None,
-        )
-        mock_hook.return_value.start_sql_job.assert_called_once_with(
-            job_name=TEST_SQL_JOB_NAME,
-            query=TEST_SQL_QUERY,
-            options=TEST_SQL_OPTIONS,
-            location=TEST_LOCATION,
-            project_id=None,
-            on_new_job_callback=mock.ANY,
-        )
-        start_sql.job = TEST_SQL_JOB
-        start_sql.on_kill()
-        mock_hook.return_value.cancel_job.assert_called_once_with(
-            job_id="test-job-id", project_id=None, location=None
-        )
 
 
 class TestDataflowStartYamlJobOperator:

@@ -55,7 +55,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
     error: errorTrigger,
     isPending,
     triggerDagRun,
-  } = useTrigger({ onSuccessConfirm: onClose });
+  } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, setConf } = useParamStore();
 
   const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
@@ -85,7 +85,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   const dataIntervalEnd = watch("dataIntervalEnd");
 
   const onSubmit = (data: DagRunTriggerParams) => {
-    triggerDagRun(dagId, data);
+    triggerDagRun(data);
   };
 
   const validateAndPrettifyJson = (value: string) => {

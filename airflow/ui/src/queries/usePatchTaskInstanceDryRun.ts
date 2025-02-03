@@ -30,6 +30,8 @@ type Props<TData, TError> = {
   taskId: string;
 };
 
+export const usePatchTaskInstanceDryRunKey = "patchTaskInstanceDryRun";
+
 export const usePatchTaskInstanceDryRun = <TData = PatchTaskInstanceDryRunResponse, TError = unknown>({
   dagId,
   dagRunId,
@@ -49,15 +51,17 @@ export const usePatchTaskInstanceDryRun = <TData = PatchTaskInstanceDryRunRespon
         taskId,
       }) as TData,
     queryKey: [
-      "patchTaskInstanceDryRun",
+      usePatchTaskInstanceDryRunKey,
       dagId,
       dagRunId,
-      taskId,
-      mapIndex,
-      requestBody.new_state,
-      requestBody.include_downstream,
-      requestBody.include_future,
-      requestBody.include_past,
-      requestBody.include_upstream,
+      {
+        include_downstream: requestBody.include_downstream,
+        include_future: requestBody.include_future,
+        include_past: requestBody.include_past,
+        include_upstream: requestBody.include_upstream,
+        mapIndex,
+        new_state: requestBody.new_state,
+        taskId,
+      },
     ],
   });

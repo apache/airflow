@@ -377,7 +377,7 @@ class TestDagDetails(TestDagEndpoint):
             "owners": ["airflow"],
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "description": None,
                     "schema": {},
                     "value": 1,

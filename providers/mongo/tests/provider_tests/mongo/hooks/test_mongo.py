@@ -97,6 +97,9 @@ class TestMongoHook:
         self.hook = MongoHookTest(mongo_conn_id="mongo_default")
         self.conn = self.hook.get_conn()
 
+    def teardown_method(self):
+        self.conn.close()
+
     def test_mongo_conn_id(self):
         # Use default "mongo_default"
         assert MongoHook().mongo_conn_id == "mongo_default"

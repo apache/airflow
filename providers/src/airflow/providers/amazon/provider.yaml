@@ -889,6 +889,8 @@ extra-links:
   - airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink
   - airflow.providers.amazon.aws.links.comprehend.ComprehendPiiEntitiesDetectionLink
   - airflow.providers.amazon.aws.links.comprehend.ComprehendDocumentClassifierLink
+  - airflow.providers.amazon.aws.links.datasync.DataSyncTaskLink
+  - airflow.providers.amazon.aws.links.datasync.DataSyncTaskExecutionLink
 
 
 connection-types:

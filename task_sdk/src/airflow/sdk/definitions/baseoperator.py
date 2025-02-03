@@ -33,7 +33,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeVar, cast
 
 import attrs
 
-from airflow.models.param import ParamsDict
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -54,6 +53,7 @@ from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, validate_instance_args
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
+from airflow.sdk.definitions.param import ParamsDict
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,

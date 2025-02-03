@@ -425,7 +425,6 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             "max_active_runs": max_active_runs,
             "run_backwards": run_backwards,
             "dag_run_conf": {"param1": "val1", "param2": True},
-            "dry_run": False,
             "reprocess_behavior": repro_act,
         }
         response = test_client.post(

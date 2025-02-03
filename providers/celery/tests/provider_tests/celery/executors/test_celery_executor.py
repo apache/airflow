@@ -44,7 +44,7 @@ from airflow.utils.state import State
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -71,21 +71,24 @@ class FakeCeleryResult:
 def _prepare_app(broker_url=None, execute=None):
     broker_url = broker_url or conf.get("celery", "BROKER_URL")
 
-    execute = execute or celery_executor_utils.execute_command.__wrapped__
+    if AIRFLOW_V_3_0_PLUS:
+        execute_name = "execute_workload"
+        execute = execute or celery_executor_utils.execute_workload.__wrapped__
+    else:
+        execute_name = "execute_command"
+        execute = execute or celery_executor_utils.execute_command.__wrapped__
 
     test_config = dict(celery_executor_utils.celery_configuration)
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
-    patch_app = mock.patch("airflow.providers.celery.executors.celery_executor_utils.app", test_app)
-    patch_execute = mock.patch(
-        "airflow.providers.celery.executors.celery_executor_utils.execute_command", test_execute
-    )
+    patch_app = mock.patch.object(celery_executor_utils, "app", test_app)
+    patch_execute = mock.patch.object(celery_executor_utils, execute_name, test_execute)
 
     backend = test_app.backend
 
     if hasattr(backend, "ResultSession"):
-        # Pre-create the database tables now, otherwise SQLA vis Celery has a
+        # Pre-create the database tables now, otherwise SQLA via Celery has a
         # race condition where it one of the subprocesses can die with "Table
         # already exists" error, because SQLA checks for which tables exist,
         # then issues a CREATE TABLE, rather than doing CREATE TABLE IF NOT
@@ -147,6 +150,7 @@ class TestCeleryExecutor:
         ]
         mock_stats_gauge.assert_has_calls(calls)
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 doesn't have execute_command anymore")
     @pytest.mark.parametrize(
         "command, raise_exception",
         [

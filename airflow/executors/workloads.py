@@ -34,7 +34,7 @@ __all__ = [
 ]
 
 
-class BaseActivity(BaseModel):
+class BaseWorkload(BaseModel):
     token: str
     """The identity token for this workload"""
 
@@ -75,7 +75,7 @@ class TaskInstance(BaseModel):
         )
 
 
-class ExecuteTask(BaseActivity):
+class ExecuteTask(BaseWorkload):
     """Execute the given Task."""
 
     ti: TaskInstance

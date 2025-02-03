@@ -26,6 +26,7 @@ import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 
@@ -65,7 +66,17 @@ class TestMySql:
         ],
     )
     def test_mysql_to_mysql(self, client):
-        from providers.tests.mysql.hooks.test_mysql import MySqlContext
+        class MySqlContext:
+            def __init__(self, client):
+                self.client = client
+                self.connection = MySqlHook.get_connection(MySqlHook.default_conn_name)
+                self.init_client = self.connection.extra_dejson.get("client", "mysqlclient")
+
+            def __enter__(self):
+                self.connection.set_extra(f'{{"client": "{self.client}"}}')
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                self.connection.set_extra(f'{{"client": "{self.init_client}"}}')
 
         with MySqlContext(client):
             sql = "SELECT * FROM connection;"

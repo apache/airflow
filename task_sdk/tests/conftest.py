@@ -184,6 +184,7 @@ def make_ti_context() -> MakeTIContextCallable:
         data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
         start_date: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
+        conf=None,
     ) -> TIRunContext:
         return TIRunContext(
             dag_run=DagRun(
@@ -194,6 +195,7 @@ def make_ti_context() -> MakeTIContextCallable:
                 data_interval_end=data_interval_end,  # type: ignore
                 start_date=start_date,  # type: ignore
                 run_type=run_type,  # type: ignore
+                conf=conf,
             ),
             max_tries=0,
         )

@@ -163,25 +163,21 @@ You can find example on how to use VertexAI operators here:
     :end-before: [END how_to_cloud_vertex_ai_delete_model_operator]
 
 .. _howto/operator:AutoMLPredictOperator:
-.. _howto/operator:AutoMLBatchPredictOperator:
 
 Making Predictions
 ^^^^^^^^^^^^^^^^^^
 
 To obtain predictions from Google Cloud AutoML model you can use
-:class:`~airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator` or
-:class:`~airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator`. In the first case
+:class:`~airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator`. In the first case
 the model must be deployed.
 
 
-Th :class:`~airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator` deprecated for tables,
-video intelligence, vision and natural language is deprecated and will be removed after 31.03.2024.
-Please use
+For tables, video intelligence, vision and natural language you can use the following operators:
+
 :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`,
 :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.GetBatchPredictionJobOperator`,
 :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.ListBatchPredictionJobsOperator`,
-:class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.DeleteBatchPredictionJobOperator`,
-instead.
+:class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.DeleteBatchPredictionJobOperator`.
 You can find examples on how to use VertexAI operators here:
 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py

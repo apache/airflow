@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from ast import literal_eval
 from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
@@ -43,7 +44,12 @@ from kiota_serialization_text.text_parse_node_factory import TextParseNodeFactor
 from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
-from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
+from airflow.exceptions import (
+    AirflowBadRequest,
+    AirflowConfigException,
+    AirflowException,
+    AirflowNotFoundException,
+)
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -212,19 +218,20 @@ class KiotaRequestAdapterHook(BaseHook):
 
     @classmethod
     def to_httpx_proxies(cls, proxies: dict) -> dict:
-        proxies = proxies.copy()
-        if proxies.get("http"):
-            proxies["http://"] = AsyncHTTPTransport(proxy=proxies.pop("http"))
-        if proxies.get("https"):
-            proxies["https://"] = AsyncHTTPTransport(proxy=proxies.pop("https"))
-        if proxies.get("no"):
-            for url in proxies.pop("no", "").split(","):
-                proxies[cls.format_no_proxy_url(url.strip())] = None
+        if proxies:
+            proxies = proxies.copy()
+            if proxies.get("http"):
+                proxies["http://"] = AsyncHTTPTransport(proxy=proxies.pop("http"))
+            if proxies.get("https"):
+                proxies["https://"] = AsyncHTTPTransport(proxy=proxies.pop("https"))
+            if proxies.get("no"):
+                for url in proxies.pop("no", "").split(","):
+                    proxies[cls.format_no_proxy_url(url.strip())] = None
         return proxies
 
-    def to_msal_proxies(self, authority: str | None, proxies: dict):
+    def to_msal_proxies(self, authority: str | None, proxies: dict) -> dict | None:
         self.log.debug("authority: %s", authority)
-        if authority:
+        if authority and proxies:
             no_proxies = proxies.get("no")
             self.log.debug("no_proxies: %s", no_proxies)
             if no_proxies:
@@ -251,7 +258,7 @@ class KiotaRequestAdapterHook(BaseHook):
             host = self.get_host(connection)
             base_url = config.get("base_url", urljoin(host, api_version))
             authority = config.get("authority")
-            proxies = self.proxies or config.get("proxies", {})
+            proxies = self.get_proxies(config)
             httpx_proxies = self.to_httpx_proxies(proxies=proxies)
             scopes = config.get("scopes", self.scopes)
             if isinstance(scopes, str):
@@ -313,6 +320,23 @@ class KiotaRequestAdapterHook(BaseHook):
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         self._api_version = api_version
         return request_adapter
+
+    def get_proxies(self, config: dict) -> dict:
+        proxies = self.proxies or config.get("proxies", {})
+        if isinstance(proxies, str):
+            # TODO: Once provider depends on Airflow 2.10 or higher code below won't be needed anymore as
+            #       we could then use the get_extra_dejson method on the connection which deserializes
+            #       nested json. Make sure to use connection.get_extra_dejson(nested=True) instead of
+            #       connection.extra_dejson.
+            with suppress(JSONDecodeError):
+                proxies = json.loads(proxies)
+            with suppress(Exception):
+                proxies = literal_eval(proxies)
+        if not isinstance(proxies, dict):
+            raise AirflowConfigException(
+                f"Proxies must be of type dict, got {type(proxies).__name__} instead!"
+            )
+        return proxies
 
     def get_credentials(
         self,

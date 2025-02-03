@@ -17,19 +17,27 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from json import JSONDecodeError
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
 from httpx import Response
+from httpx._utils import URLPattern
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_serialization_json.json_parse_node import JsonParseNode
 from kiota_serialization_text.text_parse_node import TextParseNode
 from msgraph_core import APIVersion, NationalClouds
 from opentelemetry.trace import Span
 
-from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
+from airflow.exceptions import (
+    AirflowBadRequest,
+    AirflowConfigException,
+    AirflowException,
+    AirflowNotFoundException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.microsoft.azure.hooks.msgraph import (
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
@@ -43,15 +51,13 @@ from providers.tests.microsoft.conftest import (
     mock_json_response,
     mock_response,
 )
+from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 if TYPE_CHECKING:
     from kiota_abstractions.request_adapter import RequestAdapter
 
 
 class TestKiotaRequestAdapterHook:
-    def setup_method(self):
-        KiotaRequestAdapterHook.cached_request_adapters.clear()
-
     @staticmethod
     def assert_tenant_id(request_adapter: RequestAdapter, expected_tenant_id: str):
         assert isinstance(request_adapter, HttpxRequestAdapter)
@@ -85,6 +91,61 @@ class TestKiotaRequestAdapterHook:
 
             assert isinstance(actual, HttpxRequestAdapter)
             assert actual.base_url == "https://api.fabric.microsoft.com/v1"
+
+    def test_get_conn_with_proxies_as_string(self):
+        connection = lambda conn_id: get_airflow_connection(
+            conn_id=conn_id,
+            host="api.fabric.microsoft.com",
+            api_version="v1",
+            proxies="{'http': 'http://proxy:80', 'https': 'https://proxy:80'}",
+        )
+
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            actual = hook.get_conn()
+
+            assert isinstance(actual, HttpxRequestAdapter)
+            assert actual._http_client._mounts.get(URLPattern("http://"))
+            assert actual._http_client._mounts.get(URLPattern("https://"))
+
+    def test_get_conn_with_proxies_as_invalid_string(self):
+        connection = lambda conn_id: get_airflow_connection(
+            conn_id=conn_id,
+            host="api.fabric.microsoft.com",
+            api_version="v1",
+            proxies='["http://proxy:80", "https://proxy:80"]',
+        )
+
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.raises(AirflowConfigException):
+                hook.get_conn()
+
+    def test_get_conn_with_proxies_as_json(self):
+        connection = lambda conn_id: get_airflow_connection(
+            conn_id=conn_id,
+            host="api.fabric.microsoft.com",
+            api_version="v1",
+            proxies='{"http": "http://proxy:80", "https": "https://proxy:80"}',
+        )
+
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            actual = hook.get_conn()
+
+            assert isinstance(actual, HttpxRequestAdapter)
+            assert actual._http_client._mounts.get(URLPattern("http://"))
+            assert actual._http_client._mounts.get(URLPattern("https://"))
 
     def test_scopes_when_default(self):
         with patch(
@@ -301,3 +362,21 @@ class TestResponseHandler:
 
         with pytest.raises(AirflowException):
             asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+    @pytest.mark.db_test
+    def test_when_provider_min_airflow_version_is_2_10_or_higher_remove_obsolete_code(self):
+        """
+        Once this test starts failing due to the fact that the minimum Airflow version is now 2.10.0 or higher
+        for this provider, you should remove the obsolete code in the get_proxies method of the
+        KiotaRequestAdapterHook and remove this test.  This test was added to make sure to not forget to
+        remove the fallback code for backward compatibility with Airflow 2.9.x which isn't need anymore once
+        this provider depends on Airflow 2.10.0 or higher.
+        """
+        min_airflow_version = get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure")
+
+        # Check if the current Airflow version is 2.10.0 or higher
+        if min_airflow_version[0] >= 3 or (min_airflow_version[0] >= 2 and min_airflow_version[1] >= 10):
+            method_source = inspect.getsource(KiotaRequestAdapterHook.get_proxies)
+            raise AirflowProviderDeprecationWarning(
+                f"Check TODO's to remove obsolete code in get_proxies method:\n\r\n\r\t\t\t{method_source}"
+            )

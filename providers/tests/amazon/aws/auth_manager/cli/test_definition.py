@@ -16,6 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
+if not AIRFLOW_V_3_0_PLUS:
+    pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
+
 from airflow.providers.amazon.aws.auth_manager.cli.definition import AWS_AUTH_MANAGER_COMMANDS
 
 

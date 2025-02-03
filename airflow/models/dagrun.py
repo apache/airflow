@@ -1662,6 +1662,7 @@ class DagRun(Base, LoggingMixin):
                     )
                     .values(
                         state=TaskInstanceState.SCHEDULED,
+                        scheduled_dttm=timezone.utcnow(),
                         try_number=case(
                             (
                                 or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),

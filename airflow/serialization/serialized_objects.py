@@ -47,7 +47,6 @@ from airflow.models.expandinput import (
     create_expand_input,
     get_map_type_key,
 )
-from airflow.models.param import Param, ParamsDict
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers_manager import ProvidersManager
@@ -60,10 +59,12 @@ from airflow.sdk.definitions.asset import (
     AssetAny,
     AssetRef,
     AssetUniqueKey,
+    AssetWatcher,
     BaseAsset,
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
@@ -251,13 +252,34 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     :meta private:
     """
     if isinstance(var, Asset):
-        return {
+
+        def _encode_watcher(watcher: AssetWatcher):
+            return {
+                "name": watcher.name,
+                "trigger": _encode_trigger(watcher.trigger),
+            }
+
+        def _encode_trigger(trigger: BaseTrigger | dict):
+            if isinstance(trigger, dict):
+                return trigger
+            classpath, kwargs = trigger.serialize()
+            return {
+                "classpath": classpath,
+                "kwargs": kwargs,
+            }
+
+        asset = {
             "__type": DAT.ASSET,
             "name": var.name,
             "uri": var.uri,
             "group": var.group,
             "extra": var.extra,
         }
+
+        if len(var.watchers) > 0:
+            asset["watchers"] = [_encode_watcher(watcher) for watcher in var.watchers]
+
+        return asset
     if isinstance(var, AssetAlias):
         return {"__type": DAT.ASSET_ALIAS, "name": var.name, "group": var.group}
     if isinstance(var, AssetAll):
@@ -283,7 +305,7 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     """
     dat = var["__type"]
     if dat == DAT.ASSET:
-        return Asset(name=var["name"], uri=var["uri"], group=var["group"], extra=var["extra"])
+        return decode_asset(var)
     if dat == DAT.ASSET_ALL:
         return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ANY:
@@ -293,6 +315,19 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     if dat == DAT.ASSET_REF:
         return Asset.ref(**{k: v for k, v in var.items() if k != "__type"})
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
+
+
+def decode_asset(var: dict[str, Any]):
+    watchers = var.get("watchers", [])
+    return Asset(
+        name=var["name"],
+        uri=var["uri"],
+        group=var["group"],
+        extra=var["extra"],
+        watchers=[
+            SerializedAssetWatcher(name=watcher["name"], trigger=watcher["trigger"]) for watcher in watchers
+        ],
+    )
 
 
 def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
@@ -874,7 +909,7 @@ class BaseSerialization:
         elif type_ == DAT.XCOM_REF:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.ASSET:
-            return Asset(**var)
+            return decode_asset(var)
         elif type_ == DAT.ASSET_ALIAS:
             return AssetAlias(**var)
         elif type_ == DAT.ASSET_ANY:
@@ -985,7 +1020,7 @@ class BaseSerialization:
                 class_identity = f"{v.__module__}.{v.__class__.__name__}"
             except AttributeError:
                 class_identity = ""
-            if class_identity == "airflow.models.param.Param":
+            if class_identity == "airflow.sdk.definitions.param.Param":
                 serialized_params.append((k, cls._serialize_param(v)))
             else:
                 # Auto-box other values into Params object like it is done by DAG parsing as well
@@ -1808,6 +1843,12 @@ class TaskGroupSerialization(BaseSerialization):
         group.upstream_task_ids.update(cls.deserialize(encoded_group["upstream_task_ids"]))
         group.downstream_task_ids.update(cls.deserialize(encoded_group["downstream_task_ids"]))
         return group
+
+
+class SerializedAssetWatcher(AssetWatcher):
+    """JSON serializable representation of an asset watcher."""
+
+    trigger: dict
 
 
 def _has_kubernetes() -> bool:

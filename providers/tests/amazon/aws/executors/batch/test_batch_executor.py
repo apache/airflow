@@ -189,7 +189,7 @@ class TestAwsBatchExecutor:
     def test_execute(self, mock_executor):
         """Test execution from end-to-end"""
         airflow_key = mock.Mock(spec=tuple)
-        airflow_cmd = mock.Mock(spec=list)
+        airflow_cmd = ["1", "2"]
 
         mock_executor.batch.submit_job.return_value = {"jobId": MOCK_JOB_ID, "jobName": "some-job-name"}
 
@@ -209,8 +209,8 @@ class TestAwsBatchExecutor:
         failed jobs are added back to the pending_jobs queue to be run in the next iteration.
         """
         airflow_key = TaskInstanceKey("a", "b", "c", 1, -1)
-        airflow_cmd1 = mock.Mock(spec=list)
-        airflow_cmd2 = mock.Mock(spec=list)
+        airflow_cmd1 = ["1", "2"]
+        airflow_cmd2 = ["3", "4"]
         airflow_commands = [airflow_cmd1, airflow_cmd2]
         responses = [Exception("Failure 1"), {"jobId": "job-2"}]
 
@@ -238,8 +238,8 @@ class TestAwsBatchExecutor:
         assert len(mock_executor.active_workers.get_all_jobs()) == 1
 
         # Add more tasks to pending_jobs. This simulates tasks being scheduled by Airflow
-        airflow_cmd3 = mock.Mock(spec=list)
-        airflow_cmd4 = mock.Mock(spec=list)
+        airflow_cmd3 = ["5", "6"]
+        airflow_cmd4 = ["7", "8"]
         airflow_commands.extend([airflow_cmd1, airflow_cmd3, airflow_cmd4])
         responses.extend([Exception("Failure 1"), {"jobId": "job-3"}, {"jobId": "job-4"}])
         mock_executor.execute_async(airflow_key, airflow_cmd3)
@@ -277,8 +277,8 @@ class TestAwsBatchExecutor:
         until all the tasks have been attempted the maximum number of times.
         """
         airflow_key = TaskInstanceKey("a", "b", "c", 1, -1)
-        airflow_cmd1 = mock.Mock(spec=list)
-        airflow_cmd2 = mock.Mock(spec=list)
+        airflow_cmd1 = ["1", "2"]
+        airflow_cmd2 = ["3", "4"]
         commands = [airflow_cmd1, airflow_cmd2]
         failures = [Exception("Failure 1"), Exception("Failure 2")]
         submit_job_args = {
@@ -339,7 +339,7 @@ class TestAwsBatchExecutor:
     def test_task_retry_on_api_failure(self, _, mock_executor, caplog):
         """Test API failure retries"""
         airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
-        airflow_cmds = [mock.Mock(spec=list), mock.Mock(spec=list)]
+        airflow_cmds = [["1", "2"], ["3", "4"]]
 
         mock_executor.execute_async(airflow_keys[0], airflow_cmds[0])
         mock_executor.execute_async(airflow_keys[1], airflow_cmds[1])

@@ -717,13 +717,13 @@ def _patch_ti_validate_request(
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/dry_run",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}/dry_run",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
 )
 def patch_task_instance_dry_run(
@@ -744,23 +744,22 @@ def patch_task_instance_dry_run(
     tis: list[TI] = []
 
     if data.get("new_state"):
-        tis = dag.set_task_instance_state(
-            task_id=task_id,
-            run_id=dag_run_id,
-            map_indexes=[map_index],
-            state=data["new_state"],
-            upstream=body.include_upstream,
-            downstream=body.include_downstream,
-            future=body.include_future,
-            past=body.include_past,
-            commit=False,
-            session=session,
+        tis = (
+            dag.set_task_instance_state(
+                task_id=task_id,
+                run_id=dag_run_id,
+                map_indexes=[map_index],
+                state=data["new_state"],
+                upstream=body.include_upstream,
+                downstream=body.include_downstream,
+                future=body.include_future,
+                past=body.include_past,
+                commit=False,
+                session=session,
+            )
+            or []
         )
 
-        if not tis:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, f"Task id {task_id} is already in {data['new_state']} state"
-            )
     elif "note" in data:
         tis = [ti]
 

@@ -56,6 +56,9 @@ ENTRY_GROUP_UPDATED_BODY = {"description": "Some new descr"}
 ENTRY_TYPE_ID = "entry-type-id"
 ENTRY_TYPE_BODY = {"description": "Some descr"}
 ENTRY_TYPE_UPDATED_BODY = {"description": "Some new descr"}
+ASPECT_TYPE_ID = "aspect-type-id"
+ASPECT_TYPE_BODY = {"description": "Some descr"}
+ASPECT_TYPE_UPDATED_BODY = {"description": "Some new descr"}
 UPDATE_MASK = ["description"]
 
 COMMON_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}"
@@ -67,6 +70,7 @@ ASSET_PARENT = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/
 DATASCAN_PARENT = f"projects/{PROJECT_ID}/locations/{REGION}"
 ENTRY_GROUP_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}/entryGroup/{ENTRY_GROUP_ID}"
 ENTRY_TYPE_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}/entryType/{ENTRY_TYPE_ID}"
+ASPECT_TYPE_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}/aspectType/{ASPECT_TYPE_ID}"
 
 
 class TestDataplexHook:
@@ -509,6 +513,107 @@ class TestDataplexHook:
 
     @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
     def test_update_entry_type(self, mock_client):
+        mock_common_location_path = mock_client.return_value.entry_type_path
+        mock_common_location_path.return_value = ENTRY_TYPE_PARENT
+        self.hook.update_entry_type(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            entry_type_id=ENTRY_TYPE_ID,
+            entry_type_configuration=ENTRY_TYPE_UPDATED_BODY,
+            update_mask=UPDATE_MASK,
+            validate_only=False,
+        )
+
+        mock_client.return_value.update_entry_type.assert_called_once_with(
+            request=dict(
+                entry_type={**ENTRY_TYPE_UPDATED_BODY, "name": ENTRY_TYPE_PARENT},
+                update_mask=FieldMask(paths=UPDATE_MASK),
+                validate_only=False,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_create_aspect_type(self, mock_client):
+        mock_common_location_path = mock_client.return_value.common_location_path
+        mock_common_location_path.return_value = COMMON_PARENT
+        self.hook.create_aspect_type(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            aspect_type_id=ASPECT_TYPE_ID,
+            aspect_type_configuration=ASPECT_TYPE_BODY,
+            validate_only=False,
+        )
+        mock_client.return_value.create_aspect_type.assert_called_once_with(
+            request=dict(
+                parent=COMMON_PARENT,
+                aspect_type_id=ASPECT_TYPE_ID,
+                aspect_type=ASPECT_TYPE_BODY,
+                validate_only=False,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_delete_aspect_type(self, mock_client):
+        mock_common_location_path = mock_client.return_value.aspect_type_path
+        mock_common_location_path.return_value = ASPECT_TYPE_PARENT
+        self.hook.delete_aspect_type(project_id=PROJECT_ID, location=LOCATION, aspect_type_id=ASPECT_TYPE_ID)
+
+        mock_client.return_value.delete_aspect_type.assert_called_once_with(
+            request=dict(
+                name=ASPECT_TYPE_PARENT,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_list_aspect_types(self, mock_client):
+        mock_common_location_path = mock_client.return_value.common_location_path
+        mock_common_location_path.return_value = COMMON_PARENT
+        self.hook.list_aspect_types(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            order_by="name",
+            page_size=2,
+            filter_by="'description' = 'Some descr'",
+        )
+        mock_client.return_value.list_aspect_types.assert_called_once_with(
+            request=dict(
+                parent=COMMON_PARENT,
+                page_size=2,
+                page_token=None,
+                filter="'description' = 'Some descr'",
+                order_by="name",
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_get_aspect_type(self, mock_client):
+        mock_common_location_path = mock_client.return_value.aspect_type_path
+        mock_common_location_path.return_value = ASPECT_TYPE_PARENT
+        self.hook.get_aspect_type(project_id=PROJECT_ID, location=LOCATION, aspect_type_id=ASPECT_TYPE_ID)
+
+        mock_client.return_value.get_aspect_type.assert_called_once_with(
+            request=dict(
+                name=ASPECT_TYPE_PARENT,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_update_aspect_type(self, mock_client):
         mock_common_location_path = mock_client.return_value.entry_type_path
         mock_common_location_path.return_value = ENTRY_TYPE_PARENT
         self.hook.update_entry_type(

@@ -23,9 +23,9 @@ from typing import Any
 import pytest
 
 from airflow.exceptions import DuplicateTaskIdFound
-from airflow.models.param import Param, ParamsDict
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
+from airflow.sdk.definitions.param import Param, ParamsDict
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 

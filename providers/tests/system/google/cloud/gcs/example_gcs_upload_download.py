@@ -83,9 +83,9 @@ with DAG(
     # [END howto_operator_gcs_delete_bucket]
     delete_bucket.trigger_rule = TriggerRule.ALL_DONE
 
-    check_events = OpenLineageTestOperator(
+    check_openlineage_events = OpenLineageTestOperator(
         task_id="check_openlineage_events",
-        file_path=str(Path(__file__).parent / "resources" / "openlineage_gcs_upload_download.json"),
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "gcs_upload_download.json"),
     )
 
     (
@@ -95,7 +95,7 @@ with DAG(
         # TEST BODY
         >> download_file
         # TEST TEARDOWN
-        >> [delete_bucket, check_events]
+        >> [delete_bucket, check_openlineage_events]
     )
 
     from tests_common.test_utils.watcher import watcher

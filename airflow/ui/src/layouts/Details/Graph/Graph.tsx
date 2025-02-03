@@ -24,6 +24,7 @@ import { useParams } from "react-router-dom";
 import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import Edge from "./Edge";
 import { JoinNode } from "./JoinNode";
@@ -87,6 +88,8 @@ export const Graph = () => {
     openGroupIds,
   });
 
+  const refetchInterval = useAutoRefresh({ dagId });
+
   const { data: gridData } = useGridServiceGridData(
     {
       dagId,
@@ -97,6 +100,8 @@ export const Graph = () => {
     undefined,
     {
       enabled: Boolean(runId),
+      refetchInterval: (query) =>
+        query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
     },
   );
 

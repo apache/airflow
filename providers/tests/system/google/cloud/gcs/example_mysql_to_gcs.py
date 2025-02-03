@@ -28,6 +28,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -49,6 +50,7 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 try:
     from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator
@@ -277,6 +279,11 @@ with DAG(
 
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
+    check_openlineage_events = OpenLineageTestOperator(
+        task_id="check_openlineage_events",
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "mysql_to_gcs.json"),
+    )
+
     (
         # TEST SETUP
         create_gce_instance
@@ -292,7 +299,13 @@ with DAG(
     )
 
     # TEST TEARDOWN
-    mysql_to_gcs >> [delete_gcs_bucket, delete_firewall_rule, delete_gce_instance, delete_connection_task]
+    mysql_to_gcs >> [
+        delete_gcs_bucket,
+        delete_firewall_rule,
+        delete_gce_instance,
+        delete_connection_task,
+        check_openlineage_events,
+    ]
     delete_gce_instance >> delete_persistent_disk
 
     from tests_common.test_utils.watcher import watcher

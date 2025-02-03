@@ -95,7 +95,7 @@ def _all_new_providers() -> list[str]:
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon,google,apache.hive]",
-            ["providers/tests/amazon", "providers/tests/google", "providers/tests/apache/hive"],
+            ["providers/tests/amazon", "providers/tests/google", "providers/apache/hive/tests"],
         ),
         (
             GroupOfTests.PROVIDERS,

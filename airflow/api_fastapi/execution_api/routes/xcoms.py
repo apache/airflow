@@ -28,6 +28,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api import deps
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
+from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import BaseXCom
 
 # TODO: Add dependency on JWT token
@@ -55,7 +56,7 @@ def get_xcom(
     map_index: Annotated[int, Query()] = -1,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
-    if not has_xcom_access(key, token):
+    if not has_xcom_access(dag_id, run_id, task_id, key, token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -104,6 +105,8 @@ def get_xcom(
     return XComResponse(key=key, value=xcom_value)
 
 
+# TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
+# the token
 @router.post(
     "/{dag_id}/{run_id}/{task_id}/{key}",
     status_code=status.HTTP_201_CREATED,
@@ -139,8 +142,23 @@ def set_xcom(
     token: deps.TokenDep,
     session: SessionDep,
     map_index: Annotated[int, Query()] = -1,
+    mapped_length: Annotated[
+        int | None, Query(description="Number of mapped tasks this value expands into")
+    ] = None,
 ):
     """Set an Airflow XCom."""
+    from airflow.configuration import conf
+
+    if not has_xcom_access(dag_id, run_id, task_id, key, token, write=True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+                "message": f"Task does not have access to set XCom key '{key}'",
+            },
+        )
+
+    # TODO: This is in-efficient. We json.loads it here for BaseXCom.set to then json.dump it!
     try:
         json.loads(value)
     except json.JSONDecodeError:
@@ -152,14 +170,30 @@ def set_xcom(
             },
         )
 
-    if not has_xcom_access(key, token):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "reason": "access_denied",
-                "message": f"Task does not have access to set XCom key '{key}'",
-            },
+    if mapped_length is not None:
+        task_map = TaskMap(
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            map_index=map_index,
+            length=mapped_length,
+            keys=None,
         )
+        max_map_length = conf.getint("core", "max_map_length", fallback=1024)
+        if task_map.length > max_map_length:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "reason": "unmappable_return_value_length",
+                    "message": "pushed value is too large to map as a downstream's dependency",
+                },
+            )
+        session.add(task_map)
+
+    # else:
+    # TODO: Can/should we check if a client _hasn't_ provided this for an upstream of a mapped task? That
+    # means loading the serialized dag and that seems like a relatively costly operation for minimal benefit
+    # (the mapped task would fail in a moment as it can't be expanded anyway.)
 
     # We use `BaseXCom.set` to set XComs directly to the database, bypassing the XCom Backend.
     try:
@@ -184,13 +218,16 @@ def set_xcom(
     return {"message": "XCom successfully set"}
 
 
-def has_xcom_access(xcom_key: str, token: TIToken) -> bool:
+def has_xcom_access(
+    dag_id: str, run_id: str, task_id: str, xcom_key: str, token: TIToken, write: bool = False
+) -> bool:
     """Check if the task has access to the XCom."""
     # TODO: Placeholder for actual implementation
 
     ti_key = token.ti_key
     log.debug(
-        "Checking access for task instance with key '%s' to XCom '%s'",
+        "Checking %s XCom access for xcom from TaskInstance with key '%s' to XCom '%s'",
+        "write" if write else "read",
         ti_key,
         xcom_key,
     )

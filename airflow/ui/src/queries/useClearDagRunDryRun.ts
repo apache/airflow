@@ -28,6 +28,8 @@ type Props<TData, TError> = {
   requestBody: DAGRunClearBody;
 };
 
+export const useClearDagRunDryRunKey = "clearRunDryRun";
+
 export const useClearDagRunDryRun = <TData = TaskInstanceCollectionResponse, TError = unknown>({
   dagId,
   dagRunId,
@@ -45,5 +47,5 @@ export const useClearDagRunDryRun = <TData = TaskInstanceCollectionResponse, TEr
           ...requestBody,
         },
       }) as TData,
-    queryKey: ["clearDagRun", dagId, requestBody.only_failed],
+    queryKey: [useClearDagRunDryRunKey, dagId, { only_failed: requestBody.only_failed }],
   });

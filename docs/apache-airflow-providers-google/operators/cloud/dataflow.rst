@@ -54,9 +54,6 @@ There are several ways to run a Dataflow pipeline depending on your environment,
     command-line tool to build and save the Flex Template spec file in Cloud Storage. See:
     :ref:`howto/operator:DataflowStartFlexTemplateOperator`
 
-- **SQL pipeline**: Developer can write pipeline as SQL statement and then execute it in Dataflow. See:
-  :ref:`howto/operator:DataflowStartSqlJobOperator`
-
 It is a good idea to test your pipeline using the non-templated pipeline,
 and then run the pipeline in production using the templates.
 
@@ -282,29 +279,6 @@ Also for this action you can use the operator in the deferrable mode:
     :dedent: 4
     :start-after: [START howto_operator_start_flex_template_job_deferrable]
     :end-before: [END howto_operator_start_flex_template_job_deferrable]
-
-.. _howto/operator:DataflowStartSqlJobOperator:
-
-Dataflow SQL
-""""""""""""
-Dataflow SQL supports a variant of the ZetaSQL query syntax and includes additional streaming
-extensions for running Dataflow streaming jobs.
-
-Here is an example of running Dataflow SQL job with
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartSqlJobOperator`:
-
-.. exampleinclude:: /../../providers/tests/system/google/cloud/dataflow/example_dataflow_sql.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_start_sql_job]
-    :end-before: [END howto_operator_start_sql_job]
-
-.. warning::
-    This operator requires ``gcloud`` command (Google Cloud SDK) must be installed on the Airflow worker
-    <https://cloud.google.com/sdk/docs/install>`__
-
-See the `Dataflow SQL reference
-<https://cloud.google.com/dataflow/docs/reference/sql>`_.
 
 .. _howto/operator:DataflowStartYamlJobOperator:
 

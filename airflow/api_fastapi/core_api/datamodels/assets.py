@@ -21,11 +21,11 @@ from datetime import datetime
 
 from pydantic import Field, field_validator
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.utils.log.secrets_masker import redact
 
 
-class DagScheduleAssetReference(BaseModel):
+class DagScheduleAssetReference(StrictBaseModel):
     """DAG schedule reference serializer for assets."""
 
     dag_id: str
@@ -33,7 +33,7 @@ class DagScheduleAssetReference(BaseModel):
     updated_at: datetime
 
 
-class TaskOutletAssetReference(BaseModel):
+class TaskOutletAssetReference(StrictBaseModel):
     """Task outlet reference serializer for assets."""
 
     dag_id: str
@@ -84,7 +84,7 @@ class AssetAliasCollectionResponse(BaseModel):
     total_entries: int
 
 
-class DagRunAssetReference(BaseModel):
+class DagRunAssetReference(StrictBaseModel):
     """DAGRun serializer for asset responses."""
 
     run_id: str
@@ -141,7 +141,7 @@ class QueuedEventCollectionResponse(BaseModel):
     total_entries: int
 
 
-class CreateAssetEventsBody(BaseModel):
+class CreateAssetEventsBody(StrictBaseModel):
     """Create asset events request."""
 
     asset_id: int

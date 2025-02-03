@@ -21,12 +21,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
-  UseTaskInstanceServiceGetTaskInstanceKeyFn,
-  useTaskInstanceServiceGetTaskInstancesKey,
+  UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
   useTaskInstanceServicePostClearTaskInstances,
 } from "openapi/queries";
 import type { ClearTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
+
+import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
+import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
 
 const onError = () => {
   toaster.create({
@@ -64,19 +66,21 @@ export const useClearTaskInstances = ({
               return undefined;
             }
 
-            const params = { dagId, dagRunId: runId, taskId: actualTaskId };
+            // TODO: update mapIndex when the endpoint supports clearing mapped tasks
+            const params = { dagId, dagRunId: runId, mapIndex: -1, taskId: actualTaskId };
 
-            return UseTaskInstanceServiceGetTaskInstanceKeyFn(params);
+            return UseTaskInstanceServiceGetMappedTaskInstanceKeyFn(params);
           })
           .filter((key) => key !== undefined),
       ),
     ];
 
     const queryKeys = [
-      [useTaskInstanceServiceGetTaskInstancesKey],
       ...taskInstanceKeys,
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
+      [useClearTaskInstancesDryRunKey, dagId],
+      [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

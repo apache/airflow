@@ -37,12 +37,13 @@ from airflow.exceptions import (
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.param import Param
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey
+from airflow.providers.standard.triggers.file import FileTrigger
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey, AssetWatcher
+from airflow.sdk.definitions.param import Param
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
@@ -254,6 +255,15 @@ class MockLazySelectSequence(LazySelectSequence):
             lambda a, b: len(a) == len(b) and isinstance(b, list),
         ),
         (Asset(uri="test://asset1", name="test"), DAT.ASSET, equals),
+        (
+            Asset(
+                uri="test://asset1",
+                name="test",
+                watchers=[AssetWatcher(name="test", trigger=FileTrigger(filepath="/tmp"))],
+            ),
+            DAT.ASSET,
+            equals,
+        ),
         (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),

@@ -64,30 +64,6 @@ with open(sys.argv[3], "r") as file:
     virtualenv_string_args = list(map(lambda x: x.strip(), list(file)))
 {% endif %}
 
-{% if use_airflow_context | default(false) -%}
-if len(sys.argv) > 5:
-    import json
-    from types import ModuleType
-
-    from airflow.providers.standard.operators import python as airflow_python
-
-
-    class _MockPython(ModuleType):
-        @staticmethod
-        def get_current_context():
-            with open(sys.argv[5]) as file:
-                context = json.load(file)
-                raise Exception("Not yet implemented")
-                # TODO: return deserialized context
-
-        def __getattr__(self, name: str):
-            return getattr(airflow_python, name)
-
-
-    MockPython = _MockPython("MockPython")
-    sys.modules["airflow.providers.standard.operators.python"] = MockPython
-{% endif %}
-
 try:
     res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
 except Exception as e:

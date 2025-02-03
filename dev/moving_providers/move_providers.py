@@ -109,7 +109,11 @@ def _do_stuff(
                 console.print(Syntax(updated_str, syntax, theme="ansi_dark"))
         elif not from_content and not updated_content and from_path and to_path and delete_from:
             console.print(f"\n[yellow]Moving[/] {from_path} -> {to_path}\n")
-            if remove_empty_parent_dir and len([path for path in from_path.parent.iterdir()]) == 1:
+            if (
+                remove_empty_parent_dir
+                and from_path.exists()
+                and len([path for path in from_path.parent.iterdir()]) == 1
+            ):
                 console.print(f"\n[yellow]Removing also empty parent dir {from_path.parent}\n")
         elif not from_content and not updated_content and from_path and to_path and not delete_from:
             console.print(f"\n[yellow]Copying[/] {from_path} -> {to_path}\n")
@@ -127,7 +131,8 @@ def _do_stuff(
                 to_path.parent.mkdir(parents=True, exist_ok=True)
                 if from_path.is_dir() and to_path.exists():
                     shutil.rmtree(to_path)
-                shutil.move(from_path, to_path)
+                if from_path.exists():
+                    shutil.move(from_path, to_path)
                 console.print(f"\n[yellow]Moved {from_path} -> {to_path}\n")
                 if remove_empty_parent_dir and len([path for path in from_path.parent.iterdir()]) == 0:
                     console.print(f"\n[yellow]Removed also empty parent dir {from_path.parent}\n")

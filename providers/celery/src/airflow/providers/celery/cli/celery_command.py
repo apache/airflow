@@ -154,6 +154,11 @@ def worker(args):
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
 
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk.log import configure_logging
+
+        configure_logging(output=sys.stdout.buffer)
+
     # Disable connection pool so that celery worker does not hold an unnecessary db connection
     settings.reconfigure_orm(disable_connection_pool=True)
     if not settings.validate_session():

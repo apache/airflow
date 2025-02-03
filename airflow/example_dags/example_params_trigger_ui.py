@@ -27,7 +27,7 @@ from pathlib import Path
 
 from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.models.param import Param, ParamsDict
+from airflow.sdk import Param, ParamsDict
 from airflow.utils.trigger_rule import TriggerRule
 
 # [START params_trigger]

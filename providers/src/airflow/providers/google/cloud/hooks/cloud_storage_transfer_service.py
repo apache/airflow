@@ -36,6 +36,7 @@ from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from google.api_core import protobuf_helpers
 from google.cloud.storage_transfer_v1 import (
     ListTransferJobsRequest,
     StorageTransferServiceAsyncClient,
@@ -57,6 +58,7 @@ if TYPE_CHECKING:
     from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
         ListTransferJobsAsyncPager,
     )
+    from google.longrunning import operations_pb2  # type: ignore[attr-defined]
     from proto import Message
 
 log = logging.getLogger(__name__)
@@ -596,3 +598,112 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
             operation = TransferOperation.deserialize(response_operation.metadata.value)
             return operation
         return None
+
+    async def list_transfer_operations(
+        self,
+        request_filter: dict | None = None,
+        **kwargs,
+    ) -> list[TransferOperation]:
+        """
+        Get a transfer operation in Google Storage Transfer Service.
+
+        :param request_filter: (Required) A request filter, as described in
+            https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/list#body.QUERY_PARAMETERS.filter
+            With one additional improvement:
+        :return: transfer operation
+
+        The ``project_id`` parameter is optional if you have a project ID
+        defined in the connection. See: :doc:`/connections/gcp`
+        """
+        # To preserve backward compatibility
+        # TODO: remove one day
+        if request_filter is None:
+            if "filter" in kwargs:
+                request_filter = kwargs["filter"]
+                if not isinstance(request_filter, dict):
+                    raise ValueError(f"The request_filter should be dict and is {type(request_filter)}")
+                warnings.warn(
+                    "Use 'request_filter' instead of 'filter'",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+            else:
+                raise TypeError(
+                    "list_transfer_operations missing 1 required positional argument: 'request_filter'"
+                )
+
+        conn = await self.get_conn()
+
+        request_filter = await self._inject_project_id(request_filter, FILTER, FILTER_PROJECT_ID)
+
+        operations: list[operations_pb2.Operation] = []
+
+        response = await conn.list_operations(
+            request={
+                "name": TRANSFER_OPERATIONS,
+                "filter": json.dumps(request_filter),
+            }
+        )
+
+        while response is not None:
+            operations.extend(response.operations)
+            response = (
+                await conn.list_operations(
+                    request={
+                        "name": TRANSFER_OPERATIONS,
+                        "filter": json.dumps(request_filter),
+                        "page_token": response.next_page_token,
+                    }
+                )
+                if response.next_page_token
+                else None
+            )
+
+        transfer_operations = [
+            protobuf_helpers.from_any_pb(TransferOperation, op.metadata) for op in operations
+        ]
+
+        return transfer_operations
+
+    async def _inject_project_id(self, body: dict, param_name: str, target_key: str) -> dict:
+        body = deepcopy(body)
+        body[target_key] = body.get(target_key, self.project_id)
+        if not body.get(target_key):
+            raise AirflowException(
+                f"The project id must be passed either as `{target_key}` key in `{param_name}` "
+                f"parameter or as project_id extra in Google Cloud connection definition. Both are not set!"
+            )
+        return body
+
+    @staticmethod
+    async def operations_contain_expected_statuses(
+        operations: list[TransferOperation], expected_statuses: set[str] | str
+    ) -> bool:
+        """
+        Check whether an operation exists with the expected status.
+
+        :param operations: (Required) List of transfer operations to check.
+        :param expected_statuses: (Required) The expected status. See:
+            https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
+        :return: If there is an operation with the expected state in the
+            operation list, returns true,
+        :raises AirflowException: If it encounters operations with state FAILED
+            or ABORTED in the list.
+        """
+        expected_statuses_set = (
+            {expected_statuses} if isinstance(expected_statuses, str) else set(expected_statuses)
+        )
+        if not operations:
+            return False
+
+        current_statuses = {operation.status.name for operation in operations}
+
+        if len(current_statuses - expected_statuses_set) != len(current_statuses):
+            return True
+
+        if len(NEGATIVE_STATUSES - current_statuses) != len(NEGATIVE_STATUSES):
+            raise AirflowException(
+                f"An unexpected operation status was encountered. "
+                f"Expected: {', '.join(expected_statuses_set)}"
+            )
+        return False

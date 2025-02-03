@@ -27,6 +27,7 @@ import re2
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 def _broker_supports_visibility_timeout(url):
@@ -67,7 +68,7 @@ if conf.has_option("celery", "RESULT_BACKEND"):
     result_backend = conf.get_mandatory_value("celery", "RESULT_BACKEND")
 else:
     log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
-    result_backend = f'db+{conf.get("database", "SQL_ALCHEMY_CONN")}'
+    result_backend = f"db+{conf.get('database', 'SQL_ALCHEMY_CONN')}"
 
 extra_celery_config = conf.getjson("celery", "extra_celery_config", fallback={})
 
@@ -81,6 +82,9 @@ DEFAULT_CELERY_CONFIG = {
     "task_track_started": conf.getboolean("celery", "task_track_started", fallback=True),
     "broker_url": broker_url,
     "broker_transport_options": broker_transport_options,
+    "broker_connection_retry_on_startup": conf.getboolean(
+        "celery", "broker_connection_retry_on_startup", fallback=True
+    ),
     "result_backend": result_backend,
     "database_engine_options": conf.getjson(
         "celery", "result_backend_sqlalchemy_engine_options", fallback={}
@@ -89,6 +93,11 @@ DEFAULT_CELERY_CONFIG = {
     "worker_enable_remote_control": conf.getboolean("celery", "worker_enable_remote_control", fallback=True),
     **(extra_celery_config if isinstance(extra_celery_config, dict) else {}),
 }
+
+# In order to not change anything pre Task Execution API, we leave this setting as it was (unset) in Airflow2
+if AIRFLOW_V_3_0_PLUS:
+    DEFAULT_CELERY_CONFIG.setdefault("worker_redirect_stdouts", False)
+    DEFAULT_CELERY_CONFIG.setdefault("worker_hijack_root_logger", False)
 
 
 def _get_celery_ssl_active() -> bool:
@@ -126,9 +135,7 @@ try:
         DEFAULT_CELERY_CONFIG["broker_use_ssl"] = broker_use_ssl
 except AirflowConfigException:
     raise AirflowException(
-        "AirflowConfigException: SSL_ACTIVE is True, "
-        "please ensure SSL_KEY, "
-        "SSL_CERT and SSL_CACERT are set"
+        "AirflowConfigException: SSL_ACTIVE is True, please ensure SSL_KEY, SSL_CERT and SSL_CACERT are set"
     )
 except Exception as e:
     raise AirflowException(

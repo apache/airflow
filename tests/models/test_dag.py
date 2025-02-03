@@ -43,6 +43,7 @@ from airflow.exceptions import (
     ParamValidationError,
     UnknownExecutorException,
 )
+from airflow.models import DagBag
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -63,7 +64,6 @@ from airflow.models.dag import (
 )
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
-from airflow.models.param import DagParam, Param
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
@@ -73,6 +73,7 @@ from airflow.sdk import TaskGroup
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
+from airflow.sdk.definitions.param import DagParam, Param
 from airflow.security import permissions
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
@@ -96,7 +97,6 @@ from tests.plugins.priority_weight_strategy import (
     TestPriorityWeightStrategyPlugin,
 )
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,
@@ -138,6 +138,15 @@ def clear_assets():
     clear_db_assets()
 
 
+TEST_DAGS_FOLDER = Path(__file__).parent.parent / "dags"
+
+
+@pytest.fixture
+def test_dags_bundle(configure_testing_dag_bundle):
+    with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
+        yield
+
+
 def _create_dagrun(
     dag: DAG,
     *,
@@ -150,7 +159,7 @@ def _create_dagrun(
     triggered_by_kwargs: dict = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     run_id = dag.timetable.generate_run_id(
         run_type=run_type,
-        logical_date=logical_date,
+        logical_date=logical_date,  # type: ignore
         data_interval=data_interval,
     )
     return dag.create_dagrun(
@@ -1072,18 +1081,16 @@ class TestDag:
         dag.clear()
         self._clean_up(dag_id)
 
-    def test_dag_is_deactivated_upon_dagfile_deletion(self):
+    def test_dag_is_deactivated_upon_dagfile_deletion(self, dag_maker):
         dag_id = "old_existing_dag"
-        dag_fileloc = "/usr/local/airflow/dags/non_existing_path.py"
-        dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
-        dag.fileloc = dag_fileloc
+        with dag_maker(dag_id, schedule=None, is_paused_upon_creation=True) as dag:
+            ...
         session = settings.Session()
         dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
         assert orm_dag.is_active
-        assert orm_dag.fileloc == dag_fileloc
 
         DagModel.deactivate_deleted_dags(list_py_file_paths(settings.DAGS_FOLDER))
 
@@ -2355,50 +2362,27 @@ class TestDagModel:
         needed = query.all()
         assert needed == []
 
-    @pytest.mark.parametrize(
-        ("fileloc", "expected_relative"),
-        [
-            (os.path.join(settings.DAGS_FOLDER, "a.py"), Path("a.py")),
-            ("/tmp/foo.py", Path("/tmp/foo.py")),
-        ],
-    )
-    def test_relative_fileloc(self, fileloc, expected_relative):
-        dag = DAG(dag_id="test", schedule=None)
-        dag.fileloc = fileloc
+    def test_relative_fileloc(self, session):
+        rel_path = "test_assets.py"
+        bundle_path = TEST_DAGS_FOLDER
+        file_path = bundle_path / rel_path
+        bag = DagBag(dag_folder=file_path, bundle_path=bundle_path)
 
-        assert dag.relative_fileloc == expected_relative
+        dag = bag.get_dag("dag_with_skip_task")
+        dag.sync_to_db(session=session)
 
-    @pytest.mark.parametrize(
-        "reader_dags_folder", [settings.DAGS_FOLDER, str(repo_root / "airflow/example_dags")]
-    )
-    @pytest.mark.parametrize(
-        ("fileloc", "expected_relative"),
-        [
-            (str(Path(settings.DAGS_FOLDER, "a.py")), Path("a.py")),
-            ("/tmp/foo.py", Path("/tmp/foo.py")),
-        ],
-    )
-    def test_relative_fileloc_serialized(
-        self, fileloc, expected_relative, session, clear_dags, reader_dags_folder, testing_dag_bundle
-    ):
-        """
-        The serialized dag model includes the dags folder as configured on the thing serializing
-        the dag.  On the thing deserializing the dag, when determining relative fileloc,
-        we should use the dags folder of the processor.  So even if the dags folder of
-        the deserializer is different (meaning that the full path is no longer relative to
-        the dags folder) then we should still get the relative fileloc as it existed on the
-        serializer process.  When the full path is not relative to the configured dags folder,
-        then relative fileloc should just be the full path.
-        """
-        dag = DAG(dag_id="test", schedule=None)
-        dag.fileloc = fileloc
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
+        assert dag.fileloc == str(file_path)
+        assert dag.relative_fileloc == str(rel_path)
+
+        SerializedDagModel.write_dag(dag, bundle_name="dag_maker", session=session)
+        session.commit()
         session.expunge_all()
-        sdm = SerializedDagModel.get(dag.dag_id, session)
-        dag = sdm.dag
-        with conf_vars({("core", "dags_folder"): reader_dags_folder}):
-            assert dag.relative_fileloc == expected_relative
+        dm = session.get(DagModel, dag.dag_id)
+        assert dm.fileloc == str(file_path)
+        assert dm.relative_fileloc == str(rel_path)
+        sdm = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == dag.dag_id))
+        assert sdm.dag.fileloc == str(file_path)
+        assert sdm.dag.relative_fileloc == str(rel_path)
 
     def test__processor_dags_folder(self, session, testing_dag_bundle):
         """Only populated after deserializtion"""
