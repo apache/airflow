@@ -88,6 +88,7 @@ class LivyOperator(BaseOperator):
         proxy_user: str | None = None,
         livy_conn_id: str = "livy_default",
         livy_conn_auth_type: Any | None = None,
+        livy_endpoint_prefix: str | None = None,
         polling_interval: int = 0,
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
@@ -119,6 +120,7 @@ class LivyOperator(BaseOperator):
         self.spark_params = spark_params
         self._livy_conn_id = livy_conn_id
         self._livy_conn_auth_type = livy_conn_auth_type
+        self._livy_endpoint_prefix = livy_endpoint_prefix
         self._polling_interval = polling_interval
         self._extra_options = extra_options or {}
         self._extra_headers = extra_headers or {}
@@ -139,6 +141,7 @@ class LivyOperator(BaseOperator):
             extra_headers=self._extra_headers,
             extra_options=self._extra_options,
             auth_type=self._livy_conn_auth_type,
+            endpoint_prefix=self._livy_endpoint_prefix,
         )
 
     def execute(self, context: Context) -> Any:

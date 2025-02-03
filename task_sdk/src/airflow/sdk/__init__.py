@@ -19,6 +19,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 __all__ = [
+    "__version__",
+    "Asset",
+    "AssetWatcher",
     "BaseOperator",
     "Connection",
     "DAG",
@@ -27,15 +30,15 @@ __all__ = [
     "MappedOperator",
     "TaskGroup",
     "XComArg",
-    "__version__",
     "dag",
     "get_current_context",
     "get_parsing_context",
 ]
 
-__version__ = "1.0.0.dev1"
+__version__ = "1.0.0.alpha1"
 
 if TYPE_CHECKING:
+    from airflow.sdk.definitions.asset import Asset, AssetWatcher
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import get_current_context, get_parsing_context
@@ -60,6 +63,8 @@ __lazy_imports: dict[str, str] = {
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
+    "Asset": ".definitions.asset",
+    "AssetWatcher": ".definitions.asset",
 }
 
 
