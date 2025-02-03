@@ -80,6 +80,8 @@ services:
       - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests
       - ../../../providers/jdbc/tests:/opt/airflow/providers/jdbc/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
+      - ../../../providers/microsoft/mssql/tests:/opt/airflow/providers/microsoft/mssql/tests
+      - ../../../providers/microsoft/psrp/tests:/opt/airflow/providers/microsoft/psrp/tests
       - ../../../providers/mongo/tests:/opt/airflow/providers/mongo/tests
       - ../../../providers/mysql/tests:/opt/airflow/providers/mysql/tests
       - ../../../providers/neo4j/tests:/opt/airflow/providers/neo4j/tests
