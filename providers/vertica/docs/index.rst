@@ -35,7 +35,6 @@
     :caption: Guides
 
     Connection types <connections/vertica>
-    Operators <operators>
 
 .. toctree::
     :hidden:
