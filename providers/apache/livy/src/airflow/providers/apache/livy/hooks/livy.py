@@ -25,6 +25,7 @@ from collections.abc import Sequence
 from enum import Enum
 from typing import Any
 
+import aiohttp
 import requests
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -540,12 +541,14 @@ class LivyAsyncHook(HttpAsyncHook):
         back_method = self.method  # type: ignore
         self.method = method
         try:
-            result = await super().run(
-                endpoint=endpoint,
-                data=data,
-                headers=headers,
-                extra_options=extra_options or self.extra_options,
-            )
+            async with aiohttp.ClientSession() as session:
+                result = await super().run(
+                    session=session,
+                    endpoint=endpoint,
+                    data=data,
+                    headers=headers,
+                    extra_options=extra_options or self.extra_options,
+                )
         except HttpErrorException as e:
             status, message = str(e).split(":", 1)
             return {"Response": {message}, "Status Code": {status}, "status": "error"}
