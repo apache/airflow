@@ -181,9 +181,13 @@ class LogGroomerTestBase:
         )
 
         if retention_result:
-            assert jmespath.search(
-                "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_RETENTION_DAYS'].value | [0]", docs[0]
-            ) == retention_result
+            assert (
+                jmespath.search(
+                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_RETENTION_DAYS'].value | [0]",
+                    docs[0],
+                )
+                == retention_result
+            )
         else:
             assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 2
 
@@ -205,9 +209,13 @@ class LogGroomerTestBase:
         )
 
         if frequency_result:
-            assert jmespath.search(
-                "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES'].value | [0]", docs[0]
-            ) == frequency_result
+            assert (
+                jmespath.search(
+                    "spec.template.spec.containers[1].env[?name=='AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES'].value | [0]",
+                    docs[0],
+                )
+                == frequency_result
+            )
         else:
             assert len(jmespath.search("spec.template.spec.containers[1].env", docs[0])) == 2
 
@@ -262,6 +270,7 @@ class LogGroomerTestBase:
             values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
         )
 
-        assert jmespath.search(
-            "spec.template.spec.containers[1].env[?name=='AIRFLOW_HOME'].name | [0]", docs[0]
-        ) == "AIRFLOW_HOME"
+        assert (
+            jmespath.search("spec.template.spec.containers[1].env[?name=='AIRFLOW_HOME'].name | [0]", docs[0])
+            == "AIRFLOW_HOME"
+        )
