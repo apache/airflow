@@ -27,6 +27,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
+from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -62,7 +63,7 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test_no_permissions")  # type: ignore
 
 
-class TestGetExtraLinks:
+class BaseGetExtraLinks:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app, session) -> None:
         self.default_time = timezone.datetime(2020, 1, 1)
@@ -72,7 +73,7 @@ class TestGetExtraLinks:
 
         self.app = configured_app
 
-        self.dag = self._create_dag()
+        self.dag = self._create_dag()  # type: ignore
 
         self.app.dag_bag = DagBag(os.devnull, include_examples=False)
         self.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore
@@ -94,6 +95,8 @@ class TestGetExtraLinks:
         clear_db_runs()
         clear_db_xcom()
 
+
+class TestGetExtraLinks(BaseGetExtraLinks):
     def _create_dag(self):
         with DAG(dag_id="TEST_DAG_ID", schedule=None, default_args={"start_date": self.default_time}) as dag:
             CustomOperator(task_id="TEST_SINGLE_LINK", bash_command="TEST_LINK_VALUE")
@@ -241,3 +244,60 @@ class TestGetExtraLinks:
                     "TEST_DAG_ID/TEST_SINGLE_LINK/2020-01-01T00%3A00%3A00%2B00%3A00"
                 ),
             } == response.json
+
+
+class TestMappedTaskExtraLinks(BaseGetExtraLinks):
+    def _create_dag(self):
+        with DAG(dag_id="TEST_DAG_ID", schedule=None, default_args={"start_date": self.default_time}) as dag:
+            # Mapped task expanded over a list of bash_commands
+            CustomOperator.partial(task_id="TEST_MAPPED_TASK").expand(
+                bash_command=["TEST_LINK_VALUE_3", "TEST_LINK_VALUE_4"]
+            )
+        return SerializedBaseOperator.deserialize(SerializedBaseOperator.serialize(dag))
+
+    @pytest.mark.parametrize(
+        "map_index, expected_status, expected_json",
+        [
+            (
+                0,
+                200,
+                {
+                    "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_3",
+                    "google": "https://www.google.com",
+                },
+            ),
+            (
+                1,
+                200,
+                {
+                    "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_4",
+                    "google": "https://www.google.com",
+                },
+            ),
+            (6, 404, {"detail": 'DAG Run with ID = "TEST_DAG_RUN_ID" not found'}),
+        ],
+    )
+    @mock_plugin_manager(plugins=[])
+    def test_mapped_task_links(self, map_index, expected_status, expected_json):
+        """Parameterized test for mapped task extra links."""
+        # Set XCom data for different map indices
+        if map_index < 2:
+            XCom.set(
+                key="search_query",
+                value=f"TEST_LINK_VALUE_{map_index + 3}",
+                task_id="TEST_MAPPED_TASK",
+                dag_id="TEST_DAG_ID",
+                run_id="TEST_DAG_RUN_ID",
+                map_index=map_index,
+            )
+
+        response = self.client.get(
+            f"/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MAPPED_TASK/links?map_index={map_index}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        assert response.status_code == expected_status
+        if map_index < 2:
+            assert response.json == expected_json
+        else:
+            assert response.json["detail"] == expected_json["detail"]

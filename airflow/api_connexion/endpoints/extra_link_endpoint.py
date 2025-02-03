@@ -42,6 +42,7 @@ def get_extra_links(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
+    map_index: int = -1,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get extra links for task instance."""
@@ -62,6 +63,7 @@ def get_extra_links(
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == dag_run_id,
             TaskInstance.task_id == task_id,
+            TaskInstance.map_index == map_index,
         )
     )
 

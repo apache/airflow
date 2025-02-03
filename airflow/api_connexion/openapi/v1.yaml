@@ -2062,6 +2062,7 @@ paths:
       - $ref: "#/components/parameters/DAGID"
       - $ref: "#/components/parameters/DAGRunID"
       - $ref: "#/components/parameters/TaskID"
+      - $ref: "#/components/parameters/FilterMapIndex"
 
     get:
       summary: List extra links
