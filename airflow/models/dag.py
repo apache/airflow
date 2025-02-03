@@ -2246,13 +2246,13 @@ class DagModel(Base):
     @provide_session
     def deactivate_deleted_dags(
         cls,
-        present: set[tuple[str, str]],
+        active: set[tuple[str, str]],
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
-        :param present: tuples (bundle name, relative fileloc) of files that were observed.
+        :param active: tuples (bundle name, relative fileloc) of files that were observed.
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
@@ -2263,7 +2263,7 @@ class DagModel(Base):
         )
 
         for dm in dag_models:
-            if (dm.bundle_name, dm.relative_fileloc) not in present:
+            if (dm.bundle_name, dm.relative_fileloc) not in active:
                 dm.is_active = False
 
     @classmethod
