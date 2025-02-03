@@ -533,6 +533,19 @@ class TestSFTPOperator:
         args, _ = mock_delete.call_args_list[0]
         assert args == (remote_filepath,)
 
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.delete_file")
+    def test_local_filepath_exists_error_delete(self, mock_delete):
+        local_filepath = "/tmp"
+        remote_filepath = "/tmp_remote"
+        with pytest.raises(ValueError, match="local_filepath should not be provided for delete operation"):
+            SFTPOperator(
+                task_id="test_local_filepath_exists_error_delete",
+                sftp_hook=self.sftp_hook,
+                local_filepath=local_filepath,
+                remote_filepath=remote_filepath,
+                operation=SFTPOperation.DELETE,
+            ).execute(None)
+
     @pytest.mark.parametrize(
         "operation, expected",
         TEST_GET_PUT_PARAMS,

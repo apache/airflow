@@ -123,6 +123,9 @@ class SFTPOperator(BaseOperator):
                 f"!= {len(remote_filepath_array)} paths in remote_filepath"
             )
 
+        if self.operation.lower() == SFTPOperation.DELETE and local_filepath_array:
+            raise ValueError("local_filepath should not be provided for delete operation")
+
         if self.operation.lower() not in (SFTPOperation.GET, SFTPOperation.PUT, SFTPOperation.DELETE):
             raise TypeError(
                 f"Unsupported operation value {self.operation}, "
