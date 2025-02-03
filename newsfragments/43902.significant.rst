@@ -16,7 +16,7 @@ The shift towards ``logical_date`` helps move away from the limitations of ``exe
   * [ ] Dependency changes
   * [ ] Code interface changes
 
-* Migrations rules needed
+* Migration rules needed
 
   * ruff
 

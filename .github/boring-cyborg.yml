@@ -177,9 +177,7 @@ labelPRBasedOnFilePath:
     - providers/tests/system/google/**/*
 
   provider:grpc:
-    - providers/src/airflow/providers/grpc/**/*
-    - docs/apache-airflow-providers-grpc/**/*
-    - providers/tests/grpc/**/*
+    - providers/grpc/**
 
   provider:hashicorp:
     - providers/hashicorp/**
@@ -194,10 +192,7 @@ labelPRBasedOnFilePath:
     - providers/influxdb/**
 
   provider:jdbc:
-    - providers/src/airflow/providers/jdbc/**/*
-    - docs/apache-airflow-providers-jdbc/**/*
-    - providers/tests/jdbc/**/*
-    - providers/tests/system/jdbc/**/*
+    - providers/jdbc/**
 
   provider:jenkins:
     - providers/jenkins/**
@@ -280,10 +275,7 @@ labelPRBasedOnFilePath:
     - providers/redis/**
 
   provider:salesforce:
-    - providers/src/airflow/providers/salesforce/**/*
-    - docs/apache-airflow-providers-salesforce/**/*
-    - providers/tests/salesforce/**/*
-    - providers/tests/system/salesforce/**/*
+    - providers/salesforce/**
 
   provider:samba:
     - providers/samba/**

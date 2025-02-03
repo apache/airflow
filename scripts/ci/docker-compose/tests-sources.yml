@@ -73,10 +73,12 @@ services:
       - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
       - ../../../providers/ftp/tests:/opt/airflow/providers/ftp/tests
       - ../../../providers/github/tests:/opt/airflow/providers/github/tests
+      - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
       - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests
+      - ../../../providers/jdbc/tests:/opt/airflow/providers/jdbc/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
       - ../../../providers/mongo/tests:/opt/airflow/providers/mongo/tests
       - ../../../providers/mysql/tests:/opt/airflow/providers/mysql/tests
@@ -96,6 +98,7 @@ services:
       - ../../../providers/presto/tests:/opt/airflow/providers/presto/tests
       - ../../../providers/qdrant/tests:/opt/airflow/providers/qdrant/tests
       - ../../../providers/redis/tests:/opt/airflow/providers/redis/tests
+      - ../../../providers/salesforce/tests:/opt/airflow/providers/salesforce/tests
       - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
       - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
       - ../../../providers/sendgrid/tests:/opt/airflow/providers/sendgrid/tests

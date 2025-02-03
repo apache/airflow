@@ -77,7 +77,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: "Cleanup docker"
+        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
+        env:
+          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -98,7 +101,10 @@ jobs:
         with:
           persist-credentials: false
       - name: "Cleanup docker"
+        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
+        env:
+          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: Setup pnpm
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
         with:
@@ -165,7 +171,10 @@ jobs:
         with:
           persist-credentials: false
       - name: "Cleanup docker"
+        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
+        env:
+          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Setup node"
         uses: actions/setup-node@v4
         with:
@@ -233,7 +242,10 @@ jobs:
         with:
           persist-credentials: false
       - name: "Cleanup docker"
+        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
+        env:
+          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -288,7 +300,10 @@ jobs:
         with:
           persist-credentials: false
       - name: "Cleanup docker"
+        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
+        env:
+          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -367,7 +382,10 @@ jobs:
         with:
           persist-credentials: false
       - name: "Cleanup docker"
+        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
+        env:
+          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
