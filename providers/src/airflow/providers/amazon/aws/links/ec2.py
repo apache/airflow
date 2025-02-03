@@ -40,7 +40,6 @@ class EC2InstanceDashboardLink(BaseAwsLink):
     name = "EC2 Instances"
     key = "_instance_dashboard"
     format_str = BASE_AWS_CONSOLE_LINK + "/ec2/home?region={region_name}#Instances:instanceId=:{instance_ids}"
-    # Instances:instanceId=:
 
     @staticmethod
     def format_instance_id_filter(instance_ids: list[str]) -> str:

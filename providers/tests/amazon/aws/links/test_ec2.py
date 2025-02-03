@@ -41,7 +41,6 @@ class TestEC2InstanceLink(BaseAwsLinksTestCase):
 class TestEC2InstanceDashboardLink(BaseAwsLinksTestCase):
     link_class = EC2InstanceDashboardLink
 
-    # STATE = "running"
     BASE_URL = "https://console.aws.amazon.com/ec2/home"
     INSTANCE_IDS = ["i-xxxxxxxxxxxx", "i-yyyyyyyyyyyy"]
 

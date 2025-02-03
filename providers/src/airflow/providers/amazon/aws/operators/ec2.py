@@ -26,7 +26,6 @@ from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.links.ec2 import (
     EC2InstanceDashboardLink,
     EC2InstanceLink,
-    # format_instance_id_filter,
 )
 
 if TYPE_CHECKING:
