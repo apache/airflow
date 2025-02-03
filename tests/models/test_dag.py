@@ -3121,7 +3121,7 @@ def test_get_asset_triggered_next_run_info_with_unresolved_asset_alias(dag_maker
 )
 def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagRunType) -> None:
     dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
-    run_id = run_id_type.generate_run_id(DEFAULT_DATE)
+    run_id = run_id_type.generate_run_id(logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE)
 
     with pytest.raises(ValueError) as ctx:
         dag.create_dagrun(

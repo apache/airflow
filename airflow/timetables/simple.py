@@ -186,15 +186,16 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         self,
         *,
         run_type: DagRunType,
-        logical_date: DateTime,
+        logical_date: DateTime | None,
         data_interval: DataInterval | None,
+        run_after: DateTime | None = None,
         session: Session | None = None,
         events: Collection[AssetEvent] | None = None,
         **extra,
     ) -> str:
         from airflow.models.dagrun import DagRun
 
-        return DagRun.generate_run_id(run_type, logical_date)
+        return DagRun.generate_run_id(run_type, logical_date, run_after)
 
     def data_interval_for_events(
         self,

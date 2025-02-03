@@ -1638,7 +1638,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                 logical_date=logical_date,
                 data_interval=data_interval,
                 run_after=data_interval.end,
-                run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+                run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date, run_after=data_interval.end),
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,

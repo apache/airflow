@@ -2230,6 +2230,7 @@ class Airflow(AirflowBaseView):
                 logical_date=logical_date,
                 data_interval=data_interval,
                 run_type=DagRunType.MANUAL,
+                run_after=data_interval.end,
             )
 
         try:

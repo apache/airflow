@@ -621,10 +621,12 @@ class DagRun(Base, LoggingMixin):
         return session.scalars(select(cls).where(cls.dag_id == dag_id, cls.run_id == run_id)).one_or_none()
 
     @staticmethod
-    def generate_run_id(run_type: DagRunType, logical_date: datetime) -> str:
+    def generate_run_id(
+        run_type: DagRunType, logical_date: datetime | None, run_after: datetime | None = None
+    ) -> str:
         """Generate Run ID based on Run Type and logical Date."""
         # _Ensure_ run_type is a DagRunType, not just a string from user code
-        return DagRunType(run_type).generate_run_id(logical_date)
+        return DagRunType(run_type).generate_run_id(logical_date, run_after)
 
     @staticmethod
     @provide_session
