@@ -130,7 +130,7 @@ class DagRun(Base, LoggingMixin):
     id = Column(Integer, primary_key=True)
     dag_id = Column(StringID(), nullable=False)
     queued_at = Column(UtcDateTime)
-    logical_date = Column(UtcDateTime, default=timezone.utcnow, nullable=True)
+    logical_date = Column(UtcDateTime, nullable=True)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     _state = Column("state", String(50), default=DagRunState.QUEUED)
@@ -1305,8 +1305,14 @@ class DagRun(Base, LoggingMixin):
         def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
                 self.run_type == DagRunType.BACKFILL_JOB
-                or (task.start_date is None or task.start_date <= self.logical_date)
-                and (task.end_date is None or self.logical_date <= task.end_date)
+                or (
+                    task.start_date is None
+                    or (self.logical_date is not None and task.start_date <= self.logical_date)
+                )
+                and (
+                    task.end_date is None
+                    or (self.logical_date is not None and self.logical_date <= task.end_date)
+                )
             )
 
         created_counts: dict[str, int] = defaultdict(int)
