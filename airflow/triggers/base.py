@@ -220,7 +220,7 @@ class BaseTaskEndEvent(TriggerEvent):
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
                 task_callback_type=self.task_instance_state,
-                bundle_name=task_instance.dag_version.bundle_name,
+                bundle_name=task_instance.dag_model.bundle_name,
                 bundle_version=task_instance.dag_run.bundle_version,
             )
             log.info("Sending callback: %s", request)
