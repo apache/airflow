@@ -1595,9 +1595,9 @@ webserver:
       default: "120"
     worker_refresh_batch_size:
       description: |
-        Number of workers to refresh at a time. When set to 0, worker refresh is
-        disabled. When nonzero, airflow periodically refreshes webserver workers by
-        bringing up new ones and killing old ones.
+        Number of workers to refresh at a time through Gunicorn's built-in worker management.
+        When set to 0, worker refresh is disabled. When nonzero, airflow periodically refreshes
+        webserver workers by bringing up new ones and killing old ones.
       version_added: ~
       type: string
       example: ~
