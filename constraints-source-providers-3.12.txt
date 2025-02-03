@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-03T14:00:47.972084
+# This constraints file was automatically generated on 2025-02-03T19:53:04.332194
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -340,7 +340,7 @@ lz4==4.4.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.26.0
+marshmallow==3.26.1
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
@@ -402,7 +402,7 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==2.5.1
 ordered-set==4.1.0
-orderly-set==5.2.3
+orderly-set==5.3.0
 orjson==3.10.15
 oss2==2.19.1
 packaging==24.2
@@ -595,7 +595,7 @@ tornado==6.4.2
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
-trino==0.332.0
+trino==0.333.0
 twine==6.1.0
 typer==0.15.1
 types-Deprecated==1.2.15.20241117
