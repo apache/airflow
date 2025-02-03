@@ -121,7 +121,26 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
+      DOCKER_CACHE: ${{ inputs.docker-cache }}
+      DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
+      INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
+      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
+      # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
+      # Airflow one is going to be used
+      CONSTRAINTS_GITHUB_REPOSITORY: >-
+        ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
+        secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
+      # In builds from forks, this token is read-only. For scheduled/direct push it is WRITE one
+      PUSH: ${{ inputs.push-image }}
+      PLATFORM: ${{ inputs.platform }}
+      TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
     steps:
+      - name: Check free space
+        run: df -H
+        shell: bash
+      - name: Docker build disk usage
+        run: docker buildx du
+        shell: bash
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -129,25 +148,41 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Check free space
+        run: df -H
+        shell: bash
+      - name: Docker build disk usage
+        run: docker buildx du
+        shell: bash
       - name: "Cleanup docker"
         # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
-        env:
-          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
+      - name: Check free space
+        run: df -H
+        shell: bash
+      - name: Docker build disk usage
+        run: docker buildx du
+        shell: bash
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
           use-uv: ${{ inputs.use-uv }}
-      - name: "Restore ci-cache mount image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+      - name: Check free space
+        run: df -H
+        shell: bash
+      - name: Docker build disk usage
+        run: docker buildx du
+        shell: bash
+      - name: "Restore ci-cache mount image ${{ inputs.platform }}:${{ matrix.python-version }}"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          key: "ci-cache-mount-save-v2-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          key: "ci-cache-mount-save-v2-${{ matrix.python-version }}"
           path: "/tmp/"
         id: restore-cache-mount
       - name: "Verify ci-cache file exists"
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
         env:
-          CACHE_FILE: "/tmp/ci-cache-mount-save-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
+          CACHE_FILE: "/tmp/ci-cache-mount-save-v2-${{ matrix.python-version }}.tar.gz"
         run: |
           if [ ! -f "$CACHE_FILE" ]; then
             echo "Cache file not found:"
@@ -155,9 +190,7 @@ jobs:
             exit 1
           fi
         shell: bash
-      - name: "Import mount-cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Import mount-cache ${{ inputs.platform }}:${{ matrix.python-version }}"
         run: >
           breeze ci-image import-mount-cache
           --cache-file /tmp/ci-cache-mount-save-v2-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
@@ -169,57 +202,72 @@ jobs:
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
       - name: >
           Build ${{ inputs.push-image == 'true' && ' & push ' || '' }}
-          ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }} image
+          ${{ inputs.platform }}:${{ matrix.python-version }} image
         run: >
-          breeze ci-image build --platform "${PLATFORM}"
-        env:
-          DOCKER_CACHE: ${{ inputs.docker-cache }}
-          DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
-          INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
-          # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
-          # Airflow one is going to be used
-          CONSTRAINTS_GITHUB_REPOSITORY: >-
-            ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
-            secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
-          # In builds from forks, this token is read-only. For scheduled/direct push it is WRITE one
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_USERNAME: ${{ github.actor }}
-          PUSH: ${{ inputs.push-image }}
-          VERBOSE: "true"
-          PLATFORM: ${{ inputs.platform }}
+          breeze ci-image build
       - name: Check free space
         run: df -H
+        shell: bash
+      - name: Docker build disk usage
+        run: docker buildx du
         shell: bash
       - name: Make /mnt/ directory writeable
         run: sudo chown -R ${USER} /mnt
         shell: bash
-      - name: "Export CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        env:
-          PLATFORM: ${{ inputs.platform }}
-        run: breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
+      - name: "Export CI docker image ${{ matrix.python-version }}"
+        run: breeze ci-image save --image-file-dir "/mnt"
         if: inputs.upload-image-artifact == 'true'
-      - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+      - name: Check free space
+        run: df -H
+        shell: bash
+      - name: Docker build disk usage
+        run: docker buildx du
+        shell: bash
+      - name: "Stash CI docker image ${{ matrix.python-version }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          key: ci-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-          path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
+          key: ci-image-save-${{ inputs.platform }}-${{ matrix.python-version }}
+          path: "/mnt/ci-image-save-*-${{ matrix.python-version }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'
         if: inputs.upload-image-artifact == 'true'
-      - name: "Export mount cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+      - name: "Remove exported image ${{ matrix.python-version }}"
+        run: rm -vf /mnt/ci-image-save-*-${PYTHON_MAJOR_MINOR_VERSION}.tar
+        shell: bash
+        if: inputs.upload-image-artifact == 'true'
+      - name: Check free space
+        run: df -H
+        shell: bash
+      - name: Docker build disk usage
+        run: docker buildx du
+        shell: bash
+      - name: "Export mount cache ${{ inputs.platform }}:${{ matrix.python-version }}"
         run: >
           breeze ci-image export-mount-cache
-          --cache-file /tmp/ci-cache-mount-save-v2-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+          --cache-file /mnt/ci-cache-mount-save-v2-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: inputs.upload-mount-cache-artifact == 'true'
-      - name: "Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+      - name: Check free space
+        run: df -H
+        shell: bash
+        if: inputs.upload-mount-cache-artifact == 'true'
+      - name: Docker build disk usage
+        run: docker buildx du
+        shell: bash
+        if: inputs.upload-mount-cache-artifact == 'true'
+      - name: "Stash cache mount ${{ inputs.platform }}:${{ matrix.python-version }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          key: "ci-cache-mount-save-v2-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
-          path: "/tmp/ci-cache-mount-save-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
+          key: "ci-cache-mount-save-v2-${{ inputs.platform }}-${{ matrix.python-version }}"
+          path: "/mnt/ci-cache-mount-save-v2-${{ matrix.python-version }}.tar.gz"
           if-no-files-found: 'error'
           retention-days: 2
         if: inputs.upload-mount-cache-artifact == 'true'
+      - name: "Remove exported cache mount ${{ matrix.python-version }}"
+        run: rm -f /mnt/ci-cache-mount-save-v2-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+        shell: bash
+      - name: Check free space
+        run: df -H
+        shell: bash
+      - name: Docker build disk usage
+        run: docker buildx du
+        shell: bash
