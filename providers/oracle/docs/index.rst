@@ -35,7 +35,7 @@
     :caption: Guides
 
     Connection types <connections/oracle>
-    Operators <operators/index>
+    Operators <operators>
 
 .. toctree::
     :hidden:
