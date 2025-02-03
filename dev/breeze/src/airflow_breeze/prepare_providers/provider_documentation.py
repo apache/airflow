@@ -1222,6 +1222,13 @@ def _regenerate_pyproject_toml(context: dict[str, Any], provider_details: Provid
     context["EXTRAS_REQUIREMENTS"] = "\n".join(optional_dependencies)
     context["DEPENDENCY_GROUPS"] = "\n".join(dependency_groups)
 
+    # Most providers require the same python versions, but some may have exclusions
+    requires_python_version = "~=3.9"
+    for excluded_python_version in provider_details.excluded_python_versions:
+        requires_python_version += f", !={excluded_python_version}"
+
+    context["REQUIRES_PYTHON"] = requires_python_version
+
     get_pyproject_toml_content = render_template(
         template_name="pyproject",
         context=context,
@@ -1231,6 +1238,7 @@ def _regenerate_pyproject_toml(context: dict[str, Any], provider_details: Provid
         trim_blocks=True,
         keep_trailing_newline=True,
     )
+
     get_pyproject_toml_path.write_text(get_pyproject_toml_content)
     get_console().print(
         f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
