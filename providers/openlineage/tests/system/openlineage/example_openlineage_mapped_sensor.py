@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
@@ -68,7 +69,7 @@ with DAG(
 
     check_events = OpenLineageTestOperator(
         task_id="check_events",
-        file_path=f"{os.getenv('AIRFLOW_HOME')}/dags/providers/tests/system/openlineage/example_openlineage_mapped_sensor.json",
+        file_path=str(Path(__file__).parent / "example_openlineage_mapped_sensor.json"),
         allow_duplicate_events=True,
     )
 
