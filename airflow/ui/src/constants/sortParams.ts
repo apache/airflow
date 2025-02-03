@@ -24,14 +24,14 @@ export const dagSortOptions = createListCollection({
     { label: "Sort by Display Name (Z-A)", value: "-dag_display_name" },
     { label: "Sort by Next DAG Run (Earliest-Latest)", value: "next_dagrun" },
     { label: "Sort by Next DAG Run (Latest-Earliest)", value: "-next_dagrun" },
-    { label: "Sort by Last Run State (A-Z)", value: "last_run_state" },
-    { label: "Sort by Last Run State (Z-A)", value: "-last_run_state" },
+    { label: "Sort by Latest Run State (A-Z)", value: "last_run_state" },
+    { label: "Sort by Latest Run State (Z-A)", value: "-last_run_state" },
     {
-      label: "Sort by Last Run Start Date (Earliest-Latest)",
+      label: "Sort by Latest Run Start Date (Earliest-Latest)",
       value: "last_run_start_date",
     },
     {
-      label: "Sort by Last Run Start Date (Latest-Earliest)",
+      label: "Sort by Latest Run Start Date (Latest-Earliest)",
       value: "-last_run_start_date",
     },
   ],

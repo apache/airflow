@@ -42,7 +42,7 @@ All other parameters are optional and described in documentation for ``Databrick
 
 * ``notebook_params``
 * ``python_params``
-* ``python_named_parameters``
+* ``python_named_params``
 * ``jar_params``
 * ``spark_submit_params``
 * ``idempotency_token``

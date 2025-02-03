@@ -22,8 +22,7 @@ import { useParams, Link as RouterLink } from "react-router-dom";
 import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
-import { useConfig } from "src/queries/useConfig";
-import { isStatePending } from "src/utils/refresh";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
@@ -37,7 +36,15 @@ const tabs = [
 export const Run = () => {
   const { dagId = "", runId = "" } = useParams();
 
-  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const {
+    data: dag,
+    error: dagError,
+    isLoading: isLoadinDag,
+  } = useDagServiceGetDagDetails({
+    dagId,
+  });
 
   const {
     data: dagRun,
@@ -50,18 +57,9 @@ export const Run = () => {
     },
     undefined,
     {
-      refetchInterval: (query) =>
-        isStatePending(query.state.data?.state) ? autoRefreshInterval * 1000 : false,
+      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
     },
   );
-
-  const {
-    data: dag,
-    error: dagError,
-    isLoading: isLoadinDag,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
 
   return (
     <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isLoadinDag} tabs={tabs}>
@@ -75,7 +73,10 @@ export const Run = () => {
         <Breadcrumb.CurrentLink>{runId}</Breadcrumb.CurrentLink>
       </Breadcrumb.Root>
       {dagRun === undefined ? undefined : (
-        <Header dagRun={dagRun} isRefreshing={Boolean(isStatePending(dagRun.state) && autoRefreshInterval)} />
+        <Header
+          dagRun={dagRun}
+          isRefreshing={Boolean(isStatePending(dagRun.state) && Boolean(refetchInterval))}
+        />
       )}
     </DetailsLayout>
   );

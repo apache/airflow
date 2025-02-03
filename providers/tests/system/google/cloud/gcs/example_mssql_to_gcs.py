@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -69,13 +71,18 @@ with DAG(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    check_openlineage_events = OpenLineageTestOperator(
+        task_id="check_openlineage_events",
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "mssql_to_gcs.json"),
+    )
+
     (
         # TEST SETUP
         create_bucket
         # TEST BODY
         >> upload_mssql_to_gcs
         # TEST TEARDOWN
-        >> delete_bucket
+        >> [delete_bucket, check_openlineage_events]
     )
 
     from tests_common.test_utils.watcher import watcher

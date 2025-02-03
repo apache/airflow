@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
@@ -104,6 +105,11 @@ with DAG(
         task_id="delete_bucket_dst", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    check_openlineage_events = OpenLineageTestOperator(
+        task_id="check_openlineage_events",
+        file_path=str(Path(__file__).parent / "resources" / "openlineage" / "gcs_transform_timespan.json"),
+    )
+
     chain(
         # TEST SETUP
         [create_bucket_src, create_bucket_dst],
@@ -111,7 +117,7 @@ with DAG(
         # TEST BODY
         gcs_timespan_transform_files_task,
         # TEST TEARDOWN
-        [delete_bucket_src, delete_bucket_dst],
+        [delete_bucket_src, delete_bucket_dst, check_openlineage_events],
     )
 
     from tests_common.test_utils.watcher import watcher

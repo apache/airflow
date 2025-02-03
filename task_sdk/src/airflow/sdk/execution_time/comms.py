@@ -268,6 +268,7 @@ class SetXCom(BaseModel):
     run_id: str
     task_id: str
     map_index: int | None = None
+    mapped_length: int | None = None
     type: Literal["SetXCom"] = "SetXCom"
 
 

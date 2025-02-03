@@ -207,6 +207,21 @@ class TestGitDagBundle:
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
         assert str(bundle._dag_bundle_root_storage_path) in str(bundle.path)
 
+    def test_repo_url_overrides_connection_host_when_provided(self, git_repo):
+        repo_path, repo = git_repo
+        bundle = GitDagBundle(
+            name="test", tracking_ref=GIT_DEFAULT_BRANCH, repo_url="git@myorg.github.com:apache/airflow.git"
+        )
+        assert bundle.repo_url != bundle.hook.repo_url
+        assert bundle.repo_url == "git@myorg.github.com:apache/airflow.git"
+
+    def test_falls_back_to_connection_host_when_no_repo_url_provided(self, git_repo):
+        repo_path, repo = git_repo
+        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
+
+        assert bundle.repo_url
+        assert bundle.repo_url == bundle.hook.repo_url
+
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_get_current_version(self, mock_githook, git_repo):
         repo_path, repo = git_repo
