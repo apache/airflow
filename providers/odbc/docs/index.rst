@@ -35,7 +35,6 @@
     :caption: Guides
 
     Connection types <connections/odbc>
-    Operators <operators>
 
 .. toctree::
     :hidden:
