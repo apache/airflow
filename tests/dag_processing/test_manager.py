@@ -832,9 +832,7 @@ class TestDagFileProcessorManager:
 
         with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
-            with mock.patch(
-                "airflow.dag_processing.bundles.manager.DagBundlesManager"
-            ) as mock_bundle_manager:
+            with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundle_manager:
                 mock_bundle_manager.return_value._bundle_config = {"bundleone": None, "bundletwo": None}
                 mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [bundleone, bundletwo]
 
@@ -886,9 +884,7 @@ class TestDagFileProcessorManager:
 
         with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}):
             DagBundlesManager().sync_bundles_to_db()
-            with mock.patch(
-                "airflow.dag_processing.bundles.manager.DagBundlesManager"
-            ) as mock_bundle_manager:
+            with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundle_manager:
                 mock_bundle_manager.return_value._bundle_config = {"mybundle": None}
                 mock_bundle_manager.return_value.get_all_dag_bundles.return_value = [mybundle]
                 manager = DagFileProcessorManager(max_runs=1)
