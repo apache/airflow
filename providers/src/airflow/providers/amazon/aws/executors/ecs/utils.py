@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import datetime
 from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -36,7 +37,7 @@ from airflow.utils.state import State
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
 
-CommandType = list[str]
+CommandType = Sequence[str]
 ExecutorConfigFunctionType = Callable[[CommandType], dict]
 ExecutorConfigType = dict[str, Any]
 

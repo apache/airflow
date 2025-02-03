@@ -87,6 +87,18 @@ with DAG(
     )
     # [END howto_operator_transfer_gcs_to_gcs]
 
+    # [START howto_operator_transfer_gcs_to_gcs_defered]
+    transfer_gcs_to_gcs_defered = CloudDataTransferServiceGCSToGCSOperator(
+        task_id="transfer_gcs_to_gcs_defered",
+        source_bucket=BUCKET_NAME_SRC,
+        source_path=FILE_URI,
+        destination_bucket=BUCKET_NAME_DST,
+        destination_path=FILE_URI,
+        wait=True,
+        deferrable=True,
+    )
+    # [END howto_operator_transfer_gcs_to_gcs_defered]
+
     delete_bucket_dst = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE
     )
@@ -102,6 +114,7 @@ with DAG(
         [create_bucket_dst, create_bucket_src >> upload_file]
         # TEST BODY
         >> transfer_gcs_to_gcs
+        >> transfer_gcs_to_gcs_defered
         # TEST TEARDOWN
         >> [delete_bucket_src, delete_bucket_dst]
     )

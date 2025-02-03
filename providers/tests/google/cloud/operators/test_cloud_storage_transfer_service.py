@@ -25,7 +25,7 @@ import pytest
 import time_machine
 from botocore.credentials import Credentials
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
     AWS_ACCESS_KEY,
@@ -61,6 +61,9 @@ from airflow.providers.google.cloud.operators.cloud_storage_transfer_service imp
     CloudDataTransferServiceUpdateJobOperator,
     TransferJobPreprocessor,
     TransferJobValidator,
+)
+from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service import (
+    CloudStorageTransferServiceCheckJobStatusTrigger,
 )
 from airflow.utils import timezone
 
@@ -956,6 +959,65 @@ class TestS3ToGoogleCloudStorageTransferOperator:
                 delete_job_after_completion=True,
             )
 
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook")
+    def test_async_defer_successfully(self, mock_aws_hook, mock_transfer_hook):
+        mock_aws_hook.return_value.get_credentials.return_value = Credentials(
+            TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
+        )
+
+        operator = CloudDataTransferServiceS3ToGCSOperator(
+            task_id=TASK_ID,
+            s3_bucket=AWS_BUCKET_NAME,
+            gcs_bucket=GCS_BUCKET_NAME,
+            project_id=GCP_PROJECT_ID,
+            description=DESCRIPTION,
+            schedule=SCHEDULE_DICT,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute({})
+        assert isinstance(exc.value.trigger, CloudStorageTransferServiceCheckJobStatusTrigger)
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook")
+    def test_async_execute_successfully(self, mock_aws_hook):
+        mock_aws_hook.return_value.get_credentials.return_value = Credentials(
+            TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
+        )
+
+        operator = CloudDataTransferServiceS3ToGCSOperator(
+            task_id=TASK_ID,
+            s3_bucket=AWS_BUCKET_NAME,
+            gcs_bucket=GCS_BUCKET_NAME,
+            project_id=GCP_PROJECT_ID,
+            description=DESCRIPTION,
+            schedule=SCHEDULE_DICT,
+            deferrable=True,
+        )
+        operator.execute_complete(context={}, event={"status": "success"})
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook")
+    def test_async_execute_error(self, mock_aws_hook):
+        mock_aws_hook.return_value.get_credentials.return_value = Credentials(
+            TEST_AWS_ACCESS_KEY_ID, TEST_AWS_ACCESS_SECRET, None
+        )
+
+        operator = CloudDataTransferServiceS3ToGCSOperator(
+            task_id=TASK_ID,
+            s3_bucket=AWS_BUCKET_NAME,
+            gcs_bucket=GCS_BUCKET_NAME,
+            project_id=GCP_PROJECT_ID,
+            description=DESCRIPTION,
+            schedule=SCHEDULE_DICT,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            operator.execute_complete(
+                context={}, event={"status": "error", "message": "test failure message"}
+            )
+
 
 class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
     def test_constructor(self):
@@ -1073,12 +1135,56 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
         with pytest.raises(
             AirflowException, match="If 'delete_job_after_completion' is True, then 'wait' must also be True."
         ):
-            CloudDataTransferServiceS3ToGCSOperator(
+            CloudDataTransferServiceGCSToGCSOperator(
                 task_id=TASK_ID,
-                s3_bucket=AWS_BUCKET_NAME,
-                gcs_bucket=GCS_BUCKET_NAME,
+                source_bucket=GCS_BUCKET_NAME,
+                destination_bucket=GCS_BUCKET_NAME,
                 description=DESCRIPTION,
                 schedule=SCHEDULE_DICT,
                 wait=False,
                 delete_job_after_completion=True,
+            )
+
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
+    def test_async_defer_successfully(self, mock_transfer_hook):
+        operator = CloudDataTransferServiceGCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=GCS_BUCKET_NAME,
+            destination_bucket=GCS_BUCKET_NAME,
+            project_id=GCP_PROJECT_ID,
+            description=DESCRIPTION,
+            schedule=SCHEDULE_DICT,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute({})
+        assert isinstance(exc.value.trigger, CloudStorageTransferServiceCheckJobStatusTrigger)
+
+    def test_async_execute_successfully(self):
+        operator = CloudDataTransferServiceGCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=GCS_BUCKET_NAME,
+            destination_bucket=GCS_BUCKET_NAME,
+            project_id=GCP_PROJECT_ID,
+            description=DESCRIPTION,
+            schedule=SCHEDULE_DICT,
+            deferrable=True,
+        )
+        operator.execute_complete(context={}, event={"status": "success"})
+
+    def test_async_execute_error(self):
+        operator = CloudDataTransferServiceGCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=GCS_BUCKET_NAME,
+            destination_bucket=GCS_BUCKET_NAME,
+            project_id=GCP_PROJECT_ID,
+            description=DESCRIPTION,
+            schedule=SCHEDULE_DICT,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            operator.execute_complete(
+                context={}, event={"status": "error", "message": "test failure message"}
             )

@@ -67,6 +67,7 @@ from airflow.sdk.execution_time.task_runner import (
     CommsDecoder,
     RuntimeTaskInstance,
     _push_xcom_if_needed,
+    _xcom_push,
     parse,
     run,
     startup,
@@ -647,14 +648,58 @@ def test_run_with_asset_outlets(
     ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
+    mock_supervisor_comms.get_message.return_value = OKResponse(
+        ok=True,
+    )
 
     run(ti, log=mock.MagicMock())
 
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_msg, log=mock.ANY)
 
 
-def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
+@pytest.mark.parametrize(
+    ["ok", "last_expected_msg"],
+    [
+        pytest.param(
+            True,
+            SucceedTask(
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[
+                    AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
+                    AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+                ],
+                outlet_events=[
+                    {
+                        "asset_alias_events": [],
+                        "extra": {},
+                        "key": {"name": "name", "uri": "s3://bucket/my-task"},
+                    },
+                    {
+                        "asset_alias_events": [],
+                        "extra": {},
+                        "key": {"name": "new-name", "uri": "s3://bucket/my-task"},
+                    },
+                ],
+            ),
+            id="runtime_checks_pass",
+        ),
+        pytest.param(
+            False,
+            TaskState(
+                state=TerminalTIState.FAILED,
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+            ),
+            id="runtime_checks_fail",
+        ),
+    ],
+)
+def test_run_with_inlets_and_outlets(
+    create_runtime_ti, mock_supervisor_comms, time_machine, ok, last_expected_msg
+):
     """Test running a basic tasks with inlets and outlets."""
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
     from airflow.providers.standard.operators.bash import BashOperator
 
     task = BashOperator(
@@ -672,7 +717,7 @@ def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
 
     ti = create_runtime_ti(task=task, dag_id="dag_with_inlets_and_outlets")
     mock_supervisor_comms.get_message.return_value = OKResponse(
-        ok=True,
+        ok=ok,
     )
 
     run(ti, log=mock.MagicMock())
@@ -688,6 +733,7 @@ def test_run_with_inlets_and_outlets(create_runtime_ti, mock_supervisor_comms):
         ],
     )
     mock_supervisor_comms.send_request.assert_any_call(msg=expected, log=mock.ANY)
+    mock_supervisor_comms.send_request.assert_any_call(msg=last_expected_msg, log=mock.ANY)
 
 
 class TestRuntimeTaskInstance:
@@ -1044,16 +1090,16 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
 
         spy_agency.spy_on(_push_xcom_if_needed, call_original=True)
-        spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
+        spy_agency.spy_on(_xcom_push, call_original=False)
 
         run(runtime_ti, log=mock.MagicMock())
 
         spy_agency.assert_spy_called(_push_xcom_if_needed)
 
         if should_push_xcom:
-            spy_agency.assert_spy_called_with(runtime_ti.xcom_push, "return_value", expected_xcom_value)
+            spy_agency.assert_spy_called_with(_xcom_push, runtime_ti, "return_value", expected_xcom_value)
         else:
-            spy_agency.assert_spy_not_called(runtime_ti.xcom_push)
+            spy_agency.assert_spy_not_called(_xcom_push)
 
     def test_xcom_with_multiple_outputs(self, create_runtime_ti, spy_agency):
         """Test that the task pushes to XCom when multiple outputs are returned."""
@@ -1069,7 +1115,7 @@ class TestXComAfterTaskExecution:
 
         runtime_ti = create_runtime_ti(task=task)
 
-        spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
+        spy_agency.spy_on(_xcom_push, call_original=False)
         _push_xcom_if_needed(result=result, ti=runtime_ti)
 
         expected_calls = [
@@ -1077,9 +1123,9 @@ class TestXComAfterTaskExecution:
             ("key2", "value2"),
             ("return_value", result),
         ]
-        spy_agency.assert_spy_call_count(runtime_ti.xcom_push, len(expected_calls))
+        spy_agency.assert_spy_call_count(_xcom_push, len(expected_calls))
         for key, value in expected_calls:
-            spy_agency.assert_spy_called_with(runtime_ti.xcom_push, key, value)
+            spy_agency.assert_spy_called_with(_xcom_push, runtime_ti, key, value, mapped_length=None)
 
     def test_xcom_with_multiple_outputs_and_no_mapping_result(self, create_runtime_ti, spy_agency):
         """Test that error is raised when multiple outputs are returned without mapping."""
