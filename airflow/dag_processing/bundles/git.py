@@ -164,7 +164,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
                 )
             except NoSuchPathError as e:
                 # Protection should the bare repo be removed manually
-                raise AirflowException("Repository path: %s not found: %s", self.bare_repo_path, e)
+                raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
 
         self.repo = Repo(self.repo_path)
 
