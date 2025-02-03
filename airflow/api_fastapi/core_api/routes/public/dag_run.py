@@ -66,6 +66,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.timetables.base import DataInterval
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -351,7 +352,10 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    logical_date = pendulum.instance(body.logical_date)
+    if body.logical_date is not None:
+        logical_date = pendulum.instance(body.logical_date)
+    else:
+        logical_date = pendulum.instance(timezone.utcnow())
 
     try:
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)

@@ -101,6 +101,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
     const checkDagRunId = dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId;
     const checkNote = dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
+    const logicalDate = new Date().toISOString();
 
     mutate({
       dagId,
@@ -109,6 +110,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
         dag_run_id: checkDagRunId,
         data_interval_end: formattedDataIntervalEnd,
         data_interval_start: formattedDataIntervalStart,
+        logical_date: logicalDate,
         note: checkNote,
       },
     });
