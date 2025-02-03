@@ -515,37 +515,43 @@ class DagFileProcessorManager:
     def deactivate_deleted_dags(self, active_files: list[DagFileInfo]) -> None:
         """Deactivate DAGs that come from files that are no longer present."""
 
-        def _iter_dag_filelocs(fileloc: str) -> Iterator[str]:
+        def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
             """
-            Get "full" paths to DAGs if inside ZIP files.
+            Find dag files in zip file located at abs_path.
 
-            This is the format used by the remove/delete functions.
+            We return the abs "paths" formed by joining the relative path inside the zip
+            with the path to the zip.
+
             """
-            if fileloc.endswith(".py") or not zipfile.is_zipfile(fileloc):
-                yield fileloc
-                return
             try:
-                with zipfile.ZipFile(fileloc) as z:
+                with zipfile.ZipFile(abs_path) as z:
                     for info in z.infolist():
                         if might_contain_dag(info.filename, True, z):
-                            yield os.path.join(fileloc, info.filename)
+                            yield os.path.join(abs_path, info.filename)
             except zipfile.BadZipFile:
-                self.log.exception("There was an error accessing ZIP file %s %s", fileloc)
+                self.log.exception("There was an error accessing ZIP file %s %s", abs_path)
 
-        active_subpaths: set[tuple[str, str]] = set()
+        present: set[tuple[str, str]] = set()
         """
-        'subpath' here means bundle + modified rel path.  What does modified rel path mean?
-        Well, '_iter_dag_filelocs' walks through zip files and may return a "path" that is,
-        rel path to the zip, plus the rel path within the zip.  So, since this is is a bit different
-        from most uses of the word "rel path", I wanted to call it something different.
-        A set is used presumably since many dags can be in one file.
+        Tuple containing bundle name and relative fileloc of the dag file.
+
+        If the dag file is embedded in a zip file, the relative fileloc will be the
+        zip file path (relative to bundle path) joined with the path to the dag file (relative
+        to the zip file path).
         """
 
         for info in active_files:
-            for path in _iter_dag_filelocs(str(info.rel_path)):
-                active_subpaths.add((info.bundle_name, path))
+            abs_path = str(info.absolute_path)
+            if abs_path.endswith(".py") or not zipfile.is_zipfile(abs_path):
+                present.add((info.bundle_name, str(info.rel_path)))
+            else:
+                if TYPE_CHECKING:
+                    assert info.bundle_path
+                for abs_sub_path in find_zipped_dags(abs_path=info.absolute_path):
+                    rel_sub_path = Path(abs_sub_path).relative_to(info.bundle_path)
+                    present.add((info.bundle_name, str(rel_sub_path)))
 
-        DagModel.deactivate_deleted_dags(active_subpaths)
+        DagModel.deactivate_deleted_dags(present)
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed."""
