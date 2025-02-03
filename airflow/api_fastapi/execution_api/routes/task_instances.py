@@ -144,6 +144,7 @@ def ti_run(
                 DR.dag_id,
                 DR.data_interval_start,
                 DR.data_interval_end,
+                DR.run_after,
                 DR.start_date,
                 DR.end_date,
                 DR.run_type,
