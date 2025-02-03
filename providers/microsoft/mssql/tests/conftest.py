@@ -19,7 +19,7 @@ from __future__ import annotations
 import pathlib
 import re
 from inspect import currentframe
-from os.path import join, dirname, realpath
+from os.path import dirname, join, realpath
 
 import pytest
 

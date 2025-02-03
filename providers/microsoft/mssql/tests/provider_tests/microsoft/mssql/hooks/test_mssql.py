@@ -21,12 +21,11 @@ from unittest import mock
 
 import pytest
 import sqlalchemy
+from providers.microsoft.mssql.tests.conftest import load_file
 
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
-
-from providers.microsoft.mssql.tests.conftest import load_file
 
 try:
     from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
