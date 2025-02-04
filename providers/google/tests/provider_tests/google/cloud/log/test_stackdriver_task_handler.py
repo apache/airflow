@@ -59,6 +59,7 @@ def test_should_pass_message_to_client(mock_client, mock_get_creds_and_project_i
     transport_type = mock.MagicMock()
     stackdriver_task_handler = StackdriverTaskHandler(transport=transport_type, labels={"key": "value"})
     logger = logging.getLogger("logger")
+    logger.setLevel(logging.INFO)
     logger.addHandler(stackdriver_task_handler)
 
     logger.info("test-message")
