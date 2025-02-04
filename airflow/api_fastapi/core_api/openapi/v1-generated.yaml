@@ -4842,6 +4842,14 @@ paths:
           items:
             type: string
           title: Executor
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Version Number
       - name: limit
         in: query
         required: false
@@ -5464,6 +5472,14 @@ paths:
           items:
             type: string
           title: Executor
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Version Number
       - name: limit
         in: query
         required: false
@@ -8649,6 +8665,40 @@ components:
       - dag_id
       title: DagTagResponse
       description: DAG Tag serializer for responses.
+    DagVersionResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        version_number:
+          type: integer
+          title: Version Number
+        dag_id:
+          type: string
+          title: Dag Id
+        bundle_name:
+          type: string
+          title: Bundle Name
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - version_number
+      - dag_id
+      - bundle_name
+      - bundle_version
+      - created_at
+      title: DagVersionResponse
+      description: Dag Version serializer for responses.
     DagWarningType:
       type: string
       enum:
@@ -9900,6 +9950,10 @@ components:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
           - type: 'null'
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
       type: object
       required:
       - id
@@ -9931,6 +9985,7 @@ components:
       - rendered_map_index
       - trigger
       - triggerer_job
+      - dag_version
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:

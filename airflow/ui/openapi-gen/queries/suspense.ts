@@ -1572,6 +1572,7 @@ export const useTaskInstanceServiceGetTaskInstanceSuspense = <
  * @param data.pool
  * @param data.queue
  * @param data.executor
+ * @param data.versionNumber
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -1604,6 +1605,7 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1625,6 +1627,7 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
     taskId: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1652,6 +1655,7 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       },
       queryKey,
     ),
@@ -1677,6 +1681,7 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       }) as TData,
     ...options,
   });
@@ -1897,6 +1902,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <
  * @param data.pool
  * @param data.queue
  * @param data.executor
+ * @param data.versionNumber
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -1930,6 +1936,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1952,6 +1959,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1980,6 +1988,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       },
       queryKey,
     ),
@@ -2006,6 +2015,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       }) as TData,
     ...options,
   });

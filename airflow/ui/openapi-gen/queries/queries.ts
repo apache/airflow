@@ -1594,6 +1594,7 @@ export const useTaskInstanceServiceGetTaskInstance = <
  * @param data.pool
  * @param data.queue
  * @param data.executor
+ * @param data.versionNumber
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -1626,6 +1627,7 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1647,6 +1649,7 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
     taskId: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1674,6 +1677,7 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       },
       queryKey,
     ),
@@ -1699,6 +1703,7 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       }) as TData,
     ...options,
   });
@@ -1919,6 +1924,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <
  * @param data.pool
  * @param data.queue
  * @param data.executor
+ * @param data.versionNumber
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -1952,6 +1958,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1974,6 +1981,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
     taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -2002,6 +2010,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       },
       queryKey,
     ),
@@ -2028,6 +2037,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       }) as TData,
     ...options,
   });
