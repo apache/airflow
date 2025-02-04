@@ -87,7 +87,7 @@ by providing the ``project_name``, ``environment_name``, and ``job_name``.
 Please note that it will only work if the above three parameters uniquely identify a job in your account
 (i.e. you cannot have two jobs with the same name in the same project and environment).
 
-.. exampleinclude:: /../../providers/tests/system/dbt/cloud/example_dbt_cloud.py
+.. exampleinclude:: /../../providers/dbt/cloud/tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_run_job_without_job_id]
