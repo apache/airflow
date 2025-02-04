@@ -47,6 +47,7 @@ from uuid6 import uuid7
 
 import airflow.models
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
@@ -106,6 +107,7 @@ class DagFileInfo:
     rel_path: Path
     bundle_name: str
     bundle_path: Path | None = field(compare=False, default=None)
+    bundle_version: str | None = None
 
     @property
     def absolute_path(self) -> Path:
@@ -190,7 +192,7 @@ class DagFileProcessorManager:
     _parsing_start_time: float = attrs.field(init=False)
     _num_run: int = attrs.field(default=0, init=False)
 
-    _callback_to_execute: dict[str, list[CallbackRequest]] = attrs.field(
+    _callback_to_execute: dict[DagFileInfo, list[CallbackRequest]] = attrs.field(
         factory=lambda: defaultdict(list), init=False
     )
 
@@ -232,11 +234,7 @@ class DagFileProcessorManager:
         #     "Checking for new files in %s every %s seconds", self._dag_directory, self.dag_dir_list_interval
         # )
 
-        from airflow.dag_processing.bundles.manager import DagBundlesManager
-
         DagBundlesManager().sync_bundles_to_db()
-
-        self.log.info("Getting all DAG bundles")
         self._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
         self._symlink_latest_log_directory()
 
@@ -410,18 +408,21 @@ class DagFileProcessorManager:
 
     def _add_callback_to_queue(self, request: CallbackRequest):
         self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
-        self.log.warning("Callbacks are not implemented yet!")
-        # TODO: AIP-66 make callbacks bundle aware
-        return
-        self._callback_to_execute[request.full_filepath].append(request)
-        if request.full_filepath in self._file_queue:
-            # Remove file paths matching request.full_filepath from self._file_queue
-            # Since we are already going to use that filepath to run callback,
-            # there is no need to have same file path again in the queue
-            # todo (AIP-66): update re bundle and rel loc
-            self._file_queue = deque(f for f in self._file_queue if f != request.full_filepath)
-        # todo (AIP-66): update re bundle and rel loc
-        self._add_files_to_queue([request.full_filepath], True)
+        try:
+            bundle = DagBundlesManager().get_bundle(name=request.bundle_name, version=request.bundle_version)
+        except ValueError:
+            # Bundle no longer configured
+            self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
+            return None
+
+        file_info = DagFileInfo(
+            rel_path=Path(request.filepath),
+            bundle_path=bundle.path,
+            bundle_name=request.bundle_name,
+            bundle_version=request.bundle_version,
+        )
+        self._callback_to_execute[file_info].append(request)
+        self._add_files_to_queue([file_info], True)
         Stats.incr("dag_processing.other_callback_count")
 
     @classmethod
@@ -456,11 +457,21 @@ class DagFileProcessorManager:
                 elapsed_time_since_refresh = (
                     now - (bundle_model.last_refreshed or timezone.utc_epoch())
                 ).total_seconds()
-                pre_refresh_version = bundle.get_current_version()
+                if bundle.supports_versioning:
+                    # we will also check the version of the bundle to see if another DAG processor has seen
+                    # a new version
+                    pre_refresh_version = (
+                        self._bundle_versions.get(bundle.name) or bundle.get_current_version()
+                    )
+                    current_version_matches_db = pre_refresh_version == bundle_model.version
+                else:
+                    # With no versioning, it always "matches"
+                    current_version_matches_db = True
+
                 previously_seen = bundle.name in self._bundle_versions
                 if (
                     elapsed_time_since_refresh < bundle.refresh_interval
-                    and bundle_model.version == pre_refresh_version
+                    and current_version_matches_db
                     and previously_seen
                 ):
                     self.log.info("Not time to refresh %s", bundle.name)
@@ -474,13 +485,17 @@ class DagFileProcessorManager:
 
                 bundle_model.last_refreshed = now
 
-                version_after_refresh = bundle.get_current_version()
                 if bundle.supports_versioning:
                     # We can short-circuit the rest of this if (1) bundle was seen before by
                     # this dag processor and (2) the version of the bundle did not change
                     # after refreshing it
+                    version_after_refresh = bundle.get_current_version()
                     if previously_seen and pre_refresh_version == version_after_refresh:
-                        self.log.debug("Bundle %s version not changed after refresh", bundle.name)
+                        self.log.debug(
+                            "Bundle %s version not changed after refresh: %s",
+                            bundle.name,
+                            version_after_refresh,
+                        )
                         continue
 
                     bundle_model.version = version_after_refresh
@@ -488,20 +503,27 @@ class DagFileProcessorManager:
                     self.log.info(
                         "Version changed for %s, new version: %s", bundle.name, version_after_refresh
                     )
+                else:
+                    version_after_refresh = None
+
+            self._bundle_versions[bundle.name] = version_after_refresh
 
             found_files = [
                 DagFileInfo(rel_path=p, bundle_name=bundle.name, bundle_path=bundle.path)
                 for p in self._find_files_in_bundle(bundle)
             ]
 
+            # Now that we have the files present in the latest bundle,
+            # we need to update file_paths to include any new files
+            # and remove any files that are no longer in the bundle.
+            # We do this by removing all existing files that are in this bundle
+            # and then adding all the current files back in.
             new_files = [f for f in self._files if f.bundle_name != bundle.name]
             new_files.extend(found_files)
             self.set_files(new_files)
 
             self.deactivate_deleted_dags(active_files=found_files)
             self.clear_nonexistent_import_errors()
-
-            self._bundle_versions[bundle.name] = bundle.get_current_version()
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
         """Get relative paths for dag files from bundle dir."""
@@ -515,37 +537,43 @@ class DagFileProcessorManager:
     def deactivate_deleted_dags(self, active_files: list[DagFileInfo]) -> None:
         """Deactivate DAGs that come from files that are no longer present."""
 
-        def _iter_dag_filelocs(fileloc: str) -> Iterator[str]:
+        def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
             """
-            Get "full" paths to DAGs if inside ZIP files.
+            Find dag files in zip file located at abs_path.
 
-            This is the format used by the remove/delete functions.
+            We return the abs "paths" formed by joining the relative path inside the zip
+            with the path to the zip.
+
             """
-            if fileloc.endswith(".py") or not zipfile.is_zipfile(fileloc):
-                yield fileloc
-                return
             try:
-                with zipfile.ZipFile(fileloc) as z:
+                with zipfile.ZipFile(abs_path) as z:
                     for info in z.infolist():
                         if might_contain_dag(info.filename, True, z):
-                            yield os.path.join(fileloc, info.filename)
+                            yield os.path.join(abs_path, info.filename)
             except zipfile.BadZipFile:
-                self.log.exception("There was an error accessing ZIP file %s %s", fileloc)
+                self.log.exception("There was an error accessing ZIP file %s %s", abs_path)
 
-        active_subpaths: set[tuple[str, str]] = set()
+        present: set[tuple[str, str]] = set()
         """
-        'subpath' here means bundle + modified rel path.  What does modified rel path mean?
-        Well, '_iter_dag_filelocs' walks through zip files and may return a "path" that is,
-        rel path to the zip, plus the rel path within the zip.  So, since this is is a bit different
-        from most uses of the word "rel path", I wanted to call it something different.
-        A set is used presumably since many dags can be in one file.
+        Tuple containing bundle name and relative fileloc of the dag file.
+
+        If the dag file is embedded in a zip file, the relative fileloc will be the
+        zip file path (relative to bundle path) joined with the path to the dag file (relative
+        to the zip file path).
         """
 
         for info in active_files:
-            for path in _iter_dag_filelocs(str(info.rel_path)):
-                active_subpaths.add((info.bundle_name, path))
+            abs_path = str(info.absolute_path)
+            if abs_path.endswith(".py") or not zipfile.is_zipfile(abs_path):
+                present.add((info.bundle_name, str(info.rel_path)))
+            else:
+                if TYPE_CHECKING:
+                    assert info.bundle_path
+                for abs_sub_path in find_zipped_dags(abs_path=info.absolute_path):
+                    rel_sub_path = Path(abs_sub_path).relative_to(info.bundle_path)
+                    present.add((info.bundle_name, str(rel_sub_path)))
 
-        DagModel.deactivate_deleted_dags(active_subpaths)
+        DagModel.deactivate_deleted_dags(present)
 
     def _print_stat(self):
         """Occasionally print out stats about how fast the files are getting processed."""
@@ -684,14 +712,7 @@ class DagFileProcessorManager:
         """
         self._files = files
 
-        # remove from queue any files no longer in the _files list
-        self._file_queue = deque(x for x in self._file_queue if x in files)
         Stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
-
-        # TODO: AIP-66 make callbacks bundle aware
-        # callback_paths_to_del = [x for x in self._callback_to_execute if x not in new_file_paths]
-        # for path_to_del in callback_paths_to_del:
-        #     del self._callback_to_execute[path_to_del]
 
         # Stop processors that are working on deleted files
         filtered_processors = {}
@@ -783,8 +804,7 @@ class DagFileProcessorManager:
     def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
         id = uuid7()
 
-        # callback_to_execute_for_file = self._callback_to_execute.pop(file_path, [])
-        callback_to_execute_for_file: list[CallbackRequest] = []
+        callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
 
         return DagFileProcessorProcess.start(
             id=id,

@@ -30,7 +30,7 @@ from airflow.models import Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
 from airflow.utils import timezone
