@@ -1995,6 +1995,7 @@ export type GetEventLogsResponse = EventLogCollectionResponse;
 export type GetExtraLinksData = {
   dagId: string;
   dagRunId: string;
+  mapIndex?: number;
   taskId: string;
 };
 
