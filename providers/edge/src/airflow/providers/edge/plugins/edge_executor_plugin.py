@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from flask import Blueprint
+from flask import Blueprint, redirect, url_for
 from flask_appbuilder import BaseView, expose
 from sqlalchemy import select
 
@@ -34,6 +34,7 @@ from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.www import utils as wwwutils
+from airflow.www.app import csrf
 from airflow.www.auth import has_access_view
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
@@ -114,6 +115,26 @@ class EdgeWorkerHosts(BaseView):
         hosts = session.scalars(select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)).all()
         five_min_ago = datetime.now() - timedelta(minutes=5)
         return self.render_template("edge_worker_hosts.html", hosts=hosts, five_min_ago=five_min_ago)
+
+    @expose("/status/maintenance/<string:worker_name>/on", methods=["POST"])
+    @has_access_view(AccessView.JOBS)
+    @provide_session
+    @csrf.exempt
+    def worker_to_maintenance(self, worker_name: str, session: Session = NEW_SESSION):
+        from airflow.providers.edge.models.edge_worker import request_maintenance
+
+        request_maintenance(worker_name, session)
+        return redirect(url_for("EdgeWorkerHosts.status"))
+
+    @expose("/status/maintenance/<string:worker_name>/off", methods=["POST"])
+    @has_access_view(AccessView.JOBS)
+    @provide_session
+    @csrf.exempt
+    def remove_worker_from_maintenance(self, worker_name: str, session: Session = NEW_SESSION):
+        from airflow.providers.edge.models.edge_worker import exit_maintenance
+
+        exit_maintenance(worker_name, session)
+        return redirect(url_for("EdgeWorkerHosts.status"))
 
 
 # Check if EdgeExecutor is actually loaded

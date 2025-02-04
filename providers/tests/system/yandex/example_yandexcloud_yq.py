@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.yandex.operators.yq import YQExecuteQueryOperator
 
 from tests_common.test_utils.system_tests import get_test_env_id
