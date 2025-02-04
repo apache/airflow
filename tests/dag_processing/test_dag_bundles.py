@@ -227,16 +227,18 @@ class TestGitHook:
             "GIT_SSH_COMMAND": "ssh -i dummy_inline_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
         }
 
-    def test_setup_inline_key(self):
+    def test_configure_hook_env(self):
         hook = GitHook(git_conn_id=CONN_ONLY_INLINE_KEY)
         assert hasattr(hook, "private_key")
 
         hook.set_git_env("dummy_inline_key")
 
-        with hook.setup_inline_key() as tmp_keyfile:
-            assert os.path.exists(tmp_keyfile)
+        with hook.configure_hook_env():
+            command = hook.env.get("GIT_SSH_COMMAND")
+            temp_key_path = command.split()[2]
+            assert os.path.exists(temp_key_path)
 
-        assert not os.path.exists(tmp_keyfile)
+        assert not os.path.exists(temp_key_path)
 
 
 class TestGitDagBundle:

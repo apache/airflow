@@ -106,14 +106,16 @@ class GitHook(BaseHook):
         return self.env
 
     @contextlib.contextmanager
-    def setup_inline_key(self):
+    def configure_hook_env(self):
         if self.private_key:
             with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
                 tmp_keyfile.write(self.private_key)
                 tmp_keyfile.flush()
                 os.chmod(tmp_keyfile.name, 0o600)
-                yield tmp_keyfile.name
+                self.set_git_env(tmp_keyfile.name)
+                yield
         else:
+            self.set_git_env(self.private_key)
             yield
 
 
@@ -157,7 +159,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self.log.warning("Could not create GitHook for connection %s : %s", self.git_conn_id, e)
 
     def _initialize(self):
-        with self.hook.setup_inline_key() as tmp_keyfile:
+        with self.hook.configure_hook_env() as tmp_keyfile:
             self.hook.env = self.hook.set_git_env(tmp_keyfile)
             self._clone_bare_repo_if_required()
             self._ensure_version_in_bare_repo()
@@ -263,8 +265,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
 
-        with self.hook.setup_inline_key() as tmp_keyfile:
-            self.hook.env = self.hook.set_git_env(tmp_keyfile)
+        with self.hook.configure_hook_env():
             self._fetch_bare_repo()
             self.repo.remotes.origin.pull()
 
