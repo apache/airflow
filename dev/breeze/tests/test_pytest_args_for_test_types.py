@@ -94,7 +94,7 @@ def match_patterns(string, patterns):
                 *[
                     f"providers/{provider}/tests"
                     for provider in _all_new_providers()
-                    if not match_patterns(provider, ["^microsoft/.*$"])
+                    # if not match_patterns(provider, ["^microsoft/.*$"])
                 ],
                 "providers/tests",
             ],
@@ -151,7 +151,7 @@ def match_patterns(string, patterns):
                 *[
                     f"providers/{provider}/tests"
                     for provider in _all_new_providers()
-                    if not match_patterns(provider, ["^microsoft/.*$"])
+                    # if not match_patterns(provider, ["^microsoft/.*$"])
                 ],
                 "providers/tests",
                 "-m",
@@ -258,7 +258,7 @@ def test_pytest_args_for_missing_provider():
                 *[
                     f"providers/{provider}/tests"
                     for provider in _all_new_providers()
-                    if not match_patterns(provider, ["^microsoft/.*$"])
+                    # if not match_patterns(provider, ["^microsoft/.*$"])
                 ],
                 "providers/tests",
             ],
