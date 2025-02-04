@@ -289,7 +289,9 @@ jobs:
           key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
           if-no-files-found: 'error'
           retention-days: '2'
-        if: steps.restore-docs-inventory-cache != 'true'
+        # If we upload from multiple matrix jobs we could end up with a race condition. so just pick one job
+        # to be responsible for updating it. https://github.com/actions/upload-artifact/issues/506
+        if: steps.restore-docs-inventory-cache != 'true' && matrix.flag == '--docs-only'
       - name: "Upload build docs"
         uses: actions/upload-artifact@v4
         with:
@@ -322,7 +324,10 @@ jobs:
         with:
           persist-credentials: false
       - name: "Cleanup docker"
+        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
+        env:
+          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Download docs prepared as artifacts"
         uses: actions/download-artifact@v4
         with:
@@ -403,7 +408,10 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
       - name: "Cleanup docker"
+        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
+        env:
+          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:

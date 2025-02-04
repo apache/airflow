@@ -889,7 +889,7 @@ export type GridDAGRunwithTIs = {
   run_type: DagRunType;
   data_interval_start: string | null;
   data_interval_end: string | null;
-  version_number: string | null;
+  version_number: number | null;
   note: string | null;
   task_instances: Array<GridTaskInstanceSummary>;
 };
@@ -1223,6 +1223,7 @@ export type TaskInstanceHistoryResponse = {
   priority_weight: number | null;
   operator: string | null;
   queued_when: string | null;
+  scheduled_when: string | null;
   pid: number | null;
   executor: string | null;
   executor_config: string;
@@ -1253,6 +1254,7 @@ export type TaskInstanceResponse = {
   priority_weight: number | null;
   operator: string | null;
   queued_when: string | null;
+  scheduled_when: string | null;
   pid: number | null;
   executor: string | null;
   executor_config: string;
@@ -1469,9 +1471,9 @@ export type VersionInfo = {
 };
 
 /**
- * List of XCom items.
+ * XCom Collection serializer for responses.
  */
-export type XComCollection = {
+export type XComCollectionResponse = {
   xcom_entries: Array<XComResponse>;
   total_entries: number;
 };
@@ -1669,6 +1671,7 @@ export type StructureDataData = {
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string | null;
+  versionNumber?: number | null;
 };
 
 export type StructureDataResponse2 = StructureDataResponse;
@@ -1992,6 +1995,7 @@ export type GetEventLogsResponse = EventLogCollectionResponse;
 export type GetExtraLinksData = {
   dagId: string;
   dagRunId: string;
+  mapIndex?: number;
   taskId: string;
 };
 
@@ -2300,7 +2304,7 @@ export type GetXcomEntriesData = {
   xcomKey?: string | null;
 };
 
-export type GetXcomEntriesResponse = XComCollection;
+export type GetXcomEntriesResponse = XComCollectionResponse;
 
 export type GetTasksData = {
   dagId: string;
@@ -4690,7 +4694,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: XComCollection;
+        200: XComCollectionResponse;
         /**
          * Bad Request
          */

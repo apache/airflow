@@ -404,7 +404,8 @@ class TestPodManager:
                 startup_timeout=0,
             )
 
-    def test_start_pod_startup_interval_seconds(self):
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.time.sleep")
+    def test_start_pod_startup_interval_seconds(self, mock_time_sleep):
         pod_info_pending = mock.MagicMock(**{"status.phase": PodPhase.PENDING})
         pod_info_succeeded = mock.MagicMock(**{"status.phase": PodPhase.SUCCEEDED})
 
@@ -414,21 +415,15 @@ class TestPodManager:
             while True:
                 yield pod_info_succeeded
 
-        import time
-
-        # Avoid race condition when we can run to a lot of sleeps when mock takes no time at all
-        original_time_sleep = time.sleep
-        with mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.time.sleep") as mock_time_sleep:
-            mock_time_sleep.side_effect = lambda _: original_time_sleep(0.2)
-            self.mock_kube_client.read_namespaced_pod.side_effect = pod_state_gen()
-            startup_check_interval = 10  # Any value is fine, as time.sleep is mocked to do almost nothing
-            mock_pod = MagicMock()
-            self.pod_manager.await_pod_start(
-                pod=mock_pod,
-                startup_timeout=60,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
-                startup_check_interval=startup_check_interval,
-            )
-            mock_time_sleep.assert_called_with(startup_check_interval)
+        self.mock_kube_client.read_namespaced_pod.side_effect = pod_state_gen()
+        startup_check_interval = 10  # Any value is fine, as time.sleep is mocked to do nothing
+        mock_pod = MagicMock()
+        self.pod_manager.await_pod_start(
+            pod=mock_pod,
+            startup_timeout=60,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
+            startup_check_interval=startup_check_interval,
+        )
+        mock_time_sleep.assert_called_with(startup_check_interval)
         assert mock_time_sleep.call_count == 2
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")

@@ -740,6 +740,7 @@ export class StructureService {
    * @param data.includeDownstream
    * @param data.root
    * @param data.externalDependencies
+   * @param data.versionNumber
    * @returns StructureDataResponse Successful Response
    * @throws ApiError
    */
@@ -753,6 +754,7 @@ export class StructureService {
         include_downstream: data.includeDownstream,
         root: data.root,
         external_dependencies: data.externalDependencies,
+        version_number: data.versionNumber,
       },
       errors: {
         404: "Not Found",
@@ -1904,6 +1906,7 @@ export class ExtraLinksService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.mapIndex
    * @returns ExtraLinksResponse Successful Response
    * @throws ApiError
    */
@@ -1915,6 +1918,9 @@ export class ExtraLinksService {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
       },
       errors: {
         401: "Unauthorized",
@@ -1934,6 +1940,7 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.mapIndex
    * @returns ExtraLinksResponse Successful Response
    * @throws ApiError
    */
@@ -1945,6 +1952,9 @@ export class TaskInstanceService {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
       },
       errors: {
         401: "Unauthorized",
@@ -2976,7 +2986,7 @@ export class XcomService {
    * @param data.mapIndex
    * @param data.limit
    * @param data.offset
-   * @returns XComCollection Successful Response
+   * @returns XComCollectionResponse Successful Response
    * @throws ApiError
    */
   public static getXcomEntries(data: GetXcomEntriesData): CancelablePromise<GetXcomEntriesResponse> {

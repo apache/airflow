@@ -21,11 +21,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.slack.notifications.slack_webhook import (
     SlackWebhookNotifier,
     send_slack_webhook_notification,
 )
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 pytestmark = pytest.mark.db_test
 

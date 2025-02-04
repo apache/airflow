@@ -46,6 +46,7 @@ class LivySensor(BaseSensorOperator):
         livy_conn_id: str = "livy_default",
         livy_conn_auth_type: Any | None = None,
         extra_options: dict[str, Any] | None = None,
+        endpoint_prefix: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -54,6 +55,7 @@ class LivySensor(BaseSensorOperator):
         self._livy_conn_auth_type = livy_conn_auth_type
         self._livy_hook: LivyHook | None = None
         self._extra_options = extra_options or {}
+        self._endpoint_prefix = endpoint_prefix
 
     def get_hook(self) -> LivyHook:
         """
@@ -66,6 +68,7 @@ class LivySensor(BaseSensorOperator):
                 livy_conn_id=self._livy_conn_id,
                 extra_options=self._extra_options,
                 auth_type=self._livy_conn_auth_type,
+                endpoint_prefix=self._endpoint_prefix,
             )
         return self._livy_hook
 

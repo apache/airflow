@@ -180,6 +180,7 @@ exclude = [
 ]
 artifacts = [
     "/airflow/www/static/dist/",
+    "/airflow/ui/dist/",
     "/airflow/git_version",
     "/generated/",
 ]
@@ -190,6 +191,7 @@ include = [
 ]
 artifacts = [
     "/airflow/www/static/dist/",
+    "/airflow/ui/dist/",
     "/airflow/git_version"
 ]
 
@@ -625,6 +627,9 @@ dev = [
   "apache-airflow-providers-alibaba",
   "apache-airflow-providers-apache-beam",
   "apache-airflow-providers-apache-cassandra",
+  "apache-airflow-providers-apache-drill",
+  "apache-airflow-providers-apache-druid",
+  "apache-airflow-providers-apache-hive",
   "apache-airflow-providers-apache-iceberg",
   "apache-airflow-providers-apache-kafka",
   "apache-airflow-providers-apache-kylin",
@@ -642,14 +647,23 @@ dev = [
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-docker",
   "apache-airflow-providers-datadog",
+  "apache-airflow-providers-dbt-cloud",
+  "apache-airflow-providers-dingding",
   "apache-airflow-providers-discord",
   "apache-airflow-providers-edge",
+  "apache-airflow-providers-elasticsearch",
   "apache-airflow-providers-exasol",
+  "apache-airflow-providers-fab",
   "apache-airflow-providers-facebook",
   "apache-airflow-providers-ftp",
+  "apache-airflow-providers-github",
+  "apache-airflow-providers-grpc",
   "apache-airflow-providers-http",
   "apache-airflow-providers-microsoft-azure",
   "apache-airflow-providers-influxdb",
+  "apache-airflow-providers-microsoft-mssql",
+  "apache-airflow-providers-microsoft-psrp",
+  "apache-airflow-providers-jdbc",
   "apache-airflow-providers-mongo",
   "apache-airflow-providers-openlineage",
   "apache-airflow-providers-hashicorp",
@@ -657,13 +671,18 @@ dev = [
   "apache-airflow-providers-neo4j",
   "apache-airflow-providers-openai",
   "apache-airflow-providers-openfaas",
+  "apache-airflow-providers-opensearch",
   "apache-airflow-providers-opsgenie",
+  "apache-airflow-providers-oracle",
   "apache-airflow-providers-papermill",
   "apache-airflow-providers-pgvector",
   "apache-airflow-providers-mysql",
   "apache-airflow-providers-odbc",
   "apache-airflow-providers-jenkins",
   "apache-airflow-providers-pagerduty",
+  "apache-airflow-providers-redis",
+  "apache-airflow-providers-salesforce",
+  "apache-airflow-providers-sendgrid",
   "apache-airflow-providers-sftp",
   "apache-airflow-providers-slack",
   "apache-airflow-providers-snowflake",
@@ -674,6 +693,7 @@ dev = [
   "apache-airflow-providers-samba",
   "apache-airflow-providers-segment",
   "apache-airflow-providers-singularity",
+  "apache-airflow-providers-sqlite",
   "apache-airflow-providers-ssh",
   "apache-airflow-providers-standard",
   "apache-airflow-providers-tableau",
@@ -695,6 +715,9 @@ apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
+apache-airflow-providers-apache-drill = { workspace = true }
+apache-airflow-providers-apache-druid = { workspace = true }
+apache-airflow-providers-apache-hive = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
 apache-airflow-providers-apache-kafka = { workspace = true }
 apache-airflow-providers-apache-kylin = { workspace = true }
@@ -711,15 +734,24 @@ apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
+apache-airflow-providers-dbt-cloud = { workspace = true }
+apache-airflow-providers-dingding = { workspace = true }
 apache-airflow-providers-discord = { workspace = true }
 apache-airflow-providers-docker = { workspace = true }
 apache-airflow-providers-edge = {workspace = true}
+apache-airflow-providers-elasticsearch = { workspace = true }
 apache-airflow-providers-exasol = { workspace = true }
+apache-airflow-providers-fab = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-ftp = { workspace = true }
+apache-airflow-providers-github = { workspace = true }
+apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-microsoft-azure = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
+apache-airflow-providers-microsoft-mssql = { workspace = true }
+apache-airflow-providers-microsoft-psrp = { workspace = true }
+apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
@@ -729,6 +761,8 @@ apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-jenkins = { workspace = true }
 apache-airflow-providers-mysql = { workspace = true }
 apache-airflow-providers-odbc = { workspace = true }
+apache-airflow-providers-opensearch = { workspace = true }
+apache-airflow-providers-oracle = { workspace = true }
 apache-airflow-providers-pagerduty = { workspace = true }
 apache-airflow-providers-openfaas = { workspace = true }
 apache-airflow-providers-opsgenie = { workspace = true }
@@ -738,11 +772,15 @@ apache-airflow-providers-postgres = { workspace = true }
 apache-airflow-providers-pgvector = { workspace = true }
 apache-airflow-providers-presto = { workspace = true }
 apache-airflow-providers-qdrant = { workspace = true }
+apache-airflow-providers-redis = { workspace = true }
+apache-airflow-providers-salesforce = { workspace = true }
 apache-airflow-providers-samba = { workspace = true }
 apache-airflow-providers-segment = { workspace = true }
+apache-airflow-providers-sendgrid = { workspace = true }
 apache-airflow-providers-sftp = { workspace = true }
 apache-airflow-providers-singularity = { workspace = true }
 apache-airflow-providers-slack = { workspace = true }
+apache-airflow-providers-sqlite = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-snowflake = { workspace = true }
 apache-airflow-providers-standard = { workspace = true }
@@ -763,6 +801,9 @@ members = [
     "providers/alibaba",
     "providers/apache/beam",
     "providers/apache/cassandra",
+    "providers/apache/drill",
+    "providers/apache/druid",
+    "providers/apache/hive",
     "providers/apache/iceberg",
     "providers/apache/kafka",
     "providers/apache/kylin",
@@ -779,18 +820,27 @@ members = [
     "providers/common/io",
     "providers/common/sql",
     "providers/datadog",
+    "providers/dbt/cloud",
+    "providers/dingding",
     "providers/discord",
     "providers/docker",
     "providers/edge",
+    "providers/elasticsearch",
     "providers/exasol",
+    "providers/fab",
     "providers/facebook",
     "providers/ftp",
+    "providers/github",
+    "providers/grpc",
     "providers/hashicorp",
     "providers/http",
     "providers/imap",
     "providers/influxdb",
+    "providers/jdbc",
     "providers/jenkins",
     "providers/microsoft/azure",
+    "providers/microsoft/mssql",
+    "providers/microsoft/psrp",
     "providers/mongo",
     "providers/mysql",
     "providers/neo4j",
@@ -798,7 +848,9 @@ members = [
     "providers/openai",
     "providers/openfaas",
     "providers/openlineage",
+    "providers/opensearch",
     "providers/opsgenie",
+    "providers/oracle",
     "providers/pagerduty",
     "providers/papermill",
     "providers/pinecone",
@@ -806,11 +858,15 @@ members = [
     "providers/pgvector",
     "providers/presto",
     "providers/qdrant",
+    "providers/redis",
+    "providers/salesforce",
     "providers/samba",
     "providers/segment",
+    "providers/sendgrid",
     "providers/sftp",
     "providers/singularity",
     "providers/slack",
+    "providers/sqlite",
     "providers/ssh",
     "providers/snowflake",
     "providers/standard",
