@@ -192,78 +192,29 @@ class TestPrepareVirtualenv:
             ["uv", "pip", "install", "--python", "/VENV/bin/python", "apache-beam[gcp]"]
         )
 
-    def test_remove_task_decorator(self):
-        py_source = dedent(
-            """
-        @task.virtualenv(serializer="dill")
-        def f():
-            import funcsigs
-        """
-        )
-        expected_source = dedent(
-            """
-        def f():
-            import funcsigs
-        """
-        )
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == expected_source
-
-    def test_remove_decorator_no_parens(self):
-        py_source = dedent(
-            """
-        @task.virtualenv
-        def f():
-            import funcsigs
-        """
-        )
-        expected_source = dedent(
-            """
-        def f():
-            import funcsigs
-        """
-        )
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == expected_source
-
-    def test_remove_decorator_including_comment(self):
-        py_source = dedent(
-            """
-        @task.virtualenv
-        def f():
-            # @task.virtualenv
-            import funcsigs
-        """
-        )
-        expected_source = dedent(
+    @pytest.mark.parametrize(
+        "decorators, expected_decorators",
+        [
+            (["@task.virtualenv"], []),
+            (["@task.virtualenv()"], []),
+            (['@task.virtualenv(serializer="dill")'], []),
+            (["@foo", "@task.virtualenv", "@bar"], ["@foo", "@bar"]),
+            (["@foo", "@task.virtualenv()", "@bar"], ["@foo", "@bar"]),
+        ],
+        ids=["without_parens", "parens", "with_args", "nested_without_parens", "nested_with_parens"],
+    )
+    def test_remove_task_decorator(self, decorators: list[str], expected_decorators: list[str]):
+        decorator = "\n".join(decorators)
+        expected_decorator = "\n".join(expected_decorators)
+        SCRIPT = dedent(
             """
         def f():
             # @task.virtualenv
             import funcsigs
         """
         )
+        py_source = decorator + SCRIPT
+        expected_source = expected_decorator + SCRIPT if expected_decorator else SCRIPT.lstrip()
 
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == expected_source
-
-    @pytest.mark.parametrize("decorator", ["@task.virtualenv", "@task.virtualenv()"])
-    def test_remove_decorator_nested(self, decorator):
-        py_source = dedent(
-            f"""
-        @foo
-        {decorator}
-        @bar
-        def f():
-            import funcsigs
-        """
-        )
-        expected_source = dedent(
-            """
-        @foo
-        @bar
-        def f():
-            import funcsigs
-        """
-        )
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == expected_source

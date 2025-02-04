@@ -25,58 +25,28 @@ from airflow.utils.decorators import remove_task_decorator
 
 
 class TestExternalPythonDecorator:
-    def test_remove_task_decorator(self):
-        py_source = dedent(
+    @pytest.mark.parametrize(
+        "decorators, expected_decorators",
+        [
+            (["@task.external_python"], []),
+            (["@task.external_python()"], []),
+            (['@task.external_python(serializer="dill")'], []),
+            (["@foo", "@task.external_python", "@bar"], ["@foo", "@bar"]),
+            (["@foo", "@task.external_python()", "@bar"], ["@foo", "@bar"]),
+        ],
+        ids=["without_parens", "parens", "with_args", "nested_without_parens", "nested_with_parens"],
+    )
+    def test_remove_task_decorator(self, decorators: list[str], expected_decorators: list[str]):
+        decorator = "\n".join(decorators)
+        expected_decorator = "\n".join(expected_decorators)
+        SCRIPT = dedent(
             """
-        @task.external_python(serializer="dill")
         def f():
             import funcsigs
         """
         )
-        expected_source = dedent(
-            """
-        def f():
-            import funcsigs
-        """
-        )
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")
-        assert res == expected_source
+        py_source = decorator + SCRIPT
+        expected_source = expected_decorator + SCRIPT if expected_decorator else SCRIPT.lstrip()
 
-    def test_remove_decorator_no_parens(self):
-        py_source = dedent(
-            """
-        @task.external_python
-        def f():
-            import funcsigs
-            """
-        )
-        expected_source = dedent(
-            """
-        def f():
-            import funcsigs
-        """
-        )
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")
-        assert res == expected_source
-
-    @pytest.mark.parametrize("decorator", ["@task.external_python", "@task.external_python()"])
-    def test_remove_decorator_nested(self, decorator):
-        py_source = dedent(
-            f"""
-        @foo
-        {decorator}
-        @bar
-        def f():
-            import funcsigs
-        """
-        )
-        expected_source = dedent(
-            """
-        @foo
-        @bar
-        def f():
-            import funcsigs
-        """
-        )
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")
         assert res == expected_source

@@ -35,18 +35,18 @@ class _TaskDecoratorRemover(cst.CSTTransformer):
             task_decorator_name.strip("@"),
         }
 
-    def _is_task_decorator(self, decorator: cst.Decorator) -> bool:
-        if isinstance(decorator.decorator, cst.Name):
-            return decorator.decorator.value in self.decorators_to_remove
-        elif isinstance(decorator.decorator, cst.Attribute) and isinstance(
-            decorator.decorator.value, cst.Name
+    def _is_task_decorator(self, decorator_node: cst.Decorator) -> bool:
+        if isinstance(decorator_node.decorator, cst.Name):
+            return decorator_node.decorator.value in self.decorators_to_remove
+        elif isinstance(decorator_node.decorator, cst.Attribute) and isinstance(
+            decorator_node.decorator.value, cst.Name
         ):
             return (
-                f"{decorator.decorator.value.value}.{decorator.decorator.attr.value}"
+                f"{decorator_node.decorator.value.value}.{decorator_node.decorator.attr.value}"
                 in self.decorators_to_remove
             )
-        elif isinstance(decorator.decorator, cst.Call):
-            return self._is_task_decorator(cst.Decorator(decorator=decorator.decorator.func))
+        elif isinstance(decorator_node.decorator, cst.Call):
+            return self._is_task_decorator(cst.Decorator(decorator=decorator_node.decorator.func))
         return False
 
     def leave_FunctionDef(
