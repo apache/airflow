@@ -295,7 +295,15 @@ class _EdgeWorkerCli:
 
             logger.info("Quitting worker, signal being offline.")
             try:
-                worker_set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self.queues, self._get_sysinfo())
+                worker_set_state(
+                    self.hostname,
+                    EdgeWorkerState.OFFLINE_MAINTENANCE
+                    if _EdgeWorkerCli.maintenance_mode
+                    else EdgeWorkerState.OFFLINE,
+                    0,
+                    self.queues,
+                    self._get_sysinfo(),
+                )
             except EdgeWorkerVersionException:
                 logger.info("Version mismatch of Edge worker and Core. Quitting worker anyway.")
         finally:
@@ -392,17 +400,14 @@ class _EdgeWorkerCli:
         try:
             worker_info = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
             self.queues = worker_info.queues
-            if worker_info.state in (
-                EdgeWorkerState.MAINTENANCE_REQUEST,
-                EdgeWorkerState.MAINTENANCE_PENDING,
-                EdgeWorkerState.MAINTENANCE_MODE,
-            ):
-                if not _EdgeWorkerCli.maintenance_mode:
-                    logger.info("Maintenance mode requested!")
+            if worker_info.state == EdgeWorkerState.MAINTENANCE_REQUEST:
+                logger.info("Maintenance mode requested!")
                 _EdgeWorkerCli.maintenance_mode = True
-            else:
-                if _EdgeWorkerCli.maintenance_mode:
-                    logger.info("Exit Maintenance mode requested!")
+            elif (
+                worker_info.state in [EdgeWorkerState.IDLE, EdgeWorkerState.RUNNING]
+                and _EdgeWorkerCli.maintenance_mode
+            ):
+                logger.info("Exit Maintenance mode requested!")
                 _EdgeWorkerCli.maintenance_mode = False
             worker_state_changed = worker_info.state != state
         except EdgeWorkerVersionException:
