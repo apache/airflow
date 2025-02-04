@@ -84,11 +84,13 @@ class ConfigChange:
     :param config: The configuration parameter being changed.
     :param suggestion: A suggestion for replacing or handling the removed configuration.
     :param renamed_to: The new section and option if the configuration is renamed.
+    :param was_deprecated: If the config is removed, whether the old config was deprecated.
     """
 
     config: ConfigParameter
     suggestion: str = ""
     renamed_to: ConfigParameter | None = None
+    was_deprecated: bool = True
 
     @property
     def message(self) -> str:
@@ -96,15 +98,16 @@ class ConfigChange:
         if self.renamed_to:
             if self.config.section != self.renamed_to.section:
                 return (
-                    f"`{self.config.option}` configuration parameter moved from `{self.config.section}` section to `"
-                    f"{self.renamed_to.section}` section as `{self.renamed_to.option}`."
+                    f"`{self.config.option}` configuration parameter moved from `{self.config.section}` section to "
+                    f"`{self.renamed_to.section}` section as `{self.renamed_to.option}`."
                 )
             return (
                 f"`{self.config.option}` configuration parameter renamed to `{self.renamed_to.option}` "
                 f"in the `{self.config.section}` section."
             )
         return (
-            f"Removed deprecated `{self.config.option}` configuration parameter from `{self.config.section}` section. "
+            f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
+            f"from `{self.config.section}` section. "
             f"{self.suggestion}"
         )
 
@@ -203,6 +206,12 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("core", "dag_file_processor_timeout"),
         renamed_to=ConfigParameter("dag_processor", "dag_file_processor_timeout"),
     ),
+    ConfigChange(
+        config=ConfigParameter("core", "dag_processor_manager_log_location"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("core", "log_processor_filename_template"),
+    ),
     # api
     ConfigChange(
         config=ConfigParameter("api", "access_control_allow_origin"),
@@ -217,6 +226,18 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("logging", "enable_task_context_logger"),
         suggestion="Remove TaskContextLogger: Replaced by the Log table for better handling of task log "
         "messages outside the execution context.",
+    ),
+    ConfigChange(
+        config=ConfigParameter("logging", "dag_processor_manager_log_location"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("logging", "dag_processor_manager_log_stdout"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("logging", "log_processor_filename_template"),
+        was_deprecated=False,
     ),
     # metrics
     ConfigChange(
