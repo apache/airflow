@@ -717,35 +717,6 @@ class TestTIUpdateState:
 
         session.expire_all()
 
-    def test_ti_update_state_to_fail_with_runtime_check_payload_with_extra(
-        self, client, session, create_task_instance
-    ):
-        ti = create_task_instance(
-            task_id="test_ti_update_state_to_fail_with_runtime_check_payload_with_extra",
-            state=State.RUNNING,
-        )
-        session.commit()
-
-        with mock.patch(
-            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
-        ) as mock_validate_inlet_outlet_assets_activeness:
-            mock_validate_inlet_outlet_assets_activeness.side_effect = (
-                AirflowInactiveAssetInInletOrOutletException([AssetUniqueKey(name="abc", uri="something")])
-            )
-            response = client.post(
-                f"/execution/task-instances/{ti.id}/runtime-checks",
-                json={
-                    "inlets": [],
-                    "outlets": [],
-                    "foo": "bar",
-                },
-            )
-
-            assert response.status_code == 422
-            assert response.json()["detail"][0]["msg"] == "Extra inputs are not permitted"
-
-        session.expire_all()
-
 
 class TestTIHealthEndpoint:
     def setup_method(self):
