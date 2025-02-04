@@ -2259,6 +2259,7 @@ export type GetPoolsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  poolNamePattern?: string | null;
 };
 
 export type GetPoolsResponse = PoolCollectionResponse;

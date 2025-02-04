@@ -2839,6 +2839,7 @@ export class PoolService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
+   * @param data.poolNamePattern
    * @returns PoolCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -2850,6 +2851,7 @@ export class PoolService {
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+        pool_name_pattern: data.poolNamePattern,
       },
       errors: {
         401: "Unauthorized",

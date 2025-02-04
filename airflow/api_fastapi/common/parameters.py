@@ -49,6 +49,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.typing_compat import Self
@@ -650,6 +651,11 @@ QueryAssetDagIdPatternSearch = Annotated[
 # Variables
 QueryVariableKeyPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(Variable.key, "variable_key_pattern"))
+]
+
+# Pools
+QueryPoolNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(Pool.pool, "pool_name_pattern"))
 ]
 
 
