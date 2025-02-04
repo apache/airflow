@@ -406,7 +406,10 @@ class _EdgeWorkerCli:
             if worker_info.state == EdgeWorkerState.MAINTENANCE_REQUEST:
                 logger.info("Maintenance mode requested!")
                 _EdgeWorkerCli.maintenance_mode = True
-            elif worker_info.state in [EdgeWorkerState.IDLE, EdgeWorkerState.RUNNING] and EdgeWorkerCli.maintenance_mode:
+            elif (
+                worker_info.state in [EdgeWorkerState.IDLE, EdgeWorkerState.RUNNING]
+                and _EdgeWorkerCli.maintenance_mode
+            ):
                 logger.info("Exit Maintenance mode requested!")
                 _EdgeWorkerCli.maintenance_mode = False
             worker_state_changed = worker_info.state != state
