@@ -1668,6 +1668,9 @@ export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.postClearTaskInstances>
 >;
 export type PoolServicePostPoolMutationResult = Awaited<ReturnType<typeof PoolService.postPool>>;
+export type XcomServiceCreateXcomEntryMutationResult = Awaited<
+  ReturnType<typeof XcomService.createXcomEntry>
+>;
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
