@@ -982,6 +982,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1003,6 +1004,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     taskId: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
   queryKey?: Array<unknown>,
 ) => [
@@ -1029,6 +1031,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
       taskId,
       updatedAtGte,
       updatedAtLte,
+      versionNumber,
     },
   ]),
 ];
@@ -1191,6 +1194,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1213,6 +1217,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
   queryKey?: Array<unknown>,
 ) => [
@@ -1240,6 +1245,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
       taskId,
       updatedAtGte,
       updatedAtLte,
+      versionNumber,
     },
   ]),
 ];
