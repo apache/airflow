@@ -266,8 +266,8 @@ def _create_backfill_dag_run(
     dag_run_conf,
     backfill_sort_ordinal,
     session,
-    from_date,
-    to_date,
+    from_date: datetime,
+    to_date: datetime,
 ):
     from airflow.models import DAG
 

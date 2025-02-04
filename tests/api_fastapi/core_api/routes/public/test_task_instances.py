@@ -1028,7 +1028,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert count == len(response.json()["task_instances"])
 
     @pytest.mark.parametrize(
-        "order_by_field, date",
+        "order_by_field, base_date",
         [
             ("start_date", DEFAULT_DATETIME_1 + timedelta(days=20)),
             ("logical_date", DEFAULT_DATETIME_2),
@@ -1036,7 +1036,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             ("data_interval_end", DEFAULT_DATETIME_2 + timedelta(days=8)),
         ],
     )
-    def test_should_respond_200_for_order_by(self, order_by_field, date, test_client, session):
+    def test_should_respond_200_for_order_by(self, order_by_field, base_date, test_client, session):
         dag_id = "example_python_operator"
 
         dag_runs = [
@@ -1044,10 +1044,10 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 dag_id=dag_id,
                 run_id=f"run_{i}",
                 run_type=DagRunType.MANUAL,
-                logical_date=date + dt.timedelta(days=i),
+                logical_date=base_date + dt.timedelta(days=i),
                 data_interval=(
-                    date + dt.timedelta(days=i),
-                    date + dt.timedelta(days=i, hours=1),
+                    base_date + dt.timedelta(days=i),
+                    base_date + dt.timedelta(days=i, hours=1),
                 ),
             )
             for i in range(10)
@@ -1058,7 +1058,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         self.create_task_instances(
             session,
             task_instances=[
-                {"run_id": f"run_{i}", "start_date": date + dt.timedelta(minutes=(i + 1))} for i in range(10)
+                {"run_id": f"run_{i}", "start_date": base_date + dt.timedelta(minutes=(i + 1))}
+                for i in range(10)
             ],
             dag_id=dag_id,
         )

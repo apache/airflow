@@ -1322,6 +1322,7 @@ class TestTriggerDagRun:
     def test_should_response_409_for_duplicate_logical_date(self, test_client):
         RUN_ID_1 = "random_1"
         RUN_ID_2 = "random_2"
+        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
         note = "duplicate logical date test"
         response_1 = test_client.post(
             f"/public/dags/{DAG1_ID}/dagRuns",
@@ -1333,6 +1334,24 @@ class TestTriggerDagRun:
         )
 
         assert response_1.status_code == 200
+        assert response_1.json() == {
+            "dag_run_id": RUN_ID_1,
+            "dag_id": DAG1_ID,
+            "logical_date": now,
+            "queued_at": now,
+            "start_date": None,
+            "end_date": None,
+            "data_interval_start": now,
+            "data_interval_end": now,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "state": "queued",
+            "external_trigger": True,
+            "triggered_by": "rest_api",
+            "conf": {},
+            "note": note,
+        }
+
         assert response_2.status_code == 409
 
     @pytest.mark.parametrize(
