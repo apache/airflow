@@ -262,8 +262,11 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     def refresh(self) -> None:
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
-        self._fetch_bare_repo()
-        self.repo.remotes.origin.pull()
+
+        with self.hook.setup_inline_key() as tmp_keyfile:
+            self.hook.env = self.hook.set_git_env(tmp_keyfile)
+            self._fetch_bare_repo()
+            self.repo.remotes.origin.pull()
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:
