@@ -951,6 +951,28 @@ ARG_OPTIONAL_SECTION = Arg(
     help="The section name",
 )
 
+# config lint
+ARG_LINT_CONFIG_SECTION = Arg(
+    ("--section",),
+    help="The section name(s) to lint in the airflow config.",
+    type=string_list_type,
+)
+ARG_LINT_CONFIG_OPTION = Arg(
+    ("--option",),
+    help="The option name(s) to lint in the airflow config.",
+    type=string_list_type,
+)
+ARG_LINT_CONFIG_IGNORE_SECTION = Arg(
+    ("--ignore-section",),
+    help="The section name(s) to ignore to lint in the airflow config.",
+    type=string_list_type,
+)
+ARG_LINT_CONFIG_IGNORE_OPTION = Arg(
+    ("--ignore-option",),
+    help="The option name(s) to ignore to lint in the airflow config.",
+    type=string_list_type,
+)
+
 # kubernetes cleanup-pods
 ARG_NAMESPACE = Arg(
     ("--namespace",),
@@ -1866,6 +1888,18 @@ CONFIG_COMMANDS = (
             ARG_COMMENT_OUT_EVERYTHING,
             ARG_EXCLUDE_PROVIDERS,
             ARG_DEFAULTS,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="lint",
+        help="lint options for the configuration changes while migrating from Airflow 2.x to Airflow 3.0",
+        func=lazy_load_command("airflow.cli.commands.remote_commands.config_command.lint_config"),
+        args=(
+            ARG_LINT_CONFIG_SECTION,
+            ARG_LINT_CONFIG_OPTION,
+            ARG_LINT_CONFIG_IGNORE_SECTION,
+            ARG_LINT_CONFIG_IGNORE_OPTION,
             ARG_VERBOSE,
         ),
     ),
