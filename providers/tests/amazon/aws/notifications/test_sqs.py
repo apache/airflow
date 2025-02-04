@@ -20,8 +20,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.notifications.sqs import SqsNotifier, send_sqs_notification
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.types import NOTSET
 
 PARAM_DEFAULT_VALUE = pytest.param(NOTSET, id="default-value")

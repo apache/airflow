@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 
 DEFAULT_DATE = datetime(2016, 1, 1)
