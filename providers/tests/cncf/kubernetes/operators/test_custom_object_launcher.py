@@ -47,7 +47,7 @@ def mock_launcher():
 
     custom_object_api = CustomObjectsApi()
     custom_object_api.create_namespaced_custom_object = MagicMock(
-        return_value = {"spec": spec, "metadata": {"name": name}}
+        return_value={"spec": spec, "metadata": {"name": name}}
     )
 
     launcher = CustomObjectLauncher(
