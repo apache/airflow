@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, ClassVar
 import attr
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.sdk.definitions.baseoperator import BaseOperator
 
 
 @attr.s(auto_attribs=True)
@@ -48,9 +48,6 @@ class BaseOperatorLink(metaclass=ABCMeta):
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Link to external system.
-
-        Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
-        supported at runtime but is deprecated.
 
         :param operator: The Airflow operator object this link is associated to.
         :param ti_key: TaskInstance ID to return link for.

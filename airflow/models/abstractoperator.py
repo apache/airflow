@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import inspect
 from collections.abc import Iterable, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable
@@ -159,7 +158,7 @@ class AbstractOperator(LoggingMixin, TaskSDKAbstractOperator):
         )
 
     @cached_property
-    def operator_extra_link_dict(self) -> dict[str, Any]:
+    def operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:
         """Returns dictionary of all extra links for the operator."""
         op_extra_links_from_plugin: dict[str, Any] = {}
         from airflow import plugins_manager
@@ -178,7 +177,7 @@ class AbstractOperator(LoggingMixin, TaskSDKAbstractOperator):
         return operator_extra_links_all
 
     @cached_property
-    def global_operator_extra_link_dict(self) -> dict[str, Any]:
+    def global_operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:
         """Returns dictionary of all global extra links."""
         from airflow import plugins_manager
 
@@ -203,17 +202,11 @@ class AbstractOperator(LoggingMixin, TaskSDKAbstractOperator):
         :param link_name: The name of the link we're looking for the URL for. Should be
             one of the options specified in ``extra_links``.
         """
-        link: BaseOperatorLink | None = self.operator_extra_link_dict.get(link_name)
+        link = self.operator_extra_link_dict.get(link_name) or self.global_operator_extra_link_dict.get(
+            link_name
+        )
         if not link:
-            link = self.global_operator_extra_link_dict.get(link_name)
-            if not link:
-                return None
-
-        parameters = inspect.signature(link.get_link).parameters
-        old_signature = all(name != "ti_key" for name, p in parameters.items() if p.kind != p.VAR_KEYWORD)
-
-        if old_signature:
-            return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore[misc]
+            return None
         return link.get_link(self.unmap(None), ti_key=ti.key)
 
     def expand_mapped_task(self, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
