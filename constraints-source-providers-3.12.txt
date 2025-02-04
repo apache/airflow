@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-04T13:58:05.444506
+# This constraints file was automatically generated on 2025-02-04T19:54:28.424468
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -27,7 +27,7 @@ Flask==2.2.5
 GitPython==3.1.44
 JayDeBeApi==1.2.3
 Jinja2==3.1.5
-Mako==1.3.8
+Mako==1.3.9
 Markdown==3.7
 MarkupSafe==3.0.2
 PyAthena==3.12.2
@@ -119,7 +119,7 @@ azure-synapse-spark==0.7.0
 babel==2.17.0
 backoff==1.10.0
 bcrypt==4.2.1
-beautifulsoup4==4.13.1
+beautifulsoup4==4.13.2
 billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
@@ -414,7 +414,7 @@ paramiko==3.5.1
 parso==0.8.4
 pathable==0.4.4
 pathspec==0.12.1
-pbr==6.1.0
+pbr==6.1.1
 pdbr==0.9.0
 pdpyras==5.4.0
 pendulum==3.0.0
