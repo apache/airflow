@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 from unittest import mock
-
+import logging
 import aiohttp
 import pytest
 from aiohttp.helpers import TimerNoop
@@ -286,6 +286,7 @@ class TestDataFusionHook:
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_delete_pipeline_should_fail_if_status_409(self, mock_request, hook, caplog):
+        caplog.set_level(logging.INFO)
         mock_request.side_effect = [
             MockResponse(status=409, data="Conflict: Resource is still in use."),
             MockResponse(status=200, data="Success"),
