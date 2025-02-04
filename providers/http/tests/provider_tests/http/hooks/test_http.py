@@ -294,8 +294,12 @@ class TestHttpHook:
             resp = self.post_hook.run("v1/test", extra_options={"check_response": False})
             assert resp.status_code == 418
 
-    def test_post_request_do_not_raise_for_status_if_check_response_is_false_within_extra(self, requests_mock):
-        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "check_response": False})
+    def test_post_request_do_not_raise_for_status_if_check_response_is_false_within_extra(
+        self, requests_mock
+    ):
+        airflow_connection = get_airflow_connection_with_extra(
+            extra={"bearer": "test", "check_response": False}
+        )
         requests_mock.post(
             "http://test:8080/v1/test",
             status_code=418,
