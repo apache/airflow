@@ -32,6 +32,7 @@ from rich.syntax import Syntax
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     PROVIDER_DEPENDENCIES,
     PROVIDER_RUNTIME_DATA_SCHEMA_PATH,
     REGULAR_DOC_PACKAGES,
@@ -788,6 +789,12 @@ def get_provider_jinja_context(
         p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
     ]
     cross_providers_dependencies = get_cross_provider_dependent_packages(provider_package_id=provider_id)
+
+    # Most providers require the same python versions, but some may have exclusions
+    requires_python_version: str = f"~={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+    for excluded_python_version in provider_details.excluded_python_versions:
+        requires_python_version += f",!={excluded_python_version}"
+
     context: dict[str, Any] = {
         "PROVIDER_ID": provider_details.provider_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_id),
@@ -825,6 +832,7 @@ def get_provider_jinja_context(
         "PIP_REQUIREMENTS_TABLE_RST": convert_pip_requirements_to_table(
             get_provider_requirements(provider_id), markdown=False
         ),
+        "REQUIRES_PYTHON": requires_python_version,
     }
     return context
 

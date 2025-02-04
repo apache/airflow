@@ -74,5 +74,5 @@ def get_provider_info():
                 "connection-type": "cloudant",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", 'ibmcloudant==0.9.1 ; python_version >= "3.10"'],
+        "dependencies": ["apache-airflow>=2.9.0", 'ibmcloudant==0.9.1;python_version >= "3.10"'],
     }
