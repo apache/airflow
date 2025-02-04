@@ -17,14 +17,22 @@
  * under the License.
  */
 import { Box, Button, Heading, HStack } from "@chakra-ui/react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 export const ExtraLinks = () => {
-  // TODO: Add support for mapped tasks using map_index once API support is available
   const { dagId = "", runId = "", taskId = "" } = useParams();
-  const { data, isLoading } = useTaskInstanceServiceGetExtraLinks({ dagId, dagRunId: runId, taskId });
+  const [searchParams] = useSearchParams();
+  const mapIndexParam = searchParams.get("map_index");
+  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
+
+  const { data, isLoading } = useTaskInstanceServiceGetExtraLinks({
+    dagId,
+    dagRunId: runId,
+    mapIndex,
+    taskId,
+  });
 
   return !isLoading && data !== undefined && Object.keys(data).length > 0 ? (
     <Box py={2}>
