@@ -295,18 +295,15 @@ class _EdgeWorkerCli:
 
             logger.info("Quitting worker, signal being offline.")
             try:
-                if _EdgeWorkerCli.maintenance_mode:
-                    worker_set_state(
-                        self.hostname,
-                        EdgeWorkerState.OFFLINE_MAINTENANCE,
-                        0,
-                        self.queues,
-                        self._get_sysinfo(),
-                    )
-                else:
-                    worker_set_state(
-                        self.hostname, EdgeWorkerState.OFFLINE, 0, self.queues, self._get_sysinfo()
-                    )
+                worker_set_state(
+                    self.hostname,
+                    EdgeWorkerState.OFFLINE_MAINTENANCE
+                    if _EdgeWorkerCli.maintenance_mode
+                    else EdgeWorkerState.OFFLINE,
+                    0,
+                    self.queues,
+                    self._get_sysinfo(),
+                )
             except EdgeWorkerVersionException:
                 logger.info("Version mismatch of Edge worker and Core. Quitting worker anyway.")
         finally:
