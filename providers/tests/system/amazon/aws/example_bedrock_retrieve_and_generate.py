@@ -36,7 +36,6 @@ from opensearchpy import (
 from airflow import DAG
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -58,6 +57,7 @@ from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
 from airflow.providers.amazon.aws.utils import get_botocore_version
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
 

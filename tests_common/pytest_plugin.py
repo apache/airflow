@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -1125,7 +1125,7 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
 
     You cannot be able to alter the created DagRun or DagModel, use `dag_maker` fixture instead.
     """
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.utils.types import DagRunType
 
     def create_dag(
@@ -1207,7 +1207,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
 
     Uses ``create_dummy_dag`` to create the dag structure.
     """
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     def maker(
         logical_date=None,
