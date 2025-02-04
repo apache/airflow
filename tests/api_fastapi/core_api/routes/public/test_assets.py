@@ -154,7 +154,6 @@ def _create_dag_run(session, num: int = 2):
             logical_date=DEFAULT_DATE + timedelta(days=i - 1),
             start_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            external_trigger=True,
             state=DagRunState.SUCCESS,
         )
         for i in range(1, 1 + num)
@@ -1008,7 +1007,6 @@ class TestPostAssetMaterialize(TestAssets):
             "last_scheduling_decision": None,
             "run_type": "manual",
             "state": "queued",
-            "external_trigger": True,
             "triggered_by": "rest_api",
             "conf": {},
             "note": None,

@@ -66,7 +66,6 @@ class DAGRunResponse(BaseModel):
     last_scheduling_decision: datetime | None
     run_type: DagRunType
     state: DagRunState
-    external_trigger: bool
     triggered_by: DagRunTriggeredByType
     conf: dict
     note: str | None
