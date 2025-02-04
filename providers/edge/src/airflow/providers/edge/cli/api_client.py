@@ -39,10 +39,9 @@ from airflow.providers.edge.worker_api.datamodels import (
     WorkerStateBody,
 )
 from airflow.utils.state import TaskInstanceState  # noqa: TC001
-
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.edge.models.edge_worker import EdgeWorkerState
+    from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
 
 logger = logging.getLogger(__name__)
 
@@ -92,13 +91,18 @@ def worker_register(
     hostname: str, state: EdgeWorkerState, queues: list[str] | None, sysinfo: dict
 ) -> datetime:
     """Register worker with the Edge API."""
-    result = _make_generic_request(
-        "POST",
-        f"worker/{quote(hostname)}",
-        WorkerStateBody(state=state, jobs_active=0, queues=queues, sysinfo=sysinfo).model_dump_json(
-            exclude_unset=True
-        ),
-    )
+    try:
+        result = _make_generic_request(
+            "POST",
+            f"worker/{quote(hostname)}",
+            WorkerStateBody(state=state, jobs_active=0, queues=queues, sysinfo=sysinfo).model_dump_json(
+                exclude_unset=True
+            ),
+        )
+    except requests.HTTPError as e:
+        if e.response.status_code == 400:
+            raise EdgeWorkerVersionException
+        raise e
     return datetime.fromisoformat(result)
 
 
@@ -106,13 +110,18 @@ def worker_set_state(
     hostname: str, state: EdgeWorkerState, jobs_active: int, queues: list[str] | None, sysinfo: dict
 ) -> WorkerSetStateReturn:
     """Update the state of the worker in the central site and thereby implicitly heartbeat."""
-    result = _make_generic_request(
-        "PATCH",
-        f"worker/{quote(hostname)}",
-        WorkerStateBody(state=state, jobs_active=jobs_active, queues=queues, sysinfo=sysinfo).model_dump_json(
-            exclude_unset=True
-        ),
-    )
+    try:
+        result = _make_generic_request(
+            "PATCH",
+            f"worker/{quote(hostname)}",
+            WorkerStateBody(state=state, jobs_active=jobs_active, queues=queues, sysinfo=sysinfo).model_dump_json(
+                exclude_unset=True
+            ),
+        )
+    except requests.HTTPError as e:
+        if e.response.status_code == 400:
+            raise EdgeWorkerVersionException
+        raise e
     return WorkerSetStateReturn(**result)
 
 
