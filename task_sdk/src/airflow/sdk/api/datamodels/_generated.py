@@ -257,7 +257,6 @@ class DagRun(BaseModel):
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
     run_type: DagRunType
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
-    external_trigger: Annotated[bool, Field(title="External Trigger")] = False
 
 
 class HTTPValidationError(BaseModel):
