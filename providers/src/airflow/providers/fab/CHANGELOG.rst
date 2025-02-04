@@ -20,6 +20,22 @@
 Changelog
 ---------
 
+1.5.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[providers-fab/v1-5] Use different default algorithms for different werkzeug versions (#46384) (#46392)``
+
+Misc
+~~~~
+
+* ``[providers-fab/v1-5] Upgrade to FAB 4.5.3 (#45874) (#45918)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.5.2
 .....
 
