@@ -43,7 +43,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_processing_engine_facet,
     is_operator_disabled,
 )
-from airflow.sdk.definitions.secrets_masker import _secrets_masker
+from airflow.sdk.execution_time.secrets_masker import _secrets_masker
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils import timezone
 from airflow.utils.state import State

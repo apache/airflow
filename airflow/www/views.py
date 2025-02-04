@@ -113,8 +113,8 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
 from airflow.providers_manager import ProvidersManager
-from airflow.sdk.definitions import secrets_masker
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.execution_time import secrets_masker
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS

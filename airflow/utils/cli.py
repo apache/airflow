@@ -35,7 +35,7 @@ import re2
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.sdk.definitions.secrets_masker import should_hide_value_for_key
+from airflow.sdk.execution_time.secrets_masker import should_hide_value_for_key
 from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors

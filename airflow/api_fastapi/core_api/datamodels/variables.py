@@ -23,7 +23,7 @@ from pydantic import ConfigDict, Field, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models.base import ID_LEN
-from airflow.sdk.definitions.secrets_masker import redact
+from airflow.sdk.execution_time.secrets_masker import redact
 from airflow.typing_compat import Self
 
 

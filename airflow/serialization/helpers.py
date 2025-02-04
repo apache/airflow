@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any
 
 from airflow.configuration import conf
-from airflow.sdk.definitions.secrets_masker import redact
+from airflow.sdk.execution_time.secrets_masker import redact
 from airflow.settings import json
 
 

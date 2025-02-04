@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.sdk.definitions.secrets_masker import mask_secret
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 
 if TYPE_CHECKING:
     from datetime import datetime

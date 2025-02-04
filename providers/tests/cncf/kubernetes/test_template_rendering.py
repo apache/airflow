@@ -118,7 +118,9 @@ def test_get_rendered_k8s_spec(render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, creat
 
 
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-@mock.patch("airflow.sdk.definitions.secrets_masker.redact", autospec=True, side_effect=lambda d, _=None: d)
+@mock.patch(
+    "airflow.sdk.execution_time.secrets_masker.redact", autospec=True, side_effect=lambda d, _=None: d
+)
 @mock.patch("airflow.providers.cncf.kubernetes.template_rendering.render_k8s_pod_yaml")
 def test_get_k8s_pod_yaml(render_k8s_pod_yaml, redact, dag_maker, session):
     """

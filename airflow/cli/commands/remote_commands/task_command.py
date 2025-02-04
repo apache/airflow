@@ -48,7 +48,7 @@ from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.definitions.secrets_masker import RedactedIO
+from airflow.sdk.execution_time.secrets_masker import RedactedIO
 from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS

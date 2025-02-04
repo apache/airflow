@@ -51,7 +51,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_task_lineage_enabled,
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
-from airflow.sdk.definitions.secrets_masker import (
+from airflow.sdk.execution_time.secrets_masker import (
     Redactable,
     Redacted,
     SecretsMasker,

@@ -56,7 +56,7 @@ from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionW
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
 from airflow.providers_manager import ProvidersManager
-from airflow.sdk.definitions.secrets_masker import mask_secret
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 
