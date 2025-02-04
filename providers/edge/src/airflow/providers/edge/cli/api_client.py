@@ -39,6 +39,7 @@ from airflow.providers.edge.worker_api.datamodels import (
     WorkerStateBody,
 )
 from airflow.utils.state import TaskInstanceState  # noqa: TC001
+
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
@@ -114,9 +115,9 @@ def worker_set_state(
         result = _make_generic_request(
             "PATCH",
             f"worker/{quote(hostname)}",
-            WorkerStateBody(state=state, jobs_active=jobs_active, queues=queues, sysinfo=sysinfo).model_dump_json(
-                exclude_unset=True
-            ),
+            WorkerStateBody(
+                state=state, jobs_active=jobs_active, queues=queues, sysinfo=sysinfo
+            ).model_dump_json(exclude_unset=True),
         )
     except requests.HTTPError as e:
         if e.response.status_code == 400:
