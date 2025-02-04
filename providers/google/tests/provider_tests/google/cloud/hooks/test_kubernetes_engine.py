@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 from asyncio import Future
 from unittest import mock
 
@@ -525,6 +526,7 @@ class TestGKEKubernetesAsyncHook:
     @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
     async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
+        caplog.set_level(logging.INFO)
         self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
 
         await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)

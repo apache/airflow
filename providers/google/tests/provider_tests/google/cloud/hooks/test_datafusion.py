@@ -652,6 +652,7 @@ class TestDataFusionHookAsynch:
         self, mocked_get, hook_async, caplog
     ):
         """Assets that the logging is done correctly when DataFusionAsyncHook raises Exception"""
+        caplog.set_level(logging.INFO)
         mocked_get.side_effect = Exception()
 
         await hook_async.get_pipeline_status(

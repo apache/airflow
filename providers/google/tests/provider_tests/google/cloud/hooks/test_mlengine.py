@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from copy import deepcopy
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -1105,6 +1106,7 @@ async def test_async_get_job_status_with_oserror_should_execute_successfully(moc
 @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job")
 async def test_async_get_job_status_with_exception_should_execute_successfully(mocked_get, caplog):
     """Assets that the logging is done correctly when MLEngineAsyncHook raises Exception"""
+    caplog.set_level(logging.INFO)
     mocked_get.side_effect = Exception()
 
     await mlengine_hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
