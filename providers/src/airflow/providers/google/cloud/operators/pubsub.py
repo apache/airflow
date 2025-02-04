@@ -40,9 +40,12 @@ from google.cloud.pubsub_v1.types import (
     SchemaSettings,
 )
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
+from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
@@ -746,6 +749,9 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: If True, run the task in the deferrable mode.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
+        The default is 300 seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -764,6 +770,8 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
+        poll_interval: int = 300,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -774,8 +782,23 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         self.ack_messages = ack_messages
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def execute(self, context: Context) -> list:
+        if self.deferrable:
+            self.defer(
+                trigger=PubsubPullTrigger(
+                    subscription=self.subscription,
+                    project_id=self.project_id,
+                    max_messages=self.max_messages,
+                    ack_messages=self.ack_messages,
+                    gcp_conn_id=self.gcp_conn_id,
+                    poke_interval=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+            )
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -800,6 +823,17 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
             )
 
         return ret
+
+    def execute_complete(self, context: Context, event: dict[str, Any]):
+        """If messages_callback is provided, execute it; otherwise, return immediately with trigger event message."""
+        if event["status"] == "success":
+            self.log.info("Sensor pulls messages: %s", event["message"])
+            messages_callback = self.messages_callback or self._default_message_callback
+            _return_value = messages_callback(event["message"], context)
+            return _return_value
+
+        self.log.info("Sensor failed: %s", event["message"])
+        raise AirflowException(event["message"])
 
     def _default_message_callback(
         self,
