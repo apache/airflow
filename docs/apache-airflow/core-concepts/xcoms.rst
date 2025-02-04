@@ -64,6 +64,7 @@ To push multiple XComs at once:
         task_id="xcom_push_with_multiple_outputs",
         python_callable=lambda: value,
         do_xcom_push=True,
+        multiple_outputs=True,
     )
 
 To pull a specific key from the XCom:
@@ -72,6 +73,8 @@ To pull a specific key from the XCom:
 
     # Pulling a specific key from the multiple outputs
     task_instance.xcom_pull(key="key1", task_ids="xcom_push_with_multiple_outputs")  # will return "value1"
+    task_instance.xcom_pull(key="key2", task_ids="xcom_push_with_multiple_outputs")  # will return "value2"
+
 
 
 .. note::
