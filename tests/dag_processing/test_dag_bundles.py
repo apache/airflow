@@ -506,3 +506,14 @@ class TestGitDagBundle:
                     bundle._clone_repo_if_required()
 
                 assert "Repository path: %s not found" in str(exc_info.value)
+
+    @mock.patch("airflow.dag_processing.bundles.git.GitDagBundle.log")
+    def test_repo_url_access_missing_connection_doesnt_error(self, mock_log):
+        bundle = GitDagBundle(
+            name="testa",
+            tracking_ref="main",
+            git_conn_id="unknown",
+            repo_url="some_repo_url",
+        )
+        assert bundle.repo_url == "some_repo_url"
+        assert "Could not create GitHook for connection" in mock_log.warning.call_args[0][0]

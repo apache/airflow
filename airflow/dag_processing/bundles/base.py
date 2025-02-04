@@ -40,7 +40,8 @@ class BaseDagBundle(ABC):
     multiple versions of the same bundle in use at the same time. The DAG processor will always use the latest version.
 
     :param name: String identifier for the DAG bundle
-    :param refresh_interval: How often the bundle should be refreshed from the source (in seconds)
+    :param refresh_interval: How often the bundle should be refreshed from the source in seconds
+        (Optional - defaults to [dag_processor] refresh_interval)
     :param version: Version of the DAG bundle (Optional)
     """
 
@@ -62,8 +63,10 @@ class BaseDagBundle(ABC):
         """
         Initialize the bundle.
 
-        This method is called by the DAG processor before the bundle is used,
-        and allows for deferring expensive operations until that point in time.
+        This method is called by the DAG processor and worker before the bundle is used,
+        and allows for deferring expensive operations until that point in time. This will
+        only be called when Airflow needs the bundle files on disk - some uses only need
+        to call the `view_url` method, which can run without initializing the bundle.
         """
         self.is_initialized = True
 
@@ -72,7 +75,7 @@ class BaseDagBundle(ABC):
         """
         Where bundles can store DAGs on disk (if local disk is required).
 
-        This is the root path, shared by various bundles. Each bundle should have its own subdirectory.
+        This is the root bundle storage path, common to all bundles. Each bundle should use a subdirectory of this path.
         """
         if configured_location := conf.get("dag_processor", "dag_bundle_storage_path", fallback=None):
             return Path(configured_location)
@@ -84,7 +87,8 @@ class BaseDagBundle(ABC):
         """
         Path for this bundle.
 
-        Airflow will use this path to load/execute the DAGs from the bundle.
+        Airflow will use this path to find/load/execute the DAGs from the bundle.
+        After `initialize` has been called, all dag files in the bundle should be accessible from this path.
         """
 
     @abstractmethod
@@ -101,7 +105,9 @@ class BaseDagBundle(ABC):
 
     def view_url(self, version: str | None = None) -> str | None:
         """
-        URL to view the bundle.
+        URL to view the bundle on an external website. This is shown to users in the Airflow UI, allowing them to navigate to this url for more details about that version of the bundle.
+
+        This needs to function without `initialize` being called.
 
         :param version: Version to view
         :return: URL to view the bundle
