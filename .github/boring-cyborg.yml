@@ -204,15 +204,10 @@ labelPRBasedOnFilePath:
     - providers/tests/system/microsoft/azure/**/*
 
   provider:microsoft-mssql:
-    - providers/src/airflow/providers/microsoft/mssql/**/*
-    - docs/apache-airflow-providers-microsoft-mssql/**/*
-    - providers/tests/microsoft/mssql/**/*
-    - providers/tests/system/microsoft/mssql/**/*
+    - providers/microsoft/mssql/**
 
   provider:microsoft-psrp:
-    - providers/src/airflow/providers/microsoft/psrp/**/*
-    - docs/apache-airflow-providers-microsoft-psrp/**/*
-    - providers/tests/microsoft/psrp/**/*
+    - providers/microsoft/psrp/**
 
   provider:microsoft-winrm:
     - providers/src/airflow/providers/microsoft/winrm/**/*

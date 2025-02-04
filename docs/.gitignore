@@ -38,6 +38,8 @@ apache-airflow-providers-grpc
 apache-airflow-providers-http
 apache-airflow-providers-jdbc
 apache-airflow-providers-influxdb
+apache-airflow-providers-microsoft-mssql
+apache-airflow-providers-microsoft-psrp
 apache-airflow-providers-mongo
 apache-airflow-providers-openlineage
 apache-airflow-providers-hashicorp

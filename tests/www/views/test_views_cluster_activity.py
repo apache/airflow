@@ -23,7 +23,7 @@ import pendulum
 import pytest
 
 from airflow.models import DagBag
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
