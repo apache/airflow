@@ -586,6 +586,8 @@ class TestStringifiedDAGs:
             [
                 "providers/src/airflow/providers/*/example_dags",
                 "providers/src/airflow/providers/*/*/example_dags",
+                "providers/*/src/airflow/providers/*/example_dags",
+                "providers/*/src/airflow/providers/*/*/example_dags",
             ]
         )
 
