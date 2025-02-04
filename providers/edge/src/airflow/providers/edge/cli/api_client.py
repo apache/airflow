@@ -39,6 +39,7 @@ from airflow.providers.edge.worker_api.datamodels import (
     WorkerStateBody,
 )
 from airflow.utils.state import TaskInstanceState  # noqa: TC001
+
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
