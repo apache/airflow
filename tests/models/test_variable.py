@@ -30,6 +30,7 @@ from airflow.secrets.metastore import MetastoreBackend
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -302,7 +303,10 @@ class TestVariable:
     ],
 )
 def test_masking_only_secret_values(variable_value, deserialize_json, expected_masked_values, session):
-    from airflow.sdk.execution_time.secrets_masker import _secrets_masker
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk.execution_time.secrets_masker import _secrets_masker
+    else:
+        from airflow.utils.log.secrets_masker import _secrets_masker
 
     SecretCache.reset()
 
