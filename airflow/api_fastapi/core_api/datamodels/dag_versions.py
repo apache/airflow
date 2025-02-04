@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,23 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from datetime import datetime
+from uuid import UUID
+
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
-function cleanup_docker {
-    local target_docker_volume_location="/mnt/var-lib-docker"
-    echo "Checking free space!"
-    df -H
-    echo "Making sure that /mnt is writeable"
-    sudo chown -R "${USER}" /mnt
-    # This is faster than docker prune
-    echo "Stopping docker"
-    sudo systemctl stop docker
-    sudo rm -rf /var/lib/docker
-    echo "Mounting ${target_docker_volume_location} to /var/lib/docker"
-    sudo mkdir -p "${target_docker_volume_location}" /var/lib/docker
-    sudo mount --bind "${target_docker_volume_location}" /var/lib/docker
-    sudo chown -R 0:0 "${target_docker_volume_location}"
-    sudo systemctl start docker
-}
+class DagVersionResponse(BaseModel):
+    """Dag Version serializer for responses."""
 
-cleanup_docker
+    id: UUID
+    version_number: int
+    dag_id: str
+    bundle_name: str
+    bundle_version: str | None
+    created_at: datetime
