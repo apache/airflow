@@ -31,8 +31,6 @@ from airflow.providers.smtp.hooks.smtp import SmtpHook
 from airflow.utils import db
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.config import conf_vars
-
 pytestmark = pytest.mark.db_test
 
 
@@ -223,21 +221,7 @@ class TestSmtpHook:
     @patch("smtplib.SMTP_SSL")
     @patch("smtplib.SMTP")
     @patch("ssl.create_default_context")
-    def test_send_mime_ssl_none_email_context(self, create_default_context, mock_smtp, mock_smtp_ssl):
-        mock_smtp_ssl.return_value = Mock()
-        with conf_vars({("smtp", "smtp_ssl"): "True", ("email", "ssl_context"): "none"}):
-            with SmtpHook() as smtp_hook:
-                smtp_hook.send_email_smtp(
-                    to="to", subject="subject", html_content="content", from_email="from"
-                )
-        assert not mock_smtp.called
-        assert not create_default_context.called
-        mock_smtp_ssl.assert_called_once_with(host="smtp_server_address", port=465, timeout=30, context=None)
-
-    @patch("smtplib.SMTP_SSL")
-    @patch("smtplib.SMTP")
-    @patch("ssl.create_default_context")
-    def test_send_mime_ssl_extra_context(self, create_default_context, mock_smtp, mock_smtp_ssl):
+    def test_send_mime_ssl_extra_none_context(self, create_default_context, mock_smtp, mock_smtp_ssl):
         mock_smtp_ssl.return_value = Mock()
         conn = Connection(
             conn_id="smtp_ssl_extra",
@@ -246,72 +230,55 @@ class TestSmtpHook:
             login=None,
             password="None",
             port=465,
-            extra=json.dumps(dict(ssl_context="none", from_email="from")),
+            extra=json.dumps(dict(use_ssl=True, ssl_context="none", from_email="from")),
         )
         db.merge_conn(conn)
-        with conf_vars({("smtp", "smtp_ssl"): "True", ("smtp_provider", "ssl_context"): "default"}):
-            with SmtpHook(smtp_conn_id="smtp_ssl_extra") as smtp_hook:
-                smtp_hook.send_email_smtp(
-                    to="to", subject="subject", html_content="content", from_email="from"
-                )
+        with SmtpHook(smtp_conn_id="smtp_ssl_extra") as smtp_hook:
+            smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp.called
-        assert not create_default_context.called
+        create_default_context.assert_not_called()
         mock_smtp_ssl.assert_called_once_with(host="smtp_server_address", port=465, timeout=30, context=None)
 
     @patch("smtplib.SMTP_SSL")
     @patch("smtplib.SMTP")
     @patch("ssl.create_default_context")
-    def test_send_mime_ssl_none_smtp_provider_context(self, create_default_context, mock_smtp, mock_smtp_ssl):
+    def test_send_mime_ssl_extra_default_context(self, create_default_context, mock_smtp, mock_smtp_ssl):
         mock_smtp_ssl.return_value = Mock()
-        with conf_vars({("smtp", "smtp_ssl"): "True", ("smtp_provider", "ssl_context"): "none"}):
-            with SmtpHook() as smtp_hook:
-                smtp_hook.send_email_smtp(
-                    to="to", subject="subject", html_content="content", from_email="from"
-                )
+        conn = Connection(
+            conn_id="smtp_ssl_extra",
+            conn_type="smtp",
+            host="smtp_server_address",
+            login=None,
+            password="None",
+            port=465,
+            extra=json.dumps(dict(use_ssl=True, ssl_context="default", from_email="from")),
+        )
+        db.merge_conn(conn)
+        with SmtpHook() as smtp_hook:
+            smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp.called
-        assert not create_default_context.called
-        mock_smtp_ssl.assert_called_once_with(host="smtp_server_address", port=465, timeout=30, context=None)
+        assert create_default_context.called
+        mock_smtp_ssl.assert_called_once_with(
+            host="smtp_server_address", port=465, timeout=30, context=create_default_context.return_value
+        )
 
     @patch("smtplib.SMTP_SSL")
     @patch("smtplib.SMTP")
     @patch("ssl.create_default_context")
-    def test_send_mime_ssl_none_smtp_provider_default_email_context(
-        self, create_default_context, mock_smtp, mock_smtp_ssl
-    ):
+    def test_send_mime_default_context(self, create_default_context, mock_smtp, mock_smtp_ssl):
         mock_smtp_ssl.return_value = Mock()
-        with conf_vars(
-            {
-                ("smtp", "smtp_ssl"): "True",
-                ("email", "ssl_context"): "default",
-                ("smtp_provider", "ssl_context"): "none",
-            }
-        ):
-            with SmtpHook() as smtp_hook:
-                smtp_hook.send_email_smtp(
-                    to="to", subject="subject", html_content="content", from_email="from"
-                )
-        assert not mock_smtp.called
-        assert not create_default_context.called
-        mock_smtp_ssl.assert_called_once_with(host="smtp_server_address", port=465, timeout=30, context=None)
-
-    @patch("smtplib.SMTP_SSL")
-    @patch("smtplib.SMTP")
-    @patch("ssl.create_default_context")
-    def test_send_mime_ssl_default_smtp_provider_none_email_context(
-        self, create_default_context, mock_smtp, mock_smtp_ssl
-    ):
-        mock_smtp_ssl.return_value = Mock()
-        with conf_vars(
-            {
-                ("smtp", "smtp_ssl"): "True",
-                ("email", "ssl_context"): "none",
-                ("smtp_provider", "ssl_context"): "default",
-            }
-        ):
-            with SmtpHook() as smtp_hook:
-                smtp_hook.send_email_smtp(
-                    to="to", subject="subject", html_content="content", from_email="from"
-                )
+        conn = Connection(
+            conn_id="smtp_ssl_extra",
+            conn_type="smtp",
+            host="smtp_server_address",
+            login=None,
+            password="None",
+            port=465,
+            extra=json.dumps(dict(use_ssl=True, from_email="from")),
+        )
+        db.merge_conn(conn)
+        with SmtpHook() as smtp_hook:
+            smtp_hook.send_email_smtp(to="to", subject="subject", html_content="content", from_email="from")
         assert not mock_smtp.called
         assert create_default_context.called
         mock_smtp_ssl.assert_called_once_with(
