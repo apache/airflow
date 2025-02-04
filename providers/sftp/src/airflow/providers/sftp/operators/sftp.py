@@ -129,7 +129,7 @@ class SFTPOperator(BaseOperator):
         if self.operation.lower() not in (SFTPOperation.GET, SFTPOperation.PUT, SFTPOperation.DELETE):
             raise TypeError(
                 f"Unsupported operation value {self.operation}, "
-                f"expected {SFTPOperation.GET} or {SFTPOperation.PUT}."
+                f"expected {SFTPOperation.GET} or {SFTPOperation.PUT} or {SFTPOperation.DELETE}."
             )
 
         file_msg = None
@@ -152,7 +152,7 @@ class SFTPOperator(BaseOperator):
                 )
                 self.sftp_hook.remote_host = self.remote_host
 
-            if self.operation in (SFTPOperation.GET, SFTPOperation.PUT):
+            if self.operation.lower() in (SFTPOperation.GET, SFTPOperation.PUT):
                 for _local_filepath, _remote_filepath in zip(local_filepath_array, remote_filepath_array):
                     if self.operation.lower() == SFTPOperation.GET:
                         local_folder = os.path.dirname(_local_filepath)
@@ -176,7 +176,7 @@ class SFTPOperator(BaseOperator):
                             )
                         else:
                             self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
-            else:
+            elif self.operation.lower() == SFTPOperation.DELETE:
                 for _remote_filepath in remote_filepath_array:
                     file_msg = f"{_remote_filepath}"
                     self.log.info("Starting to delete %s", file_msg)
@@ -186,7 +186,12 @@ class SFTPOperator(BaseOperator):
                         self.sftp_hook.delete_file(_remote_filepath)
 
         except Exception as e:
-            raise AirflowException(f"Error while transferring {file_msg}, error: {e}")
+            operation_msg = (
+                "transferring"
+                if self.operation.lower() in (SFTPOperation.GET, SFTPOperation.PUT)
+                else "deleting"
+            )
+            raise AirflowException(f"Error while {operation_msg} {file_msg}, error: {e}")
 
         return self.local_filepath
 
