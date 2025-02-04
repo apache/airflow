@@ -3627,7 +3627,6 @@ class TestTaskInstance:
             op = PythonOperator(task_id="hive_in_python_op", python_callable=self._env_var_check_callback)
         dr = dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
-            external_trigger=False,
         )
         ti = dr.get_task_instance(op.task_id)
         ti.state = State.RUNNING

@@ -57,6 +57,11 @@ class DagRunType(str, enum.Enum):
         return DagRunType.MANUAL
 
 
+externally_triggered_type: frozenset[DagRunType] = frozenset(
+    [DagRunType.BACKFILL_JOB, DagRunType.MANUAL, DagRunType.ASSET_TRIGGERED]
+)
+
+
 class EdgeInfoType(TypedDict):
     """Extra metadata that the DAG can store about an edge, usually generated from an EdgeModifier."""
 

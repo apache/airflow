@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 import pendulum
 
 from airflow.operators.branch import BaseBranchOperator
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from airflow.models import DAG, DagRun
@@ -40,7 +41,7 @@ class LatestOnlyOperator(BaseBranchOperator):
     """
     Skip tasks that are not running during the most recent schedule interval.
 
-    If the task is run outside the latest schedule interval (i.e. external_trigger),
+    If the task is run outside the latest schedule interval (i.e. run_type == DagRunType.MANUAL),
     all directly downstream tasks will be skipped.
 
     Note that downstream tasks are never skipped if the given DAG_Run is
@@ -53,8 +54,8 @@ class LatestOnlyOperator(BaseBranchOperator):
         # If the DAG Run is externally triggered, then return without
         # skipping downstream tasks
         dag_run: DagRun = context["dag_run"]  # type: ignore[assignment]
-        if dag_run.external_trigger:
-            self.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
+        if dag_run.run_type != DagRunType.SCHEDULED:
+            self.log.info("Manually triggered DAG_Run: allowing execution to proceed.")
             return list(context["task"].get_direct_relative_ids(upstream=False))
 
         dag: DAG = context["dag"]  # type: ignore[assignment]

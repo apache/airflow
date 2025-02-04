@@ -51,6 +51,7 @@ from airflow.providers.openlineage.plugins.facets import (
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
@@ -605,9 +606,8 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
             "dag_id": "dag_id",
             "data_interval_start": event_time.isoformat(),
             "data_interval_end": event_time.isoformat(),
-            "external_trigger": False if AIRFLOW_V_3_0_PLUS else None,
             "run_id": run_id,
-            "run_type": None,
+            "run_type": DagRunType.MANUAL if AIRFLOW_V_3_0_PLUS else None,
             "start_date": event_time.isoformat(),
         },
     )
@@ -646,9 +646,8 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                             "dag_id": "dag_id",
                             "data_interval_start": event_time.isoformat(),
                             "data_interval_end": event_time.isoformat(),
-                            "external_trigger": False if AIRFLOW_V_3_0_PLUS else None,
                             "run_id": run_id,
-                            "run_type": None,
+                            "run_type": DagRunType.MANUAL,
                             "start_date": event_time.isoformat(),
                         },
                     ),

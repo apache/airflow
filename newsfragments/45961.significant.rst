@@ -1,0 +1,13 @@
+Replace the ``external_trigger`` check with ``DagRunType``, and update any logic that relies on ``external_trigger`` to use ``run_type`` instead.
+
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
