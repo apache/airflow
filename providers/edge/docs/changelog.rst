@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.12.0pre0
+..........
+
+Misc
+~~~~
+
+* ``AEdge worker can remember maintenance mode in case of shut down.``
+
 0.11.0pre0
 ..........
 
