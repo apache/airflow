@@ -351,11 +351,10 @@ class TestDagRun:
             run_id="test_dagrun_no_deadlock_1",
             start_date=DEFAULT_DATE,
         )
-        next_date = DEFAULT_DATE + datetime.timedelta(days=1)
         dr2 = dag_maker.create_dagrun(
             run_id="test_dagrun_no_deadlock_2",
             start_date=DEFAULT_DATE + datetime.timedelta(days=1),
-            logical_date=next_date,
+            logical_date=DEFAULT_DATE + datetime.timedelta(days=1),
         )
         ti1_op1 = dr.get_task_instance(task_id="dop")
         dr2.get_task_instance(task_id="dop")
