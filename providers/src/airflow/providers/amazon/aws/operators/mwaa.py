@@ -66,17 +66,17 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
     ui_color = "#6ad3fa"
 
     def __init__(
-            self,
-            *,
-            env_name: str,
-            trigger_dag_id: str,
-            trigger_run_id: str | None = None,
-            logical_date: str | None = None,
-            data_interval_start: str | None = None,
-            data_interval_end: str | None = None,
-            conf: dict | None = None,
-            note: str | None = None,
-            **kwargs
+        self,
+        *,
+        env_name: str,
+        trigger_dag_id: str,
+        trigger_run_id: str | None = None,
+        logical_date: str | None = None,
+        data_interval_start: str | None = None,
+        data_interval_end: str | None = None,
+        conf: dict | None = None,
+        note: str | None = None,
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.env_name = env_name
@@ -96,7 +96,7 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
         :return: dict with information about the Dag run
             For details of the returned dict, see :py:meth:`botocore.client.MWAA.invoke_rest_api`
         """
-        return  self.hook.invoke_rest_api(
+        return self.hook.invoke_rest_api(
             env_name=self.env_name,
             path=f"/dags/{self.trigger_dag_id}/dagRuns",
             method="POST",
@@ -106,6 +106,6 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
                 "data_interval_start": self.data_interval_start,
                 "data_interval_end": self.data_interval_end,
                 "conf": self.conf,
-                "note": self.note
-            }
+                "note": self.note,
+            },
         )

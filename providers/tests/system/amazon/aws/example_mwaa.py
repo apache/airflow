@@ -64,7 +64,7 @@ with DAG(
 
     # [START howto_operator_mwaa_trigger_dag_run]
     trigger_dag_run = MwaaTriggerDagRunOperator(
-        task_id='trigger_dag_run',
+        task_id="trigger_dag_run",
         env_name=env_name,
         trigger_dag_id=trigger_dag_id,
     )
@@ -74,7 +74,7 @@ with DAG(
         # TEST SETUP
         test_context,
         # TEST BODY
-        trigger_dag_run
+        trigger_dag_run,
     )
 
     from tests_common.test_utils.watcher import watcher

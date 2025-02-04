@@ -17,6 +17,7 @@
 """This module contains AWS MWAA hook."""
 
 from __future__ import annotations
+
 import botocore.exceptions
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -24,7 +25,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class MwaaHook(AwsBaseHook):
     """
-    Interact with AWS Manager Workflows for Apache Airflow
+    Interact with AWS Manager Workflows for Apache Airflow.
 
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("mwaa") <MWAA.Client>`
 
@@ -36,15 +37,17 @@ class MwaaHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(client_type="mwaa", *args, **kwargs)
+        kwargs["client_type"] = "mwaa"
+        super().__init__(*args, **kwargs)
 
-    def invoke_rest_api(self,
-                        env_name: str,
-                        path: str,
-                        method: str,
-                        body: dict | None = None,
-                        query_params: dict | None = None
-                        ) -> dict:
+    def invoke_rest_api(
+        self,
+        env_name: str,
+        path: str,
+        method: str,
+        body: dict | None = None,
+        query_params: dict | None = None,
+    ) -> dict:
         """
         Invoke the REST API on the Airflow webserver with the specified inputs.
 
@@ -57,13 +60,14 @@ class MwaaHook(AwsBaseHook):
         :param body: Request body for the Apache Airflow REST API call
         :param query_params: Query parameters to be included in the Apache Airflow REST API call
         """
+        body = body or {}
         api_kwargs = {
             "Name": env_name,
             "Path": path,
             "Method": method,
             # Filter out keys with None values because Airflow REST API doesn't accept requests otherwise
             "Body": {k: v for k, v in body.items() if v is not None},
-            "QueryParameters": query_params if query_params else {}
+            "QueryParameters": query_params if query_params else {},
         }
         try:
             result = self.get_conn().invoke_rest_api(**api_kwargs)
