@@ -51,7 +51,7 @@ import {
   TaskInstancesBatchBody,
   TriggerDAGRunPostBody,
   VariableBody,
-  XComCreateRequest,
+  XComCreateBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -3185,7 +3185,7 @@ export const useXcomServiceCreateXcomEntry = <
       {
         dagId: string;
         dagRunId: string;
-        requestBody: XComCreateRequest;
+        requestBody: XComCreateBody;
         taskId: string;
       },
       TContext
@@ -3199,7 +3199,7 @@ export const useXcomServiceCreateXcomEntry = <
     {
       dagId: string;
       dagRunId: string;
-      requestBody: XComCreateRequest;
+      requestBody: XComCreateBody;
       taskId: string;
     },
     TContext

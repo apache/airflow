@@ -1479,9 +1479,9 @@ export type XComCollectionResponse = {
 };
 
 /**
- * Request body for creating an XCom entry.
+ * Payload serializer for creating an XCom entry.
  */
-export type XComCreateRequest = {
+export type XComCreateBody = {
   key: string;
   value: unknown;
   map_index?: number;
@@ -2318,7 +2318,7 @@ export type GetXcomEntriesResponse = XComCollectionResponse;
 export type CreateXcomEntryData = {
   dagId: string;
   dagRunId: string;
-  requestBody: XComCreateRequest;
+  requestBody: XComCreateBody;
   taskId: string;
 };
 

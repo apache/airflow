@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateRequest
+from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
 from airflow.models import XCom
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
@@ -508,7 +508,7 @@ class TestCreateXComEntry(TestXComEndpoint):
                 TEST_DAG_ID,
                 TEST_TASK_ID,
                 run_id,
-                XComCreateRequest(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
+                XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
                 201,
                 None,
                 id="valid-xcom-entry",
@@ -518,7 +518,7 @@ class TestCreateXComEntry(TestXComEndpoint):
                 "invalid-dag-id",
                 TEST_TASK_ID,
                 run_id,
-                XComCreateRequest(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
+                XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
                 404,
                 "Dag with ID: `invalid-dag-id` was not found",
                 id="dag-not-found",
@@ -528,7 +528,7 @@ class TestCreateXComEntry(TestXComEndpoint):
                 TEST_DAG_ID,
                 "invalid-task-id",
                 run_id,
-                XComCreateRequest(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
+                XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
                 404,
                 f"Task with ID: `invalid-task-id` not found in DAG: `{TEST_DAG_ID}`",
                 id="task-not-found",
@@ -538,7 +538,7 @@ class TestCreateXComEntry(TestXComEndpoint):
                 TEST_DAG_ID,
                 TEST_TASK_ID,
                 "invalid-dag-run-id",
-                XComCreateRequest(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
+                XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
                 404,
                 f"DAG Run with ID: `invalid-dag-run-id` not found for DAG: `{TEST_DAG_ID}`",
                 id="dag-run-not-found",
@@ -548,7 +548,7 @@ class TestCreateXComEntry(TestXComEndpoint):
                 TEST_DAG_ID,
                 TEST_TASK_ID,
                 run_id,
-                XComCreateRequest(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
+                XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
                 409,
                 f"The XCom with key: `{TEST_XCOM_KEY}` with mentioned task instance already exists.",
                 id="xcom-already-exists",

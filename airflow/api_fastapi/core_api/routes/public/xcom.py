@@ -27,7 +27,7 @@ from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollectionResponse,
-    XComCreateRequest,
+    XComCreateBody,
     XComResponseNative,
     XComResponseString,
 )
@@ -159,7 +159,7 @@ def create_xcom_entry(
     dag_id: str,
     task_id: str,
     dag_run_id: str,
-    request_body: XComCreateRequest,
+    request_body: XComCreateBody,
     session: SessionDep,
     request: Request,
 ) -> XComResponseNative:

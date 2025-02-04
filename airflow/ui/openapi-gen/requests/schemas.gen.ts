@@ -6022,7 +6022,7 @@ export const $XComCollectionResponse = {
   description: "XCom Collection serializer for responses.",
 } as const;
 
-export const $XComCreateRequest = {
+export const $XComCreateBody = {
   properties: {
     key: {
       type: "string",
@@ -6037,10 +6037,11 @@ export const $XComCreateRequest = {
       default: -1,
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["key", "value"],
-  title: "XComCreateRequest",
-  description: "Request body for creating an XCom entry.",
+  title: "XComCreateBody",
+  description: "Payload serializer for creating an XCom entry.",
 } as const;
 
 export const $XComResponse = {

@@ -4502,7 +4502,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/XComCreateRequest'
+              $ref: '#/components/schemas/XComCreateBody'
       responses:
         '201':
           description: Successful Response
@@ -10544,7 +10544,7 @@ components:
       - total_entries
       title: XComCollectionResponse
       description: XCom Collection serializer for responses.
-    XComCreateRequest:
+    XComCreateBody:
       properties:
         key:
           type: string
@@ -10555,12 +10555,13 @@ components:
           type: integer
           title: Map Index
           default: -1
+      additionalProperties: false
       type: object
       required:
       - key
       - value
-      title: XComCreateRequest
-      description: Request body for creating an XCom entry.
+      title: XComCreateBody
+      description: Payload serializer for creating an XCom entry.
     XComResponse:
       properties:
         key:
