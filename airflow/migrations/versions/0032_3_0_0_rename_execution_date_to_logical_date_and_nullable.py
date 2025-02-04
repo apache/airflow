@@ -49,7 +49,7 @@ def upgrade():
             "execution_date",
             new_column_name="logical_date",
             existing_type=TIMESTAMP(timezone=True),
-            existing_nullable=True,
+            nullable=True,
         )
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
@@ -66,7 +66,7 @@ def downgrade():
             "logical_date",
             new_column_name="execution_date",
             existing_type=TIMESTAMP(timezone=True),
-            existing_nullable=False,
+            nullable=False,
         )
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
