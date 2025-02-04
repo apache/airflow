@@ -2209,6 +2209,7 @@ class TestDataflow:
     def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen, caplog):
         logger_name = "fake-dataflow-wait-for-done-logger"
         fake_logger = logging.getLogger(logger_name)
+        fake_logger.setLevel(logging.INFO)
 
         cmd = ["fake", "cmd"]
         mock_proc = MagicMock(name="FakeProc")
@@ -2236,6 +2237,7 @@ class TestDataflow:
         mock_popen.return_value = mock_proc
 
         caplog.clear()
+        caplog.set_level(logging.INFO)
         with pytest.raises(AirflowException, match="Apache Beam process failed with return code 1"):
             run_beam_command(cmd=cmd, log=fake_logger)
 
