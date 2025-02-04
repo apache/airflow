@@ -37,6 +37,8 @@ from pytest_unordered import unordered
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
+from airflow.listeners import hookimpl
+from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
@@ -133,6 +135,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                start_date=instant,
             ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
@@ -201,6 +204,7 @@ class TestWatchedSubprocess:
                 dag_id="c",
                 run_id="d",
                 try_number=1,
+                start_date=tz.utcnow(),
             ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
@@ -220,11 +224,7 @@ class TestWatchedSubprocess:
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
-                id=uuid7(),
-                task_id="b",
-                dag_id="c",
-                run_id="d",
-                try_number=1,
+                id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, start_date=tz.utcnow()
             ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
@@ -256,13 +256,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
-                id=ti_id,
-                task_id="b",
-                dag_id="c",
-                run_id="d",
-                try_number=1,
-            ),
+            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
         )
@@ -315,9 +309,15 @@ class TestWatchedSubprocess:
         This includes ensuring the task starts and executes successfully, and that the task is deferred (via
         the API client) with the expected parameters.
         """
+        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
 
         ti = TaskInstance(
-            id=uuid7(), task_id="async", dag_id="super_basic_deferred_run", run_id="d", try_number=1
+            id=uuid7(),
+            task_id="async",
+            dag_id="super_basic_deferred_run",
+            run_id="d",
+            try_number=1,
+            start_date=instant,
         )
 
         # Create a mock client to assert calls to the client
@@ -325,7 +325,6 @@ class TestWatchedSubprocess:
         mock_client = mocker.Mock(spec=sdk_client.Client)
         mock_client.task_instances.start.return_value = make_ti_context()
 
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
         time_machine.move_to(instant, tick=False)
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -365,7 +364,9 @@ class TestWatchedSubprocess:
 
     def test_supervisor_handles_already_running_task(self):
         """Test that Supervisor prevents starting a Task Instance that is already running."""
-        ti = TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1)
+        ti = TaskInstance(
+            id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1, start_date=tz.utcnow()
+        )
 
         # Mock API Server response indicating the TI is already running
         # The API Server would return a 409 Conflict status code if the TI is not
@@ -441,7 +442,9 @@ class TestWatchedSubprocess:
 
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, start_date=tz.utcnow()
+            ),
             client=make_client(transport=httpx.MockTransport(handle_request)),
             target=subprocess_main,
             bundle_info=FAKE_BUNDLE,
@@ -611,6 +614,109 @@ class TestWatchedSubprocess:
             mock_logger.warning.assert_not_called()
 
 
+class TestListenerOvertime:
+    @pytest.fixture(autouse=True)
+    def clean_listener_manager(self):
+        get_listener_manager().clear()
+        yield
+        get_listener_manager().clear()
+
+    class TimeoutListener:
+        def __init__(self, timeout):
+            self.timeout = timeout
+
+        @hookimpl
+        def on_task_instance_success(self):
+            from time import sleep
+
+            sleep(self.timeout)
+
+        @hookimpl
+        def on_task_instance_failed(self):
+            from time import sleep
+
+            sleep(self.timeout)
+
+    @pytest.mark.parametrize(
+        ["dag_id", "task_id", "overtime_threshold", "expected_timeout", "listener"],
+        [
+            pytest.param(
+                "super_basic_run",
+                "hello",
+                2.0,
+                True,
+                TimeoutListener(5.0),
+            ),
+            pytest.param(
+                "super_basic_run",
+                "hello",
+                5.0,
+                False,
+                TimeoutListener(2.0),
+            ),
+        ],
+    )
+    def test_overtime_slow_listener_instance(
+        self,
+        dag_id,
+        task_id,
+        overtime_threshold,
+        expected_timeout,
+        listener,
+        monkeypatch,
+        test_dags_dir,
+        captured_logs,
+    ):
+        """Test handling of overtime under various conditions."""
+        monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+
+        """Test running a simple DAG in a subprocess and capturing the output."""
+
+        get_listener_manager().add_listener(listener)
+        dagfile_path = test_dags_dir
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id=task_id,
+            dag_id=dag_id,
+            run_id="fd",
+            try_number=1,
+        )
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+            exit_code = supervise(
+                ti=ti,
+                dag_rel_path=dagfile_path,
+                token="",
+                server="",
+                dry_run=True,
+                bundle_info=bundle_info,
+            )
+            assert captured_logs
+            print(json.dumps(captured_logs, indent=4, default=str))
+            assert exit_code == 0
+
+        if expected_timeout:
+            assert any(
+                [
+                    event["event"] == "Workload success overtime reached; terminating process"
+                    for event in captured_logs
+                ]
+            )
+            assert any(
+                [
+                    event["event"] == "Process exited" and event["signal"] == "SIGTERM"
+                    for event in captured_logs
+                ]
+            )
+        else:
+            assert all(
+                [
+                    event["event"] != "Workload success overtime reached; terminating process"
+                    for event in captured_logs
+                ]
+            )
+
+
 class TestWatchedSubprocessKill:
     @pytest.fixture
     def mock_process(self, mocker):
@@ -714,7 +820,9 @@ class TestWatchedSubprocessKill:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            what=TaskInstance(
+                id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1, start_date=tz.utcnow()
+            ),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )

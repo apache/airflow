@@ -71,7 +71,9 @@ def has_value_in_events(events, chain, value):
 with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
     listener_path = Path(tmp_dir) / "event"
 
-    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
+    @pytest.mark.skipif(
+        not AIRFLOW_V_2_10_PLUS or AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow>=2.10<3.0"
+    )
     @pytest.mark.usefixtures("reset_logging_config")
     class TestOpenLineageExecution:
         def teardown_method(self):
@@ -129,6 +131,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             self.setup_job(task_name, run_id)
 
             events = get_sorted_events(tmp_dir)
+            log.info(json.dumps(events, indent=2, sort_keys=True))
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert has_value_in_events(events, ["inputs", "name"], "on-complete")
 

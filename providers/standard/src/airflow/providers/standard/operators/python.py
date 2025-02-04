@@ -377,6 +377,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "yesterday_ds",
         "yesterday_ds_nodash",
     }
+    if AIRFLOW_V_3_0_PLUS:
+        BASE_SERIALIZABLE_CONTEXT_KEYS.add("task_reschedule_count")
+
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         "data_interval_end",
         "data_interval_start",
@@ -391,6 +394,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "prev_execution_date",
         "prev_execution_date_success",
     }
+    if AIRFLOW_V_3_0_PLUS:
+        PENDULUM_SERIALIZABLE_CONTEXT_KEYS.add("start_date")
 
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
         "macros",
