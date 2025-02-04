@@ -31,6 +31,7 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
+from airflow.dag_processing.parse_info import ParseFileInfo  # noqa: TC001
 from airflow.models.dagbag import DagBag
 from airflow.sdk.execution_time.comms import GetConnection, GetVariable
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
@@ -45,8 +46,6 @@ if TYPE_CHECKING:
 
 
 def _parse_file_entrypoint():
-    import os
-
     import structlog
 
     from airflow.sdk.execution_time import task_runner
@@ -74,8 +73,8 @@ def _parse_file_entrypoint():
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
     bag = DagBag(
-        dag_folder=msg.file,
-        bundle_path=msg.bundle_path,
+        dag_folder=msg.parse_file_info.absolute_path,
+        bundle_path=Path(msg.parse_file_info.bundle.root_path),
         include_examples=False,
         safe_mode=True,
         load_op_links=False,
@@ -89,7 +88,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
     bag.import_errors.update(serialization_import_errors)
     dags = [LazyDeserializedDAG(data=serdag) for serdag in serialized_dags]
     result = DagFileParsingResult(
-        fileloc=msg.file,
+        fileloc=str(msg.parse_file_info.rel_path),
         serialized_dags=dags,
         import_errors=bag.import_errors,
         # TODO: Make `bag.dag_warnings` not return SQLA model objects
@@ -163,10 +162,7 @@ class DagFileParseRequest(BaseModel):
     any other necessary metadata.
     """
 
-    file: str
-
-    bundle_path: Path
-    """Passing bundle path around lets us figure out relative file path."""
+    parse_file_info: ParseFileInfo
 
     requests_fd: int
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
@@ -213,25 +209,22 @@ class DagFileProcessorProcess(WatchedSubprocess):
     def start(  # type: ignore[override]
         cls,
         *,
-        path: str | os.PathLike[str],
-        bundle_path: Path,
+        parse_file_info: ParseFileInfo,
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
         **kwargs,
     ) -> Self:
         proc: Self = super().start(target=target, **kwargs)
-        proc._on_child_started(callbacks, path, bundle_path)
+        proc._on_child_started(callbacks, parse_file_info)
         return proc
 
     def _on_child_started(
         self,
         callbacks: list[CallbackRequest],
-        path: str | os.PathLike[str],
-        bundle_path: Path,
+        parse_file_info: ParseFileInfo,
     ) -> None:
         msg = DagFileParseRequest(
-            file=os.fspath(path),
-            bundle_path=bundle_path,
+            parse_file_info=parse_file_info,
             requests_fd=self._requests_fd,
             callback_requests=callbacks,
         )

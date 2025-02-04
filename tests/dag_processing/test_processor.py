@@ -29,6 +29,7 @@ from pydantic import TypeAdapter
 
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
+from airflow.dag_processing.parse_info import BundleInfo, ParseFileInfo
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
@@ -78,8 +79,13 @@ class TestDagFileProcessor:
     ) -> DagFileParsingResult | None:
         return _parse_file(
             DagFileParseRequest(
-                file=file_path,
-                bundle_path=TEST_DAG_FOLDER,
+                parse_file_info=ParseFileInfo(
+                    rel_path=file_path,
+                    bundle=BundleInfo(
+                        name="testing",
+                        root_path=TEST_DAG_FOLDER,
+                    ),
+                ),
                 requests_fd=1,
                 callback_requests=callback_requests or [],
             ),
@@ -192,7 +198,10 @@ def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
     _, w2 = socketpair()
 
     w.makefile("wb").write(
-        b'{"file":"/files/dags/wait.py","bundle_path":"/files/dags","requests_fd":'
+        b'{"parse_file_info": '
+        b'{"rel_path":"wait.py",'
+        b'"bundle":{"name":"testing","root_path":"/files/dags","version":null}'
+        b'},"requests_fd":'
         + str(w2.fileno()).encode("ascii")
         + b',"callback_requests": [{"filepath": "wait.py", "bundle_name": "testing", "bundle_version": null, '
         b'"msg": "task_failure", "dag_id": "wait_to_fail", "run_id": '
@@ -207,7 +216,7 @@ def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
 
     msg = decoder.get_message()
     assert isinstance(msg, DagFileParseRequest)
-    assert msg.file == "/files/dags/wait.py"
+    assert msg.parse_file_info.absolute_path == pathlib.Path("/files/dags/wait.py")
     assert msg.callback_requests == [
         DagCallbackRequest(
             filepath="wait.py",
@@ -248,7 +257,14 @@ def test_parse_file_with_dag_callbacks(spy_agency):
         )
     ]
     _parse_file(
-        DagFileParseRequest(file="A", bundle_path="no matter", requests_fd=1, callback_requests=requests),
+        DagFileParseRequest(
+            parse_file_info=ParseFileInfo(
+                rel_path="A",
+                bundle=BundleInfo(name="no matter", root_path="no matter"),
+            ),
+            requests_fd=1,
+            callback_requests=requests,
+        ),
         log=structlog.get_logger(),
     )
 
