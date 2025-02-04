@@ -27,21 +27,21 @@ export const ExtraLinks = () => {
   const mapIndexParam = searchParams.get("map_index");
   const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
 
-  const { data, isLoading } = useTaskInstanceServiceGetExtraLinks({
+  const { data } = useTaskInstanceServiceGetExtraLinks({
     dagId,
     dagRunId: runId,
     mapIndex,
     taskId,
   });
 
-  return !isLoading && data !== undefined && Object.keys(data).length > 0 ? (
+  return data && Object.keys(data).length > 0 ? (
     <Box py={2}>
       <Heading size="sm"> Extra Links </Heading>
       <HStack gap={2} py={2}>
-        {Object.keys(data).map((key) =>
-          data[key] === null ? undefined : (
+        {Object.entries(data).map(([key, value], _) =>
+          value === null ? undefined : (
             <Button asChild colorPalette="blue" key={key} variant="surface">
-              <a href={data[key]} rel="noreferrer" target="_blank">
+              <a href={value} rel="noreferrer" target="_blank">
                 {key}
               </a>
             </Button>

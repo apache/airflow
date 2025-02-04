@@ -86,7 +86,9 @@ export const Details = () => {
         />
       )}
       <ExtraLinks />
-      {taskInstance?.state === "deferred" && <TriggererInfo taskInstance={taskInstance} />}
+      {taskInstance !== undefined && (taskInstance.trigger ?? taskInstance.triggerer_job) ? (
+        <TriggererInfo taskInstance={taskInstance} />
+      ) : undefined}
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
