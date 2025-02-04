@@ -50,7 +50,6 @@ from tests.utils.test_config import (
 )
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.reset_warning_registry import reset_warning_registry
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 HOME_DIR = os.path.expanduser("~")
 
@@ -1734,6 +1733,8 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
         new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
     )
     def test_mask_conf_values(self, mock_sensitive_config_values):
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
         target = (
             "airflow.sdk.execution_time.secrets_masker.mask_secret"
             if AIRFLOW_V_3_0_PLUS

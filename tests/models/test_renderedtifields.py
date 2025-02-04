@@ -41,7 +41,6 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -370,6 +369,8 @@ class TestRenderedTaskInstanceFields:
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
     def test_redact(self, dag_maker):
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
         target = (
             "airflow.sdk.execution_time.secrets_masker.redact"
             if AIRFLOW_V_3_0_PLUS
