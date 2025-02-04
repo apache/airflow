@@ -1,4 +1,4 @@
-DAG processor related config options remoted
+DAG processor related config options removed
 
 The follow configuration options have been removed:
 
