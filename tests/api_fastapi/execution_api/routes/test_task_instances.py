@@ -718,9 +718,6 @@ class TestTIUpdateState:
         session.expire_all()
 
     def test_ti_update_state_to_fail_with_asset_profile_extra(self, client, session, create_task_instance):
-        clear_db_assets()
-        clear_db_runs()
-
         asset = AssetModel(
             id=1,
             name="s3://bucket/my-task",
