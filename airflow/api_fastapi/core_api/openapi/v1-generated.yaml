@@ -4118,6 +4118,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pool Name Pattern
       responses:
         '200':
           description: Successful Response

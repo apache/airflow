@@ -2032,6 +2032,7 @@ export const prefetchUsePoolServiceGetPool = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.poolNamePattern
  * @returns PoolCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2041,15 +2042,17 @@ export const prefetchUsePoolServiceGetPools = (
     limit,
     offset,
     orderBy,
+    poolNamePattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    poolNamePattern?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy }),
-    queryFn: () => PoolService.getPools({ limit, offset, orderBy }),
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolNamePattern }),
   });
 /**
  * Get Providers
