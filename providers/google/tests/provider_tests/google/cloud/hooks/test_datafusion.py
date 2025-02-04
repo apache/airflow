@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import json
-from unittest import mock
 import logging
+from unittest import mock
+
 import aiohttp
 import pytest
 from aiohttp.helpers import TimerNoop
