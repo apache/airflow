@@ -923,9 +923,11 @@ class DagRun(Base, LoggingMixin):
                 dag.handle_callback(self, success=False, reason="task_failure", session=session)
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
-                    full_filepath=dag.fileloc,
+                    filepath=self.dag_model.relative_fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
+                    bundle_name=self.dag_version.bundle_name,
+                    bundle_version=self.bundle_version,
                     is_failure_callback=True,
                     msg="task_failure",
                 )
@@ -950,9 +952,11 @@ class DagRun(Base, LoggingMixin):
                 dag.handle_callback(self, success=True, reason="success", session=session)
             elif dag.has_on_success_callback:
                 callback = DagCallbackRequest(
-                    full_filepath=dag.fileloc,
+                    filepath=self.dag_model.relative_fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
+                    bundle_name=self.dag_version.bundle_name,
+                    bundle_version=self.bundle_version,
                     is_failure_callback=False,
                     msg="success",
                 )
@@ -967,9 +971,11 @@ class DagRun(Base, LoggingMixin):
                 dag.handle_callback(self, success=False, reason="all_tasks_deadlocked", session=session)
             elif dag.has_on_failure_callback:
                 callback = DagCallbackRequest(
-                    full_filepath=dag.fileloc,
+                    filepath=self.dag_model.relative_fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
+                    bundle_name=self.dag_version.bundle_name,
+                    bundle_version=self.bundle_version,
                     is_failure_callback=True,
                     msg="all_tasks_deadlocked",
                 )

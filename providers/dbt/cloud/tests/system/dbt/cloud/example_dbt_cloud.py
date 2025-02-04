@@ -19,13 +19,13 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.edgemodifier import Label
 
 from tests_common.test_utils.system_tests import get_test_env_id
