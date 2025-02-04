@@ -120,11 +120,12 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
         )
         self.git_conn_id = git_conn_id
+        self.repo_url = repo_url
         try:
             self.hook = GitHook(git_conn_id=self.git_conn_id)
-            self.repo_url = repo_url or self.hook.repo_url
+            self.repo_url = self.repo_url or self.hook.repo_url
         except AirflowException as e:
-            self.log.error("Error creating GitHook: %s", e)
+            self.log.warning("Could not create GitHook for connection %s : %s", self.git_conn_id, e)
 
     def _initialize(self):
         self._clone_bare_repo_if_required()

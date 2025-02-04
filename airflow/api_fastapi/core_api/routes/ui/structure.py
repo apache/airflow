@@ -89,7 +89,7 @@ def structure_data(
         start_edges: list[dict] = []
         end_edges: list[dict] = []
 
-        for dependency_dag_id, dependencies in SerializedDagModel.get_dag_dependencies().items():
+        for dependency_dag_id, dependencies in sorted(SerializedDagModel.get_dag_dependencies().items()):
             for dependency in dependencies:
                 # Dependencies not related to `dag_id` are ignored
                 if dependency_dag_id != dag_id and dependency.target != dag_id:
