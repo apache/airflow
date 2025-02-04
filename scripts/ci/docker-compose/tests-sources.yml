@@ -73,6 +73,7 @@ services:
       - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
       - ../../../providers/ftp/tests:/opt/airflow/providers/ftp/tests
       - ../../../providers/github/tests:/opt/airflow/providers/github/tests
+      - ../../../providers/google/tests:/opt/airflow/providers/google/tests
       - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests
