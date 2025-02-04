@@ -30,6 +30,10 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.file_task_handler import (
+    mark_test_for_old_read_log_method,
+    mark_test_for_stream_based_read_log_method,
+)
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
@@ -89,6 +93,7 @@ class TestRedisTaskHandler:
         pipeline.return_value.expire.assert_called_once_with(key, time=2)
         pipeline.return_value.execute.assert_called_once_with()
 
+    @mark_test_for_old_read_log_method
     @conf_vars({("logging", "remote_log_conn_id"): "redis_default"})
     def test_read(self, ti):
         handler = RedisTaskHandler("any")
@@ -106,4 +111,27 @@ class TestRedisTaskHandler:
             logs = handler.read(ti)
 
         assert logs == ([[("", "Line 1\nLine 2")]], [{"end_of_log": True}])
+        lrange.assert_called_once_with(key, start=0, end=-1)
+
+    @mark_test_for_stream_based_read_log_method
+    @conf_vars({("logging", "remote_log_conn_id"): "redis_default"})
+    def test_stream_based_read(self, ti):
+        handler = RedisTaskHandler("any")
+        handler.set_context(ti)
+        logger = logging.getLogger(__name__)
+        logger.addHandler(handler)
+
+        key = (
+            "dag_id=dag_for_testing_redis_task_handler/run_id=test"
+            "/task_id=task_for_testing_redis_log_handler/attempt=1.log"
+        )
+
+        with patch("redis.Redis.lrange") as lrange:
+            lrange.return_value = [b"Line 1", b"Line 2"]
+            hosts, log_streams, metadatas = handler.read(ti)
+
+        assert hosts == [""]
+        log_str = "\n".join(line for line in log_streams[0])
+        assert log_str == "Line 1\nLine 2"
+        assert metadatas == [{"end_of_log": True}]
         lrange.assert_called_once_with(key, start=0, end=-1)

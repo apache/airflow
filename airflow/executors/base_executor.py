@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import sys
 from collections import defaultdict, deque
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -569,13 +569,20 @@ class BaseExecutor(LoggingMixin):
         """
         raise NotImplementedError()
 
-    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+    def get_task_log(
+        self, ti: TaskInstance, try_number: int
+    ) -> (
+        tuple[list[str], list[Generator[tuple[pendulum.DateTime | None, int, str], None, None]], int]
+        | tuple[list[str], list[str]]
+    ):
         """
         Return the task logs.
 
         :param ti: A TaskInstance object
         :param try_number: current try_number to read log from
-        :return: tuple of logs and messages
+        :return:
+            - old interface: Tuple of messages and list of log lines.
+            - new interface: Tuple of messages, parsed log streams, total size of logs.
         """
         return [], []
 

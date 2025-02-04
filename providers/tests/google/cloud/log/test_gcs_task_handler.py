@@ -30,6 +30,10 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.file_task_handler import (
+    mark_test_for_old_read_log_method,
+    mark_test_for_stream_based_read_log_method,
+)
 
 
 @pytest.mark.db_test
@@ -87,6 +91,7 @@ class TestGCSTaskHandler:
         )
         assert mock_client.return_value == return_value
 
+    @mark_test_for_old_read_log_method
     @conf_vars({("logging", "remote_log_conn_id"): "gcs_default"})
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -111,6 +116,33 @@ class TestGCSTaskHandler:
         assert logs.endswith("CONTENT")
         assert metadata == {"end_of_log": True, "log_pos": 7}
 
+    @mark_test_for_stream_based_read_log_method
+    @conf_vars({("logging", "remote_log_conn_id"): "gcs_default"})
+    @mock.patch(
+        "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
+        return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
+    )
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    def test_stream_based_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds, session):
+        mock_obj = MagicMock()
+        mock_obj.name = "remote/log/location/1.log"
+        mock_client.return_value.list_blobs.return_value = [mock_obj]
+        mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        session.add(ti)
+        session.commit()
+        log_stream, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
+        mock_blob.from_string.assert_called_once_with(
+            "gs://bucket/remote/log/location/1.log", mock_client.return_value
+        )
+        log_str = "".join(line for line in log_stream)
+        assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\n" in log_str
+        assert log_str.endswith("CONTENT")
+        assert metadata == {"end_of_log": True, "log_pos": 7}
+
+    @mark_test_for_old_read_log_method
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
         return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
@@ -135,6 +167,36 @@ class TestGCSTaskHandler:
             "*** Found local files:\n"
             f"***   * {self.gcs_task_handler.local_base}/1.log\n"
         ) in log
+        assert metadata == {"end_of_log": True, "log_pos": 0}
+        mock_blob.from_string.assert_called_once_with(
+            "gs://bucket/remote/log/location/1.log", mock_client.return_value
+        )
+
+    @mark_test_for_stream_based_read_log_method
+    @mock.patch(
+        "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
+        return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
+    )
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    def test_stream_based_should_read_from_local_on_logs_read_error(self, mock_blob, mock_client, mock_creds):
+        mock_obj = MagicMock()
+        mock_obj.name = "remote/log/location/1.log"
+        mock_client.return_value.list_blobs.return_value = [mock_obj]
+        mock_blob.from_string.return_value.download_as_bytes.side_effect = Exception("Failed to connect")
+
+        self.gcs_task_handler.set_context(self.ti)
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        log_stream, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
+        log_str = "".join(line for line in log_stream)
+        assert (
+            "*** Found remote logs:\n"
+            "***   * gs://bucket/remote/log/location/1.log\n"
+            "*** Unable to read remote log Failed to connect\n"
+            "*** Found local files:\n"
+            f"***   * {self.gcs_task_handler.local_base}/1.log\n"
+        ) in log_str
         assert metadata == {"end_of_log": True, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
