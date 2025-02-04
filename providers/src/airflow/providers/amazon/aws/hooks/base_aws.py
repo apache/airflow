@@ -56,7 +56,6 @@ from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionW
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
 from airflow.providers_manager import ProvidersManager
-from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -68,6 +67,12 @@ if TYPE_CHECKING:
     from botocore.credentials import ReadOnlyCredentials
 
     from airflow.models.connection import Connection
+    from airflow.sdk.execution_time.secrets_masker import mask_secret
+else:
+    try:
+        from airflow.sdk.execution_time.secrets_masker import mask_secret
+    except ImportError:
+        from airflow.utils.log.secrets_masker import mask_secret
 
 _loader = botocore.loaders.Loader()
 """

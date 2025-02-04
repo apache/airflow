@@ -51,12 +51,6 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_task_lineage_enabled,
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
-from airflow.sdk.execution_time.secrets_masker import (
-    Redactable,
-    Redacted,
-    SecretsMasker,
-    should_hide_value_for_key,
-)
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.context import AirflowContextDeprecationWarning
@@ -68,6 +62,12 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
     from airflow.sdk import DAG, BaseOperator, MappedOperator
+    from airflow.sdk.execution_time.secrets_masker import (
+        Redactable,
+        Redacted,
+        SecretsMasker,
+        should_hide_value_for_key,
+    )
     from airflow.utils.state import DagRunState, TaskInstanceState
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import RunFacet, processing_engine_run
@@ -85,6 +85,21 @@ else:
         else:
             # dataset is renamed to asset since Airflow 3.0
             from airflow.datasets import Dataset as Asset
+
+    try:
+        from airflow.sdk.execution_time.secrets_masker import (
+            Redactable,
+            Redacted,
+            SecretsMasker,
+            should_hide_value_for_key,
+        )
+    except ImportError:
+        from airflow.utils.log.secrets_masker import (
+            Redactable,
+            Redacted,
+            SecretsMasker,
+            should_hide_value_for_key,
+        )
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"

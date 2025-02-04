@@ -20,7 +20,7 @@ import datetime
 import json
 import uuid
 from json import JSONEncoder
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -43,7 +43,6 @@ from airflow.providers.openlineage.utils.utils import (
     get_processing_engine_facet,
     is_operator_disabled,
 )
-from airflow.sdk.execution_time.secrets_masker import _secrets_masker
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -56,6 +55,14 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
+
+if TYPE_CHECKING:
+    from airflow.sdk.execution_time.secrets_masker import _secrets_masker
+else:
+    try:
+        from airflow.sdk.execution_time.secrets_masker import _secrets_masker
+    except ImportError:
+        from airflow.utils.log.secrets_masker import _secrets_masker
 
 
 class SafeStrDict(dict):
@@ -236,7 +243,7 @@ def test_is_name_redactable():
 
 @pytest.mark.enable_redact
 def test_redact_with_exclusions(monkeypatch):
-    redactor = OpenLineageRedactor.from_masker(_secrets_masker())
+    redactor = OpenLineageRedactor.from_masker(_secrets_masker())  # type: ignore[assignment]
 
     class NotMixin:
         def __init__(self):
