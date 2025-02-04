@@ -137,10 +137,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Cleanup docker"
-        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
-        env:
-          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
         if: inputs.upload-package-artifact == 'true'
       - name: "Cleanup dist and context file"
         shell: bash
@@ -220,10 +217,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Cleanup docker"
-        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
-        env:
-          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -284,12 +278,6 @@ jobs:
         if: inputs.build-provider-packages != 'true'
       - name: "Verify PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         run: breeze prod-image verify
-      - name: Check free space
-        run: df -H
-        shell: bash
-      - name: Make /mnt/ directory writeable
-        run: sudo chown -R ${USER} /mnt
-        shell: bash
       - name: "Export PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}

@@ -116,10 +116,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
       - name: "Cleanup docker"
-        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
-        env:
-          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Prepare breeze & PROD image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:

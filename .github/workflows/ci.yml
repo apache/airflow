@@ -146,10 +146,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Cleanup docker"
-        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
-        env:
-          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v4
         with:

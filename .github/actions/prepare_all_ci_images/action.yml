@@ -31,11 +31,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: "Cleanup docker"
-      run: ./scripts/ci/cleanup_docker.sh
-      env:
-        TARGET_DOCKER_VOLUME_LOCATION: ${{ inputs.docker-volume-location }}
-      shell: bash
     # TODO: Currently we cannot loop through the list of python versions and have dynamic list of
     #       tasks. Instead we hardcode all possible python versions and they - but
     #       this should be implemented in stash action as list of keys to download.
