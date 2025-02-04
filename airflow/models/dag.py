@@ -188,7 +188,7 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     Overridden DagRuns are ignored.
     """
     DR = DagRun
-    query = select(DR).where(DR.dag_id == dag_id)
+    query = select(DR).where(DR.dag_id == dag_id, DR.logical_date.is_not(None))
     if not include_externally_triggered:
         query = query.where(DR.external_trigger == expression.false())
     query = query.order_by(DR.logical_date.desc())
@@ -1380,6 +1380,40 @@ class DAG(TaskSDKDag, LoggingMixin):
             )
 
         return altered
+
+    @overload
+    def clear(
+        self,
+        *,
+        dry_run: Literal[True],
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        run_id: str,
+        only_failed: bool = False,
+        only_running: bool = False,
+        confirm_prompt: bool = False,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
+        session: Session = NEW_SESSION,
+        dag_bag: DagBag | None = None,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+        exclude_run_ids: frozenset[str] | None = frozenset(),
+    ) -> list[TaskInstance]: ...  # pragma: no cover
+
+    @overload
+    def clear(
+        self,
+        *,
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        run_id: str,
+        only_failed: bool = False,
+        only_running: bool = False,
+        confirm_prompt: bool = False,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dry_run: Literal[False] = False,
+        session: Session = NEW_SESSION,
+        dag_bag: DagBag | None = None,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+        exclude_run_ids: frozenset[str] | None = frozenset(),
+    ) -> int: ...  # pragma: no cover
 
     @overload
     def clear(
