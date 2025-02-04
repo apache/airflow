@@ -637,6 +637,11 @@ def replace_system_test_example_includes(provider_id: str):
             f"../providers/tests/system/{provider_only_path}/",
             f"../providers/{provider_only_path}/tests/system/{provider_only_path}/",
         )
+        _replace_string(
+            rst_file,
+            f"|version|/providers/tests/system/{provider_only_path}/",
+            f"|version|/providers/{provider_only_path}/tests/system/{provider_only_path}/",
+        )
     console.rule(style="bright_blue")
 
 
