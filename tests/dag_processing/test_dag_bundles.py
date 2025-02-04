@@ -147,7 +147,6 @@ class TestGitHook:
                 conn_id=CONN_ONLY_PATH,
                 host="path/to/repo",
                 conn_type="git",
-                extra={"key_file": "path/to/key"},
             )
         )
         db.merge_conn(
@@ -212,11 +211,11 @@ class TestGitHook:
             GitHook(git_conn_id=CONN_BOTH_PATH_INLINE)
 
     def test_key_file_git_hook_has_env(self):
-        hook = GitHook(git_conn_id=CONN_ONLY_PATH)
+        hook = GitHook(git_conn_id=CONN_DEFAULT)
 
         assert hasattr(hook, "env")
         assert hook.env == {
-            "GIT_SSH_COMMAND": "ssh -i path/to/key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+            "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
         }
 
     def test_private_key_lazy_env_var(self):
