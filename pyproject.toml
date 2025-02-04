@@ -386,6 +386,21 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/security/utils.py" = ["E402"]
 "providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
 "providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_dataset.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_endpoint_service.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_generative_model.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_hyperparameter_tuning_job.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/links/test_translate.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/operators/test_automl.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
 
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
@@ -479,8 +494,8 @@ norecursedirs = [
     "tests/dags_with_system_exit",
     "tests/dags_corrupted",
     "tests/dags",
-    "providers/tests/system/google/cloud/dataproc/resources",
-    "providers/tests/system/google/cloud/gcs/resources",
+    "providers/google/tests/system/google/cloud/dataproc/resources",
+    "providers/google/tests/system/google/cloud/gcs/resources",
 ]
 log_level = "INFO"
 filterwarnings = [
@@ -541,8 +556,8 @@ omit = [
     "airflow/example_dags/**",
     "airflow/migrations/**",
     "airflow/www/node_modules/**",
-    "providers/src/airflow/providers/**/example_dags/**",
-    "providers/src/airflow/providers/google/ads/_vendor/**",
+    "providers/google/src/airflow/providers/**/example_dags/**",
+    "providers/google/src/airflow/providers/google/ads/_vendor/**",
 ]
 
 [tool.coverage.report]
@@ -657,6 +672,7 @@ dev = [
   "apache-airflow-providers-facebook",
   "apache-airflow-providers-ftp",
   "apache-airflow-providers-github",
+  "apache-airflow-providers-google",
   "apache-airflow-providers-grpc",
   "apache-airflow-providers-http",
   "apache-airflow-providers-influxdb",
@@ -744,6 +760,7 @@ apache-airflow-providers-fab = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-ftp = { workspace = true }
 apache-airflow-providers-github = { workspace = true }
+apache-airflow-providers-google = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
@@ -829,6 +846,7 @@ members = [
     "providers/facebook",
     "providers/ftp",
     "providers/github",
+    "providers/google",
     "providers/grpc",
     "providers/hashicorp",
     "providers/http",
