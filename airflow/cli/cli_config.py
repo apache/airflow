@@ -881,7 +881,7 @@ ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
     help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
-    default=("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "latest_bundle_version"),
+    default=("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version"),
 )
 
 ARG_ASSET_LIST_COLUMNS = Arg(
