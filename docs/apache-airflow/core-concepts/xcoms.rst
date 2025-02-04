@@ -54,6 +54,26 @@ XComs are a relative of :doc:`variables`, with the main difference being that XC
 
 If you want to push multiple XComs at once you can set ``do_xcom_push`` and ``multiple_outputs`` arguments to ``True``, and then return a dictionary of values.
 
+To push multiple XComs at once:
+
+.. code-block:: python
+
+    value = {"key1": "value1", "key2": "value2"}
+    # A Python operator task returning a dictionary
+    task = PythonOperator(
+        task_id="xcom_push_without_multiple_outputs",
+        python_callable=lambda: value,
+        do_xcom_push=True,
+    )
+
+To pull a specific key from the XCom:
+
+.. code-block:: python
+
+    # Pulling a specific key from the multiple outputs
+    task_instance.xcom_pull(key="key1", task_ids="xcom_push_without_multiple_outputs")  # will return "value1"
+
+
 .. note::
 
   If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
