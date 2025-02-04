@@ -160,6 +160,7 @@ class HttpHook(BaseHook):
         extra = connection.extra_dejson
         extra.pop("timeout", None)
         extra.pop("allow_redirects", None)
+        extra.pop("check_response", None)
         session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
         session.stream = extra.pop("stream", False)
         session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
