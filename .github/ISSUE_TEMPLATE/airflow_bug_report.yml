@@ -26,8 +26,10 @@ body:
       multiple: false
       options:
         - "2.10.4"
+        - "3.0.0a1"
         - "main (development)"
         - "Other Airflow 2 version (please specify below)"
+        -
     validations:
       required: true
   - type: input
