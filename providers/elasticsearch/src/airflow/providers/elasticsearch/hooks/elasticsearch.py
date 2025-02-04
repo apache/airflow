@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable, Mapping
 from urllib import parse
 
 from airflow.hooks.base import BaseHook
@@ -40,6 +40,71 @@ def connect(
     **kwargs: Any,
 ) -> ESConnection:
     return ESConnection(host, port, user, password, scheme, **kwargs)
+
+
+class ElasticsearchSQLCursor:
+    """ A PEP 249-like Cursor class for Elasticsearch SQL API """
+
+    def __init__(self, es: Elasticsearch, options: dict[str, Any]):
+        self.es = es
+        self.body = {
+            "fetch_size": options.get("fetch_size", 100),
+            "field_multi_value_leniency": options.get("field_multi_value_leniency", False),
+        }
+        self._response: ObjectApiResponse | None = None
+
+    @property
+    def response(self) -> ObjectApiResponse:
+        return self._response or {}
+
+    @response.setter
+    def response(self, value):
+        self._response = value
+
+    @property
+    def cursor(self):
+        return self.response.get("cursor")
+
+    @property
+    def rows(self):
+        return self.response.get("rows", [])
+
+    @property
+    def rowcount(self) -> int:
+        return len(self.rows)
+
+    @property
+    def description(self) -> list[tuple]:
+        return self.response.get("columns", [])
+
+    def execute(self, statement: str, params: Iterable | Mapping[str, Any] | None = None) -> ObjectApiResponse:
+        self.body["query"] = statement
+        if params:
+            self.body["params"] = params
+        self.response = self.es.sql.query(body=self.body)
+        if self.cursor:
+            self.body["cursor"] = self.cursor
+        else:
+            self.body.pop("cursor", None)
+        return self.response
+
+    def fetchone(self):
+        if self.rows:
+            return self.rows[0]
+        return None
+
+    def fetchmany(self, size: int | None = None):
+        raise NotImplementedError()
+
+    def fetchall(self):
+        results = self.rows
+        while self.cursor:
+            self.execute(query=self.body["query"])
+            results.extend(self.rows)
+        return results
+
+    def close(self):
+        pass
 
 
 class ESConnection:
@@ -67,9 +132,14 @@ class ESConnection:
         else:
             self.es = Elasticsearch(self.url, **self.kwargs)
 
-    def execute_sql(self, query: str) -> ObjectApiResponse:
-        sql_query = {"query": query}
-        return self.es.sql.query(body=sql_query)
+    def cursor(self) -> ElasticsearchSQLCursor:
+        return ElasticsearchSQLCursor(self.es, self.kwargs)
+
+    def close(self):
+        self.es.close()
+
+    def execute_sql(self, query: str, params: Iterable | Mapping[str, Any] | None = None) -> ObjectApiResponse:
+        return self.cursor().execute(query, params)
 
 
 class ElasticsearchSQLHook(DbApiHook):
@@ -104,11 +174,10 @@ class ElasticsearchSQLHook(DbApiHook):
             "scheme": conn.schema or "http",
         }
 
-        if conn.extra_dejson.get("http_compress", False):
-            conn_args["http_compress"] = bool(["http_compress"])
+        conn_args.update(conn.extra_dejson)
 
-        if conn.extra_dejson.get("timeout", False):
-            conn_args["timeout"] = conn.extra_dejson["timeout"]
+        if conn_args.get("http_compress", False):
+            conn_args["http_compress"] = bool(conn_args["http_compress"])
 
         return connect(**conn_args)
 

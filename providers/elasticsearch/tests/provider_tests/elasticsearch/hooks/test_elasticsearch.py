@@ -20,14 +20,17 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from elasticsearch import Elasticsearch
 
 from airflow.models import Connection
 from airflow.providers.elasticsearch.hooks.elasticsearch import (
     ElasticsearchPythonHook,
+    ElasticsearchSQLCursor,
     ElasticsearchSQLHook,
     ESConnection,
 )
+from elasticsearch._sync.client import SqlClient
 
 
 class TestElasticsearchSQLHookConn:
@@ -48,10 +51,71 @@ class TestElasticsearchSQLHookConn:
         mock_connect.assert_called_with(host="localhost", port=9200, scheme="http", user=None, password=None)
 
 
+class TestElasticsearchSQLCursor:
+    rows = [
+        [1, "Stallone", "Sylvester", "78"],
+        [2, "Statham", "Jason", "57"],
+        [3, "Li", "Jet", "61"],
+        [4, "Lundgren", "Dolph", "66"],
+        [5, "Norris", "Chuck", "84"],
+    ]
+    columns = [
+        {'name': 'index', 'type': 'long'},
+        {'name': 'name', 'type': 'text'},
+        {'name': 'firstname', 'type': 'text'},
+        {'name': 'age', 'type': 'long'},
+    ]
+    response = {
+        "columns": columns,
+        "rows": rows
+    }
+
+    def setup_method(self):
+        sql = MagicMock(spec=SqlClient)
+        sql.query.side_effect = lambda body: self.response
+        self.es = MagicMock(sql=sql, spec=Elasticsearch)
+
+    def test_execute(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+
+        assert cursor.execute("SELECT * FROM hollywood.actors") == self.response
+
+    def test_rowcount(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+        cursor.execute("SELECT * FROM hollywood.actors")
+
+        assert cursor.rowcount == len(self.rows)
+
+    def test_description(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+        cursor.execute("SELECT * FROM hollywood.actors")
+
+        assert cursor.description == self.columns
+
+    def test_fetchone(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+        cursor.execute("SELECT * FROM hollywood.actors")
+
+        assert cursor.fetchone() == self.rows[0]
+
+    def test_fetchmany(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+        cursor.execute("SELECT * FROM hollywood.actors")
+
+        with pytest.raises(NotImplementedError):
+            cursor.fetchmany()
+
+    def test_fetchall(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+        cursor.execute("SELECT * FROM hollywood.actors")
+
+        assert cursor.fetchall() == self.rows
+
+
 class TestElasticsearchSQLHook:
     def setup_method(self):
-        self.cur = mock.MagicMock(rowcount=0)
-        self.conn = mock.MagicMock()
+        self.cur = mock.MagicMock(rowcount=0, spec=ElasticsearchSQLCursor)
+        self.conn = mock.MagicMock(spec=ESConnection)
         self.conn.cursor.return_value = self.cur
         conn = self.conn
 
