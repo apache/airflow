@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
-
 import pytest
 
 from airflow_breeze.global_constants import GroupOfTests
@@ -36,14 +34,6 @@ def _all_new_providers() -> list[str]:
         provider_path = file.parent.relative_to(providers_root)
         all_new_providers.append(provider_path.as_posix())
     return sorted(all_new_providers)
-
-
-def match_patterns(string, patterns):
-    # patterns = [r'^microsoft/.*$', r'^amazon/.*$']
-    for pattern in patterns:
-        if re.match(pattern, string):
-            return True
-    return False
 
 
 @pytest.mark.parametrize(
@@ -91,11 +81,7 @@ def match_patterns(string, patterns):
             GroupOfTests.PROVIDERS,
             "Providers",
             [
-                *[
-                    f"providers/{provider}/tests"
-                    for provider in _all_new_providers()
-                    # if not match_patterns(provider, ["^microsoft/.*$"])
-                ],
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
                 "providers/tests",
             ],
         ),
@@ -148,11 +134,7 @@ def match_patterns(string, patterns):
             GroupOfTests.PROVIDERS,
             "All-Quarantined",
             [
-                *[
-                    f"providers/{provider}/tests"
-                    for provider in _all_new_providers()
-                    # if not match_patterns(provider, ["^microsoft/.*$"])
-                ],
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
                 "providers/tests",
                 "-m",
                 "quarantined",
@@ -255,11 +237,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers",
             [
-                *[
-                    f"providers/{provider}/tests"
-                    for provider in _all_new_providers()
-                    # if not match_patterns(provider, ["^microsoft/.*$"])
-                ],
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
                 "providers/tests",
             ],
         ),
