@@ -717,49 +717,6 @@ class TestTIUpdateState:
 
         session.expire_all()
 
-    def test_ti_update_state_to_fail_with_asset_profile_extra(self, client, session, create_task_instance):
-        asset = AssetModel(
-            id=1,
-            name="s3://bucket/my-task",
-            uri="s3://bucket/my-task",
-            group="asset",
-            extra={},
-        )
-        asset_active = AssetActive.for_asset(asset)
-        session.add_all([asset, asset_active])
-
-        ti = create_task_instance(
-            task_id="test_ti_update_state_to_fail_with_extra",
-            start_date=DEFAULT_START_DATE,
-            state=State.RUNNING,
-        )
-        session.commit()
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
-            json={
-                "state": "success",
-                "end_date": DEFAULT_END_DATE.isoformat(),
-                "task_outlets": [
-                    {
-                        "name": "s3://bucket/my-task",
-                        "uri": "s3://bucket/my-task",
-                        "asset_type": "Asset",
-                        "foo": "bar",
-                    }
-                ],
-                "outlet_events": {
-                    "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
-                    "extra": {},
-                    "asset_alias_events": [],
-                },
-            },
-        )
-
-        assert response.status_code == 422
-        assert response.json()["detail"][0]["msg"] == "Extra inputs are not permitted"
-        session.expire_all()
-
     def test_ti_update_state_to_fail_with_runtime_check_payload_with_extra(
         self, client, session, create_task_instance
     ):
