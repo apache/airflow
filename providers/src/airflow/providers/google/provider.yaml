@@ -138,6 +138,7 @@ dependencies:
   - google-cloud-kms>=2.15.0
   - google-cloud-language>=2.9.0
   - google-cloud-logging>=3.5.0
+  - google-cloud-managedkafka>=0.1.6
   - google-cloud-memcache>=1.7.0
   - google-cloud-monitoring>=2.18.0
   - google-cloud-orchestration-airflow>=1.10.0
@@ -302,6 +303,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/life_sciences.rst
     logo: /integration-logos/gcp/Google-Cloud-Life-Sciences.png
+    tags: [gcp]
+  - integration-name: Google Cloud Managed Service for Apache Kafka
+    external-doc-url: https://cloud.google.com/managed-service-for-apache-kafka/docs/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/managed_kafka.rst
     tags: [gcp]
   - integration-name: Google Cloud Memorystore
     external-doc-url: https://cloud.google.com/memorystore/
@@ -703,6 +709,9 @@ operators:
   - integration-name: Google Cloud Batch
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_batch
+  - integration-name: Google Cloud Managed Service for Apache Kafka
+    python-modules:
+      - airflow.providers.google.cloud.operators.managed_kafka
 
 sensors:
   - integration-name: Google BigQuery
@@ -981,6 +990,9 @@ hooks:
   - integration-name: Google Cloud Batch
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_batch
+  - integration-name: Google Cloud Managed Service for Apache Kafka
+    python-modules:
+      - airflow.providers.google.cloud.hooks.managed_kafka
 
 triggers:
   - integration-name: Google BigQuery Data Transfer Service
@@ -1319,6 +1331,8 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationModelsListLink
   - airflow.providers.google.cloud.links.translate.TranslateResultByOutputConfigLink
   - airflow.providers.google.cloud.links.translate.TranslationGlossariesListLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink
 
 
 secrets-backends:
