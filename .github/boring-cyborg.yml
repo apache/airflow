@@ -171,10 +171,7 @@ labelPRBasedOnFilePath:
     - providers/github/**
 
   provider:google:
-    - providers/src/airflow/providers/google/**/*
-    - docs/apache-airflow-providers-google/**/*
-    - providers/tests/google/**/*
-    - providers/tests/system/google/**/*
+    - providers/google/**
 
   provider:grpc:
     - providers/grpc/**
