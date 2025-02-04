@@ -61,15 +61,15 @@ from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
@@ -90,10 +90,6 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -133,8 +129,6 @@ def _loader_mock(mock_executors):
 
 @pytest.fixture
 def create_dagrun(session):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-
     def _create_dagrun(
         dag: DAG,
         *,
@@ -153,10 +147,12 @@ def create_dagrun(session):
             run_id=run_id,
             logical_date=logical_date,
             data_interval=data_interval,
+            run_after=data_interval.end,
             run_type=run_type,
             state=state,
             start_date=start_date,
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
+            dag_version=DagVersion.get_latest_version(dag.dag_id),
         )
 
     return _create_dagrun
@@ -375,13 +371,17 @@ class TestSchedulerJob:
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
-    def test_process_executor_events_with_callback(self, mock_stats_incr, mock_task_callback, dag_maker):
+    def test_process_executor_events_with_callback(
+        self, mock_stats_incr, mock_task_callback, dag_maker, session
+    ):
         dag_id = "test_process_executor_events_with_callback"
         task_id_1 = "dummy_task"
 
         with dag_maker(dag_id=dag_id, fileloc="/test_path1/") as dag:
-            task1 = EmptyOperator(task_id=task_id_1, on_failure_callback=lambda x: print("hi"))
-        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+            EmptyOperator(task_id=task_id_1, on_failure_callback=lambda x: print("hi"))
+        dagv = DagVersion.get_latest_version(dag.dag_id)
+        dr = dag_maker.create_dagrun(dag_version=dagv)
+        ti1 = dr.task_instances[0]
 
         mock_stats_incr.reset_mock()
 
@@ -390,8 +390,6 @@ class TestSchedulerJob:
         executor = MockExecutor(do_update=False)
         scheduler_job = Job(executor=executor)
         self.job_runner = SchedulerJobRunner(scheduler_job)
-
-        session = settings.Session()
 
         ti1.state = State.QUEUED
         session.merge(ti1)
@@ -405,8 +403,10 @@ class TestSchedulerJob:
         # will be set to failed in dag parsing process
         assert ti1.state == State.QUEUED
         mock_task_callback.assert_called_once_with(
-            full_filepath=dag.fileloc,
+            filepath=dag.relative_fileloc,
             ti=mock.ANY,
+            bundle_name="dag_maker",
+            bundle_version=None,
             msg=f"Executor {executor} reported that the task instance "
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
             "finished with state failed, but the task instance's state attribute is queued. "
@@ -2420,10 +2420,12 @@ class TestSchedulerJob:
         assert isinstance(orm_dag.next_dagrun_create_after, datetime.datetime)
 
         expected_callback = DagCallbackRequest(
-            full_filepath=dr.dag.fileloc,
+            filepath=dr.dag.relative_fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
+            bundle_name=orm_dag.bundle_name,
+            bundle_version=orm_dag.bundle_version,
             msg="timed_out",
         )
 
@@ -2459,10 +2461,12 @@ class TestSchedulerJob:
         assert dr.state == State.FAILED
 
         expected_callback = DagCallbackRequest(
-            full_filepath=dr.dag.fileloc,
+            filepath=dr.dag.relative_fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
+            bundle_name=dr.dag.get_bundle_name(),
+            bundle_version=dr.dag.get_bundle_version(),
             msg="timed_out",
         )
 
@@ -2533,11 +2537,13 @@ class TestSchedulerJob:
             self.job_runner._do_scheduling(session)
 
         expected_callback = DagCallbackRequest(
-            full_filepath=dag.fileloc,
+            filepath=dag.relative_fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=bool(state == State.FAILED),
             run_id=dr.run_id,
             msg=expected_callback_msg,
+            bundle_name=dag.get_bundle_name(),
+            bundle_version=dag.get_bundle_version(),
         )
 
         # Verify dag failure callback request is sent to file processor
@@ -2610,11 +2616,13 @@ class TestSchedulerJob:
         )
 
         expected_callback = DagCallbackRequest(
-            full_filepath=dag.fileloc,
+            filepath=dag.relative_fileloc,
             dag_id=dr.dag_id,
             is_failure_callback=True,
             run_id=dr.run_id,
             msg="timed_out",
+            bundle_name=dag.get_bundle_name(),
+            bundle_version=dag.get_bundle_version(),
         )
 
         assert callback == expected_callback
@@ -2870,13 +2878,15 @@ class TestSchedulerJob:
             # because it would take the most recent run and start from there
             # That behavior still exists, but now it will only do so if after the
             # start date
+            data_interval_end = DEFAULT_DATE + timedelta(days=1)
             dag.create_dagrun(
                 state="success",
                 triggered_by=DagRunTriggeredByType.TIMETABLE,
                 run_id="abc123",
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.BACKFILL_JOB,
-                data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)),
+                data_interval=DataInterval(DEFAULT_DATE, data_interval_end),
+                run_after=data_interval_end,
             )
             # one task "ran"
             assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
@@ -3061,7 +3071,6 @@ class TestSchedulerJob:
 
         def _create_dagruns(dag: DAG):
             next_info = dag.next_dagrun_info(None)
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             assert next_info is not None
             for i in range(30):
                 yield dag.create_dagrun(
@@ -3069,8 +3078,9 @@ class TestSchedulerJob:
                     run_type=DagRunType.SCHEDULED,
                     logical_date=next_info.logical_date,
                     data_interval=next_info.data_interval,
+                    run_after=next_info.run_after,
                     state=DagRunState.RUNNING,
-                    **triggered_by_kwargs,  # type: ignore
+                    triggered_by=DagRunTriggeredByType.TEST,
                 )
                 next_info = dag.next_dagrun_info(next_info.data_interval)
                 if next_info is None:
@@ -3289,25 +3299,24 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.need_serialized_dag
-    def test_retry_still_in_executor(self, dag_maker):
+    def test_retry_still_in_executor(self, dag_maker, session):
         """
         Checks if the scheduler does not put a task in limbo, when a task is retried
         but is still present in the executor.
         """
         executor = MockExecutor(do_update=False)
 
-        with create_session() as session:
-            with dag_maker(
-                dag_id="test_retry_still_in_executor",
-                schedule="@once",
-                session=session,
-            ):
-                dag_task1 = BashOperator(
-                    task_id="test_retry_handling_op",
-                    bash_command="exit 1",
-                    retries=1,
-                )
-            dag_maker.dag_model.calculate_dagrun_date_fields(dag_maker.dag, None)
+        with dag_maker(
+            dag_id="test_retry_still_in_executor",
+            schedule="@once",
+            session=session,
+        ):
+            dag_task1 = BashOperator(
+                task_id="test_retry_handling_op",
+                bash_command="exit 1",
+                retries=1,
+            )
+        dag_maker.dag_model.calculate_dagrun_date_fields(dag_maker.dag, None)
 
         @provide_session
         def do_schedule(session):
@@ -4072,7 +4081,6 @@ class TestSchedulerJob:
 
         # Trigger the Dag externally
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test",
             state=DagRunState.RUNNING,
@@ -4081,7 +4089,8 @@ class TestSchedulerJob:
             session=session,
             external_trigger=True,
             data_interval=data_interval,
-            **triggered_by_kwargs,
+            run_after=DEFAULT_LOGICAL_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         assert dr is not None
         # Run DAG.bulk_write_to_db -- this is run when in DagFileProcessor.process_file
@@ -4158,7 +4167,6 @@ class TestSchedulerJob:
             )
 
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         run1 = dag.create_dagrun(
             run_id="test1",
@@ -4168,22 +4176,25 @@ class TestSchedulerJob:
             start_date=timezone.utcnow() - timedelta(seconds=2),
             session=session,
             data_interval=data_interval,
+            run_after=DEFAULT_LOGICAL_DATE,
             dag_version=dag_version,
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         run1_ti = run1.get_task_instance(task1.task_id, session)
         run1_ti.state = State.RUNNING
 
+        logical_date_2 = DEFAULT_DATE + timedelta(seconds=10)
         run2 = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.SCHEDULED,
-            logical_date=DEFAULT_DATE + timedelta(seconds=10),
+            logical_date=logical_date_2,
             state=State.QUEUED,
             session=session,
             data_interval=data_interval,
+            run_after=logical_date_2,
             dag_version=dag_version,
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         scheduler_job = Job(executor=self.null_exec)
@@ -5449,6 +5460,8 @@ class TestSchedulerJob:
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         DAG.bulk_write_to_db("testing", None, [dag])
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+        dag_v = DagVersion.get_latest_version(dag.dag_id)
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
         dag_run = create_dagrun(
             dag,
@@ -5468,7 +5481,7 @@ class TestSchedulerJob:
 
             for task_id in tasks_to_setup:
                 task = dag.get_task(task_id=task_id)
-                ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+                ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_v.id)
 
                 ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
                 ti.queued_by_job_id = 999
@@ -5488,7 +5501,7 @@ class TestSchedulerJob:
         callback_requests = executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
         callback_request = callback_requests[0]
-        assert callback_request.full_filepath == dag.fileloc
+        assert callback_request.filepath == dag.relative_fileloc
         assert callback_request.msg == str(self.job_runner._generate_zombie_message_details(ti))
         assert callback_request.is_failure_callback is True
         assert callback_request.ti.dag_id == ti.dag_id
@@ -5573,6 +5586,7 @@ class TestSchedulerJob:
             session.query(Job).delete()
             dag = dagbag.get_dag("test_example_bash_operator")
             DAG.bulk_write_to_db("testing", None, [dag])
+            SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
             data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
             dag_run = create_dagrun(
                 dag,
@@ -5582,8 +5596,9 @@ class TestSchedulerJob:
                 data_interval=data_interval,
             )
             task = dag.get_task(task_id="run_this_last")
-
-            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+            ti = TaskInstance(
+                task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_run.dag_version_id
+            )
             ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
 
             # TODO: If there was an actual Relationship between TI and Job
@@ -5600,9 +5615,11 @@ class TestSchedulerJob:
 
         expected_failure_callback_requests = [
             TaskCallbackRequest(
-                full_filepath=dag.fileloc,
+                filepath=dag.relative_fileloc,
                 ti=ti,
                 msg=str(self.job_runner._generate_zombie_message_details(ti)),
+                bundle_name="testing",
+                bundle_version=dag_run.bundle_version,
             )
         ]
         callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
@@ -5720,15 +5737,16 @@ class TestSchedulerJob:
         logical_date = timezone.coerce_datetime(timezone.utcnow() - datetime.timedelta(days=2))
         data_interval = dag.infer_automated_data_interval(logical_date)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id=f"{dag_id}_1",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             session=session,
+            logical_date=logical_date,
             data_interval=data_interval,
-            **triggered_by_kwargs,
+            run_after=data_interval,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         executor = SequentialExecutor()

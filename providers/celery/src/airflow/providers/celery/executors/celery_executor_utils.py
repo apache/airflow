@@ -31,7 +31,7 @@ import traceback
 import warnings
 from collections.abc import Mapping, MutableMapping
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from setproctitle import setproctitle
 from sqlalchemy import select
@@ -40,8 +40,8 @@ import airflow.settings as settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.stats import Stats
-from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -51,14 +51,25 @@ from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
 from celery.signals import import_modules as celery_import_modules
 
+try:
+    from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+except ImportError:
+    from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
+
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from airflow.executors import workloads
     from airflow.executors.base_executor import CommandType, EventBufferValueType
     from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.typing_compat import TypeAlias
     from celery.result import AsyncResult
 
-    TaskInstanceInCelery = tuple[TaskInstanceKey, CommandType, Optional[str], Task]
+    # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
+    # the type as the union of both kinds
+    TaskInstanceInCelery: TypeAlias = tuple[
+        TaskInstanceKey, Union[workloads.All, CommandType], Optional[str], Task
+    ]
 
 OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 
@@ -125,21 +136,54 @@ def on_celery_import_modules(*args, **kwargs):
         import kubernetes.client  # noqa: F401
 
 
-@app.task
-def execute_command(command_to_exec: CommandType) -> None:
-    """Execute command."""
-    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)
+# Once Celery 5.5 is out of beta, we can pass `pydantic=True` to the decorator and it will handle the validation
+# and deserialization for us
+@app.task(name="execute_workload")
+def execute_workload(input: str) -> None:
+    from pydantic import TypeAdapter
+
+    from airflow.configuration import conf
+    from airflow.executors import workloads
+    from airflow.sdk.execution_time.supervisor import supervise
+
+    decoder = TypeAdapter(workloads.All)
+    workload = decoder.validate_json(input)
+
     celery_task_id = app.current_task.request.id
-    log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
-    with _airflow_parsing_context_manager(dag_id=dag_id, task_id=task_id):
-        try:
-            if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
-                _execute_in_subprocess(command_to_exec, celery_task_id)
-            else:
-                _execute_in_fork(command_to_exec, celery_task_id)
-        except Exception:
-            Stats.incr("celery.execute_command.failure")
-            raise
+
+    if not isinstance(workload, workloads.ExecuteTask):
+        raise ValueError(f"CeleryExecutor does not now how to handle {type(workload)}")
+
+    log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
+
+    supervise(
+        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+        ti=workload.ti,  # type: ignore[arg-type]
+        dag_rel_path=workload.dag_rel_path,
+        bundle_info=workload.bundle_info,
+        token=workload.token,
+        server=conf.get("workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"),
+        log_path=workload.log_path,
+    )
+
+
+if not AIRFLOW_V_3_0_PLUS:
+
+    @app.task
+    def execute_command(command_to_exec: CommandType) -> None:
+        """Execute command."""
+        dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)
+        celery_task_id = app.current_task.request.id
+        log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
+        with _airflow_parsing_context_manager(dag_id=dag_id, task_id=task_id):
+            try:
+                if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+                    _execute_in_subprocess(command_to_exec, celery_task_id)
+                else:
+                    _execute_in_fork(command_to_exec, celery_task_id)
+            except Exception:
+                Stats.incr("celery.execute_command.failure")
+                raise
 
 
 def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = None) -> None:
@@ -213,15 +257,19 @@ def send_task_to_executor(
     task_tuple: TaskInstanceInCelery,
 ) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
     """Send task to executor."""
-    key, command, queue, task_to_run = task_tuple
+    from airflow.executors import workloads
+
+    key, args, queue, task_to_run = task_tuple
+    if isinstance(args, workloads.BaseWorkload):
+        args = (args.model_dump_json(),)
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
-            result = task_to_run.apply_async(args=[command], queue=queue)
+            result = task_to_run.apply_async(args=args, queue=queue)
     except (Exception, AirflowTaskTimeout) as e:
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
 
-    return key, command, result
+    return key, args, result
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:

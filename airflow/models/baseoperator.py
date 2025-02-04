@@ -632,6 +632,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                     run_type=DagRunType.MANUAL,
                     logical_date=info.logical_date,
                     data_interval=info.data_interval,
+                    run_after=info.run_after,
                     triggered_by=DagRunTriggeredByType.TEST,
                     state=DagRunState.RUNNING,
                 )

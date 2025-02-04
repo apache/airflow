@@ -33,12 +33,14 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
@@ -46,16 +48,12 @@ from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -99,11 +97,11 @@ class TestDagRun:
         logical_date: datetime.datetime | None = None,
         is_backfill: bool = False,
         state: DagRunState = DagRunState.RUNNING,
+        dag_version: DagVersion | None = None,
         session: Session,
     ):
         now = timezone.utcnow()
         logical_date = pendulum.instance(logical_date or now)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         if is_backfill:
             run_type = DagRunType.BACKFILL_JOB
             data_interval = dag.infer_automated_data_interval(logical_date)
@@ -119,10 +117,12 @@ class TestDagRun:
             run_type=run_type,
             logical_date=logical_date,
             data_interval=data_interval,
+            run_after=data_interval.end,
             start_date=now,
             state=state,
             external_trigger=False,
-            **triggered_by_kwargs,  # type: ignore
+            dag_version=dag_version or DagVersion.get_latest_version(dag.dag_id, session=session),
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         if task_states is not None:
@@ -461,6 +461,7 @@ class TestDagRun:
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_success"
 
+        relative_fileloc = "test_dagrun_update_state_with_handle_callback_success.py"
         dag = DAG(
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             schedule=datetime.timedelta(days=1),
@@ -468,6 +469,10 @@ class TestDagRun:
             on_success_callback=on_success_callable,
         )
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.relative_fileloc = relative_fileloc
+        session.merge(dm)
+        session.commit()
 
         dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_state_succeeded2", dag=dag)
@@ -480,18 +485,23 @@ class TestDagRun:
 
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.dag_model = dm
 
         _, callback = dag_run.update_state(execute_callbacks=False)
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
-
         assert callback == DagCallbackRequest(
-            full_filepath=dag_run.dag.fileloc,
+            filepath=dag_run.dag.relative_fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             run_id=dag_run.run_id,
             is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version=None,
             msg="success",
         )
 
@@ -499,6 +509,7 @@ class TestDagRun:
         def on_failure_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
 
+        relative_fileloc = "test_dagrun_update_state_with_handle_callback_failure.py"
         dag = DAG(
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             schedule=datetime.timedelta(days=1),
@@ -506,6 +517,10 @@ class TestDagRun:
             on_failure_callback=on_failure_callable,
         )
         DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.relative_fileloc = relative_fileloc
+        session.merge(dm)
+        session.commit()
 
         dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_state_failed2", dag=dag)
@@ -518,19 +533,25 @@ class TestDagRun:
 
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.dag_model = dm
 
         _, callback = dag_run.update_state(execute_callbacks=False)
         assert dag_run.state == DagRunState.FAILED
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
         assert callback == DagCallbackRequest(
-            full_filepath=dag_run.dag.fileloc,
+            filepath=dag.relative_fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             run_id=dag_run.run_id,
             is_failure_callback=True,
             msg="task_failure",
+            bundle_name="testing",
+            bundle_version=None,
         )
 
     def test_dagrun_set_state_end_date(self, dag_maker, session):
@@ -839,7 +860,6 @@ class TestDagRun:
         )
         session.add(orm_dag)
         session.flush()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=DagRunType.SCHEDULED,
@@ -850,9 +870,10 @@ class TestDagRun:
             state=state,
             logical_date=DEFAULT_DATE,
             data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
             start_date=DEFAULT_DATE if state == DagRunState.RUNNING else None,
             session=session,
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         if state == DagRunState.RUNNING:
@@ -917,7 +938,6 @@ class TestDagRun:
             orm_dag = DagModel(**orm_dag_kwargs)
             session.add(orm_dag)
             session.flush()
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
                 run_id=dag.timetable.generate_run_id(
                     run_type=DagRunType.SCHEDULED,
@@ -928,9 +948,10 @@ class TestDagRun:
                 state=DagRunState.SUCCESS,
                 logical_date=dag.start_date,
                 data_interval=dag.infer_automated_data_interval(dag.start_date),
+                run_after=dag.start_date,
                 start_date=dag.start_date,
+                triggered_by=DagRunTriggeredByType.TEST,
                 session=session,
-                **triggered_by_kwargs,
             )
             ti = dag_run.get_task_instance(dag_task.task_id, session)
             ti.set_state(TaskInstanceState.SUCCESS, session)

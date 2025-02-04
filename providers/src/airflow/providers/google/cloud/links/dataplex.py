@@ -39,6 +39,10 @@ DATAPLEX_CATALOG_ENTRY_TYPE_LINK = (
     "/dataplex/projects/{project_id}/locations/{location}/entryTypes/{entry_type_id}?project={project_id}"
 )
 DATAPLEX_CATALOG_ENTRY_TYPES_LINK = "/dataplex/catalog/entry-types?project={project_id}"
+DATAPLEX_CATALOG_ASPECT_TYPE_LINK = (
+    "/dataplex/projects/{project_id}/locations/{location}/aspectTypes/{aspect_type_id}?project={project_id}"
+)
+DATAPLEX_CATALOG_ASPECT_TYPES_LINK = "/dataplex/catalog/aspect-types?project={project_id}"
 
 
 class DataplexTaskLink(BaseGoogleLink):
@@ -194,6 +198,51 @@ class DataplexCatalogEntryTypesLink(BaseGoogleLink):
         task_instance.xcom_push(
             context=context,
             key=DataplexCatalogEntryTypesLink.key,
+            value={
+                "location": task_instance.location,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class DataplexCatalogAspectTypeLink(BaseGoogleLink):
+    """Helper class for constructing Dataplex Catalog AspectType link."""
+
+    name = "Dataplex Catalog AspectType"
+    key = "dataplex_catalog_aspect_type_key"
+    format_str = DATAPLEX_CATALOG_ASPECT_TYPE_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=DataplexCatalogAspectTypeLink.key,
+            value={
+                "aspect_type_id": task_instance.aspect_type_id,
+                "location": task_instance.location,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class DataplexCatalogAspectTypesLink(BaseGoogleLink):
+    """Helper class for constructing Dataplex Catalog AspectTypes link."""
+
+    name = "Dataplex Catalog AspectTypes"
+    key = "dataplex_catalog_aspect_types_key"
+    format_str = DATAPLEX_CATALOG_ASPECT_TYPES_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=DataplexCatalogAspectTypesLink.key,
             value={
                 "location": task_instance.location,
                 "project_id": task_instance.project_id,

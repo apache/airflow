@@ -463,7 +463,7 @@ class TestDagBag:
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
         remove dags from the DagBag
         """
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
 
         with dag_maker(
             dag_id="test_dag_removed_if_serialized_dag_is_removed",
@@ -521,7 +521,7 @@ class TestDagBag:
             import datetime
 
             from airflow.models.dag import DAG
-            from airflow.operators.empty import EmptyOperator
+            from airflow.providers.standard.operators.empty import EmptyOperator
 
             dag_name = "cycle_dag"
             default_args = {"owner": "owner1", "start_date": datetime.datetime(2016, 1, 1)}

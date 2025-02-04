@@ -475,7 +475,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * @param data.includeDownstream
  * @param data.root
  * @param data.externalDependencies
- * @param data.dagVersion
+ * @param data.versionNumber
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -483,37 +483,37 @@ export const prefetchUseStructureServiceStructureData = (
   queryClient: QueryClient,
   {
     dagId,
-    dagVersion,
     externalDependencies,
     includeDownstream,
     includeUpstream,
     root,
+    versionNumber,
   }: {
     dagId: string;
-    dagVersion?: number;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
+    versionNumber?: number;
   },
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseStructureServiceStructureDataKeyFn({
       dagId,
-      dagVersion,
       externalDependencies,
       includeDownstream,
       includeUpstream,
       root,
+      versionNumber,
     }),
     queryFn: () =>
       StructureService.structureData({
         dagId,
-        dagVersion,
         externalDependencies,
         includeDownstream,
         includeUpstream,
         root,
+        versionNumber,
       }),
   });
 /**
@@ -1230,6 +1230,7 @@ export const prefetchUseEventLogServiceGetEventLogs = (
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
@@ -1238,16 +1239,18 @@ export const prefetchUseExtraLinksServiceGetExtraLinks = (
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }),
-    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }),
+    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Extra Links
@@ -1256,6 +1259,7 @@ export const prefetchUseExtraLinksServiceGetExtraLinks = (
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
@@ -1264,16 +1268,18 @@ export const prefetchUseTaskInstanceServiceGetExtraLinks = (
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }),
-    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, taskId }),
+    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance

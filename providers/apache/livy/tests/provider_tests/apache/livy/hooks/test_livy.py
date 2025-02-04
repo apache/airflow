@@ -428,6 +428,77 @@ class TestLivyDbHook:
 
         auth_type.assert_called_once_with("login", "secret")
 
+    @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.run_method")
+    def test_post_batch_with_endpoint_prefix(self, mock_request):
+        mock_request.return_value.status_code = 201
+        mock_request.return_value.json.return_value = {
+            "id": BATCH_ID,
+            "state": BatchState.STARTING.value,
+            "log": [],
+        }
+
+        resp = LivyHook(endpoint_prefix="/livy").post_batch(file="sparkapp")
+
+        mock_request.assert_called_once_with(
+            method="POST", endpoint="/livy/batches", data=json.dumps({"file": "sparkapp"}), headers={}
+        )
+
+        request_args = mock_request.call_args.kwargs
+        assert "data" in request_args
+        assert isinstance(request_args["data"], str)
+
+        assert isinstance(resp, int)
+        assert resp == BATCH_ID
+
+    def test_get_batch_with_endpoint_prefix(self, requests_mock):
+        requests_mock.register_uri(
+            "GET", f"{MATCH_URL}/livy/batches/{BATCH_ID}", json={"id": BATCH_ID}, status_code=200
+        )
+        resp = LivyHook(endpoint_prefix="/livy").get_batch(BATCH_ID)
+        assert isinstance(resp, dict)
+        assert "id" in resp
+
+    def test_get_batch_state_with_endpoint_prefix(self, requests_mock):
+        running = BatchState.RUNNING
+
+        requests_mock.register_uri(
+            "GET",
+            f"{MATCH_URL}/livy/batches/{BATCH_ID}/state",
+            json={"id": BATCH_ID, "state": running.value},
+            status_code=200,
+        )
+
+        state = LivyHook(endpoint_prefix="/livy").get_batch_state(BATCH_ID)
+        assert isinstance(state, BatchState)
+        assert state == running
+
+    def test_delete_batch_with_endpoint_prefix(self, requests_mock):
+        requests_mock.register_uri(
+            "DELETE", f"{MATCH_URL}/livy/batches/{BATCH_ID}", json={"msg": "deleted"}, status_code=200
+        )
+        assert LivyHook(endpoint_prefix="/livy").delete_batch(BATCH_ID) == {"msg": "deleted"}
+
+    @pytest.mark.parametrize(
+        "prefix",
+        ["/livy/", "livy", "/livy", "livy/"],
+        ids=["leading_and_trailing_slashes", "no_slashes", "leading_slash", "trailing_slash"],
+    )
+    def test_endpoint_prefix_is_sanitized_simple(self, requests_mock, prefix):
+        requests_mock.register_uri(
+            "GET", f"{MATCH_URL}/livy/batches/{BATCH_ID}", json={"id": BATCH_ID}, status_code=200
+        )
+        resp = LivyHook(endpoint_prefix=prefix).get_batch(BATCH_ID)
+        assert isinstance(resp, dict)
+        assert "id" in resp
+
+    def test_endpoint_prefix_is_sanitized_multiple_path_elements(self, requests_mock):
+        requests_mock.register_uri(
+            "GET", f"{MATCH_URL}/livy/foo/bar/batches/{BATCH_ID}", json={"id": BATCH_ID}, status_code=200
+        )
+        resp = LivyHook(endpoint_prefix="/livy/foo/bar/").get_batch(BATCH_ID)
+        assert isinstance(resp, dict)
+        assert "id" in resp
+
 
 class TestLivyAsyncHook:
     @pytest.mark.asyncio
@@ -815,3 +886,31 @@ class TestLivyAsyncHook:
     def test_check_session_id_failure(self, conn_id):
         with pytest.raises(TypeError):
             LivyAsyncHook._validate_session_id(None)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.run_method")
+    async def test_get_batch_state_with_endpoint_prefix(self, mock_run_method):
+        mock_run_method.return_value = {"status": "success", "response": {"state": BatchState.RUNNING}}
+        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID, endpoint_prefix="/livy")
+        state = await hook.get_batch_state(BATCH_ID)
+        assert state == {
+            "batch_state": BatchState.RUNNING,
+            "response": "successfully fetched the batch state.",
+            "status": "success",
+        }
+        mock_run_method.assert_called_once_with(
+            endpoint=f"/livy/batches/{BATCH_ID}/state",
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.run_method")
+    async def test_get_batch_logs_with_endpoint_prefix(self, mock_run_method):
+        mock_run_method.return_value = {"status": "success", "response": {}}
+        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID, endpoint_prefix="/livy")
+        state = await hook.get_batch_logs(BATCH_ID, 0, 100)
+        assert state["status"] == "success"
+
+        mock_run_method.assert_called_once_with(
+            endpoint=f"/livy/batches/{BATCH_ID}/log",
+            data={"from": 0, "size": 100},
+        )

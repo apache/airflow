@@ -75,7 +75,8 @@
   "apache.beam": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "apache-beam>=2.53.0",
+      "apache-beam>=2.53.0; python_version < \"3.12\"",
+      "apache-beam>=2.57.0; python_version >= \"3.12\"",
       "numpy>=1.26.0",
       "pyarrow>=14.0.1"
     ],
@@ -336,7 +337,7 @@
   "celery": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "celery[redis]>=5.3.0,<6,!=5.3.3,!=5.3.2",
+      "celery[redis]>=5.4.0,<6",
       "flower>=1.0.0",
       "google-re2>=1.0"
     ],
