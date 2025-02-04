@@ -127,9 +127,9 @@ def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     target = (
-        "airflow.sdk.execution_time.secrets_masker.mask_secret"
+        "airflow.sdk.execution_time.secrets_masker.redact"
         if AIRFLOW_V_3_0_PLUS
-        else "airflow.utils.log.secrets_masker.mask_secret"
+        else "airflow.utils.log.secrets_masker.redact"
     )
     with mock.patch(target, autospec=True, side_effect=lambda d, _=None: d) as redact:
         with dag_maker("test_get_k8s_pod_yaml") as dag:
