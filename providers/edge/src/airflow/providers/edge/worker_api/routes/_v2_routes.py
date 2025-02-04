@@ -153,7 +153,7 @@ def set_state_v2(worker_name: str, body: dict[str, Any], session=NEW_SESSION) ->
             queues=body["queues"],
             sysinfo=body["sysinfo"],
         )
-        return set_state(worker_name, request_obj, session)
+        return set_state(worker_name, request_obj, session).model_dump()
     except HTTPException as e:
         return e.to_response()  # type: ignore[attr-defined]
 

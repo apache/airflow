@@ -475,6 +475,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * @param data.includeDownstream
  * @param data.root
  * @param data.externalDependencies
+ * @param data.versionNumber
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -486,12 +487,14 @@ export const prefetchUseStructureServiceStructureData = (
     includeDownstream,
     includeUpstream,
     root,
+    versionNumber,
   }: {
     dagId: string;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
+    versionNumber?: number;
   },
 ) =>
   queryClient.prefetchQuery({
@@ -501,6 +504,7 @@ export const prefetchUseStructureServiceStructureData = (
       includeDownstream,
       includeUpstream,
       root,
+      versionNumber,
     }),
     queryFn: () =>
       StructureService.structureData({
@@ -509,6 +513,7 @@ export const prefetchUseStructureServiceStructureData = (
         includeDownstream,
         includeUpstream,
         root,
+        versionNumber,
       }),
   });
 /**
@@ -889,14 +894,14 @@ export const prefetchUseDagStatsServiceGetDagStats = (
     queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });
 /**
- * Get Dag Report
+ * Get Dag Reports
  * Get DAG report.
  * @param data The data for the request.
  * @param data.subdir
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagReportServiceGetDagReport = (
+export const prefetchUseDagReportServiceGetDagReports = (
   queryClient: QueryClient,
   {
     subdir,
@@ -905,8 +910,8 @@ export const prefetchUseDagReportServiceGetDagReport = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagReportServiceGetDagReportKeyFn({ subdir }),
-    queryFn: () => DagReportService.getDagReport({ subdir }),
+    queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }),
+    queryFn: () => DagReportService.getDagReports({ subdir }),
   });
 /**
  * List Dag Warnings
@@ -1225,6 +1230,7 @@ export const prefetchUseEventLogServiceGetEventLogs = (
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
@@ -1233,16 +1239,18 @@ export const prefetchUseExtraLinksServiceGetExtraLinks = (
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }),
-    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }),
+    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Extra Links
@@ -1251,6 +1259,7 @@ export const prefetchUseExtraLinksServiceGetExtraLinks = (
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
@@ -1259,16 +1268,18 @@ export const prefetchUseTaskInstanceServiceGetExtraLinks = (
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }),
-    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, taskId }),
+    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }),
+    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }),
   });
 /**
  * Get Task Instance
@@ -2123,7 +2134,7 @@ export const prefetchUseXcomServiceGetXcomEntry = (
  * @param data.mapIndex
  * @param data.limit
  * @param data.offset
- * @returns XComCollection Successful Response
+ * @returns XComCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseXcomServiceGetXcomEntries = (

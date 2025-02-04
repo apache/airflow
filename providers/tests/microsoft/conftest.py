@@ -32,6 +32,7 @@ from httpx import Headers, Response
 from msgraph_core import APIVersion
 
 from airflow.models import Connection
+from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 
 T = TypeVar("T", dict, str, Connection)
@@ -174,6 +175,11 @@ def get_airflow_connection(
         password=password,
         extra=extra,
     )
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    KiotaRequestAdapterHook.cached_request_adapters.clear()
 
 
 @pytest.fixture

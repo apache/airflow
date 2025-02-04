@@ -93,8 +93,8 @@ import type {
   GetDagSourceResponse,
   GetDagStatsData,
   GetDagStatsResponse,
-  GetDagReportData,
-  GetDagReportResponse,
+  GetDagReportsData,
+  GetDagReportsResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
   GetDagsData,
@@ -145,6 +145,10 @@ import type {
   GetMappedTaskInstanceTryDetailsResponse,
   PostClearTaskInstancesData,
   PostClearTaskInstancesResponse,
+  PatchTaskInstanceDryRunData,
+  PatchTaskInstanceDryRunResponse,
+  PatchTaskInstanceDryRun1Data,
+  PatchTaskInstanceDryRun1Response,
   GetLogData,
   GetLogResponse,
   GetImportErrorData,
@@ -736,6 +740,7 @@ export class StructureService {
    * @param data.includeDownstream
    * @param data.root
    * @param data.externalDependencies
+   * @param data.versionNumber
    * @returns StructureDataResponse Successful Response
    * @throws ApiError
    */
@@ -749,6 +754,7 @@ export class StructureService {
         include_downstream: data.includeDownstream,
         root: data.root,
         external_dependencies: data.externalDependencies,
+        version_number: data.versionNumber,
       },
       errors: {
         404: "Not Found",
@@ -1524,14 +1530,14 @@ export class DagStatsService {
 
 export class DagReportService {
   /**
-   * Get Dag Report
+   * Get Dag Reports
    * Get DAG report.
    * @param data The data for the request.
    * @param data.subdir
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static getDagReport(data: GetDagReportData): CancelablePromise<GetDagReportResponse> {
+  public static getDagReports(data: GetDagReportsData): CancelablePromise<GetDagReportsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/dagReports",
@@ -1900,6 +1906,7 @@ export class ExtraLinksService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.mapIndex
    * @returns ExtraLinksResponse Successful Response
    * @throws ApiError
    */
@@ -1911,6 +1918,9 @@ export class ExtraLinksService {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
       },
       errors: {
         401: "Unauthorized",
@@ -1930,6 +1940,7 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.mapIndex
    * @returns ExtraLinksResponse Successful Response
    * @throws ApiError
    */
@@ -1941,6 +1952,9 @@ export class TaskInstanceService {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
       },
       errors: {
         401: "Unauthorized",
@@ -1981,7 +1995,7 @@ export class TaskInstanceService {
 
   /**
    * Patch Task Instance
-   * Update the state of a task instance.
+   * Update a task instance.
    * @param data The data for the request.
    * @param data.dagId
    * @param data.dagRunId
@@ -2249,7 +2263,7 @@ export class TaskInstanceService {
 
   /**
    * Patch Task Instance
-   * Update the state of a task instance.
+   * Update a task instance.
    * @param data The data for the request.
    * @param data.dagId
    * @param data.dagRunId
@@ -2478,6 +2492,86 @@ export class TaskInstanceService {
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Task Instance Dry Run
+   * Update a task instance dry_run mode.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns TaskInstanceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchTaskInstanceDryRun(
+    data: PatchTaskInstanceDryRunData,
+  ): CancelablePromise<PatchTaskInstanceDryRunResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        map_index: data.mapIndex,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Task Instance Dry Run
+   * Update a task instance dry_run mode.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.requestBody
+   * @param data.mapIndex
+   * @param data.updateMask
+   * @returns TaskInstanceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchTaskInstanceDryRun1(
+    data: PatchTaskInstanceDryRun1Data,
+  ): CancelablePromise<PatchTaskInstanceDryRun1Response> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
@@ -2892,7 +2986,7 @@ export class XcomService {
    * @param data.mapIndex
    * @param data.limit
    * @param data.offset
-   * @returns XComCollection Successful Response
+   * @returns XComCollectionResponse Successful Response
    * @throws ApiError
    */
   public static getXcomEntries(data: GetXcomEntriesData): CancelablePromise<GetXcomEntriesResponse> {

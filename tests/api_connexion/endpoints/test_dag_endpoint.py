@@ -27,7 +27,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagBag, DagModel
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 
@@ -320,7 +320,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "owners": [],
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "description": None,
                     "schema": {},
                     "value": 1,
@@ -380,7 +380,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "owners": [],
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "description": None,
                     "schema": {},
                     "value": 1,
@@ -533,7 +533,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "owners": [],
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "description": None,
                     "schema": {},
                     "value": 1,
@@ -591,7 +591,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "owners": [],
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "description": None,
                     "schema": {},
                     "value": 1,

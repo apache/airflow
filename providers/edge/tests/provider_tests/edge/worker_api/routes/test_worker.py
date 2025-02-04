@@ -95,6 +95,57 @@ class TestWorkerApiRoutes:
         else:
             assert worker[0].queues is None
 
+    @pytest.mark.parametrize(
+        "worker_state, body_state, expected_state",
+        [
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                EdgeWorkerState.MAINTENANCE_PENDING,
+                EdgeWorkerState.MAINTENANCE_PENDING,
+                id="stay_maintenance_pending",
+            ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                EdgeWorkerState.MAINTENANCE_MODE,
+                EdgeWorkerState.MAINTENANCE_MODE,
+                id="stay_maintenance_mode",
+            ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                EdgeWorkerState.RUNNING,
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                id="maintenance_request",
+            ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_EXIT,
+                EdgeWorkerState.MAINTENANCE_PENDING,
+                EdgeWorkerState.RUNNING,
+                id="exit_maintenance_pending",
+            ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_EXIT,
+                EdgeWorkerState.MAINTENANCE_MODE,
+                EdgeWorkerState.IDLE,
+                id="exit_maintenance_mode",
+            ),
+            pytest.param(
+                EdgeWorkerState.MAINTENANCE_EXIT,
+                EdgeWorkerState.RUNNING,
+                EdgeWorkerState.RUNNING,
+                id="no_exit",
+            ),
+            pytest.param(
+                EdgeWorkerState.RUNNING, EdgeWorkerState.IDLE, EdgeWorkerState.IDLE, id="no_maintenance"
+            ),
+        ],
+    )
+    def test_redefine_state_if_maintenance(
+        self, worker_state: EdgeWorkerState, body_state: EdgeWorkerState, expected_state: EdgeWorkerState
+    ):
+        from airflow.providers.edge.worker_api.routes.worker import redefine_state_if_maintenance
+
+        assert redefine_state_if_maintenance(worker_state, body_state) == expected_state
+
     def test_set_state(self, session: Session, cli_worker: _EdgeWorkerCli):
         queues = ["default", "default2"]
         rwm = EdgeWorkerModel(
@@ -112,7 +163,7 @@ class TestWorkerApiRoutes:
             queues=["default2"],
             sysinfo=cli_worker._get_sysinfo(),
         )
-        return_queues = set_state("test2_worker", body, session)
+        return_queues = set_state("test2_worker", body, session).queues
 
         worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
         assert len(worker) == 1

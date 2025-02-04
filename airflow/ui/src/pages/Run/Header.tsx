@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
+import { Box, Flex, Heading, HStack, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
 import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -25,11 +25,17 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { Stat } from "src/components/Stat";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Status } from "src/components/ui";
 import { getDuration } from "src/utils";
 
-export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
+export const Header = ({
+  dagRun,
+  isRefreshing,
+}: {
+  readonly dagRun: DAGRunResponse;
+  readonly isRefreshing?: boolean;
+}) => (
   <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
     <Flex alignItems="center" justifyContent="space-between" mb={2}>
       <HStack alignItems="center" gap={2}>
@@ -38,10 +44,8 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => (
           <strong>Run: </strong>
           {dagRun.dag_run_id}
         </Heading>
-        <Status state={dagRun.state}>{dagRun.state}</Status>
-        <Flex>
-          <div />
-        </Flex>
+        <StateBadge state={dagRun.state}>{dagRun.state}</StateBadge>
+        {isRefreshing ? <Spinner /> : <div />}
       </HStack>
       <HStack>
         {dagRun.note === null || dagRun.note.length === 0 ? undefined : (

@@ -24,7 +24,7 @@ import pytest
 
 from airflow.decorators import dag, task, task_group
 from airflow.models.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput, MappedArgument
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 

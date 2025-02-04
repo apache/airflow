@@ -17,9 +17,9 @@
  * under the License.
  */
 import { Box, Heading, HStack } from "@chakra-ui/react";
-import type { TaskInstanceStateCount } from "openapi-gen/requests/types.gen";
+import type { TaskInstanceState, TaskInstanceStateCount } from "openapi-gen/requests/types.gen";
 
-import { MetricsBadge } from "src/components/MetricsBadge";
+import { StateBadge } from "src/components/StateBadge";
 
 import { MetricSection } from "./MetricSection";
 
@@ -34,17 +34,35 @@ const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
   "success",
   "failed",
   "skipped",
+  "removed",
+  "scheduled",
+  "restarting",
+  "up_for_retry",
+  "up_for_reschedule",
+  "upstream_failed",
+  "deferred",
 ];
 
 export const TaskInstanceMetrics = ({ taskInstanceStates, total }: TaskInstanceMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} mt={2} p={2}>
     <HStack mb={4}>
-      <MetricsBadge colorPalette="blue" runs={total} />
+      <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+        {total}
+      </StateBadge>
       <Heading size="md">Task Instances</Heading>
     </HStack>
 
-    {TASK_STATES.map((state) => (
-      <MetricSection key={state} runs={taskInstanceStates[state]} state={state} total={total} />
-    ))}
+    {TASK_STATES.sort((stateA, stateB) =>
+      taskInstanceStates[stateA] > taskInstanceStates[stateB] ? -1 : 1,
+    ).map((state) =>
+      taskInstanceStates[state] > 0 ? (
+        <MetricSection
+          key={state}
+          runs={taskInstanceStates[state]}
+          state={state as TaskInstanceState}
+          total={total}
+        />
+      ) : undefined,
+    )}
   </Box>
 );

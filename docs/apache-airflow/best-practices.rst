@@ -104,7 +104,7 @@ and build DAG relations between them. This is because of the design decision for
 and the impact the top-level code parsing speed on both performance and scalability of Airflow.
 
 Airflow scheduler executes the code outside the Operator's ``execute`` methods with the minimum interval of
-:ref:`min_file_process_interval<config:scheduler__min_file_process_interval>` seconds. This is done in order
+:ref:`min_file_process_interval<config:dag_processor__min_file_process_interval>` seconds. This is done in order
 to allow dynamic scheduling of the DAGs - where scheduling and dependencies might change over time and
 impact the next schedule of the DAG. Airflow scheduler tries to continuously make sure that what you have
 in DAGs is correctly reflected in scheduled tasks.
@@ -442,10 +442,10 @@ at the following configuration parameters and fine tune them according your need
 each parameter by following the links):
 
 * :ref:`config:scheduler__scheduler_idle_sleep_time`
-* :ref:`config:scheduler__min_file_process_interval`
+* :ref:`config:dag_processor__min_file_process_interval`
 * :ref:`config:dag_processor__refresh_interval`
-* :ref:`config:scheduler__parsing_processes`
-* :ref:`config:scheduler__file_parsing_sort_mode`
+* :ref:`config:dag_processor__parsing_processes`
+* :ref:`config:dag_processor__file_parsing_sort_mode`
 
 Example of watcher pattern with trigger rules
 ---------------------------------------------
