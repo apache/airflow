@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-03T17:35:35.358817
+# This constraints file was automatically generated on 2025-02-05T14:28:29.283569
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -48,7 +48,7 @@ Flask==2.2.5
 GitPython==3.1.44
 JayDeBeApi==1.2.3
 Jinja2==3.1.5
-Mako==1.3.8
+Mako==1.3.9
 Markdown==3.7
 MarkupSafe==3.0.2
 PyAthena==3.12.2
@@ -234,7 +234,7 @@ babel==2.17.0
 backoff==2.2.1
 backports.tarfile==1.2.0
 bcrypt==4.2.1
-beautifulsoup4==4.13.1
+beautifulsoup4==4.13.3
 billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
@@ -249,7 +249,7 @@ celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.23.1
+cfn-lint==1.24.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -291,7 +291,7 @@ docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.16
 docutils==0.21.2
-duckdb==1.1.3
+duckdb==1.2.0
 elastic-transport==8.17.0
 elasticsearch==8.17.1
 email_validator==2.2.0
@@ -488,7 +488,7 @@ mysql-connector-python==9.2.0
 mysqlclient==2.2.7
 nbclient==0.10.2
 nbformat==5.10.4
-neo4j==5.27.0
+neo4j==5.28.0
 nest-asyncio==1.6.0
 networkx==3.4.2
 nh3==0.2.20
@@ -523,11 +523,11 @@ pandas-gbq==0.26.1
 pandas-stubs==2.2.3.241126
 pandas==2.1.4
 papermill==2.6.0
-paramiko==3.5.0
+paramiko==3.5.1
 parso==0.8.4
 pathable==0.4.4
 pathspec==0.12.1
-pbr==6.1.0
+pbr==6.1.1
 pdpyras==5.4.0
 pendulum==3.0.0
 pexpect==4.9.0
@@ -650,7 +650,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.13.2
-snowflake-snowpark-python==1.26.0
+snowflake-snowpark-python==1.27.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.6
@@ -687,7 +687,7 @@ sympy==1.13.3
 tableauserverclient==0.36
 tabulate==0.9.0
 tenacity==9.0.0
-teradatasql==20.0.0.23
+teradatasql==20.0.0.24
 teradatasqlalchemy==20.0.0.3
 termcolor==2.5.0
 text-unidecode==1.3
@@ -701,7 +701,7 @@ tornado==6.4.2
 towncrier==24.8.0
 tqdm==4.67.1
 traitlets==5.14.3
-trino==0.332.0
+trino==0.333.0
 trove-classifiers==2025.1.15.22
 twine==6.1.0
 types-Deprecated==1.2.15.20241117
@@ -718,7 +718,7 @@ types-protobuf==5.29.1.20241207
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20241206
 types-python-slugify==8.0.2.20240310
-types-pytz==2024.2.0.20241221
+types-pytz==2025.1.0.20250204
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20241016
 types-setuptools==75.8.0.20250110
