@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-04T19:54:28.002729
+# This constraints file was automatically generated on 2025-02-05T07:58:12.299891
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -121,7 +121,7 @@ babel==2.17.0
 backoff==1.10.0
 backports.tarfile==1.2.0
 bcrypt==4.2.1
-beautifulsoup4==4.13.2
+beautifulsoup4==4.13.3
 billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
@@ -135,7 +135,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
-cfn-lint==1.23.1
+cfn-lint==1.24.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
