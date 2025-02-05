@@ -45,6 +45,7 @@ services:
       - ../../../providers/apache/cassandra/tests:/opt/airflow/providers/apache/cassandra/tests
       - ../../../providers/apache/drill/tests:/opt/airflow/providers/apache/drill/tests
       - ../../../providers/apache/druid/tests:/opt/airflow/providers/apache/druid/tests
+      - ../../../providers/apache/flink/tests:/opt/airflow/providers/apache/flink/tests
       - ../../../providers/apache/hive/tests:/opt/airflow/providers/apache/hive/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
       - ../../../providers/apache/kafka/tests:/opt/airflow/providers/apache/kafka/tests

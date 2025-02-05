@@ -43,9 +43,7 @@ labelPRBasedOnFilePath:
     - providers/apache/druid/**
 
   provider:apache-flink:
-    - providers/src/airflow/providers/apache/flink/**/*
-    - docs/apache-airflow-providers-apache-flink/**/*
-    - providers/tests/apache/flink/**/*
+    - providers/apache/flink/**
 
   provider:apache-hdfs:
     - providers/src/airflow/providers/apache/hdfs/**/*
