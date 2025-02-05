@@ -266,7 +266,7 @@ class ProjectStructureTest:
                     continue
 
                 if is_new:
-                    results[f"{'.'.join(module.split('.')[2:])}.{current_node.name}"] = current_node
+                    results[f"{module[module.find('airflow.providers'):]}.{current_node.name}"] = current_node
                 else:
                     results[f"{module}.{current_node.name}"] = current_node
         print(f"{results}")
