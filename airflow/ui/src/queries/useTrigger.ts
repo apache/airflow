@@ -28,7 +28,6 @@ import {
 } from "openapi/queries";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
-import { doQueryKeysMatch, type PartialQueryKey } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -37,14 +36,14 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
 
   const onSuccess = async () => {
-    const queryKeys: Array<PartialQueryKey> = [
-      { baseKey: useDagServiceGetDagsKey },
-      { baseKey: useDagsServiceRecentDagRunsKey },
-      { baseKey: useDagRunServiceGetDagRunsKey, options: { dagIds: [dagId] } },
-      { baseKey: useTaskInstanceServiceGetTaskInstancesKey, options: { dagId, dagRunId: "~" } },
+    const queryKeys = [
+      [useDagServiceGetDagsKey],
+      [useDagsServiceRecentDagRunsKey],
+      [useDagRunServiceGetDagRunsKey, { dagId }],
+      [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId: "~" }],
     ];
 
-    await queryClient.invalidateQueries({ predicate: (query) => doQueryKeysMatch(query, queryKeys) });
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
       description: "DAG run has been successfully triggered.",
