@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -140,7 +141,6 @@ class BackfillDagRunExceptionReason(str, Enum):
     IN_FLIGHT = "in flight"
     ALREADY_EXISTS = "already exists"
     UNKNOWN = "unknown"
-    CLEARED_RUN = "cleared existing run"
 
 
 class BackfillDagRun(Base):
@@ -194,11 +194,7 @@ def _get_latest_dag_run_row_query(info, session):
 def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> str | None:
     non_create_reason = None
     if dr.state not in (DagRunState.SUCCESS, DagRunState.FAILED):
-        if dr.clear_number == 0:
-            non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
-        else:
-            non_create_reason = BackfillDagRunExceptionReason.CLEARED_RUN
-
+        non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
     elif reprocess_behavior is ReprocessBehavior.NONE:
         non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
     elif reprocess_behavior is ReprocessBehavior.FAILED:
@@ -266,7 +262,7 @@ def _create_backfill_dag_run(
     dag_run_conf,
     backfill_sort_ordinal,
     session,
-) -> None:
+):
     with session.begin_nested() as nested:
         dr = session.scalar(
             with_row_locks(
@@ -275,11 +271,6 @@ def _create_backfill_dag_run(
             ),
         )
         if dr:
-            if dr.state != DagRunState.RUNNING and reprocess_behavior in {
-                ReprocessBehavior.COMPLETED,
-                ReprocessBehavior.FAILED,
-            }:
-                dag.clear(run_id=dr.run_id, dag_run_state=DagRunState.QUEUED, session=session)
             non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
             if non_create_reason:
                 # rolling back here restores to start of this nested tran
