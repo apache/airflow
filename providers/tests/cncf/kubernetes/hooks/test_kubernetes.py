@@ -24,8 +24,10 @@ from asyncio import Future
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import anyio
 import kubernetes
 import pytest
+import yaml
 from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
@@ -897,6 +899,39 @@ class TestAsyncKubernetesHook:
         assert not incluster_config.called
         kube_config_loader.assert_called_once()
         kube_config_merger.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(INCLUSTER_CONFIG_LOADER)
+    @mock.patch(KUBE_CONFIG_MERGER)
+    async def test_load_config_with_conn_id_kube_config_path(
+        self, kube_config_merger, incluster_config, kube_config_loader, tmp_path
+    ):
+        file_name = f"{tmp_path}/config"
+        extra = {"kube_config_path": file_name}
+        try:
+            merge_conn(
+                Connection(
+                    conn_type="kubernetes",
+                    conn_id=CONN_ID,
+                    extra=json.dumps(extra),
+                ),
+            )
+            async with await anyio.open_file(file_name, "w+") as f:
+                yaml.dump({"a": "b"}, f)
+            hook = AsyncKubernetesHook(
+                conn_id=CONN_ID,
+                in_cluster=False,
+                config_file=None,
+                cluster_context=None,
+            )
+            await hook._load_config()
+            assert not incluster_config.called
+            kube_config_loader.assert_called_once()
+            kube_config_merger.assert_called_once()
+        except:
+            raise
+        finally:
+            clear_db_connections()
 
     @pytest.mark.asyncio
     @mock.patch(INCLUSTER_CONFIG_LOADER)
