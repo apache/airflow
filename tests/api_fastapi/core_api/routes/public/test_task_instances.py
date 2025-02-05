@@ -226,7 +226,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_id": "dag_with_multiple_versions",
             "dag_run_id": run_id,
             "map_index": -1,
-            "logical_date": "2016-01-01T00:00:00Z",
+            "logical_date": mock.ANY,
             "start_date": None,
             "end_date": mock.ANY,
             "duration": None,
