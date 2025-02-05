@@ -83,6 +83,8 @@ def mocked_parse(spy_agency):
             return ti
 
         dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
+        if what.ti_context.dag_run.conf:
+            dag.params = what.ti_context.dag_run.conf  # type: ignore[assignment]
         task.dag = dag
         t = dag.task_dict[task.task_id]
         ti = RuntimeTaskInstance.model_construct(
