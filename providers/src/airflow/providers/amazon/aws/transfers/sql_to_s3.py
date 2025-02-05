@@ -94,6 +94,7 @@ class SqlToS3Operator(BaseOperator):
         "s3_key",
         "query",
         "sql_conn_id",
+        "parameters"
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
