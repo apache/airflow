@@ -64,7 +64,6 @@ from airflow.models.dagbag import DagBag
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.xcom import XCom
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
@@ -587,6 +586,8 @@ class TestStringifiedDAGs:
             [
                 "providers/src/airflow/providers/*/example_dags",
                 "providers/src/airflow/providers/*/*/example_dags",
+                "providers/*/src/airflow/providers/*/example_dags",
+                "providers/*/src/airflow/providers/*/*/example_dags",
             ]
         )
 
@@ -1456,7 +1457,7 @@ class TestStringifiedDAGs:
         """
         Test task resources serialization/deserialization.
         """
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
 
         logical_date = datetime(2020, 1, 1)
         task_id = "task1"
@@ -1474,6 +1475,7 @@ class TestStringifiedDAGs:
         """
         Test TaskGroup serialization/deserialization.
         """
+        from airflow.providers.standard.operators.empty import EmptyOperator
 
         logical_date = datetime(2020, 1, 1)
         with DAG("test_task_group_serialization", schedule=None, start_date=logical_date) as dag:
@@ -1530,6 +1532,7 @@ class TestStringifiedDAGs:
         """
         Test setup and teardown task serialization/deserialization.
         """
+        from airflow.providers.standard.operators.empty import EmptyOperator
 
         logical_date = datetime(2020, 1, 1)
         with DAG(
@@ -1663,7 +1666,7 @@ class TestStringifiedDAGs:
         """
         Tests DAG dependency detection for sensors, including derived classes
         """
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         class DerivedSensor(ExternalTaskSensor):
@@ -1863,7 +1866,7 @@ class TestStringifiedDAGs:
         """
         Tests DAG dependency detection for operators, including derived classes
         """
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.providers.standard.operators.trigger_dagrun import (
             TriggerDagRunOperator,
         )
@@ -1905,7 +1908,7 @@ class TestStringifiedDAGs:
         """
         Tests serialize_task_group, make sure the list is in order
         """
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
         """
@@ -1979,7 +1982,7 @@ class TestStringifiedDAGs:
         """
         Tests edge_info serialization/deserialization.
         """
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.utils.edgemodifier import Label
 
         with DAG(
@@ -2663,7 +2666,7 @@ def test_task_resources_serde():
     """
     Test task resources serialization/deserialization.
     """
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     logical_date = datetime(2020, 1, 1)
     task_id = "task1"

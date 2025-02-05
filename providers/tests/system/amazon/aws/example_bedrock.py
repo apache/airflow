@@ -25,7 +25,6 @@ import boto3
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockHook
 from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateProvisionedModelThroughputOperator,
@@ -41,6 +40,7 @@ from airflow.providers.amazon.aws.sensors.bedrock import (
     BedrockCustomizeModelCompletedSensor,
     BedrockProvisionModelThroughputCompletedSensor,
 )
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
 

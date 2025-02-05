@@ -23,12 +23,12 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import conf
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 from airflow.providers.smtp.notifications.smtp import (
     SmtpNotifier,
     send_smtp_notification,
 )
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 
 from tests_common.test_utils.config import conf_vars

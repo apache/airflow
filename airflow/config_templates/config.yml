@@ -912,28 +912,6 @@ logging:
       default: "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/\
                {%% if ti.map_index >= 0 %%}map_index={{ ti.map_index }}/{%% endif %%}\
                attempt={{ try_number|default(ti.try_number) }}.log"
-    log_processor_filename_template:
-      description: |
-        Formatting for how airflow generates file names for log
-      version_added: 2.0.0
-      type: string
-      example: ~
-      is_template: true
-      default: "{{ filename }}.log"
-    dag_processor_manager_log_location:
-      description: |
-        Full path of dag_processor_manager logfile.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "{AIRFLOW_HOME}/logs/dag_processor_manager/dag_processor_manager.log"
-    dag_processor_manager_log_stdout:
-      description: |
-        Whether DAG processor manager will write logs to stdout
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
     task_log_reader:
       description: |
         Name of handler to read task instance logs.

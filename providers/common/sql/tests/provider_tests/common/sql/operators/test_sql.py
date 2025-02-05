@@ -27,7 +27,6 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
@@ -41,6 +40,7 @@ from airflow.providers.common.sql.operators.sql import (
     SQLValueCheckOperator,
 )
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State

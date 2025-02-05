@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.12.0pre0
+..........
+
+Misc
+~~~~
+
+* ``An Edge worker can remember maintenance mode in case of shut down. It picks up maintenance state at startup.``
+
 0.11.0pre0
 ..........
 
