@@ -19,7 +19,6 @@ from __future__ import annotations
 import base64
 import os
 import pickle
-import uuid
 from collections.abc import Sequence
 from shlex import quote
 from tempfile import TemporaryDirectory
@@ -68,9 +67,15 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
     def __init__(self, namespace: str | None = None, use_dill: bool = False, **kwargs) -> None:
         self.use_dill = use_dill
+
+        # If the name was not provided, we generate operator name from the python_callable
+        # we also instruct operator to add a random suffix to avoid collisions by default
+        op_name = kwargs.pop("name", f"k8s-airflow-pod-{kwargs['python_callable'].__name__}")
+        random_name_suffix = kwargs.pop("random_name_suffix", True)
         super().__init__(
             namespace=namespace,
-            name=kwargs.pop("name", f"k8s_airflow_pod_{uuid.uuid4().hex}"),
+            name=op_name,
+            random_name_suffix=random_name_suffix,
             cmds=["placeholder-command"],
             **kwargs,
         )
