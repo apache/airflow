@@ -210,7 +210,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^kubernetes_tests",
             r"^providers/src/airflow/providers/cncf/kubernetes/",
-            r"^providers/tests/cncf/kubernetes/",
+            r"^providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/",
             r"^providers/tests/system/cncf/kubernetes/",
             r"^providers/cncf/kubernetes/",
         ],

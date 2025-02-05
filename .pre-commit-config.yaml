@@ -665,7 +665,7 @@ repos:
           ^providers/fab/docs/auth-manager/webserver-authentication.rst$|
           ^providers/google/docs/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
-          ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
+          ^providers/cncf/kubernetes/docs/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
           ^newsfragments/41761.significant.rst$|
