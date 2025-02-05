@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated, Callable
 
-from pydantic import BeforeValidator, ConfigDict, Field
+from pydantic import BeforeValidator, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
@@ -62,8 +62,6 @@ class PoolCollectionResponse(BaseModel):
 
 class PoolPatchBody(StrictBaseModel):
     """Pool serializer for patch bodies."""
-
-    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     name: str | None = Field(default=None, alias="pool")
     slots: int | None = None

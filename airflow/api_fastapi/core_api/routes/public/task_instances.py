@@ -659,13 +659,7 @@ def post_clear_task_instances(
         )
 
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            TaskInstanceResponse.model_validate(
-                ti,
-                from_attributes=True,
-            )
-            for ti in task_instances
-        ],
+        task_instances=task_instances,
         total_entries=len(task_instances),
     )
 
@@ -775,7 +769,6 @@ def patch_task_instance_dry_run(
         task_instances=[
             TaskInstanceResponse.model_validate(
                 ti,
-                from_attributes=True,
             )
             for ti in tis
         ],
@@ -840,4 +833,4 @@ def patch_task_instance(
                     ti.task_instance_note.user_id = None
                 session.commit()
 
-    return TaskInstanceResponse.model_validate(ti, from_attributes=True)
+    return TaskInstanceResponse.model_validate(ti)
