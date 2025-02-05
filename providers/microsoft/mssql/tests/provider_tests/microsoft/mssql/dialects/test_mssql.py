@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import pytest
+
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 
@@ -26,13 +27,18 @@ class TestMsSqlDialect:
         "create_db_api_hook",
         [
             (
-                [{"name": "index", "identity": True}, {"name": "name"}, {"name": "firstname"}, {"name": "age"}],  # columns
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
                 [("index",)],  # primary_keys
                 {"index", "user"},  # reserved_words
                 False,  # escape_column_names
             ),
         ],
-        indirect=True  # Ensures parameters are passed to the fixture
+        indirect=True,
     )
     def test_placeholder(self, create_db_api_hook):
         assert MsSqlDialect(create_db_api_hook).placeholder == "?"
@@ -41,13 +47,18 @@ class TestMsSqlDialect:
         "create_db_api_hook",
         [
             (
-                [{"name": "index", "identity": True}, {"name": "name"}, {"name": "firstname"}, {"name": "age"}],  # columns
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
                 [("index",)],  # primary_keys
                 {"index", "user"},  # reserved_words
                 False,  # escape_column_names
             ),
         ],
-        indirect=True  # Ensures parameters are passed to the fixture
+        indirect=True,
     )
     def test_get_column_names(self, create_db_api_hook):
         assert MsSqlDialect(create_db_api_hook).get_column_names("hollywood.actors") == [
@@ -61,13 +72,18 @@ class TestMsSqlDialect:
         "create_db_api_hook",
         [
             (
-                [{"name": "index", "identity": True}, {"name": "name"}, {"name": "firstname"}, {"name": "age"}],  # columns
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
                 [("index",)],  # primary_keys
                 {"index", "user"},  # reserved_words
                 False,  # escape_column_names
             ),
         ],
-        indirect=True  # Ensures parameters are passed to the fixture
+        indirect=True,
     )
     def test_get_target_fields(self, create_db_api_hook):
         assert MsSqlDialect(create_db_api_hook).get_target_fields("hollywood.actors") == [
@@ -80,13 +96,18 @@ class TestMsSqlDialect:
         "create_db_api_hook",
         [
             (
-                [{"name": "index", "identity": True}, {"name": "name"}, {"name": "firstname"}, {"name": "age"}],  # columns
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
                 [("index",)],  # primary_keys
                 {"index", "user"},  # reserved_words
                 False,  # escape_column_names
             ),
         ],
-        indirect=True  # Ensures parameters are passed to the fixture
+        indirect=True,
     )
     def test_get_primary_keys(self, create_db_api_hook):
         assert MsSqlDialect(create_db_api_hook).get_primary_keys("hollywood.actors") == ["index"]
@@ -95,14 +116,18 @@ class TestMsSqlDialect:
         "create_db_api_hook",
         [
             (
-                [{"name": "index", "identity": True}, {"name": "name"}, {"name": "firstname"},
-                 {"name": "age"}],  # columns
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
                 [("index",)],  # primary_keys
                 {"index", "user"},  # reserved_words
                 False,  # escape_column_names
             ),
         ],
-        indirect=True  # Ensures parameters are passed to the fixture
+        indirect=True,
     )
     def test_generate_replace_sql(self, create_db_api_hook):
         values = [
@@ -131,14 +156,18 @@ class TestMsSqlDialect:
         "create_db_api_hook",
         [
             (
-                [{"name": "index", "identity": True}, {"name": "name", "identity": True}, {"name": "firstname", "identity": True},
-                 {"name": "age", "identity": True}],  # columns
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name", "identity": True},
+                    {"name": "firstname", "identity": True},
+                    {"name": "age", "identity": True},
+                ],  # columns
                 [("index",), ("name",), ("firstname",), ("age",)],  # primary_keys
                 {"index", "user"},  # reserved_words
                 False,  # escape_column_names
             ),
         ],
-        indirect=True  # Ensures parameters are passed to the fixture
+        indirect=True,
     )
     def test_generate_replace_sql_when_all_columns_are_part_of_primary_key(self, create_db_api_hook):
         values = [
@@ -165,14 +194,18 @@ class TestMsSqlDialect:
         "create_db_api_hook",
         [
             (
-                [{"name": "index", "identity": True}, {"name": "name"}, {"name": "firstname"},
-                 {"name": "age"}],  # columns
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
                 [("index",)],  # primary_keys
                 {"index", "user"},  # reserved_words
                 True,  # escape_column_names
             ),
         ],
-        indirect=True  # Ensures parameters are passed to the fixture
+        indirect=True,
     )
     def test_generate_replace_sql_when_escape_column_names_is_enabled(self, create_db_api_hook):
         values = [
