@@ -75,7 +75,7 @@ class ElasticsearchSQLCursor:
 
     @property
     def description(self) -> list[tuple]:
-        return self.response.get("columns", [])
+        return [(column["name"], column["type"]) for column in self.response.get("columns", [])]
 
     def execute(self, statement: str, params: Iterable | Mapping[str, Any] | None = None) -> ObjectApiResponse:
         self.body["query"] = statement
@@ -138,6 +138,9 @@ class ESConnection:
     def close(self):
         self.es.close()
 
+    def commit(self):
+        pass
+
     def execute_sql(self, query: str, params: Iterable | Mapping[str, Any] | None = None) -> ObjectApiResponse:
         return self.cursor().execute(query, params)
 
@@ -154,13 +157,13 @@ class ElasticsearchSQLHook(DbApiHook):
 
     conn_name_attr = "elasticsearch_conn_id"
     default_conn_name = "elasticsearch_default"
+    connector = ESConnection
     conn_type = "elasticsearch"
     hook_name = "Elasticsearch"
 
     def __init__(self, schema: str = "http", connection: AirflowConnection | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = schema
-        self._connection = connection
 
     def get_conn(self) -> ESConnection:
         """Return an elasticsearch connection object."""
