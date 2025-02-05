@@ -491,12 +491,10 @@ class TestSFTPHook:
         assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
 
     @patch("paramiko.SSHClient")
-    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
     @patch("paramiko.ProxyCommand")
-    def test_sftp_hook_with_proxy_command(self, mock_proxy_command, mock_get_conn, mock_ssh_client):
+    def test_sftp_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
         mock_sftp_client = MagicMock(spec=SFTPClient)
         mock_ssh_client.open_sftp.return_value = mock_sftp_client
-        mock_get_conn.return_value = mock_ssh_client
 
         mock_transport = MagicMock()
         mock_ssh_client.return_value.get_transport.return_value = mock_transport
