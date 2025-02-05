@@ -104,7 +104,7 @@ class WinRMOperator(BaseOperator):
             success = return_code == self.expected_return_code
         elif isinstance(self.expected_return_code, list) or isinstance(self.expected_return_code, range):
             success = return_code in self.expected_return_code
-       
+
         if success:
             # returning output if do_xcom_push is set
             # TODO: Remove this after minimum Airflow version is 3.0
