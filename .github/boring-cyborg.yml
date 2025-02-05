@@ -205,10 +205,7 @@ labelPRBasedOnFilePath:
     - providers/microsoft/psrp/**
 
   provider:microsoft-winrm:
-    - providers/src/airflow/providers/microsoft/winrm/**/*
-    - docs/apache-airflow-providers-microsoft-winrm/**/*
-    - providers/tests/microsoft/winrm/**/*
-    - providers/tests/system/microsoft/winrm/**/*
+    - providers/microsoft/winrm/**
 
   provider:mongo:
     - providers/mongo/**
