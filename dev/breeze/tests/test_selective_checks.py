@@ -1890,7 +1890,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
             id="pyproject.toml changed but no dependency change",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/microsoft/azure/provider.yaml",),
+            ("providers/microsoft/azure/src/airflow/providers/microsoft/azure/provider.yaml",),
             {
                 "upgrade-to-newer-dependencies": "false",
             },

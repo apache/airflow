@@ -80,7 +80,10 @@ def _all_new_providers() -> list[str]:
         (
             GroupOfTests.PROVIDERS,
             "Providers",
-            [*[f"providers/{provider}/tests" for provider in _all_new_providers()], "providers/tests"],
+            [
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                "providers/tests",
+            ],
         ),
         (
             GroupOfTests.PROVIDERS,
@@ -112,7 +115,6 @@ def _all_new_providers() -> list[str]:
                 ],
                 "providers/tests",
                 "--ignore=providers/tests/amazon",
-                "--ignore=providers/tests/microsoft/azure",
             ],
         ),
         (
