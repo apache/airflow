@@ -38,6 +38,9 @@ class AssetProfile(BaseModel):
     AssetUriRef will have uri and asset_type defined.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     name: Annotated[str | None, Field(title="Name")] = None
     uri: Annotated[str | None, Field(title="Uri")] = None
     asset_type: Annotated[str, Field(title="Asset Type")]
@@ -110,6 +113,9 @@ class TIDeferredStatePayload(BaseModel):
     Schema for updating TaskInstance to a deferred state.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     state: Annotated[Literal["deferred"] | None, Field(title="State")] = "deferred"
     classpath: Annotated[str, Field(title="Classpath")]
     trigger_kwargs: Annotated[dict[str, Any] | None, Field(title="Trigger Kwargs")] = None
@@ -122,6 +128,9 @@ class TIEnterRunningPayload(BaseModel):
     Schema for updating TaskInstance to 'RUNNING' state with minimal required fields.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     state: Annotated[Literal["running"] | None, Field(title="State")] = "running"
     hostname: Annotated[str, Field(title="Hostname")]
     unixname: Annotated[str, Field(title="Unixname")]
@@ -134,6 +143,9 @@ class TIHeartbeatInfo(BaseModel):
     Schema for TaskInstance heartbeat endpoint.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     hostname: Annotated[str, Field(title="Hostname")]
     pid: Annotated[int, Field(title="Pid")]
 
@@ -143,6 +155,9 @@ class TIRescheduleStatePayload(BaseModel):
     Schema for updating TaskInstance to a up_for_reschedule state.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     state: Annotated[Literal["up_for_reschedule"] | None, Field(title="State")] = "up_for_reschedule"
     reschedule_date: Annotated[datetime, Field(title="Reschedule Date")]
     end_date: Annotated[datetime, Field(title="End Date")]
@@ -153,6 +168,9 @@ class TIRuntimeCheckPayload(BaseModel):
     Payload for performing Runtime checks on the TaskInstance model as requested by the SDK.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     inlets: Annotated[list[AssetProfile] | None, Field(title="Inlets")] = None
     outlets: Annotated[list[AssetProfile] | None, Field(title="Outlets")] = None
 
@@ -162,6 +180,9 @@ class TISuccessStatePayload(BaseModel):
     Schema for updating TaskInstance to success state.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     state: Annotated[Literal["success"] | None, Field(title="State")] = "success"
     end_date: Annotated[datetime, Field(title="End Date")]
     task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
@@ -173,6 +194,9 @@ class TITargetStatePayload(BaseModel):
     Schema for updating TaskInstance to a target state, excluding terminal and running states.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     state: IntermediateTIState
 
 
@@ -234,6 +258,9 @@ class TaskInstance(BaseModel):
     Schema for TaskInstance model with minimal required fields needed for Runtime.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     id: Annotated[UUID, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]
@@ -248,6 +275,9 @@ class DagRun(BaseModel):
     Schema for DagRun model with minimal required fields needed for Runtime.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
     logical_date: Annotated[datetime, Field(title="Logical Date")]
@@ -279,6 +309,10 @@ class TITerminalStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a terminal state except SUCCESS state.
     """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
 
     state: TerminalTIState
     end_date: Annotated[datetime, Field(title="End Date")]
