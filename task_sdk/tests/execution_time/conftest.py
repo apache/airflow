@@ -70,7 +70,7 @@ def mocked_parse(spy_agency):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
         from airflow.utils import timezone
 
-        if getattr(task, "dag") is not None:
+        if task.has_dag():
             if what.ti_context.dag_run.conf:
                 task.dag.params = what.ti_context.dag_run.conf  # type: ignore[assignment]
             ti = RuntimeTaskInstance.model_construct(
