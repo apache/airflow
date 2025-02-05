@@ -30,7 +30,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models import Connection
-from airflow.utils.log.secrets_masker import (
+from airflow.sdk.execution_time.secrets_masker import (
     RedactedIO,
     SecretsMasker,
     mask_secret,
@@ -302,7 +302,7 @@ class TestSecretsMasker:
     def test_redact_max_depth(self, val, expected, max_depth):
         secrets_masker = SecretsMasker()
         secrets_masker.add_mask("abc")
-        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=secrets_masker):
+        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
             got = redact(val, max_depth=max_depth)
             assert got == expected
 
@@ -343,7 +343,7 @@ class TestSecretsMasker:
 
     def test_masking_quoted_strings_in_connection(self, logger, caplog):
         secrets_masker = next(fltr for fltr in logger.filters if isinstance(fltr, SecretsMasker))
-        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=secrets_masker):
+        with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
             test_conn_attributes = dict(
                 conn_type="scheme",
                 host="host/location",
@@ -388,7 +388,7 @@ class TestShouldHideValueForKey:
         ],
     )
     def test_hiding_config(self, sensitive_variable_fields, key, expected_result):
-        from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
+        from airflow.sdk.execution_time.secrets_masker import get_sensitive_variables_fields
 
         with conf_vars({("core", "sensitive_var_conn_names"): str(sensitive_variable_fields)}):
             get_sensitive_variables_fields.cache_clear()
@@ -415,7 +415,9 @@ class TestRedactedIO:
     @pytest.fixture(scope="class", autouse=True)
     def reset_secrets_masker(self):
         self.secrets_masker = SecretsMasker()
-        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):
+        with patch(
+            "airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=self.secrets_masker
+        ):
             mask_secret(p)
             yield
 
@@ -452,8 +454,10 @@ class TestMaskSecretAdapter:
     @pytest.fixture(autouse=True)
     def reset_secrets_masker_and_skip_escape(self):
         self.secrets_masker = SecretsMasker()
-        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):
-            with patch("airflow.utils.log.secrets_masker.re2.escape", lambda x: x):
+        with patch(
+            "airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=self.secrets_masker
+        ):
+            with patch("airflow.sdk.execution_time.secrets_masker.re2.escape", lambda x: x):
                 yield
 
     def test_calling_mask_secret_adds_adaptations_for_returned_str(self):

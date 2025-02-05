@@ -21,8 +21,8 @@ from __future__ import annotations
 from typing import Any
 
 from airflow.configuration import conf
+from airflow.sdk.execution_time.secrets_masker import redact
 from airflow.settings import json
-from airflow.utils.log.secrets_masker import redact
 
 
 def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
