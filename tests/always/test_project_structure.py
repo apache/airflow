@@ -249,7 +249,7 @@ class ProjectStructureTest:
             operators_paths = self.get_classes_from_file(operator_file, NEW_PROVIDER_SRC, is_new=True)
             classes.update(operators_paths)
         # replace src. prefix with empty string for all classes
-        classes = {k.replace("src.", ""): v for k, v in classes.items()}
+        classes = {k.strip("src."): v for k, v in classes.items()}
         return classes
 
     def get_classes_from_file(
