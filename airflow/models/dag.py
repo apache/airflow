@@ -2350,6 +2350,7 @@ class DagModel(Base):
                 del adrq_by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
+        # TODO: make it more readable (rename it or make it attrs, dataclass or etc.)
         asset_triggered_dag_info: dict[str, tuple[datetime, datetime]] = {}
         for dag_id, records in adrq_by_dag.items():
             times = sorted(x.created_at for x in records)
