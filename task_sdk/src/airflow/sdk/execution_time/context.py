@@ -23,7 +23,9 @@ from typing import TYPE_CHECKING, Any, Union
 
 import attrs
 import structlog
+from sqlalchemy import select
 
+from airflow.models import AssetEvent
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -38,9 +40,13 @@ from airflow.sdk.definitions.asset import (
     BaseAssetUniqueKey,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.utils.db import LazySelectSequence
 
 if TYPE_CHECKING:
     from uuid import UUID
+
+    from sqlalchemy.engine import Row
+    from sqlalchemy.sql.expression import Select, TextClause
 
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
@@ -278,6 +284,54 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
         if TYPE_CHECKING:
             assert isinstance(msg, AssetResult)
         return Asset(**msg.model_dump(exclude={"type"}))
+
+
+class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
+    """
+    List-like interface to lazily access AssetEvent rows.
+
+    :meta private:
+    """
+
+    @staticmethod
+    def _rebuild_select(stmt: TextClause) -> Select:
+        return select(AssetEvent).from_statement(stmt)
+
+    @staticmethod
+    def _process_row(row: Row) -> AssetEvent:
+        return row[0]
+
+
+@attrs.define(init=False)
+class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], LazyAssetEventSelectSequence]):
+    _inlets: list[Any]
+    _assets: dict[AssetUniqueKey, Asset]
+    _asset_aliases: dict[AssetAliasUniqueKey, AssetAlias]
+    # _session: Session
+
+    # def __init__(self, inlets: list, *, session: Session) -> None:
+    def __init__(self, inlets: list) -> None:
+        self._inlets = inlets
+        self._assets = {}
+        self._asset_aliases = {}
+
+        for inlet in inlets:
+            if isinstance(inlet, Asset):
+                self._assets[AssetUniqueKey.from_asset(inlet)] = inlet
+            elif isinstance(inlet, AssetAlias):
+                self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(inlet)] = inlet
+            elif isinstance(inlet, AssetNameRef):
+                asset = OutletEventAccessors._get_asset_from_db(name=inlet.name)
+                self._assets[AssetUniqueKey.from_asset(asset)] = asset
+            elif isinstance(inlet, AssetUriRef):
+                asset = OutletEventAccessors._get_asset_from_db(uri=inlet.uri)
+                self._assets[AssetUniqueKey.from_asset(asset)] = asset
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]:
+        return iter(self._inlets)
+
+    def __len__(self) -> int:
+        return len(self._inlets)
 
 
 @cache  # Prevent multiple API access.
