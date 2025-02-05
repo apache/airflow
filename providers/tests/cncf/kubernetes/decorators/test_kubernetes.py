@@ -70,6 +70,16 @@ def mock_hook():
     return mock.patch(HOOK_CLASS).start()
 
 
+# Without this patch each time pod manager would try to extract logs from the pod
+# and log an error about it's inability to get containers for the log
+# {pod_manager.py:572} ERROR - Could not retrieve containers for the pod: ...
+@pytest.fixture(autouse=True)
+def mock_fetch_logs() -> mock.Mock:
+    f = mock.patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs").start()
+    f.return_value = "logs"
+    return f
+
+
 def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock) -> None:
     with dag_maker(session=session) as dag:
 
@@ -215,3 +225,104 @@ def test_kubernetes_with_marked_as_teardown(
     assert len(dag.task_group.children) == 1
     teardown_task = dag.task_group.children["f"]
     assert teardown_task.is_teardown
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["no_name_in_args", None, "test_task_name"],
+    ids=["no_name_in_args", "name_set_to_None", "with_name"],
+)
+@pytest.mark.parametrize(
+    "random_name_suffix",
+    [True, False],
+    ids=["rand_suffix", "no_rand_suffix"],
+)
+def test_pod_naming(
+    dag_maker,
+    session,
+    mock_create_pod: mock.Mock,
+    name: str | None,
+    random_name_suffix: bool,
+) -> None:
+    """
+    Idea behind this test is to check naming conventions are respected in various
+    decorator arguments combinations scenarios.
+
+    @task.kubernetes differs from KubernetesPodOperator in a way that it distinguishes
+    between no name argument was provided and name was set to None.
+    In the first case, the operator name is generated from the python_callable name,
+    in the second case default KubernetesPodOperator behavior is preserved.
+    """
+    extra_kwargs = {"name": name}
+    if name == "no_name_in_args":
+        extra_kwargs.pop("name")
+
+    with dag_maker(session=session) as dag:
+
+        @task.kubernetes(
+            image="python:3.10-slim-buster",
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+            random_name_suffix=random_name_suffix,
+            namespace="default",
+            **extra_kwargs,  # type: ignore
+        )
+        def task_function_name():
+            return 42
+
+        task_function_name()
+
+    dr = dag_maker.create_dagrun()
+    (ti,) = dr.task_instances
+    session.add(ti)
+    session.commit()
+
+    task_id = "task_function_name"
+    op = dag.get_task(task_id)
+    if name is not None:
+        assert isinstance(op.name, str)
+
+    # If name was explicitly set to None, we expect the operator name to be None
+    if name is None:
+        assert op.name is None
+    # If name was not provided in decorator, it would be generated:
+    # f"k8s-airflow-pod-{python_callable.__name__}"
+    elif name == "no_name_in_args":
+        assert op.name == f"k8s-airflow-pod-{task_id}"
+    # Otherwise, we expect the name to be exactly the same as provided
+    else:
+        assert op.name == name
+
+    op.execute(context=ti.get_template_context(session=session))
+    pod_meta = mock_create_pod.call_args.kwargs["pod"].metadata
+    assert isinstance(pod_meta.name, str)
+
+    # After execution pod names should not contain underscores
+    task_id_normalized = task_id.replace("_", "-")
+
+    def check_op_name(name_arg: str | None) -> str:
+        if name_arg is None:
+            assert op.name is None
+            return task_id_normalized
+
+        assert isinstance(op.name, str)
+        if name_arg == "no_name_in_args":
+            generated_name = f"k8s-airflow-pod-{task_id_normalized}"
+            assert op.name == generated_name
+            return generated_name
+
+        normalized_name = name_arg.replace("_", "-")
+        assert op.name == normalized_name
+
+        return normalized_name
+
+    def check_pod_name(name_base: str):
+        if random_name_suffix:
+            assert pod_meta.name.startswith(f"{name_base}")
+            assert pod_meta.name != name_base
+        else:
+            assert pod_meta.name == name_base
+
+    pod_name = check_op_name(name)
+    check_pod_name(pod_name)
