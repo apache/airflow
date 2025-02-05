@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from deprecated import deprecated
 from sqlalchemy import and_, delete, exists, func, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
+from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -756,7 +756,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
-        query = select(TI).where(filter_for_tis).options(selectinload(TI.dag_model))
+        query = (
+            select(TI)
+            .where(filter_for_tis)
+            .options(selectinload(TI.dag_model))
+            .options(joinedload(TI.dag_version))
+        )
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
         tis_query: Query = with_row_locks(query, of=TI, session=session, skip_locked=True)
@@ -837,7 +842,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 if info is not None:
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
-                cls.logger().error(msg)
                 session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
 
                 # Get task from the Serialized DAG
@@ -850,8 +854,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
                 ti.task = task
                 if task.on_retry_callback or task.on_failure_callback:
+                    # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
+                    # too, which would lead to double logging
+                    cls.logger().error(msg)
                     request = TaskCallbackRequest(
-                        full_filepath=ti.dag_model.fileloc,
+                        filepath=ti.dag_model.relative_fileloc,
+                        bundle_name=ti.dag_version.bundle_name,
+                        bundle_version=ti.dag_version.bundle_version,
                         ti=ti,
                         msg=msg,
                     )
@@ -1282,6 +1291,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ),
                         logical_date=dag_model.next_dagrun,
                         data_interval=data_interval,
+                        run_after=dag_model.next_dagrun_create_after,
                         run_type=DagRunType.SCHEDULED,
                         triggered_by=DagRunTriggeredByType.TIMETABLE,
                         dag_version=latest_dag_version,
@@ -1393,6 +1403,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                     logical_date=logical_date,
                     data_interval=data_interval,
+                    run_after=max(logical_dates.values()),
                     run_type=DagRunType.ASSET_TRIGGERED,
                     triggered_by=DagRunTriggeredByType.ASSET,
                     dag_version=latest_dag_version,
@@ -1623,9 +1634,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
 
                 callback_to_execute = DagCallbackRequest(
-                    full_filepath=dag.fileloc,
+                    filepath=dag_model.relative_fileloc,
                     dag_id=dag.dag_id,
                     run_id=dag_run.run_id,
+                    bundle_name=dag_model.bundle_name,
+                    bundle_version=dag_run.bundle_version,
                     is_failure_callback=True,
                     msg="timed_out",
                 )
@@ -1987,11 +2000,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if zombies := self._find_zombies(session=session):
                 self._purge_zombies(zombies, session=session)
 
-    def _find_zombies(self, *, session: Session) -> list[tuple[TI, str]]:
+    def _find_zombies(self, *, session: Session) -> list[TI]:
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-        zombies = session.execute(
-            select(TI, DM.fileloc)
+        zombies = session.scalars(
+            select(TI)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)
             .where(
@@ -2004,11 +2017,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.warning("Failing %s TIs without heartbeat after %s", len(zombies), limit_dttm)
         return zombies
 
-    def _purge_zombies(self, zombies: list[tuple[TI, str]], *, session: Session) -> None:
-        for ti, file_loc in zombies:
+    def _purge_zombies(self, zombies: list[TI], *, session: Session) -> None:
+        for ti in zombies:
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
-                full_filepath=file_loc,
+                filepath=ti.dag_model.relative_fileloc,
+                bundle_name=ti.dag_version.bundle_name,
+                bundle_version=ti.dag_run.bundle_version,
                 ti=ti,
                 msg=str(zombie_message_details),
             )

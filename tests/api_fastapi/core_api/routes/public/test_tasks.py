@@ -26,7 +26,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -92,7 +92,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "EmptyOperator",
-                "module_path": "airflow.operators.empty",
+                "module_path": "airflow.providers.standard.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [self.task_id2],
@@ -136,7 +136,10 @@ class TestGetTask(TestTaskEndpoint):
 
     def test_mapped_task(self, test_client):
         expected = {
-            "class_ref": {"class_name": "EmptyOperator", "module_path": "airflow.operators.empty"},
+            "class_ref": {
+                "class_name": "EmptyOperator",
+                "module_path": "airflow.providers.standard.operators.empty",
+            },
             "depends_on_past": False,
             "downstream_task_ids": [],
             "end_date": None,
@@ -174,7 +177,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "EmptyOperator",
-                "module_path": "airflow.operators.empty",
+                "module_path": "airflow.providers.standard.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [],
@@ -237,7 +240,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "EmptyOperator",
-                "module_path": "airflow.operators.empty",
+                "module_path": "airflow.providers.standard.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [self.task_id2],
@@ -302,7 +305,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.empty",
+                        "module_path": "airflow.providers.standard.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [self.task_id2],
@@ -341,7 +344,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.empty",
+                        "module_path": "airflow.providers.standard.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
@@ -381,7 +384,10 @@ class TestGetTasks(TestTaskEndpoint):
         expected = {
             "tasks": [
                 {
-                    "class_ref": {"class_name": "EmptyOperator", "module_path": "airflow.operators.empty"},
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.providers.standard.operators.empty",
+                    },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
                     "end_date": None,
@@ -412,7 +418,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.empty",
+                        "module_path": "airflow.providers.standard.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
@@ -458,7 +464,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.empty",
+                        "module_path": "airflow.providers.standard.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [downstream_task_id] if downstream_task_id else [],

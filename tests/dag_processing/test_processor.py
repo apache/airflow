@@ -75,7 +75,7 @@ def disable_load_example():
 class TestDagFileProcessor:
     def _process_file(
         self, file_path, callback_requests: list[CallbackRequest] | None = None
-    ) -> DagFileParsingResult:
+    ) -> DagFileParsingResult | None:
         return _parse_file(
             DagFileParseRequest(
                 file=file_path,
@@ -104,6 +104,7 @@ class TestDagFileProcessor:
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
+                run_after=DEFAULT_DATE,
                 triggered_by=DagRunTriggeredByType.TEST,
                 session=session,
             )
@@ -127,7 +128,7 @@ class TestDagFileProcessor:
             dagbag.import_errors["a.py"] = "Import error"
 
         resp = self._process_file("a.py")
-
+        assert resp is not None
         assert not resp.serialized_dags
         assert resp.import_errors is not None
         assert "a.py" in resp.import_errors
@@ -183,6 +184,7 @@ def disable_capturing():
     sys.stdin, sys.stdout, sys.stderr = old_in, old_out, old_err
 
 
+@pytest.mark.usefixtures("testing_dag_bundle")
 @pytest.mark.usefixtures("disable_capturing")
 def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
     r, w = socketpair()
@@ -192,7 +194,7 @@ def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
     w.makefile("wb").write(
         b'{"file":"/files/dags/wait.py","bundle_path":"/files/dags","requests_fd":'
         + str(w2.fileno()).encode("ascii")
-        + b',"callback_requests": [{"full_filepath": "/files/dags/wait.py", '
+        + b',"callback_requests": [{"filepath": "wait.py", "bundle_name": "testing", "bundle_version": null, '
         b'"msg": "task_failure", "dag_id": "wait_to_fail", "run_id": '
         b'"manual__2024-12-30T21:02:55.203691+00:00", '
         b'"is_failure_callback": true, "type": "DagCallbackRequest"}], "type": "DagFileParseRequest"}\n'
@@ -208,11 +210,13 @@ def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
     assert msg.file == "/files/dags/wait.py"
     assert msg.callback_requests == [
         DagCallbackRequest(
-            full_filepath="/files/dags/wait.py",
+            filepath="wait.py",
             msg="task_failure",
             dag_id="wait_to_fail",
             run_id="manual__2024-12-30T21:02:55.203691+00:00",
             is_failure_callback=True,
+            bundle_name="testing",
+            bundle_version=None,
         )
     ]
 
@@ -235,10 +239,12 @@ def test_parse_file_with_dag_callbacks(spy_agency):
 
     requests = [
         DagCallbackRequest(
-            full_filepath="A",
+            filepath="A",
             msg="Message",
             dag_id="a",
             run_id="b",
+            bundle_name="testing",
+            bundle_version=None,
         )
     ]
     _parse_file(
@@ -269,9 +275,11 @@ def test_parse_file_with_task_callbacks(spy_agency):
 
     requests = [
         TaskCallbackRequest(
-            full_filepath="A",
+            filepath="A",
             msg="Message",
             ti=None,
+            bundle_name="testing",
+            bundle_version=None,
         )
     ]
     _parse_file(

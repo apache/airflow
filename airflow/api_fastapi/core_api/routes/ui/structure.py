@@ -44,27 +44,27 @@ def structure_data(
     include_downstream: QueryIncludeDownstream = False,
     root: str | None = None,
     external_dependencies: bool = False,
-    dag_version: int | None = None,
+    version_number: int | None = None,
 ) -> StructureDataResponse:
     """Get Structure Data."""
-    if dag_version is None:
+    if version_number is None:
         dag_version_model = DagVersion.get_latest_version(dag_id)
         if dag_version_model is None:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 f"Dag with id {dag_id} was not found",
             )
-        dag_version = dag_version_model.version_number
+        version_number = dag_version_model.version_number
 
     serialized_dag: SerializedDagModel = session.scalar(
         select(SerializedDagModel)
         .join(DagVersion)
-        .where(SerializedDagModel.dag_id == dag_id, DagVersion.version_number == dag_version)
+        .where(SerializedDagModel.dag_id == dag_id, DagVersion.version_number == version_number)
     )
     if serialized_dag is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"Dag with id {dag_id} and version {dag_version} was not found",
+            f"Dag with id {dag_id} and version number {version_number} was not found",
         )
     dag = serialized_dag.dag
 
@@ -89,7 +89,7 @@ def structure_data(
         start_edges: list[dict] = []
         end_edges: list[dict] = []
 
-        for dependency_dag_id, dependencies in SerializedDagModel.get_dag_dependencies().items():
+        for dependency_dag_id, dependencies in sorted(SerializedDagModel.get_dag_dependencies().items()):
             for dependency in dependencies:
                 # Dependencies not related to `dag_id` are ignored
                 if dependency_dag_id != dag_id and dependency.target != dag_id:

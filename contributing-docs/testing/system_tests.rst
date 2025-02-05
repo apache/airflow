@@ -90,7 +90,7 @@ For providers:
 
 .. code-block:: bash
 
-  pytest --system providers/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+  pytest --system providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
 
 
 Running via Breeze

@@ -68,6 +68,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+        shell: bash
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
@@ -78,6 +81,7 @@ jobs:
         with:
           platform: "linux/amd64"
           python-versions-list-as-string: ${{ inputs.python-versions-list-as-string }}
+          docker-volume-location: ""  # TODO(jscheffl): Understand why it fails here and fix it
       - name: "Verify all CI images ${{ inputs.python-versions-list-as-string }}"
         run: breeze ci-image verify --run-in-parallel
       - name: "Source constraints"

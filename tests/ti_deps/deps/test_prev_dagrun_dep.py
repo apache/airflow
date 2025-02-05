@@ -28,13 +28,9 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import convert_to_utc, datetime
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -51,7 +47,6 @@ class TestPrevDagrunDep:
         ignore_first_depends_on_past set to True.
         """
         dag = DAG("test_dag", schedule=timedelta(days=1), start_date=START_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         old_task = BaseOperator(
             task_id="test_task",
             dag=dag,
@@ -66,7 +61,8 @@ class TestPrevDagrunDep:
             logical_date=old_task.start_date,
             run_type=DagRunType.SCHEDULED,
             data_interval=(old_task.start_date, old_task.start_date),
-            **triggered_by_kwargs,
+            run_after=old_task.start_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         new_task = BaseOperator(
@@ -85,7 +81,8 @@ class TestPrevDagrunDep:
             logical_date=logical_date,
             run_type=DagRunType.SCHEDULED,
             data_interval=(logical_date, logical_date),
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         ti = dr.get_task_instance(new_task.task_id)

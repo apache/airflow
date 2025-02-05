@@ -23,24 +23,20 @@ from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.www.views import DagRunModelView
-
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+from providers.fab.tests.provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,
 )
+
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,
     client_with_login,
 )
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -141,7 +137,6 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_crea
 def running_dag_run(session):
     dag = DagBag().get_dag("example_bash_operator")
     logical_date = timezone.datetime(2016, 1, 9)
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="running",
         logical_date=logical_date,
@@ -149,7 +144,8 @@ def running_dag_run(session):
         run_id="test_dag_runs_action",
         run_type=DagRunType.MANUAL,
         session=session,
-        **triggered_by_kwargs,
+        run_after=logical_date,
+        triggered_by=DagRunTriggeredByType.TEST,
     )
     session.add(dr)
     tis = [
@@ -165,7 +161,6 @@ def running_dag_run(session):
 def completed_dag_run_with_missing_task(session):
     dag = DagBag().get_dag("example_bash_operator")
     logical_date = timezone.datetime(2016, 1, 9)
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="success",
         logical_date=logical_date,
@@ -173,7 +168,8 @@ def completed_dag_run_with_missing_task(session):
         run_id="test_dag_runs_action",
         run_type=DagRunType.MANUAL,
         session=session,
-        **triggered_by_kwargs,
+        run_after=logical_date,
+        triggered_by=DagRunTriggeredByType.TEST,
     )
     session.add(dr)
     tis = [
@@ -321,7 +317,6 @@ def dag_run_with_all_done_task(session):
     dag.sync_to_db()
 
     logical_date = timezone.datetime(2016, 1, 9)
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="running",
         logical_date=logical_date,
@@ -329,7 +324,8 @@ def dag_run_with_all_done_task(session):
         run_id="test_dagrun_failed",
         run_type=DagRunType.MANUAL,
         session=session,
-        **triggered_by_kwargs,
+        run_after=logical_date,
+        triggered_by=DagRunTriggeredByType.TEST,
     )
 
     # Create task instances in various states to test the ALL_DONE trigger rule
