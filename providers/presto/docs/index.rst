@@ -34,8 +34,9 @@
     :maxdepth: 1
     :caption: Guides
 
-    PrestoTransferOperator types <operators/transfer/gcs_to_presto>
+    PrestoTransferOperator types <gcs_to_presto>
     Connection types <connections>
+    Operators <operators>
 
 .. toctree::
     :hidden:
@@ -56,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-presto/|version|/providers/tests/system/presto>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-presto/|version|/providers/presto/tests/system/presto>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-presto/>
     Installing from sources <installing-providers-from-sources>
 

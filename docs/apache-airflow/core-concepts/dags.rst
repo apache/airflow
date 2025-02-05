@@ -43,7 +43,7 @@ which will add anything inside it to the DAG implicitly:
     import datetime
 
     from airflow import DAG
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     with DAG(
         dag_id="my_dag_name",
@@ -61,7 +61,7 @@ Or, you can use a standard constructor, passing the DAG into any operators you u
     import datetime
 
     from airflow import DAG
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     my_dag = DAG(
         dag_id="my_dag_name",
@@ -79,7 +79,7 @@ Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG gener
     import datetime
 
     from airflow.decorators import dag
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
 
     @dag(start_date=datetime.datetime(2021, 1, 1), schedule="@daily")
@@ -455,7 +455,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
         from airflow.decorators import task
         from airflow.models import DAG
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
 
         dag = DAG(
             dag_id="branch_without_trigger",
@@ -575,7 +575,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
     from airflow import DAG
     from airflow.decorators import task_group
     from airflow.providers.standard.operators.bash import BashOperator
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     with DAG(
         dag_id="dag1",

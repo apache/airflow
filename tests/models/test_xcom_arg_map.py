@@ -22,7 +22,7 @@ import pytest
 from airflow.exceptions import AirflowSkipException
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap, TaskMapVariant
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 

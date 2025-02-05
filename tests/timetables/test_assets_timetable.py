@@ -27,7 +27,7 @@ from sqlalchemy.sql import select
 
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.serialized_dag import SerializedDAG, SerializedDagModel
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset, AssetAll, AssetAny
 from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable

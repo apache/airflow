@@ -117,9 +117,14 @@ def redefine_state_if_maintenance(
     worker_state: EdgeWorkerState, body_state: EdgeWorkerState
 ) -> EdgeWorkerState:
     """Redefine the state of the worker based on maintenance request."""
-    if worker_state == EdgeWorkerState.MAINTENANCE_REQUEST and body_state not in (
-        EdgeWorkerState.MAINTENANCE_PENDING,
-        EdgeWorkerState.MAINTENANCE_MODE,
+    if (
+        worker_state == EdgeWorkerState.MAINTENANCE_REQUEST
+        and body_state
+        not in (
+            EdgeWorkerState.MAINTENANCE_PENDING,
+            EdgeWorkerState.MAINTENANCE_MODE,
+        )
+        or worker_state == EdgeWorkerState.OFFLINE_MAINTENANCE
     ):
         return EdgeWorkerState.MAINTENANCE_REQUEST
 
@@ -144,7 +149,7 @@ def register(
     worker: EdgeWorkerModel = session.scalar(query)
     if not worker:
         worker = EdgeWorkerModel(worker_name=worker_name, state=body.state, queues=body.queues)
-    worker.state = body.state
+    worker.state = redefine_state_if_maintenance(worker.state, body.state)
     worker.queues = body.queues
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()

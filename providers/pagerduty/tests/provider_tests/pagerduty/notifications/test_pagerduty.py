@@ -21,12 +21,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 from airflow.providers.pagerduty.notifications.pagerduty import (
     PagerdutyNotifier,
     send_pagerduty_notification,
 )
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 pytestmark = pytest.mark.db_test
 

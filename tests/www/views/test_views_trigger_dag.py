@@ -25,7 +25,7 @@ from urllib.parse import quote
 import pytest
 
 from airflow.models import DagBag, DagRun
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.param import Param
 from airflow.security import permissions
 from airflow.utils import timezone

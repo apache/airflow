@@ -1,0 +1,84 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_operations.upload_file_to_bucket"
+        },
+        "inputs": [
+            {
+                "namespace": "file",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/bigquery/resources/us-states.csv') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_bigquery_operations_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "bigquery/us-states/us-states.csv"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_operations.upload_file_to_bucket"
+        },
+        "inputs": [
+            {
+                "namespace": "file",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/bigquery/resources/us-states.csv') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket_bigquery_operations_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "bigquery/us-states/us-states.csv"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_operations.create_external_table"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_operations.create_external_table"
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_operations_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.external_table",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "emp_name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "salary",
+                                "type": "INTEGER"
+                            }
+                        ]
+                    },
+                    "symlink": {
+                        "identifiers": [
+                            {
+                                "namespace": "gs://bucket_bigquery_operations_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                                "name": "bigquery/us-states/us-states.csv",
+                                "type": "file"
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+]

@@ -49,7 +49,7 @@
           <tr>
             <td>{{ host.worker_name }}</a></td>
             <td>
-              {%- if host.state == "offline" -%}
+              {%- if host.state in["offline", "offline maintenance"] -%}
                 <span class="label" style="color:white; background-color:black;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- elif host.state == "unknown" -%}
                 <span class="label" style="color:white; background-color:red;" title="Current State: {{ host.state }}">{{ host.state }}</span>

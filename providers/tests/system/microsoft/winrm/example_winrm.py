@@ -28,14 +28,14 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
+from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
+from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 
 # --------------------------------------------------------------------------------
 # Caveat: This Dag will not run because of missing scripts.
 # The purpose of this is to give you a sample of a real world example DAG!
 # --------------------------------------------------------------------------------
-from airflow.operators.empty import EmptyOperator
-from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
-from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "POC_winrm_parallel"

@@ -24,7 +24,7 @@ import jinja2
 import pytest
 
 from airflow.notifications.basenotifier import BaseNotifier
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 pytestmark = pytest.mark.db_test
 

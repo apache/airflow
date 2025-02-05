@@ -316,7 +316,7 @@ def test_mark_task_instance_state(test_app, dag_maker):
     """
     from airflow.models.dagbag import DagBag
     from airflow.models.taskinstance import TaskInstance
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State
     from airflow.utils.timezone import datetime
@@ -401,7 +401,7 @@ def test_mark_task_group_state(test_app, dag_maker):
     """
     from airflow.models.dagbag import DagBag
     from airflow.models.taskinstance import TaskInstance
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State
     from airflow.utils.timezone import datetime

@@ -65,6 +65,8 @@ class EdgeWorkerState(str, Enum):
     """Edge worker is in maintenance mode. It is online but pauses fetching jobs."""
     MAINTENANCE_EXIT = "maintenance exit"
     """Request worker to exit maintenance mode. Once the worker receives this state it will un-pause and fetch new jobs."""
+    OFFLINE_MAINTENANCE = "offline maintenance"
+    """Worker was shut down in maintenance mode. It will be in maintenance mode when restarted."""
 
 
 class EdgeWorkerModel(Base, LoggingMixin):

@@ -324,10 +324,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Cleanup docker"
-        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
-        env:
-          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Download docs prepared as artifacts"
         uses: actions/download-artifact@v4
         with:
@@ -408,10 +405,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
       - name: "Cleanup docker"
-        # Move docker space to second partition to have more space
         run: ./scripts/ci/cleanup_docker.sh
-        env:
-          TARGET_DOCKER_VOLUME_LOCATION: /mnt/var-lib-docker
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:

@@ -35,7 +35,7 @@
     :caption: Guides
 
     Connection types <connections/oracle>
-    Operators <operators/index>
+    Operators <operators>
 
 .. toctree::
     :hidden:
@@ -43,6 +43,13 @@
     :caption: References
 
     Python API <_api/airflow/providers/oracle/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/oracle/index>
 
 .. toctree::
     :hidden:

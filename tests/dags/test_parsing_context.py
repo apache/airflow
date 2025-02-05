@@ -20,7 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.context import (
     _AIRFLOW_PARSING_CONTEXT_DAG_ID,
     _AIRFLOW_PARSING_CONTEXT_TASK_ID,

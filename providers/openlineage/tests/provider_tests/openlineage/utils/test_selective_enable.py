@@ -21,7 +21,6 @@ from pendulum import now
 
 from airflow.decorators import dag, task
 from airflow.models import DAG
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.openlineage.utils.selective_enable import (
     DISABLE_OL_PARAM,
     ENABLE_OL_PARAM,
@@ -29,6 +28,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     disable_lineage,
     enable_lineage,
 )
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 
 class TestOpenLineageSelectiveEnable:

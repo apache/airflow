@@ -261,7 +261,9 @@ class TestCeleryKubernetesExecutor:
         cel_k8s_exec.callback_sink = mock.MagicMock()
 
         if AIRFLOW_V_3_0_PLUS:
-            callback = DagCallbackRequest(full_filepath="fake", dag_id="fake", run_id="fake")
+            callback = DagCallbackRequest(
+                filepath="fake", dag_id="fake", run_id="fake", bundle_name="testing", bundle_version=None
+            )
         else:
             callback = CallbackRequest(full_filepath="fake")
         cel_k8s_exec.send_callback(callback)

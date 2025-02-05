@@ -46,7 +46,7 @@ TRIGGERED_DAG_ID = "triggerdag"
 DAG_SCRIPT = f"""\
 from datetime import datetime
 from airflow.models import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 dag = DAG(
     dag_id='{TRIGGERED_DAG_ID}',

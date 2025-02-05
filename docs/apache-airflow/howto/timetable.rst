@@ -196,7 +196,7 @@ For reference, here's our plugin and DAG files in their entirety:
 
     from airflow import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
 
     with DAG(

@@ -15,16 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+
 function cleanup_docker {
+    local target_docker_volume_location="/mnt/var-lib-docker"
+    echo "Checking free space!"
+    df -H
+    echo "Making sure that /mnt is writeable"
+    sudo chown -R "${USER}" /mnt
     # This is faster than docker prune
+    echo "Stopping docker"
     sudo systemctl stop docker
     sudo rm -rf /var/lib/docker
-    # If a path is provided in ENV, bind mount it to /var/lib/docker
-    if [ -n "${TARGET_DOCKER_VOLUME_LOCATION}" ]; then
-        echo "Mounting ${TARGET_DOCKER_VOLUME_LOCATION} to /var/lib/docker"
-        sudo mkdir -p "${TARGET_DOCKER_VOLUME_LOCATION}" /var/lib/docker
-        sudo mount --bind "${TARGET_DOCKER_VOLUME_LOCATION}" /var/lib/docker
-    fi
+    echo "Mounting ${target_docker_volume_location} to /var/lib/docker"
+    sudo mkdir -p "${target_docker_volume_location}" /var/lib/docker
+    sudo mount --bind "${target_docker_volume_location}" /var/lib/docker
+    sudo chown -R 0:0 "${target_docker_volume_location}"
     sudo systemctl start docker
 }
 

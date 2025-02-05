@@ -184,6 +184,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "awslogs_region",
             "awslogs_stream_prefix",
             "awslogs_fetch_interval",
+            "container_name",
             "propagate_tags",
             "reattach",
             "number_logs_exception",
@@ -751,6 +752,17 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         # task gets described to assert its success
         client_mock().describe_tasks.assert_called_once_with(cluster="test_cluster", tasks=["my_arn"])
+
+    @mock.patch.object(EcsBaseOperator, "client")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
+    def test_container_name_in_log_stream(self, client_mock, log_fetcher_mock):
+        container_name = "container-name"
+        prefix = "prefix"
+        self.set_up_operator(
+            awslogs_group="awslogs-group", awslogs_stream_prefix=prefix, container_name=container_name
+        )
+
+        assert self.ecs._get_logs_stream_name().startswith(f"{prefix}/{container_name}/")
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):

@@ -52,7 +52,7 @@ export const doQueryKeysMatch = (query: Query, queryKeysToMatch: Array<PartialQu
     : true;
 };
 
-export const useAutoRefresh = ({ dagId }: { dagId?: string }) => {
+export const useAutoRefresh = ({ dagId, isPaused }: { dagId?: string; isPaused?: boolean }) => {
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number | undefined;
   const { data: dag } = useDagServiceGetDagDetails(
     {
@@ -62,7 +62,9 @@ export const useAutoRefresh = ({ dagId }: { dagId?: string }) => {
     { enabled: dagId !== undefined },
   );
 
-  const canRefresh = autoRefreshInterval !== undefined && (dagId === undefined ? true : !dag?.is_paused);
+  const paused = isPaused ?? dag?.is_paused;
+
+  const canRefresh = autoRefreshInterval !== undefined && (dagId === undefined ? true : !paused);
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   return (canRefresh ? autoRefreshInterval * 1000 : false) as number | false;

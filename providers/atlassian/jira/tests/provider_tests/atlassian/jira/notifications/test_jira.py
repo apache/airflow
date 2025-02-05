@@ -21,9 +21,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 from airflow.providers.atlassian.jira.notifications.jira import JiraNotifier, send_jira_notification
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 pytestmark = pytest.mark.db_test
 

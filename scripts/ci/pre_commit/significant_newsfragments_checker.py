@@ -17,7 +17,7 @@
 # under the License.
 # /// script
 # dependencies = [
-#   "docutils>=0.21.2",
+#   "docutils>=0.20.0",
 #   "Pygments>=2.19.1",
 #   "Jinja2>=3.1.5"
 # ]

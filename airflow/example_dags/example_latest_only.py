@@ -22,7 +22,7 @@ from __future__ import annotations
 import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
 
 with DAG(

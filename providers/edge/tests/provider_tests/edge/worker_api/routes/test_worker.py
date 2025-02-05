@@ -137,6 +137,12 @@ class TestWorkerApiRoutes:
             pytest.param(
                 EdgeWorkerState.RUNNING, EdgeWorkerState.IDLE, EdgeWorkerState.IDLE, id="no_maintenance"
             ),
+            pytest.param(
+                EdgeWorkerState.OFFLINE_MAINTENANCE,
+                EdgeWorkerState.STARTING,
+                EdgeWorkerState.MAINTENANCE_REQUEST,
+                id="maintenance_starting",
+            ),
         ],
     )
     def test_redefine_state_if_maintenance(

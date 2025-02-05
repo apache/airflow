@@ -23,7 +23,7 @@ import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime

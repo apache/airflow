@@ -23,7 +23,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,

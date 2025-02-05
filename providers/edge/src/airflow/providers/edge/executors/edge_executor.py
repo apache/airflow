@@ -165,7 +165,9 @@ class EdgeExecutor(BaseExecutor):
             session.query(EdgeWorkerModel)
             .with_for_update(skip_locked=True)
             .filter(
-                EdgeWorkerModel.state.not_in([EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE]),
+                EdgeWorkerModel.state.not_in(
+                    [EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE, EdgeWorkerState.OFFLINE_MAINTENANCE]
+                ),
                 EdgeWorkerModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)),
             )
             .all()

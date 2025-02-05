@@ -21,9 +21,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 from airflow.providers.opsgenie.notifications.opsgenie import OpsgenieNotifier, send_opsgenie_notification
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 pytestmark = pytest.mark.db_test
 

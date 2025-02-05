@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.slack.notifications.slack import SlackNotifier, send_slack_notification
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 pytestmark = pytest.mark.db_test
 

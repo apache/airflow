@@ -24,7 +24,6 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
@@ -32,6 +31,7 @@ from airflow.providers.databricks.operators.databricks_workflow import (
     _CreateDatabricksWorkflowOperator,
     _flatten_node,
 )
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test

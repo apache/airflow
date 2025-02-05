@@ -217,8 +217,8 @@ NO_RECURSE_DIRS = [
     "tests/dags_with_system_exit",
     "tests/dags_corrupted",
     "tests/dags",
-    "providers/tests/system/google/cloud/dataproc/resources",
-    "providers/tests/system/google/cloud/gcs/resources",
+    "providers/google/tests/system/google/cloud/dataproc/resources",
+    "providers/google/tests/system/google/cloud/gcs/resources",
 ]
 
 

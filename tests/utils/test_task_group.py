@@ -33,7 +33,7 @@ from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import TaskGroup, task_group_to_dict, task_group_to_dict_legacy
 
@@ -653,7 +653,7 @@ def test_dag_edges_setup_teardown():
 def test_dag_edges_setup_teardown_nested():
     from airflow.decorators import task, task_group
     from airflow.models.dag import DAG
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     logical_date = pendulum.parse("20200101")
 

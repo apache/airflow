@@ -49,6 +49,7 @@ def get_provider_info():
                     "airflow.providers.standard.operators.weekday",
                     "airflow.providers.standard.operators.bash",
                     "airflow.providers.standard.operators.python",
+                    "airflow.providers.standard.operators.empty",
                     "airflow.providers.standard.operators.generic_transfer",
                     "airflow.providers.standard.operators.trigger_dagrun",
                     "airflow.providers.standard.operators.latest_only",

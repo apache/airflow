@@ -34,8 +34,7 @@
     :caption: Guides
 
     Connection types <connections/postgres>
-    PostgresOperator types <operators/postgres_operator_howto_guide>
-
+    Operators <operators>
 
 .. toctree::
     :hidden:
@@ -57,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-postgres/|version|/providers/tests/system/postgres>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-postgres/|version|/providers/postgres/tests/system/postgres>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-postgres/>
     Installing from sources <installing-providers-from-sources>
 

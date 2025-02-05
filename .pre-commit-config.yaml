@@ -312,7 +312,7 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/src/airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
     rev: v1.0.0
@@ -636,10 +636,10 @@ repos:
           ^providers/exasol/src/airflow/providers/exasol/hooks/exasol.py$|
           ^providers/fab/src/airflow/providers/fab/auth_manager/security_manager/|
           ^providers/fab/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
-          ^providers/src/airflow/providers/google/cloud/hooks/bigquery.py$|
-          ^providers/src/airflow/providers/google/cloud/operators/cloud_build.py$|
-          ^providers/src/airflow/providers/google/cloud/operators/dataproc.py$|
-          ^providers/src/airflow/providers/google/cloud/operators/mlengine.py$|
+          ^providers/google/src/airflow/providers/google/cloud/hooks/bigquery.py$|
+          ^providers/google/src/airflow/providers/google/cloud/operators/cloud_build.py$|
+          ^providers/google/src/airflow/providers/google/cloud/operators/dataproc.py$|
+          ^providers/google/src/airflow/providers/google/cloud/operators/mlengine.py$|
           ^providers/src/airflow/providers/microsoft/azure/hooks/cosmos.py$|
           ^providers/src/airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
@@ -663,7 +663,7 @@ repos:
           ^providers/apache/kafka/docs/connections/kafka.rst$|
           ^providers/apache/spark/docs/decorators/pyspark.rst$|
           ^providers/fab/docs/auth-manager/webserver-authentication.rst$|
-          ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
+          ^providers/google/docs/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
           ^docs/conf.py$|

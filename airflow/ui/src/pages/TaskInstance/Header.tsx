@@ -73,6 +73,9 @@ export const Header = ({
         <Time datetime={taskInstance.end_date} />
       </Stat>
       <Stat label="Duration">{getDuration(taskInstance.start_date, taskInstance.end_date)}s</Stat>
+      {taskInstance.dag_version?.version_number !== undefined && (
+        <Stat label="Dag Version">{`v${taskInstance.dag_version.version_number}`}</Stat>
+      )}
     </SimpleGrid>
   </Box>
 );

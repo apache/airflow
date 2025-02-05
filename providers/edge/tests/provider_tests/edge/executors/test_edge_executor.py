@@ -239,6 +239,11 @@ class TestEdgeExecutor:
                     EdgeWorkerState.OFFLINE,
                     datetime(2023, 1, 1, 0, 59, 10, tzinfo=timezone.utc),
                 ),
+                (
+                    "offline_maintenance_worker",
+                    EdgeWorkerState.OFFLINE_MAINTENANCE,
+                    datetime(2023, 1, 1, 0, 59, 10, tzinfo=timezone.utc),
+                ),
             ]:
                 session.add(
                     EdgeWorkerModel(
@@ -260,7 +265,9 @@ class TestEdgeExecutor:
         with create_session() as session:
             for worker in session.query(EdgeWorkerModel).all():
                 print(worker.worker_name)
-                if "offline_" in worker.worker_name:
+                if "maintenance_" in worker.worker_name:
+                    EdgeWorkerState.OFFLINE_MAINTENANCE
+                elif "offline_" in worker.worker_name:
                     assert worker.state == EdgeWorkerState.OFFLINE
                 elif "inactive_" in worker.worker_name:
                     assert worker.state == EdgeWorkerState.UNKNOWN

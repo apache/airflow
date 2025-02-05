@@ -20,12 +20,13 @@ from unittest import mock
 
 import pytest
 
+from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
 from airflow.models import XCom
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
@@ -64,18 +65,18 @@ def _create_xcom(key, value, backend, session=None) -> None:
 
 
 @provide_session
-def _create_dag_run(session=None) -> None:
-    dagrun = DagRun(
-        dag_id=TEST_DAG_ID,
+def _create_dag_run(dag_maker, session=None):
+    with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date_parsed):
+        EmptyOperator(task_id=TEST_TASK_ID)
+    dag_maker.create_dagrun(
         run_id=run_id,
-        logical_date=logical_date_parsed,
-        start_date=logical_date_parsed,
         run_type=DagRunType.MANUAL,
+        logical_date=logical_date_parsed,
     )
-    session.add(dagrun)
-    ti = TaskInstance(EmptyOperator(task_id=TEST_TASK_ID), run_id=run_id)
-    ti.dag_id = TEST_DAG_ID
-    session.add(ti)
+
+    dag_maker.sync_dagbag_to_db()
+    session.merge(dag_maker.dag_model)
+    session.commit()
 
 
 class CustomXCom(BaseXCom):
@@ -95,9 +96,9 @@ class TestXComEndpoint:
         clear_db_xcom()
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self, dag_maker) -> None:
         self.clear_db()
-        _create_dag_run()
+        _create_dag_run(dag_maker)
 
     def teardown_method(self) -> None:
         self.clear_db()
@@ -214,7 +215,7 @@ class TestGetXComEntry(TestXComEndpoint):
 
 class TestGetXComEntries(TestXComEndpoint):
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self, dag_maker) -> None:
         self.clear_db()
 
     def test_should_respond_200(self, test_client):
@@ -496,3 +497,85 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
         assert response_data["total_entries"] == 10
         conn_ids = [conn["key"] for conn in response_data["xcom_entries"] if conn]
         assert conn_ids == expected_xcom_ids
+
+
+class TestCreateXComEntry(TestXComEndpoint):
+    @pytest.mark.parametrize(
+        "dag_id, task_id, dag_run_id, request_body, expected_status, expected_detail",
+        [
+            # Test case: Valid input, should succeed with 201 CREATED
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
+                201,
+                None,
+                id="valid-xcom-entry",
+            ),
+            # Test case: DAG not found
+            pytest.param(
+                "invalid-dag-id",
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
+                404,
+                "Dag with ID: `invalid-dag-id` was not found",
+                id="dag-not-found",
+            ),
+            # Test case: Task not found in DAG
+            pytest.param(
+                TEST_DAG_ID,
+                "invalid-task-id",
+                run_id,
+                XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
+                404,
+                f"Task with ID: `invalid-task-id` not found in DAG: `{TEST_DAG_ID}`",
+                id="task-not-found",
+            ),
+            # Test case: DAG Run not found
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                "invalid-dag-run-id",
+                XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
+                404,
+                f"DAG Run with ID: `invalid-dag-run-id` not found for DAG: `{TEST_DAG_ID}`",
+                id="dag-run-not-found",
+            ),
+            # Test case: XCom entry already exists
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key=TEST_XCOM_KEY, value=TEST_XCOM_VALUE),
+                409,
+                f"The XCom with key: `{TEST_XCOM_KEY}` with mentioned task instance already exists.",
+                id="xcom-already-exists",
+            ),
+        ],
+    )
+    def test_create_xcom_entry(
+        self, dag_id, task_id, dag_run_id, request_body, expected_status, expected_detail, test_client
+    ):
+        # Pre-create an XCom entry to test conflict case
+        if expected_status == 409:
+            self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+
+        response = test_client.post(
+            f"/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
+            json=request_body.dict(),
+        )
+
+        assert response.status_code == expected_status
+        if expected_detail:
+            assert response.json()["detail"] == expected_detail
+        elif expected_status == 201:
+            # Validate the created XCom response
+            current_data = response.json()
+            assert current_data["key"] == request_body.key
+            assert current_data["value"] == XCom.serialize_value(request_body.value)
+            assert current_data["dag_id"] == dag_id
+            assert current_data["task_id"] == task_id
+            assert current_data["run_id"] == dag_run_id
+            assert current_data["map_index"] == request_body.map_index

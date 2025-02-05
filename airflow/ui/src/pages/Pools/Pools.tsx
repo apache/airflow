@@ -17,21 +17,50 @@
  * under the License.
  */
 import { Box, Skeleton } from "@chakra-ui/react";
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { usePoolServiceGetPools } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { SearchBar } from "src/components/SearchBar";
+import { type SearchParamsKeysType, SearchParamsKeys } from "src/constants/searchParams";
 
 import PoolBar from "./PoolBar";
 
 export const Pools = () => {
-  const { data, error, isLoading } = usePoolServiceGetPools();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
+  const [poolNamePattern, setPoolNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
+  const { data, error, isLoading } = usePoolServiceGetPools({
+    poolNamePattern: poolNamePattern ?? undefined,
+  });
 
-  return isLoading ? (
-    <Skeleton height="30" />
-  ) : (
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      searchParams.set(NAME_PATTERN_PARAM, value);
+    } else {
+      searchParams.delete(NAME_PATTERN_PARAM);
+    }
+    setSearchParams(searchParams);
+    setPoolNamePattern(value);
+  };
+
+  return (
     <>
       <ErrorAlert error={error} />
-      <Box p={2}>{data?.pools.map((pool) => <PoolBar key={pool.name} pool={pool} />)}</Box>
+      <SearchBar
+        buttonProps={{ disabled: true }}
+        defaultValue={poolNamePattern ?? ""}
+        onChange={handleSearchChange}
+        placeHolder="Search Pools"
+      />
+      <Box mt={4}>
+        {isLoading ? (
+          <Skeleton height="100px" />
+        ) : (
+          data?.pools.map((pool) => <PoolBar key={pool.name} pool={pool} />)
+        )}
+      </Box>
     </>
   );
 };

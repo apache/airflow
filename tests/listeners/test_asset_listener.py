@@ -20,7 +20,7 @@ import pytest
 
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.utils.session import provide_session
 

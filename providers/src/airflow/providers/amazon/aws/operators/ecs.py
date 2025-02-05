@@ -375,6 +375,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param awslogs_fetch_interval: the interval that the ECS task log fetcher should wait
         in between each Cloudwatch logs fetches.
         If deferrable is set to True, that parameter is ignored and waiter_delay is used instead.
+    :param container_name: The name of the container to fetch logs from. If not set, the first container is used.
     :param quota_retry: Config if and how to retry the launch of a new ECS task, to handle
         transient errors.
     :param reattach: If set to True, will check if the task previously launched by the task_instance
@@ -414,6 +415,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         "awslogs_region",
         "awslogs_stream_prefix",
         "awslogs_fetch_interval",
+        "container_name",
         "propagate_tags",
         "reattach",
         "number_logs_exception",
@@ -445,6 +447,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         awslogs_region: str | None = None,
         awslogs_stream_prefix: str | None = None,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
+        container_name: str | None = None,
         propagate_tags: str | None = None,
         quota_retry: dict | None = None,
         reattach: bool = False,
@@ -484,7 +487,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             self.awslogs_region = self.region_name
 
         self.arn: str | None = None
-        self.container_name: str | None = None
+        self.container_name: str | None = container_name
         self._started_by: str | None = None
 
         self.retry_args = quota_retry
@@ -628,7 +631,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.log.info("ECS Task started: %s", response)
 
         self.arn = response["tasks"][0]["taskArn"]
-        self.container_name = response["tasks"][0]["containers"][0]["name"]
+        if not self.container_name:
+            self.container_name = response["tasks"][0]["containers"][0]["name"]
         self.log.info("ECS task ID is: %s", self._get_ecs_task_id(self.arn))
 
     def _try_reattach_task(self, started_by: str):

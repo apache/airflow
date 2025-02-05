@@ -36,6 +36,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTerminated,
 )
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
 from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
 from airflow.sdk.definitions.asset import Asset, AssetAlias
@@ -220,7 +221,6 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
 
 def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that marks itself skipped."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="skip",
@@ -243,7 +243,6 @@ def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comm
 
 def test_run_raises_base_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that raises a base exception which should send fail_with_retry state."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="zero_division_error",
@@ -268,7 +267,6 @@ def test_run_raises_base_exception(time_machine, create_runtime_ti, mock_supervi
 
 def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that exits with SystemExit exception."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="system_exit_task",
@@ -293,7 +291,6 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
 
 def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that exits with AirflowException."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="af_exception_task",
@@ -321,8 +318,6 @@ def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supe
 def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that times out."""
     from time import sleep
-
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="sleep",
@@ -405,6 +400,36 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context, mock_supervi
             {"my_tup": (1, 2), "my_set": {1, 2, 3}},
             {"my_tup": "(1, 2)", "my_set": "{1, 2, 3}"},
             id="tuples_and_sets",
+        ),
+        pytest.param(
+            {"op_args": [("a", "b", "c")], "op_kwargs": {}, "templates_dict": None},
+            {"op_args": [["a", "b", "c"]], "op_kwargs": {}, "templates_dict": None},
+            id="nested_tuples_within_lists",
+        ),
+        pytest.param(
+            {
+                "op_args": [
+                    [
+                        ("t0.task_id", "t1.task_id", "branch one"),
+                        ("t0.task_id", "t2.task_id", "branch two"),
+                        ("t0.task_id", "t3.task_id", "branch three"),
+                    ]
+                ],
+                "op_kwargs": {},
+                "templates_dict": None,
+            },
+            {
+                "op_args": [
+                    [
+                        ["t0.task_id", "t1.task_id", "branch one"],
+                        ["t0.task_id", "t2.task_id", "branch two"],
+                        ["t0.task_id", "t3.task_id", "branch three"],
+                    ]
+                ],
+                "op_kwargs": {},
+                "templates_dict": None,
+            },
+            id="nested_tuples_within_lists_higher_nesting",
         ),
     ],
 )

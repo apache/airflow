@@ -1,0 +1,146 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "example_sftp_to_gcs.file-copy-sftp-to-gcs"
+        },
+        "inputs": [
+            {
+                "namespace": "file://localhost:22",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/parent-1.bin') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example_sftp_to_gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "parent-1.bin"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "example_sftp_to_gcs.file-copy-sftp-to-gcs"
+        },
+        "inputs": [
+            {
+                "namespace": "file://localhost:22",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/parent-1.bin') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example_sftp_to_gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "parent-1.bin"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "example_sftp_to_gcs.file-move-sftp-to-gcs-destination"
+        },
+        "inputs": [
+            {
+                "namespace": "file://localhost:22",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/parent-2.bin') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example_sftp_to_gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "destination_dir/destination_filename.bin"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "example_sftp_to_gcs.file-move-sftp-to-gcs-destination"
+        },
+        "inputs": [
+            {
+                "namespace": "file://localhost:22",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/parent-2.bin') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example_sftp_to_gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "destination_dir/destination_filename.bin"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "example_sftp_to_gcs.dir-copy-sftp-to-gcs"
+        },
+        "inputs": [
+            {
+                "namespace": "file://localhost:22",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example_sftp_to_gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "example_sftp_to_gcs.dir-copy-sftp-to-gcs"
+        },
+        "inputs": [
+            {
+                "namespace": "file://localhost:22",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example_sftp_to_gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "/"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "example_sftp_to_gcs.dir-move-specific-files-sftp-to-gcs"
+        },
+        "inputs": [
+            {
+                "namespace": "file://localhost:22",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example_sftp_to_gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "specific_files"
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "example_sftp_to_gcs.dir-move-specific-files-sftp-to-gcs"
+        },
+        "inputs": [
+            {
+                "namespace": "file://localhost:22",
+                "name": "{{ result.endswith('airflow/providers/google/tests/system/google/cloud/gcs/resources/tmp/tests_sftp_hook_dir/subdir') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "gs://bucket-example_sftp_to_gcs-{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}",
+                "name": "specific_files"
+            }
+        ]
+    }
+]

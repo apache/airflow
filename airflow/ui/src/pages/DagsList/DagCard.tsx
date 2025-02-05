@@ -38,7 +38,7 @@ type Props = {
 export const DagCard = ({ dag }: Props) => {
   const [latestRun] = dag.latest_dag_runs;
 
-  const refetchInterval = useAutoRefresh({ dagId: dag.dag_id });
+  const refetchInterval = useAutoRefresh({ isPaused: dag.is_paused });
 
   return (
     <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden">

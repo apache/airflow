@@ -23,7 +23,7 @@ import pytest
 from dateutil.tz import UTC
 
 from airflow.models.asset import AssetActive, AssetEvent, AssetModel
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.asserts import assert_queries_count
