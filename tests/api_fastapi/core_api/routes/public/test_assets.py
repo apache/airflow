@@ -152,7 +152,6 @@ def _create_dag_run(session, num: int = 2):
             logical_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            external_trigger=True,
             state=DagRunState.SUCCESS,
         )
         for i in range(1, 1 + num)

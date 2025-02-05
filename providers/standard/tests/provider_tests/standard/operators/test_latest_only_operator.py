@@ -192,7 +192,6 @@ class TestLatestOnlyOperator:
             start_date=timezone.utcnow(),
             logical_date=DEFAULT_DATE,
             state=State.RUNNING,
-            external_trigger=True,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
         )
@@ -203,7 +202,6 @@ class TestLatestOnlyOperator:
             start_date=timezone.utcnow(),
             logical_date=logical_date,
             state=State.RUNNING,
-            external_trigger=True,
             data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
@@ -213,7 +211,6 @@ class TestLatestOnlyOperator:
             start_date=timezone.utcnow(),
             logical_date=END_DATE,
             state=State.RUNNING,
-            external_trigger=True,
             data_interval=(END_DATE, END_DATE),
             **triggered_by_kwargs,
         )

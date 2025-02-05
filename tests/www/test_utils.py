@@ -506,7 +506,6 @@ class TestWrappedMarkdown:
                         "data_interval_start": None,
                         "end_date": None,
                         "logical_date": None,
-                        "external_trigger": None,
                         "last_scheduling_decision": None,
                         "note": None,
                         "queued_at": None,
