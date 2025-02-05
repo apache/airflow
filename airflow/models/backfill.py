@@ -254,6 +254,28 @@ def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, sess
     return logical_dates
 
 
+def should_create_backfill_dag_run(
+    info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
+) -> bool:
+    """Determine if a backfill DAG run should be created and add a BackfillDagRun if required."""
+    dr = session.scalar(_get_latest_dag_run_row_query(info, session))
+    if not dr:
+        return False
+    non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
+    if non_create_reason:
+        session.add(
+            BackfillDagRun(
+                backfill_id=backfill_id,
+                dag_run_id=None,
+                logical_date=info.logical_date,
+                exception_reason=non_create_reason,
+                sort_ordinal=backfill_sort_ordinal,
+            )
+        )
+        return True
+    return False
+
+
 def _create_backfill_dag_run(
     *,
     dag: DAG,
@@ -265,20 +287,12 @@ def _create_backfill_dag_run(
     session,
 ):
     with session.begin_nested():
-        dr = session.scalar(_get_latest_dag_run_row_query(info, session))
-        if dr:
-            non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
-            if non_create_reason:
-                session.add(
-                    BackfillDagRun(
-                        backfill_id=backfill_id,
-                        dag_run_id=None,
-                        logical_date=info.logical_date,
-                        exception_reason=non_create_reason,
-                        sort_ordinal=backfill_sort_ordinal,
-                    )
-                )
-                return
+        should_skip_create_backfill = should_create_backfill_dag_run(
+            info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
+        )
+        if should_skip_create_backfill:
+            return
+
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         try:
             dr = dag.create_dagrun(
@@ -290,7 +304,7 @@ def _create_backfill_dag_run(
                 logical_date=info.logical_date,
                 data_interval=info.data_interval,
                 run_after=info.run_after,
-            conf=dag_run_conf,
+                conf=dag_run_conf,
                 run_type=DagRunType.BACKFILL_JOB,
                 triggered_by=DagRunTriggeredByType.BACKFILL,
                 dag_version=dag_version,
@@ -316,6 +330,10 @@ def _create_backfill_dag_run(
             )
             log.info("Doing session rollback.")
             session.rollback()
+
+            should_create_backfill_dag_run(
+                info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
+            )
 
 
 def _get_info_list(
@@ -398,29 +416,19 @@ def _create_backfill(
 
         for info in dagrun_info_list:
             backfill_sort_ordinal += 1
-            try:
-                _create_backfill_dag_run(
-                    dag=dag,
-                    info=info,
-                    backfill_id=br.id,
-                    dag_run_conf=br.dag_run_conf,
-                    reprocess_behavior=br.reprocess_behavior,
-                    backfill_sort_ordinal=backfill_sort_ordinal,
-                    session=session,
-                )
-                log.info(
-                    "created backfill dag run dag_id=%s backfill_id=%s, info=%s",
-                    dag.dag_id,
-                    br.id,
-                    info,
-                )
-            except IntegrityError:
-                log.info(
-                    "Skipped creating backfill dag run for dag_id=%s backfill_id=%s, logical_date=%s (already exists)",
-                    dag.dag_id,
-                    br.id,
-                    info.logical_date,
-                )
-                log.info("Doing session rollback.")
-                session.rollback()
+            _create_backfill_dag_run(
+                dag=dag,
+                info=info,
+                backfill_id=br.id,
+                dag_run_conf=br.dag_run_conf,
+                reprocess_behavior=br.reprocess_behavior,
+                backfill_sort_ordinal=backfill_sort_ordinal,
+                session=session,
+            )
+            log.info(
+                "created backfill dag run dag_id=%s backfill_id=%s, info=%s",
+                dag.dag_id,
+                br.id,
+                info,
+            )
     return br
