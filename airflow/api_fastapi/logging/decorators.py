@@ -22,7 +22,6 @@ import logging
 from typing import Annotated
 
 import pendulum
-import re2
 from fastapi import Depends, Request
 from pendulum.parsing.exceptions import ParserError
 
@@ -80,12 +79,8 @@ def action_logging(event: str | None = None):
         user: Annotated[BaseUser, Depends(get_user_with_exception_handling)],
     ):
         """Log user actions."""
-        # This is needed as size of event column in log table is varchar60 and run_id is already getting stored
-        # in run_id column so we can remove from url.
-        pattern = r"(/scheduled__|/manual__)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}"
-        request_url = re2.sub(pattern, "", request.url.path)
+        event_name = event or request.scope["endpoint"].__name__
 
-        event_name = event or request_url
         if not user:
             user_name = "anonymous"
             user_display = ""

@@ -111,8 +111,6 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-
-    print(f"DAG run is {dag_run}")
     session.delete(dag_run)
 
 
