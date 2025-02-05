@@ -17,7 +17,7 @@
 # under the License.
 
 """
-remove external_trigger field
+remove external_trigger field.
 
 Revision ID: e00344393f31
 Revises: 6a9e7a527a88
@@ -38,14 +38,12 @@ airflow_version = "3.0.0"
 
 
 def upgrade():
-    """Apply remove external_trigger field"""
+    """Apply remove external_trigger field."""
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_column("external_trigger")
 
 
-
 def downgrade():
-    """Unapply remove external_trigger field"""
+    """Unapply remove external_trigger field."""
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("external_trigger", sa.BOOLEAN(), autoincrement=False, nullable=True))
-
