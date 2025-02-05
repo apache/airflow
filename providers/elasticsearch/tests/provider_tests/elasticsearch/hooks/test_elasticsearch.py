@@ -41,7 +41,7 @@ ROWS = [
     [4, "Lundgren", "Dolph", "66"],
     [5, "Norris", "Chuck", "84"],
 ]
-RESPONSE = {
+RESPONSE_WITHOUT_CURSOR = {
     "columns": [
         {"name": "index", "type": "long"},
         {"name": "name", "type": "text"},
@@ -50,6 +50,11 @@ RESPONSE = {
     ],
     "rows": ROWS,
 }
+RESPONSE = {**RESPONSE_WITHOUT_CURSOR, **{"cursor": "e7f8QwXUruW2mIebzudH4BwAA//8DAA=="}}
+RESPONSES = [
+    RESPONSE,
+    RESPONSE_WITHOUT_CURSOR,
+]
 
 
 class TestElasticsearchSQLHookConn:
@@ -73,7 +78,7 @@ class TestElasticsearchSQLHookConn:
 class TestElasticsearchSQLCursor:
     def setup_method(self):
         sql = MagicMock(spec=SqlClient)
-        sql.query.side_effect = lambda body: RESPONSE
+        sql.query.side_effect = RESPONSES
         self.es = MagicMock(sql=sql, spec=Elasticsearch)
 
     def test_execute(self):
@@ -115,13 +120,16 @@ class TestElasticsearchSQLCursor:
         cursor = ElasticsearchSQLCursor(es=self.es, options={})
         cursor.execute("SELECT * FROM hollywood.actors")
 
-        assert cursor.fetchall() == ROWS
+        records = cursor.fetchall()
+
+        assert len(records) == 10
+        assert records == ROWS
 
 
 class TestElasticsearchSQLHook:
     def setup_method(self):
         sql = MagicMock(spec=SqlClient)
-        sql.query.side_effect = lambda body: RESPONSE
+        sql.query.side_effect = RESPONSES
         es = MagicMock(sql=sql, spec=Elasticsearch)
         self.cur = ElasticsearchSQLCursor(es=es, options={})
         self.spy_agency = SpyAgency()
@@ -181,7 +189,7 @@ class TestElasticsearchSQLHook:
     @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.Elasticsearch")
     def test_execute_sql_query(self, mock_es):
         mock_es_sql_client = MagicMock()
-        mock_es_sql_client.query.return_value = RESPONSE
+        mock_es_sql_client.query.return_value = RESPONSE_WITHOUT_CURSOR
         mock_es.return_value.sql = mock_es_sql_client
 
         es_connection = ESConnection(host="localhost", port=9200)
@@ -194,7 +202,7 @@ class TestElasticsearchSQLHook:
             }
         )
 
-        assert response == RESPONSE
+        assert response == RESPONSE_WITHOUT_CURSOR
 
 
 class MockElasticsearch:

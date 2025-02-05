@@ -102,7 +102,7 @@ class ElasticsearchSQLCursor:
     def fetchall(self):
         results = self.rows
         while self.cursor:
-            self.execute(query=self.body["query"])
+            self.execute(statement=self.body["query"])
             results.extend(self.rows)
         return results
 
