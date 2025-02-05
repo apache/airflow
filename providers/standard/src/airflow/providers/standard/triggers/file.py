@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import os
-import typing
+from collections.abc import AsyncIterator
 from glob import glob
 from typing import Any
 
@@ -71,7 +71,7 @@ class FileTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the relevant files are found."""
         while True:
             for path in glob(self.filepath, recursive=self.recursive):
@@ -120,7 +120,7 @@ class FileDeleteTrigger(BaseEventTrigger):
             },
         )
 
-    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Loop until the relevant file is found."""
         while True:
             if os.path.isfile(self.filepath):
