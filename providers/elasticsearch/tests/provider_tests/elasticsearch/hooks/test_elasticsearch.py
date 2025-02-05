@@ -48,7 +48,7 @@ RESPONSE = {
         {"name": "firstname", "type": "text"},
         {"name": "age", "type": "long"},
     ],
-    "rows": ROWS
+    "rows": ROWS,
 }
 
 
