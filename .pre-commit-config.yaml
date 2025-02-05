@@ -1433,4 +1433,9 @@ repos:
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-zip-files
+        name: Forbid committing .zip files
+        entry: python ./scripts/ci/pre_commit/check_zip_files.py
+        language: python
+        files: \.zip$
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
