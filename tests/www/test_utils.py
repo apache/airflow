@@ -22,7 +22,7 @@ import os
 import re
 import time
 from datetime import datetime
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 from urllib.parse import parse_qs
 
 import pendulum
@@ -31,6 +31,7 @@ from bs4 import BeautifulSoup
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_wtf import FlaskForm
 from markupsafe import Markup
+from sqlalchemy import func
 from sqlalchemy.orm import Query
 from wtforms.fields import StringField, TextAreaField
 
@@ -661,6 +662,147 @@ class TestFilter:
         result_query_filter = filter_lte.apply(self.mock_query, mock_value)
 
         assert result_query_filter == self.mock_query
+
+
+class TestXComFilter:
+    def setup_method(self):
+        self.mock_datamodel = MagicMock()
+        self.mock_query = MagicMock(spec=Query)
+        self.mock_column_name = "test_column"
+
+    def test_xcom_filter_start_with_apply(self):
+        xcom_filter_query = utils.XComFilterStartsWith(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        returned_query, returned_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = "test_value"
+        xcom_filter_query.apply(self.mock_query, mock_value)
+        self.mock_query.filter.assert_called_once()
+        actual_filter_arg = self.mock_query.filter.call_args[0][0]
+        expected_filter_arg = func.btrim(func.convert_from(returned_field, "UTF8"), '"').ilike(
+            mock_value + "%"
+        )
+        assert str(actual_filter_arg) == str(expected_filter_arg)
+
+    def test_xcom_filter_end_with_apply(self):
+        xcom_filter_query = utils.XComFilterEndsWith(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        returned_query, returned_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = "test_value"
+        xcom_filter_query.apply(self.mock_query, mock_value)
+        self.mock_query.filter.assert_called_once()
+        actual_filter_arg = self.mock_query.filter.call_args[0][0]
+        expected_filter_arg = func.btrim(func.convert_from(returned_field, "UTF8"), '"').ilike(
+            "%" + mock_value
+        )
+        assert str(actual_filter_arg) == str(expected_filter_arg)
+
+    def test_xcom_filter_equal_apply(self):
+        xcom_filter_query = utils.XComFilterEqual(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        returned_query, returned_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = "test_value"
+        mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, mock_value)
+        xcom_filter_query.apply(self.mock_query, mock_value)
+        self.mock_query.filter.assert_called_once()
+        actual_filter_arg = self.mock_query.filter.call_args[0][0]
+        expected_filter_arg = func.btrim(func.convert_from(returned_field, "UTF8"), '"') == mock_value
+        assert str(actual_filter_arg) == str(expected_filter_arg)
+
+    def test_xcom_filter_contains_apply(self):
+        xcom_filter_query = utils.XComFilterContains(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        returned_query, returned_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = "test_value"
+        xcom_filter_query.apply(self.mock_query, mock_value)
+        self.mock_query.filter.assert_called_once()
+        actual_filter_arg = self.mock_query.filter.call_args[0][0]
+        expected_filter_arg = func.btrim(func.convert_from(returned_field, "UTF8"), '"').ilike(
+            "%" + mock_value + "%"
+        )
+        assert str(actual_filter_arg) == str(expected_filter_arg)
+
+    def test_xcom_filter_not_starts_with_apply(self):
+        xcom_filter_query = utils.XComFilterNotStartsWith(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        returned_query, returned_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = "test_value"
+        xcom_filter_query.apply(self.mock_query, mock_value)
+        self.mock_query.filter.assert_called_once()
+        actual_filter_arg = self.mock_query.filter.call_args[0][0]
+        expected_filter_arg = ~func.btrim(func.convert_from(returned_field, "UTF8"), '"').ilike(
+            mock_value + "%"
+        )
+        assert str(actual_filter_arg) == str(expected_filter_arg)
+
+    def test_xcom_filter_not_ends_with_apply(self):
+        xcom_filter_query = utils.XComFilterNotEndsWith(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        returned_query, returned_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = "test_value"
+        xcom_filter_query.apply(self.mock_query, mock_value)
+        self.mock_query.filter.assert_called_once()
+        actual_filter_arg = self.mock_query.filter.call_args[0][0]
+        expected_filter_arg = ~func.btrim(func.convert_from(returned_field, "UTF8"), '"').ilike(
+            "%" + mock_value
+        )
+        assert str(actual_filter_arg) == str(expected_filter_arg)
+
+    def test_xcom_filter_not_contains_apply(self):
+        xcom_filter_query = utils.XComFilterNotContains(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        returned_query, returned_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = "test_value"
+        xcom_filter_query.apply(self.mock_query, mock_value)
+        self.mock_query.filter.assert_called_once()
+        actual_filter_arg = self.mock_query.filter.call_args[0][0]
+        expected_filter_arg = ~func.btrim(func.convert_from(returned_field, "UTF8"), '"').ilike(
+            "%" + mock_value + "%"
+        )
+        assert str(actual_filter_arg) == str(expected_filter_arg)
+
+    def test_xcom_filter_not_equal_apply(self):
+        xcom_filter_query = utils.XComFilterNotEqual(
+            datamodel=self.mock_datamodel, column_name=self.mock_column_name
+        )
+
+        returned_query, returned_field = get_field_setup_query(
+            self.mock_query, self.mock_datamodel, self.mock_column_name
+        )
+        mock_value = "test_value"
+        mock_value = set_value_to_type(self.mock_datamodel, self.mock_column_name, mock_value)
+        xcom_filter_query.apply(self.mock_query, mock_value)
+        self.mock_query.filter.assert_called_once()
+        actual_filter_arg = self.mock_query.filter.call_args[0][0]
+        expected_filter_arg = func.btrim(func.convert_from(returned_field, "UTF8"), '"') != mock_value
+        assert str(actual_filter_arg) == str(expected_filter_arg)
 
 
 @pytest.mark.db_test
