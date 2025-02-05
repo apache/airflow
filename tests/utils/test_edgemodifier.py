@@ -22,7 +22,7 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup

@@ -22,11 +22,11 @@ from unittest import mock
 import pytest
 from apprise import NotifyFormat, NotifyType
 
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.apprise.notifications.apprise import (
     AppriseNotifier,
     send_apprise_notification,
 )
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 pytestmark = pytest.mark.db_test
 

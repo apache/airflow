@@ -23,8 +23,8 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.redis.log.redis_task_handler import RedisTaskHandler
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime

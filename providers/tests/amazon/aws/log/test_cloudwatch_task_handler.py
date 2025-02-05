@@ -29,10 +29,10 @@ from moto import mock_aws
 from watchtower import CloudWatchLogHandler
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudwatchTaskHandler
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
