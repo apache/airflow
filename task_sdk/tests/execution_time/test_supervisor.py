@@ -128,7 +128,7 @@ class TestWatchedSubprocess:
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
-                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+                id=TI_ID,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
@@ -196,7 +196,7 @@ class TestWatchedSubprocess:
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
-                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+                id=TI_ID,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
@@ -220,7 +220,7 @@ class TestWatchedSubprocess:
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
-                id=uuid7(),
+                id=TI_ID,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
@@ -251,13 +251,12 @@ class TestWatchedSubprocess:
                 print("output", flush=True)
                 sleep(0.05)
 
-        ti_id = uuid7()
         spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
             what=TaskInstance(
-                id=ti_id,
+                id=TI_ID,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
@@ -267,7 +266,7 @@ class TestWatchedSubprocess:
             target=subprocess_main,
         )
         assert proc.wait() == 0
-        assert spy.called_with(ti_id, pid=proc.pid)  # noqa: PGH005
+        assert spy.called_with(TI_ID, pid=proc.pid)  # noqa: PGH005
         # The exact number we get will depend on timing behaviour, so be a little lenient
         assert 1 <= len(spy.calls) <= 4
 

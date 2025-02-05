@@ -183,6 +183,7 @@ def make_ti_context() -> MakeTIContextCallable:
         data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
         start_date: str | datetime = "2024-12-01T01:00:00Z",
+        run_after: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         conf=None,
     ) -> TIRunContext:
@@ -196,6 +197,7 @@ def make_ti_context() -> MakeTIContextCallable:
                 start_date=start_date,  # type: ignore
                 run_type=run_type,  # type: ignore
                 conf=conf,
+                run_after=run_after,
             ),
             max_tries=0,
         )
