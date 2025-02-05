@@ -44,6 +44,7 @@
             -->
             <th>System Information</th>
             <th>Maintenance mode</th>
+            <th>Maintenance Reason</th>
         </tr>
         {% for host in hosts %}
           <tr>
@@ -100,30 +101,43 @@
                 {% endfor %}
               </ul>
             </td>
-            <td>
-              {%- if host.state in ["idle", "running"] -%}
-                <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/on" method="POST">
+            {%- if host.state in ["idle", "running"] -%}
+              <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/on" method="POST">
+                <td>
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
                       Enter
                   </button>
-                </form>
-              {%- elif host.state in ["maintenance pending", "maintenance mode", "maintenance request"] -%}
-                <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/off" method="POST">
+                </td>
+                <td>
+                  <textarea  name="maintenance_comment" rows="3" value="{{ host.maintenance_comment }}" required></textarea>
+                </td>
+              </form>
+            {%- elif host.state in ["maintenance pending", "maintenance mode", "maintenance request"] -%}
+              <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/off" method="POST">
+                <td>
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
                       Exit
                   </button>
-                </form>
-              {%- elif host.state in ["offline", "unknown", "offline maintenance"] -%}
-                <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/remove" method="POST">
+                </td>
+                <td>
+                  <textarea  name="maintenance_comment" rows="3" value="{{ host.maintenance_comment }}"></textarea>
+                </td>
+              </form>
+            {%- elif host.state in ["offline", "unknown", "offline maintenance"] -%}
+              <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/remove" method="POST">
+                <td>
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
                       Remove
                   </button>
-                </form>
-              {% endif %}
-            </td>
+                </td>
+                <td>
+                  <textarea  name="maintenance_comment" rows="3" value="{{ host.maintenance_comment }}"></textarea>
+                </td>
+              </form>
+            {% endif %}
           </tr>
         {% endfor %}
       </table>

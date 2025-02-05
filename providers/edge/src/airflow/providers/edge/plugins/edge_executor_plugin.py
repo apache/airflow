@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from flask import Blueprint, redirect, url_for
+from flask import Blueprint, redirect, request, url_for
 from flask_appbuilder import BaseView, expose
 from sqlalchemy import select
 
@@ -120,7 +120,8 @@ class EdgeWorkerHosts(BaseView):
     def worker_to_maintenance(self, worker_name: str):
         from airflow.providers.edge.models.edge_worker import request_maintenance
 
-        request_maintenance(worker_name)
+        maintenance_comment = request.form.get("maintenance_comment")
+        request_maintenance(worker_name, maintenance_comment)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
     @expose("/status/maintenance/<string:worker_name>/off", methods=["POST"])
