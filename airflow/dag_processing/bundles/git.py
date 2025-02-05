@@ -80,8 +80,6 @@ class GitHook(BaseHook):
 
         if self.key_file and self.private_key:
             raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
-        if self.key_file:
-            self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(self.key_file)
         self._process_git_auth_url()
 
     def _build_ssh_command(self, key_path: str) -> str:
@@ -99,11 +97,8 @@ class GitHook(BaseHook):
         elif not self.repo_url.startswith("git@") or not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
 
-    def set_git_env(self, key: str) -> dict[str, str]:
-        if self.key_file:
-            return self.env
+    def set_git_env(self, key: str) -> None:
         self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)
-        return self.env
 
     @contextlib.contextmanager
     def configure_hook_env(self):
@@ -115,7 +110,7 @@ class GitHook(BaseHook):
                 self.set_git_env(tmp_keyfile.name)
                 yield
         else:
-            self.set_git_env(self.private_key)
+            self.set_git_env(self.key_file)
             yield
 
 
@@ -159,8 +154,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self.log.warning("Could not create GitHook for connection %s : %s", self.git_conn_id, e)
 
     def _initialize(self):
-        with self.hook.configure_hook_env() as tmp_keyfile:
-            self.hook.env = self.hook.set_git_env(tmp_keyfile)
+        with self.hook.configure_hook_env():
             self._clone_bare_repo_if_required()
             self._ensure_version_in_bare_repo()
 
