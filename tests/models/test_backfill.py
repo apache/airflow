@@ -159,6 +159,10 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
             ReprocessBehavior.NONE,
             {
                 "2021-01-01": 1,
+                "2021-01-03": 1,
+                "2021-01-04": 1,
+                "2021-01-06": 1,
+                "2021-01-07": 1,
                 "2021-01-09": 1,
             },
         ),
@@ -166,9 +170,10 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
             ReprocessBehavior.FAILED,
             {
                 "2021-01-01": 1,
-                "2021-01-02": 1,
                 "2021-01-03": 1,
+                "2021-01-04": 1,
                 "2021-01-06": 1,
+                "2021-01-07": 1,
                 "2021-01-09": 1,
             },
         ),
@@ -176,11 +181,10 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
             ReprocessBehavior.COMPLETED,
             {
                 "2021-01-01": 1,
-                "2021-01-02": 1,
                 "2021-01-03": 1,
                 "2021-01-04": 1,
-                "2021-01-05": 1,
                 "2021-01-06": 1,
+                "2021-01-07": 1,
                 "2021-01-09": 1,
             },
         ),
@@ -205,12 +209,8 @@ def test_reprocess_behavior(reprocess_behavior, run_counts, dag_maker, session):
                 # whether a dag run is created for backfill depends on
                 # the last run for a logical date
                 ("2021-01-02", ["failed"]),
-                ("2021-01-03", ["success", "failed"]),  # <-- 2021-01-03 is "failed"
-                ("2021-01-04", ["failed", "success"]),  # <-- 2021-01-04 is "success"
-                ("2021-01-05", ["success", "success"]),
-                ("2021-01-06", ["failed", "failed"]),
-                ("2021-01-07", ["running", "running"]),
-                ("2021-01-08", ["failed", "running"]),
+                ("2021-01-05", ["success"]),
+                ("2021-01-08", ["running"]),
             ]
             for state in states
         ]
@@ -266,12 +266,12 @@ def test_reprocess_behavior(reprocess_behavior, run_counts, dag_maker, session):
 
     # 2021-01-04 is "failed" so it may or may not be reprocessed depending
     # on the configuration
-    bdr = _get_bdr("2021-01-04")
+    bdr = _get_bdr("2021-01-05")
     actual_reason = bdr.exception_reason
     if reprocess_behavior is ReprocessBehavior.FAILED:
-        assert actual_reason == BackfillDagRunExceptionReason.ALREADY_EXISTS
+        assert actual_reason == BackfillDagRunExceptionReason.CLEARED_RUN
     elif reprocess_behavior is ReprocessBehavior.COMPLETED:
-        assert actual_reason is None
+        assert actual_reason == BackfillDagRunExceptionReason.CLEARED_RUN
     elif reprocess_behavior is ReprocessBehavior.NONE:
         assert actual_reason == BackfillDagRunExceptionReason.ALREADY_EXISTS
 

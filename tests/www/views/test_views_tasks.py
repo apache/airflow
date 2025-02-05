@@ -395,6 +395,7 @@ def test_rendered_k8s_without_k8s(admin_client):
 
 
 def test_tree_trigger_origin_tree_view(app, admin_client):
+    clear_db_runs()
     app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id="test",
         run_type=DagRunType.SCHEDULED,
@@ -414,6 +415,7 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
 
 
 def test_graph_trigger_origin_grid_view(app, admin_client):
+    clear_db_runs()
     app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id="test",
         run_type=DagRunType.SCHEDULED,
@@ -433,6 +435,7 @@ def test_graph_trigger_origin_grid_view(app, admin_client):
 
 
 def test_gantt_trigger_origin_grid_view(app, admin_client):
+    clear_db_runs()
     app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id="test",
         run_type=DagRunType.SCHEDULED,

@@ -52,8 +52,11 @@ def make_dag_with_multiple_versions(dag_maker):
 
     Version 1 will have 1 task, version 2 will have 2 tasks, and version 3 will have 3 tasks.
     """
+    import datetime as dt
+
     dag_id = "dag_with_multiple_versions"
 
+    date_time = dt.datetime(2020, 1, 1, tzinfo=dt.timezone.utc)
     for version_number in range(1, 4):
         with dag_maker(dag_id) as dag:
             for i in range(version_number):
@@ -62,6 +65,7 @@ def make_dag_with_multiple_versions(dag_maker):
         SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
         dag_maker.create_dagrun(
             run_id=f"run{i+1}",
+            logical_date=date_time + dt.timedelta(days=i),
             dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
         )
 
