@@ -102,6 +102,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import Operator
     from airflow.serialization.json_schema import Validator
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+    from airflow.triggers.base import BaseEventTrigger
 
     HAS_KUBERNETES: bool
     try:
@@ -259,7 +260,7 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
                 "trigger": _encode_trigger(watcher.trigger),
             }
 
-        def _encode_trigger(trigger: BaseTrigger | dict):
+        def _encode_trigger(trigger: BaseEventTrigger | dict):
             if isinstance(trigger, dict):
                 return trigger
             classpath, kwargs = trigger.serialize()
