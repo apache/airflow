@@ -51,13 +51,13 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-==================  ==================
+==================  ===================
 PIP package         Version required
-==================  ==================
+==================  ===================
 ``apache-airflow``  ``>=2.10.0``
 ``pydantic``        ``>=2.10.2``
-``retryhttp``       ``>=1.2.0,<1.3.0``
-==================  ==================
+``retryhttp``       ``>=1.2.0,!=1.3.0``
+==================  ===================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge/0.13.1pre0/changelog.html>`_.
