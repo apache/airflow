@@ -1732,11 +1732,19 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
         "sensitive_config_values",
         new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
     )
-    @patch("airflow.utils.log.secrets_masker.mask_secret")
-    def test_mask_conf_values(self, mock_mask_secret, mock_sensitive_config_values):
-        conf.mask_secrets()
+    def test_mask_conf_values(self, mock_sensitive_config_values):
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-        mock_mask_secret.assert_any_call("supersecret1")
-        mock_mask_secret.assert_any_call("supersecret2")
+        target = (
+            "airflow.sdk.execution_time.secrets_masker.mask_secret"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.utils.log.secrets_masker.mask_secret"
+        )
 
-        assert mock_mask_secret.call_count == 2
+        with patch(target) as mock_mask_secret:
+            conf.mask_secrets()
+
+            mock_mask_secret.assert_any_call("supersecret1")
+            mock_mask_secret.assert_any_call("supersecret2")
+
+            assert mock_mask_secret.call_count == 2

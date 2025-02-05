@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+0.13.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Allow removing an Edge worker that is offline.``
+
+Fixes
+~~~~~
+
+* ``Implement proper CSRF protection on plugin form.``
+
 0.12.0pre0
 ..........
 
