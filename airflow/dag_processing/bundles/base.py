@@ -58,6 +58,7 @@ class BaseDagBundle(ABC):
         self.version = version
         self.refresh_interval = refresh_interval
         self.is_initialized: bool = False
+        self.pid_tracking_file: Path | None = None
 
     def initialize(self) -> None:
         """
@@ -69,6 +70,15 @@ class BaseDagBundle(ABC):
         to call the `view_url` method, which can run without initializing the bundle.
         """
         self.is_initialized = True
+
+    def mark_in_use(self):
+        """Not implemented."""
+
+    def remove_in_use_marker(self):
+        """Not implemented."""
+
+    def remove_stale_bundle_versions(self):
+        """Not implemented."""
 
     @property
     def _dag_bundle_root_storage_path(self) -> Path:
