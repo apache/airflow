@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 """Dag sub-commands."""
 
 from __future__ import annotations
@@ -222,6 +223,8 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     return {
         "dag_id": dag.dag_id,
         "dag_display_name": dag.dag_display_name,
+        "bundle_name": dag.get_bundle_name(),
+        "bundle_version": dag.get_bundle_version(),
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),
         "last_parsed_time": None,
@@ -315,11 +318,12 @@ def dag_next_execution(args) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_list_dags(args, session=NEW_SESSION) -> None:
+def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
     cols = args.columns if args.columns else []
     invalid_cols = [c for c in cols if c not in dag_schema.fields]
     valid_cols = [c for c in cols if c in dag_schema.fields]
+
     if invalid_cols:
         from rich import print as rich_print
 
@@ -328,7 +332,10 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
             f"List of valid columns: {list(dag_schema.fields.keys())}",
             file=sys.stderr,
         )
-    dagbag = DagBag(process_subdir(args.subdir))
+
+    dagbag = DagBag(read_dags_from_db=True)
+    dagbag.collect_dags_from_db()
+
     if dagbag.import_errors:
         from rich import print as rich_print
 
@@ -346,8 +353,14 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
             dag_detail = _get_dagbag_dag_details(dag)
         return {col: dag_detail[col] for col in valid_cols}
 
+    def filter_dags_by_bundle():
+        """Filter DAGs based on the specified bundle name, if provided."""
+        if args.bundle_name:
+            return [dag for dag in dagbag.dags.values() if dag.get_bundle_name() == args.bundle_name]
+        return dagbag.dags.values()
+
     AirflowConsole().print_as(
-        data=sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id")),
+        data=sorted(filter_dags_by_bundle(), key=operator.attrgetter("dag_id")),
         output=args.output,
         mapper=get_dag_detail,
     )
@@ -357,7 +370,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_details(args, session=NEW_SESSION):
+def dag_details(args, session: Session = NEW_SESSION):
     """Get DAG details given a DAG id."""
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
     if not dag:
