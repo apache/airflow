@@ -72,31 +72,6 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-sql>=1.20.0
-  - requests>=2.27.0,<3
-  - databricks-sql-connector>=3.0.0
-  - aiohttp>=3.9.2, <4
-  - mergedeep>=1.3.4
-  - pandas>=2.1.2,<2.2
-  - pyarrow>=14.0.1
-
-
-additional-extras:
-  # pip install apache-airflow-providers-databricks[sdk]
-  - name: sdk
-    description: Install Databricks SDK
-    dependencies:
-      - databricks-sdk==0.10.0
-  - name: azure-identity
-    description: Install Azure Identity client library
-    dependencies:
-      - azure-identity>=1.3.1
-
-devel-dependencies:
-  - deltalake>=0.12.0
-
 integrations:
   - integration-name: Databricks
     external-doc-url: https://databricks.com/
@@ -106,14 +81,13 @@ integrations:
       - /docs/apache-airflow-providers-databricks/operators/submit_run.rst
       - /docs/apache-airflow-providers-databricks/operators/run_now.rst
       - /docs/apache-airflow-providers-databricks/operators/task.rst
-    logo: /integration-logos/databricks/Databricks.png
+    logo: /docs/integration-logos/Databricks.png
     tags: [service]
   - integration-name: Databricks SQL
     external-doc-url: https://databricks.com/product/databricks-sql
     how-to-guide:
       - /docs/apache-airflow-providers-databricks/operators/sql.rst
       - /docs/apache-airflow-providers-databricks/operators/copy_into.rst
-    logo: /integration-logos/databricks/Databricks.png
     tags: [service]
   - integration-name: Databricks Repos
     external-doc-url: https://docs.databricks.com/repos/index.html
@@ -121,13 +95,11 @@ integrations:
       - /docs/apache-airflow-providers-databricks/operators/repos_create.rst
       - /docs/apache-airflow-providers-databricks/operators/repos_update.rst
       - /docs/apache-airflow-providers-databricks/operators/repos_delete.rst
-    logo: /integration-logos/databricks/Databricks.png
     tags: [service]
   - integration-name: Databricks Workflow
     external-doc-url: https://docs.databricks.com/en/workflows/index.html
     how-to-guide:
       - /docs/apache-airflow-providers-databricks/operators/workflow.rst
-    logo: /integration-logos/databricks/Databricks.png
     tags: [service]
 
 operators:
