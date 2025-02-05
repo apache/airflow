@@ -46,10 +46,10 @@ def connect(
 class ElasticsearchSQLCursor:
     """A PEP 249-like Cursor class for Elasticsearch SQL API"""
 
-    def __init__(self, es: Elasticsearch, options: dict[str, Any]):
+    def __init__(self, es: Elasticsearch, **options):
         self.es = es
         self.body = {
-            "fetch_size": options.get("fetch_size", 100),
+            "fetch_size": options.get("fetch_size", 10000),
             "field_multi_value_leniency": options.get("field_multi_value_leniency", False),
         }
         self._response: ObjectApiResponse | None = None
@@ -136,7 +136,7 @@ class ESConnection:
             self.es = Elasticsearch(self.url, **self.kwargs)
 
     def cursor(self) -> ElasticsearchSQLCursor:
-        return ElasticsearchSQLCursor(self.es, self.kwargs)
+        return ElasticsearchSQLCursor(self.es, **self.kwargs)
 
     def close(self):
         self.es.close()
