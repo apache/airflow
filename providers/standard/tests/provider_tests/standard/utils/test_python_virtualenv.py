@@ -213,8 +213,8 @@ class TestPrepareVirtualenv:
             import funcsigs
         """
         )
-        py_source = decorator + SCRIPT
-        expected_source = expected_decorator + SCRIPT if expected_decorator else SCRIPT.lstrip()
+        py_source = f"{decorator}{SCRIPT}"
+        expected_source = f"{expected_decorator}{SCRIPT}" if expected_decorator else SCRIPT.lstrip()
 
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == expected_source
