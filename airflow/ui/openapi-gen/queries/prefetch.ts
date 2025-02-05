@@ -1328,6 +1328,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstance = (
  * @param data.pool
  * @param data.queue
  * @param data.executor
+ * @param data.versionNumber
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -1357,6 +1358,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1378,6 +1380,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
     taskId: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
 ) =>
   queryClient.prefetchQuery({
@@ -1402,6 +1405,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
       taskId,
       updatedAtGte,
       updatedAtLte,
+      versionNumber,
     }),
     queryFn: () =>
       TaskInstanceService.getMappedTaskInstances({
@@ -1425,6 +1429,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       }),
   });
 /**
@@ -1611,6 +1616,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
  * @param data.pool
  * @param data.queue
  * @param data.executor
+ * @param data.versionNumber
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -1641,6 +1647,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1663,6 +1670,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
 ) =>
   queryClient.prefetchQuery({
@@ -1688,6 +1696,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
       taskId,
       updatedAtGte,
       updatedAtLte,
+      versionNumber,
     }),
     queryFn: () =>
       TaskInstanceService.getTaskInstances({
@@ -1712,6 +1721,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       }),
   });
 /**
@@ -2032,6 +2042,7 @@ export const prefetchUsePoolServiceGetPool = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.poolNamePattern
  * @returns PoolCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2041,15 +2052,17 @@ export const prefetchUsePoolServiceGetPools = (
     limit,
     offset,
     orderBy,
+    poolNamePattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    poolNamePattern?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy }),
-    queryFn: () => PoolService.getPools({ limit, offset, orderBy }),
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolNamePattern }),
   });
 /**
  * Get Providers

@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+0.13.1pre0
+..........
+
+Fix
+~~~
+
+* ``EdgeWorkerVersionException is raised if http 400 is responded on set_state.``
+
+0.13.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Allow removing an Edge worker that is offline.``
+
+Fixes
+~~~~~
+
+* ``Implement proper CSRF protection on plugin form.``
+
+0.12.0pre0
+..........
+
+Misc
+~~~~
+
+* ``An Edge worker can remember maintenance mode in case of shut down. It picks up maintenance state at startup.``
+
 0.11.0pre0
 ..........
 

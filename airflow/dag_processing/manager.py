@@ -63,6 +63,7 @@ from airflow.stats import Stats
 from airflow.traces.tracer import Trace
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths, might_contain_dag
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.process_utils import (
     kill_child_processes_by_pids,
@@ -95,9 +96,6 @@ class DagFileStat:
     last_duration: float | None = None
     run_count: int = 0
     last_num_of_db_queries: int = 0
-
-
-log = logging.getLogger("airflow.processor_manager")
 
 
 @dataclass(frozen=True)
@@ -135,7 +133,7 @@ def _resolve_path(instance: Any, attribute: attrs.Attribute, val: str | os.PathL
 
 
 @attrs.define
-class DagFileProcessorManager:
+class DagFileProcessorManager(LoggingMixin):
     """
     Manage processes responsible for parsing DAGs.
 
@@ -166,8 +164,6 @@ class DagFileProcessorManager:
     stale_dag_threshold: float = attrs.field(
         factory=_config_int_factory("dag_processor", "stale_dag_threshold")
     )
-
-    log: logging.Logger = attrs.field(default=log, init=False)
 
     _last_deactivate_stale_dags_time: float = attrs.field(default=0, init=False)
     print_stats_interval: float = attrs.field(
