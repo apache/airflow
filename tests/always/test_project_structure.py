@@ -86,20 +86,20 @@ class TestProjectStructure:
             "providers/tests/celery/executors/test_celery_executor_utils.py",
             "providers/tests/celery/executors/test_default_celery.py",
             "providers/tests/cloudant/test_cloudant_fake.py",
-            "providers/tests/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
-            "providers/tests/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
-            "providers/tests/cncf/kubernetes/operators/test_kubernetes_pod.py",
-            "providers/tests/cncf/kubernetes/test_k8s_model.py",
-            "providers/tests/cncf/kubernetes/test_kube_client.py",
-            "providers/tests/cncf/kubernetes/test_kube_config.py",
-            "providers/tests/cncf/kubernetes/test_pod_generator_deprecated.py",
-            "providers/tests/cncf/kubernetes/test_pod_launcher_deprecated.py",
-            "providers/tests/cncf/kubernetes/test_python_kubernetes_script.py",
-            "providers/tests/cncf/kubernetes/test_secret.py",
-            "providers/tests/cncf/kubernetes/triggers/test_kubernetes_pod.py",
-            "providers/tests/cncf/kubernetes/utils/test_delete_from.py",
-            "providers/tests/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
-            "providers/tests/cncf/kubernetes/utils/test_xcom_sidecar.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/operators/test_kubernetes_pod.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_k8s_model.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_kube_client.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_kube_config.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_pod_generator_deprecated.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_pod_launcher_deprecated.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_python_kubernetes_script.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_secret.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/triggers/test_kubernetes_pod.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_delete_from.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_xcom_sidecar.py",
             "providers/google/tests/provider_tests/google/cloud/fs/test_gcs.py",
             "providers/google/tests/provider_tests/google/cloud/links/test_automl.py",
             "providers/google/tests/provider_tests/google/cloud/links/test_base.py",
@@ -248,6 +248,8 @@ class ProjectStructureTest:
         for operator_file in self.new_class_paths():
             operators_paths = self.get_classes_from_file(operator_file, NEW_PROVIDER_SRC, is_new=True)
             classes.update(operators_paths)
+        # replace src. prefix with empty string for all classes
+        classes = {k.replace("src.", ""): v for k, v in classes.items()}
         return classes
 
     def get_classes_from_file(
@@ -571,6 +573,19 @@ class TestCncfProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "cncf"
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
     BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
+    MISSING_EXAMPLES_FOR_CLASSES = {
+        "airflow.providers.cncf.kubernetes.operators.job.KubernetesDeleteJobOperator",
+        "airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator",
+        "airflow.providers.cncf.kubernetes.operators.job.KubernetesPatchJobOperator",
+        "airflow.providers.cncf.kubernetes.operators.kueue.KubernetesInstallKueueOperator",
+        "airflow.providers.cncf.kubernetes.operators.kueue.KubernetesStartKueueJobOperator",
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator",
+        "airflow.providers.cncf.kubernetes.operators.resource.KubernetesCreateResourceOperator",
+        "airflow.providers.cncf.kubernetes.operators.resource.KubernetesDeleteResourceOperator",
+        "airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator",
+        "airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator",
+        "airflow.providers.cncf.kubernetes.sensors.spark_kubernetes.SparkKubernetesSensor",
+    }
 
 
 class TestSlackProviderProjectStructure(ExampleCoverageTest):
