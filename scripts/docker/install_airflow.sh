@@ -45,7 +45,6 @@ function install_airflow() {
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
         echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
     fi
-    PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.9}
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
@@ -55,10 +54,6 @@ function install_airflow() {
         installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./task_sdk"
         while IFS= read -r -d '' pyproject_toml_file; do
             project_folder=$(dirname ${pyproject_toml_file})
-            # if python version is 3.9 and the current provider folder is cloudant, then skip and continue to the next provider
-            if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "3.9" && ${project_folder} == *"cloudant"* ]]; then
-                continue
-            fi
             installation_command_flags="${installation_command_flags} --editable ${project_folder}"
         done < <(find "providers" -name "pyproject.toml" -print0)
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then

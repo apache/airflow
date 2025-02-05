@@ -793,11 +793,6 @@ def get_provider_jinja_context(
     # Most providers require the same python versions, but some may have exclusions
     requires_python_version: str = f"~={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     for excluded_python_version in provider_details.excluded_python_versions:
-        # Does python project toml allow exclusions without patch versions specified? Cloudant is the only
-        # provider so far that has exclusions, and they will be rare. For safety we'll add the wildcard for
-        # patch all patch versions, but can revisit this if we have another usecase.
-        if len(excluded_python_version.split(".")) == 2:
-            excluded_python_version += ".*"
         requires_python_version += f",!={excluded_python_version}"
 
     context: dict[str, Any] = {
