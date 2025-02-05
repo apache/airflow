@@ -146,7 +146,7 @@ Installing ``hatch``
 
 More information about hatch can be found in https://hatch.pypa.io/
 
-We recommend to install ``hatch`` using ```uv tool`` command which will make hatch available as a CLI
+We recommend to install ``hatch`` using ``uv tool`` command which will make hatch available as a CLI
 command globally:
 
     uv tool install hatch
