@@ -1223,12 +1223,12 @@ repos:
           ^airflow/serialization/serde.py$ |
           ^airflow/utils/file.py$ |
           ^airflow/utils/helpers.py$ |
-          ^airflow/utils/log/secrets_masker.py$ |
           ^providers/ |
           ^tests/ |
           ^providers/tests/ |
           ^providers/.*/tests/ |
           ^task_sdk/src/airflow/sdk/definitions/dag.py$ |
+          ^task_sdk/src/airflow/sdk/execution_time/secrets_masker.py$ |
           ^task_sdk/src/airflow/sdk/definitions/_internal/node.py$ |
           ^dev/.*\.py$ |
           ^scripts/.*\.py$ |
