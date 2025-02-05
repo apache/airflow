@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Table } from "@chakra-ui/react";
+import { Box, Flex, HStack, Table, Heading } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import {
@@ -89,6 +89,9 @@ export const Details = () => {
       {taskInstance !== undefined && (taskInstance.trigger ?? taskInstance.triggerer_job) ? (
         <TriggererInfo taskInstance={taskInstance} />
       ) : undefined}
+      <Heading py={2} size="sm">
+        Task Instance Info
+      </Heading>
       <Table.Root striped>
         <Table.Body>
           <Table.Row>

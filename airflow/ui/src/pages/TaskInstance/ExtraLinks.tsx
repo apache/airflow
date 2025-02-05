@@ -35,7 +35,7 @@ export const ExtraLinks = () => {
   });
 
   return data && Object.keys(data).length > 0 ? (
-    <Box py={2}>
+    <Box py={1}>
       <Heading size="sm"> Extra Links </Heading>
       <HStack gap={2} py={2}>
         {Object.entries(data).map(([key, value], _) =>
