@@ -21,6 +21,7 @@ import asyncio
 import pytest
 
 from airflow.providers.standard.triggers.file import FileDeleteTrigger, FileTrigger
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 class TestFileTrigger:
@@ -64,6 +65,7 @@ class TestFileTrigger:
         asyncio.get_event_loop().stop()
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Skip on Airflow < 3.0")
 class TestFileDeleteTrigger:
     FILE_PATH = "/files/dags/example_async_file.py"
 
