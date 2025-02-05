@@ -31,7 +31,7 @@ from pendulum.parsing.exceptions import ParserError
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.models import Log
-from airflow.utils.log import secrets_masker
+from airflow.sdk.execution_time import secrets_masker
 from airflow.utils.session import create_session
 
 T = TypeVar("T", bound=Callable)
