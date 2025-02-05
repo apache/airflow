@@ -52,7 +52,30 @@ You can also use XComs in :ref:`templates <concepts:jinja-templating>`::
 
 XComs are a relative of :doc:`variables`, with the main difference being that XComs are per-task-instance and designed for communication within a DAG run, while Variables are global and designed for overall configuration and value sharing.
 
-If you want to push multiple XComs at once or rename the pushed XCom key, you can use set ``do_xcom_push`` and ``multiple_outputs`` arguments to ``True``, and then return a dictionary of values.
+If you want to push multiple XComs at once you can set ``do_xcom_push`` and ``multiple_outputs`` arguments to ``True``, and then return a dictionary of values.
+
+To push multiple XComs at once:
+
+.. code-block:: python
+
+    value = {"key1": "value1", "key2": "value2"}
+    # A Python operator task returning a dictionary
+    task = PythonOperator(
+        task_id="xcom_push_with_multiple_outputs",
+        python_callable=lambda: value,
+        do_xcom_push=True,
+        multiple_outputs=True,
+    )
+
+To pull a specific key from the XCom:
+
+.. code-block:: python
+
+    # Pulling a specific key from the multiple outputs
+    task_instance.xcom_pull(key="key1", task_ids="xcom_push_with_multiple_outputs")  # will return "value1"
+    task_instance.xcom_pull(key="key2", task_ids="xcom_push_with_multiple_outputs")  # will return "value2"
+
+
 
 .. note::
 
