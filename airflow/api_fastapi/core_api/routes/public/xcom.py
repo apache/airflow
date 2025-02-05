@@ -245,7 +245,7 @@ def update_xcom_entry(
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
     # Check if XCom entry exists
-    xcom_value_key = "value"
+    xcom_new_value = XCom.serialize_value(patch_body.value)
     xcom_entry = session.scalar(
         select(XCom)
         .where(
@@ -265,6 +265,6 @@ def update_xcom_entry(
         )
 
     # Update XCom entry
-    setattr(xcom_entry, xcom_value_key, XCom.serialize_value(patch_body.value))
+    xcom_entry.value = XCom.serialize_value(xcom_new_value)
 
     return XComResponseNative.model_validate(xcom_entry)
