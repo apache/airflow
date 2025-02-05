@@ -28,6 +28,7 @@ from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
 from airflow.providers.google.cloud.links.managed_kafka import (
     ApacheKafkaClusterLink,
     ApacheKafkaClusterListLink,
+    ApacheKafkaConsumerGroupLink,
     ApacheKafkaTopicLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -785,4 +786,268 @@ class ManagedKafkaDeleteTopicOperator(ManagedKafkaBaseOperator):
             self.log.info("Apache Kafka topic was deleted.")
         except NotFound as not_found_err:
             self.log.info("The Apache Kafka topic ID %s does not exist.", self.topic_id)
+            raise AirflowException(not_found_err)
+
+
+class ManagedKafkaListConsumerGroupsOperator(ManagedKafkaBaseOperator):
+    """
+    List the consumer groups in a given cluster.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud region that the service belongs to.
+    :param cluster_id: Required. The ID of the cluster whose consumer groups are to be listed.
+    :param page_size: Optional. The maximum number of consumer groups to return. The service may return
+        fewer than this value. If unset or zero, all consumer groups for the parent is returned.
+    :param page_token: Optional. A page token, received from a previous ``ListConsumerGroups`` call.
+        Provide this to retrieve the subsequent page. When paginating, all other parameters provided to
+        ``ListConsumerGroups`` must match the call that provided the page token.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple({"cluster_id"} | set(ManagedKafkaBaseOperator.template_fields))
+    operator_extra_links = (ApacheKafkaClusterLink(),)
+
+    def __init__(
+        self,
+        cluster_id: str,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cluster_id = cluster_id
+        self.page_size = page_size
+        self.page_token = page_token
+
+    def execute(self, context: Context):
+        ApacheKafkaClusterLink.persist(context=context, task_instance=self, cluster_id=self.cluster_id)
+        self.log.info("Listing Consumer Groups for cluster %s.", self.cluster_id)
+        try:
+            consumer_group_list_pager = self.hook.list_consumer_groups(
+                project_id=self.project_id,
+                location=self.location,
+                cluster_id=self.cluster_id,
+                page_size=self.page_size,
+                page_token=self.page_token,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.xcom_push(
+                context=context,
+                key="consumer_group_page",
+                value=types.ListConsumerGroupsResponse.to_dict(consumer_group_list_pager._response),
+            )
+        except Exception as error:
+            raise AirflowException(error)
+        return [types.ConsumerGroup.to_dict(consumer_group) for consumer_group in consumer_group_list_pager]
+
+
+class ManagedKafkaGetConsumerGroupOperator(ManagedKafkaBaseOperator):
+    """
+    Return the properties of a single consumer group.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud region that the service belongs to.
+    :param cluster_id: Required. The ID of the cluster whose consumer group is to be returned.
+    :param consumer_group_id: Required. The ID of the consumer group whose configuration to return.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"cluster_id", "consumer_group_id"} | set(ManagedKafkaBaseOperator.template_fields)
+    )
+    operator_extra_links = (ApacheKafkaConsumerGroupLink(),)
+
+    def __init__(
+        self,
+        cluster_id: str,
+        consumer_group_id: str,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cluster_id = cluster_id
+        self.consumer_group_id = consumer_group_id
+
+    def execute(self, context: Context):
+        ApacheKafkaConsumerGroupLink.persist(
+            context=context,
+            task_instance=self,
+            cluster_id=self.cluster_id,
+            consumer_group_id=self.consumer_group_id,
+        )
+        self.log.info("Getting Consumer Group: %s", self.consumer_group_id)
+        try:
+            consumer_group = self.hook.get_consumer_group(
+                project_id=self.project_id,
+                location=self.location,
+                cluster_id=self.cluster_id,
+                consumer_group_id=self.consumer_group_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info(
+                "The consumer group %s from cluster %s was retrieved.",
+                self.consumer_group_id,
+                self.cluster_id,
+            )
+            return types.ConsumerGroup.to_dict(consumer_group)
+        except NotFound as not_found_err:
+            self.log.info("The Consumer Group %s does not exist.", self.consumer_group_id)
+            raise AirflowException(not_found_err)
+
+
+class ManagedKafkaUpdateConsumerGroupOperator(ManagedKafkaBaseOperator):
+    """
+    Update the properties of a single consumer group.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud region that the service belongs to.
+    :param cluster_id: Required. The ID of the cluster whose topic is to be updated.
+    :param consumer_group_id: Required. The ID of the consumer group whose configuration to update.
+    :param consumer_group: Required. The consumer_group to update. Its ``name`` field must be populated.
+    :param update_mask: Required. Field mask is used to specify the fields to be overwritten in the
+        ConsumerGroup resource by the update. The fields specified in the update_mask are relative to the
+        resource, not the full request. A field will be overwritten if it is in the mask.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"cluster_id", "consumer_group_id", "consumer_group", "update_mask"}
+        | set(ManagedKafkaBaseOperator.template_fields)
+    )
+    operator_extra_links = (ApacheKafkaConsumerGroupLink(),)
+
+    def __init__(
+        self,
+        cluster_id: str,
+        consumer_group_id: str,
+        consumer_group: types.Topic | dict,
+        update_mask: FieldMask | dict,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cluster_id = cluster_id
+        self.consumer_group_id = consumer_group_id
+        self.consumer_group = consumer_group
+        self.update_mask = update_mask
+
+    def execute(self, context: Context):
+        ApacheKafkaConsumerGroupLink.persist(
+            context=context,
+            task_instance=self,
+            cluster_id=self.cluster_id,
+            consumer_group_id=self.consumer_group_id,
+        )
+        self.log.info("Updating an Apache Kafka consumer group.")
+        try:
+            consumer_group_obj = self.hook.update_consumer_group(
+                project_id=self.project_id,
+                location=self.location,
+                cluster_id=self.cluster_id,
+                consumer_group_id=self.consumer_group_id,
+                consumer_group=self.consumer_group,
+                update_mask=self.update_mask,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("Apache Kafka consumer group %s was updated.", self.consumer_group_id)
+            return types.ConsumerGroup.to_dict(consumer_group_obj)
+        except NotFound as not_found_err:
+            self.log.info("The Consumer Group %s does not exist.", self.consumer_group_id)
+            raise AirflowException(not_found_err)
+        except Exception as error:
+            raise AirflowException(error)
+
+
+class ManagedKafkaDeleteConsumerGroupOperator(ManagedKafkaBaseOperator):
+    """
+    Delete a single consumer group.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud region that the service belongs to.
+    :param cluster_id: Required. The ID of the cluster whose consumer group is to be deleted.
+    :param consumer_group_id: Required. The ID of the consumer group to delete.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"cluster_id", "consumer_group_id"} | set(ManagedKafkaBaseOperator.template_fields)
+    )
+
+    def __init__(
+        self,
+        cluster_id: str,
+        consumer_group_id: str,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cluster_id = cluster_id
+        self.consumer_group_id = consumer_group_id
+
+    def execute(self, context: Context):
+        try:
+            self.log.info("Deleting Apache Kafka consumer group: %s", self.consumer_group_id)
+            self.hook.delete_consumer_group(
+                project_id=self.project_id,
+                location=self.location,
+                cluster_id=self.cluster_id,
+                consumer_group_id=self.consumer_group_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("Apache Kafka consumer group was deleted.")
+        except NotFound as not_found_err:
+            self.log.info("The Apache Kafka consumer group ID %s does not exist.", self.consumer_group_id)
             raise AirflowException(not_found_err)
