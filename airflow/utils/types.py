@@ -20,6 +20,7 @@ import enum
 from typing import TYPE_CHECKING, TypedDict
 
 import airflow.sdk.definitions._internal.types
+from airflow.utils.strings import get_random_string
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -42,7 +43,11 @@ class DagRunType(str, enum.Enum):
     def __str__(self) -> str:
         return self.value
 
-    def generate_run_id(self, logical_date: datetime) -> str:
+    def generate_run_id(self, logical_date: datetime | None, run_after: datetime | None) -> str:
+        if logical_date is None:
+            if run_after is None:
+                raise ValueError("run_after cannot be None")
+            return run_after + get_random_string()
         return f"{self}__{logical_date.isoformat()}"
 
     @staticmethod

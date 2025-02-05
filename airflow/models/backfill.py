@@ -293,6 +293,7 @@ def _create_backfill_dag_run(
                 run_type=DagRunType.BACKFILL_JOB,
                 logical_date=info.logical_date,
                 data_interval=info.data_interval,
+                run_after=info.run_after,
             ),
             logical_date=info.logical_date,
             data_interval=info.data_interval,

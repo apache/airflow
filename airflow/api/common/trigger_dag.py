@@ -84,7 +84,10 @@ def _trigger_dag(
 
     data_interval = dag.timetable.infer_manual_data_interval(run_after=coerced_logical_date)
     run_id = run_id or dag.timetable.generate_run_id(
-        run_type=DagRunType.MANUAL, logical_date=coerced_logical_date, data_interval=data_interval
+        run_type=DagRunType.MANUAL,
+        logical_date=coerced_logical_date,
+        data_interval=data_interval,
+        run_after=data_interval.end,
     )
 
     # This intentionally does not use 'session' in the current scope because it

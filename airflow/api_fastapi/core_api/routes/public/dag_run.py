@@ -371,6 +371,7 @@ def trigger_dag_run(
                 run_type=DagRunType.MANUAL,
                 logical_date=logical_date,
                 data_interval=data_interval,
+                run_after=data_interval.end,
             )
 
         dag_run = dag.create_dagrun(
