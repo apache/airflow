@@ -26,14 +26,15 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import paramiko
 import pytest
-from airflow.exceptions import AirflowException
-from airflow.models import Connection
-from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
-from airflow.utils.session import provide_session
 from asyncssh import SFTPAttrs, SFTPNoSuchFile
 from asyncssh.sftp import SFTPName
 from paramiko.client import SSHClient
 from paramiko.sftp_client import SFTPClient
+
+from airflow.exceptions import AirflowException
+from airflow.models import Connection
+from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
+from airflow.utils.session import provide_session
 
 pytestmark = pytest.mark.db_test
 
