@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socketpair
 from unittest import mock
@@ -29,6 +29,7 @@ from unittest.mock import patch
 import pytest
 from uuid6 import uuid7
 
+from airflow.decorators import task as task_decorator
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -37,9 +38,10 @@ from airflow.exceptions import (
     AirflowTaskTerminated,
 )
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
+from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
 from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
@@ -1198,6 +1200,15 @@ class TestXComAfterTaskExecution:
 
 
 class TestDagParamRuntime:
+    DEFAULT_ARGS = {
+        "owner": "test",
+        "depends_on_past": True,
+        "start_date": datetime.now(tz=timezone.utc),
+        "retries": 1,
+        "retry_delay": timedelta(minutes=1),
+    }
+    VALUE = 42
+
     def test_dag_param_resolves_from_task(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         """Test dagparam resolves on operator execution"""
         instant = timezone.datetime(2024, 12, 3, 10, 0)
@@ -1252,7 +1263,7 @@ class TestDagParamRuntime:
         )
 
     def test_dag_param_dag_default(self, create_runtime_ti, mock_supervisor_comms, time_machine):
-        """ "Test dag param is retrieved from default config"""
+        """Test that dag param is correctly resolved by operator"""
         instant = timezone.datetime(2024, 12, 3, 10, 0)
         time_machine.move_to(instant, tick=False)
 
@@ -1272,6 +1283,111 @@ class TestDagParamRuntime:
 
         run(runtime_ti, log=mock.MagicMock())
         mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SucceedTask(
+                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+            ),
+            log=mock.ANY,
+        )
+
+    def test_dag_param_resolves(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine, make_ti_context
+    ):
+        """Test that dag param is correctly resolved by operator"""
+
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        @dag_decorator(schedule=None, start_date=timezone.datetime(2024, 12, 3))
+        def dag_with_dag_params(value="NOTSET"):
+            @task_decorator
+            def dummy_task(val):
+                return val
+
+            class CustomOperator(BaseOperator):
+                def execute(self, context):
+                    assert self.dag.params["value"] == "NOTSET"
+
+            _ = dummy_task(value)
+            custom_task = CustomOperator(task_id="task_with_dag_params")
+            self.operator = custom_task
+
+        dag_with_dag_params()
+
+        runtime_ti = create_runtime_ti(task=self.operator, dag_id="dag_with_dag_params")
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SucceedTask(
+                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+            ),
+            log=mock.ANY,
+        )
+
+    def test_dag_param_dagrun_parameterized(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine, make_ti_context
+    ):
+        """Test that dag param is correctly overwritten when set in dag run"""
+
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        @dag_decorator(schedule=None, start_date=timezone.datetime(2024, 12, 3))
+        def dag_with_dag_params(value=self.VALUE):
+            @task_decorator
+            def dummy_task(val):
+                return val
+
+            assert isinstance(value, DagParam)
+
+            class CustomOperator(BaseOperator):
+                def execute(self, context):
+                    assert self.dag.params["value"] == "new_value"
+
+            _ = dummy_task(value)
+            custom_task = CustomOperator(task_id="task_with_dag_params")
+            self.operator = custom_task
+
+        dag_with_dag_params()
+
+        runtime_ti = create_runtime_ti(
+            task=self.operator, dag_id="dag_with_dag_params", conf={"value": "new_value"}
+        )
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SucceedTask(
+                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+            ),
+            log=mock.ANY,
+        )
+
+    @pytest.mark.parametrize("value", [VALUE, 0])
+    def test_set_params_for_dag(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine, make_ti_context, value
+    ):
+        """Test that dag param is correctly set when using dag decorator"""
+
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        @dag_decorator(schedule=None, start_date=timezone.datetime(2024, 12, 3))
+        def dag_with_param(value=value):
+            @task_decorator
+            def return_num(num):
+                return num
+
+            xcom_arg = return_num(value)
+            self.operator = xcom_arg.operator
+
+        dag_with_param()
+
+        runtime_ti = create_runtime_ti(task=self.operator, dag_id="dag_with_param", conf={"value": value})
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_any_call(
             msg=SucceedTask(
                 state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
             ),
