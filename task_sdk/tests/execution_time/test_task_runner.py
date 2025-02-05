@@ -36,6 +36,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTerminated,
 )
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
 from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
 from airflow.sdk.definitions.asset import Asset, AssetAlias
@@ -67,6 +68,7 @@ from airflow.sdk.execution_time.task_runner import (
     CommsDecoder,
     RuntimeTaskInstance,
     _push_xcom_if_needed,
+    _xcom_push,
     parse,
     run,
     startup,
@@ -219,7 +221,6 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
 
 def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that marks itself skipped."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="skip",
@@ -242,7 +243,6 @@ def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comm
 
 def test_run_raises_base_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that raises a base exception which should send fail_with_retry state."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="zero_division_error",
@@ -267,7 +267,6 @@ def test_run_raises_base_exception(time_machine, create_runtime_ti, mock_supervi
 
 def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that exits with SystemExit exception."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="system_exit_task",
@@ -292,7 +291,6 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
 
 def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that exits with AirflowException."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="af_exception_task",
@@ -320,8 +318,6 @@ def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supe
 def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that times out."""
     from time import sleep
-
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="sleep",
@@ -404,6 +400,36 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context, mock_supervi
             {"my_tup": (1, 2), "my_set": {1, 2, 3}},
             {"my_tup": "(1, 2)", "my_set": "{1, 2, 3}"},
             id="tuples_and_sets",
+        ),
+        pytest.param(
+            {"op_args": [("a", "b", "c")], "op_kwargs": {}, "templates_dict": None},
+            {"op_args": [["a", "b", "c"]], "op_kwargs": {}, "templates_dict": None},
+            id="nested_tuples_within_lists",
+        ),
+        pytest.param(
+            {
+                "op_args": [
+                    [
+                        ("t0.task_id", "t1.task_id", "branch one"),
+                        ("t0.task_id", "t2.task_id", "branch two"),
+                        ("t0.task_id", "t3.task_id", "branch three"),
+                    ]
+                ],
+                "op_kwargs": {},
+                "templates_dict": None,
+            },
+            {
+                "op_args": [
+                    [
+                        ["t0.task_id", "t1.task_id", "branch one"],
+                        ["t0.task_id", "t2.task_id", "branch two"],
+                        ["t0.task_id", "t3.task_id", "branch three"],
+                    ]
+                ],
+                "op_kwargs": {},
+                "templates_dict": None,
+            },
+            id="nested_tuples_within_lists_higher_nesting",
         ),
     ],
 )
@@ -1089,16 +1115,16 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
 
         spy_agency.spy_on(_push_xcom_if_needed, call_original=True)
-        spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
+        spy_agency.spy_on(_xcom_push, call_original=False)
 
         run(runtime_ti, log=mock.MagicMock())
 
         spy_agency.assert_spy_called(_push_xcom_if_needed)
 
         if should_push_xcom:
-            spy_agency.assert_spy_called_with(runtime_ti.xcom_push, "return_value", expected_xcom_value)
+            spy_agency.assert_spy_called_with(_xcom_push, runtime_ti, "return_value", expected_xcom_value)
         else:
-            spy_agency.assert_spy_not_called(runtime_ti.xcom_push)
+            spy_agency.assert_spy_not_called(_xcom_push)
 
     def test_xcom_with_multiple_outputs(self, create_runtime_ti, spy_agency):
         """Test that the task pushes to XCom when multiple outputs are returned."""
@@ -1114,7 +1140,7 @@ class TestXComAfterTaskExecution:
 
         runtime_ti = create_runtime_ti(task=task)
 
-        spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
+        spy_agency.spy_on(_xcom_push, call_original=False)
         _push_xcom_if_needed(result=result, ti=runtime_ti)
 
         expected_calls = [
@@ -1122,9 +1148,9 @@ class TestXComAfterTaskExecution:
             ("key2", "value2"),
             ("return_value", result),
         ]
-        spy_agency.assert_spy_call_count(runtime_ti.xcom_push, len(expected_calls))
+        spy_agency.assert_spy_call_count(_xcom_push, len(expected_calls))
         for key, value in expected_calls:
-            spy_agency.assert_spy_called_with(runtime_ti.xcom_push, key, value)
+            spy_agency.assert_spy_called_with(_xcom_push, runtime_ti, key, value, mapped_length=None)
 
     def test_xcom_with_multiple_outputs_and_no_mapping_result(self, create_runtime_ti, spy_agency):
         """Test that error is raised when multiple outputs are returned without mapping."""

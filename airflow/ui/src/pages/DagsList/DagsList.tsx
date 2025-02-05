@@ -189,7 +189,7 @@ export const DagsList = () => {
     paused = false;
   }
 
-  const { data, error, isFetching, isLoading } = useDags({
+  const { data, error, isLoading } = useDags({
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? `${dagDisplayNamePattern}` : undefined,
     lastDagRunState,
     limit: pagination.pageSize,
@@ -244,7 +244,6 @@ export const DagsList = () => {
           displayMode={display}
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
-          isFetching={isFetching}
           isLoading={isLoading}
           modelName="Dag"
           onStateChange={setTableURLState}

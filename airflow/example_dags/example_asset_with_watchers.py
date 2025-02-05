@@ -21,15 +21,14 @@ Example DAG for demonstrating the usage of event driven scheduling using assets 
 from __future__ import annotations
 
 import os
-import tempfile
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.standard.triggers.file import FileTrigger
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk import Asset, AssetWatcher
 
-file_path = tempfile.NamedTemporaryFile().name
+file_path = "/tmp/test"
 
 with DAG(
     dag_id="example_create_file",
@@ -44,7 +43,7 @@ with DAG(
     chain(create_file())
 
 trigger = FileTrigger(filepath=file_path, poke_interval=10)
-asset = Asset("example_asset", watchers=[trigger])
+asset = Asset("example_asset", watchers=[AssetWatcher(name="test_file_watcher", trigger=trigger)])
 
 with DAG(
     dag_id="example_asset_with_watchers",

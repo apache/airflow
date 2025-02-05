@@ -31,7 +31,7 @@ from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger, XCom
 from airflow.models.asset import AssetEvent, AssetModel, asset_trigger_association_table
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
     BaseTrigger,

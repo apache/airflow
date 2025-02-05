@@ -24,24 +24,28 @@ import {
   useDagRunServiceTriggerDagRun,
   useDagServiceGetDagsKey,
   useDagsServiceRecentDagRunsKey,
+  useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
+import { doQueryKeysMatch, type PartialQueryKey } from "src/utils";
 
-export const useTrigger = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
+export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
   const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
 
   const onSuccess = async () => {
-    const queryKeys = [
-      useDagServiceGetDagsKey,
-      useDagsServiceRecentDagRunsKey,
-      useDagRunServiceGetDagRunsKey,
+    const queryKeys: Array<PartialQueryKey> = [
+      { baseKey: useDagServiceGetDagsKey },
+      { baseKey: useDagsServiceRecentDagRunsKey },
+      { baseKey: useDagRunServiceGetDagRunsKey, options: { dagIds: [dagId] } },
+      { baseKey: useTaskInstanceServiceGetTaskInstancesKey, options: { dagId, dagRunId: "~" } },
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+    await queryClient.invalidateQueries({ predicate: (query) => doQueryKeysMatch(query, queryKeys) });
+
     toaster.create({
       description: "DAG run has been successfully triggered.",
       title: "DAG Run Request Submitted",
@@ -59,7 +63,7 @@ export const useTrigger = ({ onSuccessConfirm }: { onSuccessConfirm: () => void 
     onSuccess,
   });
 
-  const triggerDagRun = (dagId: string, dagRunRequestBody: DagRunTriggerParams) => {
+  const triggerDagRun = (dagRunRequestBody: DagRunTriggerParams) => {
     const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<string, unknown>;
 
     const DataIntervalStart = dagRunRequestBody.dataIntervalStart
