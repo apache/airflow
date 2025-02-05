@@ -189,7 +189,7 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def progress_callback(*, line: str, client: client_type, mode: str, **kwargs) -> None:
+    def progress_callback(*, pod: k8s.V1Pod, line: str, client: client_type, mode: str, **kwargs) -> None:
         """
         Invoke this callback to process pod container logs.
 
