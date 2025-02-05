@@ -49,7 +49,7 @@
           <tr>
             <td>{{ host.worker_name }}</a></td>
             <td>
-              {%- if host.state == "offline" -%}
+              {%- if host.state in["offline", "offline maintenance"] -%}
                 <span class="label" style="color:white; background-color:black;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- elif host.state == "unknown" -%}
                 <span class="label" style="color:white; background-color:red;" title="Current State: {{ host.state }}">{{ host.state }}</span>
@@ -103,14 +103,23 @@
             <td>
               {%- if host.state in ["idle", "running"] -%}
                 <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/on" method="POST">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
                       Enter
                   </button>
                 </form>
               {%- elif host.state in ["maintenance pending", "maintenance mode", "maintenance request"] -%}
                 <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/off" method="POST">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                   <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
                       Exit
+                  </button>
+                </form>
+              {%- elif host.state in ["offline", "unknown", "offline maintenance"] -%}
+                <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/remove" method="POST">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                  <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
+                      Remove
                   </button>
                 </form>
               {% endif %}

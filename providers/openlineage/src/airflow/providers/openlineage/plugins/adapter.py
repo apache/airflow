@@ -50,8 +50,13 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.log.secrets_masker import SecretsMasker
+    from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
     from airflow.utils.state import DagRunState
+else:
+    try:
+        from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
+    except ImportError:
+        from airflow.utils.log.secrets_masker import SecretsMasker, _secrets_masker
 
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
@@ -71,8 +76,6 @@ class OpenLineageAdapter(LoggingMixin):
         super().__init__()
         self._client = client
         if not secrets_masker:
-            from airflow.utils.log.secrets_masker import _secrets_masker
-
             secrets_masker = _secrets_masker()
         self._redacter = OpenLineageRedactor.from_masker(secrets_masker)
 
