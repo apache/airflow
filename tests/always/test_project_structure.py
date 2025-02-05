@@ -248,8 +248,6 @@ class ProjectStructureTest:
         for operator_file in self.new_class_paths():
             operators_paths = self.get_classes_from_file(operator_file, NEW_PROVIDER_SRC, is_new=True)
             classes.update(operators_paths)
-        # replace src. prefix with empty string for all classes
-        classes = {k.strip("src."): v for k, v in classes.items()}
         return classes
 
     def get_classes_from_file(
@@ -268,7 +266,8 @@ class ProjectStructureTest:
                     continue
 
                 if is_new:
-                    results[f"{'.'.join(module.split('.')[2:])}.{current_node.name}"] = current_node
+                    module_path = module[module.find("airflow.providers") :]
+                    results[f"{module_path}.{current_node.name}"] = current_node
                 else:
                     results[f"{module}.{current_node.name}"] = current_node
         print(f"{results}")
