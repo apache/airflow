@@ -34,12 +34,10 @@ from airflow.metrics.otel_logger import (
     _is_up_down_counter,
     full_name,
 )
-from airflow.metrics.validators import BACK_COMPAT_METRIC_NAMES, MetricNameLengthExemptionWarning
 
 INVALID_STAT_NAME_CASES = [
     (None, "can not be None"),
     (42, "is not a string"),
-    ("X" * OTEL_NAME_MAX_LENGTH, "too long"),
     ("test/$tats", "contains invalid characters"),
 ]
 
@@ -63,14 +61,6 @@ class TestOtelMetrics:
 
     def test_is_up_down_counter_negative(self):
         assert not _is_up_down_counter("this_is_not_a_udc")
-
-    def test_exemption_list_has_not_grown(self):
-        assert len(BACK_COMPAT_METRIC_NAMES) <= 26, (
-            "This test exists solely to ensure that nobody is adding names to the exemption list. "
-            "There are 26 names which are potentially too long for OTel and that number should "
-            "only ever go down as these names are deprecated.  If this test is failing, please "
-            "adjust your new stat's name; do not add as exemption without a very good reason."
-        )
 
     @pytest.mark.parametrize(
         "invalid_stat_combo",
@@ -99,8 +89,7 @@ class TestOtelMetrics:
         name = "task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"
         assert len(name) > OTEL_NAME_MAX_LENGTH
 
-        with pytest.warns(MetricNameLengthExemptionWarning):
-            self.stats.incr(name)
+        self.stats.incr(name)
 
         self.meter.get_meter().create_counter.assert_called_once_with(
             name=(full_name(name)[:OTEL_NAME_MAX_LENGTH])
@@ -142,6 +131,18 @@ class TestOtelMetrics:
         assert mock_random.call_count == 2
         assert self.map[full_name(name)].add.call_count == 1
 
+    def test_incr_new_metric_with_count(self):
+        metric_name = "test_metric"
+        count = 5
+        tags = {"env": "prod"}
+
+        self.stats.incr(metric_name, count=count, tags=tags)
+
+        counter = self.stats.metrics_map.get_counter(
+            full_name(prefix=self.stats.prefix, name=metric_name), attributes=tags
+        )
+        counter.add.assert_called_with(count, attributes=tags)
+
     def test_decr_existing_metric(self, name):
         expected_calls = [
             mock.call(1, attributes=None),
@@ -155,6 +156,18 @@ class TestOtelMetrics:
 
         self.map[full_name(name)].add.assert_has_calls(expected_calls)
         assert self.map[full_name(name)].add.call_count == len(expected_calls)
+
+    def test_decr_new_metric_with_count(self):
+        metric_name = "test_metric"
+        count = 3
+        tags = {"env": "prod"}
+
+        self.stats.decr(metric_name, count=count, tags=tags)
+
+        counter = self.stats.metrics_map.get_counter(
+            full_name(prefix=self.stats.prefix, name=metric_name), attributes=tags
+        )
+        counter.add.assert_called_with(-count, attributes=tags)
 
     @mock.patch("random.random", side_effect=[0.1, 0.9])
     def test_decr_with_rate_limit_works(self, mock_random, name):
@@ -320,3 +333,24 @@ class TestOtelMetrics:
         self.meter.get_meter().create_observable_gauge.assert_called_once_with(
             name=full_name(name), callbacks=ANY
         )
+
+    @pytest.mark.parametrize(
+        "name, tags, expected_error_message",
+        [
+            ("invalid/metric/name", None, "composed of ASCII alphabets, numbers, or the underscore"),
+            ("invalid@name!", None, "composed of ASCII alphabets, numbers, or the underscore"),
+            ("", None, "The stat name cannot be None or an empty string."),
+            ("", {}, "The stat name cannot be None or an empty string."),
+            ("", {"key": "value"}, "The stat name cannot be None or an empty string."),
+        ],
+    )
+    def test_get_name_invalid_cases(self, name, tags, expected_error_message):
+        # Prepare the method call
+        if tags is None:
+            func_to_call = lambda: self.stats.get_name(name)
+        else:
+            func_to_call = lambda: self.stats.get_name(name, tags=tags)
+
+        # Test the exception
+        with pytest.raises(InvalidStatsNameException, match=expected_error_message):
+            func_to_call()

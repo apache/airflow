@@ -19,9 +19,11 @@ from __future__ import annotations
 
 import datetime
 import logging
-from typing import TYPE_CHECKING
+from functools import wraps
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow.configuration import conf
+from airflow.metrics.base_stats_logger import StatsLogger
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     PatternAllowListValidator,
@@ -32,6 +34,7 @@ from airflow.metrics.validators import (
 
 if TYPE_CHECKING:
     from datadog import DogStatsd
+    from opentelemetry.util.types import Attributes
 
     from airflow.metrics.protocols import DeltaType, TimerProtocol
     from airflow.metrics.validators import (
@@ -39,9 +42,34 @@ if TYPE_CHECKING:
     )
 
 log = logging.getLogger(__name__)
+T = TypeVar("T", bound=Callable)
 
 
-class SafeDogStatsdLogger:
+def prepare_metric_name_with_tags(fn: T) -> T:
+    """Prepare tags and stat."""
+
+    @wraps(fn)
+    def wrapper(self, metric_name: str | None = None, *args, tags: dict[str, str] | None = None, **kwargs):
+        if tags and self.metrics_tags:
+            valid_tags: dict[str, str] = {}
+            for k, v in tags.items():
+                if self.metric_tags_validator.test(k):
+                    if ":" not in f"{v}{k}":
+                        valid_tags[k] = v
+                    else:
+                        log.error("Dropping invalid tag: %s:%s.", k, v)
+            tags_list = [f"{key}:{value}" for key, value in valid_tags.items()]
+        else:
+            tags_list = []
+
+        kwargs["tags"] = tags_list
+
+        return fn(self, metric_name, *args, **kwargs)
+
+    return cast(T, wrapper)
+
+
+class SafeDogStatsdLogger(StatsLogger):
     """DogStatsd Logger."""
 
     def __init__(
@@ -56,105 +84,92 @@ class SafeDogStatsdLogger:
         self.metrics_tags = metrics_tags
         self.metric_tags_validator = metric_tags_validator
 
+    @prepare_metric_name_with_tags
     @validate_stat
     def incr(
         self,
-        stat: str,
+        metric_name: str,
         count: int = 1,
         rate: float = 1,
         *,
-        tags: dict[str, str] | None = None,
+        tags: list[str] | None = None,
     ) -> None:
         """Increment stat."""
-        if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
-            ]
-        else:
-            tags_list = []
-        if self.metrics_validator.test(stat):
-            return self.dogstatsd.increment(metric=stat, value=count, tags=tags_list, sample_rate=rate)
+        full_metric_name = self.get_name(metric_name, None)
+        if self.metrics_validator.test(full_metric_name):
+            return self.dogstatsd.increment(metric=full_metric_name, value=count, tags=tags, sample_rate=rate)
         return None
 
+    @prepare_metric_name_with_tags
     @validate_stat
     def decr(
         self,
-        stat: str,
+        metric_name: str,
         count: int = 1,
         rate: float = 1,
         *,
-        tags: dict[str, str] | None = None,
+        tags: list[str] | None = None,
     ) -> None:
         """Decrement stat."""
-        if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
-            ]
-        else:
-            tags_list = []
-        if self.metrics_validator.test(stat):
-            return self.dogstatsd.decrement(metric=stat, value=count, tags=tags_list, sample_rate=rate)
+        full_metric_name = self.get_name(metric_name, None)
+        if self.metrics_validator.test(full_metric_name):
+            return self.dogstatsd.decrement(metric=full_metric_name, value=count, tags=tags, sample_rate=rate)
         return None
 
+    @prepare_metric_name_with_tags
     @validate_stat
     def gauge(
         self,
-        stat: str,
+        metric_name: str,
         value: int | float,
         rate: float = 1,
         delta: bool = False,
         *,
-        tags: dict[str, str] | None = None,
+        tags: list[str] | None = None,
     ) -> None:
         """Gauge stat."""
-        if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
-            ]
-        else:
-            tags_list = []
-        if self.metrics_validator.test(stat):
-            return self.dogstatsd.gauge(metric=stat, value=value, tags=tags_list, sample_rate=rate)
+        full_metric_name = self.get_name(metric_name, None)
+        if self.metrics_validator.test(full_metric_name):
+            return self.dogstatsd.gauge(metric=full_metric_name, value=value, tags=tags, sample_rate=rate)
         return None
 
+    @prepare_metric_name_with_tags
     @validate_stat
     def timing(
         self,
-        stat: str,
+        metric_name: str,
         dt: DeltaType,
         *,
-        tags: dict[str, str] | None = None,
+        tags: list[str] | None = None,
     ) -> None:
         """Stats timing."""
-        if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
-            ]
-        else:
-            tags_list = []
-        if self.metrics_validator.test(stat):
+        full_metric_name = self.get_name(metric_name, None)
+
+        if self.metrics_validator.test(full_metric_name):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds() * 1000.0
-            return self.dogstatsd.timing(metric=stat, value=dt, tags=tags_list)
+            return self.dogstatsd.timing(metric=full_metric_name, value=dt, tags=tags)
+
         return None
 
+    @prepare_metric_name_with_tags
     @validate_stat
     def timer(
         self,
-        stat: str | None = None,
-        tags: dict[str, str] | None = None,
+        metric_name: str,
+        tags: list[str] | None = None,
         **kwargs,
     ) -> TimerProtocol:
         """Timer metric that can be cancelled."""
-        if self.metrics_tags and isinstance(tags, dict):
-            tags_list = [
-                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
-            ]
-        else:
-            tags_list = []
-        if stat and self.metrics_validator.test(stat):
-            return Timer(self.dogstatsd.timed(stat, tags=tags_list, **kwargs))
+        full_metric_name = self.get_name(metric_name, None)
+
+        if full_metric_name and self.metrics_validator.test(full_metric_name):
+            return Timer(self.dogstatsd.timed(full_metric_name, tags=tags, **kwargs))
         return Timer()
+
+    def get_name(self, metric_name: str, tags: Attributes | None = None) -> str:
+        """Get metric name with tags, ensuring no invalid keys are included."""
+        return metric_name
 
 
 def get_dogstatsd_logger(cls) -> SafeDogStatsdLogger:
