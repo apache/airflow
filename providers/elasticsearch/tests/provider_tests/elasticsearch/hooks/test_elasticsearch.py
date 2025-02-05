@@ -188,7 +188,7 @@ class TestElasticsearchSQLHook:
         response = es_connection.execute_sql("SELECT * FROM hollywood.actors")
         mock_es_sql_client.query.assert_called_once_with(
             body={
-                "fetch_size": 100,
+                "fetch_size": 10000,
                 "field_multi_value_leniency": False,
                 "query": "SELECT * FROM hollywood.actors",
             }
