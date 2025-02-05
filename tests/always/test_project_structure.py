@@ -266,7 +266,8 @@ class ProjectStructureTest:
                     continue
 
                 if is_new:
-                    results[f"{module[module.find('airflow.providers'):]}.{current_node.name}"] = current_node
+                    module_path = module[module.find("airflow.providers") :]
+                    results[f"{module_path}.{current_node.name}"] = current_node
                 else:
                     results[f"{module}.{current_node.name}"] = current_node
         print(f"{results}")
