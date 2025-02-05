@@ -304,8 +304,7 @@ def _convert_max_consecutive_failed_dag_runs(val: int) -> int:
         val = airflow_conf.getint("core", "max_consecutive_failed_dag_runs_per_dag")
     if val < 0:
         raise ValueError(
-            f"Invalid max_consecutive_failed_dag_runs: {val}."
-            f"Requires max_consecutive_failed_dag_runs >= 0"
+            f"Invalid max_consecutive_failed_dag_runs: {val}. Requires max_consecutive_failed_dag_runs >= 0"
         )
     return val
 
@@ -2351,7 +2350,7 @@ class DagModel(Base):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
-        asset_triggered_dag_info = {}
+        asset_triggered_dag_info: dict[str, tuple[datetime, datetime]] = {}
         for dag_id, records in by_dag.items():
             times = sorted(x.created_at for x in records)
             asset_triggered_dag_info[dag_id] = (times[0], times[-1])
