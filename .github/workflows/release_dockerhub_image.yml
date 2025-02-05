@@ -177,7 +177,7 @@ jobs:
           ${SKIP_LATEST}
           ${LIMIT_PLATFORM}
           --limit-python ${PYTHON_VERSION}
-          --chicken-egg-providers ${CHICKEN_EGG_PROVIDERS}
+          --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}"
       - name: >
           Release slim images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         env:

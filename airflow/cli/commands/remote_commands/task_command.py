@@ -48,6 +48,7 @@ from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.sdk.definitions.param import ParamsDict
+from airflow.sdk.execution_time.secrets_masker import RedactedIO
 from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -61,7 +62,6 @@ from airflow.utils.cli import (
 )
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
-from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
