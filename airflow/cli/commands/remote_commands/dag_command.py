@@ -225,6 +225,8 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     return {
         "dag_id": dag.dag_id,
         "dag_display_name": dag.dag_display_name,
+        "bundle_name": dag.get_bundle_name(),
+        "bundle_version": dag.get_bundle_version(),
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),
         "last_parsed_time": None,
