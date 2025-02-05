@@ -24,6 +24,7 @@ from typing import TypeVar
 import pytest
 
 from airflow.models import Connection
+from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 
 pytest_plugins = "tests_common.pytest_plugin"
 
@@ -79,3 +80,8 @@ def create_mock_connections(create_mock_connection):
 def mocked_connection(request, create_mock_connection):
     """Helper indirect fixture for create test connection."""
     return create_mock_connection(request.param)
+
+
+@pytest.fixture
+def powerbi_hook():
+    return PowerBIHook(**{"conn_id": "powerbi_conn_id", "timeout": 3, "api_version": "v1.0"})
