@@ -27,7 +27,7 @@ from sqlalchemy import select
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -425,7 +425,6 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             "max_active_runs": max_active_runs,
             "run_backwards": run_backwards,
             "dag_run_conf": {"param1": "val1", "param2": True},
-            "dry_run": False,
             "reprocess_behavior": repro_act,
         }
         response = test_client.post(

@@ -29,7 +29,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import get_user_with_exception_handling
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.models import Log
-from airflow.utils.log import secrets_masker
+from airflow.sdk.execution_time import secrets_masker
 
 logger = logging.getLogger(__name__)
 

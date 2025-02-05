@@ -149,7 +149,7 @@ or just always the same in context of OpenLineage in Airflow, like ``producer``.
 Example
 ^^^^^^^
 
-Here's example of properly implemented ``get_openlineage_facets_on_complete`` method, for `GcsToGcsOperator <https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/google/cloud/transfers/gcs_to_gcs.py>`_.
+Here's example of properly implemented ``get_openlineage_facets_on_complete`` method, for `GcsToGcsOperator <https://github.com/apache/airflow/blob/main/providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_gcs.py>`_.
 As there is some processing made in ``execute`` method, and there is no relevant failure data, implementing this single method is enough.
 
 .. code-block::  python

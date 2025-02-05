@@ -21,6 +21,7 @@ import { Button, createListCollection, HStack, VStack, Heading } from "@chakra-u
 import { useTaskInstanceServiceGetMappedTaskInstanceTries } from "openapi/queries";
 import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
 import { Select } from "./ui";
@@ -36,9 +37,12 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
     dag_id: dagId,
     dag_run_id: dagRunId,
     map_index: mapIndex,
+    state,
     task_id: taskId,
     try_number: finalTryNumber,
   } = taskInstance;
+
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: tiHistory } = useTaskInstanceServiceGetMappedTaskInstanceTries(
     {
@@ -50,6 +54,12 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
     undefined,
     {
       enabled: Boolean(finalTryNumber && finalTryNumber > 1), // Only try to look up task tries if try number > 1
+      refetchInterval: (query) =>
+        // We actually want to use || here
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) || isStatePending(state)
+          ? refetchInterval
+          : false,
     },
   );
 
@@ -94,8 +104,8 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
               ) => <StateBadge state={items[0]?.task_instance.state}>{items[0]?.value}</StateBadge>}
             </Select.ValueText>
           </Select.Trigger>
-          <Select.Content>
-            {tryOptions.items.reverse().map((option) => (
+          <Select.Content flexDirection="column-reverse">
+            {tryOptions.items.map((option) => (
               <Select.Item item={option} key={option.value}>
                 <span>
                   {option.value}:

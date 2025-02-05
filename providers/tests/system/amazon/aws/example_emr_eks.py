@@ -234,6 +234,7 @@ with DAG(
         # The launch template enforces IMDSv2 and is required for internal
         # compliance when running these system tests on AWS infrastructure.
         create_nodegroup_kwargs={"launchTemplate": {"name": launch_template_name}},
+        create_cluster_kwargs={"version": "1.32"},
     )
 
     await_create_nodegroup = EksNodegroupStateSensor(

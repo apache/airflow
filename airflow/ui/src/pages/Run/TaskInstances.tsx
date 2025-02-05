@@ -34,12 +34,13 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { capitalize, getDuration } from "src/utils";
+import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 const columns: Array<ColumnDef<TaskInstanceResponse>> = [
@@ -97,6 +98,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     cell: ({ row }) => (
       <Flex justifyContent="end">
         <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
+        <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
@@ -176,7 +178,9 @@ export const TaskInstances = () => {
     setSearchParams(searchParams);
   };
 
-  const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances(
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
       dagRunId: runId,
@@ -187,7 +191,11 @@ export const TaskInstances = () => {
       taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
     },
     undefined,
-    { enabled: !isNaN(pagination.pageSize) },
+    {
+      enabled: !isNaN(pagination.pageSize),
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
+    },
   );
 
   return (
@@ -246,7 +254,6 @@ export const TaskInstances = () => {
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="Task Instance"
         onStateChange={setTableURLState}

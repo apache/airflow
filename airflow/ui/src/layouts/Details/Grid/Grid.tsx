@@ -27,6 +27,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
 import type { GridResponse } from "openapi/requests/types.gen";
 import { useOpenGroups } from "src/context/openGroups";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -47,6 +48,7 @@ export const Grid = () => {
   });
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const offset = parseInt(searchParams.get("offset") ?? "0", 10);
 
@@ -62,6 +64,8 @@ export const Grid = () => {
     undefined,
     {
       placeholderData: keepPreviousData,
+      refetchInterval: (query) =>
+        query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
     },
   );
 
@@ -139,9 +143,11 @@ export const Grid = () => {
               </>
             )}
           </Flex>
-          {runs.reverse().map((dr, index) => (
-            <Bar index={index} key={dr.dag_run_id} limit={limit} max={max} nodes={flatNodes} run={dr} />
-          ))}
+          <Flex flexDirection="row-reverse">
+            {runs.map((dr, index) => (
+              <Bar index={index} key={dr.dag_run_id} limit={limit} max={max} nodes={flatNodes} run={dr} />
+            ))}
+          </Flex>
           <IconButton
             aria-label={`+${OFFSET_CHANGE} newer dag runs`}
             disabled={offset === 0}

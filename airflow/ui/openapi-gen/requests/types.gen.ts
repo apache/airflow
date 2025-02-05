@@ -802,6 +802,18 @@ export type DagTagResponse = {
 };
 
 /**
+ * Dag Version serializer for responses.
+ */
+export type DagVersionResponse = {
+  id: string;
+  version_number: number;
+  dag_id: string;
+  bundle_name: string;
+  bundle_version: string | null;
+  created_at: string;
+};
+
+/**
  * Enum for DAG warning types.
  *
  * This is the set of allowable values for the ``warning_type`` field
@@ -889,7 +901,7 @@ export type GridDAGRunwithTIs = {
   run_type: DagRunType;
   data_interval_start: string | null;
   data_interval_end: string | null;
-  version_number: string | null;
+  version_number: number | null;
   note: string | null;
   task_instances: Array<GridTaskInstanceSummary>;
 };
@@ -1223,6 +1235,7 @@ export type TaskInstanceHistoryResponse = {
   priority_weight: number | null;
   operator: string | null;
   queued_when: string | null;
+  scheduled_when: string | null;
   pid: number | null;
   executor: string | null;
   executor_config: string;
@@ -1253,6 +1266,7 @@ export type TaskInstanceResponse = {
   priority_weight: number | null;
   operator: string | null;
   queued_when: string | null;
+  scheduled_when: string | null;
   pid: number | null;
   executor: string | null;
   executor_config: string;
@@ -1263,6 +1277,7 @@ export type TaskInstanceResponse = {
   };
   trigger: TriggerResponse | null;
   triggerer_job: JobResponse | null;
+  dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -1469,11 +1484,20 @@ export type VersionInfo = {
 };
 
 /**
- * List of XCom items.
+ * XCom Collection serializer for responses.
  */
-export type XComCollection = {
+export type XComCollectionResponse = {
   xcom_entries: Array<XComResponse>;
   total_entries: number;
+};
+
+/**
+ * Payload serializer for creating an XCom entry.
+ */
+export type XComCreateBody = {
+  key: string;
+  value: unknown;
+  map_index?: number;
 };
 
 /**
@@ -1669,6 +1693,7 @@ export type StructureDataData = {
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string | null;
+  versionNumber?: number | null;
 };
 
 export type StructureDataResponse2 = StructureDataResponse;
@@ -1992,6 +2017,7 @@ export type GetEventLogsResponse = EventLogCollectionResponse;
 export type GetExtraLinksData = {
   dagId: string;
   dagRunId: string;
+  mapIndex?: number;
   taskId: string;
 };
 
@@ -2037,6 +2063,7 @@ export type GetMappedTaskInstancesData = {
   taskId: string;
   updatedAtGte?: string | null;
   updatedAtLte?: string | null;
+  versionNumber?: Array<number>;
 };
 
 export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
@@ -2119,6 +2146,7 @@ export type GetTaskInstancesData = {
   taskId?: string | null;
   updatedAtGte?: string | null;
   updatedAtLte?: string | null;
+  versionNumber?: Array<number>;
 };
 
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
@@ -2255,6 +2283,7 @@ export type GetPoolsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  poolNamePattern?: string | null;
 };
 
 export type GetPoolsResponse = PoolCollectionResponse;
@@ -2300,7 +2329,16 @@ export type GetXcomEntriesData = {
   xcomKey?: string | null;
 };
 
-export type GetXcomEntriesResponse = XComCollection;
+export type GetXcomEntriesResponse = XComCollectionResponse;
+
+export type CreateXcomEntryData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: XComCreateBody;
+  taskId: string;
+};
+
+export type CreateXcomEntryResponse = XComResponseNative;
 
 export type GetTasksData = {
   dagId: string;
@@ -4307,10 +4345,6 @@ export type $OpenApiTs = {
          */
         404: HTTPExceptionResponse;
         /**
-         * Conflict
-         */
-        409: HTTPExceptionResponse;
-        /**
          * Validation Error
          */
         422: HTTPValidationError;
@@ -4341,10 +4375,6 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
-        /**
-         * Conflict
-         */
-        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -4698,7 +4728,36 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: XComCollection;
+        200: XComCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: CreateXcomEntryData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: XComResponseNative;
         /**
          * Bad Request
          */
