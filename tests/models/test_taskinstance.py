@@ -75,8 +75,8 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.notifications.basenotifier import BaseNotifier
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sdk.definitions.asset import Asset, AssetAlias
@@ -96,7 +96,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -104,10 +104,6 @@ from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = [pytest.mark.db_test]
 
@@ -1745,14 +1741,14 @@ class TestTaskInstance:
         assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
         ti.run()
         exec_date += datetime.timedelta(days=1)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = ti.task.dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.MANUAL,
             logical_date=exec_date,
             data_interval=(exec_date, exec_date),
+            run_after=exec_date,
             state=None,
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         ti = TI(task=ti.task, run_id=dr.run_id)
         ti.run()
@@ -2027,7 +2023,6 @@ class TestTaskInstance:
         )
 
         logical_date = DEFAULT_DATE + datetime.timedelta(days=1)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = ti1.task.dag.create_dagrun(
             logical_date=logical_date,
             run_type=DagRunType.MANUAL,
@@ -2035,7 +2030,8 @@ class TestTaskInstance:
             run_id="2",
             session=session,
             data_interval=(logical_date, logical_date),
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         assert ti1 in session
         ti2 = dr.task_instances[0]
@@ -3210,7 +3206,6 @@ class TestTaskInstance:
 
         day_1 = DEFAULT_DATE
         day_2 = DEFAULT_DATE + datetime.timedelta(days=1)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         # Create a DagRun for day_1 and day_2. Calling ti_2.get_previous_start_date()
         # should return the start_date of ti_1 (which is None because ti_1 was not run).
@@ -3219,7 +3214,6 @@ class TestTaskInstance:
             logical_date=day_1,
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
-            **triggered_by_kwargs,
         )
 
         dagrun_2 = dag_maker.create_dagrun(
@@ -3227,7 +3221,6 @@ class TestTaskInstance:
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
             data_interval=(day_1, day_2),
-            **triggered_by_kwargs,
         )
 
         ti_1 = dagrun_1.get_task_instance(task.task_id)
@@ -3254,7 +3247,6 @@ class TestTaskInstance:
         session.commit()
 
         logical_date = timezone.utcnow()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         # it's easier to fake a manual run here
         dag, task1 = create_dummy_dag(
             dag_id="test_triggering_asset_events",
@@ -3271,7 +3263,8 @@ class TestTaskInstance:
             state=DagRunState.RUNNING,
             session=session,
             data_interval=(logical_date, logical_date),
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         ds1_event = AssetEvent(asset_id=1)
         ds2_event_1 = AssetEvent(asset_id=2)
@@ -3523,7 +3516,6 @@ class TestTaskInstance:
             session=session,
         )
         logical_date = timezone.utcnow()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.MANUAL,
@@ -3532,7 +3524,8 @@ class TestTaskInstance:
             start_date=logical_date - datetime.timedelta(hours=1),
             session=session,
             data_interval=(logical_date, logical_date),
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         dr.set_state(DagRunState.FAILED)
         ti1 = dr.get_task_instance(task1.task_id, session=session)
@@ -3672,7 +3665,6 @@ class TestTaskInstance:
             fail_fast=True,
         )
         logical_date = timezone.utcnow()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test_ff",
             run_type=DagRunType.MANUAL,
@@ -3680,7 +3672,8 @@ class TestTaskInstance:
             state=DagRunState.RUNNING,
             session=session,
             data_interval=(logical_date, logical_date),
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         dr.set_state(DagRunState.SUCCESS)
 

@@ -23,6 +23,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow import DAG
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -93,7 +94,9 @@ def grid_data(
     base_query = (
         select(DagRun)
         .join(DagRun.dag_run_note, isouter=True)
+        .join(DagRun.dag_version, isouter=True)
         .select_from(DagRun)
+        .options(joinedload(DagRun.dag_version))
         .where(DagRun.dag_id == dag.dag_id)
     )
 
@@ -212,11 +215,11 @@ def grid_data(
             run_type=dag_run.run_type,
             data_interval_start=dag_run.data_interval_start,
             data_interval_end=dag_run.data_interval_end,
-            version_number=dag_run.dag_version_id,
+            version_number=dag_run.dag_version.version_number if dag_run.dag_version else None,
             note=dag_run.note,
-            task_instances=task_instance_summaries[dag_run.run_id]
-            if dag_run.run_id in task_instance_summaries
-            else [],
+            task_instances=(
+                task_instance_summaries[dag_run.run_id] if dag_run.run_id in task_instance_summaries else []
+            ),
         )
         for dag_run in dag_runs
     ]

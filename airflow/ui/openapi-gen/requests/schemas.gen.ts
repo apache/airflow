@@ -3051,6 +3051,48 @@ export const $DagTagResponse = {
   description: "DAG Tag serializer for responses.",
 } as const;
 
+export const $DagVersionResponse = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    version_number: {
+      type: "integer",
+      title: "Version Number",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    bundle_name: {
+      type: "string",
+      title: "Bundle Name",
+    },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+  },
+  type: "object",
+  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at"],
+  title: "DagVersionResponse",
+  description: "Dag Version serializer for responses.",
+} as const;
+
 export const $DagWarningType = {
   type: "string",
   enum: ["asset conflict", "non-existent pool"],
@@ -3401,8 +3443,7 @@ export const $GridDAGRunwithTIs = {
     version_number: {
       anyOf: [
         {
-          type: "string",
-          format: "uuid",
+          type: "integer",
         },
         {
           type: "null",
@@ -4980,6 +5021,16 @@ export const $TaskInstanceResponse = {
         },
       ],
     },
+    dag_version: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagVersionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: [
@@ -5012,6 +5063,7 @@ export const $TaskInstanceResponse = {
     "rendered_map_index",
     "trigger",
     "triggerer_job",
+    "dag_version",
   ],
   title: "TaskInstanceResponse",
   description: "TaskInstance serializer for responses.",
@@ -6021,6 +6073,28 @@ export const $XComCollectionResponse = {
   required: ["xcom_entries", "total_entries"],
   title: "XComCollectionResponse",
   description: "XCom Collection serializer for responses.",
+} as const;
+
+export const $XComCreateBody = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    value: {
+      title: "Value",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+      default: -1,
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["key", "value"],
+  title: "XComCreateBody",
+  description: "Payload serializer for creating an XCom entry.",
 } as const;
 
 export const $XComResponse = {

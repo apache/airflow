@@ -64,6 +64,10 @@
                 {"type": "null"},
                 { "$ref": "#/definitions/dict" }
             ]
+        },
+        "watchers": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/trigger" }
         }
       },
       "required": [ "uri", "extra" ]
@@ -125,6 +129,14 @@
         "__var"
         ],
         "additionalProperties": false
+    },
+    "trigger": {
+      "type": "object",
+      "properties": {
+        "classpath": { "type": "string" },
+        "kwargs": { "$ref": "#/definitions/dict" }
+      },
+      "required": [ "classpath", "kwargs" ]
     },
     "dict": {
       "description": "A python dictionary containing values of any type",
