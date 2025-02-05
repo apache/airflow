@@ -49,7 +49,7 @@ class ElasticsearchSQLCursor:
     def __init__(self, es: Elasticsearch, **kwargs):
         self.es = es
         self.body = {
-            "fetch_size": kwargs.get("fetch_size", 10000),
+            "fetch_size": kwargs.get("fetch_size", 1000),
             "field_multi_value_leniency": kwargs.get("field_multi_value_leniency", False),
         }
         self._response: ObjectApiResponse | None = None
