@@ -569,7 +569,7 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
 
 
 class TestCncfProviderProjectStructure(ExampleCoverageTest):
-    PROVIDER = "cncf"
+    PROVIDER = "cncf/kubernetes"
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
     BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
 
