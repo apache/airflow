@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeVar, cast
 
 import attrs
 
+from airflow.exceptions import TaskDeferralError
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -1434,3 +1435,20 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if not jinja_env:
             jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
+
+    @classmethod
+    def next_callable(cls, operator, next_method, next_kwargs) -> Callable[..., Any]:
+        """Get the next callable from given operator."""
+        # __fail__ is a special signal value for next_method that indicates
+        # this task was scheduled specifically to fail.
+        if next_method == "__fail__":
+            next_kwargs = next_kwargs or {}
+            traceback = next_kwargs.get("traceback")
+            if traceback is not None:
+                cls.logger().error("Trigger failed:\n%s", "\n".join(traceback))
+            raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+        # Grab the callable off the Operator/Task and add in any kwargs
+        execute_callable = getattr(operator, next_method)
+        if next_kwargs:
+            execute_callable = partial(execute_callable, **next_kwargs)
+        return execute_callable
