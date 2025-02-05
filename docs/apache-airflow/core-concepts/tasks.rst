@@ -174,7 +174,7 @@ No system runs perfectly, and task instances are expected to die once in a while
 
 ``TaskInstances`` may get stuck in a ``running`` state despite their associated jobs being inactive
 (for example if the ``TaskInstance``'s worker ran out of memory). Such tasks were formerly known as zombie tasks. Airflow will find these
-periodically, clean them up, and either fail or retry the task depending on its settings. The heartbeat of a local task job can timeout for
+periodically, clean them up, and mark the ``TaskInstance`` as failed or retry it if it has available retries. The ``TaskInstance``'s heartbeat can timeout for
 many reasons, including:
 
 * The Airflow worker ran out of memory and was OOMKilled.
