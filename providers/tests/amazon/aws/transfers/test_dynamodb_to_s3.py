@@ -327,8 +327,9 @@ class TestDynamodbToS3:
             point_in_time_export=True,
             export_time=datetime(year=1983, month=1, day=1),
         )
-        dynamodb_to_s3_operator.execute(context={})
+        export_arn = dynamodb_to_s3_operator.execute(context={})
         _export_table_to_point_in_time.assert_called()
+        assert export_arn is not None
 
     def test_dynamodb_with_future_date(self):
         """Test that DynamoDBToS3Operator should raise a exception when future date is passed in

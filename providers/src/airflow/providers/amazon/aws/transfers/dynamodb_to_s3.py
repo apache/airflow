@@ -166,15 +166,14 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         # function. This change introduces a new boolean, as the indicator for whether the operator scans
         # and export entire data or using the point in time functionality.
         if self.point_in_time_export or self.export_time:
-            self._export_table_to_point_in_time()
-        else:
-            self._export_entire_data()
+            return self._export_table_to_point_in_time()
+        return self._export_entire_data()
 
     def _export_table_to_point_in_time(self):
         """
         Export data to point in time.
 
-        Full export exports data from start of epoc till `export_time`.
+        Full export exports data from start of epoc till `export_time` and returns the export ARN.
         Table export will be a snapshot of the table's state at this point in time.
 
         Incremental export exports the data from a specific datetime to a specific datetime
@@ -210,6 +209,8 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             WaiterConfig={"Delay": self.check_interval, "MaxAttempts": self.max_attempts},
         )
 
+        return export_arn
+
     def _export_entire_data(self):
         """Export all data from the table."""
         table = self.hook.conn.Table(self.dynamodb_table_name)
@@ -225,6 +226,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             finally:
                 if err is None:
                     _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix, self.dest_aws_conn_id)
+        return None
 
     def _scan_dynamodb_and_upload_to_s3(self, temp_file: IO, scan_kwargs: dict, table: Any) -> IO:
         while True:
