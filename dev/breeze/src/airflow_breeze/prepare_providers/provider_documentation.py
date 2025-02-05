@@ -1231,6 +1231,7 @@ def _regenerate_pyproject_toml(context: dict[str, Any], provider_details: Provid
         trim_blocks=True,
         keep_trailing_newline=True,
     )
+
     get_pyproject_toml_path.write_text(get_pyproject_toml_content)
     get_console().print(
         f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
