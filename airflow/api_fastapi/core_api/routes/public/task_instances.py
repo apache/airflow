@@ -272,11 +272,15 @@ def get_task_instance_tries(
     """Get list of task instances history."""
 
     def _query(orm_object: Base) -> Select:
-        query = select(orm_object).where(
-            orm_object.dag_id == dag_id,
-            orm_object.run_id == dag_run_id,
-            orm_object.task_id == task_id,
-            orm_object.map_index == map_index,
+        query = (
+            select(orm_object)
+            .where(
+                orm_object.dag_id == dag_id,
+                orm_object.run_id == dag_run_id,
+                orm_object.task_id == task_id,
+                orm_object.map_index == map_index,
+            )
+            .options(joinedload(orm_object.dag_version))
         )
         return query
 
@@ -291,7 +295,6 @@ def get_task_instance_tries(
             status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
         )
-
     return TaskInstanceHistoryCollectionResponse(
         task_instances=cast(list[TaskInstanceHistoryResponse], task_instances),
         total_entries=len(task_instances),
