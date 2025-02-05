@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.13.1pre0
+..........
+
+Misc
+~~~~
+
+* ``EdgeWorkerVersionException is raised if http 400 is responded on set_state.``
+
 0.13.0pre0
 ..........
 
