@@ -413,6 +413,7 @@ export const $BackfillPostBody = {
       default: 10,
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["dag_id", "from_date", "to_date"],
   title: "BackfillPostBody",
@@ -587,6 +588,7 @@ export const $BulkBody_ConnectionBody_ = {
       title: "Actions",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["actions"],
   title: "BulkBody[ConnectionBody]",
@@ -612,6 +614,7 @@ export const $BulkBody_PoolBody_ = {
       title: "Actions",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["actions"],
   title: "BulkBody[PoolBody]",
@@ -637,6 +640,7 @@ export const $BulkBody_VariableBody_ = {
       title: "Actions",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["actions"],
   title: "BulkBody[VariableBody]",
@@ -661,6 +665,7 @@ export const $BulkCreateAction_ConnectionBody_ = {
       default: "fail",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["action", "entities"],
   title: "BulkCreateAction[ConnectionBody]",
@@ -685,6 +690,7 @@ export const $BulkCreateAction_PoolBody_ = {
       default: "fail",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["action", "entities"],
   title: "BulkCreateAction[PoolBody]",
@@ -709,6 +715,7 @@ export const $BulkCreateAction_VariableBody_ = {
       default: "fail",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["action", "entities"],
   title: "BulkCreateAction[VariableBody]",
@@ -733,6 +740,7 @@ export const $BulkDeleteAction_ConnectionBody_ = {
       default: "fail",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["action", "entities"],
   title: "BulkDeleteAction[ConnectionBody]",
@@ -757,6 +765,7 @@ export const $BulkDeleteAction_PoolBody_ = {
       default: "fail",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["action", "entities"],
   title: "BulkDeleteAction[PoolBody]",
@@ -781,6 +790,7 @@ export const $BulkDeleteAction_VariableBody_ = {
       default: "fail",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["action", "entities"],
   title: "BulkDeleteAction[VariableBody]",
@@ -850,6 +860,7 @@ export const $BulkUpdateAction_ConnectionBody_ = {
       default: "fail",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["action", "entities"],
   title: "BulkUpdateAction[ConnectionBody]",
@@ -874,6 +885,7 @@ export const $BulkUpdateAction_PoolBody_ = {
       default: "fail",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["action", "entities"],
   title: "BulkUpdateAction[PoolBody]",
@@ -898,6 +910,7 @@ export const $BulkUpdateAction_VariableBody_ = {
       default: "fail",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["action", "entities"],
   title: "BulkUpdateAction[VariableBody]",
@@ -1012,6 +1025,7 @@ export const $ClearTaskInstancesBody = {
       default: false,
     },
   },
+  additionalProperties: false,
   type: "object",
   title: "ClearTaskInstancesBody",
   description: "Request body for Clear Task Instances endpoint.",
@@ -1027,6 +1041,7 @@ export const $Config = {
       title: "Sections",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["sections"],
   title: "Config",
@@ -1061,6 +1076,7 @@ export const $ConfigOption = {
       title: "Value",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["key", "value"],
   title: "ConfigOption",
@@ -1191,6 +1207,7 @@ export const $ConfigSection = {
       title: "Options",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["name", "options"],
   title: "ConfigSection",
@@ -1287,6 +1304,7 @@ export const $ConnectionBody = {
       title: "Extra",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["connection_id", "conn_type"],
   title: "ConnectionBody",
@@ -1839,6 +1857,7 @@ export const $DAGPatchBody = {
       title: "Is Paused",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["is_paused"],
   title: "DAGPatchBody",
@@ -2074,6 +2093,7 @@ export const $DAGRunClearBody = {
       default: false,
     },
   },
+  additionalProperties: false,
   type: "object",
   title: "DAGRunClearBody",
   description: "DAG Run serializer for clear endpoint body.",
@@ -2124,6 +2144,7 @@ export const $DAGRunPatchBody = {
       title: "Note",
     },
   },
+  additionalProperties: false,
   type: "object",
   title: "DAGRunPatchBody",
   description: "DAG Run Serializer for PATCH requests.",
@@ -2464,6 +2485,7 @@ export const $DAGRunsBatchBody = {
       title: "End Date Lte",
     },
   },
+  additionalProperties: false,
   type: "object",
   title: "DAGRunsBatchBody",
   description: "List DAG Runs body for batch endpoint.",
@@ -2891,6 +2913,7 @@ export const $DagRunAssetReference = {
       title: "Data Interval End",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: [
     "run_id",
@@ -2948,6 +2971,7 @@ export const $DagScheduleAssetReference = {
       title: "Updated At",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["dag_id", "created_at", "updated_at"],
   title: "DagScheduleAssetReference",
@@ -3025,6 +3049,48 @@ export const $DagTagResponse = {
   required: ["name", "dag_id"],
   title: "DagTagResponse",
   description: "DAG Tag serializer for responses.",
+} as const;
+
+export const $DagVersionResponse = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    version_number: {
+      type: "integer",
+      title: "Version Number",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    bundle_name: {
+      type: "string",
+      title: "Bundle Name",
+    },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+  },
+  type: "object",
+  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at"],
+  title: "DagVersionResponse",
+  description: "Dag Version serializer for responses.",
 } as const;
 
 export const $DagWarningType = {
@@ -3377,8 +3443,7 @@ export const $GridDAGRunwithTIs = {
     version_number: {
       anyOf: [
         {
-          type: "string",
-          format: "uuid",
+          type: "integer",
         },
         {
           type: "null",
@@ -3956,6 +4021,7 @@ export const $PatchTaskInstanceBody = {
       default: false,
     },
   },
+  additionalProperties: false,
   type: "object",
   title: "PatchTaskInstanceBody",
   description: "Request body for Clear Task Instances endpoint.",
@@ -4101,6 +4167,7 @@ export const $PoolBody = {
       default: false,
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["name", "slots"],
   title: "PoolBody",
@@ -4174,6 +4241,7 @@ export const $PoolPatchBody = {
       title: "Include Deferred",
     },
   },
+  additionalProperties: false,
   type: "object",
   title: "PoolPatchBody",
   description: "Pool serializer for patch bodies.",
@@ -4640,6 +4708,18 @@ export const $TaskInstanceHistoryResponse = {
       ],
       title: "Queued When",
     },
+    scheduled_when: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Scheduled When",
+    },
     pid: {
       anyOf: [
         {
@@ -4688,6 +4768,7 @@ export const $TaskInstanceHistoryResponse = {
     "priority_weight",
     "operator",
     "queued_when",
+    "scheduled_when",
     "pid",
     "executor",
     "executor_config",
@@ -4855,6 +4936,18 @@ export const $TaskInstanceResponse = {
       ],
       title: "Queued When",
     },
+    scheduled_when: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Scheduled When",
+    },
     pid: {
       anyOf: [
         {
@@ -4928,6 +5021,16 @@ export const $TaskInstanceResponse = {
         },
       ],
     },
+    dag_version: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagVersionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: [
@@ -4952,6 +5055,7 @@ export const $TaskInstanceResponse = {
     "priority_weight",
     "operator",
     "queued_when",
+    "scheduled_when",
     "pid",
     "executor",
     "executor_config",
@@ -4959,6 +5063,7 @@ export const $TaskInstanceResponse = {
     "rendered_map_index",
     "trigger",
     "triggerer_job",
+    "dag_version",
   ],
   title: "TaskInstanceResponse",
   description: "TaskInstance serializer for responses.",
@@ -5286,6 +5391,7 @@ export const $TaskInstancesBatchBody = {
       title: "Order By",
     },
   },
+  additionalProperties: false,
   type: "object",
   title: "TaskInstancesBatchBody",
   description: "Task Instance body for get batch.",
@@ -5336,6 +5442,7 @@ export const $TaskOutletAssetReference = {
       title: "Updated At",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["dag_id", "task_id", "created_at", "updated_at"],
   title: "TaskOutletAssetReference",
@@ -5738,6 +5845,7 @@ export const $TriggerDAGRunPostBody = {
       title: "Note",
     },
   },
+  additionalProperties: false,
   type: "object",
   title: "TriggerDAGRunPostBody",
   description: "Trigger DAG Run Serializer for POST body.",
@@ -5864,6 +5972,7 @@ export const $VariableBody = {
       title: "Description",
     },
   },
+  additionalProperties: false,
   type: "object",
   required: ["key", "value"],
   title: "VariableBody",
@@ -5946,7 +6055,7 @@ export const $VersionInfo = {
   description: "Version information serializer for responses.",
 } as const;
 
-export const $XComCollection = {
+export const $XComCollectionResponse = {
   properties: {
     xcom_entries: {
       items: {
@@ -5962,8 +6071,30 @@ export const $XComCollection = {
   },
   type: "object",
   required: ["xcom_entries", "total_entries"],
-  title: "XComCollection",
-  description: "List of XCom items.",
+  title: "XComCollectionResponse",
+  description: "XCom Collection serializer for responses.",
+} as const;
+
+export const $XComCreateBody = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    value: {
+      title: "Value",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+      default: -1,
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["key", "value"],
+  title: "XComCreateBody",
+  description: "Payload serializer for creating an XCom entry.",
 } as const;
 
 export const $XComResponse = {

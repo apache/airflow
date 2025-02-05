@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -931,11 +931,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
+                kwargs.setdefault("dag_version", None)
+                kwargs.setdefault("run_after", data_interval[-1])
             else:
                 kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
-
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
                 ti.refresh_from_task(dag.get_task(ti.task_id))
@@ -970,6 +971,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             serialized=want_serialized,
             activate_assets=want_activate_assets,
             fileloc=None,
+            relative_fileloc=None,
             bundle_name=None,
             session=None,
             **kwargs,
@@ -1000,6 +1002,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             # other scheduling arguments are set.
             self.dag = DAG(dag_id, schedule=schedule, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
+            if AIRFLOW_V_3_0_PLUS:
+                self.dag.relative_fileloc = relative_fileloc or Path(request.module.__file__).name
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
             self.bundle_name = bundle_name or "dag_maker"
@@ -1121,7 +1125,7 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
 
     You cannot be able to alter the created DagRun or DagModel, use `dag_maker` fixture instead.
     """
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.utils.types import DagRunType
 
     def create_dag(
@@ -1203,7 +1207,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
 
     Uses ``create_dummy_dag`` to create the dag structure.
     """
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     def maker(
         logical_date=None,

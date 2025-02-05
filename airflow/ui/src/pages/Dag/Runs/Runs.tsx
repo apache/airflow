@@ -40,7 +40,7 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
-import { capitalize, getDuration } from "src/utils";
+import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
   {
@@ -125,11 +125,13 @@ export const Runs = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-logical_date";
 
   const filteredState = searchParams.get(STATE_PARAM);
 
-  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns(
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
       limit: pagination.pageSize,
@@ -138,7 +140,11 @@ export const Runs = () => {
       state: filteredState === null ? undefined : [filteredState],
     },
     undefined,
-    { enabled: !isNaN(pagination.pageSize) },
+    {
+      enabled: !isNaN(pagination.pageSize),
+      refetchInterval: (query) =>
+        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
+    },
   );
 
   const handleStateChange = useCallback(
@@ -197,7 +203,6 @@ export const Runs = () => {
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="Dag Run"
         onStateChange={setTableURLState}

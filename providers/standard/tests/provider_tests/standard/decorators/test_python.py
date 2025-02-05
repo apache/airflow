@@ -444,8 +444,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
         with self.dag_non_serialized:
             ret = return_dict(test_number)
 
-        triggered_by_kwargs = (
+        v3_kwargs = (
             {
+                "run_after": DEFAULT_DATE,
                 "triggered_by": DagRunTriggeredByType.TEST,
                 "logical_date": DEFAULT_DATE,
             }
@@ -462,7 +463,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE
             ),
-            **triggered_by_kwargs,
+            **v3_kwargs,
         )
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -517,8 +518,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
             bigger_number = add_2(test_number)
             ret = add_num(bigger_number, XComArg(bigger_number.operator))
 
-        triggered_by_kwargs = (
+        v3_kwargs = (
             {
+                "run_after": DEFAULT_DATE,
                 "triggered_by": DagRunTriggeredByType.TEST,
                 "logical_date": DEFAULT_DATE,
             }
@@ -535,7 +537,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE
             ),
-            **triggered_by_kwargs,
+            **v3_kwargs,
         )
 
         bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

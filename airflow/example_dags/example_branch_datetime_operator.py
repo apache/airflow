@@ -25,8 +25,8 @@ from __future__ import annotations
 import pendulum
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.datetime import BranchDateTimeOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 dag1 = DAG(
     dag_id="example_branch_datetime_operator",

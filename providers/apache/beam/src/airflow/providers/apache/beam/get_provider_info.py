@@ -93,7 +93,13 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.apache.beam.triggers.beam"],
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "apache-beam>=2.53.0", "pyarrow>=14.0.1"],
+        "dependencies": [
+            "apache-airflow>=2.9.0",
+            'apache-beam>=2.53.0; python_version < "3.12"',
+            'apache-beam>=2.57.0; python_version >= "3.12"',
+            "pyarrow>=14.0.1",
+            "numpy>=1.26.0",
+        ],
         "optional-dependencies": {
             "google": ["apache-beam[gcp]"],
             "common.compat": ["apache-airflow-providers-common-compat"],

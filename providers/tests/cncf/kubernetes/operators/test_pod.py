@@ -55,6 +55,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -96,11 +97,23 @@ def create_context(task, persist_to_db=False, map_index=None):
     else:
         dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
-    dag_run = DagRun(
-        run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
-        run_type=DagRunType.MANUAL,
-        dag_id=dag.dag_id,
-    )
+    now = timezone.utcnow()
+    if AIRFLOW_V_3_0_PLUS:
+        dag_run = DagRun(
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
+            run_type=DagRunType.MANUAL,
+            dag_id=dag.dag_id,
+            logical_date=now,
+            data_interval=(now, now),
+            run_after=now,
+        )
+    else:
+        dag_run = DagRun(
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
+            run_type=DagRunType.MANUAL,
+            dag_id=dag.dag_id,
+            execution_date=now,
+        )
     task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
     task_instance.dag_run = dag_run
     if map_index is not None:
@@ -146,6 +159,8 @@ class TestKubernetesPodOperator:
             session=session,
             dag_id=dag_id,
             task_id="task-id",
+            name="{{ dag.dag_id }}",
+            hostname="{{ dag.dag_id }}",
             namespace="{{ dag.dag_id }}",
             container_resources=k8s.V1ResourceRequirements(
                 requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
@@ -189,6 +204,8 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.volume_mounts[0].sub_path
         assert dag_id == ti.task.image
         assert dag_id == ti.task.cmds
+        assert dag_id == ti.task.name
+        assert dag_id == ti.task.hostname
         assert dag_id == ti.task.namespace
         assert dag_id == ti.task.config_file
         assert dag_id == ti.task.labels
@@ -1149,6 +1166,40 @@ class TestKubernetesPodOperator:
 
         # assert does not raise
         self.run_pod(k)
+
+    @pytest.mark.parametrize("randomize", [True, False])
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion", new=MagicMock)
+    @patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs")
+    def test_name_normalized_on_execution(self, fetch_container_mock, randomize):
+        name_base = "test_extra-123"
+        normalized_name = "test-extra-123"
+
+        k = KubernetesPodOperator(
+            name=name_base,
+            random_name_suffix=randomize,
+            task_id="task",
+            get_logs=False,
+        )
+
+        pod, _ = self.run_pod(k)
+        if randomize:
+            # To avoid
+            assert isinstance(pod.metadata.name, str)
+            assert pod.metadata.name.startswith(normalized_name)
+            assert k.name.startswith(normalized_name)
+        else:
+            assert pod.metadata.name == normalized_name
+            assert k.name == normalized_name
+
+    @pytest.mark.parametrize("name", ["name@extra", "a" * 300], ids=["bad", "long"])
+    def test_name_validation_on_execution(self, name):
+        k = KubernetesPodOperator(
+            name=name,
+            task_id="task",
+        )
+
+        with pytest.raises(AirflowException):
+            self.run_pod(k)
 
     def test_create_with_affinity(self):
         affinity = {

@@ -29,18 +29,14 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests.models import DEFAULT_DATE
 from tests_common.test_utils import db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -642,7 +638,6 @@ class TestClearTasks:
             )
             task = EmptyOperator(task_id=f"test_task_clear_{i}", owner="test", dag=dag)
 
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dr = dag.create_dagrun(
                 run_id=f"scheduled_{i}",
                 logical_date=DEFAULT_DATE,
@@ -650,7 +645,8 @@ class TestClearTasks:
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                **triggered_by_kwargs,
+                run_after=DEFAULT_DATE,
+                triggered_by=DagRunTriggeredByType.TEST,
             )
             ti = dr.task_instances[0]
             ti.task = task

@@ -27,12 +27,12 @@ import { Tooltip } from "src/components/ui";
 import { capitalize } from "src/utils";
 
 const slots = {
-  open_slots: { color: "success", icon: <StateIcon state="success" /> },
-  occupied_slots: { color: "up_for_retry", icon: <FiXCircle /> },
-  running_slots: { color: "running", icon: <StateIcon state="running" /> },
-  queued_slots: { color: "queued", icon: <StateIcon state="queued" /> },
-  scheduled_slots: { color: "scheduled", icon: <StateIcon state="scheduled" /> },
-  deferred_slots: { color: "deferred", icon: <StateIcon state="deferred" /> },
+  open_slots: { color: "success", icon: <StateIcon color="white" state="success" /> },
+  occupied_slots: { color: "up_for_retry", icon: <FiXCircle color="white" /> },
+  running_slots: { color: "running", icon: <StateIcon color="white" state="running" /> },
+  queued_slots: { color: "queued", icon: <StateIcon color="white" state="queued" /> },
+  scheduled_slots: { color: "scheduled", icon: <StateIcon color="white" state="scheduled" /> },
+  deferred_slots: { color: "deferred", icon: <StateIcon color="white" state="deferred" /> },
 };
 
 type PoolBarProps = {
@@ -76,7 +76,7 @@ const PoolBar = ({ pool }: PoolBarProps) => (
             <Tooltip content={`${capitalize(slotKey.replace("_", " "))}: ${slotValue}`} key={slotKey}>
               <Flex
                 alignItems="center"
-                colorPalette={color}
+                bg={`${color}.solid`}
                 flex={flexValue}
                 h="100%"
                 justifyContent="center"
