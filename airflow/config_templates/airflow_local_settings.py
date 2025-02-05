@@ -71,7 +71,7 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     },
     "filters": {
         "mask_secrets": {
-            "()": "airflow.utils.log.secrets_masker.SecretsMasker",
+            "()": "airflow.sdk.execution_time.secrets_masker.SecretsMasker",
         },
     },
     "handlers": {

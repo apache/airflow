@@ -1542,13 +1542,21 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
     """Disable redacted text in tests, except specific."""
     from airflow import settings
 
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
     if next(request.node.iter_markers("enable_redact"), None):
         with pytest.MonkeyPatch.context() as mp_ctx:
             mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
             yield
         return
 
-    mocked_redact = mocker.patch("airflow.utils.log.secrets_masker.SecretsMasker.redact")
+    target = (
+        "airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"
+        if AIRFLOW_V_3_0_PLUS
+        else "airflow.utils.log.secrets_masker.SecretsMasker.redact"
+    )
+
+    mocked_redact = mocker.patch(target)
     mocked_redact.side_effect = lambda item, name=None, max_depth=None: item
     with pytest.MonkeyPatch.context() as mp_ctx:
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
