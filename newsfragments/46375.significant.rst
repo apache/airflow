@@ -12,3 +12,11 @@ Any occurrences of the ``secrets_masker`` module will have to be updated from ``
   * [ ] Plugin changes
   * [ ] Dependency changes
   * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.log.secrets_masker`` -> ``airflow.sdk.execution_time.secrets_masker``
