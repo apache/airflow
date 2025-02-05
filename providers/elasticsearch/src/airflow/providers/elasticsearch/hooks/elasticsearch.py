@@ -56,7 +56,7 @@ class ElasticsearchSQLCursor:
 
     @property
     def response(self) -> ObjectApiResponse:
-        return self._response or {}
+        return self._response or {}  # type: ignore
 
     @response.setter
     def response(self, value):
