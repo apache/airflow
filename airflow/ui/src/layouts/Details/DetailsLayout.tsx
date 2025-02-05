@@ -64,7 +64,7 @@ export const DetailsLayout = ({ children, dag, error, isLoading, tabs }: Props) 
           <SearchDagsButton />
         </HStack>
         <Toaster />
-        {children}
+        {isModalOpen ? undefined : children}
         <ErrorAlert error={error} />
         <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
         <NavTabs tabs={tabs} />
@@ -75,9 +75,7 @@ export const DetailsLayout = ({ children, dag, error, isLoading, tabs }: Props) 
           open={isModalOpen}
         />
       </Box>
-      <Box overflow="auto">
-        <Outlet />
-      </Box>
+      <Box overflow="auto">{isModalOpen ? undefined : <Outlet />}</Box>
     </OpenGroupsProvider>
   );
 };

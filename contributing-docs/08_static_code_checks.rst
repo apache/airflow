@@ -226,6 +226,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-safe-filter-usage-in-html                           | Don't use safe in templates                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-significant-newsfragments-are-valid                 | Check significant newsfragments are valid              |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-sql-dependency-common-data-structure                | Check dependency of SQL providers                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-start-date-not-used-in-defaults                     | start_date not in default_args                         |         |
@@ -279,6 +281,8 @@ require Breeze Docker image to be built locally.
 | generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-volumes-for-sources                              | Generate volumes for docker compose                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | identity                                                  | Print checked files                                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -363,8 +367,6 @@ require Breeze Docker image to be built locally.
 | update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash         |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-chart-dependencies                                 | Update chart dependencies to latest (manual)           |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-common-sql-api-stubs                               | Check and update common.sql API stubs                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-er-diagram                                         | Update ER diagram                                      | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

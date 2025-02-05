@@ -37,9 +37,10 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Select, Status } from "src/components/ui";
-import { capitalize, getDuration } from "src/utils";
+import { Select } from "src/components/ui";
+import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
   {
@@ -60,7 +61,7 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
       row: {
         original: { state },
       },
-    }) => <Status state={state}>{state}</Status>,
+    }) => <StateBadge state={state}>{state}</StateBadge>,
     header: () => "State",
   },
   {
@@ -124,11 +125,13 @@ export const Runs = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-logical_date";
 
   const filteredState = searchParams.get(STATE_PARAM);
 
-  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns(
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
       limit: pagination.pageSize,
@@ -137,7 +140,11 @@ export const Runs = () => {
       state: filteredState === null ? undefined : [filteredState],
     },
     undefined,
-    { enabled: !isNaN(pagination.pageSize) },
+    {
+      enabled: !isNaN(pagination.pageSize),
+      refetchInterval: (query) =>
+        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
+    },
   );
 
   const handleStateChange = useCallback(
@@ -173,7 +180,7 @@ export const Runs = () => {
                 filteredState === null ? (
                   "All States"
                 ) : (
-                  <Status state={filteredState as DagRunState}>{capitalize(filteredState)}</Status>
+                  <StateBadge state={filteredState as DagRunState}>{capitalize(filteredState)}</StateBadge>
                 )
               }
             </Select.ValueText>
@@ -184,7 +191,7 @@ export const Runs = () => {
                 {option.value === "all" ? (
                   option.label
                 ) : (
-                  <Status state={option.value as DagRunState}>{option.label}</Status>
+                  <StateBadge state={option.value as DagRunState}>{option.label}</StateBadge>
                 )}
               </Select.Item>
             ))}
@@ -196,7 +203,6 @@ export const Runs = () => {
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="Dag Run"
         onStateChange={setTableURLState}

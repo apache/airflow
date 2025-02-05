@@ -26,6 +26,9 @@ import {
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
+import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
+import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
+
 const onError = () => {
   toaster.create({
     description: "Patch Task Instance request failed",
@@ -38,27 +41,35 @@ export const usePatchTaskInstance = ({
   dagId,
   dagRunId,
   mapIndex,
+  onSuccess,
   taskId,
 }: {
   dagId: string;
   dagRunId: string;
   mapIndex: number;
+  onSuccess?: () => void;
   taskId: string;
 }) => {
   const queryClient = useQueryClient();
 
-  const onSuccess = async () => {
+  const onSuccessFn = async () => {
     const queryKeys = [
       UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
       UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
       [useTaskInstanceServiceGetTaskInstancesKey],
+      [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
+      [useClearTaskInstancesDryRunKey, dagId],
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+
+    if (onSuccess) {
+      onSuccess();
+    }
   };
 
   return useTaskInstanceServicePatchTaskInstance({
     onError,
-    onSuccess,
+    onSuccess: onSuccessFn,
   });
 };

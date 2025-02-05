@@ -71,7 +71,7 @@ def get_provider_info():
             {
                 "integration-name": "Celery",
                 "external-doc-url": "https://docs.celeryq.dev/en/stable/",
-                "logo": "/docs/integration-logo/Celery.png",
+                "logo": "/docs/integration-logos/Celery.png",
                 "tags": ["software"],
             }
         ],
@@ -304,7 +304,7 @@ def get_provider_info():
         },
         "dependencies": [
             "apache-airflow>=2.9.0",
-            "celery[redis]>=5.3.0,<6,!=5.3.3,!=5.3.2",
+            "celery[redis]>=5.4.0,<6",
             "flower>=1.0.0",
             "google-re2>=1.0",
         ],

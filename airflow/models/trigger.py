@@ -244,8 +244,7 @@ class Trigger(Base):
         trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one()
         for asset in trigger.assets:
             AssetManager.register_asset_change(
-                asset=asset.to_public(),
-                session=session,
+                asset=asset.to_public(), session=session, extra={"from_trigger": True}
             )
 
     @classmethod
@@ -282,6 +281,7 @@ class Trigger(Base):
             task_instance.trigger_id = None
             # Finally, mark it as scheduled so it gets re-queued
             task_instance.state = TaskInstanceState.SCHEDULED
+            task_instance.scheduled_dttm = timezone.utcnow()
 
     @classmethod
     @provide_session

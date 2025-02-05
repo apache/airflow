@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 
 class TestTaskSchema:
@@ -32,7 +32,7 @@ class TestTaskSchema:
         result = task_schema.dump(op)
         expected = {
             "class_ref": {
-                "module_path": "airflow.operators.empty",
+                "module_path": "airflow.providers.standard.operators.empty",
                 "class_name": "EmptyOperator",
             },
             "depends_on_past": False,
@@ -75,7 +75,7 @@ class TestTaskCollectionSchema:
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.empty",
+                        "module_path": "airflow.providers.standard.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
@@ -86,7 +86,7 @@ class TestTaskCollectionSchema:
                     "owner": "airflow",
                     "params": {
                         "foo": {
-                            "__class": "airflow.models.param.Param",
+                            "__class": "airflow.sdk.definitions.param.Param",
                             "value": "bar",
                             "description": None,
                             "schema": {},

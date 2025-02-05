@@ -31,7 +31,7 @@ from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger, XCom
 from airflow.models.asset import AssetEvent, AssetModel, asset_trigger_association_table
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
     BaseTrigger,
@@ -184,6 +184,9 @@ def test_submit_event(session, create_task_instance):
     assert updated_task_instance.next_kwargs == {"event": 42, "cheesecake": True}
     # Check that the asset has received an event
     assert session.query(AssetEvent).filter_by(asset_id=asset.id).count() == 1
+
+    event = session.query(AssetEvent).filter_by(asset_id=asset.id).first()
+    assert event.extra == {"from_trigger": True}
 
 
 def test_submit_failure(session, create_task_instance):

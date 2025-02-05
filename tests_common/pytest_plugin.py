@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -856,6 +856,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
                     dagv = DagVersion.write_dag(
                         dag_id=dag.dag_id,
+                        bundle_name=self.dag_model.bundle_name,
+                        bundle_version=self.dag_model.bundle_version,
                         session=self.session,
                     )
                     self.session.add(dagv)
@@ -929,11 +931,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
+                kwargs.setdefault("dag_version", None)
+                kwargs.setdefault("run_after", data_interval[-1])
             else:
                 kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
-
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
                 ti.refresh_from_task(dag.get_task(ti.task_id))
@@ -968,6 +971,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             serialized=want_serialized,
             activate_assets=want_activate_assets,
             fileloc=None,
+            relative_fileloc=None,
             bundle_name=None,
             session=None,
             **kwargs,
@@ -998,6 +1002,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             # other scheduling arguments are set.
             self.dag = DAG(dag_id, schedule=schedule, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
+            if AIRFLOW_V_3_0_PLUS:
+                self.dag.relative_fileloc = relative_fileloc or Path(request.module.__file__).name
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
             self.bundle_name = bundle_name or "dag_maker"
@@ -1119,7 +1125,7 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
 
     You cannot be able to alter the created DagRun or DagModel, use `dag_maker` fixture instead.
     """
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.utils.types import DagRunType
 
     def create_dag(
@@ -1201,7 +1207,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
 
     Uses ``create_dummy_dag`` to create the dag structure.
     """
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     def maker(
         logical_date=None,
@@ -1361,15 +1367,27 @@ def session():
 @pytest.fixture
 def get_test_dag():
     def _get(dag_id: str):
+        from airflow import settings
         from airflow.models.dagbag import DagBag
         from airflow.models.serialized_dag import SerializedDagModel
+
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
         dag_file = AIRFLOW_TESTS_DIR / "dags" / f"{dag_id}.py"
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
 
         dag = dagbag.get_dag(dag_id)
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        if AIRFLOW_V_3_0_PLUS:
+            session = settings.Session()
+            from airflow.models.dagbundle import DagBundleModel
+
+            if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+                session.add(DagBundleModel(name="testing"))
+                session.commit()
+            dag.bulk_write_to_db("testing", None, [dag])
+        else:
+            dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         return dag
 
@@ -1524,13 +1542,21 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
     """Disable redacted text in tests, except specific."""
     from airflow import settings
 
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
     if next(request.node.iter_markers("enable_redact"), None):
         with pytest.MonkeyPatch.context() as mp_ctx:
             mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
             yield
         return
 
-    mocked_redact = mocker.patch("airflow.utils.log.secrets_masker.SecretsMasker.redact")
+    target = (
+        "airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"
+        if AIRFLOW_V_3_0_PLUS
+        else "airflow.utils.log.secrets_masker.SecretsMasker.redact"
+    )
+
+    mocked_redact = mocker.patch(target)
     mocked_redact.side_effect = lambda item, name=None, max_depth=None: item
     with pytest.MonkeyPatch.context() as mp_ctx:
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)

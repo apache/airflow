@@ -27,7 +27,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_runs
@@ -36,10 +36,6 @@ from tests_common.test_utils.mock_operators import (
     EmptyExtraLinkTestOperator,
     EmptyNoExtraLinkTestOperator,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -88,7 +84,6 @@ def dag():
 @pytest.fixture(scope="module")
 def create_dag_run(dag):
     def _create_dag_run(*, logical_date, session):
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         return dag.create_dagrun(
             run_id=f"manual__{logical_date.isoformat()}",
             state=DagRunState.RUNNING,
@@ -96,7 +91,8 @@ def create_dag_run(dag):
             data_interval=(logical_date, logical_date),
             run_type=DagRunType.MANUAL,
             session=session,
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
     return _create_dag_run

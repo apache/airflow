@@ -28,9 +28,9 @@ from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 
