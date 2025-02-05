@@ -2335,11 +2335,11 @@ class DagModel(Base):
                 return None
 
         # this loads all the ADRQ records.... may need to limit num dags
-        by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
+        adrq_by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
         for r in session.scalars(select(AssetDagRunQueue)):
-            by_dag[r.target_dag_id].append(r)
+            adrq_by_dag[r.target_dag_id].append(r)
         dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {}
-        for dag_id, records in by_dag.items():
+        for dag_id, records in adrq_by_dag.items():
             dag_statuses[dag_id] = {AssetUniqueKey.from_asset(x.asset): True for x in records}
         ser_dags = SerializedDagModel.get_latest_serialized_dags(dag_ids=list(dag_statuses), session=session)
 
@@ -2347,14 +2347,14 @@ class DagModel(Base):
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
             if not dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses):
-                del by_dag[dag_id]
+                del adrq_by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
         asset_triggered_dag_info: dict[str, tuple[datetime, datetime]] = {}
-        for dag_id, records in by_dag.items():
+        for dag_id, records in adrq_by_dag.items():
             times = sorted(x.created_at for x in records)
             asset_triggered_dag_info[dag_id] = (times[0], times[-1])
-        del by_dag
+        del adrq_by_dag
         asset_triggered_dag_ids = set(asset_triggered_dag_info.keys())
         if asset_triggered_dag_ids:
             exclusion_list = set(
