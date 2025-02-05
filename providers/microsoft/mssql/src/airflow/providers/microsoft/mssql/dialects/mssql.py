@@ -55,10 +55,15 @@ class MsSqlDialect(Dialect):
         self.log.debug("primary_keys: %s", primary_keys)
         self.log.debug("columns: %s", columns)
 
-        return f"""MERGE INTO {table} WITH (ROWLOCK) AS target
+        sql = f"""MERGE INTO {table} WITH (ROWLOCK) AS target
             USING (SELECT {', '.join(map(lambda column: f'{self.placeholder} AS {self.escape_word(column)}', target_fields))}) AS source
-            ON {' AND '.join(map(lambda column: f'target.{self.escape_word(column)} = source.{self.escape_word(column)}', primary_keys))}
+            ON {' AND '.join(map(lambda column: f'target.{self.escape_word(column)} = source.{self.escape_word(column)}', primary_keys))}"""
+
+        if columns:
+            sql = f"""{sql}
             WHEN MATCHED THEN
-                UPDATE SET {', '.join(map(lambda column: f'target.{column} = source.{column}', columns))}
+                UPDATE SET {', '.join(map(lambda column: f'target.{column} = source.{column}', columns))}"""
+
+        return f"""{sql}
             WHEN NOT MATCHED THEN
                 INSERT ({', '.join(map(self.escape_word, target_fields))}) VALUES ({', '.join(map(lambda column: f'source.{self.escape_word(column)}', target_fields))});"""
