@@ -223,7 +223,8 @@ def _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavi
                 "DAG has tasks for which depends_on_past=True. "
                 "You must set reprocess behavior to reprocess completed or reprocess failed."
             )
-    if from_date >= timezone.utcnow() and to_date >= timezone.utcnow():
+    current_time = timezone.utcnow()
+    if from_date >= current_time and to_date >= current_time:
         raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
 
 
