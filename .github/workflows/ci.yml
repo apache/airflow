@@ -676,3 +676,18 @@ jobs:
                   type: "mrkdwn"
                   text: "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
           # yamllint enable rule:line-length
+
+  notify-slack-code-scan:
+    name: "Notify Slack on Code Scanning Alert"
+    needs:
+      - basic-tests
+    if: 'true'
+    runs-on: ["ubuntu-22.04"]
+
+    steps:
+      - name: Notify Slack
+        id: slack
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d  # v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
