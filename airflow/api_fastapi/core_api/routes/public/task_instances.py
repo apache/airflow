@@ -35,6 +35,7 @@ from airflow.api_fastapi.common.parameters import (
     OffsetFilter,
     QueryLimit,
     QueryOffset,
+    QueryTIDagVersionFilter,
     QueryTIExecutorFilter,
     QueryTIPoolFilter,
     QueryTIQueueFilter,
@@ -87,6 +88,7 @@ def get_task_instance(
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
+        .options(joinedload(TI.dag_version))
     )
     task_instance = session.scalar(query)
 
@@ -121,6 +123,7 @@ def get_mapped_task_instances(
     pool: QueryTIPoolFilter,
     queue: QueryTIQueueFilter,
     executor: QueryTIExecutorFilter,
+    version_number: QueryTIDagVersionFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -156,6 +159,7 @@ def get_mapped_task_instances(
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
         .join(TI.dag_run)
+        .options(joinedload(TI.dag_version))
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
@@ -185,6 +189,7 @@ def get_mapped_task_instances(
             pool,
             queue,
             executor,
+            version_number,
         ],
         order_by=order_by,
         offset=offset,
@@ -330,6 +335,7 @@ def get_mapped_task_instance(
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index)
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
+        .options(joinedload(TI.dag_version))
     )
     task_instance = session.scalar(query)
 
@@ -361,6 +367,7 @@ def get_task_instances(
     pool: QueryTIPoolFilter,
     queue: QueryTIQueueFilter,
     executor: QueryTIExecutorFilter,
+    version_number: QueryTIDagVersionFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -397,7 +404,7 @@ def get_task_instances(
     This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
     and DAG runs.
     """
-    query = select(TI).join(TI.dag_run)
+    query = select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(joinedload(TI.dag_version))
 
     if dag_id != "~":
         dag = request.app.state.dag_bag.get_dag(dag_id)
@@ -428,6 +435,7 @@ def get_task_instances(
             executor,
             task_id,
             task_display_name_pattern,
+            version_number,
         ],
         order_by=order_by,
         offset=offset,
@@ -717,13 +725,13 @@ def _patch_ti_validate_request(
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/dry_run",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}/dry_run",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
     ),
 )
 def patch_task_instance_dry_run(
@@ -744,23 +752,22 @@ def patch_task_instance_dry_run(
     tis: list[TI] = []
 
     if data.get("new_state"):
-        tis = dag.set_task_instance_state(
-            task_id=task_id,
-            run_id=dag_run_id,
-            map_indexes=[map_index],
-            state=data["new_state"],
-            upstream=body.include_upstream,
-            downstream=body.include_downstream,
-            future=body.include_future,
-            past=body.include_past,
-            commit=False,
-            session=session,
+        tis = (
+            dag.set_task_instance_state(
+                task_id=task_id,
+                run_id=dag_run_id,
+                map_indexes=[map_index],
+                state=data["new_state"],
+                upstream=body.include_upstream,
+                downstream=body.include_downstream,
+                future=body.include_future,
+                past=body.include_past,
+                commit=False,
+                session=session,
+            )
+            or []
         )
 
-        if not tis:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT, f"Task id {task_id} is already in {data['new_state']} state"
-            )
     elif "note" in data:
         tis = [ti]
 

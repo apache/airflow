@@ -33,7 +33,7 @@ from collections import Counter
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 
@@ -53,7 +53,7 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_2_8_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 from celery import states as celery_states
@@ -67,14 +67,13 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 if TYPE_CHECKING:
     import argparse
 
-    from airflow.executors.base_executor import CommandType, TaskTuple
+    from sqlalchemy.orm import Session
+
+    from airflow.executors import workloads
+    from airflow.executors.base_executor import TaskTuple
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from celery import Task
-
-    # Task instance that is sent over Celery queues
-    # TaskInstanceKey, Command, queue_name, CallableTask
-    TaskInstanceInCelery = tuple[TaskInstanceKey, CommandType, Optional[str], Task]
+    from airflow.providers.celery.executors.celery_executor_utils import TaskInstanceInCelery
 
 
 # PEP562
@@ -228,6 +227,11 @@ class CeleryExecutor(BaseExecutor):
     supports_ad_hoc_ti_run: bool = True
     supports_sentry: bool = True
 
+    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
+        # In the v3 path, we store workloads, not commands as strings.
+        # TODO: TaskSDK: move this type change into BaseExecutor
+        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
+
     def __init__(self):
         super().__init__()
 
@@ -256,10 +260,22 @@ class CeleryExecutor(BaseExecutor):
         return max(1, math.ceil(to_send_count / self._sync_parallelism))
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
+        # Airflow V2 version
         from airflow.providers.celery.executors.celery_executor_utils import execute_command
 
         task_tuples_to_send = [task_tuple[:3] + (execute_command,) for task_tuple in task_tuples]
-        first_task = next(t[3] for t in task_tuples_to_send)
+
+        self._send_tasks(task_tuples_to_send)
+
+    def _process_workloads(self, workloads: list[workloads.All]) -> None:
+        # Airflow V3 version
+        from airflow.providers.celery.executors.celery_executor_utils import execute_workload
+
+        tasks = [(workload.ti.key, workload, workload.ti.queue, execute_workload) for workload in workloads]
+        self._send_tasks(tasks)
+
+    def _send_tasks(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
+        first_task = next(t[-1] for t in task_tuples_to_send)
 
         # Celery state queries will stuck if we do not use one same backend
         # for all tasks.
@@ -280,7 +296,7 @@ class CeleryExecutor(BaseExecutor):
                         "[Try %s of %s] Task Timeout Error for Task: (%s).",
                         self.task_publish_retries[key] + 1,
                         self.task_publish_max_retries,
-                        key,
+                        tuple(key),
                     )
                     self.task_publish_retries[key] = retries + 1
                     continue
@@ -299,7 +315,7 @@ class CeleryExecutor(BaseExecutor):
                 # which point we don't need the ID anymore anyway
                 self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
 
-    def _send_tasks_to_celery(self, task_tuples_to_send: list[TaskInstanceInCelery]):
+    def _send_tasks_to_celery(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_task_to_executor
 
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
@@ -359,7 +375,7 @@ class CeleryExecutor(BaseExecutor):
                 self.success(key, info)
             elif state in (celery_states.FAILURE, celery_states.REVOKED):
                 self.fail(key, info)
-            elif state in (celery_states.STARTED, celery_states.PENDING):
+            elif state in (celery_states.STARTED, celery_states.PENDING, celery_states.RETRY):
                 pass
             else:
                 self.log.info("Unexpected state for %s: %s", key, state)
@@ -416,6 +432,10 @@ class CeleryExecutor(BaseExecutor):
         for celery_task_id, (state, info) in states_by_celery_task_id.items():
             result, ti = celery_tasks[celery_task_id]
             result.backend = cached_celery_backend
+            if isinstance(result.result, BaseException):
+                e = result.result
+                # Log the exception we got from the remote end
+                self.log.warning("Task %s failed with error", ti.key, exc_info=e)
 
             # Set the correct elements of the state dicts, then update this
             # like we just queried it.
@@ -474,6 +494,10 @@ class CeleryExecutor(BaseExecutor):
                 subcommands=CELERY_COMMANDS,
             ),
         ]
+
+    def queue_workload(self, workload: workloads.ExecuteTask, session: Session | None) -> None:
+        ti = workload.ti
+        self.queued_tasks[ti.key] = workload
 
 
 def _get_parser() -> argparse.ArgumentParser:

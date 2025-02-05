@@ -28,7 +28,7 @@ from airflow.configuration import conf
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -64,6 +64,8 @@ def task_instance_factory(request, session: Session):
             run_type=DagRunType.SCHEDULED,
             run_id=run_id,
             logical_date=logical_date,
+            data_interval=(logical_date, logical_date),
+            run_after=logical_date,
         )
         session.add(run)
         ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)

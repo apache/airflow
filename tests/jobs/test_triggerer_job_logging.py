@@ -209,7 +209,12 @@ fallback_task = {
             "s3_log_folder": "s3://abc",
         },
     },
-    "loggers": {"airflow.task": {"handlers": ["task"]}},
+    "loggers": {
+        "airflow.task": {"handlers": ["task"]},
+        "": {
+            "handlers": [],  # ensure no default handlers is added like RedirectStdHandler
+        },
+    },
 }
 
 
