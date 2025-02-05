@@ -104,7 +104,7 @@ class ElasticsearchSQLCursor:
         return results
 
     def close(self):
-        pass
+        self._response = None
 
 
 class ESConnection:
