@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterable, Mapping
+from typing import TYPE_CHECKING, Any
 from urllib import parse
 
 from airflow.hooks.base import BaseHook
@@ -43,7 +44,7 @@ def connect(
 
 
 class ElasticsearchSQLCursor:
-    """ A PEP 249-like Cursor class for Elasticsearch SQL API """
+    """A PEP 249-like Cursor class for Elasticsearch SQL API"""
 
     def __init__(self, es: Elasticsearch, options: dict[str, Any]):
         self.es = es
@@ -77,7 +78,9 @@ class ElasticsearchSQLCursor:
     def description(self) -> list[tuple]:
         return [(column["name"], column["type"]) for column in self.response.get("columns", [])]
 
-    def execute(self, statement: str, params: Iterable | Mapping[str, Any] | None = None) -> ObjectApiResponse:
+    def execute(
+        self, statement: str, params: Iterable | Mapping[str, Any] | None = None
+    ) -> ObjectApiResponse:
         self.body["query"] = statement
         if params:
             self.body["params"] = params
@@ -141,7 +144,9 @@ class ESConnection:
     def commit(self):
         pass
 
-    def execute_sql(self, query: str, params: Iterable | Mapping[str, Any] | None = None) -> ObjectApiResponse:
+    def execute_sql(
+        self, query: str, params: Iterable | Mapping[str, Any] | None = None
+    ) -> ObjectApiResponse:
         return self.cursor().execute(query, params)
 
 
