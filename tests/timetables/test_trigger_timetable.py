@@ -26,7 +26,7 @@ import time_machine
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
-from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.timetables.trigger import CronTriggerTimetable, MultipleCronTriggerTimetable
 from airflow.utils.timezone import utc
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)
@@ -285,3 +285,36 @@ def test_run_immediately_fast_dag(catchup):
             restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
         )
         assert next_info == PREVIOUS
+
+
+@pytest.mark.parametrize(
+    "start_date, expected",
+    [
+        (pendulum.datetime(2025, 1, 1), pendulum.datetime(2025, 1, 1)),
+        (pendulum.datetime(2025, 1, 1, minute=5), pendulum.datetime(2025, 1, 1, minute=30)),
+        (pendulum.datetime(2025, 1, 1, minute=35), pendulum.datetime(2025, 1, 1, hour=1)),
+    ],
+)
+def test_multi_run_first(start_date, expected):
+    timetable = MultipleCronTriggerTimetable("@hourly", "30 * * * *", timezone=utc)
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=None,
+        restriction=TimeRestriction(earliest=start_date, latest=None, catchup=True),
+    )
+    assert next_info == DagRunInfo.exact(expected)
+
+
+@pytest.mark.parametrize(
+    "last, expected",
+    [
+        (pendulum.datetime(2025, 1, 1), pendulum.datetime(2025, 1, 1, minute=30)),
+        (pendulum.datetime(2025, 1, 1, minute=30), pendulum.datetime(2025, 1, 1, hour=1)),
+    ],
+)
+def test_multi_run_next(last, expected):
+    timetable = MultipleCronTriggerTimetable("@hourly", "30 * * * *", timezone=utc)
+    next_info = timetable.next_dagrun_info(
+        last_automated_data_interval=DataInterval.exact(last),
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
+    )
+    assert next_info == DagRunInfo.exact(expected)

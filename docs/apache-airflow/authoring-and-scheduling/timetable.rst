@@ -105,6 +105,45 @@ must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`
         pass
 
 
+.. _MultipleCronTriggerTimetable:
+
+MultipleCronTriggerTimetable
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is similar to CronTriggerTimetable_ except it takes multiple cron expressions. A DAG run is scheduled whenever any of the expressions matches the time. It is particularly useful when the desired schedule cannot be expressed by one single cron expression.
+
+.. code-block:: python
+
+    from airflow.timetables.trigger import MultipleCronTriggerTimetable
+
+
+    # At 1:10 and 2:40 each day.
+    @dag(schedule=MultipleCronTriggerTimetable("10 1 * * *", "40 2 * * *", timezone="UTC"), ...)
+    def example_dag():
+        pass
+
+The same optional ``interval`` argument as CronTriggerTimetable_ is also available.
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow.timetables.trigger import MultipleCronTriggerTimetable
+
+
+    @dag(
+        schedule=MultipleCronTriggerTimetable(
+            "10 1 * * *",
+            "40 2 * * *",
+            timezone="UTC",
+            interval=timedelta(hours=1),
+        ),
+        ...,
+    )
+    def example_dag():
+        pass
+
+
 .. _DeltaDataIntervalTimetable:
 
 DeltaDataIntervalTimetable
