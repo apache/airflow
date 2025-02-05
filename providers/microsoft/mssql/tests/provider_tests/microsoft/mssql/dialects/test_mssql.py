@@ -17,51 +17,119 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+import pytest
 
-from sqlalchemy.engine import Inspector
-
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 
 class TestMsSqlDialect:
-    def setup_method(self):
-        inspector = MagicMock(spc=Inspector)
-        inspector.get_columns.side_effect = lambda table_name, schema: [
-            {"name": "index", "identity": True},
-            {"name": "name"},
-            {"name": "firstname"},
-            {"name": "age"},
-        ]
-        self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
-        self.test_db_hook.run.side_effect = lambda *args: [("index",)]
-        self.test_db_hook.reserved_words = {"index", "user"}
-        self.test_db_hook.escape_word_format = "[{}]"
-        self.test_db_hook.escape_column_names = False
+    @pytest.mark.parametrize(
+        "create_db_api_hook",
+        [
+            (
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
+                [("index",)],  # primary_keys
+                {"index", "user"},  # reserved_words
+                False,  # escape_column_names
+            ),
+        ],
+        indirect=True,
+    )
+    def test_placeholder(self, create_db_api_hook):
+        assert MsSqlDialect(create_db_api_hook).placeholder == "?"
 
-    def test_placeholder(self):
-        assert MsSqlDialect(self.test_db_hook).placeholder == "?"
-
-    def test_get_column_names(self):
-        assert MsSqlDialect(self.test_db_hook).get_column_names("hollywood.actors") == [
+    @pytest.mark.parametrize(
+        "create_db_api_hook",
+        [
+            (
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
+                [("index",)],  # primary_keys
+                {"index", "user"},  # reserved_words
+                False,  # escape_column_names
+            ),
+        ],
+        indirect=True,
+    )
+    def test_get_column_names(self, create_db_api_hook):
+        assert MsSqlDialect(create_db_api_hook).get_column_names("hollywood.actors") == [
             "index",
             "name",
             "firstname",
             "age",
         ]
 
-    def test_get_target_fields(self):
-        assert MsSqlDialect(self.test_db_hook).get_target_fields("hollywood.actors") == [
+    @pytest.mark.parametrize(
+        "create_db_api_hook",
+        [
+            (
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
+                [("index",)],  # primary_keys
+                {"index", "user"},  # reserved_words
+                False,  # escape_column_names
+            ),
+        ],
+        indirect=True,
+    )
+    def test_get_target_fields(self, create_db_api_hook):
+        assert MsSqlDialect(create_db_api_hook).get_target_fields("hollywood.actors") == [
             "name",
             "firstname",
             "age",
         ]
 
-    def test_get_primary_keys(self):
-        assert MsSqlDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["index"]
+    @pytest.mark.parametrize(
+        "create_db_api_hook",
+        [
+            (
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
+                [("index",)],  # primary_keys
+                {"index", "user"},  # reserved_words
+                False,  # escape_column_names
+            ),
+        ],
+        indirect=True,
+    )
+    def test_get_primary_keys(self, create_db_api_hook):
+        assert MsSqlDialect(create_db_api_hook).get_primary_keys("hollywood.actors") == ["index"]
 
-    def test_generate_replace_sql(self):
+    @pytest.mark.parametrize(
+        "create_db_api_hook",
+        [
+            (
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
+                [("index",)],  # primary_keys
+                {"index", "user"},  # reserved_words
+                False,  # escape_column_names
+            ),
+        ],
+        indirect=True,
+    )
+    def test_generate_replace_sql(self, create_db_api_hook):
         values = [
             {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": "78"},
             {"index": 2, "name": "Statham", "firstname": "Jason", "age": "57"},
@@ -70,7 +138,7 @@ class TestMsSqlDialect:
             {"index": 5, "name": "Norris", "firstname": "Chuck", "age": "84"},
         ]
         target_fields = ["index", "name", "firstname", "age"]
-        sql = MsSqlDialect(self.test_db_hook).generate_replace_sql("hollywood.actors", values, target_fields)
+        sql = MsSqlDialect(create_db_api_hook).generate_replace_sql("hollywood.actors", values, target_fields)
         assert (
             sql
             == """
@@ -84,7 +152,24 @@ class TestMsSqlDialect:
         """.strip()
         )
 
-    def test_generate_replace_sql_when_escape_column_names_is_enabled(self):
+    @pytest.mark.parametrize(
+        "create_db_api_hook",
+        [
+            (
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name", "identity": True},
+                    {"name": "firstname", "identity": True},
+                    {"name": "age", "identity": True},
+                ],  # columns
+                [("index",), ("name",), ("firstname",), ("age",)],  # primary_keys
+                {"index", "user"},  # reserved_words
+                False,  # escape_column_names
+            ),
+        ],
+        indirect=True,
+    )
+    def test_generate_replace_sql_when_all_columns_are_part_of_primary_key(self, create_db_api_hook):
         values = [
             {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": "78"},
             {"index": 2, "name": "Statham", "firstname": "Jason", "age": "57"},
@@ -93,8 +178,45 @@ class TestMsSqlDialect:
             {"index": 5, "name": "Norris", "firstname": "Chuck", "age": "84"},
         ]
         target_fields = ["index", "name", "firstname", "age"]
-        self.test_db_hook.escape_column_names = True
-        sql = MsSqlDialect(self.test_db_hook).generate_replace_sql("hollywood.actors", values, target_fields)
+        sql = MsSqlDialect(create_db_api_hook).generate_replace_sql("hollywood.actors", values, target_fields)
+        assert (
+            sql
+            == """
+            MERGE INTO hollywood.actors WITH (ROWLOCK) AS target
+            USING (SELECT ? AS [index], ? AS name, ? AS firstname, ? AS age) AS source
+            ON target.[index] = source.[index] AND target.name = source.name AND target.firstname = source.firstname AND target.age = source.age
+            WHEN NOT MATCHED THEN
+                INSERT ([index], name, firstname, age) VALUES (source.[index], source.name, source.firstname, source.age);
+        """.strip()
+        )
+
+    @pytest.mark.parametrize(
+        "create_db_api_hook",
+        [
+            (
+                [
+                    {"name": "index", "identity": True},
+                    {"name": "name"},
+                    {"name": "firstname"},
+                    {"name": "age"},
+                ],  # columns
+                [("index",)],  # primary_keys
+                {"index", "user"},  # reserved_words
+                True,  # escape_column_names
+            ),
+        ],
+        indirect=True,
+    )
+    def test_generate_replace_sql_when_escape_column_names_is_enabled(self, create_db_api_hook):
+        values = [
+            {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": "78"},
+            {"index": 2, "name": "Statham", "firstname": "Jason", "age": "57"},
+            {"index": 3, "name": "Li", "firstname": "Jet", "age": "61"},
+            {"index": 4, "name": "Lundgren", "firstname": "Dolph", "age": "66"},
+            {"index": 5, "name": "Norris", "firstname": "Chuck", "age": "84"},
+        ]
+        target_fields = ["index", "name", "firstname", "age"]
+        sql = MsSqlDialect(create_db_api_hook).generate_replace_sql("hollywood.actors", values, target_fields)
         assert (
             sql
             == """
