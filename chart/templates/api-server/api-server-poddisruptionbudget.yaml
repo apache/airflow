@@ -21,7 +21,7 @@
 ## Airflow api-server PodDisruptionBudget
 #################################
 {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
-{{- if .Values.apiServer.podDisruptionBudget.enabled }}
+{{- if .Values._apiServer.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -32,8 +32,8 @@ metadata:
     release: {{ .Release.Name }}
     chart: {{ .Chart.Name }}
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.apiServer.labels) }}
-      {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or (.Values.labels) (.Values._apiServer.labels) }}
+      {{- mustMerge .Values._apiServer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
   selector:
@@ -41,6 +41,6 @@ spec:
       tier: airflow
       component: api-server
       release: {{ .Release.Name }}
-  {{- toYaml .Values.apiServer.podDisruptionBudget.config | nindent 2 }}
+  {{- toYaml .Values._apiServer.podDisruptionBudget.config | nindent 2 }}
 {{- end }}
 {{- end }}

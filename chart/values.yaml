@@ -1246,7 +1246,7 @@ migrateDatabaseJob:
   applyCustomEnv: true
   env: []
 
-apiServer:
+_apiServer:
 
   # Labels specific to workers objects and pods
   labels: {}
@@ -1274,7 +1274,7 @@ apiServer:
     annotations: {}
     ports:
       - name: api-server
-        port: "{{ .Values.ports.apiServer }}"
+        port: "{{ .Values.ports._apiServer }}"
 
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
@@ -1313,7 +1313,7 @@ apiServer:
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-        - port: "{{ .Values.ports.apiServer }}"
+        - port: "{{ .Values.ports._apiServer }}"
 
   resources: {}
   #   limits:
@@ -2529,7 +2529,7 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
-  apiServer: 9091
+  _apiServer: 9091
 
 # Define any ResourceQuotas for namespace
 quotas: {}
