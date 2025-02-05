@@ -253,6 +253,17 @@ class XComOperations:
     def __init__(self, client: Client):
         self.client = client
 
+    def head(self, dag_id: str, run_id: str, task_id: str, key: str) -> int:
+        """Get the number of mapped XCom values."""
+        resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
+
+        # content_range: str | None
+        if not (content_range := resp.headers["Content-Range"]) or not content_range.startswith(
+            "map_indexes "
+        ):
+            raise RuntimeError(f"Unable to parse Content-Range header from HEAD {resp.request.url}")
+        return int(content_range[len("map_indexes ") :], base=10)
+
     def get(
         self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int | None = None
     ) -> XComResponse:
@@ -290,7 +301,7 @@ class XComOperations:
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params = {}
-        if map_index:
+        if map_index is not None:
             params = {"map_index": map_index}
         self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params, json=value)
         # Any error from the server will anyway be propagated down to the supervisor,
@@ -427,7 +438,7 @@ class Client(httpx.Client):
     @lru_cache()  # type: ignore[misc]
     @property
     def assets(self) -> AssetOperations:
-        """Operations related to XComs."""
+        """Operations related to Assets."""
         return AssetOperations(self)
 
 

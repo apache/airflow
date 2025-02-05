@@ -788,7 +788,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             self.dag.__enter__()
             if self.want_serialized:
-                return lazy_object_proxy.Proxy(self._serialized_dag)
+
+                class DAGProxy(lazy_object_proxy.Proxy):
+                    # Make `@dag.task` decorator work when need_serialized_dag marker is set
+                    task = self.dag.task
+
+                return DAGProxy(self._serialized_dag)
             return self.dag
 
         def _serialized_dag(self):
@@ -868,6 +873,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     if self.want_activate_assets:
                         self._activate_assets()
                 if sdm:
+                    sdm._SerializedDagModel__data_cache = (
+                        self.serialized_model._SerializedDagModel__data_cache
+                    )
                     self.serialized_model = sdm
                 else:
                     self.session.merge(self.serialized_model)
@@ -937,9 +945,13 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
+
+            if self.want_serialized:
+                dag = self.serialized_model.dag
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
-                ti.refresh_from_task(dag.get_task(ti.task_id))
+                # This need to always operate on the _real_ dag
+                ti.refresh_from_task(self.dag.get_task(ti.task_id))
             if self.want_serialized:
                 self.session.commit()
             return self.dag_run

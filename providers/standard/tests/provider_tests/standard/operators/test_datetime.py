@@ -74,13 +74,13 @@ class TestBranchDateTimeOperator:
             self.branch_1.set_upstream(self.branch_op)
             self.branch_2.set_upstream(self.branch_op)
 
-            self.dr = dag_maker.create_dagrun(
-                run_id="manual__",
-                start_date=DEFAULT_DATE,
-                logical_date=DEFAULT_DATE,
-                state=State.RUNNING,
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            )
+        self.dr = dag_maker.create_dagrun(
+            run_id="manual__",
+            start_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        )
 
     def teardown_method(self):
         with create_session() as session:

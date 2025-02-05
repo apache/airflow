@@ -55,8 +55,6 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.models.expandinput import (
         ExpandInput,
         OperatorExpandArgument,
@@ -184,7 +182,9 @@ class DecoratedOperator(BaseOperator):
         kwargs_to_upstream: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        task_id = get_unique_task_id(task_id, kwargs.get("dag"), kwargs.get("task_group"))
+        if not getattr(self, "_BaseOperator__from_mapped", False):
+            # If we are being created from calling unmap(), then don't mangle the task id
+            task_id = get_unique_task_id(task_id, kwargs.get("dag"), kwargs.get("task_group"))
         self.python_callable = python_callable
         kwargs_to_upstream = kwargs_to_upstream or {}
         op_args = op_args or []
@@ -218,10 +218,10 @@ class DecoratedOperator(BaseOperator):
                 The function signature broke while assigning defaults to context key parameters.
 
                 The decorator is replacing the signature
-                > {python_callable.__name__}({', '.join(str(param) for param in signature.parameters.values())})
+                > {python_callable.__name__}({", ".join(str(param) for param in signature.parameters.values())})
 
                 with
-                > {python_callable.__name__}({', '.join(str(param) for param in parameters)})
+                > {python_callable.__name__}({", ".join(str(param) for param in parameters)})
 
                 which isn't valid: {err}
                 """
@@ -568,13 +568,11 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
-    def _expand_mapped_kwargs(
-        self, context: Mapping[str, Any], session: Session, *, include_xcom: bool
-    ) -> tuple[Mapping[str, Any], set[int]]:
+    def _expand_mapped_kwargs(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
         if self.expand_input is not EXPAND_INPUT_EMPTY:
             raise AssertionError(f"unexpected expand_input: {self.expand_input}")
-        op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session, include_xcom=include_xcom)
+        op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context)
         return {"op_kwargs": op_kwargs}, resolved_oids
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:

@@ -120,6 +120,7 @@ class TestSkipMixin:
 
         assert executed_states == expected_states
 
+    @pytest.mark.need_serialized_dag
     def test_mapped_tasks_skip_all_except(self, dag_maker):
         with dag_maker("dag_test_skip_all_except") as dag:
 

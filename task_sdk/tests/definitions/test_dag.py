@@ -350,6 +350,13 @@ def test__tags_mutable():
     assert test_dag.tags == expected_tags
 
 
+def test_create_dag_while_active_context():
+    """Test that we can safely create a DAG whilst a DAG is activated via ``with dag1:``."""
+    with DAG(dag_id="simple_dag"):
+        DAG(dag_id="dag2")
+        # No asserts needed, it just needs to not fail
+
+
 class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",
@@ -418,8 +425,19 @@ class TestDagDecorator:
         with pytest.raises(TypeError):
             noop_pipeline()
 
-    def test_create_dag_while_active_context(self):
-        """Test that we can safely create a DAG whilst a DAG is activated via ``with dag1:``."""
-        with DAG(dag_id="simple_dag"):
-            DAG(dag_id="dag2")
-            # No asserts needed, it just needs to not fail
+    def test_dag_param_resolves(self):
+        """Test that dag param is correctly resolved by operator"""
+        from airflow.decorators import task
+
+        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
+        def xcom_pass_to_op(value=self.VALUE):
+            @task
+            def return_num(num):
+                return num
+
+            xcom_arg = return_num(value)
+            self.operator = xcom_arg.operator
+
+        dag = xcom_pass_to_op()
+
+        assert isinstance(self.operator.op_args[0], Param)

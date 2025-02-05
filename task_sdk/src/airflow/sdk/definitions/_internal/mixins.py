@@ -133,7 +133,7 @@ class ResolveMixin:
         """
         raise NotImplementedError
 
-    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Context) -> Any:
         """
         Resolve this value for runtime.
 

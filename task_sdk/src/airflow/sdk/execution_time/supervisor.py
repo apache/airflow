@@ -70,6 +70,7 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    GetXComCount,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -81,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     TaskState,
     ToSupervisor,
     VariableResult,
+    XComCountResponse,
     XComResult,
 )
 
@@ -797,6 +799,9 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result.model_dump_json().encode()
+        elif isinstance(msg, GetXComCount):
+            len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp = XComCountResponse(len=len).model_dump_json().encode()
         elif isinstance(msg, DeferTask):
             self._terminal_state = IntermediateTIState.DEFERRED
             self.client.task_instances.defer(self.id, msg)
