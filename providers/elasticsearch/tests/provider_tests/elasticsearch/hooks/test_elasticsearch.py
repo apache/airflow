@@ -18,22 +18,21 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock, patch, create_autospec
+from unittest.mock import MagicMock
 
 import pytest
-from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from elasticsearch import Elasticsearch
-from kgb import spy_on, SpyAgency
+from elasticsearch._sync.client import SqlClient
+from kgb import SpyAgency
 
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.elasticsearch.hooks.elasticsearch import (
     ElasticsearchPythonHook,
     ElasticsearchSQLCursor,
     ElasticsearchSQLHook,
     ESConnection,
 )
-from elasticsearch._sync.client import SqlClient
-
 
 ROWS = [
     [1, "Stallone", "Sylvester", "78"],
@@ -44,10 +43,10 @@ ROWS = [
 ]
 RESPONSE = {
     "columns": [
-        {'name': 'index', 'type': 'long'},
-        {'name': 'name', 'type': 'text'},
-        {'name': 'firstname', 'type': 'text'},
-        {'name': 'age', 'type': 'long'},
+        {"name": "index", "type": "long"},
+        {"name": "name", "type": "text"},
+        {"name": "firstname", "type": "text"},
+        {"name": "age", "type": "long"},
     ],
     "rows": ROWS
 }
@@ -92,7 +91,12 @@ class TestElasticsearchSQLCursor:
         cursor = ElasticsearchSQLCursor(es=self.es, options={})
         cursor.execute("SELECT * FROM hollywood.actors")
 
-        assert cursor.description == [("index", "long"), ("name", "text"), ("firstname", "text"), ("age", "long")]
+        assert cursor.description == [
+            ("index", "long"),
+            ("name", "text"),
+            ("firstname", "text"),
+            ("age", "long"),
+        ]
 
     def test_fetchone(self):
         cursor = ElasticsearchSQLCursor(es=self.es, options={})
@@ -182,11 +186,13 @@ class TestElasticsearchSQLHook:
 
         es_connection = ESConnection(host="localhost", port=9200)
         response = es_connection.execute_sql("SELECT * FROM hollywood.actors")
-        mock_es_sql_client.query.assert_called_once_with(body={
-            "fetch_size": 100,
-            "field_multi_value_leniency": False,
-            "query": "SELECT * FROM hollywood.actors",
-        })
+        mock_es_sql_client.query.assert_called_once_with(
+            body={
+                "fetch_size": 100,
+                "field_multi_value_leniency": False,
+                "query": "SELECT * FROM hollywood.actors",
+            }
+        )
 
         assert response == RESPONSE
 
