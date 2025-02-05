@@ -40,7 +40,6 @@ from openlineage.client.facet_v2 import (
 from airflow import DAG
 from airflow.models.dagrun import DagRun, DagRunState
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
@@ -50,6 +49,7 @@ from airflow.providers.openlineage.plugins.facets import (
     AirflowStateRunFacet,
 )
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.task_group import TaskGroup
 
 from tests_common.test_utils.compat import BashOperator
@@ -302,7 +302,14 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
             RunEvent(
                 eventType=RunState.COMPLETE,
                 eventTime=event_time,
-                run=Run(runId=run_id, facets={}),
+                run=Run(
+                    runId=run_id,
+                    facets={
+                        "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+                            version=ANY, name="Airflow", openlineageAdapterVersion=ANY
+                        )
+                    },
+                ),
                 job=Job(
                     namespace=namespace(),
                     name="job",
@@ -366,6 +373,9 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                             run=parent_run.Run(runId=parent_run_id),
                             job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
                         ),
+                        "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+                            version=ANY, name="Airflow", openlineageAdapterVersion=ANY
+                        ),
                         "externalQuery": external_query_run.ExternalQueryRunFacet(
                             externalQueryId="123", source="source"
                         ),
@@ -421,7 +431,14 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
             RunEvent(
                 eventType=RunState.FAIL,
                 eventTime=event_time,
-                run=Run(runId=run_id, facets={}),
+                run=Run(
+                    runId=run_id,
+                    facets={
+                        "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+                            version=ANY, name="Airflow", openlineageAdapterVersion=ANY
+                        )
+                    },
+                ),
                 job=Job(
                     namespace=namespace(),
                     name="job",
@@ -484,6 +501,9 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                     "parent": parent_run.ParentRunFacet(
                         run=parent_run.Run(runId=parent_run_id),
                         job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                    ),
+                    "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+                        version=ANY, name="Airflow", openlineageAdapterVersion=ANY
                     ),
                     "errorMessage": error_message_run.ErrorMessageRunFacet(
                         message="Error message", programmingLanguage="python", stackTrace=None
@@ -731,6 +751,9 @@ def test_emit_dag_complete_event(
                             task_2.task_id: TaskInstanceState.FAILED,
                         },
                     ),
+                    "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+                        version=ANY, name="Airflow", openlineageAdapterVersion=ANY
+                    ),
                     "debug": AirflowDebugRunFacet(packages=ANY),
                     "airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run),
                 },
@@ -826,6 +849,9 @@ def test_emit_dag_failed_event(
                             task_1.task_id: TaskInstanceState.SKIPPED,
                             task_2.task_id: TaskInstanceState.FAILED,
                         },
+                    ),
+                    "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+                        version=ANY, name="Airflow", openlineageAdapterVersion=ANY
                     ),
                     "debug": AirflowDebugRunFacet(packages=ANY),
                     "airflowDagRun": AirflowDagRunFacet(dag={"description": "dag desc"}, dagRun=dag_run),

@@ -1384,7 +1384,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "chart/aaaa.txt",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1411,7 +1411,7 @@ def test_expected_output_full_tests_needed(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1436,7 +1436,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "airflow/file.py",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1614,7 +1614,7 @@ def test_expected_output_push(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra "
