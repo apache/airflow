@@ -37,7 +37,7 @@ Storing Variables in Environment Variables
 
 Airflow Variables can also be created and managed using Environment Variables. The environment variable
 naming convention is :envvar:`AIRFLOW_VAR_{VARIABLE_NAME}`, all uppercase.
-So if your variable key is ``FOO`` then the variable name should be ``AIRFLOW_VAR_FOO``.
+So if your variable key is ``foo`` then the variable name should be ``AIRFLOW_VAR_FOO``.
 
 For example,
 
