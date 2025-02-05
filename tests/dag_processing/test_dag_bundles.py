@@ -173,11 +173,12 @@ class TestGitHook:
         hook = GitHook(git_conn_id=conn_id)
         assert hook.repo_url == expected_repo_url
 
-    def test_env_var(self, session):
-        hook = GitHook(git_conn_id=CONN_DEFAULT)
-        assert hook.env == {
-            "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
-        }
+    def test_env_var_with_configure_hook_env(self, session):
+        default_hook = GitHook(git_conn_id=CONN_DEFAULT)
+        with default_hook.configure_hook_env():
+            assert default_hook.env == {
+                "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+            }
         db.merge_conn(
             Connection(
                 conn_id="my_git_conn_strict",
@@ -187,10 +188,11 @@ class TestGitHook:
             )
         )
 
-        hook = GitHook(git_conn_id="my_git_conn_strict")
-        assert hook.env == {
-            "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
-        }
+        strict_default_hook = GitHook(git_conn_id="my_git_conn_strict")
+        with strict_default_hook.configure_hook_env():
+            assert strict_default_hook.env == {
+                "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+            }
 
     def test_given_both_private_key_and_key_file(self):
         db.merge_conn(
@@ -210,13 +212,14 @@ class TestGitHook:
         ):
             GitHook(git_conn_id=CONN_BOTH_PATH_INLINE)
 
-    def test_key_file_git_hook_has_env(self):
+    def test_key_file_git_hook_has_env_with_configure_hook_env(self):
         hook = GitHook(git_conn_id=CONN_DEFAULT)
 
         assert hasattr(hook, "env")
-        assert hook.env == {
-            "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
-        }
+        with hook.configure_hook_env():
+            assert hook.env == {
+                "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+            }
 
     def test_private_key_lazy_env_var(self):
         hook = GitHook(git_conn_id=CONN_ONLY_INLINE_KEY)
