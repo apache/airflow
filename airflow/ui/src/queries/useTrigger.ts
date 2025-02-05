@@ -65,14 +65,16 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   const triggerDagRun = (dagRunRequestBody: DagRunTriggerParams) => {
     const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<string, unknown>;
 
-    const DataIntervalStart = dagRunRequestBody.dataIntervalStart
+    const dataIntervalStart = dagRunRequestBody.dataIntervalStart
       ? new Date(dagRunRequestBody.dataIntervalStart)
       : undefined;
-    const DataIntervalEnd = dagRunRequestBody.dataIntervalEnd
+    const dataIntervalEnd = dagRunRequestBody.dataIntervalEnd
       ? new Date(dagRunRequestBody.dataIntervalEnd)
       : undefined;
 
-    if (Boolean(DataIntervalStart) !== Boolean(DataIntervalEnd)) {
+    const logicalDate = dagRunRequestBody.logicalDate ? new Date(dagRunRequestBody.logicalDate) : undefined;
+
+    if (Boolean(dataIntervalStart) !== Boolean(dataIntervalEnd)) {
       setDateValidationError({
         body: {
           detail:
@@ -83,8 +85,8 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
       return;
     }
 
-    if (DataIntervalStart && DataIntervalEnd) {
-      if (DataIntervalStart > DataIntervalEnd) {
+    if (dataIntervalStart && dataIntervalEnd) {
+      if (dataIntervalStart > dataIntervalEnd) {
         setDateValidationError({
           body: {
             detail: "Data Interval Start Date must be less than or equal to Data Interval End Date.",
@@ -95,8 +97,10 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
       }
     }
 
-    const formattedDataIntervalStart = DataIntervalStart?.toISOString() ?? undefined;
-    const formattedDataIntervalEnd = DataIntervalEnd?.toISOString() ?? undefined;
+    const formattedDataIntervalStart = dataIntervalStart?.toISOString() ?? undefined;
+    const formattedDataIntervalEnd = dataIntervalEnd?.toISOString() ?? undefined;
+    // eslint-disable-next-line unicorn/no-null
+    const formattedLogicalDate = logicalDate?.toISOString() ?? null;
 
     const checkDagRunId = dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId;
     const checkNote = dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
@@ -108,7 +112,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
         dag_run_id: checkDagRunId,
         data_interval_end: formattedDataIntervalEnd,
         data_interval_start: formattedDataIntervalStart,
-        logical_date: null,
+        logical_date: formattedLogicalDate,
         note: checkNote,
       },
     });

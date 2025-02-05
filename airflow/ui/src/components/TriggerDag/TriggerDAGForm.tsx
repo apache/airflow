@@ -44,6 +44,7 @@ export type DagRunTriggerParams = {
   dagRunId: string;
   dataIntervalEnd: string;
   dataIntervalStart: string;
+  logicalDate: string;
   note: string;
 };
 
@@ -64,6 +65,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
       dagRunId: "",
       dataIntervalEnd: "",
       dataIntervalStart: "",
+      logicalDate: "",
       note: "",
     },
   });
@@ -161,6 +163,23 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                     <Input
                       {...field}
                       min={dataIntervalStart || undefined}
+                      onBlur={resetDateError}
+                      placeholder="yyyy-mm-ddThh:mm"
+                      size="sm"
+                      type="datetime-local"
+                    />
+                  </Field.Root>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="logicalDate"
+                render={({ field }) => (
+                  <Field.Root invalid={Boolean(errors.date)} mt={6}>
+                    <Field.Label fontSize="md">Logical Date</Field.Label>
+                    <Input
+                      {...field}
                       onBlur={resetDateError}
                       placeholder="yyyy-mm-ddThh:mm"
                       size="sm"
