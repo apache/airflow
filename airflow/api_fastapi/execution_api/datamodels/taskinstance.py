@@ -219,6 +219,7 @@ class DagRun(StrictBaseModel):
     logical_date: UtcDateTime
     data_interval_start: UtcDateTime | None
     data_interval_end: UtcDateTime | None
+    run_after: UtcDateTime
     start_date: UtcDateTime
     end_date: UtcDateTime | None
     run_type: DagRunType
@@ -251,7 +252,7 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
-class TIRuntimeCheckPayload(BaseModel):
+class TIRuntimeCheckPayload(StrictBaseModel):
     """Payload for performing Runtime checks on the TaskInstance model as requested by the SDK."""
 
     inlets: list[AssetProfile] | None = None

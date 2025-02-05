@@ -211,7 +211,7 @@ class TestCliDags:
             file_content = os.linesep.join(
                 [
                     "from airflow import DAG",
-                    "from airflow.operators.empty import EmptyOperator",
+                    "from airflow.providers.standard.operators.empty import EmptyOperator",
                     "from datetime import timedelta; from pendulum import today",
                     f"dag = DAG('{f[0]}', start_date=today() + {f[1]}, schedule={f[2]}, catchup={f[3]})",
                     "task = EmptyOperator(task_id='empty_task',dag=dag)",

@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/odbc>
+    Operators <operators>
 
 .. toctree::
     :hidden:
@@ -43,6 +44,19 @@
 
     Python API <_api/airflow/providers/odbc/index>
 
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/odbc/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Resources
+
+    Example DAGs <https://github.com/apache/airflow/tree/providers-odbc/|version|/providers/odbc/tests/system/odbc>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-odbc/>
     Installing from sources <installing-providers-from-sources>
 

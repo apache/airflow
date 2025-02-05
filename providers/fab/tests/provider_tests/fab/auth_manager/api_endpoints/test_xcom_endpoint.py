@@ -24,8 +24,8 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, XCom
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.fab.www.security import permissions
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -180,6 +180,8 @@ class TestGetXComEntries(TestXComEndpoint):
                     dag_id=dag_id,
                     run_id=run_id,
                     logical_date=logical_date,
+                    data_interval=(logical_date, logical_date),
+                    run_after=logical_date,
                     start_date=logical_date,
                     run_type=DagRunType.MANUAL,
                 )
@@ -226,6 +228,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     dag_id="invalid_dag",
                     run_id="invalid_run_id",
                     logical_date=logical_date + timedelta(days=1),
+                    run_after=logical_date,
                     start_date=logical_date,
                     run_type=DagRunType.MANUAL,
                 )
@@ -243,6 +246,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     dag_id="invalid_dag",
                     run_id="not_this_run_id",
                     logical_date=logical_date,
+                    run_after=logical_date,
                     start_date=logical_date,
                     run_type=DagRunType.MANUAL,
                 )

@@ -27,7 +27,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.models import TaskInstance as TI
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
