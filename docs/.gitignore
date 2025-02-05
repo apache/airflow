@@ -18,6 +18,7 @@ apache-airflow-providers-apprise
 apache-airflow-providers-asana
 apache-airflow-providers-atlassian-jira
 apache-airflow-providers-celery
+apache-airflow-providers-cloudant
 apache-airflow-providers-cohere
 apache-airflow-providers-common-compat
 apache-airflow-providers-common-io

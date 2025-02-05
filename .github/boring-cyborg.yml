@@ -99,9 +99,7 @@ labelPRBasedOnFilePath:
     - providers/celery/**
 
   provider:cloudant:
-    - providers/src/airflow/providers/cloudant/**/*
-    - docs/apache-airflow-providers-cloudant/**/*
-    - providers/tests/cloudant/**/*
+    - providers/cloudant/**
 
   provider:cncf-kubernetes:
     - airflow/example_dags/example_kubernetes_executor.py

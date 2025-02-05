@@ -50,6 +50,7 @@ services:
       - ../../../empty:/opt/airflow/providers/asana/src
       - ../../../empty:/opt/airflow/providers/atlassian/jira/src
       - ../../../empty:/opt/airflow/providers/celery/src
+      - ../../../empty:/opt/airflow/providers/cloudant/src
       - ../../../empty:/opt/airflow/providers/cohere/src
       - ../../../empty:/opt/airflow/providers/common/compat/src
       - ../../../empty:/opt/airflow/providers/common/io/src
