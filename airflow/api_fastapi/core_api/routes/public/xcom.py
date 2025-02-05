@@ -245,6 +245,7 @@ def update_xcom_entry(
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
     # Check if XCom entry exists
+    xcom_value_key = "value"
     xcom_entry = session.scalar(
         select(XCom)
         .where(
@@ -260,10 +261,10 @@ def update_xcom_entry(
     if not xcom_entry:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exists.",
+            f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exist.",
         )
 
     # Update XCom entry
-    setattr(xcom_entry, XCom.value, XCom.serialize_value(patch_body.value))
+    setattr(xcom_entry, xcom_value_key, XCom.serialize_value(patch_body.value))
 
     return XComResponseNative.model_validate(xcom_entry)
