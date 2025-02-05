@@ -351,7 +351,7 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    logical_date = pendulum.instance(body.logical_date)
+    logical_date = pendulum.instance(body.logical_date) if body.logical_date is not None else None
 
     try:
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
@@ -362,16 +362,19 @@ def trigger_dag_run(
                 end=pendulum.instance(body.data_interval_end),
             )
         else:
-            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+            data_interval = dag.timetable.infer_manual_data_interval(
+                run_after=logical_date or pendulum.now("UTC")
+            )
 
-        if body.dag_run_id:
-            run_id = body.dag_run_id
-        else:
-            run_id = dag.timetable.generate_run_id(
+        run_id = (
+            body.dag_run_id
+            if body.dag_run_id
+            else dag.timetable.generate_run_id(
                 run_type=DagRunType.MANUAL,
-                logical_date=logical_date,
+                logical_date=logical_date or pendulum.now("UTC"),
                 data_interval=data_interval,
             )
+        )
 
         dag_run = dag.create_dagrun(
             run_id=run_id,

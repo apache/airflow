@@ -5805,6 +5805,18 @@ export const $TriggerDAGRunPostBody = {
       ],
       title: "Dag Run Id",
     },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
+    },
     data_interval_start: {
       anyOf: [
         {
@@ -5847,6 +5859,7 @@ export const $TriggerDAGRunPostBody = {
   },
   additionalProperties: false,
   type: "object",
+  required: ["logical_date"],
   title: "TriggerDAGRunPostBody",
   description: "Trigger DAG Run Serializer for POST body.",
 } as const;

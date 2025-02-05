@@ -2303,7 +2303,13 @@ class TestTaskInstance:
         session.flush()
 
         run_id = str(uuid4())
-        dr = DagRun(dag1.dag_id, run_id=run_id, run_type="manual", state=DagRunState.RUNNING)
+        dr = DagRun(
+            dag1.dag_id,
+            run_id=run_id,
+            run_type="manual",
+            state=DagRunState.RUNNING,
+            logical_date=timezone.utcnow(),
+        )
         session.merge(dr)
         task = dag1.get_task("producing_task_1")
         task.bash_command = "echo 1"  # make it go faster
@@ -2362,7 +2368,13 @@ class TestTaskInstance:
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db("testing", None, session=session)
         run_id = str(uuid4())
-        dr = DagRun(dag_with_fail_task.dag_id, run_id=run_id, run_type="manual", state=DagRunState.RUNNING)
+        dr = DagRun(
+            dag_with_fail_task.dag_id,
+            run_id=run_id,
+            run_type="manual",
+            state=DagRunState.RUNNING,
+            logical_date=timezone.utcnow(),
+        )
         session.merge(dr)
         task = dag_with_fail_task.get_task("fail_task")
         ti = TaskInstance(task, run_id=run_id)
@@ -2421,7 +2433,13 @@ class TestTaskInstance:
         session.flush()
 
         run_id = str(uuid4())
-        dr = DagRun(dag_with_skip_task.dag_id, run_id=run_id, run_type="manual", state=DagRunState.RUNNING)
+        dr = DagRun(
+            dag_with_skip_task.dag_id,
+            run_id=run_id,
+            run_type="manual",
+            state=DagRunState.RUNNING,
+            logical_date=timezone.utcnow(),
+        )
         session.merge(dr)
         task = dag_with_skip_task.get_task("skip_task")
         ti = TaskInstance(task, run_id=run_id)
