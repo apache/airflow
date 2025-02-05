@@ -30,6 +30,7 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 
 from airflow.configuration import conf
+from airflow.providers.edge.models.edge_worker import EdgeWorkerVersionException
 from airflow.providers.edge.worker_api.auth import jwt_signer
 from airflow.providers.edge.worker_api.datamodels import (
     EdgeJobFetched,
@@ -42,7 +43,7 @@ from airflow.utils.state import TaskInstanceState  # noqa: TC001
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
+    from airflow.providers.edge.models.edge_worker import EdgeWorkerState
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ def worker_register(
         )
     except requests.HTTPError as e:
         if e.response.status_code == 400:
-            raise EdgeWorkerVersionException
+            raise EdgeWorkerVersionException(str(e))
         raise e
     return datetime.fromisoformat(result)
 
@@ -121,7 +122,7 @@ def worker_set_state(
         )
     except requests.HTTPError as e:
         if e.response.status_code == 400:
-            raise EdgeWorkerVersionException
+            raise EdgeWorkerVersionException(str(e))
         raise e
     return WorkerSetStateReturn(**result)
 
