@@ -22,6 +22,7 @@ import logging
 from typing import Annotated
 
 import pendulum
+import re2
 from fastapi import Depends, Request
 from pendulum.parsing.exceptions import ParserError
 
@@ -79,11 +80,12 @@ def action_logging(event: str | None = None):
         user: Annotated[BaseUser, Depends(get_user_with_exception_handling)],
     ):
         """Log user actions."""
-        request_body = await request.json()
-        masked_body_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
+        # This is needed as size of event column in log table is varchar60 and run_id is already getting stored
+        # in run_id column so we can remove from url.
+        pattern = r"(/scheduled__|/manual__)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}"
+        request_url = re2.sub(pattern, "", request.url.path)
 
-        event_name = event or request.url.path
-
+        event_name = event or request_url
         if not user:
             user_name = "anonymous"
             user_display = ""
@@ -92,6 +94,10 @@ def action_logging(event: str | None = None):
             user_display = user.get_name()
 
         hasJsonBody = "application/json" in request.headers.get("content-type", "") and request.json
+
+        if hasJsonBody:
+            request_body = await request.json()
+            masked_body_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
 
         fields_skip_logging = {
             "csrf_token",
@@ -124,7 +130,9 @@ def action_logging(event: str | None = None):
             **request.query_params,
             **request.path_params,
         }
-        params.update(masked_body_json)
+
+        if hasJsonBody:
+            params.update(masked_body_json)
         if params and "is_paused" in params:
             extra_fields["is_paused"] = params["is_paused"] == "false"
 
