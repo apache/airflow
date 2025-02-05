@@ -423,3 +423,37 @@ class TestDagDecorator:
         with DAG(dag_id="simple_dag"):
             DAG(dag_id="dag2")
             # No asserts needed, it just needs to not fail
+
+    def test_documentation_template_rendered(self):
+        """Test that @dag uses function docs as doc_md for DAG object"""
+
+        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            """
+            {% if True %}
+               Regular DAG documentation
+            {% endif %}
+            """
+
+        dag = noop_pipeline()
+        assert dag.dag_id == "noop_pipeline"
+        assert "Regular DAG documentation" in dag.doc_md
+
+    def test_resolve_documentation_template_file_not_rendered(self, tmp_path):
+        """Test that @dag uses function docs as doc_md for DAG object"""
+
+        raw_content = """
+        {% if True %}
+            External Markdown DAG documentation
+        {% endif %}
+        """
+
+        path = tmp_path / "testfile.md"
+        path.write_text(raw_content)
+
+        @dag_decorator("test-dag", schedule=None, start_date=DEFAULT_DATE, doc_md=str(path))
+        def markdown_docs(): ...
+
+        dag = markdown_docs()
+        assert dag.dag_id == "test-dag"
+        assert dag.doc_md == raw_content
