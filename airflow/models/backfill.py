@@ -266,23 +266,7 @@ def _create_backfill_dag_run(
     dag_run_conf,
     backfill_sort_ordinal,
     session,
-    from_date: datetime,
-    to_date: datetime,
-):
-    from airflow.models import DAG
-
-    dr = session.scalar(_get_latest_dag_run_row_query(info, session))
-    if (
-        dr
-        and dr.state not in {DagRunState.RUNNING}
-        and reprocess_behavior in {ReprocessBehavior.COMPLETED, ReprocessBehavior.FAILED}
-    ):
-        DAG.clear_dags(
-            [dag],
-            start_date=from_date,
-            end_date=to_date,
-            dag_run_state=DagRunState.QUEUED,
-        )
+) -> None:
     with session.begin_nested() as nested:
         dr = session.scalar(
             with_row_locks(
@@ -291,6 +275,11 @@ def _create_backfill_dag_run(
             ),
         )
         if dr:
+            if dr.state != DagRunState.RUNNING and reprocess_behavior in {
+                ReprocessBehavior.COMPLETED,
+                ReprocessBehavior.FAILED,
+            }:
+                dag.clear(run_id=dr.run_id, dag_run_state=DagRunState.QUEUED, session=session)
             non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
             if non_create_reason:
                 # rolling back here restores to start of this nested tran
@@ -432,8 +421,6 @@ def _create_backfill(
                 reprocess_behavior=br.reprocess_behavior,
                 backfill_sort_ordinal=backfill_sort_ordinal,
                 session=session,
-                from_date=from_date,
-                to_date=to_date,
             )
             log.info(
                 "created backfill dag run dag_id=%s backfill_id=%s, info=%s",
