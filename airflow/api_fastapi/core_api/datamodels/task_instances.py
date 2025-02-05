@@ -154,6 +154,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     pid: int | None
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
+    dag_version: DagVersionResponse | None
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):
