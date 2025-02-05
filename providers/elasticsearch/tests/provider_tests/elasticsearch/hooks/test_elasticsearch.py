@@ -20,14 +20,41 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from elasticsearch import Elasticsearch
+from elasticsearch._sync.client import SqlClient
+from kgb import SpyAgency
 
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.elasticsearch.hooks.elasticsearch import (
     ElasticsearchPythonHook,
+    ElasticsearchSQLCursor,
     ElasticsearchSQLHook,
     ESConnection,
 )
+
+ROWS = [
+    [1, "Stallone", "Sylvester", "78"],
+    [2, "Statham", "Jason", "57"],
+    [3, "Li", "Jet", "61"],
+    [4, "Lundgren", "Dolph", "66"],
+    [5, "Norris", "Chuck", "84"],
+]
+RESPONSE_WITHOUT_CURSOR = {
+    "columns": [
+        {"name": "index", "type": "long"},
+        {"name": "name", "type": "text"},
+        {"name": "firstname", "type": "text"},
+        {"name": "age", "type": "long"},
+    ],
+    "rows": ROWS,
+}
+RESPONSE = {**RESPONSE_WITHOUT_CURSOR, **{"cursor": "e7f8QwXUruW2mIebzudH4BwAA//8DAA=="}}
+RESPONSES = [
+    RESPONSE,
+    RESPONSE_WITHOUT_CURSOR,
+]
 
 
 class TestElasticsearchSQLHookConn:
@@ -48,10 +75,68 @@ class TestElasticsearchSQLHookConn:
         mock_connect.assert_called_with(host="localhost", port=9200, scheme="http", user=None, password=None)
 
 
+class TestElasticsearchSQLCursor:
+    def setup_method(self):
+        sql = MagicMock(spec=SqlClient)
+        sql.query.side_effect = RESPONSES
+        self.es = MagicMock(sql=sql, spec=Elasticsearch)
+
+    def test_execute(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+
+        assert cursor.execute("SELECT * FROM hollywood.actors") == RESPONSE
+
+    def test_rowcount(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+        cursor.execute("SELECT * FROM hollywood.actors")
+
+        assert cursor.rowcount == len(ROWS)
+
+    def test_description(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+        cursor.execute("SELECT * FROM hollywood.actors")
+
+        assert cursor.description == [
+            ("index", "long"),
+            ("name", "text"),
+            ("firstname", "text"),
+            ("age", "long"),
+        ]
+
+    def test_fetchone(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+        cursor.execute("SELECT * FROM hollywood.actors")
+
+        assert cursor.fetchone() == ROWS[0]
+
+    def test_fetchmany(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+        cursor.execute("SELECT * FROM hollywood.actors")
+
+        with pytest.raises(NotImplementedError):
+            cursor.fetchmany()
+
+    def test_fetchall(self):
+        cursor = ElasticsearchSQLCursor(es=self.es, options={})
+        cursor.execute("SELECT * FROM hollywood.actors")
+
+        records = cursor.fetchall()
+
+        assert len(records) == 10
+        assert records == ROWS
+
+
 class TestElasticsearchSQLHook:
     def setup_method(self):
-        self.cur = mock.MagicMock(rowcount=0)
-        self.conn = mock.MagicMock()
+        sql = MagicMock(spec=SqlClient)
+        sql.query.side_effect = RESPONSES
+        es = MagicMock(sql=sql, spec=Elasticsearch)
+        self.cur = ElasticsearchSQLCursor(es=es, options={})
+        self.spy_agency = SpyAgency()
+        self.spy_agency.spy_on(self.cur.close, call_original=True)
+        self.spy_agency.spy_on(self.cur.execute, call_original=True)
+        self.spy_agency.spy_on(self.cur.fetchall, call_original=True)
+        self.conn = MagicMock(spec=ESConnection)
         self.conn.cursor.return_value = self.cur
         conn = self.conn
 
@@ -64,55 +149,60 @@ class TestElasticsearchSQLHook:
         self.db_hook = UnitTestElasticsearchSQLHook()
 
     def test_get_first_record(self):
-        statement = "SQL"
-        result_sets = [("row1",), ("row2",)]
-        self.cur.fetchone.return_value = result_sets[0]
+        statement = "SELECT * FROM hollywood.actors"
 
-        assert result_sets[0] == self.db_hook.get_first(statement)
+        assert self.db_hook.get_first(statement) == ROWS[0]
+
         self.conn.close.assert_called_once_with()
-        self.cur.close.assert_called_once_with()
-        self.cur.execute.assert_called_once_with(statement)
+        self.spy_agency.assert_spy_called(self.cur.close)
+        self.spy_agency.assert_spy_called(self.cur.execute)
 
     def test_get_records(self):
-        statement = "SQL"
-        result_sets = [("row1",), ("row2",)]
-        self.cur.fetchall.return_value = result_sets
+        statement = "SELECT * FROM hollywood.actors"
 
-        assert result_sets == self.db_hook.get_records(statement)
+        assert self.db_hook.get_records(statement) == ROWS
+
         self.conn.close.assert_called_once_with()
-        self.cur.close.assert_called_once_with()
-        self.cur.execute.assert_called_once_with(statement)
+        self.spy_agency.assert_spy_called(self.cur.close)
+        self.spy_agency.assert_spy_called(self.cur.execute)
 
     def test_get_pandas_df(self):
-        statement = "SQL"
-        column = "col"
-        result_sets = [("row1",), ("row2",)]
-        self.cur.description = [(column,)]
-        self.cur.fetchall.return_value = result_sets
+        statement = "SELECT * FROM hollywood.actors"
         df = self.db_hook.get_pandas_df(statement)
 
-        assert column == df.columns[0]
+        assert list(df.columns) == ["index", "name", "firstname", "age"]
+        assert df.values.tolist() == ROWS
 
-        assert result_sets[0][0] == df.values.tolist()[0][0]
-        assert result_sets[1][0] == df.values.tolist()[1][0]
+        self.conn.close.assert_called_once_with()
+        self.spy_agency.assert_spy_called(self.cur.close)
+        self.spy_agency.assert_spy_called(self.cur.execute)
 
-        self.cur.execute.assert_called_once_with(statement)
+    def test_run(self):
+        statement = "SELECT * FROM hollywood.actors"
+
+        assert self.db_hook.run(statement, handler=fetch_all_handler) == ROWS
+
+        self.conn.close.assert_called_once_with()
+        self.spy_agency.assert_spy_called(self.cur.close)
+        self.spy_agency.assert_spy_called(self.cur.execute)
 
     @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.Elasticsearch")
     def test_execute_sql_query(self, mock_es):
         mock_es_sql_client = MagicMock()
-        mock_es_sql_client.query.return_value = {
-            "columns": [{"name": "id"}, {"name": "first_name"}],
-            "rows": [[1, "John"], [2, "Jane"]],
-        }
+        mock_es_sql_client.query.return_value = RESPONSE_WITHOUT_CURSOR
         mock_es.return_value.sql = mock_es_sql_client
 
         es_connection = ESConnection(host="localhost", port=9200)
-        response = es_connection.execute_sql("SELECT * FROM index1")
-        mock_es_sql_client.query.assert_called_once_with(body={"query": "SELECT * FROM index1"})
+        response = es_connection.execute_sql("SELECT * FROM hollywood.actors")
+        mock_es_sql_client.query.assert_called_once_with(
+            body={
+                "fetch_size": 1000,
+                "field_multi_value_leniency": False,
+                "query": "SELECT * FROM hollywood.actors",
+            }
+        )
 
-        assert response["rows"] == [[1, "John"], [2, "Jane"]]
-        assert response["columns"] == [{"name": "id"}, {"name": "first_name"}]
+        assert response == RESPONSE_WITHOUT_CURSOR
 
 
 class MockElasticsearch:
