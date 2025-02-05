@@ -85,9 +85,7 @@ labelPRBasedOnFilePath:
     - providers/apprise/**
 
   provider:arangodb:
-    - providers/src/airflow/providers/arangodb/**/*
-    - docs/apache-airflow-providers-arangodb/**/*
-    - providers/tests/arangodb/**/*
+    - providers/arangodb/**
 
   provider:asana:
     - providers/asana/**

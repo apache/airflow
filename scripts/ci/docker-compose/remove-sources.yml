@@ -47,6 +47,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/pinot/src
       - ../../../empty:/opt/airflow/providers/apache/spark/src
       - ../../../empty:/opt/airflow/providers/apprise/src
+      - ../../../empty:/opt/airflow/providers/arangodb/src
       - ../../../empty:/opt/airflow/providers/asana/src
       - ../../../empty:/opt/airflow/providers/atlassian/jira/src
       - ../../../empty:/opt/airflow/providers/celery/src

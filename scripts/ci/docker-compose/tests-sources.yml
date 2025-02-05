@@ -54,6 +54,7 @@ services:
       - ../../../providers/apache/pinot/tests:/opt/airflow/providers/apache/pinot/tests
       - ../../../providers/apache/spark/tests:/opt/airflow/providers/apache/spark/tests
       - ../../../providers/apprise/tests:/opt/airflow/providers/apprise/tests
+      - ../../../providers/arangodb/tests:/opt/airflow/providers/arangodb/tests
       - ../../../providers/asana/tests:/opt/airflow/providers/asana/tests
       - ../../../providers/atlassian/jira/tests:/opt/airflow/providers/atlassian/jira/tests
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
