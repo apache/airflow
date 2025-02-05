@@ -149,10 +149,14 @@ def register(
     worker: EdgeWorkerModel = session.scalar(query)
     if not worker:
         worker = EdgeWorkerModel(worker_name=worker_name, state=body.state, queues=body.queues)
+    worker.maintenance_comment = (
+        "" if worker.state != EdgeWorkerState.OFFLINE_MAINTENANCE else worker.maintenance_comment
+    )
     worker.state = redefine_state_if_maintenance(worker.state, body.state)
     worker.queues = body.queues
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
+
     session.add(worker)
     return worker.last_update
 
