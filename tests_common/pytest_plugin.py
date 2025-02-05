@@ -1640,6 +1640,7 @@ def url_safe_serializer(secret_key) -> URLSafeSerializer:
 @pytest.fixture
 def create_db_api_hook(request):
     from unittest.mock import MagicMock
+
     from sqlalchemy.engine import Inspector
 
     from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -1648,7 +1649,6 @@ def create_db_api_hook(request):
 
     inspector = MagicMock(spec=Inspector)
     inspector.get_columns.side_effect = lambda table_name, schema: columns
-
 
     test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
     test_db_hook.run.side_effect = lambda *args: primary_keys
