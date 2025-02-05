@@ -2,17 +2,93 @@
     {
         "eventType": "START",
         "eventTime": "{{ is_datetime(result) }}",
+        "producer": "{{ result.startswith('https://github.com/apache/airflow/tree/providers-openlineage') }}",
+        "schemaURL": "{{ result.startswith('https://openlineage.io/spec') }}",
+        "inputs": [],
+        "outputs": [],
         "run": {
-            "runId": "{{ is_uuid(result) }}"
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_basic_dag"
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    }
+                },
+                "airflow": {
+                    "dag": {
+                        "dag_id": "openlineage_basic_dag",
+                        "fileloc": "{{ result.endswith('openlineage/example_openlineage.py') }}",
+                        "owner": "airflow",
+                        "start_date": "{{ is_datetime(result) }}"
+                    },
+                    "dagRun": {
+                        "conf": {},
+                        "dag_id": "openlineage_basic_dag",
+                        "data_interval_end": "{{ is_datetime(result) }}",
+                        "data_interval_start": "{{ is_datetime(result) }}",
+                        "start_date": "{{ is_datetime(result) }}"
+                    },
+                    "taskInstance": {
+                        "try_number": "{{ result is number }}",
+                        "queued_dttm": "{{ is_datetime(result) }}",
+                        "log_url": "{{ result is string }}"
+                    },
+                    "task": {
+                        "inlets": "[]",
+                        "mapped": false,
+                        "outlets": "[]",
+                        "task_id": "do_nothing_task",
+                        "trigger_rule": "all_success",
+                        "operator_class": "PythonOperator",
+                        "retries": "{{ result is number }}",
+                        "depends_on_past": false,
+                        "executor_config": {},
+                        "priority_weight": 1,
+                        "multiple_outputs": false,
+                        "upstream_task_ids": "[]",
+                        "downstream_task_ids": "['check_events']",
+                        "operator_class_path": "{{ result.endswith('.PythonOperator') }}",
+                        "wait_for_downstream": false,
+                        "retry_exponential_backoff": false,
+                        "ignore_first_depends_on_past": false,
+                        "wait_for_past_depends_before_skipping": false
+                    },
+                    "taskUuid": "{{ is_uuid(result) }}"
+                },
+                "nominalTime": {
+                    "nominalEndTime": "{{ is_datetime(result) }}",
+                    "nominalStartTime": "{{ is_datetime(result) }}"
+                },
+                "processing_engine": {
+                    "name": "Airflow",
+                    "openlineageAdapterVersion": "{{ result is string }}",
+                    "version": "{{ result is string }}"
+                }
+            }
         },
         "job": {
-            "namespace": "default",
+            "namespace": "{{ result is string }}",
             "name": "openlineage_basic_dag.do_nothing_task",
             "facets": {
                 "jobType": {
                     "integration": "AIRFLOW",
                     "jobType": "TASK",
                     "processingType": "BATCH"
+                },
+                "ownership": {
+                    "owners": [
+                        {
+                            "name": "{{ result is string }}"
+                        }
+                    ]
+                },
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "def do_nothing():\n    pass\n"
                 }
             }
         }
@@ -21,16 +97,77 @@
         "eventType": "COMPLETE",
         "eventTime": "{{ is_datetime(result) }}",
         "run": {
-            "runId": "{{ is_uuid(result) }}"
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_basic_dag"
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    }
+                },
+                "airflow": {
+                    "dag": {
+                        "dag_id": "openlineage_basic_dag",
+                        "fileloc": "{{ result.endswith('openlineage/example_openlineage.py') }}",
+                        "owner": "airflow",
+                        "start_date": "{{ is_datetime(result) }}"
+                    },
+                    "dagRun": {
+                        "conf": {},
+                        "dag_id": "openlineage_basic_dag",
+                        "data_interval_end": "{{ is_datetime(result) }}",
+                        "data_interval_start": "{{ is_datetime(result) }}",
+                        "start_date": "{{ is_datetime(result) }}"
+                    },
+                    "taskInstance": {
+                        "try_number": "{{ result is number }}",
+                        "queued_dttm": "{{ is_datetime(result) }}",
+                        "log_url": "{{ result is string }}"
+                    },
+                    "task": {
+                        "inlets": "[]",
+                        "mapped": false,
+                        "outlets": "[]",
+                        "task_id": "do_nothing_task",
+                        "trigger_rule": "all_success",
+                        "operator_class": "PythonOperator",
+                        "retries": "{{ result is number }}",
+                        "depends_on_past": false,
+                        "executor_config": {},
+                        "priority_weight": 1,
+                        "multiple_outputs": false,
+                        "upstream_task_ids": "[]",
+                        "downstream_task_ids": "['check_events']",
+                        "operator_class_path": "{{ result.endswith('.PythonOperator') }}",
+                        "wait_for_downstream": false,
+                        "retry_exponential_backoff": false,
+                        "ignore_first_depends_on_past": false,
+                        "wait_for_past_depends_before_skipping": false
+                    },
+                    "taskUuid": "{{ is_uuid(result) }}"
+                },
+                "processing_engine": {
+                    "name": "Airflow",
+                    "openlineageAdapterVersion": "{{ result is string }}",
+                    "version": "{{ result is string }}"
+                }
+            }
         },
         "job": {
-            "namespace": "default",
+            "namespace": "{{ result is string }}",
             "name": "openlineage_basic_dag.do_nothing_task",
             "facets": {
                 "jobType": {
                     "integration": "AIRFLOW",
                     "jobType": "TASK",
                     "processingType": "BATCH"
+                },
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "def do_nothing():\n    pass\n"
                 }
             }
         }
