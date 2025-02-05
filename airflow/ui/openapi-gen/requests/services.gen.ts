@@ -175,6 +175,8 @@ import type {
   GetProvidersResponse,
   GetXcomEntryData,
   GetXcomEntryResponse,
+  UpdateXcomEntryData,
+  UpdateXcomEntryResponse,
   GetXcomEntriesData,
   GetXcomEntriesResponse,
   CreateXcomEntryData,
@@ -2971,6 +2973,40 @@ export class XcomService {
         deserialize: data.deserialize,
         stringify: data.stringify,
       },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Update Xcom Entry
+   * Update an existing XCom entry.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.taskId
+   * @param data.dagRunId
+   * @param data.xcomKey
+   * @param data.requestBody
+   * @returns XComResponseNative Successful Response
+   * @throws ApiError
+   */
+  public static updateXcomEntry(data: UpdateXcomEntryData): CancelablePromise<UpdateXcomEntryResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+      path: {
+        dag_id: data.dagId,
+        task_id: data.taskId,
+        dag_run_id: data.dagRunId,
+        xcom_key: data.xcomKey,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: {
         400: "Bad Request",
         401: "Unauthorized",

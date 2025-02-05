@@ -65,3 +65,10 @@ class XComCreateBody(StrictBaseModel):
     key: str
     value: Any
     map_index: int = -1
+
+
+class XComUpdateBody(StrictBaseModel):
+    """Payload serializer for updating an XCom entry."""
+
+    value: Any
+    map_index: int = -1

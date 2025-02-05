@@ -1715,6 +1715,9 @@ export type TaskInstanceServicePatchTaskInstanceDryRun1MutationResult = Awaited<
 >;
 export type PoolServicePatchPoolMutationResult = Awaited<ReturnType<typeof PoolService.patchPool>>;
 export type PoolServiceBulkPoolsMutationResult = Awaited<ReturnType<typeof PoolService.bulkPools>>;
+export type XcomServiceUpdateXcomEntryMutationResult = Awaited<
+  ReturnType<typeof XcomService.updateXcomEntry>
+>;
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
 >;

@@ -30,6 +30,7 @@ from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCreateBody,
     XComResponseNative,
     XComResponseString,
+    XComUpdateBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import TaskNotFound
@@ -222,3 +223,48 @@ def create_xcom_entry(
     )
 
     return XComResponseNative.model_validate(xcom)
+
+
+@xcom_router.patch(
+    "/{xcom_key}",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def update_xcom_entry(
+    dag_id: str,
+    task_id: str,
+    dag_run_id: str,
+    xcom_key: str,
+    patch_body: XComUpdateBody,
+    session: SessionDep,
+) -> XComResponseNative:
+    """Update an existing XCom entry."""
+    # Check if XCom entry exists
+    xcom_new_value = XCom.serialize_value(patch_body.value)
+    xcom_entry = session.scalar(
+        select(XCom)
+        .where(
+            XCom.dag_id == dag_id,
+            XCom.task_id == task_id,
+            XCom.run_id == dag_run_id,
+            XCom.key == xcom_key,
+            XCom.map_index == patch_body.map_index,
+        )
+        .limit(1)
+    )
+
+    if not xcom_entry:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exist.",
+        )
+
+    # Update XCom entry
+    xcom_entry.value = XCom.serialize_value(xcom_new_value)
+
+    return XComResponseNative.model_validate(xcom_entry)
