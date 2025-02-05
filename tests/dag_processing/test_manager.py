@@ -200,7 +200,7 @@ class TestDagFileProcessorManager:
         manager._processors[file] = MagicMock()
         manager._file_stats[file] = DagFileStat()
 
-        manager.update_queues(["abc.txt"])
+        manager.handle_removed_files(["abc.txt"])
         assert manager._processors == {}
         assert file not in manager._file_stats
 
@@ -211,7 +211,7 @@ class TestDagFileProcessorManager:
 
         manager._processors[file] = mock_processor
 
-        manager.update_queues([file])
+        manager.handle_removed_files([file])
         assert manager._processors == {file: mock_processor}
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
@@ -223,7 +223,7 @@ class TestDagFileProcessorManager:
 
         manager = DagFileProcessorManager(max_runs=1)
 
-        manager.update_queues(dag_files)
+        manager.handle_removed_files(dag_files)
         assert manager._file_queue == deque()
         manager.prepare_file_queue()
         assert manager._file_queue == deque(ordered_dag_files)
@@ -235,7 +235,7 @@ class TestDagFileProcessorManager:
 
         manager = DagFileProcessorManager(max_runs=1)
 
-        manager.update_queues(dag_files)
+        manager.handle_removed_files(dag_files)
         assert manager._file_queue == deque()
         manager.prepare_file_queue()
 
@@ -258,7 +258,7 @@ class TestDagFileProcessorManager:
 
         manager = DagFileProcessorManager(max_runs=1)
 
-        manager.update_queues(dag_files)
+        manager.handle_removed_files(dag_files)
         assert manager._file_queue == deque()
         manager.prepare_file_queue()
         ordered_files = _get_dag_file_paths(["file_4.py", "file_1.py", "file_3.py", "file_2.py"])
@@ -273,7 +273,7 @@ class TestDagFileProcessorManager:
 
         manager = DagFileProcessorManager(max_runs=1)
 
-        manager.update_queues(dag_files)
+        manager.handle_removed_files(dag_files)
         manager.prepare_file_queue()
 
         ordered_files = _get_dag_file_paths(["file_2.py", "file_3.py"])
@@ -288,12 +288,12 @@ class TestDagFileProcessorManager:
 
         manager = DagFileProcessorManager(max_runs=1)
 
-        manager.update_queues(dag_files)
+        manager.handle_removed_files(dag_files)
         manager.prepare_file_queue()
         ordered_files = _get_dag_file_paths(["file_3.py", "file_2.py", "file_1.py"])
         assert manager._file_queue == deque(ordered_files)
 
-        manager.update_queues(
+        manager.handle_removed_files(
             [
                 *dag_files,
                 DagFileInfo(bundle_name="testing", rel_path=Path("file_4.py"), bundle_path=TEST_DAGS_FOLDER),
@@ -325,7 +325,7 @@ class TestDagFileProcessorManager:
             dag_file: DagFileStat(1, 0, last_finish_time, 1.0, 1, 1),
         }
         with time_machine.travel(freezed_base_time):
-            manager.update_queues(dag_files)
+            manager.handle_removed_files(dag_files)
             assert manager._file_queue == deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
             manager.prepare_file_queue()
@@ -336,7 +336,7 @@ class TestDagFileProcessorManager:
         file_1_new_mtime = freezed_base_time - timedelta(seconds=5)
         file_1_new_mtime_ts = file_1_new_mtime.timestamp()
         with time_machine.travel(freezed_base_time):
-            manager.update_queues(dag_files)
+            manager.handle_removed_files(dag_files)
             assert manager._file_queue == deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
             mock_getmtime.side_effect = [file_1_new_mtime_ts]
@@ -363,7 +363,7 @@ class TestDagFileProcessorManager:
 
         manager = DagFileProcessorManager(dag_directory="directory", max_runs=1)
 
-        manager.update_queues(dag_files)
+        manager.handle_removed_files(dag_files)
         manager._file_queue = deque(["file_2.py", "file_3.py", "file_4.py", "file_1.py"])
         manager._refresh_requested_filelocs()
         assert manager._file_queue == deque(["file_1.py", "file_2.py", "file_3.py", "file_4.py"])

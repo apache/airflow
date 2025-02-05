@@ -510,7 +510,7 @@ class DagFileProcessorManager(LoggingMixin):
             }
 
             known_files[bundle.name] = found_files
-            self.update_queues(known_files=known_files)
+            self.handle_removed_files(known_files=known_files)
 
             self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
             self.clear_orphaned_import_errors(
@@ -686,34 +686,44 @@ class DagFileProcessorManager(LoggingMixin):
 
         self.log.info(log_str)
 
-    def update_queues(self, known_files: dict[str, set[DagFileInfo]]):
+    def handle_removed_files(self, known_files: dict[str, set[DagFileInfo]]):
         """
-        Update the set of files to track in the dag processor.
+        Remove from data structures the files that are missing.
 
-        :param known_files: set of known files per-bundle
+        Also, terminate processes that may be running on those removed files.
+
+        :param known_files: structure containing known files per-bundle
         :return: None
         """
-        all_known: set[DagFileInfo] = functools.reduce(lambda x, y: x.union(y), known_files.values())
-        self.purge_removed_files_from_queue(all_known=all_known)
-        self.terminate_orphan_processes(all_known=all_known)
-        self.remove_orphaned_file_stats(all_known=all_known)
+        files_set: set[DagFileInfo] = set()
+        """Set containing all observed files.
 
-    def purge_removed_files_from_queue(self, all_known: set[DagFileInfo]):
-        """Remove from queue any files no longer in the _files list."""
-        self._file_queue = deque(x for x in self._file_queue if x in all_known)
+        We're just converting this to a set for performance.
+        """
+
+        for v in known_files.values():
+            files_set |= v
+
+        self.purge_removed_files_from_queue(present=files_set)
+        self.terminate_orphan_processes(present=files_set)
+        self.remove_orphaned_file_stats(present=files_set)
+
+    def purge_removed_files_from_queue(self, present: set[DagFileInfo]):
+        """Remove from queue any files no longer observed locally."""
+        self._file_queue = deque(x for x in self._file_queue if x in present)
         Stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
-    def remove_orphaned_file_stats(self, all_known):
+    def remove_orphaned_file_stats(self, present: set[DagFileInfo]):
         """Remove the stats for any dag files that don't exist anymore."""
         # todo: store stats by bundle also?
-        stats_to_remove = set(self._file_stats).difference(all_known)
+        stats_to_remove = set(self._file_stats).difference(present)
         for file in stats_to_remove:
             del self._file_stats[file]
 
-    def terminate_orphan_processes(self, all_known: set[DagFileInfo]):
+    def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
         for file in list(self._processors.keys()):
-            if file not in all_known:
+            if file not in present:
                 processor = self._processors.pop(file, None)
                 if not processor:
                     continue
@@ -847,8 +857,7 @@ class DagFileProcessorManager(LoggingMixin):
         is_mtime_mode = list_mode == "modified_time"
 
         recently_processed: list[DagFileInfo] = []
-        to_stop = defaultdict(set)
-        for bundle_name, files in known_files.items():
+        for files in known_files.values():
             for file in files:
                 if is_mtime_mode:
                     try:
@@ -856,7 +865,6 @@ class DagFileProcessorManager(LoggingMixin):
                     except FileNotFoundError:
                         self.log.warning("Skipping processing of missing file: %s", file)
                         self._file_stats.pop(file, None)
-                        to_stop[bundle_name].add(file)
                         continue
                     file_modified_time = datetime.fromtimestamp(files_with_mtime[file], tz=timezone.utc)
                 else:
@@ -885,13 +893,6 @@ class DagFileProcessorManager(LoggingMixin):
             # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
             random.Random(get_hostname()).shuffle(file_infos)
-
-        if to_stop:
-            for bundle_name, files in to_stop.items():
-                for file in files:
-                    known_files[bundle_name].remove(file)
-
-            self.update_queues(known_files=known_files)
 
         at_run_limit = [info for info, stat in self._file_stats.items() if stat.run_count == self.max_runs]
 
