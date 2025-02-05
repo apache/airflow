@@ -569,22 +569,9 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
 
 
 class TestCncfProviderProjectStructure(ExampleCoverageTest):
-    PROVIDER = "cncf"
+    PROVIDER = "cncf/kubernetes"
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
     BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
-    MISSING_EXAMPLES_FOR_CLASSES = {
-        "airflow.providers.cncf.kubernetes.operators.job.KubernetesDeleteJobOperator",
-        "airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator",
-        "airflow.providers.cncf.kubernetes.operators.job.KubernetesPatchJobOperator",
-        "airflow.providers.cncf.kubernetes.operators.kueue.KubernetesInstallKueueOperator",
-        "airflow.providers.cncf.kubernetes.operators.kueue.KubernetesStartKueueJobOperator",
-        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator",
-        "airflow.providers.cncf.kubernetes.operators.resource.KubernetesCreateResourceOperator",
-        "airflow.providers.cncf.kubernetes.operators.resource.KubernetesDeleteResourceOperator",
-        "airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator",
-        "airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator",
-        "airflow.providers.cncf.kubernetes.sensors.spark_kubernetes.SparkKubernetesSensor",
-    }
 
 
 class TestSlackProviderProjectStructure(ExampleCoverageTest):
