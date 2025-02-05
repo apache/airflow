@@ -1223,7 +1223,6 @@ repos:
           ^airflow/serialization/serde.py$ |
           ^airflow/utils/file.py$ |
           ^airflow/utils/helpers.py$ |
-          ^airflow/utils/log/secrets_masker.py$ |
           ^providers/ |
           ^tests/ |
           ^providers/tests/ |
