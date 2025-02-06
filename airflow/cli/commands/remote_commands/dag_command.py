@@ -270,11 +270,12 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
         value=args.logical_date_or_run_id,
         session=session,
     )
-    if dr and dr.conf:
-        conf_out = ", " + json.dumps(dr.conf)
+    if not dr:
+        print(None)
+    elif dr.conf:
+        print(f"{dr.state}, {json.dumps(dr.conf)}")
     else:
-        conf_out = ""
-    print(f"{dr.state if dr else None}{conf_out}")
+        print(dr.state)
 
 
 @cli_utils.action_cli
