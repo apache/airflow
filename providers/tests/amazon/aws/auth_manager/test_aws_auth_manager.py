@@ -38,11 +38,7 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
-from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
-from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
-    AwsSecurityManagerOverride,
-)
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.security.permissions import (
     RESOURCE_AUDIT_LOG,
@@ -54,7 +50,6 @@ from airflow.www import app as application
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.www import check_content_in_response
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
@@ -718,56 +713,9 @@ class TestAwsAuthManager:
         auth_manager.avp_facade.get_batch_is_authorized_results.assert_called()
         assert result == {"dag_2"}
 
-    @patch("airflow.providers.amazon.aws.auth_manager.aws_auth_manager.url_for")
-    def test_get_url_login(self, mock_url_for, auth_manager):
-        auth_manager.get_url_login()
-        mock_url_for.assert_called_once_with("AwsAuthManagerAuthenticationViews.login")
-
-    @patch("airflow.providers.amazon.aws.auth_manager.aws_auth_manager.url_for")
-    def test_get_url_logout(self, mock_url_for, auth_manager):
-        auth_manager.get_url_logout()
-        mock_url_for.assert_called_once_with("AwsAuthManagerAuthenticationViews.logout")
-
-    @pytest.mark.db_test
-    def test_security_manager_return_default_security_manager(self, auth_manager_with_appbuilder):
-        assert isinstance(auth_manager_with_appbuilder.security_manager, AwsSecurityManagerOverride)
+    def test_get_url_login(self, auth_manager):
+        result = auth_manager.get_url_login()
+        assert result == "http://localhost:29091/auth/login"
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0
-
-    @pytest.mark.db_test
-    @patch(
-        "airflow.providers.amazon.aws.auth_manager.views.auth.conf.get_mandatory_value", return_value="test"
-    )
-    def test_register_views(self, mock_get_mandatory_value, auth_manager_with_appbuilder):
-        from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
-
-        with patch.object(AwsAuthManagerAuthenticationViews, "idp_data"):
-            auth_manager_with_appbuilder.appbuilder.add_view_no_menu = Mock()
-            auth_manager_with_appbuilder.register_views()
-            auth_manager_with_appbuilder.appbuilder.add_view_no_menu.assert_called_once()
-            assert isinstance(
-                auth_manager_with_appbuilder.appbuilder.add_view_no_menu.call_args.args[0],
-                AwsAuthManagerAuthenticationViews,
-            )
-
-    @pytest.mark.db_test
-    @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "get_batch_is_authorized_single_result")
-    @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "get_batch_is_authorized_results")
-    @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "is_authorized")
-    def test_aws_auth_manager_index(
-        self,
-        mock_is_authorized,
-        mock_get_batch_is_authorized_results,
-        mock_get_batch_is_authorized_single_result,
-        client_admin,
-    ):
-        """
-        Load the index page using AWS auth manager. Mock all interactions with Amazon Verified Permissions.
-        """
-        mock_is_authorized.return_value = True
-        mock_get_batch_is_authorized_results.return_value = []
-        mock_get_batch_is_authorized_single_result.return_value = {"decision": "ALLOW"}
-        with client_admin.test_client() as client:
-            response = client.get("/login_callback", follow_redirects=True)
-            check_content_in_response("<h2>DAGs</h2>", response, 200)

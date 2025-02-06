@@ -20,9 +20,10 @@ import argparse
 from collections import defaultdict
 from collections.abc import Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from flask import session, url_for
+from fastapi import FastAPI
+from flask import session
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.models.resource_details import (
@@ -34,6 +35,7 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
+from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import (
@@ -43,11 +45,7 @@ from airflow.providers.amazon.aws.auth_manager.avp.facade import (
 from airflow.providers.amazon.aws.auth_manager.cli.definition import (
     AWS_AUTH_MANAGER_COMMANDS,
 )
-from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
-    AwsSecurityManagerOverride,
-)
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
-from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -61,7 +59,6 @@ if TYPE_CHECKING:
         IsAuthorizedVariableRequest,
     )
     from airflow.auth.managers.models.resource_details import AssetDetails, ConfigurationDetails
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
@@ -71,8 +68,6 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     Leverages AWS services such as Amazon Identity Center and Amazon Verified Permissions to perform
     authentication and authorization in Airflow.
     """
-
-    appbuilder: AirflowAppBuilder | None = None
 
     def __init__(self) -> None:
         if not AIRFLOW_V_3_0_PLUS:
@@ -87,11 +82,26 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     def avp_facade(self):
         return AwsAuthManagerAmazonVerifiedPermissionsFacade()
 
+    @cached_property
+    def fastapi_endpoint(self) -> str:
+        return conf.get("fastapi", "base_url")
+
     def get_user(self) -> AwsAuthManagerUser | None:
         return session["aws_user"] if self.is_logged_in() else None
 
     def is_logged_in(self) -> bool:
         return "aws_user" in session
+
+    def deserialize_user(self, token: dict[str, Any]) -> AwsAuthManagerUser:
+        return AwsAuthManagerUser(**token)
+
+    def serialize_user(self, user: AwsAuthManagerUser) -> dict[str, Any]:
+        return {
+            "user_id": user.get_id(),
+            "groups": user.get_groups(),
+            "username": user.username,
+            "email": user.email,
+        }
 
     def is_authorized_configuration(
         self,
@@ -367,14 +377,10 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return accessible_items
 
     def get_url_login(self, **kwargs) -> str:
-        return url_for("AwsAuthManagerAuthenticationViews.login")
+        return f"{self.fastapi_endpoint}/auth/login"
 
     def get_url_logout(self) -> str:
-        return url_for("AwsAuthManagerAuthenticationViews.logout")
-
-    @cached_property
-    def security_manager(self) -> AwsSecurityManagerOverride:
-        return AwsSecurityManagerOverride(self.appbuilder)
+        raise NotImplementedError()
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -387,9 +393,20 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             ),
         ]
 
-    def register_views(self) -> None:
-        if self.appbuilder:
-            self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
+    def get_fastapi_app(self) -> FastAPI | None:
+        from airflow.providers.amazon.aws.auth_manager.router.login import login_router
+
+        app = FastAPI(
+            title="AWS auth manager sub application",
+            description=(
+                "This is the AWS auth manager fastapi sub application. This API is only available if the "
+                "auth manager used in the Airflow environment is AWS auth manager. "
+                "This sub application provides login routes."
+            ),
+        )
+        app.include_router(login_router)
+
+        return app
 
     @staticmethod
     def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:
