@@ -301,6 +301,7 @@ class TestWatchedSubprocess:
                 token="",
                 server="",
                 dry_run=True,
+                client=mock_client,
                 bundle_info=bundle_info,
             )
             assert exit_code == 0, captured_logs
