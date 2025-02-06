@@ -1542,13 +1542,21 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
     """Disable redacted text in tests, except specific."""
     from airflow import settings
 
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
     if next(request.node.iter_markers("enable_redact"), None):
         with pytest.MonkeyPatch.context() as mp_ctx:
             mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
             yield
         return
 
-    mocked_redact = mocker.patch("airflow.utils.log.secrets_masker.SecretsMasker.redact")
+    target = (
+        "airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"
+        if AIRFLOW_V_3_0_PLUS
+        else "airflow.utils.log.secrets_masker.SecretsMasker.redact"
+    )
+
+    mocked_redact = mocker.patch(target)
     mocked_redact.side_effect = lambda item, name=None, max_depth=None: item
     with pytest.MonkeyPatch.context() as mp_ctx:
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
@@ -1627,3 +1635,25 @@ def url_safe_serializer(secret_key) -> URLSafeSerializer:
     from itsdangerous import URLSafeSerializer
 
     return URLSafeSerializer(secret_key)
+
+
+@pytest.fixture
+def create_db_api_hook(request):
+    from unittest.mock import MagicMock
+
+    from sqlalchemy.engine import Inspector
+
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+    columns, primary_keys, reserved_words, escape_column_names = request.param
+
+    inspector = MagicMock(spec=Inspector)
+    inspector.get_columns.side_effect = lambda table_name, schema: columns
+
+    test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
+    test_db_hook.run.side_effect = lambda *args: primary_keys
+    test_db_hook.reserved_words = reserved_words
+    test_db_hook.escape_word_format = "[{}]"
+    test_db_hook.escape_column_names = escape_column_names or False
+
+    return test_db_hook

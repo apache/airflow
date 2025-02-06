@@ -701,6 +701,35 @@ class TestSparkKubernetesOperator:
             follow_logs=True,
         )
 
+    def test_find_custom_pod_labels(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_start,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        task_name = "test_find_custom_pod_labels"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+        )
+        context = create_context(op)
+        op.execute(context)
+        label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
+        op.find_spark_job(context)
+        mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+
 
 @pytest.mark.db_test
 def test_template_body_templating(create_task_instance_of_operator, session):

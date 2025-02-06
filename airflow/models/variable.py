@@ -28,10 +28,10 @@ from sqlalchemy.orm import declared_attr, reconstructor, synonym
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:

@@ -17,9 +17,18 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.types import NOTSET, ArgNotSet
+
+if TYPE_CHECKING:
+    from airflow.sdk.execution_time.secrets_masker import mask_secret
+else:
+    try:
+        from airflow.sdk.execution_time.secrets_masker import mask_secret
+    except ImportError:
+        from airflow.utils.log.secrets_masker import mask_secret
 
 
 class SsmHook(AwsBaseHook):
