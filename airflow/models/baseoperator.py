@@ -853,7 +853,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             exp_input = task._get_specified_expand_input()
             if isinstance(exp_input, _ExpandInputRef):
                 exp_input = exp_input.deref(task.dag)
-            # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over ot use the
+            # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over to use the
             # task sdk runner.
             if not hasattr(exp_input, "get_total_map_length"):
                 exp_input = _ExpandInputRef(
