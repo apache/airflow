@@ -110,11 +110,11 @@ def action_logging(event: str | None = None):
             for k, v in itertools.chain(request.query_params.items(), request.path_params.items())
             if k not in fields_skip_logging
         }
-        if event_name and "/public/variables" in event_name:
+        if "variable" in event_name:
             extra_fields = _mask_variable_fields(
                 {k: v for k, v in request_body.items()} if hasJsonBody else extra_fields
             )
-        elif event_name and "/public/connections" in event_name:
+        elif "connection" in event_name:
             extra_fields = _mask_connection_fields(
                 {k: v for k, v in request_body.items()} if hasJsonBody else extra_fields
             )
