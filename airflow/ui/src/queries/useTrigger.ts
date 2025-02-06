@@ -22,8 +22,8 @@ import { useState } from "react";
 import {
   UseDagRunServiceGetDagRunsKeyFn,
   useDagRunServiceTriggerDagRun,
-  UseDagServiceGetDagsKeyFn,
-  UseDagsServiceRecentDagRunsKeyFn,
+  useDagServiceGetDagsKey,
+  useDagsServiceRecentDagRunsKey,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
@@ -37,8 +37,8 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
   const onSuccess = async () => {
     const queryKeys = [
-      UseDagServiceGetDagsKeyFn(),
-      UseDagsServiceRecentDagRunsKeyFn(),
+      [useDagServiceGetDagsKey],
+      [useDagsServiceRecentDagRunsKey],
       UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
       UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
     ];
