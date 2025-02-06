@@ -115,6 +115,7 @@ services:
       - ../../../empty:/opt/airflow/providers/trino/src
       - ../../../empty:/opt/airflow/providers/vertica/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
+      - ../../../empty:/opt/airflow/providers/yandex/src
       - ../../../empty:/opt/airflow/providers/ydb/src
       - ../../../empty:/opt/airflow/providers/zendesk/src
       # END automatically generated volumes by generate-volumes-for-sources pre-commit

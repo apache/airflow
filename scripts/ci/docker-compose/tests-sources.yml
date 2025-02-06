@@ -122,6 +122,7 @@ services:
       - ../../../providers/trino/tests:/opt/airflow/providers/trino/tests
       - ../../../providers/vertica/tests:/opt/airflow/providers/vertica/tests
       - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
+      - ../../../providers/yandex/tests:/opt/airflow/providers/yandex/tests
       - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests
       - ../../../providers/zendesk/tests:/opt/airflow/providers/zendesk/tests
       # END automatically generated volumes by generate-volumes-for-sources pre-commit
