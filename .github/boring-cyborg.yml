@@ -57,9 +57,7 @@ labelPRBasedOnFilePath:
     - providers/apache/iceberg/**
 
   provider:apache-impala:
-    - providers/src/airflow/providers/apache/impala/**/*
-    - docs/apache-airflow-providers-apache-impala/**/*
-    - providers/tests/apache/impala/**/*
+    - providers/apache/impala/**
 
   provider:apache-kafka:
     - providers/apache/kafka/**

@@ -16,32 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import pathlib
 
-from impala.dbapi import connect
+import pytest
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
-
-if TYPE_CHECKING:
-    from impala.interface import Connection
+pytest_plugins = "tests_common.pytest_plugin"
 
 
-class ImpalaHook(DbApiHook):
-    """Interact with Apache Impala through impyla."""
-
-    conn_name_attr = "impala_conn_id"
-    default_conn_name = "impala_default"
-    conn_type = "impala"
-    hook_name = "Impala"
-
-    def get_conn(self) -> Connection:
-        conn_id: str = self.get_conn_id()
-        connection = self.get_connection(conn_id)
-        return connect(
-            host=connection.host,
-            port=connection.port,
-            user=connection.login,
-            password=connection.password,
-            database=connection.schema,
-            **connection.extra_dejson,
-        )
+@pytest.hookimpl(tryfirst=True)
+def pytest_configure(config: pytest.Config) -> None:
+    deprecations_ignore_path = pathlib.Path(__file__).parent.joinpath("deprecations_ignore.yml")
+    dep_path = [deprecations_ignore_path] if deprecations_ignore_path.exists() else []
+    config.inicfg["airflow_deprecations_ignore"] = (
+        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
+    )
