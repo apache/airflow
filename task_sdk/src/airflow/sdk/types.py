@@ -36,12 +36,13 @@ class DagRunProtocol(Protocol):
 
     dag_id: str
     run_id: str
-    logical_date: datetime
+    logical_date: datetime | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
     start_date: datetime
     end_date: datetime | None
     run_type: Any
+    run_after: datetime
     conf: dict[str, Any] | None
     external_trigger: bool
 

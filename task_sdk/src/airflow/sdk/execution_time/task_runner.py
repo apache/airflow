@@ -126,25 +126,12 @@ class RuntimeTaskInstance(TaskInstance):
         if self._ti_context_from_server:
             dag_run = self._ti_context_from_server.dag_run
 
-            logical_date = dag_run.logical_date
-            ds = logical_date.strftime("%Y-%m-%d")
-            ds_nodash = ds.replace("-", "")
-            ts = logical_date.isoformat()
-            ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
-            ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
-
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,
                 "data_interval_end": dag_run.data_interval_end,
                 "data_interval_start": dag_run.data_interval_start,
-                "logical_date": logical_date,
-                "ds": ds,
-                "ds_nodash": ds_nodash,
-                "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
-                "ts": ts,
-                "ts_nodash": ts_nodash,
-                "ts_nodash_with_tz": ts_nodash_with_tz,
+                "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
                 "prev_data_interval_start_success": lazy_object_proxy.Proxy(
                     lambda: get_previous_dagrun_success(self.id).data_interval_start
                 ),
@@ -159,6 +146,24 @@ class RuntimeTaskInstance(TaskInstance):
                 ),
             }
             context.update(context_from_server)
+
+            if logical_date := dag_run.logical_date:
+                ds = logical_date.strftime("%Y-%m-%d")
+                ds_nodash = ds.replace("-", "")
+                ts = logical_date.isoformat()
+                ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
+                ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
+                context.update(
+                    {
+                        "logical_date": logical_date,
+                        "ds": ds,
+                        "ds_nodash": ds_nodash,
+                        "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
+                        "ts": ts,
+                        "ts_nodash": ts_nodash,
+                        "ts_nodash_with_tz": ts_nodash_with_tz,
+                    }
+                )
 
         return context
 
@@ -500,7 +505,7 @@ def _process_outlets(context: Context, outlets: list[AssetProfile]):
     return task_outlets, outlet_events
 
 
-def run(ti: RuntimeTaskInstance, log: Logger):
+def run(ti: RuntimeTaskInstance, log: Logger) -> ToSupervisor | None:
     """Run the task in this process."""
     from airflow.exceptions import (
         AirflowException,
@@ -534,7 +539,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
                     state=TerminalTIState.FAILED,
                     end_date=datetime.now(tz=timezone.utc),
                 )
-                return
+                return msg
         context = ti.get_template_context()
         with set_current_context(context):
             jinja_env = ti.task.dag.get_template_env()
@@ -620,6 +625,8 @@ def run(ti: RuntimeTaskInstance, log: Logger):
     finally:
         if msg:
             SUPERVISOR_COMMS.send_request(msg=msg, log=log)
+    # Return the message to make unit tests easier too
+    return msg
 
 
 def _execute_task(context: Context, task: BaseOperator):

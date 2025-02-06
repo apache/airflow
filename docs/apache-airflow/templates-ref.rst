@@ -41,18 +41,9 @@ Variable                                    Type                  Description
 ``{{ logical_date }}``                      `pendulum.DateTime`_  | A date-time that logically identifies the current DAG run. This value does not contain any semantics, but is simply a value for identification.
                                                                   | Use ``data_interval_start`` and ``data_interval_end`` instead if you want a value that has real-world semantics,
                                                                   | such as to get a slice of rows from the database based on timestamps.
-``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
-                                                                  | Same as ``{{ logical_date | ds }}``.
-``{{ ds_nodash }}``                         str                   Same as ``{{ logical_date | ds_nodash }}``.
 ``{{ exception }}``                         None | str |          | Error occurred while running task instance.
                                             Exception             |
                                             KeyboardInterrupt     |
-``{{ ts }}``                                str                   | Same as ``{{ logical_date | ts }}``.
-                                                                  | Example: ``2018-01-01T00:00:00+00:00``.
-``{{ ts_nodash_with_tz }}``                 str                   | Same as ``{{ logical_date | ts_nodash_with_tz }}``.
-                                                                  | Example: ``20180101T000000+0000``.
-``{{ ts_nodash }}``                         str                   | Same as ``{{ logical_date | ts_nodash }}``.
-                                                                  | Example: ``20180101T000000``.
 ``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
                                             | ``None``            | Added in version 2.2.
 ``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
@@ -90,6 +81,22 @@ Variable                                    Type                  Description
                                             list[AssetEvent]]     | (there may be more than one, if there are multiple Assets with different frequencies).
                                                                   | Read more here :doc:`Assets <authoring-and-scheduling/datasets>`.
                                                                   | Added in version 2.4.
+=========================================== ===================== ===================================================================
+
+The following are only available when the DagRun has a ``logical_date``
+
+=========================================== ===================== ===================================================================
+Variable                                    Type                  Description
+=========================================== ===================== ===================================================================
+``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
+                                                                  | Same as ``{{ logical_date | ds }}``.
+``{{ ds_nodash }}``                         str                   Same as ``{{ logical_date | ds_nodash }}``.
+``{{ ts }}``                                str                   | Same as ``{{ logical_date | ts }}``.
+                                                                  | Example: ``2018-01-01T00:00:00+00:00``.
+``{{ ts_nodash_with_tz }}``                 str                   | Same as ``{{ logical_date | ts_nodash_with_tz }}``.
+                                                                  | Example: ``20180101T000000+0000``.
+``{{ ts_nodash }}``                         str                   | Same as ``{{ logical_date | ts_nodash }}``.
+                                                                  | Example: ``20180101T000000``.
 =========================================== ===================== ===================================================================
 
 .. note::
