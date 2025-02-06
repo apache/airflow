@@ -99,9 +99,7 @@ labelPRBasedOnFilePath:
     - providers/celery/**
 
   provider:cloudant:
-    - providers/src/airflow/providers/cloudant/**/*
-    - docs/apache-airflow-providers-cloudant/**/*
-    - providers/tests/cloudant/**/*
+    - providers/cloudant/**
 
   provider:cncf-kubernetes:
     - airflow/example_dags/example_kubernetes_executor.py
@@ -171,10 +169,7 @@ labelPRBasedOnFilePath:
     - providers/github/**
 
   provider:google:
-    - providers/src/airflow/providers/google/**/*
-    - docs/apache-airflow-providers-google/**/*
-    - providers/tests/google/**/*
-    - providers/tests/system/google/**/*
+    - providers/google/**
 
   provider:grpc:
     - providers/grpc/**
@@ -204,15 +199,10 @@ labelPRBasedOnFilePath:
     - providers/tests/system/microsoft/azure/**/*
 
   provider:microsoft-mssql:
-    - providers/src/airflow/providers/microsoft/mssql/**/*
-    - docs/apache-airflow-providers-microsoft-mssql/**/*
-    - providers/tests/microsoft/mssql/**/*
-    - providers/tests/system/microsoft/mssql/**/*
+    - providers/microsoft/mssql/**
 
   provider:microsoft-psrp:
-    - providers/src/airflow/providers/microsoft/psrp/**/*
-    - docs/apache-airflow-providers-microsoft-psrp/**/*
-    - providers/tests/microsoft/psrp/**/*
+    - providers/microsoft/psrp/**
 
   provider:microsoft-winrm:
     - providers/src/airflow/providers/microsoft/winrm/**/*

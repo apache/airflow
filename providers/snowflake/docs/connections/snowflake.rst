@@ -64,6 +64,7 @@ Extra (optional)
     * ``insecure_mode``: Turn off OCSP certificate checks. For details, see: `How To: Turn Off OCSP Checking in Snowflake Client Drivers - Snowflake Community <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`_.
     * ``host``: Target Snowflake hostname to connect to (e.g., for local testing with LocalStack).
     * ``port``: Target Snowflake port to connect to (e.g., for local testing with LocalStack).
+    * ``ocsp_fail_open``: Specify `ocsp_fail_open <https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect#label-python-ocsp-choosing-fail-open-or-fail-close-mode>`_.
 
 URI format example
 ^^^^^^^^^^^^^^^^^^

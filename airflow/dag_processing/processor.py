@@ -67,10 +67,11 @@ def _parse_file_entrypoint():
     log = structlog.get_logger(logger_name="task")
 
     result = _parse_file(msg, log)
-    comms_decoder.send_request(log, result)
+    if result is not None:
+        comms_decoder.send_request(log, result)
 
 
-def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult:
+def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
     bag = DagBag(
         dag_folder=msg.file,
@@ -79,6 +80,11 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         safe_mode=True,
         load_op_links=False,
     )
+    if msg.callback_requests:
+        # If the request is for callback, we shouldn't serialize the DAGs
+        _execute_callbacks(bag, msg.callback_requests, log)
+        return None
+
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
     dags = [LazyDeserializedDAG(data=serdag) for serdag in serialized_dags]
@@ -89,9 +95,6 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         # TODO: Make `bag.dag_warnings` not return SQLA model objects
         warnings=[],
     )
-
-    if msg.callback_requests:
-        _execute_callbacks(bag, msg.callback_requests, log)
     return result
 
 

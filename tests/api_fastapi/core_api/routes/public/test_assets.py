@@ -149,7 +149,7 @@ def _create_dag_run(session, num: int = 2):
             dag_id="source_dag_id",
             run_id=f"source_run_id_{i}",
             run_type=DagRunType.MANUAL,
-            logical_date=DEFAULT_DATE + timedelta(days=i),
+            logical_date=DEFAULT_DATE + timedelta(days=i - 1),
             start_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             external_trigger=True,
@@ -554,9 +554,7 @@ class TestGetAssetEvents(TestAssets):
                         {
                             "run_id": "source_run_id_1",
                             "dag_id": "source_dag_id",
-                            "logical_date": from_datetime_to_zulu_without_ms(
-                                DEFAULT_DATE + timedelta(days=1)
-                            ),
+                            "logical_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "start_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "end_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "state": "success",
@@ -582,7 +580,7 @@ class TestGetAssetEvents(TestAssets):
                             "run_id": "source_run_id_2",
                             "dag_id": "source_dag_id",
                             "logical_date": from_datetime_to_zulu_without_ms(
-                                DEFAULT_DATE + timedelta(days=2)
+                                DEFAULT_DATE + timedelta(days=1),
                             ),
                             "start_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "end_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
@@ -726,9 +724,7 @@ class TestGetAssetEvents(TestAssets):
                         {
                             "run_id": "source_run_id_1",
                             "dag_id": "source_dag_id",
-                            "logical_date": from_datetime_to_zulu_without_ms(
-                                DEFAULT_DATE + timedelta(days=1)
-                            ),
+                            "logical_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "start_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "end_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "state": "success",
@@ -754,7 +750,7 @@ class TestGetAssetEvents(TestAssets):
                             "run_id": "source_run_id_2",
                             "dag_id": "source_dag_id",
                             "logical_date": from_datetime_to_zulu_without_ms(
-                                DEFAULT_DATE + timedelta(days=2)
+                                DEFAULT_DATE + timedelta(days=1),
                             ),
                             "start_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "end_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),

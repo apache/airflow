@@ -24,7 +24,12 @@ from pydantic import ValidationError
 from sqlalchemy import delete, select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import (
+    QueryLimit,
+    QueryOffset,
+    QueryPoolNamePatternSearch,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.pools import (
@@ -92,11 +97,13 @@ def get_pools(
         SortParam,
         Depends(SortParam(["id", "name"], Pool).dynamic_depends()),
     ],
+    pool_name_pattern: QueryPoolNamePatternSearch,
     session: SessionDep,
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
         statement=select(Pool),
+        filters=[pool_name_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,

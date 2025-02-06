@@ -205,7 +205,7 @@ class OperatorPartial:
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.sensors.base import BaseSensorOperator
 
         self._expand_called = True

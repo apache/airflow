@@ -3267,7 +3267,7 @@ class TaskInstance(Base, LoggingMixin):
 
         try:
             # If we get here, either the task hasn't run or the RTIF record was purged.
-            from airflow.utils.log.secrets_masker import redact
+            from airflow.sdk.execution_time.secrets_masker import redact
 
             self.render_templates()
             for field_name in self.task.template_fields:

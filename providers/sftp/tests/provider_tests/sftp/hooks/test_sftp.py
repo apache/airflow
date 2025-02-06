@@ -21,14 +21,15 @@ import datetime
 import json
 import os
 import shutil
-from io import StringIO
-from unittest import mock
-from unittest.mock import AsyncMock, patch
+from io import BytesIO, StringIO
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import paramiko
 import pytest
 from asyncssh import SFTPAttrs, SFTPNoSuchFile
 from asyncssh.sftp import SFTPName
+from paramiko.client import SSHClient
+from paramiko.sftp_client import SFTPClient
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -87,7 +88,10 @@ class TestSFTPHook:
                 file.write("Test file")
         with open(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), "a") as file:
             file.write("Test file")
-        os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+        try:
+            os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+        except AttributeError:
+            os.makedirs(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
 
         self.temp_dir = str(temp_dir)
 
@@ -99,14 +103,20 @@ class TestSFTPHook:
         self.update_connection(self.old_login)
 
     def test_get_conn(self):
-        output = self.hook.get_conn()
-        assert isinstance(output, paramiko.SFTPClient)
+        with self.hook.get_conn() as conn:
+            assert isinstance(conn, paramiko.SFTPClient)
 
-    def test_close_conn(self):
-        self.hook.conn = self.hook.get_conn()
-        assert self.hook.conn is not None
-        self.hook.close_conn()
-        assert self.hook.conn is None
+    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
+    def test_get_close_conn(self, mock_get_conn):
+        mock_sftp_client = MagicMock(spec=SFTPClient)
+        mock_ssh_client = MagicMock(spec=SSHClient)
+        mock_ssh_client.open_sftp.return_value = mock_sftp_client
+        mock_get_conn.return_value = mock_ssh_client
+
+        with SFTPHook().get_conn() as conn:
+            assert conn == mock_sftp_client
+
+        mock_sftp_client.close.assert_called_once()
 
     def test_describe_directory(self):
         output = self.hook.describe_directory(self.temp_dir)
@@ -129,8 +139,9 @@ class TestSFTPHook:
         assert new_dir_name in output
         # test the directory has default permissions to 777 - umask
         umask = 0o022
-        output = self.hook.get_conn().lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
-        assert output.st_mode & 0o777 == 0o777 - umask
+        with self.hook.get_conn() as conn:
+            output = conn.lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
+            assert output.st_mode & 0o777 == 0o777 - umask
 
     def test_create_and_delete_directory(self):
         new_dir_name = "new_dir"
@@ -139,8 +150,9 @@ class TestSFTPHook:
         assert new_dir_name in output
         # test the directory has default permissions to 777
         umask = 0o022
-        output = self.hook.get_conn().lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
-        assert output.st_mode & 0o777 == 0o777 - umask
+        with self.hook.get_conn() as conn:
+            output = conn.lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
+            assert output.st_mode & 0o777 == 0o777 - umask
         # test directory already exists for code coverage, should not raise an exception
         self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
         # test path already exists and is a file, should raise an exception
@@ -167,6 +179,28 @@ class TestSFTPHook:
         assert new_dir_path not in output
         assert base_dir not in output
 
+    def test_create_and_delete_directory_with_files(self):
+        new_dir = "new_dir"
+        sub_dir = "sub_dir"
+        additional_file = "additional_file.txt"
+        self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir))
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert new_dir in output
+        self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir, sub_dir))
+        self._create_additional_test_file(file_name=additional_file)
+        self.hook.store_file(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir, additional_file),
+            local_full_path=os.path.join(self.temp_dir, additional_file),
+        )
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir))
+        assert sub_dir in output
+        assert additional_file in output
+        self.hook.delete_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir), include_files=True
+        )
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert new_dir not in output
+
     def test_store_retrieve_and_delete_file(self):
         self.hook.store_file(
             remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
@@ -185,6 +219,24 @@ class TestSFTPHook:
         output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
+    def test_store_retrieve_and_delete_file_using_buffer(self):
+        file_contents = BytesIO(b"Test file")
+        self.hook.store_file(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=file_contents,
+        )
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert output == [SUB_DIR, FIFO_FOR_TESTS, TMP_FILE_FOR_TESTS]
+        retrieved_file_contents = BytesIO()
+        self.hook.retrieve_file(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=retrieved_file_contents,
+        )
+        assert retrieved_file_contents.getvalue() == file_contents.getvalue()
+        self.hook.delete_file(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert output == [SUB_DIR, FIFO_FOR_TESTS]
+
     def test_get_mod_time(self):
         self.hook.store_file(
             remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
@@ -195,14 +247,14 @@ class TestSFTPHook:
         )
         assert len(output) == 14
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_default(self, get_connection):
         connection = Connection(login="login", host="host")
         get_connection.return_value = connection
         hook = SFTPHook()
         assert hook.no_host_key_check is True
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_enabled(self, get_connection):
         connection = Connection(login="login", host="host", extra='{"no_host_key_check": true}')
 
@@ -210,7 +262,7 @@ class TestSFTPHook:
         hook = SFTPHook()
         assert hook.no_host_key_check is True
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_disabled(self, get_connection):
         connection = Connection(login="login", host="host", extra='{"no_host_key_check": false}')
 
@@ -218,7 +270,7 @@ class TestSFTPHook:
         hook = SFTPHook()
         assert hook.no_host_key_check is False
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_ciphers(self, get_connection):
         connection = Connection(login="login", host="host", extra='{"ciphers": ["A", "B", "C"]}')
 
@@ -226,7 +278,7 @@ class TestSFTPHook:
         hook = SFTPHook()
         assert hook.ciphers == ["A", "B", "C"]
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_disabled_for_all_but_true(self, get_connection):
         connection = Connection(login="login", host="host", extra='{"no_host_key_check": "foo"}')
 
@@ -234,7 +286,7 @@ class TestSFTPHook:
         hook = SFTPHook()
         assert hook.no_host_key_check is False
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_no_host_key_check_ignore(self, get_connection):
         connection = Connection(login="login", host="host", extra='{"ignore_hostkey_verification": true}')
 
@@ -242,14 +294,14 @@ class TestSFTPHook:
         hook = SFTPHook()
         assert hook.no_host_key_check is True
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_host_key_default(self, get_connection):
         connection = Connection(login="login", host="host")
         get_connection.return_value = connection
         hook = SFTPHook()
         assert hook.host_key is None
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_host_key(self, get_connection):
         connection = Connection(
             login="login",
@@ -260,7 +312,7 @@ class TestSFTPHook:
         hook = SFTPHook()
         assert hook.host_key.get_base64() == TEST_HOST_KEY
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_host_key_with_type(self, get_connection):
         connection = Connection(
             login="login",
@@ -271,14 +323,14 @@ class TestSFTPHook:
         hook = SFTPHook()
         assert hook.host_key.get_base64() == TEST_HOST_KEY
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_host_key_with_no_host_key_check(self, get_connection):
         connection = Connection(login="login", host="host", extra=json.dumps({"host_key": TEST_HOST_KEY}))
         get_connection.return_value = connection
         hook = SFTPHook()
         assert hook.host_key is not None
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_key_content_as_str(self, get_connection):
         file_obj = StringIO()
         TEST_PKEY.write_private_key(file_obj)
@@ -299,7 +351,7 @@ class TestSFTPHook:
         assert hook.pkey == TEST_PKEY
         assert hook.key_file is None
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
     def test_key_file(self, get_connection):
         connection = Connection(
             login="login",
@@ -356,37 +408,50 @@ class TestSFTPHook:
         assert dirs == [os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR)]
         assert unknowns == [os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS)]
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
-    def test_connection_failure(self, mock_get_connection):
-        connection = Connection(
-            login="login",
-            host="host",
+    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
+    def test_connection_failure(self, mock_get_conn):
+        mock_ssh_client = MagicMock(spec=SSHClient)
+        type(mock_ssh_client.open_sftp.return_value).normalize = PropertyMock(
+            side_effect=Exception("Connection Error")
         )
-        mock_get_connection.return_value = connection
-        with mock.patch.object(SFTPHook, "get_conn") as get_conn:
-            type(get_conn.return_value).normalize = mock.PropertyMock(
-                side_effect=Exception("Connection Error")
-            )
+        mock_get_conn.return_value = mock_ssh_client
 
-            hook = SFTPHook()
-            status, msg = hook.test_connection()
+        hook = SFTPHook()
+        status, msg = hook.test_connection()
+
         assert status is False
         assert msg == "Connection Error"
 
-    @mock.patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
-    def test_connection_success(self, mock_get_connection):
-        connection = Connection(
-            login="login",
-            host="host",
-        )
-        mock_get_connection.return_value = connection
+    @pytest.mark.parametrize(
+        "test_connection_side_effect",
+        [
+            (lambda arg: (True, "Connection successfully tested")),
+            (lambda arg: RuntimeError("Test connection failed")),
+        ],
+    )
+    @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
+    def test_context_manager(self, mock_get_conn, test_connection_side_effect):
+        mock_sftp_client = MagicMock(spec=SFTPClient)
+        mock_ssh_client = MagicMock(spec=SSHClient)
+        mock_ssh_client.open_sftp.return_value = mock_sftp_client
+        mock_get_conn.return_value = mock_ssh_client
 
-        with mock.patch.object(SFTPHook, "get_conn") as get_conn:
-            get_conn.return_value.pwd = "/home/someuser"
-            hook = SFTPHook()
+        type(mock_sftp_client.normalize.return_value).normalize = PropertyMock(
+            side_effect=test_connection_side_effect
+        )
+
+        hook = SFTPHook()
+        if isinstance(test_connection_side_effect, RuntimeError):
+            with pytest.raises(RuntimeError, match="Test connection failed"):
+                hook.test_connection()
+        else:
             status, msg = hook.test_connection()
-        assert status is True
-        assert msg == "Connection successfully tested"
+
+            assert status is True
+            assert msg == "Connection successfully tested"
+
+        mock_ssh_client.open_sftp.assert_called_once()
+        mock_sftp_client.close.assert_called()
 
     def test_get_suffix_pattern_match(self):
         output = self.hook.get_file_by_pattern(self.temp_dir, "*.txt")
@@ -446,6 +511,38 @@ class TestSFTPHook:
             local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, retrieved_dir_name),
         )
         assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+
+    @patch("paramiko.SSHClient")
+    @patch("paramiko.ProxyCommand")
+    def test_sftp_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
+        mock_sftp_client = MagicMock(spec=SFTPClient)
+        mock_ssh_client.open_sftp.return_value = mock_sftp_client
+
+        mock_transport = MagicMock()
+        mock_ssh_client.return_value.get_transport.return_value = mock_transport
+        mock_proxy_command.return_value = MagicMock()
+
+        host_proxy_cmd = "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
+
+        hook = SFTPHook(
+            remote_host="example.com",
+            username="user",
+            host_proxy_cmd=host_proxy_cmd,
+        )
+
+        with hook.get_conn():
+            mock_proxy_command.assert_called_once_with(host_proxy_cmd)
+            mock_ssh_client.return_value.connect.assert_called_once_with(
+                hostname="example.com",
+                username="user",
+                timeout=None,
+                compress=True,
+                port=22,
+                sock=mock_proxy_command.return_value,
+                look_for_keys=True,
+                banner_timeout=30.0,
+                auth_timeout=None,
+            )
 
 
 class MockSFTPClient:
@@ -755,8 +852,9 @@ class TestSFTPHookAsync:
         """
         Assert that file attribute and return the modified time of the file
         """
-        mock_hook_get_conn.return_value.start_sftp_client.return_value = MockSFTPClient()
+        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
         hook = SFTPHookAsync()
+
         mod_time = await hook.get_mod_time("/path/exists/file")
         expected_value = datetime.datetime.fromtimestamp(1667302566).strftime("%Y%m%d%H%M%S")
         assert mod_time == expected_value
@@ -767,36 +865,9 @@ class TestSFTPHookAsync:
         """
         Assert that get_mod_time raise exception when file does not exist
         """
-        mock_hook_get_conn.return_value.start_sftp_client.return_value = MockSFTPClient()
+        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
         hook = SFTPHookAsync()
+
         with pytest.raises(AirflowException) as exc:
             await hook.get_mod_time("/path/does_not/exist/")
         assert str(exc.value) == "No files matching"
-
-    @patch("paramiko.SSHClient")
-    @mock.patch("paramiko.ProxyCommand")
-    def test_sftp_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
-        mock_transport = mock.MagicMock()
-        mock_ssh_client.return_value.get_transport.return_value = mock_transport
-        mock_proxy_command.return_value = mock.MagicMock()
-
-        host_proxy_cmd = "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
-        hook = SFTPHook(
-            remote_host="example.com",
-            username="user",
-            host_proxy_cmd=host_proxy_cmd,
-        )
-        hook.get_conn()
-
-        mock_proxy_command.assert_called_once_with(host_proxy_cmd)
-        mock_ssh_client.return_value.connect.assert_called_once_with(
-            hostname="example.com",
-            username="user",
-            timeout=None,
-            compress=True,
-            port=22,
-            sock=mock_proxy_command.return_value,
-            look_for_keys=True,
-            banner_timeout=30.0,
-            auth_timeout=None,
-        )

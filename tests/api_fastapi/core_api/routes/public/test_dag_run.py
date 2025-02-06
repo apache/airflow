@@ -27,7 +27,7 @@ from sqlalchemy import select
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
 from airflow.utils import timezone
@@ -1145,7 +1145,7 @@ class TestTriggerDagRun:
     ):
         fixed_now = timezone.utcnow().isoformat()
 
-        request_json = {"note": note, "logical_date": fixed_now}
+        request_json = {"note": note}
         if dag_run_id is not None:
             request_json["dag_run_id"] = dag_run_id
         if data_interval_start is not None:
@@ -1289,34 +1289,29 @@ class TestTriggerDagRun:
         ],
     )
     def test_invalid_data(self, test_client, post_body, expected_detail):
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
-        post_body["logical_date"] = now
         response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns", json=post_body)
         assert response.status_code == 422
         assert response.json() == expected_detail
 
     @mock.patch("airflow.models.DAG.create_dagrun")
     def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
         error_message = "Encountered Error"
 
         mock_create_dagrun.side_effect = ValueError(error_message)
 
-        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns", json={"logical_date": now})
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns", json={})
         assert response.status_code == 400
         assert response.json() == {"detail": error_message}
 
     def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session):
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
         self._dags_for_trigger_tests(session)
-        response = test_client.post("/public/dags/inactive/dagRuns", json={"logical_date": now})
+        response = test_client.post("/public/dags/inactive/dagRuns", json={})
         assert response.status_code == 404
         assert response.json()["detail"] == "DAG with dag_id: 'inactive' not found"
 
     def test_should_respond_400_if_a_dag_has_import_errors(self, test_client, session):
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
         self._dags_for_trigger_tests(session)
-        response = test_client.post("/public/dags/import_errors/dagRuns", json={"logical_date": now})
+        response = test_client.post("/public/dags/import_errors/dagRuns", json={})
         assert response.status_code == 400
         assert (
             response.json()["detail"]
@@ -1325,20 +1320,38 @@ class TestTriggerDagRun:
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     def test_should_response_409_for_duplicate_logical_date(self, test_client):
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
         RUN_ID_1 = "random_1"
         RUN_ID_2 = "random_2"
+        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
         note = "duplicate logical date test"
         response_1 = test_client.post(
             f"/public/dags/{DAG1_ID}/dagRuns",
-            json={"dag_run_id": RUN_ID_1, "note": note, "logical_date": now},
+            json={"dag_run_id": RUN_ID_1, "note": note},
         )
         response_2 = test_client.post(
             f"/public/dags/{DAG1_ID}/dagRuns",
-            json={"dag_run_id": RUN_ID_2, "note": note, "logical_date": now},
+            json={"dag_run_id": RUN_ID_2, "note": note},
         )
 
         assert response_1.status_code == 200
+        assert response_1.json() == {
+            "dag_run_id": RUN_ID_1,
+            "dag_id": DAG1_ID,
+            "logical_date": now,
+            "queued_at": now,
+            "start_date": None,
+            "end_date": None,
+            "data_interval_start": now,
+            "data_interval_end": now,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "state": "queued",
+            "external_trigger": True,
+            "triggered_by": "rest_api",
+            "conf": {},
+            "note": note,
+        }
+
         assert response_2.status_code == 409
 
     @pytest.mark.parametrize(
@@ -1357,14 +1370,9 @@ class TestTriggerDagRun:
     def test_should_response_422_for_missing_start_date_or_end_date(
         self, test_client, data_interval_start, data_interval_end
     ):
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
         response = test_client.post(
             f"/public/dags/{DAG1_ID}/dagRuns",
-            json={
-                "data_interval_start": data_interval_start,
-                "data_interval_end": data_interval_end,
-                "logical_date": now,
-            },
+            json={"data_interval_start": data_interval_start, "data_interval_end": data_interval_end},
         )
         assert response.status_code == 422
         assert (
@@ -1373,32 +1381,21 @@ class TestTriggerDagRun:
         )
 
     def test_raises_validation_error_for_invalid_params(self, test_client):
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
         response = test_client.post(
             f"/public/dags/{DAG2_ID}/dagRuns",
-            json={"conf": {"validated_number": 5000}, "logical_date": now},
+            json={"conf": {"validated_number": 5000}},
         )
         assert response.status_code == 400
         assert "Invalid input for param validated_number" in response.json()["detail"]
 
     def test_response_404(self, test_client):
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
-        response = test_client.post("/public/dags/randoms/dagRuns", json={"logical_date": now})
+        response = test_client.post("/public/dags/randoms/dagRuns", json={})
         assert response.status_code == 404
         assert response.json()["detail"] == "DAG with dag_id: 'randoms' not found"
 
     def test_response_409(self, test_client):
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
-        response = test_client.post(
-            f"/public/dags/{DAG1_ID}/dagRuns", json={"dag_run_id": DAG1_RUN1_ID, "logical_date": now}
-        )
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns", json={"dag_run_id": DAG1_RUN1_ID})
         assert response.status_code == 409
         response_json = response.json()
         assert "detail" in response_json
         assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error"]
-
-    def test_null_logical_data(self, test_client):
-        response = test_client.post(
-            f"/public/dags/{DAG1_ID}/dagRuns", json={"dag_run_id": "test", "logical_date": None}
-        )
-        assert response.status_code == 200

@@ -41,7 +41,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.task.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone

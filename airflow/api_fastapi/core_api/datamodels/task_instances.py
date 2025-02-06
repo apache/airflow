@@ -33,6 +33,7 @@ from pydantic import (
 )
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
 from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
@@ -76,6 +77,7 @@ class TaskInstanceResponse(BaseModel):
     )
     trigger: TriggerResponse | None
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
+    dag_version: DagVersionResponse | None
 
 
 class TaskInstanceCollectionResponse(BaseModel):
@@ -152,6 +154,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     pid: int | None
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
+    dag_version: DagVersionResponse | None
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):
