@@ -1864,7 +1864,6 @@
 <text text-anchor="start" x="1352" y="-2984.8" font-family="Helvetica,sans-Serif" font-size="14.00">logical_date</text>
 <text text-anchor="start" x="1434" y="-2984.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="1439" y="-2984.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<text text-anchor="start" x="1535" y="-2984.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="1347,-2950 1347,-2975 1630,-2975 1630,-2950 1347,-2950"/>
 <text text-anchor="start" x="1352" y="-2959.8" font-family="Helvetica,sans-Serif" font-size="14.00">queued_at</text>
 <text text-anchor="start" x="1425" y="-2959.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
