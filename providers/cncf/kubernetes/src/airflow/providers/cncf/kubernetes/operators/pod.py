@@ -489,7 +489,7 @@ class KubernetesPodOperator(BaseOperator):
         }
 
         map_index = ti.map_index
-        if map_index >= 0:
+        if map_index is not None and map_index >= 0:
             labels["map_index"] = str(map_index)
 
         if include_try_number:

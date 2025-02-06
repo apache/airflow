@@ -106,7 +106,7 @@ exclude_also = [
 
 [dependency-groups]
 codegen = [
-    "datamodel-code-generator[http]>=0.26.3",
+    "datamodel-code-generator[http]>=0.26.5",
 ]
 
 [tool.black]
