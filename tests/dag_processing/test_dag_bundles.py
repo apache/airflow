@@ -73,7 +73,7 @@ def test_dag_bundle_root_storage_path():
 def test_lock_acquisition():
     """Test that the lock context manager sets _locked and locks a lock file."""
     bundle = BasicBundle(name="locktest")
-    lock_dir = bundle._dag_bundle_root_storage_path / "locks"
+    lock_dir = bundle._dag_bundle_root_storage_path / "_locks"
     lock_file = lock_dir / f"{bundle.name}.lock"
 
     assert not bundle._locked
@@ -107,7 +107,7 @@ def test_lock_acquisition():
 def test_lock_exception_handling():
     """Test that exceptions within the lock context manager still release the lock."""
     bundle = BasicBundle(name="locktest")
-    lock_dir = bundle._dag_bundle_root_storage_path / "locks"
+    lock_dir = bundle._dag_bundle_root_storage_path / "_locks"
     lock_file = lock_dir / f"{bundle.name}.lock"
 
     try:
