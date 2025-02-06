@@ -25,7 +25,7 @@ import os
 import sys
 import weakref
 from collections import abc
-from collections.abc import Collection, Iterable, MutableSet
+from collections.abc import Collection, Iterable, MutableSet, Sequence
 from datetime import datetime, timedelta
 from inspect import signature
 from re import Pattern
@@ -654,6 +654,17 @@ class DAG:
     @property
     def allow_future_exec_dates(self) -> bool:
         return settings.ALLOW_FUTURE_LOGICAL_DATES and not self.timetable.can_be_scheduled
+
+    @property
+    def is_asset_triggerable(self) -> bool:
+        if isinstance(self.schedule, (BaseAsset, AssetTriggeredTimetable)):
+            return True
+
+        if isinstance(self.schedule, Sequence) and all(
+            isinstance(asset, BaseAsset) for asset in self.schedule
+        ):
+            return True
+        return False
 
     def resolve_template_files(self):
         for t in self.tasks:
