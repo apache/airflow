@@ -132,6 +132,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
         data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
         start_date: str | datetime = "2024-12-01T01:00:00Z",
+        run_after: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         try_number: int = 1,
         conf=None,
@@ -148,6 +149,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
             data_interval_end=data_interval_end,
             start_date=start_date,
             run_type=run_type,
+            run_after=run_after,
             conf=conf,
         )
 
