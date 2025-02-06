@@ -304,10 +304,7 @@ labelPRBasedOnFilePath:
     - providers/weaviate/**
 
   provider:yandex:
-    - providers/src/airflow/providers/yandex/**/*
-    - docs/apache-airflow-providers-yandex/**/*
-    - providers/tests/yandex/**/*
-    - providers/tests/system/yandex/**/*
+    - providers/yandex/**
 
   provider:ydb:
     - providers/ydb/**

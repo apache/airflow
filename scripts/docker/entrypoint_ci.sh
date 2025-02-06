@@ -250,17 +250,12 @@ function check_boto_upgrade() {
     echo
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
-    # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs yandexcloud opensearch-py || true
-    # We need to include few dependencies to pass pip check with other dependencies:
-    #   * oss2 as dependency as otherwise jmespath will be bumped (sync with alibaba provider)
-    #   * cryptography is kept for snowflake-connector-python limitation (sync with snowflake provider)
     set -x
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
-       "oss2>=2.14.0" "cryptography<43.0.0" "opensearch-py"
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore
     set +x
-    pip check
 }
 
 # Download minimum supported version of sqlalchemy to run tests with it
