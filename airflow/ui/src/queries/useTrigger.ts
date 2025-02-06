@@ -20,11 +20,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
-  useDagRunServiceGetDagRunsKey,
+  UseDagRunServiceGetDagRunsKeyFn,
   useDagRunServiceTriggerDagRun,
-  useDagServiceGetDagsKey,
-  useDagsServiceRecentDagRunsKey,
-  useTaskInstanceServiceGetTaskInstancesKey,
+  UseDagServiceGetDagsKeyFn,
+  UseDagsServiceRecentDagRunsKeyFn,
+  UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
@@ -37,10 +37,10 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
   const onSuccess = async () => {
     const queryKeys = [
-      [useDagServiceGetDagsKey],
-      [useDagsServiceRecentDagRunsKey],
-      [useDagRunServiceGetDagRunsKey, { dagId }],
-      [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId: "~" }],
+      UseDagServiceGetDagsKeyFn(),
+      UseDagsServiceRecentDagRunsKeyFn(),
+      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
