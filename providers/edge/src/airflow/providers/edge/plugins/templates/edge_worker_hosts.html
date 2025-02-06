@@ -110,7 +110,7 @@
                   </button>
                 </td>
                 <td>
-                  <textarea  name="maintenance_comment" rows="3" required>{{ host.maintenance_comment }}</textarea>
+                  <textarea  name="maintenance_comment" rows="3" maxlength="128" required>{{ host.maintenance_comment }}</textarea>
                 </td>
               </form>
             {%- elif host.state in ["maintenance pending", "maintenance mode", "maintenance request"] -%}
@@ -122,7 +122,7 @@
                   </button>
                 </td>
                 <td>
-                  <textarea  name="maintenance_comment" rows="3" >{{ host.maintenance_comment }}</textarea>
+                  <textarea  name="maintenance_comment" rows="3" maxlength="128">{{ host.maintenance_comment }}</textarea>
                 </td>
               </form>
             {%- elif host.state in ["offline", "unknown", "offline maintenance"] -%}
@@ -134,13 +134,13 @@
                   </button>
                 </td>
                 <td>
-                  <textarea name="maintenance_comment" rows="3" >{{ host.maintenance_comment }}</textarea>
+                  <textarea name="maintenance_comment" rows="3" maxlength="128">{{ host.maintenance_comment }}</textarea>
                 </td>
               </form>
             {%- else -%}
               <td></td>
               <td>
-                <textarea name="maintenance_comment" rows="3" >{{ host.maintenance_comment }}</textarea>
+                <textarea name="maintenance_comment" rows="3" maxlength="128">{{ host.maintenance_comment }}</textarea>
               </td>
             {% endif %}
           </tr>
