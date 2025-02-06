@@ -57,6 +57,7 @@ services:
       - ../../../providers/asana/tests:/opt/airflow/providers/asana/tests
       - ../../../providers/atlassian/jira/tests:/opt/airflow/providers/atlassian/jira/tests
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
+      - ../../../providers/cloudant/tests:/opt/airflow/providers/cloudant/tests
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/compat/tests:/opt/airflow/providers/common/compat/tests
       - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
@@ -73,6 +74,7 @@ services:
       - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
       - ../../../providers/ftp/tests:/opt/airflow/providers/ftp/tests
       - ../../../providers/github/tests:/opt/airflow/providers/github/tests
+      - ../../../providers/google/tests:/opt/airflow/providers/google/tests
       - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests

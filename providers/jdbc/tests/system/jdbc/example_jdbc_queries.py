@@ -23,8 +23,8 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_jdbc_operator"

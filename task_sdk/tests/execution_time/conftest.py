@@ -70,6 +70,18 @@ def mocked_parse(spy_agency):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
         from airflow.utils import timezone
 
+        if task.has_dag():
+            if what.ti_context.dag_run.conf:
+                task.dag.params = what.ti_context.dag_run.conf  # type: ignore[assignment]
+            ti = RuntimeTaskInstance.model_construct(
+                **what.ti.model_dump(exclude_unset=True),
+                task=task,
+                _ti_context_from_server=what.ti_context,
+                max_tries=what.ti_context.max_tries,
+            )
+            spy_agency.spy_on(parse, call_fake=lambda _: ti)
+            return ti
+
         dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
         if what.ti_context.dag_run.conf:
             dag.params = what.ti_context.dag_run.conf  # type: ignore[assignment]
@@ -120,6 +132,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
         data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
         start_date: str | datetime = "2024-12-01T01:00:00Z",
+        run_after: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         try_number: int = 1,
         conf=None,
@@ -136,6 +149,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
             data_interval_end=data_interval_end,
             start_date=start_date,
             run_type=run_type,
+            run_after=run_after,
             conf=conf,
         )
 

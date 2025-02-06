@@ -22,7 +22,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, Integer, String, select
+from sqlalchemy import Column, Integer, String, delete, select
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
@@ -65,6 +65,8 @@ class EdgeWorkerState(str, Enum):
     """Edge worker is in maintenance mode. It is online but pauses fetching jobs."""
     MAINTENANCE_EXIT = "maintenance exit"
     """Request worker to exit maintenance mode. Once the worker receives this state it will un-pause and fetch new jobs."""
+    OFFLINE_MAINTENANCE = "offline maintenance"
+    """Worker was shut down in maintenance mode. It will be in maintenance mode when restarted."""
 
 
 class EdgeWorkerModel(Base, LoggingMixin):
@@ -184,18 +186,20 @@ def reset_metrics(worker_name: str) -> None:
 @provide_session
 def request_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Writes maintenance request to the db"""
-
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
     worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
-    session.commit()
 
 
 @provide_session
 def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Writes maintenance exit to the db"""
-
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
     worker.state = EdgeWorkerState.MAINTENANCE_EXIT
-    session.commit()
+
+
+@provide_session
+def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
+    """Remove a worker that is offline or just gone from DB"""
+    session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))

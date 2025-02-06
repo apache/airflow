@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socketpair
 from unittest import mock
@@ -29,6 +29,7 @@ from unittest.mock import patch
 import pytest
 from uuid6 import uuid7
 
+from airflow.decorators import task as task_decorator
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -36,9 +37,11 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTerminated,
 )
-from airflow.sdk import DAG, BaseOperator, Connection, get_current_context
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
 from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
@@ -105,7 +108,7 @@ class TestCommsDecoder:
             b'"id": "4d828a62-a417-4936-a7a6-2b3fabacecab", "task_id": "a", "try_number": 1, "run_id": "b", "dag_id": "c" }, '
             b'"ti_context":{"dag_run":{"dag_id":"c","run_id":"b","logical_date":"2024-12-01T01:00:00Z",'
             b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
-            b'"start_date":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
+            b'"start_date":"2024-12-01T01:00:00Z","run_after":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
             b'"max_tries":0,"variables":null,"connections":null},"file": "/dev/null", "dag_rel_path": "/dev/null", "bundle_info": {"name": '
             b'"any-name", "version": "any-version"}, "requests_fd": '
             + str(w2.fileno()).encode("ascii")
@@ -220,7 +223,6 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
 
 def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that marks itself skipped."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="skip",
@@ -243,7 +245,6 @@ def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comm
 
 def test_run_raises_base_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that raises a base exception which should send fail_with_retry state."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="zero_division_error",
@@ -268,7 +269,6 @@ def test_run_raises_base_exception(time_machine, create_runtime_ti, mock_supervi
 
 def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that exits with SystemExit exception."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="system_exit_task",
@@ -293,7 +293,6 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
 
 def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that exits with AirflowException."""
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="af_exception_task",
@@ -321,8 +320,6 @@ def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supe
 def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test running a basic task that times out."""
     from time import sleep
-
-    from airflow.providers.standard.operators.python import PythonOperator
 
     task = PythonOperator(
         task_id="sleep",
@@ -405,6 +402,36 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context, mock_supervi
             {"my_tup": (1, 2), "my_set": {1, 2, 3}},
             {"my_tup": "(1, 2)", "my_set": "{1, 2, 3}"},
             id="tuples_and_sets",
+        ),
+        pytest.param(
+            {"op_args": [("a", "b", "c")], "op_kwargs": {}, "templates_dict": None},
+            {"op_args": [["a", "b", "c"]], "op_kwargs": {}, "templates_dict": None},
+            id="nested_tuples_within_lists",
+        ),
+        pytest.param(
+            {
+                "op_args": [
+                    [
+                        ("t0.task_id", "t1.task_id", "branch one"),
+                        ("t0.task_id", "t2.task_id", "branch two"),
+                        ("t0.task_id", "t3.task_id", "branch three"),
+                    ]
+                ],
+                "op_kwargs": {},
+                "templates_dict": None,
+            },
+            {
+                "op_args": [
+                    [
+                        ["t0.task_id", "t1.task_id", "branch one"],
+                        ["t0.task_id", "t2.task_id", "branch two"],
+                        ["t0.task_id", "t3.task_id", "branch three"],
+                    ]
+                ],
+                "op_kwargs": {},
+                "templates_dict": None,
+            },
+            id="nested_tuples_within_lists_higher_nesting",
         ),
     ],
 )
@@ -1173,6 +1200,15 @@ class TestXComAfterTaskExecution:
 
 
 class TestDagParamRuntime:
+    DEFAULT_ARGS = {
+        "owner": "test",
+        "depends_on_past": True,
+        "start_date": datetime.now(tz=timezone.utc),
+        "retries": 1,
+        "retry_delay": timedelta(minutes=1),
+    }
+    VALUE = 42
+
     def test_dag_param_resolves_from_task(self, create_runtime_ti, mock_supervisor_comms, time_machine):
         """Test dagparam resolves on operator execution"""
         instant = timezone.datetime(2024, 12, 3, 10, 0)
@@ -1227,7 +1263,7 @@ class TestDagParamRuntime:
         )
 
     def test_dag_param_dag_default(self, create_runtime_ti, mock_supervisor_comms, time_machine):
-        """ "Test dag param is retrieved from default config"""
+        """Test that dag param is correctly resolved by operator"""
         instant = timezone.datetime(2024, 12, 3, 10, 0)
         time_machine.move_to(instant, tick=False)
 
@@ -1247,6 +1283,111 @@ class TestDagParamRuntime:
 
         run(runtime_ti, log=mock.MagicMock())
         mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SucceedTask(
+                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+            ),
+            log=mock.ANY,
+        )
+
+    def test_dag_param_resolves(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine, make_ti_context
+    ):
+        """Test that dag param is correctly resolved by operator"""
+
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        @dag_decorator(schedule=None, start_date=timezone.datetime(2024, 12, 3))
+        def dag_with_dag_params(value="NOTSET"):
+            @task_decorator
+            def dummy_task(val):
+                return val
+
+            class CustomOperator(BaseOperator):
+                def execute(self, context):
+                    assert self.dag.params["value"] == "NOTSET"
+
+            _ = dummy_task(value)
+            custom_task = CustomOperator(task_id="task_with_dag_params")
+            self.operator = custom_task
+
+        dag_with_dag_params()
+
+        runtime_ti = create_runtime_ti(task=self.operator, dag_id="dag_with_dag_params")
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SucceedTask(
+                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+            ),
+            log=mock.ANY,
+        )
+
+    def test_dag_param_dagrun_parameterized(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine, make_ti_context
+    ):
+        """Test that dag param is correctly overwritten when set in dag run"""
+
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        @dag_decorator(schedule=None, start_date=timezone.datetime(2024, 12, 3))
+        def dag_with_dag_params(value=self.VALUE):
+            @task_decorator
+            def dummy_task(val):
+                return val
+
+            assert isinstance(value, DagParam)
+
+            class CustomOperator(BaseOperator):
+                def execute(self, context):
+                    assert self.dag.params["value"] == "new_value"
+
+            _ = dummy_task(value)
+            custom_task = CustomOperator(task_id="task_with_dag_params")
+            self.operator = custom_task
+
+        dag_with_dag_params()
+
+        runtime_ti = create_runtime_ti(
+            task=self.operator, dag_id="dag_with_dag_params", conf={"value": "new_value"}
+        )
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SucceedTask(
+                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+            ),
+            log=mock.ANY,
+        )
+
+    @pytest.mark.parametrize("value", [VALUE, 0])
+    def test_set_params_for_dag(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine, make_ti_context, value
+    ):
+        """Test that dag param is correctly set when using dag decorator"""
+
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        @dag_decorator(schedule=None, start_date=timezone.datetime(2024, 12, 3))
+        def dag_with_param(value=value):
+            @task_decorator
+            def return_num(num):
+                return num
+
+            xcom_arg = return_num(value)
+            self.operator = xcom_arg.operator
+
+        dag_with_param()
+
+        runtime_ti = create_runtime_ti(task=self.operator, dag_id="dag_with_param", conf={"value": value})
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_any_call(
             msg=SucceedTask(
                 state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
             ),

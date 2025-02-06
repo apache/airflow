@@ -118,7 +118,7 @@ export const Details = () => {
             </Table.Row>
             {dagRun.external_trigger ? (
               <Table.Row>
-                <Table.Cell>Externally Trigger Source</Table.Cell>
+                <Table.Cell>External Trigger Source</Table.Cell>
                 <Table.Cell>{dagRun.triggered_by}</Table.Cell>
               </Table.Row>
             ) : undefined}
