@@ -14,38 +14,4 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-
-
-class AssetResponse(BaseModel):
-    """Asset schema for responses with fields that are needed for Runtime."""
-
-    name: str
-    uri: str
-    group: str
-    extra: dict | None = None
-
-
-class AssetAliasResponse(BaseModel):
-    """Asset alias schema with fields that are needed for Runtime."""
-
-    name: str
-    group: str
-
-
-class AssetProfile(StrictBaseModel):
-    """
-    Profile of an Asset.
-
-    Asset will have name, uri and asset_type defined.
-    AssetNameRef will have name and asset_type defined.
-    AssetUriRef will have uri and asset_type defined.
-
-    """
-
-    name: str | None = None
-    uri: str | None = None
-    asset_type: str
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore

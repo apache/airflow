@@ -22,42 +22,41 @@
     `PROVIDER_README_TEMPLATE.rst.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 
 
-Package ``apache-airflow-providers-edge``
+Package ``apache-airflow-providers-cloudant``
 
-Release: ``0.13.1pre0``
+Release: ``4.1.0``
 
 
-Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
+`IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 
 Provider package
 ----------------
 
-This is a provider package for ``edge`` provider. All classes for this provider package
-are in ``airflow.providers.edge`` python package.
+This is a provider package for ``cloudant`` provider. All classes for this provider package
+are in ``airflow.providers.cloudant`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge/0.13.1pre0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cloudant/4.1.0/>`_.
 
 Installation
 ------------
 
 You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-edge``
+``pip install apache-airflow-providers-cloudant``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12
 
 Requirements
 ------------
 
-==================  ===================
+==================  =====================================
 PIP package         Version required
-==================  ===================
-``apache-airflow``  ``>=2.10.0``
-``pydantic``        ``>=2.10.2``
-``retryhttp``       ``>=1.2.0,!=1.3.0``
-==================  ===================
+==================  =====================================
+``apache-airflow``  ``>=2.9.0``
+``ibmcloudant``     ``==0.9.1; python_version >= "3.10"``
+==================  =====================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge/0.13.1pre0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cloudant/4.1.0/changelog.html>`_.

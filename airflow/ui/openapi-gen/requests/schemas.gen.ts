@@ -4746,6 +4746,16 @@ export const $TaskInstanceHistoryResponse = {
       type: "string",
       title: "Executor Config",
     },
+    dag_version: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagVersionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: [
@@ -4772,6 +4782,7 @@ export const $TaskInstanceHistoryResponse = {
     "pid",
     "executor",
     "executor_config",
+    "dag_version",
   ],
   title: "TaskInstanceHistoryResponse",
   description: "TaskInstanceHistory serializer for responses.",
