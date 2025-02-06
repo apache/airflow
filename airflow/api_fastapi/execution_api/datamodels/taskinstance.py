@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import uuid
 from datetime import timedelta
+from enum import Enum
 from typing import Annotated, Any, Literal, Union
 
 from pydantic import (
@@ -60,15 +60,20 @@ class TIEnterRunningPayload(StrictBaseModel):
     """When the task started executing"""
 
 
+# Create an enum to give a nice name in the generated datamodels
+class TerminalStateNonSuccess(str, Enum):
+    """TaskInstance states that can be reported without extra information."""
+
+    FAILED = TerminalTIState.FAILED
+    SKIPPED = TerminalTIState.SKIPPED
+    REMOVED = TerminalTIState.REMOVED
+    FAIL_WITHOUT_RETRY = TerminalTIState.FAIL_WITHOUT_RETRY
+
+
 class TITerminalStatePayload(StrictBaseModel):
     """Schema for updating TaskInstance to a terminal state except SUCCESS state."""
 
-    state: Literal[
-        TerminalTIState.FAILED,
-        TerminalTIState.SKIPPED,
-        TerminalTIState.REMOVED,
-        TerminalTIState.FAIL_WITHOUT_RETRY,
-    ]
+    state: TerminalStateNonSuccess
 
     end_date: UtcDateTime
     """When the task completed executing"""
@@ -241,6 +246,8 @@ class TIRunContext(BaseModel):
 
     connections: Annotated[list[ConnectionResponse], Field(default_factory=list)]
     """Connections that can be accessed by the task instance."""
+
+    upstream_map_indexes: dict[str, int] | None = None
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
