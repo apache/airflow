@@ -153,8 +153,10 @@ class MakeTIContextCallable(Protocol):
         logical_date: str | datetime = ...,
         data_interval_start: str | datetime = ...,
         data_interval_end: str | datetime = ...,
+        run_after: str | datetime = ...,
         start_date: str | datetime = ...,
         run_type: str = ...,
+        conf=...,
     ) -> TIRunContext: ...
 
 
@@ -163,11 +165,13 @@ class MakeTIContextDictCallable(Protocol):
         self,
         dag_id: str = ...,
         run_id: str = ...,
-        logical_date: str = ...,
+        logical_date: str | datetime = ...,
         data_interval_start: str | datetime = ...,
         data_interval_end: str | datetime = ...,
+        run_after: str | datetime = ...,
         start_date: str | datetime = ...,
         run_type: str = ...,
+        conf=...,
     ) -> dict[str, Any]: ...
 
 
@@ -182,8 +186,8 @@ def make_ti_context() -> MakeTIContextCallable:
         logical_date: str | datetime = "2024-12-01T01:00:00Z",
         data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
-        start_date: str | datetime = "2024-12-01T01:00:00Z",
         run_after: str | datetime = "2024-12-01T01:00:00Z",
+        start_date: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         conf=None,
     ) -> TIRunContext:
@@ -194,10 +198,10 @@ def make_ti_context() -> MakeTIContextCallable:
                 logical_date=logical_date,  # type: ignore
                 data_interval_start=data_interval_start,  # type: ignore
                 data_interval_end=data_interval_end,  # type: ignore
+                run_after=run_after,  # type: ignore
                 start_date=start_date,  # type: ignore
                 run_type=run_type,  # type: ignore
                 conf=conf,
-                run_after=run_after,
             ),
             max_tries=0,
         )
@@ -215,8 +219,10 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         logical_date: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
+        run_after: str | datetime = "2024-12-01T00:00:00Z",
         start_date: str | datetime = "2024-12-01T00:00:00Z",
         run_type: str = "manual",
+        conf=None,
     ) -> dict[str, Any]:
         context = make_ti_context(
             dag_id=dag_id,
@@ -224,8 +230,10 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
             logical_date=logical_date,
             data_interval_start=data_interval_start,
             data_interval_end=data_interval_end,
+            run_after=run_after,
             start_date=start_date,
             run_type=run_type,
+            conf=conf,
         )
         return context.model_dump(exclude_unset=True, mode="json")
 
