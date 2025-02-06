@@ -49,6 +49,7 @@ class WinRMOperator(BaseOperator):
         If specified, it will execute the command as powershell script.
     :param output_encoding: the encoding used to decode stout and stderr
     :param timeout: timeout for executing the command.
+    :param expected_return_code: expected return code value(s) of command.
     """
 
     template_fields: Sequence[str] = ("command",)
@@ -64,6 +65,7 @@ class WinRMOperator(BaseOperator):
         ps_path: str | None = None,
         output_encoding: str = "utf-8",
         timeout: int = 10,
+        expected_return_code: int | list[int] | range = 0,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -74,6 +76,7 @@ class WinRMOperator(BaseOperator):
         self.ps_path = ps_path
         self.output_encoding = output_encoding
         self.timeout = timeout
+        self.expected_return_code = expected_return_code
 
     def execute(self, context: Context) -> list | str:
         if self.ssh_conn_id and not self.winrm_hook:
@@ -96,7 +99,13 @@ class WinRMOperator(BaseOperator):
             return_output=self.do_xcom_push,
         )
 
-        if return_code == 0:
+        success = False
+        if isinstance(self.expected_return_code, int):
+            success = return_code == self.expected_return_code
+        elif isinstance(self.expected_return_code, list) or isinstance(self.expected_return_code, range):
+            success = return_code in self.expected_return_code
+
+        if success:
             # returning output if do_xcom_push is set
             # TODO: Remove this after minimum Airflow version is 3.0
             enable_pickling = conf.getboolean("core", "enable_xcom_pickling", fallback=False)
