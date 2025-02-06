@@ -6238,3 +6238,21 @@ export const $XComResponseString = {
   title: "XComResponseString",
   description: "XCom response serializer with string return type.",
 } as const;
+
+export const $XComUpdateBody = {
+  properties: {
+    value: {
+      title: "Value",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+      default: -1,
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["value"],
+  title: "XComUpdateBody",
+  description: "Payload serializer for updating an XCom entry.",
+} as const;
