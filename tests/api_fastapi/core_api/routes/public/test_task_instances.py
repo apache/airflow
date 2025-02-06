@@ -1604,6 +1604,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "dag_version": None,
         }
 
     @pytest.mark.parametrize("try_number", [1, 2])
@@ -1638,6 +1639,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": try_number,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "dag_version": None,
         }
 
     @pytest.mark.parametrize("try_number", [1, 2])
@@ -1701,6 +1703,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "try_number": try_number,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
+                "dag_version": None,
             }
 
     def test_should_respond_200_with_task_state_in_deferred(self, test_client, session):
@@ -1762,6 +1765,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "dag_version": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -1797,6 +1801,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "dag_version": None,
         }
 
     def test_raises_404_for_nonexistent_task_instance(self, test_client, session):
@@ -1808,6 +1813,54 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
 
         assert response.json() == {
             "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `nonexistent_task`, try_number: `0` and map_index: `-1` was not found"
+        }
+
+    @pytest.mark.parametrize(
+        "run_id, expected_version_number",
+        [
+            ("run1", 1),
+            ("run2", 2),
+            ("run3", 3),
+        ],
+    )
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_should_respond_200_with_versions(self, test_client, run_id, expected_version_number):
+        response = test_client.get(
+            f"/public/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries/0"
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_id": "task1",
+            "dag_id": "dag_with_multiple_versions",
+            "dag_run_id": run_id,
+            "map_index": -1,
+            "start_date": None,
+            "end_date": mock.ANY,
+            "duration": None,
+            "state": None,
+            "try_number": 0,
+            "max_tries": 0,
+            "task_display_name": "task1",
+            "hostname": "",
+            "unixname": getuser(),
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "queue": "default",
+            "priority_weight": 1,
+            "operator": "EmptyOperator",
+            "queued_when": None,
+            "scheduled_when": None,
+            "pid": None,
+            "executor": None,
+            "executor_config": "{}",
+            "dag_version": {
+                "id": mock.ANY,
+                "version_number": expected_version_number,
+                "dag_id": "dag_with_multiple_versions",
+                "bundle_name": "dag_maker",
+                "bundle_version": None,
+                "created_at": mock.ANY,
+            },
         }
 
 
@@ -2587,6 +2640,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "try_number": 1,
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
+                    "dag_version": None,
                 },
                 {
                     "dag_id": "example_python_operator",
@@ -2612,6 +2666,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "try_number": 2,
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
+                    "dag_version": None,
                 },
             ],
             "total_entries": 2,
@@ -2658,6 +2713,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "try_number": 1,
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
+                    "dag_version": None,
                 },
             ],
             "total_entries": 1,
@@ -2725,6 +2781,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "try_number": 1,
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
+                        "dag_version": None,
                     },
                     {
                         "dag_id": "example_python_operator",
@@ -2750,6 +2807,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "try_number": 2,
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
+                        "dag_version": None,
                     },
                 ],
                 "total_entries": 2,
@@ -2764,6 +2822,55 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
 
         assert response.json() == {
             "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `non_existent_task` and map_index: `-1` was not found"
+        }
+
+    @pytest.mark.parametrize(
+        "run_id, expected_version_number",
+        [
+            ("run1", 1),
+            ("run2", 2),
+            ("run3", 3),
+        ],
+    )
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_should_respond_200_with_versions(self, test_client, run_id, expected_version_number):
+        response = test_client.get(
+            f"/public/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries"
+        )
+        assert response.status_code == 200
+
+        assert response.json()["task_instances"][0] == {
+            "task_id": "task1",
+            "dag_id": "dag_with_multiple_versions",
+            "dag_run_id": run_id,
+            "map_index": -1,
+            "start_date": None,
+            "end_date": mock.ANY,
+            "duration": None,
+            "state": mock.ANY,
+            "try_number": 0,
+            "max_tries": 0,
+            "task_display_name": "task1",
+            "hostname": "",
+            "unixname": getuser(),
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "queue": "default",
+            "priority_weight": 1,
+            "operator": "EmptyOperator",
+            "queued_when": None,
+            "scheduled_when": None,
+            "pid": None,
+            "executor": None,
+            "executor_config": "{}",
+            "dag_version": {
+                "id": mock.ANY,
+                "version_number": expected_version_number,
+                "dag_id": "dag_with_multiple_versions",
+                "bundle_name": "dag_maker",
+                "bundle_version": None,
+                "created_at": mock.ANY,
+            },
         }
 
 

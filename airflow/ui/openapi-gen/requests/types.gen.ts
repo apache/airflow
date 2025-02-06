@@ -1239,6 +1239,7 @@ export type TaskInstanceHistoryResponse = {
   pid: number | null;
   executor: string | null;
   executor_config: string;
+  dag_version: DagVersionResponse | null;
 };
 
 /**

@@ -33,6 +33,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
@@ -93,6 +94,13 @@ class TaskInstanceHistory(Base):
 
     task_display_name = Column("task_display_name", String(2000), nullable=True)
     dag_version_id = Column(UUIDType(binary=False))
+
+    dag_version = relationship(
+        "DagVersion",
+        primaryjoin="TaskInstanceHistory.dag_version_id == DagVersion.id",
+        viewonly=True,
+        foreign_keys=[dag_version_id],
+    )
 
     def __init__(
         self,
