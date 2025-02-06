@@ -353,6 +353,7 @@ class TestDagRun:
 
         dr = dag_maker.create_dagrun(
             run_id="test_dagrun_no_deadlock_1",
+            run_type=DagRunType.SCHEDULED,
             start_date=DEFAULT_DATE,
         )
         dr2 = dag_maker.create_dagrun_after(

@@ -1756,7 +1756,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         self,
         *,
         run_id: str,
-        logical_date: datetime,
+        logical_date: datetime | None,
         data_interval: tuple[datetime, datetime],
         run_after: datetime,
         conf: dict | None = None,

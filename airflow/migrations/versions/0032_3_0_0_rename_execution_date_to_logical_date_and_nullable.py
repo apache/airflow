@@ -17,9 +17,9 @@
 # under the License.
 
 """
-Drop ``execution_date`` unique constraint on DagRun.
+Make logical_date nullable.
 
-The column has also been renamed to logical_date, although the Python model is
+The column has been renamed to logical_date, although the Python model is
 not changed. This allows us to not need to fix all the Python code at once, but
 still do the two changes in one migration instead of two.
 
@@ -49,10 +49,15 @@ def upgrade():
             "execution_date",
             new_column_name="logical_date",
             existing_type=TIMESTAMP(timezone=True),
-            existing_nullable=False,
+            nullable=True,
         )
+
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_constraint("dag_run_dag_id_execution_date_key", type_="unique")
+        batch_op.create_unique_constraint(
+            "dag_run_dag_id_logical_date_key",
+            columns=["dag_id", "logical_date"],
+        )
 
 
 def downgrade():
@@ -61,9 +66,11 @@ def downgrade():
             "logical_date",
             new_column_name="execution_date",
             existing_type=TIMESTAMP(timezone=True),
-            existing_nullable=False,
+            nullable=False,
         )
+
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        batch_op.drop_constraint("dag_run_dag_id_logical_date_key", type_="unique")
         batch_op.create_unique_constraint(
             "dag_run_dag_id_execution_date_key",
             columns=["dag_id", "execution_date"],

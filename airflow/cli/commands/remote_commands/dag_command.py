@@ -33,6 +33,7 @@ from sqlalchemy import select
 from airflow.api.client import get_current_api_client
 from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
@@ -264,12 +265,17 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-    dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, logical_date=args.logical_date))
-    out = dr.state if dr else None
-    conf_out = ""
-    if out and dr.conf:
-        conf_out = ", " + json.dumps(dr.conf)
-    print(str(out) + conf_out)
+    dr, _ = fetch_dag_run_from_run_id_or_logical_date_string(
+        dag_id=dag.dag_id,
+        value=args.logical_date_or_run_id,
+        session=session,
+    )
+    if not dr:
+        print(None)
+    elif dr.conf:
+        print(f"{dr.state}, {json.dumps(dr.conf)}")
+    else:
+        print(dr.state)
 
 
 @cli_utils.action_cli
@@ -465,20 +471,20 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
         logical_end_date=args.end_date,
         session=session,
     )
+    dag_runs.sort(key=operator.attrgetter("run_after"), reverse=True)
 
-    dag_runs.sort(key=lambda x: x.logical_date, reverse=True)
-    AirflowConsole().print_as(
-        data=dag_runs,
-        output=args.output,
-        mapper=lambda dr: {
+    def _render_dagrun(dr: DagRun) -> dict[str, str]:
+        return {
             "dag_id": dr.dag_id,
             "run_id": dr.run_id,
             "state": dr.state,
-            "logical_date": dr.logical_date.isoformat(),
+            "run_after": dr.run_after.isoformat(),
+            "logical_date": dr.logical_date.isoformat() if dr.logical_date else "",
             "start_date": dr.start_date.isoformat() if dr.start_date else "",
             "end_date": dr.end_date.isoformat() if dr.end_date else "",
-        },
-    )
+        }
+
+    AirflowConsole().print_as(data=dag_runs, output=args.output, mapper=_render_dagrun)
 
 
 @cli_utils.action_cli
@@ -515,7 +521,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         tis = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == args.dag_id,
-                TaskInstance.logical_date == logical_date,
+                TaskInstance.run_id == dr.run_id,
             )
         ).all()
 

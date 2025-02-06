@@ -1319,7 +1319,7 @@ class TestTriggerDagRun:
         )
 
     @time_machine.travel(timezone.utcnow(), tick=False)
-    def test_should_response_200_for_duplicate_logical_date(self, test_client):
+    def test_should_response_409_for_duplicate_logical_date(self, test_client):
         RUN_ID_1 = "random_1"
         RUN_ID_2 = "random_2"
         now = timezone.utcnow().isoformat().replace("+00:00", "Z")
@@ -1333,28 +1333,26 @@ class TestTriggerDagRun:
             json={"dag_run_id": RUN_ID_2, "note": note},
         )
 
-        assert response_1.status_code == response_2.status_code == 200
-        body1 = response_1.json()
-        body2 = response_2.json()
+        assert response_1.status_code == 200
+        assert response_1.json() == {
+            "dag_run_id": RUN_ID_1,
+            "dag_id": DAG1_ID,
+            "logical_date": now,
+            "queued_at": now,
+            "start_date": None,
+            "end_date": None,
+            "data_interval_start": now,
+            "data_interval_end": now,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "state": "queued",
+            "external_trigger": True,
+            "triggered_by": "rest_api",
+            "conf": {},
+            "note": note,
+        }
 
-        for each_run_id, each_body in [(RUN_ID_1, body1), (RUN_ID_2, body2)]:
-            assert each_body == {
-                "dag_run_id": each_run_id,
-                "dag_id": DAG1_ID,
-                "logical_date": now,
-                "queued_at": now,
-                "start_date": None,
-                "end_date": None,
-                "data_interval_start": now,
-                "data_interval_end": now,
-                "last_scheduling_decision": None,
-                "run_type": "manual",
-                "state": "queued",
-                "external_trigger": True,
-                "triggered_by": "rest_api",
-                "conf": {},
-                "note": note,
-            }
+        assert response_2.status_code == 409
 
     @pytest.mark.parametrize(
         "data_interval_start, data_interval_end",
