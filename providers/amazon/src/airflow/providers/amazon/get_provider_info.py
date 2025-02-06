@@ -1065,6 +1065,8 @@ def get_provider_info():
             "airflow.providers.amazon.aws.links.comprehend.ComprehendDocumentClassifierLink",
             "airflow.providers.amazon.aws.links.datasync.DataSyncTaskLink",
             "airflow.providers.amazon.aws.links.datasync.DataSyncTaskExecutionLink",
+            "airflow.providers.amazon.aws.links.ec2.EC2InstanceLink",
+            "airflow.providers.amazon.aws.links.ec2.EC2InstanceDashboardLink",
         ],
         "connection-types": [
             {
