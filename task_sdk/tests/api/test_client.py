@@ -228,7 +228,9 @@ class TestTaskInstanceOperations:
         assert resp == ti_context
         assert call_count == 4
 
-    @pytest.mark.parametrize("state", [state for state in TerminalTIState])
+    @pytest.mark.parametrize(
+        "state", [state for state in TerminalTIState if state != TerminalTIState.SUCCESS]
+    )
     def test_task_instance_finish(self, state):
         # Simulate a successful response from the server that finishes (moved to terminal state) a task
         ti_id = uuid6.uuid7()

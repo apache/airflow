@@ -241,7 +241,6 @@ class MSGraphAsyncOperator(BaseOperator):
                 key=self.key,
                 task_ids=self.task_id,
                 dag_id=self.dag_id,
-                map_indexes=map_index,
             )
             or []
         )

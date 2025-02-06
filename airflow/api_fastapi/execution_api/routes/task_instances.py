@@ -65,6 +65,7 @@ log = logging.getLogger(__name__)
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
     },
+    response_model_exclude_unset=True,
 )
 def ti_run(
     task_instance_id: UUID, ti_run_payload: Annotated[TIEnterRunningPayload, Body()], session: SessionDep
@@ -149,6 +150,7 @@ def ti_run(
                 DR.run_type,
                 DR.conf,
                 DR.logical_date,
+                DR.external_trigger,
             ).filter_by(dag_id=dag_id, run_id=run_id)
         ).one_or_none()
 
