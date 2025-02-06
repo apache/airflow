@@ -490,13 +490,22 @@ class TestDmsDescribeReplicationConfigsOperator:
             task_id="test_task", filter="{{ var.value.test_filter }}", dag=dag
         )
 
-        dag_run = DagRun(
-            dag_id=dag.dag_id,
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-            state=DagRunState.RUNNING,
-            logical_date=logical_date,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                logical_date=logical_date,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                execution_date=logical_date,
+            )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)
