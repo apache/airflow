@@ -55,10 +55,10 @@ def make_client_w_responses(responses: list[httpx.Response]) -> Client:
 
 class TestClient:
     @pytest.mark.parametrize(
-        ["path", "json_response"], 
+        ["path", "json_response"],
         [
             (
-                "/task-instances/1/run", 
+                "/task-instances/1/run",
                 {
                     "dag_run": {
                         "dag_id": "test_dag",
