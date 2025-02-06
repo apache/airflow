@@ -129,11 +129,7 @@ def _get_dag_run(
                 f"of {logical_date_or_run_id!r} not found"
             )
 
-    if logical_date is not None:
-        dag_run_logical_date = logical_date
-    else:
-        dag_run_logical_date = pendulum.instance(timezone.utcnow())
-
+    dag_run_logical_date = pendulum.instance(logical_date or timezone.utcnow())
     if create_if_necessary == "memory":
         data_interval = dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         dag_run = DagRun(

@@ -17,15 +17,14 @@
 
 from __future__ import annotations
 
-import io
 import sys
-from collections.abc import Collection
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from io import IOBase
+    import datetime
+    from collections.abc import Collection
+    from io import IOBase, TextIOWrapper
 
-    from pendulum import DateTime
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun
@@ -50,7 +49,7 @@ def is_stdout(fileio: IOBase) -> bool:
     return fileio.fileno() == sys.stdout.fileno()
 
 
-def print_export_output(command_type: str, exported_items: Collection, file: io.TextIOWrapper):
+def print_export_output(command_type: str, exported_items: Collection, file: TextIOWrapper):
     if not file.closed and is_stdout(file):
         print(f"\n{len(exported_items)} {command_type} successfully exported.", file=sys.stderr)
     else:
@@ -62,7 +61,7 @@ def fetch_dag_run_from_run_id_or_logical_date_string(
     dag_id: str,
     value: str,
     session: Session,
-) -> tuple[DagRun | None, DateTime | None]:
+) -> tuple[DagRun | None, datetime.datetime | None]:
     """
     Try to find a DAG run with a given string value.
 
@@ -85,11 +84,11 @@ def fetch_dag_run_from_run_id_or_logical_date_string(
     from airflow.utils import timezone
 
     if dag_run := DAG.fetch_dagrun(dag_id=dag_id, run_id=value, session=session):
-        return dag_run, dag_run.logical_date  # type: ignore[return-value]
+        return dag_run, dag_run.logical_date
     try:
         logical_date = timezone.parse(value)
     except (ParserError, TypeError):
-        return dag_run, None
+        return None, None
     dag_run = session.scalar(
         select(DagRun)
         .where(DagRun.dag_id == dag_id, DagRun.logical_date == logical_date)
