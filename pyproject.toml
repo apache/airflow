@@ -656,6 +656,7 @@ dev = [
   "apache-airflow-providers-asana",
   "apache-airflow-providers-atlassian-jira",
   "apache-airflow-providers-celery",
+  "apache-airflow-providers-cloudant",
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-compat",
   "apache-airflow-providers-common-io",
@@ -744,6 +745,7 @@ apache-airflow-providers-apprise = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-atlassian-jira = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
+apache-airflow-providers-cloudant = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
@@ -830,6 +832,7 @@ members = [
     "providers/asana",
     "providers/atlassian/jira",
     "providers/celery",
+    "providers/cloudant",
     "providers/cohere",
     "providers/common/compat",
     "providers/common/io",
