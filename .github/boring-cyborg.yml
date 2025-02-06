@@ -25,10 +25,7 @@ labelPRBasedOnFilePath:
     - providers/alibaba/**
 
   provider:amazon:
-    - providers/src/airflow/providers/amazon/**/*
-    - providers/tests/amazon/aws/**/*
-    - docs/apache-airflow-providers-amazon/**/*
-    - providers/tests/system/amazon/aws/**/*
+    - providers/amazon/**
 
   provider:apache-beam:
     - providers/apache/beam/**

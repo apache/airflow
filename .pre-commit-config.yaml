@@ -625,8 +625,8 @@ repos:
           ^airflow/operators/__init__.py$|
           ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute.py$|
           ^providers/fab/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
-          ^providers/src/airflow/providers/amazon/aws/hooks/emr.py$|
-          ^providers/src/airflow/providers/amazon/aws/operators/emr.py$|
+          ^providers/amazon/src/airflow/providers/amazon/aws/hooks/emr.py$|
+          ^providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py$|
           ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats.py$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
