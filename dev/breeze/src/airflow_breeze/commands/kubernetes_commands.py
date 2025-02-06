@@ -42,7 +42,12 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.commands.production_image_commands import run_build_production_image
-from airflow_breeze.global_constants import ALLOWED_EXECUTORS, ALLOWED_KUBERNETES_VERSIONS
+from airflow_breeze.global_constants import (
+    ALLOWED_EXECUTORS,
+    ALLOWED_KUBERNETES_VERSIONS,
+    CELERY_EXECUTOR,
+    KUBERNETES_EXECUTOR,
+)
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -1453,7 +1458,9 @@ def _run_tests(
         extra_shell_args.append("--no-rcs")
     elif shell_binary.endswith("bash"):
         extra_shell_args.extend(["--norc", "--noprofile"])
-    if not _is_deployed_with_same_executor(python, kubernetes_version, executor):
+    if (
+        executor == KUBERNETES_EXECUTOR or executor == CELERY_EXECUTOR
+    ) and not _is_deployed_with_same_executor(python, kubernetes_version, executor):
         get_console(output=output).print(
             f"[warning]{executor} not deployed. Please deploy airflow with {executor} first."
         )
