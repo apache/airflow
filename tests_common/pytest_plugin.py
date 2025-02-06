@@ -1580,7 +1580,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
 def providers_src_folder() -> Path:
     import airflow.providers
 
-    return Path(airflow.providers.__path__[0]).parents[1]
+    return Path(airflow.providers.__path__[0]).parents[2]
 
 
 @pytest.fixture
