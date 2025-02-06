@@ -23,8 +23,6 @@ from collections.abc import AsyncIterator
 from glob import glob
 from typing import Any
 
-import anyio
-
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -93,8 +91,7 @@ class FileDeleteTrigger(BaseEventTrigger):
     A trigger that fires exactly once after it finds the requested file and then delete the file.
 
     The difference between ``FileTrigger`` and ``FileDeleteTrigger`` is ``FileDeleteTrigger`` can only find a
-    specific file. When this file is found out, ``FileDeleteTrigger`` return the content of this file after
-    deleting it.
+    specific file.
 
     :param filepath: File (relative to the base path set within the connection).
     :param poke_interval: Time that the job should wait in between each try
@@ -127,9 +124,7 @@ class FileDeleteTrigger(BaseEventTrigger):
                 mod_time_f = os.path.getmtime(self.filepath)
                 mod_time = datetime.datetime.fromtimestamp(mod_time_f).strftime("%Y%m%d%H%M%S")
                 self.log.info("Found file %s last modified: %s", self.filepath, mod_time)
-                async with await anyio.open_file(self.filepath) as f:
-                    content = await f.read()
                 os.remove(self.filepath)
-                yield TriggerEvent(content)
+                yield TriggerEvent(True)
                 return
             await asyncio.sleep(self.poke_interval)

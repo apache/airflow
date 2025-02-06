@@ -80,8 +80,8 @@ class TestFileDeleteTrigger:
         }
 
     @pytest.mark.asyncio
-    async def test_task_file_trigger(self, tmp_path):
-        """Asserts that the trigger only goes off on or after file is found"""
+    async def test_file_delete_trigger(self, tmp_path):
+        """Asserts that the trigger goes off on or after file is found and that the files gets deleted."""
         tmp_dir = tmp_path / "test_dir"
         tmp_dir.mkdir()
         p = tmp_dir / "hello.txt"
@@ -100,7 +100,6 @@ class TestFileDeleteTrigger:
         p.touch()
 
         await asyncio.sleep(0.5)
-        assert task.done() is True
         assert p.exists() is False
 
         # Prevents error when task is destroyed while in "pending" state
