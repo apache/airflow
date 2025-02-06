@@ -693,6 +693,8 @@ class TestCliDags:
     )
     @mock.patch("airflow.cli.commands.remote_commands.dag_command.get_dag")
     def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag):
+        mock_get_dag.return_value.test.return_value.run_id = "__test_dag_test_show_dag_fake_dag_run_run_id__"
+
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat(), "--show-dagrun"]
         )
