@@ -92,7 +92,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
         queues: list[str] | None,
         first_online: datetime | None = None,
         last_update: datetime | None = None,
-        maintenance_comment: str | None = None,
+        maintenance_comment: str = "",
     ):
         self.worker_name = worker_name
         self.state = state
