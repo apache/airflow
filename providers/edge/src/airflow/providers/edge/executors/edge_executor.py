@@ -86,8 +86,9 @@ class EdgeExecutor(BaseExecutor):
 
         # version 0.13.1pre0 added new column maintenance_comment
         if edge_worker_columns and "maintenance_comment" not in edge_worker_columns:
-            EdgeWorkerModel.metadata.drop_all(engine, tables=[EdgeWorkerModel.__table__])
-
+            connection = engine.connect()
+            query = f'ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(128);'
+            connection.execute(query)
     @provide_session
     def start(self, session: Session = NEW_SESSION):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""
