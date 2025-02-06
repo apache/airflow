@@ -477,25 +477,35 @@ class TestDmsDescribeReplicationConfigsOperator:
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "conn")
     def test_template_fields_native(self, mock_conn, session):
-        execution_date = timezone.datetime(2020, 1, 1)
+        logical_date = timezone.datetime(2020, 1, 1)
         Variable.set("test_filter", self.filter, session=session)
 
         dag = DAG(
             "test_dms",
             schedule=None,
-            start_date=execution_date,
+            start_date=logical_date,
             render_template_as_native_obj=True,
         )
         op = DmsDescribeReplicationConfigsOperator(
             task_id="test_task", filter="{{ var.value.test_filter }}", dag=dag
         )
 
-        dag_run = DagRun(
-            dag_id=dag.dag_id,
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-            state=DagRunState.RUNNING,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                logical_date=logical_date,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                execution_date=logical_date,
+            )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)
