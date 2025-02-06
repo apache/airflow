@@ -218,13 +218,20 @@ class SFTPHook(SSHHook):
                     self.log.info("Creating %s", path)
                     conn.mkdir(path, mode=mode)
 
-    def delete_directory(self, path: str) -> None:
+    def delete_directory(self, path: str, include_files: bool = False) -> None:
         """
         Delete a directory on the remote system.
 
         :param path: full path to the remote directory to delete
         """
         with self.get_conn() as conn:
+            if include_files is True:
+                files, dirs, _ = self.get_tree_map(path)
+                dirs = dirs[::-1]  # reverse the order for deleting deepest directories first
+                for file_path in files:
+                    conn.remove(file_path)
+                for dir_path in dirs:
+                    conn.rmdir(dir_path)
             conn.rmdir(path)
 
     def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
