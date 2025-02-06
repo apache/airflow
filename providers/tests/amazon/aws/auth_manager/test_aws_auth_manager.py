@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import ANY, Mock, patch
 
 import pytest
-from flask import Flask, session
+from flask import session
 from flask_appbuilder.menu import MenuItem
 
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
@@ -46,8 +46,6 @@ from airflow.security.permissions import (
     RESOURCE_CONNECTION,
     RESOURCE_VARIABLE,
 )
-from airflow.www import app as application
-from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 from tests_common.test_utils.config import conf_vars
 
@@ -95,55 +93,8 @@ def auth_manager():
 
 
 @pytest.fixture
-def auth_manager_with_appbuilder(auth_manager):
-    flask_app = Flask(__name__)
-    appbuilder = init_appbuilder(flask_app)
-    auth_manager.appbuilder = appbuilder
-    return auth_manager
-
-
-@pytest.fixture
 def test_user():
     return AwsAuthManagerUser(user_id="test_user_id", groups=[], username="test_username")
-
-
-@pytest.fixture
-def client_admin():
-    with conf_vars(
-        {
-            (
-                "core",
-                "auth_manager",
-            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-            ("aws_auth_manager", "region_name"): "us-east-1",
-            ("aws_auth_manager", "saml_metadata_url"): "/saml/metadata",
-            ("aws_auth_manager", "avp_policy_store_id"): "avp_policy_store_id",
-        }
-    ):
-        with (
-            patch(
-                "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
-            ) as mock_parser,
-            patch(
-                "airflow.providers.amazon.aws.auth_manager.views.auth.AwsAuthManagerAuthenticationViews._init_saml_auth"
-            ) as mock_init_saml_auth,
-            patch(
-                "airflow.providers.amazon.aws.auth_manager.avp.facade.AwsAuthManagerAmazonVerifiedPermissionsFacade.is_policy_store_schema_up_to_date"
-            ) as mock_is_policy_store_schema_up_to_date,
-        ):
-            mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
-            mock_is_policy_store_schema_up_to_date.return_value = True
-
-            auth = Mock()
-            auth.is_authenticated.return_value = True
-            auth.get_nameid.return_value = "user_admin_permissions"
-            auth.get_attributes.return_value = {
-                "id": ["user_admin_permissions"],
-                "groups": ["Admin"],
-                "email": ["email"],
-            }
-            mock_init_saml_auth.return_value = auth
-            yield application.create_app(testing=True)
 
 
 class TestAwsAuthManager:
