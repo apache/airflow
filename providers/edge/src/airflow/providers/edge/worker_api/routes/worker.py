@@ -156,7 +156,6 @@ def register(
     worker.queues = body.queues
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
-
     session.add(worker)
     return worker.last_update
 
