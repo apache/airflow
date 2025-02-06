@@ -84,7 +84,7 @@ class EdgeExecutor(BaseExecutor):
         except NoSuchTableError:
             pass
 
-        # version 0.13.1pre0 added new column maintenance_comment
+        # version 0.14.0pre0 added new column maintenance_comment
         if edge_worker_columns and "maintenance_comment" not in edge_worker_columns:
             connection = engine.connect()
             query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(128);"
