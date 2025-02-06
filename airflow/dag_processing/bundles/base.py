@@ -17,8 +17,10 @@
 
 from __future__ import annotations
 
+import fcntl
 import tempfile
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from pathlib import Path
 
 from airflow.configuration import conf
@@ -46,6 +48,7 @@ class BaseDagBundle(ABC):
     """
 
     supports_versioning: bool = False
+    _locked: bool = False
 
     def __init__(
         self,
@@ -67,6 +70,10 @@ class BaseDagBundle(ABC):
         and allows for deferring expensive operations until that point in time. This will
         only be called when Airflow needs the bundle files on disk - some uses only need
         to call the `view_url` method, which can run without initializing the bundle.
+
+        This method must ultimately be safe to call concurrently from different threads or processes.
+        If it isn't naturally safe, you'll need to make it so with some form of locking.
+        There is a `lock` context manager on this class available for this purpose.
         """
         self.is_initialized = True
 
@@ -101,7 +108,13 @@ class BaseDagBundle(ABC):
 
     @abstractmethod
     def refresh(self) -> None:
-        """Retrieve the latest version of the files in the bundle."""
+        """
+        Retrieve the latest version of the files in the bundle.
+
+        This method must ultimately be safe to call concurrently from different threads or processes.
+        If it isn't naturally safe, you'll need to make it so with some form of locking.
+        There is a `lock` context manager on this class available for this purpose.
+        """
 
     def view_url(self, version: str | None = None) -> str | None:
         """
@@ -112,3 +125,27 @@ class BaseDagBundle(ABC):
         :param version: Version to view
         :return: URL to view the bundle
         """
+
+    @contextmanager
+    def lock(self):
+        """
+        Ensure only a single bundle can enter this context at a time, by taking an exclusive lock on a lockfile.
+
+        This is useful when a bundle needs to perform operations that are not safe to run concurrently.
+        """
+        if self._locked:
+            yield
+            return
+
+        lock_dir_path = self._dag_bundle_root_storage_path / "_locks"
+        lock_dir_path.mkdir(parents=True, exist_ok=True)
+        lock_file_path = lock_dir_path / f"{self.name}.lock"
+        with open(lock_file_path, "w") as lock_file:
+            # Exclusive lock - blocks until it is available
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            try:
+                self._locked = True
+                yield
+            finally:
+                fcntl.flock(lock_file, fcntl.LOCK_UN)
+                self._locked = False
