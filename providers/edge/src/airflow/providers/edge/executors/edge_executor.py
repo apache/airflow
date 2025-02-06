@@ -89,6 +89,7 @@ class EdgeExecutor(BaseExecutor):
             connection = engine.connect()
             query = f'ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(128);'
             connection.execute(query)
+            
     @provide_session
     def start(self, session: Session = NEW_SESSION):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""
