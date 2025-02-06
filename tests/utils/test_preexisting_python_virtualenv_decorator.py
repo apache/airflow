@@ -37,7 +37,7 @@ class TestExternalPythonDecorator:
         ids=["without_parens", "parens", "with_args", "nested_without_parens", "nested_with_parens"],
     )
     def test_remove_task_decorator(self, decorators: list[str], expected_decorators: list[str]):
-        decorator = "\n".join(decorators)
+        concated_decorators = "\n".join(decorators)
         expected_decorator = "\n".join(expected_decorators)
         SCRIPT = dedent(
             """
@@ -45,7 +45,7 @@ class TestExternalPythonDecorator:
             import funcsigs
         """
         )
-        py_source = decorator + SCRIPT
+        py_source = concated_decorators + SCRIPT
         expected_source = expected_decorator + SCRIPT if expected_decorator else SCRIPT.lstrip()
 
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")
