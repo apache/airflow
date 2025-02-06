@@ -186,12 +186,9 @@ class SFTPOperator(BaseOperator):
                         self.sftp_hook.delete_file(_remote_filepath)
 
         except Exception as e:
-            operation_msg = (
-                "transferring"
-                if self.operation.lower() in (SFTPOperation.GET, SFTPOperation.PUT)
-                else "deleting"
+            raise AirflowException(
+                f"Error while processing {self.operation.upper()} operation {file_msg}, error: {e}"
             )
-            raise AirflowException(f"Error while {operation_msg} {file_msg}, error: {e}")
 
         return self.local_filepath
 
