@@ -134,7 +134,11 @@ def _do_stuff(
                 if from_path.exists():
                     shutil.move(from_path, to_path)
                 console.print(f"\n[yellow]Moved {from_path} -> {to_path}\n")
-                if remove_empty_parent_dir and len([path for path in from_path.parent.iterdir()]) == 0:
+                if (
+                    remove_empty_parent_dir
+                    and from_path.exists()
+                    and len([path for path in from_path.parent.iterdir()]) == 0
+                ):
                     console.print(f"\n[yellow]Removed also empty parent dir {from_path.parent}\n")
                     from_path.parent.rmdir()
                 return

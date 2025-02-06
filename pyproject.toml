@@ -722,6 +722,7 @@ dev = [
   "apache-airflow-providers-trino",
   "apache-airflow-providers-vertica",
   "apache-airflow-providers-weaviate",
+  "apache-airflow-providers-yandex",
   "apache-airflow-providers-ydb",
   "apache-airflow-providers-zendesk",
   "apache-airflow-task-sdk",
@@ -815,6 +816,7 @@ apache-airflow-providers-teradata = { workspace = true }
 apache-airflow-providers-trino = { workspace = true }
 apache-airflow-providers-vertica = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
+apache-airflow-providers-yandex = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
@@ -906,6 +908,7 @@ members = [
     "providers/trino",
     "providers/vertica",
     "providers/weaviate",
+    "providers/yandex",
     "providers/ydb",
     "providers/zendesk",
     "task_sdk",
