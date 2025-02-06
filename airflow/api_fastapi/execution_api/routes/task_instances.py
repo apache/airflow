@@ -30,7 +30,6 @@ from sqlalchemy.sql import select
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
-    DagRun,
     PrevSuccessfulDagRunResponse,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
@@ -171,7 +170,7 @@ def ti_run(
             )
 
         return TIRunContext(
-            dag_run=DagRun.model_validate(dr, from_attributes=True),
+            dag_run=dr,
             max_tries=max_tries,
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],
