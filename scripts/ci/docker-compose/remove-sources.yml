@@ -41,6 +41,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/flink/src
       - ../../../empty:/opt/airflow/providers/apache/hive/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
+      - ../../../empty:/opt/airflow/providers/apache/impala/src
       - ../../../empty:/opt/airflow/providers/apache/kafka/src
       - ../../../empty:/opt/airflow/providers/apache/kylin/src
       - ../../../empty:/opt/airflow/providers/apache/livy/src

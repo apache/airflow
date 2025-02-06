@@ -48,6 +48,7 @@ services:
       - ../../../providers/apache/flink/tests:/opt/airflow/providers/apache/flink/tests
       - ../../../providers/apache/hive/tests:/opt/airflow/providers/apache/hive/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
+      - ../../../providers/apache/impala/tests:/opt/airflow/providers/apache/impala/tests
       - ../../../providers/apache/kafka/tests:/opt/airflow/providers/apache/kafka/tests
       - ../../../providers/apache/kylin/tests:/opt/airflow/providers/apache/kylin/tests
       - ../../../providers/apache/livy/tests:/opt/airflow/providers/apache/livy/tests

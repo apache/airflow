@@ -9,6 +9,7 @@ apache-airflow-providers-apache-druid
 apache-airflow-providers-apache-flink
 apache-airflow-providers-apache-hive
 apache-airflow-providers-apache-iceberg
+apache-airflow-providers-apache-impala
 apache-airflow-providers-apache-kafka
 apache-airflow-providers-apache-kylin
 apache-airflow-providers-apache-livy
