@@ -54,7 +54,7 @@ As part of this change the following breaking changes have occurred:
   * [ ] Dependency changes
   * [ ] Code interface changes
 
-* Migrations rules needed
+* Migration rules needed
 
   * ``airflow config lint``
 

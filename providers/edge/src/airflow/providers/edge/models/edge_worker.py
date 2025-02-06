@@ -20,15 +20,20 @@ import ast
 import json
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, delete, select
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class EdgeWorkerVersionException(AirflowException):
@@ -52,6 +57,16 @@ class EdgeWorkerState(str, Enum):
     """Edge Worker was shut down."""
     UNKNOWN = "unknown"
     """No heartbeat signal from worker for some time, Edge Worker probably down."""
+    MAINTENANCE_REQUEST = "maintenance request"
+    """Worker was requested to enter maintenance mode. Once worker receives this it will pause fetching jobs."""
+    MAINTENANCE_PENDING = "maintenance pending"
+    """Edge worker received the request for maintenance, waiting for jobs to finish. Once jobs are finished will move to 'maintenance mode'."""
+    MAINTENANCE_MODE = "maintenance mode"
+    """Edge worker is in maintenance mode. It is online but pauses fetching jobs."""
+    MAINTENANCE_EXIT = "maintenance exit"
+    """Request worker to exit maintenance mode. Once the worker receives this state it will un-pause and fetch new jobs."""
+    OFFLINE_MAINTENANCE = "offline maintenance"
+    """Worker was shut down in maintenance mode. It will be in maintenance mode when restarted."""
 
 
 class EdgeWorkerModel(Base, LoggingMixin):
@@ -115,6 +130,10 @@ class EdgeWorkerModel(Base, LoggingMixin):
                 queues.remove(queue_name)
         self.queues = queues
 
+    def update_state(self, state: str) -> None:
+        """Updates state field."""
+        self.state = state
+
 
 def set_metrics(
     worker_name: str,
@@ -162,3 +181,25 @@ def reset_metrics(worker_name: str) -> None:
         free_concurrency=-1,
         queues=None,
     )
+
+
+@provide_session
+def request_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
+    """Writes maintenance request to the db"""
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
+
+
+@provide_session
+def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
+    """Writes maintenance exit to the db"""
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    worker.state = EdgeWorkerState.MAINTENANCE_EXIT
+
+
+@provide_session
+def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
+    """Remove a worker that is offline or just gone from DB"""
+    session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))

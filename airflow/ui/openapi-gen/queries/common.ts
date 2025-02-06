@@ -900,14 +900,16 @@ export const UseExtraLinksServiceGetExtraLinksKeyFn = (
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
   queryKey?: Array<unknown>,
-) => [useExtraLinksServiceGetExtraLinksKey, ...(queryKey ?? [{ dagId, dagRunId, taskId }])];
+) => [useExtraLinksServiceGetExtraLinksKey, ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }])];
 export type TaskInstanceServiceGetExtraLinksDefaultResponse = Awaited<
   ReturnType<typeof TaskInstanceService.getExtraLinks>
 >;
@@ -920,14 +922,16 @@ export const UseTaskInstanceServiceGetExtraLinksKeyFn = (
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
   queryKey?: Array<unknown>,
-) => [useTaskInstanceServiceGetExtraLinksKey, ...(queryKey ?? [{ dagId, dagRunId, taskId }])];
+) => [useTaskInstanceServiceGetExtraLinksKey, ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }])];
 export type TaskInstanceServiceGetTaskInstanceDefaultResponse = Awaited<
   ReturnType<typeof TaskInstanceService.getTaskInstance>
 >;
@@ -978,6 +982,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -999,6 +1004,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     taskId: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
   queryKey?: Array<unknown>,
 ) => [
@@ -1025,6 +1031,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
       taskId,
       updatedAtGte,
       updatedAtLte,
+      versionNumber,
     },
   ]),
 ];
@@ -1187,6 +1194,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1209,6 +1217,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
   queryKey?: Array<unknown>,
 ) => [
@@ -1236,6 +1245,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
       taskId,
       updatedAtGte,
       updatedAtLte,
+      versionNumber,
     },
   ]),
 ];
@@ -1457,13 +1467,15 @@ export const UsePoolServiceGetPoolsKeyFn = (
     limit,
     offset,
     orderBy,
+    poolNamePattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    poolNamePattern?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
+) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy, poolNamePattern }])];
 export type ProviderServiceGetProvidersDefaultResponse = Awaited<
   ReturnType<typeof ProviderService.getProviders>
 >;
@@ -1662,6 +1674,9 @@ export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.postClearTaskInstances>
 >;
 export type PoolServicePostPoolMutationResult = Awaited<ReturnType<typeof PoolService.postPool>>;
+export type XcomServiceCreateXcomEntryMutationResult = Awaited<
+  ReturnType<typeof XcomService.createXcomEntry>
+>;
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;

@@ -114,6 +114,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.execution_time import secrets_masker
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -127,7 +128,6 @@ from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import exactly_one
-from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -2237,6 +2237,7 @@ class Airflow(AirflowBaseView):
                 run_id=run_id,
                 logical_date=logical_date,
                 data_interval=data_interval,
+                run_after=data_interval.end,
                 conf=run_conf,
                 run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.UI,

@@ -386,6 +386,21 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/security/utils.py" = ["E402"]
 "providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
 "providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_dataset.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_endpoint_service.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_generative_model.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_hyperparameter_tuning_job.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/links/test_translate.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/operators/test_automl.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
+"providers/google/tests/provider_tests/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
 
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
@@ -479,8 +494,8 @@ norecursedirs = [
     "tests/dags_with_system_exit",
     "tests/dags_corrupted",
     "tests/dags",
-    "providers/tests/system/google/cloud/dataproc/resources",
-    "providers/tests/system/google/cloud/gcs/resources",
+    "providers/google/tests/system/google/cloud/dataproc/resources",
+    "providers/google/tests/system/google/cloud/gcs/resources",
 ]
 log_level = "INFO"
 filterwarnings = [
@@ -541,8 +556,8 @@ omit = [
     "airflow/example_dags/**",
     "airflow/migrations/**",
     "airflow/www/node_modules/**",
-    "providers/src/airflow/providers/**/example_dags/**",
-    "providers/src/airflow/providers/google/ads/_vendor/**",
+    "providers/google/src/airflow/providers/**/example_dags/**",
+    "providers/google/src/airflow/providers/google/ads/_vendor/**",
 ]
 
 [tool.coverage.report]
@@ -641,6 +656,7 @@ dev = [
   "apache-airflow-providers-asana",
   "apache-airflow-providers-atlassian-jira",
   "apache-airflow-providers-celery",
+  "apache-airflow-providers-cloudant",
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-compat",
   "apache-airflow-providers-common-io",
@@ -657,9 +673,12 @@ dev = [
   "apache-airflow-providers-facebook",
   "apache-airflow-providers-ftp",
   "apache-airflow-providers-github",
+  "apache-airflow-providers-google",
   "apache-airflow-providers-grpc",
   "apache-airflow-providers-http",
   "apache-airflow-providers-influxdb",
+  "apache-airflow-providers-microsoft-mssql",
+  "apache-airflow-providers-microsoft-psrp",
   "apache-airflow-providers-jdbc",
   "apache-airflow-providers-mongo",
   "apache-airflow-providers-openlineage",
@@ -726,6 +745,7 @@ apache-airflow-providers-apprise = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-atlassian-jira = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
+apache-airflow-providers-cloudant = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
@@ -742,9 +762,12 @@ apache-airflow-providers-fab = { workspace = true }
 apache-airflow-providers-facebook = { workspace = true }
 apache-airflow-providers-ftp = { workspace = true }
 apache-airflow-providers-github = { workspace = true }
+apache-airflow-providers-google = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
+apache-airflow-providers-microsoft-mssql = { workspace = true }
+apache-airflow-providers-microsoft-psrp = { workspace = true }
 apache-airflow-providers-jdbc = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
@@ -809,6 +832,7 @@ members = [
     "providers/asana",
     "providers/atlassian/jira",
     "providers/celery",
+    "providers/cloudant",
     "providers/cohere",
     "providers/common/compat",
     "providers/common/io",
@@ -825,6 +849,7 @@ members = [
     "providers/facebook",
     "providers/ftp",
     "providers/github",
+    "providers/google",
     "providers/grpc",
     "providers/hashicorp",
     "providers/http",
@@ -832,6 +857,8 @@ members = [
     "providers/influxdb",
     "providers/jdbc",
     "providers/jenkins",
+    "providers/microsoft/mssql",
+    "providers/microsoft/psrp",
     "providers/mongo",
     "providers/mysql",
     "providers/neo4j",

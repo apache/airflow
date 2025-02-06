@@ -38,7 +38,7 @@ from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.variable import Variable
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Param
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.trigger_rule import TriggerRule

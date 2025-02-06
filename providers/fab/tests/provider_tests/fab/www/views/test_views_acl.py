@@ -28,21 +28,17 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
 from provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user_scope
 
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.permissions import _resource_name
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,
     client_with_login,
 )
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -148,7 +144,6 @@ def _reset_dagruns():
 
 @pytest.fixture(autouse=True)
 def _init_dagruns(acl_app, _reset_dagruns):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id=DEFAULT_RUN_ID,
         run_type=DagRunType.SCHEDULED,
@@ -156,7 +151,8 @@ def _init_dagruns(acl_app, _reset_dagruns):
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
-        **triggered_by_kwargs,
+        run_after=DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
     )
     acl_app.dag_bag.get_dag("example_python_operator").create_dagrun(
         run_id=DEFAULT_RUN_ID,
@@ -165,7 +161,8 @@ def _init_dagruns(acl_app, _reset_dagruns):
         start_date=timezone.utcnow(),
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         state=State.RUNNING,
-        **triggered_by_kwargs,
+        run_after=DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
     )
     yield
     clear_db_runs()

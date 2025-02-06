@@ -48,6 +48,7 @@ from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.sdk.definitions.param import ParamsDict
+from airflow.sdk.execution_time.secrets_masker import RedactedIO
 from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -61,7 +62,6 @@ from airflow.utils.cli import (
 )
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
-from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -171,22 +171,26 @@ def _get_dag_run(
         dag_run_logical_date = pendulum.instance(timezone.utcnow())
 
     if create_if_necessary == "memory":
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_id=logical_date_or_run_id,
             run_type=DagRunType.MANUAL,
             external_trigger=True,
             logical_date=dag_run_logical_date,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
+            data_interval=data_interval,
+            run_after=data_interval.end,
             triggered_by=DagRunTriggeredByType.CLI,
             state=DagRunState.RUNNING,
         )
         return dag_run, True
     elif create_if_necessary == "db":
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         dag_run = dag.create_dagrun(
             run_id=_generate_temporary_run_id(),
             logical_date=dag_run_logical_date,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
+            data_interval=data_interval,
+            run_after=data_interval.end,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
             dag_version=None,
