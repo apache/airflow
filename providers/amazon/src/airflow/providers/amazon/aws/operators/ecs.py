@@ -571,12 +571,12 @@ class EcsRunTaskOperator(EcsBaseOperator):
             return None
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error in task execution: {event}")
-        self.arn = event["task_arn"]  # restore arn to its updated value, needed for next steps
-        self.cluster = event["cluster"]
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error in task execution: {validated_event}")
+        self.arn = validated_event["task_arn"]  # restore arn to its updated value, needed for next steps
+        self.cluster = validated_event["cluster"]
         self._after_execution()
         if self._aws_logs_enabled():
             # same behavior as non-deferrable mode, return last line of logs of the task.

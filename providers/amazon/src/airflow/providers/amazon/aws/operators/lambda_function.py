@@ -145,13 +145,13 @@ class LambdaCreateFunctionOperator(AwsBaseOperator[LambdaHook]):
         return response.get("FunctionArn")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if not event or event["status"] != "success":
-            raise AirflowException(f"Trigger error: event is {event}")
+        if not validated_event or validated_event["status"] != "success":
+            raise AirflowException(f"Trigger error: event is {validated_event}")
 
         self.log.info("Lambda function created successfully")
-        return event["function_arn"]
+        return validated_event["function_arn"]
 
 
 class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):

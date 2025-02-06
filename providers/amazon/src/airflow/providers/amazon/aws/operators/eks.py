@@ -415,11 +415,11 @@ class EksCreateClusterOperator(BaseOperator):
         raise AirflowException("Error creating cluster")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
         resource = "fargate profile" if self.compute == "fargate" else self.compute
-        if event["status"] != "success":
-            raise AirflowException(f"Error creating {resource}: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error creating {resource}: {validated_event}")
 
         self.log.info("%s created successfully", resource)
 
@@ -543,10 +543,10 @@ class EksCreateNodegroupOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error creating nodegroup: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error creating nodegroup: {validated_event}")
 
 
 class EksCreateFargateProfileOperator(BaseOperator):
@@ -655,10 +655,10 @@ class EksCreateFargateProfileOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error creating Fargate profile: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error creating Fargate profile: {validated_event}")
 
         self.log.info("Fargate profile created successfully")
 
@@ -789,9 +789,9 @@ class EksDeleteClusterOperator(BaseOperator):
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] == "success":
+        if validated_event["status"] == "success":
             self.log.info("Cluster deleted successfully.")
 
 
@@ -880,10 +880,10 @@ class EksDeleteNodegroupOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error deleting nodegroup: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error deleting nodegroup: {validated_event}")
 
 
 class EksDeleteFargateProfileOperator(BaseOperator):
@@ -974,10 +974,10 @@ class EksDeleteFargateProfileOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error deleting Fargate profile: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error deleting Fargate profile: {validated_event}")
 
         self.log.info("Fargate profile deleted successfully")
 

@@ -215,20 +215,20 @@ class KinesisAnalyticsV2StartApplicationOperator(AwsBaseOperator[KinesisAnalytic
         return {"ApplicationARN": describe_response["ApplicationDetail"]["ApplicationARN"]}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
+        if validated_event["status"] != "success":
             raise AirflowException(
-                "Error while starting AWS Managed Service for Apache Flink application: %s", event
+                "Error while starting AWS Managed Service for Apache Flink application: %s", validated_event
             )
 
         response = self.hook.conn.describe_application(
-            ApplicationName=event["application_name"],
+            ApplicationName=validated_event["application_name"],
         )
 
         self.log.info(
             "AWS Managed Service for Apache Flink application %s started successfully.",
-            event["application_name"],
+            validated_event["application_name"],
         )
 
         return {"ApplicationARN": response["ApplicationDetail"]["ApplicationARN"]}
@@ -332,18 +332,18 @@ class KinesisAnalyticsV2StopApplicationOperator(AwsBaseOperator[KinesisAnalytics
         return {"ApplicationARN": describe_response["ApplicationDetail"]["ApplicationARN"]}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, Any]:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
+        if validated_event["status"] != "success":
             raise AirflowException("Error while stopping AWS Managed Service for Apache Flink application")
 
         response = self.hook.conn.describe_application(
-            ApplicationName=event["application_name"],
+            ApplicationName=validated_event["application_name"],
         )
 
         self.log.info(
             "AWS Managed Service for Apache Flink application %s stopped successfully.",
-            event["application_name"],
+            validated_event["application_name"],
         )
 
         return {"ApplicationARN": response["ApplicationDetail"]["ApplicationARN"]}

@@ -627,12 +627,12 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         return json.dumps(create_db_instance, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"DB instance creation failed: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"DB instance creation failed: {validated_event}")
 
-        return json.dumps(event["response"], default=str)
+        return json.dumps(validated_event["response"], default=str)
 
 
 class RdsDeleteDbInstanceOperator(RdsBaseOperator):
@@ -712,12 +712,12 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         return json.dumps(delete_db_instance, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"DB instance deletion failed: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"DB instance deletion failed: {validated_event}")
 
-        return json.dumps(event["response"], default=str)
+        return json.dumps(validated_event["response"], default=str)
 
 
 class RdsStartDbOperator(RdsBaseOperator):
@@ -779,12 +779,12 @@ class RdsStartDbOperator(RdsBaseOperator):
         return json.dumps(start_db_response, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Failed to start DB: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Failed to start DB: {validated_event}")
 
-        return json.dumps(event["response"], default=str)
+        return json.dumps(validated_event["response"], default=str)
 
     def _start_db(self):
         self.log.info("Starting DB %s '%s'", self.db_type.value, self.db_identifier)
@@ -891,12 +891,12 @@ class RdsStopDbOperator(RdsBaseOperator):
         return json.dumps(stop_db_response, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Failed to start DB: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Failed to start DB: {validated_event}")
 
-        return json.dumps(event["response"], default=str)
+        return json.dumps(validated_event["response"], default=str)
 
     def _stop_db(self):
         self.log.info("Stopping DB %s '%s'", self.db_type.value, self.db_identifier)

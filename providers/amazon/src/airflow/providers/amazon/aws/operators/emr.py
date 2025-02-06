@@ -199,13 +199,13 @@ class EmrAddStepsOperator(BaseOperator):
         return step_ids
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running steps: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running steps: {validated_event}")
 
         self.log.info("Steps completed successfully")
-        return event["value"]
+        return validated_event["value"]
 
 
 class EmrStartNotebookExecutionOperator(BaseOperator):
@@ -591,12 +591,12 @@ class EmrContainerOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
 
-        return event["job_id"]
+        return validated_event["job_id"]
 
     def on_kill(self) -> None:
         """Cancel the submitted job run."""
@@ -769,13 +769,13 @@ class EmrCreateJobFlowOperator(BaseOperator):
         return self._job_flow_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error creating jobFlow: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error creating jobFlow: {validated_event}")
 
         self.log.info("JobFlow created successfully")
-        return event["job_flow_id"]
+        return validated_event["job_flow_id"]
 
     def on_kill(self) -> None:
         """Terminate the EMR cluster (job flow) unless TerminationProtected is enabled on the cluster."""
@@ -944,10 +944,10 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error terminating JobFlow: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error terminating JobFlow: {validated_event}")
 
         self.log.info("Jobflow terminated successfully.")
 
@@ -1086,13 +1086,13 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Trigger error: Application failed to start, event is {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Trigger error: Application failed to start, event is {validated_event}")
 
-        self.log.info("Application %s started", event["application_id"])
-        return event["application_id"]
+        self.log.info("Application %s started", validated_event["application_id"])
+        return validated_event["application_id"]
 
 
 class EmrServerlessStartJobOperator(BaseOperator):
@@ -1273,11 +1273,11 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return self.job_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] == "success":
+        if validated_event["status"] == "success":
             self.log.info("Serverless job completed")
-            return event["job_id"]
+            return validated_event["job_id"]
 
     def on_kill(self) -> None:
         """
@@ -1547,9 +1547,9 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] == "success":
+        if validated_event["status"] == "success":
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
 
 
@@ -1651,7 +1651,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         self.log.info("EMR serverless application deleted")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] == "success":
+        if validated_event["status"] == "success":
             self.log.info("EMR serverless application %s deleted successfully", self.application_id)

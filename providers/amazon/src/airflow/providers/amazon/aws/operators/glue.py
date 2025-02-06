@@ -244,11 +244,11 @@ class GlueJobOperator(BaseOperator):
         return self._job_run_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error in glue job: {event}")
-        return event["value"]
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error in glue job: {validated_event}")
+        return validated_event["value"]
 
     def on_kill(self):
         """Cancel the running AWS Glue Job."""
@@ -502,18 +502,18 @@ class GlueDataQualityRuleSetEvaluationRunOperator(AwsBaseOperator[GlueDataQualit
         return evaluation_run_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error: AWS Glue data quality ruleset evaluation run: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error: AWS Glue data quality ruleset evaluation run: {validated_event}")
 
         self.hook.validate_evaluation_run_results(
-            evaluation_run_id=event["evaluation_run_id"],
+            evaluation_run_id=validated_event["evaluation_run_id"],
             show_results=self.show_results,
             verify_result_status=self.verify_result_status,
         )
 
-        return event["evaluation_run_id"]
+        return validated_event["evaluation_run_id"]
 
 
 class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQualityHook]):
@@ -650,12 +650,12 @@ class GlueDataQualityRuleRecommendationRunOperator(AwsBaseOperator[GlueDataQuali
         return recommendation_run_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error: AWS Glue data quality rule recommendation run: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error: AWS Glue data quality rule recommendation run: {validated_event}")
 
         if self.show_results:
-            self.hook.log_recommendation_results(run_id=event["recommendation_run_id"])
+            self.hook.log_recommendation_results(run_id=validated_event["recommendation_run_id"])
 
-        return event["recommendation_run_id"]
+        return validated_event["recommendation_run_id"]

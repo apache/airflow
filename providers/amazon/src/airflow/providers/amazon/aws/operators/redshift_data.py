@@ -185,13 +185,13 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     def execute_complete(
         self, context: Context, event: dict[str, Any] | None = None
     ) -> list[GetStatementResultResponseTypeDef] | list[str]:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] == "error":
-            msg = f"context: {context}, error message: {event['message']}"
+        if validated_event["status"] == "error":
+            msg = f"context: {context}, error message: {validated_event['message']}"
             raise AirflowException(msg)
 
-        statement_id = event["statement_id"]
+        statement_id = validated_event["statement_id"]
         if not statement_id:
             raise AirflowException("statement_id should not be empty.")
 

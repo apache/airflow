@@ -177,14 +177,16 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         return self.query_execution_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(
+                f"Error while waiting for operation on cluster to complete: {validated_event}"
+            )
 
         # Save query_execution_id to be later used by listeners
-        self.query_execution_id = event["value"]
-        return event["value"]
+        self.query_execution_id = validated_event["value"]
+        return validated_event["value"]
 
     def on_kill(self) -> None:
         """Cancel the submitted Amazon Athena query."""

@@ -129,13 +129,13 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
         return {"run_id": run_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException("Error while running AWS Glue DataBrew job: %s", event)
+        if validated_event["status"] != "success":
+            raise AirflowException("Error while running AWS Glue DataBrew job: %s", validated_event)
 
-        run_id = event.get("run_id", "")
-        status = event.get("status", "")
+        run_id = validated_event.get("run_id", "")
+        status = validated_event.get("status", "")
 
         self.log.info("AWS Glue DataBrew runID: %s completed with status: %s", run_id, status)
 

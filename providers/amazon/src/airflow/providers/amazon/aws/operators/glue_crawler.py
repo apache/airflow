@@ -117,8 +117,8 @@ class GlueCrawlerOperator(AwsBaseOperator[GlueCrawlerHook]):
         return crawler_name
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error in glue crawl: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error in glue crawl: {validated_event}")
         return self.config["Name"]

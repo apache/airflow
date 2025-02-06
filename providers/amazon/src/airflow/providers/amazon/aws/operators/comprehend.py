@@ -207,12 +207,12 @@ class ComprehendStartPiiEntitiesDetectionJobOperator(ComprehendBaseOperator):
         return job_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
-        if event["status"] != "success":
-            raise AirflowException("Error while running job: %s", event)
+        validated_event = validate_execute_complete_event(event)
+        if validated_event["status"] != "success":
+            raise AirflowException("Error while running job: %s", validated_event)
 
-        self.log.info("Comprehend pii entities detection job `%s` complete.", event["job_id"])
-        return event["job_id"]
+        self.log.info("Comprehend pii entities detection job `%s` complete.", validated_event["job_id"])
+        return validated_event["job_id"]
 
 
 class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]):
@@ -363,14 +363,19 @@ class ComprehendCreateDocumentClassifierOperator(AwsBaseOperator[ComprehendHook]
         return document_classifier_arn
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
-        if event["status"] != "success":
-            raise AirflowException("Error while running comprehend create document classifier: %s", event)
+        validated_event = validate_execute_complete_event(event)
+        if validated_event["status"] != "success":
+            raise AirflowException(
+                "Error while running comprehend create document classifier: %s", validated_event
+            )
 
         self.hook.validate_document_classifier_training_status(
-            document_classifier_arn=event["document_classifier_arn"], fail_on_warnings=self.fail_on_warnings
+            document_classifier_arn=validated_event["document_classifier_arn"],
+            fail_on_warnings=self.fail_on_warnings,
         )
 
-        self.log.info("Comprehend document classifier `%s` complete.", event["document_classifier_arn"])
+        self.log.info(
+            "Comprehend document classifier `%s` complete.", validated_event["document_classifier_arn"]
+        )
 
-        return event["document_classifier_arn"]
+        return validated_event["document_classifier_arn"]

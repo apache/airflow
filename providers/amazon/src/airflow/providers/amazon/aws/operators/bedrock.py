@@ -198,13 +198,13 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
         self.valid_action_if_job_exists: set[str] = {"timestamp", "fail"}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
 
         self.log.info("Bedrock model customization job `%s` complete.", self.job_name)
-        return self.hook.conn.get_model_customization_job(jobIdentifier=event["job_name"])["jobArn"]
+        return self.hook.conn.get_model_customization_job(jobIdentifier=validated_event["job_name"])["jobArn"]
 
     def execute(self, context: Context) -> dict:
         response = {}
@@ -353,13 +353,15 @@ class BedrockCreateProvisionedModelThroughputOperator(AwsBaseOperator[BedrockHoo
         return provisioned_model_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
 
-        self.log.info("Bedrock provisioned throughput job `%s` complete.", event["provisioned_model_id"])
-        return event["provisioned_model_id"]
+        self.log.info(
+            "Bedrock provisioned throughput job `%s` complete.", validated_event["provisioned_model_id"]
+        )
+        return validated_event["provisioned_model_id"]
 
 
 class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
@@ -449,13 +451,13 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         self.deferrable = deferrable
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
 
         self.log.info("Bedrock knowledge base creation job `%s` complete.", self.name)
-        return event["knowledge_base_id"]
+        return validated_event["knowledge_base_id"]
 
     def execute(self, context: Context) -> str:
         def _create_kb():
@@ -634,14 +636,14 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
         self.deferrable = deferrable
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running ingestion job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running ingestion job: {validated_event}")
 
-        self.log.info("Bedrock ingestion job `%s` complete.", event["ingestion_job_id"])
+        self.log.info("Bedrock ingestion job `%s` complete.", validated_event["ingestion_job_id"])
 
-        return event["ingestion_job_id"]
+        return validated_event["ingestion_job_id"]
 
     def execute(self, context: Context) -> str:
         ingestion_job_id = self.hook.conn.start_ingestion_job(

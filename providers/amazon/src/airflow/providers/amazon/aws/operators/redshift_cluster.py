@@ -321,10 +321,10 @@ class RedshiftCreateClusterOperator(BaseOperator):
         self.log.info(cluster)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error creating cluster: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error creating cluster: {validated_event}")
 
 
 class RedshiftCreateClusterSnapshotOperator(BaseOperator):
@@ -417,10 +417,10 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error creating snapshot: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error creating snapshot: {validated_event}")
 
         self.log.info("Cluster snapshot created.")
 
@@ -577,10 +577,10 @@ class RedshiftResumeClusterOperator(BaseOperator):
                 )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error resuming cluster: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error resuming cluster: {validated_event}")
         self.log.info("Resumed cluster successfully")
 
 
@@ -683,10 +683,10 @@ class RedshiftPauseClusterOperator(BaseOperator):
                 )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error pausing cluster: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error pausing cluster: {validated_event}")
         self.log.info("Paused cluster successfully")
 
 
@@ -792,9 +792,9 @@ class RedshiftDeleteClusterOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error deleting cluster: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error deleting cluster: {validated_event}")
 
         self.log.info("Cluster deleted successfully")

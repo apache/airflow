@@ -267,13 +267,13 @@ class BatchOperator(BaseOperator):
         return self.job_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
 
         self.log.info("Job completed.")
-        return event["job_id"]
+        return validated_event["job_id"]
 
     def on_kill(self):
         response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")
@@ -540,8 +540,10 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         return arn
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while waiting for the compute environment to be ready: {event}")
-        return event["value"]
+        if validated_event["status"] != "success":
+            raise AirflowException(
+                f"Error while waiting for the compute environment to be ready: {validated_event}"
+            )
+        return validated_event["value"]
