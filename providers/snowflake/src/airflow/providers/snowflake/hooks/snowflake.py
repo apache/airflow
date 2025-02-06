@@ -299,6 +299,12 @@ class SnowflakeHook(DbApiHook):
         if snowflake_port:
             conn_config["port"] = snowflake_port
 
+        # if a value for ocsp_fail_open is set, pass it along.
+        # Note the check is for `is not None` so that we can pass along `False` as a value.
+        ocsp_fail_open = extra_dict.get("ocsp_fail_open")
+        if ocsp_fail_open is not None:
+            conn_config["ocsp_fail_open"] = _try_to_boolean(ocsp_fail_open)
+
         return conn_config
 
     def get_uri(self) -> str:
@@ -320,6 +326,7 @@ class SnowflakeHook(DbApiHook):
                     "client_request_mfa_token",
                     "client_store_temporary_credential",
                     "json_result_force_utf8_decoding",
+                    "ocsp_fail_open",
                 ]
             }
         )
@@ -345,6 +352,9 @@ class SnowflakeHook(DbApiHook):
         if "json_result_force_utf8_decoding" in conn_params:
             engine_kwargs.setdefault("connect_args", {})
             engine_kwargs["connect_args"]["json_result_force_utf8_decoding"] = True
+        if "ocsp_fail_open" in conn_params:
+            engine_kwargs.setdefault("connect_args", {})
+            engine_kwargs["connect_args"]["ocsp_fail_open"] = conn_params["ocsp_fail_open"]
         for key in ["session_parameters", "private_key"]:
             if conn_params.get(key):
                 engine_kwargs.setdefault("connect_args", {})
