@@ -31,7 +31,7 @@ import sys
 import time
 import zipfile
 from collections import defaultdict, deque
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from importlib import import_module
@@ -838,6 +838,35 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.info("Adding new file %s to parsing queue", file)
                     self._file_queue.appendleft(file)
 
+    def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
+        files_with_mtime: dict[DagFileInfo, float] = {}
+        changed_recently = set()
+        for file in files:
+            try:
+                modified_timestamp = os.path.getmtime(file.absolute_path)
+                modified_datetime = datetime.fromtimestamp(modified_timestamp, tz=timezone.utc)
+                files_with_mtime[file] = modified_timestamp
+                last_time = self._file_stats[file].last_finish_time
+                if not last_time:
+                    continue
+                if modified_datetime > last_time:
+                    changed_recently.add(file)
+            except FileNotFoundError:
+                self.log.warning("Skipping processing of missing file: %s", file)
+                self._file_stats.pop(file, None)
+                continue
+        file_infos = [info for info, ts in sorted(files_with_mtime.items(), key=itemgetter(1), reverse=True)]
+        return file_infos, changed_recently
+
+    def processed_recently(self, now, file):
+        last_time = self._file_stats[file].last_finish_time
+        if not last_time:
+            return False
+        elapsed_ss = (now - last_time).total_seconds()
+        if elapsed_ss < self._file_process_interval:
+            return True
+        return False
+
     def prepare_file_queue(self, known_files: dict[str, set[DagFileInfo]]):
         """
         Scan dags dir to generate more file paths to process.
@@ -852,59 +881,34 @@ class DagFileProcessorManager(LoggingMixin):
 
         # Sort the file paths by the parsing order mode
         list_mode = conf.get("dag_processor", "file_parsing_sort_mode")
+        recently_processed = set()
+        files = []
 
-        files_with_mtime: dict[DagFileInfo, float] = {}
-        file_infos: list[DagFileInfo] = []
-        is_mtime_mode = list_mode == "modified_time"
+        for bundle_files in known_files.values():
+            for file in bundle_files:
+                files.append(file)
+                if self.processed_recently(now, file):
+                    recently_processed.add(file)
 
-        recently_processed: list[DagFileInfo] = []
-        for files in known_files.values():
-            for file in files:
-                if is_mtime_mode:
-                    try:
-                        files_with_mtime[file] = os.path.getmtime(file.absolute_path)
-                    except FileNotFoundError:
-                        self.log.warning("Skipping processing of missing file: %s", file)
-                        self._file_stats.pop(file, None)
-                        continue
-                    file_modified_time = datetime.fromtimestamp(files_with_mtime[file], tz=timezone.utc)
-                else:
-                    file_infos.append(file)
-                    file_modified_time = None
-
-                # Find file paths that were recently processed to exclude them
-                # from being added to file_queue
-                # unless they were modified recently and parsing mode is "modified_time"
-                # in which case we don't honor "self._file_process_interval" (min_file_process_interval)
-                if (
-                    (last_finish_time := self._file_stats[file].last_finish_time) is not None
-                    and (now - last_finish_time).total_seconds() < self._file_process_interval
-                    and not (is_mtime_mode and file_modified_time and (file_modified_time > last_finish_time))
-                ):
-                    recently_processed.append(file)
-
-        # Sort file paths via last modified time
-        if is_mtime_mode:
-            file_infos = [
-                info for info, ts in sorted(files_with_mtime.items(), key=itemgetter(1), reverse=True)
-            ]
+        changed_recently: set[DagFileInfo] = set()
+        if list_mode == "modified_time":
+            files, changed_recently = self._sort_by_mtime(files=files)
         elif list_mode == "alphabetical":
-            file_infos.sort(key=attrgetter("rel_path"))
+            files.sort(key=attrgetter("rel_path"))
         elif list_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
-            random.Random(get_hostname()).shuffle(file_infos)
+            random.Random(get_hostname()).shuffle(files)
 
         at_run_limit = [info for info, stat in self._file_stats.items() if stat.run_count == self.max_runs]
+        to_exclude = in_progress.union(at_run_limit)
 
-        to_exclude = in_progress.union(
-            recently_processed,
-            at_run_limit,
-        )
+        # exclude recently processed unless changed recently
+        to_exclude |= recently_processed - changed_recently
 
         # Do not convert the following list to set as set does not preserve the order
         # and we need to maintain the order of files for `[dag_processor] file_parsing_sort_mode`
-        to_queue = [x for x in file_infos if x not in to_exclude]
+        to_queue = [x for x in files if x not in to_exclude]
 
         if self.log.isEnabledFor(logging.DEBUG):
             for path, processor in self._processors.items():
