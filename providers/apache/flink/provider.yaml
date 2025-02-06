@@ -40,17 +40,12 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - cryptography>=41.0.0
-  - apache-airflow-providers-cncf-kubernetes>=5.1.0
-
 integrations:
   - integration-name: Apache Flink
     external-doc-url: https://github.com/apache/flink-kubernetes-operator
     how-to-guide:
       - /docs/apache-airflow-providers-apache-flink/operators.rst
-    logo: /integration-logos/kubernetes/FlinkOnK8s.png
+    logo: /docs/integration-logos/FlinkOnK8s.png
     tags: [apache]
 
 operators:
