@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import os
 import re
 import tempfile
@@ -52,20 +53,80 @@ def test_default_dag_storage_path():
         assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
+class BasicBundle(BaseDagBundle):
+    def refresh(self):
+        pass
+
+    def get_current_version(self):
+        pass
+
+    def path(self):
+        pass
+
+
 def test_dag_bundle_root_storage_path():
-    class BasicBundle(BaseDagBundle):
-        def refresh(self):
-            pass
-
-        def get_current_version(self):
-            pass
-
-        def path(self):
-            pass
-
     with conf_vars({("dag_processor", "dag_bundle_storage_path"): None}):
         bundle = BasicBundle(name="test")
         assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
+
+
+def test_lock_acquisition():
+    """Test that the lock context manager sets _locked and locks a lock file."""
+    bundle = BasicBundle(name="locktest")
+    lock_dir = bundle._dag_bundle_root_storage_path / "_locks"
+    lock_file = lock_dir / f"{bundle.name}.lock"
+
+    assert not bundle._locked
+
+    with bundle.lock():
+        assert bundle._locked
+        assert lock_file.exists()
+
+        # Check lock file is now locked
+        with open(lock_file, "w") as f:
+            try:
+                # Try to acquire an exclusive lock in non-blocking mode.
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = False
+            except OSError:
+                locked = True
+            assert locked
+
+    # After, _locked is False and file unlock has been called.
+    assert bundle._locked is False
+    with open(lock_file, "w") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            unlocked = True
+            fcntl.flock(f, fcntl.LOCK_UN)  # Release the lock immediately.
+        except OSError:
+            unlocked = False
+        assert unlocked
+
+
+def test_lock_exception_handling():
+    """Test that exceptions within the lock context manager still release the lock."""
+    bundle = BasicBundle(name="locktest")
+    lock_dir = bundle._dag_bundle_root_storage_path / "_locks"
+    lock_file = lock_dir / f"{bundle.name}.lock"
+
+    try:
+        with bundle.lock():
+            assert bundle._locked
+            raise Exception("...")
+    except Exception:
+        pass
+
+    # lock file should be unlocked
+    assert not bundle._locked
+    with open(lock_file, "w") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquired = True
+            fcntl.flock(f, fcntl.LOCK_UN)
+        except OSError:
+            acquired = False
+        assert acquired
 
 
 class TestLocalDagBundle:
@@ -581,3 +642,12 @@ class TestGitDagBundle:
         )
         assert bundle.repo_url == "some_repo_url"
         assert "Could not create GitHook for connection" in mock_log.warning.call_args[0][0]
+
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_lock_used(self, mock_githook, git_repo):
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
+        with mock.patch("airflow.dag_processing.bundles.git.GitDagBundle.lock") as mock_lock:
+            bundle.initialize()
+            assert mock_lock.call_count == 2  # both initialize and refresh
