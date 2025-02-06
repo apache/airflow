@@ -280,7 +280,7 @@ class DagRun(BaseModel):
     )
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
-    logical_date: Annotated[datetime, Field(title="Logical Date")]
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     run_after: Annotated[datetime, Field(title="Run After")]

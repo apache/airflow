@@ -216,7 +216,7 @@ class DagRun(StrictBaseModel):
     dag_id: str
     run_id: str
 
-    logical_date: UtcDateTime
+    logical_date: UtcDateTime | None
     data_interval_start: UtcDateTime | None
     data_interval_end: UtcDateTime | None
     run_after: UtcDateTime

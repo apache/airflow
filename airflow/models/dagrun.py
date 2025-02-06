@@ -793,6 +793,8 @@ class DagRun(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :param state: the dag run state
         """
+        if dag_run.logical_date is None:
+            return None
         filters = [
             DagRun.dag_id == dag_run.dag_id,
             DagRun.logical_date < dag_run.logical_date,
