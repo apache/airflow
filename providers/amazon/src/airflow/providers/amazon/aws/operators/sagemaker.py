@@ -352,13 +352,13 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         return {"Processing": self.serialized_job}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
 
-        self.log.info(event["message"])
-        self.serialized_job = serialize(self.hook.describe_processing_job(event["job_name"]))
+        self.log.info(validated_event["message"])
+        self.serialized_job = serialize(self.hook.describe_processing_job(validated_event["job_name"]))
         self.log.info("%s completed successfully.", self.task_id)
         return {"Processing": self.serialized_job}
 
@@ -605,12 +605,12 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         }
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
 
-        response = self.hook.describe_endpoint(event["job_name"])
+        response = self.hook.describe_endpoint(validated_event["job_name"])
         return {
             "EndpointConfig": serialize(self.hook.describe_endpoint_config(response["EndpointConfigName"])),
             "Endpoint": serialize(self.hook.describe_endpoint(response["EndpointName"])),
@@ -827,10 +827,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         return self._check_if_resource_exists(model_name, "model", describe_func)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        self.log.info(event["message"])
-        return self.serialize_result(event["job_name"])
+        self.log.info(validated_event["message"])
+        return self.serialize_result(validated_event["job_name"])
 
     def serialize_result(self, job_name: str) -> dict[str, dict]:
         job_description = self.hook.describe_transform_job(job_name)
@@ -999,11 +999,11 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         return {"Tuning": serialize(description)}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
-        return {"Tuning": serialize(self.hook.describe_tuning_job(event["job_name"]))}
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
+        return {"Tuning": serialize(self.hook.describe_tuning_job(validated_event["job_name"]))}
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):
@@ -1211,13 +1211,13 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         return self.serialize_result(self.config["TrainingJobName"])
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, dict]:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
 
-        self.log.info(event["message"])
-        return self.serialize_result(event["job_name"])
+        self.log.info(validated_event["message"])
+        return self.serialize_result(validated_event["job_name"])
 
     def serialize_result(self, job_name: str) -> dict[str, dict]:
         self.serialized_training_data = serialize(self.hook.describe_training_job(job_name))
@@ -1353,11 +1353,11 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         return arn
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Failure during pipeline execution: {event}")
-        return event["value"]
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Failure during pipeline execution: {validated_event}")
+        return validated_event["value"]
 
 
 class SageMakerStopPipelineOperator(SageMakerBaseOperator):
@@ -1448,10 +1448,10 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
         return status
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Failure during pipeline execution: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Failure during pipeline execution: {validated_event}")
 
         # theoretically we should do a `describe` call to know this,
         # but if we reach this point, this is the only possible status

@@ -145,13 +145,13 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
         return execution_arn
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Trigger error: event is {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Trigger error: event is {validated_event}")
 
         self.log.info("State Machine execution completed successfully")
-        return event["execution_arn"]
+        return validated_event["execution_arn"]
 
 
 class StepFunctionGetExecutionOutputOperator(AwsBaseOperator[StepFunctionHook]):

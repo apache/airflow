@@ -53,7 +53,8 @@ class OpenSearchServerlessCollectionActiveTrigger(AwsBaseWaiterTrigger):
         super().__init__(
             serialized_fields={"collection_id": collection_id, "collection_name": collection_name},
             waiter_name="collection_available",
-            waiter_args={"ids": [collection_id]} if collection_id else {"names": [collection_name]},
+            # waiter_args is a dict[str, Any], allow a possible list of None (it is caught above)
+            waiter_args={"ids": [collection_id]} if collection_id else {"names": [collection_name]},  # type: ignore[list-item]
             failure_message="OpenSearch Serverless Collection creation failed.",
             status_message="Status of OpenSearch Serverless Collection is",
             status_queries=["status"],

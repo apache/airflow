@@ -174,14 +174,14 @@ class GlueDataQualityRuleSetEvaluationRunSensor(AwsBaseSensor[GlueDataQualityHoo
             super().execute(context=context)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            message = f"Error: AWS Glue data quality ruleset evaluation run: {event}"
+        if validated_event["status"] != "success":
+            message = f"Error: AWS Glue data quality ruleset evaluation run: {validated_event}"
             raise AirflowException(message)
 
         self.hook.validate_evaluation_run_results(
-            evaluation_run_id=event["evaluation_run_id"],
+            evaluation_run_id=validated_event["evaluation_run_id"],
             show_results=self.show_results,
             verify_result_status=self.verify_result_status,
         )
@@ -295,10 +295,10 @@ class GlueDataQualityRuleRecommendationRunSensor(AwsBaseSensor[GlueDataQualityHo
             super().execute(context=context)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            message = f"Error: AWS Glue data quality recommendation run: {event}"
+        if validated_event["status"] != "success":
+            message = f"Error: AWS Glue data quality recommendation run: {validated_event}"
             raise AirflowException(message)
 
         if self.show_results:

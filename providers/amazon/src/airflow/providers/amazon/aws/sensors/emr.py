@@ -346,10 +346,10 @@ class EmrContainerSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
 
         self.log.info("Job completed.")
 
@@ -535,10 +535,10 @@ class EmrJobFlowSensor(EmrBaseSensor):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
         self.log.info("Job completed.")
 
 
@@ -664,9 +664,9 @@ class EmrStepSensor(EmrBaseSensor):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+        if validated_event["status"] != "success":
+            raise AirflowException(f"Error while running job: {validated_event}")
 
         self.log.info("Job %s completed.", self.job_flow_id)

@@ -88,11 +88,11 @@ class RedshiftClusterSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        event = validate_execute_complete_event(event)
+        validated_event = validate_execute_complete_event(event)
 
-        status = event["status"]
+        status = validated_event["status"]
         if status == "error":
-            raise AirflowException(f"{event['status']}: {event['message']}")
+            raise AirflowException(f"{validated_event['status']}: {validated_event['message']}")
         elif status == "success":
             self.log.info("%s completed successfully.", self.task_id)
             self.log.info("Cluster Identifier %s is in %s state", self.cluster_identifier, self.target_status)
