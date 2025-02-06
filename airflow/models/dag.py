@@ -1610,7 +1610,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         Execute one single DagRun for a given DAG and logical date.
 
-        :param run_after: the datetime before which to Dag won't run.
+        :param run_after: the datetime before which to Dag cannot run.
         :param logical_date: logical date for the DAG run
         :param run_conf: configuration to pass to newly created dagrun
         :param conn_file_path: file path to a connection file in either yaml or json
@@ -1786,6 +1786,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         :meta private:
         """
         logical_date = timezone.coerce_datetime(logical_date)
+        # For manual runs where logical_date is None, ensure no data_interval is set.
+        if logical_date is None and data_interval is not None:
+            raise ValueError("data_interval must be None when logical_date is None")
 
         if data_interval and not isinstance(data_interval, DataInterval):
             data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
