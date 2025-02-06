@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import uuid
@@ -1087,6 +1088,41 @@ class TestRuntimeTaskInstance:
             "flag": False,
             "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
         }
+
+    @pytest.mark.parametrize(
+        ("logical_date", "check"),
+        (
+            pytest.param(None, pytest.raises(KeyError), id="no-logical-date"),
+            pytest.param(timezone.datetime(2024, 12, 3), contextlib.nullcontext(), id="with-logical-date"),
+        ),
+    )
+    def test_no_logical_date_key_error(
+        self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti, logical_date, check
+    ):
+        """Test that a params can be retrieved from context."""
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                for key in ("ds", "ds_nodash", "ts", "ts_nodash", "ts_nodash_with_tz"):
+                    with check:
+                        context[key]
+                # We should always be able to get this
+                assert context["task_instance_key_str"]
+
+        task = CustomOperator(task_id="print-params")
+        runtime_ti = create_runtime_ti(
+            dag_id="basic_param_dag",
+            logical_date=logical_date,
+            task=task,
+            conf={
+                "x": 3,
+                "text": "Hello World!",
+                "flag": False,
+                "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
+            },
+        )
+        msg = run(runtime_ti, log=mock.MagicMock())
+        assert isinstance(msg, SucceedTask)
 
 
 class TestXComAfterTaskExecution:
