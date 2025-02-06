@@ -22,7 +22,7 @@ from base64 import b64encode
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from providers.microsoft.azure.tests.conftest import (
+from providers.microsoft.azure.tests.provider_tests.microsoft.conftest import (
     load_file,
     load_json,
     mock_json_response,

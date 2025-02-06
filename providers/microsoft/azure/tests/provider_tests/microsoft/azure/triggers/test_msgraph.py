@@ -25,7 +25,7 @@ from uuid import uuid4
 
 import pendulum
 from msgraph_core import APIVersion
-from providers.microsoft.azure.tests.conftest import (
+from providers.microsoft.azure.tests.provider_tests.microsoft.conftest import (
     get_airflow_connection,
     load_file,
     load_json,
