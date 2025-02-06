@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from kubernetes.client import (
+    CustomObjectsApi,
     V1ContainerState,
     V1ContainerStateWaiting,
     V1ContainerStatus,
@@ -37,24 +38,33 @@ from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import (
 
 @pytest.fixture
 def mock_launcher():
+    name = "test-spark-job"
+    spec = {
+        "image": "gcr.io/spark-operator/spark-py:v3.0.0",
+        "driver": {},
+        "executor": {},
+    }
+
+    custom_object_api = CustomObjectsApi()
+    custom_object_api.create_namespaced_custom_object = MagicMock(
+        return_value={"spec": spec, "metadata": {"name": name}}
+    )
+
     launcher = CustomObjectLauncher(
-        name="test-spark-job",
+        name=name,
         namespace="default",
         kube_client=MagicMock(),
-        custom_obj_api=MagicMock(),
+        custom_obj_api=custom_object_api,
         template_body={
             "spark": {
-                "spec": {
-                    "image": "gcr.io/spark-operator/spark-py:v3.0.0",
-                    "driver": {},
-                    "executor": {},
-                },
+                "spec": spec,
                 "apiVersion": "sparkoperator.k8s.io/v1beta2",
                 "kind": "SparkApplication",
             },
         },
     )
     launcher.pod_spec = V1Pod()
+    launcher.spark_job_not_running = MagicMock(return_value=False)
     return launcher
 
 
@@ -202,6 +212,10 @@ class TestCustomObjectLauncher:
                 ),
             ]
         )
+
+    @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
+    def test_start_spark_job_no_error(self, mock_pod_manager, mock_launcher):
+        mock_launcher.start_spark_job()
 
     @patch("airflow.providers.cncf.kubernetes.operators.custom_object_launcher.PodManager")
     def test_check_pod_start_failure_no_error(self, mock_pod_manager, mock_launcher):

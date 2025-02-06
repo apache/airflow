@@ -23,7 +23,6 @@ from pydantic import (
     AliasPath,
     AwareDatetime,
     BeforeValidator,
-    ConfigDict,
     Field,
     NonNegativeInt,
     StringConstraints,
@@ -41,8 +40,6 @@ from airflow.utils.state import TaskInstanceState
 
 class TaskInstanceResponse(BaseModel):
     """TaskInstance serializer for responses."""
-
-    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     id: str
     task_id: str
@@ -126,8 +123,6 @@ class TaskInstancesBatchBody(StrictBaseModel):
 class TaskInstanceHistoryResponse(BaseModel):
     """TaskInstanceHistory serializer for responses."""
 
-    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
-
     task_id: str
     dag_id: str
 
@@ -154,6 +149,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     pid: int | None
     executor: str | None
     executor_config: Annotated[str, BeforeValidator(str)]
+    dag_version: DagVersionResponse | None
 
 
 class TaskInstanceHistoryCollectionResponse(BaseModel):

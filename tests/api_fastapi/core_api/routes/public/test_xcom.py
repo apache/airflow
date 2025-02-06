@@ -579,3 +579,44 @@ class TestCreateXComEntry(TestXComEndpoint):
             assert current_data["task_id"] == task_id
             assert current_data["run_id"] == dag_run_id
             assert current_data["map_index"] == request_body.map_index
+
+
+class TestPatchXComEntry(TestXComEndpoint):
+    @pytest.mark.parametrize(
+        "key, patch_body, expected_status, expected_detail",
+        [
+            # Test case: Valid update, should return 200 OK
+            pytest.param(
+                TEST_XCOM_KEY,
+                {"value": "new_value"},
+                200,
+                None,
+                id="valid-xcom-update",
+            ),
+            # Test case: XCom entry does not exist, should return 404
+            pytest.param(
+                TEST_XCOM_KEY,
+                {"value": "new_value", "map_index": -1},
+                404,
+                f"The XCom with key: `{TEST_XCOM_KEY}` with mentioned task instance doesn't exist.",
+                id="xcom-not-found",
+            ),
+        ],
+    )
+    def test_patch_xcom_entry(self, key, patch_body, expected_status, expected_detail, test_client):
+        # Ensure the XCom entry exists before updating
+        if expected_status != 404:
+            self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+            new_value = XCom.serialize_value(patch_body["value"])
+
+        response = test_client.patch(
+            f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
+            json=patch_body,
+        )
+
+        assert response.status_code == expected_status
+
+        if expected_status == 200:
+            assert response.json()["value"] == XCom.serialize_value(new_value)
+        else:
+            assert response.json()["detail"] == expected_detail

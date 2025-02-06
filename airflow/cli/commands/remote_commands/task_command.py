@@ -32,11 +32,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
-from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import select
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
 from airflow.executors.executor_loader import ExecutorLoader
@@ -91,41 +90,6 @@ def _generate_temporary_run_id() -> str:
     return f"__airflow_temporary_run_{timezone.utcnow().isoformat()}__"
 
 
-def _fetch_dag_run_from_run_id_or_logical_date_string(
-    *,
-    dag_id: str,
-    value: str,
-    session: Session,
-) -> tuple[DagRun, pendulum.DateTime | None]:
-    """
-    Try to find a DAG run with a given string value.
-
-    The string value may be a run ID, or a logical date in string form. We first
-    try to use it as a run_id; if a run is found, it is returned as-is.
-
-    Otherwise, the string value is parsed into a datetime. If that works, it is
-    used to find a DAG run.
-
-    The return value is a two-tuple. The first item is the found DAG run (or
-    *None* if one cannot be found). The second is the parsed logical date. This
-    second value can be used to create a new run by the calling function when
-    one cannot be found here.
-    """
-    if dag_run := DAG.fetch_dagrun(dag_id=dag_id, run_id=value, session=session):
-        return dag_run, dag_run.logical_date  # type: ignore[return-value]
-    try:
-        logical_date = timezone.parse(value)
-    except (ParserError, TypeError):
-        return dag_run, None
-    dag_run = session.scalar(
-        select(DagRun)
-        .where(DagRun.dag_id == dag_id, DagRun.logical_date == logical_date)
-        .order_by(DagRun.id.desc())
-        .limit(1)
-    )
-    return dag_run, logical_date
-
-
 def _get_dag_run(
     *,
     dag: DAG,
@@ -152,7 +116,7 @@ def _get_dag_run(
 
     logical_date = None
     if logical_date_or_run_id:
-        dag_run, logical_date = _fetch_dag_run_from_run_id_or_logical_date_string(
+        dag_run, logical_date = fetch_dag_run_from_run_id_or_logical_date_string(
             dag_id=dag.dag_id,
             value=logical_date_or_run_id,
             session=session,
@@ -165,11 +129,7 @@ def _get_dag_run(
                 f"of {logical_date_or_run_id!r} not found"
             )
 
-    if logical_date is not None:
-        dag_run_logical_date = logical_date
-    else:
-        dag_run_logical_date = pendulum.instance(timezone.utcnow())
-
+    dag_run_logical_date = pendulum.instance(logical_date or timezone.utcnow())
     if create_if_necessary == "memory":
         data_interval = dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         dag_run = DagRun(
@@ -592,17 +552,11 @@ def _guess_debugger() -> _SupportedDebugger:
 @provide_session
 def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
-    dag_run = session.scalar(
-        select(DagRun).where(DagRun.run_id == args.logical_date_or_run_id, DagRun.dag_id == args.dag_id)
+    dag_run, _ = fetch_dag_run_from_run_id_or_logical_date_string(
+        dag_id=args.dag_id,
+        value=args.logical_date_or_run_id,
+        session=session,
     )
-    if not dag_run:
-        try:
-            logical_date = timezone.parse(args.logical_date_or_run_id)
-            dag_run = session.scalar(
-                select(DagRun).where(DagRun.logical_date == logical_date, DagRun.dag_id == args.dag_id)
-            )
-        except (ParserError, TypeError) as err:
-            raise AirflowException(f"Error parsing the supplied logical_date. Error: {err}")
 
     if dag_run is None:
         raise DagRunNotFound(
@@ -615,7 +569,7 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     def format_task_instance(ti: TaskInstance) -> dict[str, str]:
         data = {
             "dag_id": ti.dag_id,
-            "logical_date": dag_run.logical_date.isoformat(),
+            "logical_date": dag_run.logical_date.isoformat() if dag_run.logical_date else "",
             "task_id": ti.task_id,
             "state": ti.state,
             "start_date": ti.start_date.isoformat() if ti.start_date else "",
