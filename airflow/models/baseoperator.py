@@ -893,7 +893,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                 while group is not None:
                     if isinstance(group, MappedTaskGroup):
                         exp_input = group._expand_input
-                        # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over ot use the
+                        # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over to use the
                         # task sdk runner.
                         if not hasattr(exp_input, "get_total_map_length"):
                             exp_input = _ExpandInputRef(
