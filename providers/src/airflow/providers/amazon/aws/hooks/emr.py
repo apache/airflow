@@ -22,7 +22,9 @@ import time
 import warnings
 from typing import Any
 
+import tenacity
 from botocore.exceptions import ClientError
+from tenacity import retry_if_exception, stop_after_attempt, wait_fixed
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -311,6 +313,15 @@ class EmrServerlessHook(AwsBaseHook):
         return count
 
 
+def is_connection_being_updated_exception(exception: BaseException) -> bool:
+    return (
+        isinstance(exception, ClientError)
+        and exception.response["Error"]["Code"] == "ValidationException"
+        and "is not reachable as its connection is currently being updated"
+        in exception.response["Error"]["Message"]
+    )
+
+
 class EmrContainerHook(AwsBaseHook):
     """
     Interact with Amazon EMR Containers (Amazon EMR on EKS).
@@ -348,6 +359,15 @@ class EmrContainerHook(AwsBaseHook):
         super().__init__(client_type="emr-containers", *args, **kwargs)  # type: ignore
         self.virtual_cluster_id = virtual_cluster_id
 
+    # Retry this method when the ``create_virtual_cluster`` raises
+    # "Cluster XXX is not reachable as its connection is currently being updated".
+    # Even though the EKS cluster status is ``ACTIVE``, ``create_virtual_cluster`` can raise this error.
+    # Retrying is the only option.
+    @tenacity.retry(
+        retry=retry_if_exception(is_connection_being_updated_exception),
+        stop=stop_after_attempt(5),
+        wait=wait_fixed(10),
+    )
     def create_emr_on_eks_cluster(
         self,
         virtual_cluster_name: str,
