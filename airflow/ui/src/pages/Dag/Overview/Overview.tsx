@@ -54,6 +54,7 @@ export const Overview = () => {
   const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     limit: 14,
+    orderBy: "-start_date",
   });
 
   return (
@@ -100,7 +101,11 @@ export const Overview = () => {
         />
       </HStack>
       <Box h="1/3" my={5} w="1/3">
-        {isLoadingRuns ? <Skeleton height="200px" w="full" /> : <RunDuration runs={runs?.dag_runs} />}
+        {isLoadingRuns ? (
+          <Skeleton height="200px" w="full" />
+        ) : (
+          <RunDuration runs={runs?.dag_runs.slice().reverse()} />
+        )}
       </Box>
     </Box>
   );
