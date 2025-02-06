@@ -35,8 +35,6 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 
-pytest_plugins = "tests_common.pytest_plugin"
-
 T = TypeVar("T", dict, str, Connection)
 
 

@@ -25,6 +25,13 @@ from uuid import uuid4
 
 import pendulum
 from msgraph_core import APIVersion
+from providers.microsoft.azure.tests.conftest import (
+    get_airflow_connection,
+    load_file,
+    load_json,
+    mock_json_response,
+    mock_response,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
@@ -35,13 +42,6 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
 from airflow.triggers.base import TriggerEvent
 from provider_tests.microsoft.azure.base import Base
 
-from providers.tests.microsoft.conftest import (
-    get_airflow_connection,
-    load_file,
-    load_json,
-    mock_json_response,
-    mock_response,
-)
 from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
