@@ -344,6 +344,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
                     "logical_date": "2021-01-01T00:00:00Z",
                     "start_date": "2021-01-01T00:00:00Z",
                     "run_type": DagRunType.MANUAL,
+                    "run_after": "2021-01-01T00:00:00Z",
                 },
                 "max_tries": 0,
             },
