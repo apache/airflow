@@ -83,7 +83,7 @@ Variable                                    Type                  Description
                                                                   | Added in version 2.4.
 =========================================== ===================== ===================================================================
 
-The following are only available when the DagRun has a logical_date
+The following are only available when the DagRun has a ``logical_date``
 
 =========================================== ===================== ===================================================================
 Variable                                    Type                  Description
@@ -97,6 +97,8 @@ Variable                                    Type                  Description
                                                                   | Example: ``20180101T000000+0000``.
 ``{{ ts_nodash }}``                         str                   | Same as ``{{ logical_date | ts_nodash }}``.
                                                                   | Example: ``20180101T000000``.
+=========================================== ===================== ===================================================================
+
 .. note::
 
     The DAG run's logical date, and values derived from it, such as ``ds`` and
