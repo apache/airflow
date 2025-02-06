@@ -121,7 +121,7 @@ class EdgeWorkerHosts(BaseView):
         from airflow.providers.edge.models.edge_worker import request_maintenance
 
         maintenance_comment = request.form.get("maintenance_comment")
-        request_maintenance(worker_name, maintenance_comment)
+        request_maintenance(worker_name, maintenance_comment if maintenance_comment else "")
         return redirect(url_for("EdgeWorkerHosts.status"))
 
     @expose("/status/maintenance/<string:worker_name>/off", methods=["POST"])
