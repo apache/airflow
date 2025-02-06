@@ -647,6 +647,7 @@ dev = [
   "apache-airflow-providers-apache-flink",
   "apache-airflow-providers-apache-hive",
   "apache-airflow-providers-apache-iceberg",
+  "apache-airflow-providers-apache-impala",
   "apache-airflow-providers-apache-kafka",
   "apache-airflow-providers-apache-kylin",
   "apache-airflow-providers-apache-livy",
@@ -739,6 +740,7 @@ apache-airflow-providers-apache-druid = { workspace = true }
 apache-airflow-providers-apache-flink = { workspace = true }
 apache-airflow-providers-apache-hive = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
+apache-airflow-providers-apache-impala = { workspace = true }
 apache-airflow-providers-apache-kafka = { workspace = true }
 apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-livy = { workspace = true }
@@ -829,6 +831,7 @@ members = [
     "providers/apache/flink",
     "providers/apache/hive",
     "providers/apache/iceberg",
+    "providers/apache/impala",
     "providers/apache/kafka",
     "providers/apache/kylin",
     "providers/apache/livy",
