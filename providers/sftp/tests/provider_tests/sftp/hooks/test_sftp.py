@@ -179,6 +179,28 @@ class TestSFTPHook:
         assert new_dir_path not in output
         assert base_dir not in output
 
+    def test_create_and_delete_directory_with_files(self):
+        new_dir = "new_dir"
+        sub_dir = "sub_dir"
+        additional_file = "additional_file.txt"
+        self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir))
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert new_dir in output
+        self.hook.create_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir, sub_dir))
+        self._create_additional_test_file(file_name=additional_file)
+        self.hook.store_file(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir, additional_file),
+            local_full_path=os.path.join(self.temp_dir, additional_file),
+        )
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir))
+        assert sub_dir in output
+        assert additional_file in output
+        self.hook.delete_directory(
+            os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir), include_files=True
+        )
+        output = self.hook.describe_directory(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert new_dir not in output
+
     def test_store_retrieve_and_delete_file(self):
         self.hook.store_file(
             remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
