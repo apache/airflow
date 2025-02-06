@@ -295,6 +295,8 @@ class DagFileProcessorManager(LoggingMixin):
 
         poll_time = 0.0
 
+        known_files: dict[str, set[DagFileInfo]] = {}
+
         while True:
             loop_start_time = time.monotonic()
 
@@ -302,7 +304,6 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._kill_timed_out_processors()
 
-            known_files: dict[str, set[DagFileInfo]] = {}
             self._refresh_dag_bundles(known_files=known_files)
 
             if not self._file_queue:
