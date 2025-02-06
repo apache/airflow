@@ -277,6 +277,60 @@ class TestPytestSnowflakeHook:
                     "json_result_force_utf8_decoding": True,
                 },
             ),
+            (
+                {
+                    **BASE_CONNECTION_KWARGS,
+                    "extra": {
+                        **BASE_CONNECTION_KWARGS["extra"],
+                        "ocsp_fail_open": True,
+                    },
+                },
+                (
+                    "snowflake://user:pw@airflow.af_region/db/public?"
+                    "application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh"
+                ),
+                {
+                    "account": "airflow",
+                    "application": "AIRFLOW",
+                    "authenticator": "snowflake",
+                    "database": "db",
+                    "password": "pw",
+                    "region": "af_region",
+                    "role": "af_role",
+                    "schema": "public",
+                    "session_parameters": None,
+                    "user": "user",
+                    "warehouse": "af_wh",
+                    "ocsp_fail_open": True,
+                },
+            ),
+            (
+                {
+                    **BASE_CONNECTION_KWARGS,
+                    "extra": {
+                        **BASE_CONNECTION_KWARGS["extra"],
+                        "ocsp_fail_open": False,
+                    },
+                },
+                (
+                    "snowflake://user:pw@airflow.af_region/db/public?"
+                    "application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh"
+                ),
+                {
+                    "account": "airflow",
+                    "application": "AIRFLOW",
+                    "authenticator": "snowflake",
+                    "database": "db",
+                    "password": "pw",
+                    "region": "af_region",
+                    "role": "af_role",
+                    "schema": "public",
+                    "session_parameters": None,
+                    "user": "user",
+                    "warehouse": "af_wh",
+                    "ocsp_fail_open": False,
+                },
+            ),
         ],
     )
     def test_hook_should_support_prepare_basic_conn_params_and_uri(
@@ -528,6 +582,23 @@ class TestPytestSnowflakeHook:
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_sqlalchemy_engine()
             assert "private_key" in mock_create_engine.call_args.kwargs["connect_args"]
+            assert mock_create_engine.return_value == conn
+
+    def test_get_sqlalchemy_engine_should_support_ocsp_fail_open(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["ocsp_fail_open"] = "False"
+
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine,
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn = hook.get_sqlalchemy_engine()
+            mock_create_engine.assert_called_once_with(
+                "snowflake://user:pw@airflow.af_region/db/public"
+                "?application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh",
+                connect_args={"ocsp_fail_open": False},
+            )
             assert mock_create_engine.return_value == conn
 
     def test_hook_parameters_should_take_precedence(self):
