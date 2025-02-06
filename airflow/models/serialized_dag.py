@@ -291,7 +291,7 @@ class SerializedDagModel(Base):
     @property
     def data(self) -> dict | None:
         # use __data_cache to avoid decompress and loads
-        if not hasattr(self, "__data_cache") or self.__data_cache is None:
+        if not hasattr(self, "_SerializedDagModel__data_cache") or self.__data_cache is None:
             if self._data_compressed:
                 self.__data_cache = json.loads(zlib.decompress(self._data_compressed))
             else:
