@@ -132,6 +132,10 @@ def _resolve_path(instance: Any, attribute: attrs.Attribute, val: str | os.PathL
     return val
 
 
+def _shuffle(vals):
+    random.Random(get_hostname()).shuffle(vals)
+
+
 @attrs.define
 class DagFileProcessorManager(LoggingMixin):
     """
@@ -892,7 +896,7 @@ class DagFileProcessorManager(LoggingMixin):
         elif list_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
-            random.Random(get_hostname()).shuffle(file_infos)
+            _shuffle(file_infos)
 
         at_run_limit = [info for info, stat in self._file_stats.items() if stat.run_count == self.max_runs]
 
