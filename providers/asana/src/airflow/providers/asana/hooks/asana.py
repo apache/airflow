@@ -234,7 +234,7 @@ class AsanaHook(BaseHook):
         tasks_api_instance = TasksApi(self.client)
         try:
             body = {"data": params}
-            response = tasks_api_instance.update_task(body, task_id)
+            response = tasks_api_instance.update_task(body, task_id, opts={})
             return response
         except ApiException as e:
             self.log.exception("Exception when calling update task with task id: %s", task_id)
