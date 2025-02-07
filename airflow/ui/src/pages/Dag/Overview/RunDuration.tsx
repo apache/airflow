@@ -33,6 +33,7 @@ import dayjs from "dayjs";
 import { Bar } from "react-chartjs-2";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+import { system } from "src/theme";
 import { getDuration } from "src/utils/datetime_utils";
 
 ChartJS.register(
@@ -52,7 +53,13 @@ const average = (ctx: PartialEventContext, index: number) => {
   return values === undefined ? 0 : values.reduce((initial, next) => initial + next, 0) / values.length;
 };
 
-export const RunDuration = ({ runs }: { readonly runs: Array<DAGRunResponse> | undefined }) => {
+export const RunDuration = ({
+  runs,
+  totalEntries,
+}: {
+  readonly runs: Array<DAGRunResponse> | undefined;
+  readonly totalEntries: number;
+}) => {
   if (!runs) {
     return undefined;
   }
@@ -84,7 +91,7 @@ export const RunDuration = ({ runs }: { readonly runs: Array<DAGRunResponse> | u
   return (
     <Box>
       <Heading pb={2} size="sm" textAlign="center">
-        Last 14 runs
+        Last {totalEntries} runs
       </Heading>
       <Bar
         data={{
@@ -95,7 +102,10 @@ export const RunDuration = ({ runs }: { readonly runs: Array<DAGRunResponse> | u
               label: "Queued duration",
             },
             {
-              backgroundColor: runs.map((run: DAGRunResponse) => (run.state === "failed" ? "red" : "green")),
+              backgroundColor: runs.map(
+                (run: DAGRunResponse) =>
+                  system.tokens.categoryMap.get("colors")?.get(`${run.state}.600`)?.value as string,
+              ),
               data: runs.map((run: DAGRunResponse) => Number(getDuration(run.start_date, run.end_date))),
               label: "Run duration",
             },

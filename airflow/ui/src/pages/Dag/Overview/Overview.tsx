@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton } from "@chakra-ui/react";
+import { Box, HStack, Skeleton, SimpleGrid } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
@@ -100,13 +100,15 @@ export const Overview = () => {
           startDate={startDate}
         />
       </HStack>
-      <Box h="1/3" my={5} w="1/3">
-        {isLoadingRuns ? (
-          <Skeleton height="200px" w="full" />
-        ) : (
-          <RunDuration runs={runs?.dag_runs.slice().reverse()} />
-        )}
-      </Box>
+      <SimpleGrid columns={3} gap={5} my={5}>
+        <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2}>
+          {isLoadingRuns ? (
+            <Skeleton height="200px" w="full" />
+          ) : (
+            <RunDuration runs={runs?.dag_runs} totalEntries={runs?.total_entries ?? 0} />
+          )}
+        </Box>
+      </SimpleGrid>
     </Box>
   );
 };
