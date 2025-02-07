@@ -10,6 +10,14 @@ The following DAG parsing configuration options were moved into the ``dag_proces
 * ``[scheduler] stale_dag_threshold`` → ``[dag_processor] stale_dag_threshold``
 * ``[scheduler] print_stats_interval`` → ``[dag_processor] print_stats_interval``
 
+The "subdir" concept has been superseded by the "bundle" concept. Users are able to
+define separate bundles for different DAG folders, and can refer to them by the bundle name
+instead of their location on disk.
+
+The ``-subdir`` option of the following commands has been replaced with ``--bundle-name``:
+
+* ``airflow dag-processor``
+
 The ``--subdir`` option has been removed from the following commands (it was a noop):
 
 * ``airflow dags pause``
