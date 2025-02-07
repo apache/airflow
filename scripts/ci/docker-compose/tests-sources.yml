@@ -114,6 +114,7 @@ services:
       - ../../../providers/sftp/tests:/opt/airflow/providers/sftp/tests
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
       - ../../../providers/slack/tests:/opt/airflow/providers/slack/tests
+      - ../../../providers/smtp/tests:/opt/airflow/providers/smtp/tests
       - ../../../providers/snowflake/tests:/opt/airflow/providers/snowflake/tests
       - ../../../providers/sqlite/tests:/opt/airflow/providers/sqlite/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests

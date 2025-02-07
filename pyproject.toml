@@ -706,6 +706,7 @@ dev = [
   "apache-airflow-providers-sendgrid",
   "apache-airflow-providers-sftp",
   "apache-airflow-providers-slack",
+  "apache-airflow-providers-smtp",
   "apache-airflow-providers-snowflake",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
@@ -808,6 +809,7 @@ apache-airflow-providers-sendgrid = { workspace = true }
 apache-airflow-providers-sftp = { workspace = true }
 apache-airflow-providers-singularity = { workspace = true }
 apache-airflow-providers-slack = { workspace = true }
+apache-airflow-providers-smtp = { workspace = true }
 apache-airflow-providers-sqlite = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-snowflake = { workspace = true }
@@ -901,6 +903,7 @@ members = [
     "providers/sftp",
     "providers/singularity",
     "providers/slack",
+    "providers/smtp",
     "providers/sqlite",
     "providers/ssh",
     "providers/snowflake",

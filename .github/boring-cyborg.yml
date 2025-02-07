@@ -270,9 +270,7 @@ labelPRBasedOnFilePath:
     - providers/slack/**
 
   provider:smtp:
-    - providers/src/airflow/providers/smtp/**/*
-    - docs/apache-airflow-providers-smtp/**/*
-    - providers/tests/smtp/**/*
+    - providers/smtp/**
 
   provider:snowflake:
     - providers/snowflake/**

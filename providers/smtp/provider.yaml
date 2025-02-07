@@ -44,13 +44,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-
 integrations:
   - integration-name: Simple Mail Transfer Protocol (SMTP)
     external-doc-url: https://tools.ietf.org/html/rfc5321
-    logo: /integration-logos/smtp/SMTP.png
+    logo: /docs/integration-logos/SMTP.png
     tags: [protocol]
 
 operators:
