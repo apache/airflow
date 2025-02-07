@@ -495,10 +495,6 @@ To retrieve an XCom result for a key other than ``return_value``, you can use:
     # OR
     my_op_output = my_op.output.get("some_other_xcom_key")
 
-.. note::
-    Using the ``.output`` property as an input to another task is supported only for operator parameters
-    listed as a ``template_field``.
-
 In the code example below, a :class:`~airflow.providers.http.operators.http.HttpOperator` result
 is captured via :doc:`XComs </core-concepts/xcoms>`. This XCom result, which is the task output, is then passed
 to a TaskFlow function which parses the response as JSON.
@@ -576,6 +572,17 @@ task to copy the same file to a date-partitioned storage location in S3 for long
         dest_bucket_name="data_lake",
         dest_bucket_key=f"""{BASE_PATH}/{"{{ execution_date.strftime('%Y/%m/%d') }}"}/{FILE_NAME}""",
     )
+
+.. note::
+    Using the ``.output`` property as an input to another task is supported
+    only for operator parameters listed as a ``template_field`` in the
+    downstream task. For `traditional operator classes </howto/custom-operator.html>`,
+    make sure these parameters are listed in ``template_fields`` class
+    variable (like ``sqs_queue`` parameter in the ``SqsPublishOperator``
+    example above); for decorated task using TaskFlow and ``@task`` decorators,
+    function parameters are already templated and no extra work is required.
+
+    .. seealso:: `Requirements for using templated fields in operator class </howto/custom-operator.html#limitations>`
 
 .. _taskflow/accessing_context_variables:
 
