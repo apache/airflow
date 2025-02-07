@@ -843,6 +843,42 @@ class TestRuntimeTaskInstance:
             "ts_nodash_with_tz": "20241201T010000+0000",
         }
 
+    def test_get_context_with_asset_triggered_dag(self, create_runtime_ti, mock_supervisor_comms):
+        """Test logical_date, data_interval related context keys should not exists in the context"""
+
+        task = BaseOperator(task_id="hello")
+
+        # Assume the context is sent from the API server
+        # `task_sdk/tests/api/test_client.py::test_task_instance_start` checks the context is received
+        # from the API server
+        runtime_ti = create_runtime_ti(task=task, dag_id="basic_task")
+
+        dr = runtime_ti._ti_context_from_server.dag_run
+        # make the DagRun an asset triggered one
+        dr.triggered_by = "asset"
+
+        mock_supervisor_comms.get_message.return_value = PrevSuccessfulDagRunResult(
+            start_date=dr.start_date - timedelta(hours=1),
+            end_date=dr.start_date,
+        )
+
+        context = runtime_ti.get_template_context()
+        non_existing_keys: set[str] = {
+            "data_interval_start",
+            "data_interval_end",
+            "prev_data_interval_start_success",
+            "prev_data_interval_end_success",
+            "logical_date",
+            "ds",
+            "ds_nodash",
+            "ts",
+            "ts_nodash",
+            "ts_nodash_with_tz",
+        }
+        for key in non_existing_keys:
+            with pytest.raises(KeyError):
+                context[key]
+
     def test_lazy_loading_not_triggered_until_accessed(self, create_runtime_ti, mock_supervisor_comms):
         """Ensure lazy-loaded attributes are not resolved until accessed."""
         task = BaseOperator(task_id="hello")
