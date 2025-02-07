@@ -42,6 +42,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 import attrs
 import structlog
 from sqlalchemy import select, update
+from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
 
@@ -580,7 +581,9 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("Removing old import errors")
         try:
             errors = session.scalars(
-                select(ParseImportError).where(ParseImportError.bundle_name == bundle_name)
+                select(ParseImportError)
+                .where(ParseImportError.bundle_name == bundle_name)
+                .options(load_only(ParseImportError.filename))
             )
             for error in errors:
                 if error.filename not in observed_filelocs:
@@ -699,7 +702,7 @@ class DagFileProcessorManager(LoggingMixin):
         files_set: set[DagFileInfo] = set()
         """Set containing all observed files.
 
-        We're just converting this to a set for performance.
+        We consolidate to one set for performance.
         """
 
         for v in known_files.values():
