@@ -21,11 +21,9 @@ from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
-from azure.servicebus import ServiceBusMessage
 from azure.servicebus.management import (
     AuthorizationRule,
     CorrelationRuleFilter,
-    ServiceBusAdministrationClient,
     SqlRuleFilter,
 )
 
@@ -736,7 +734,13 @@ class AzureServiceBusRequestReplyOperator(BaseOperator):
         message_hook = MessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
         try:
             # send the request message
-            self._send_request_message(message_hook, context)
+            message_hook.send_message(
+                self.request_queue_name,
+                self.request_body_generator(context),
+                message_id=self.reply_correlation_id,
+                reply_to=self.reply_topic_name,
+                message_headers={"reply_type": "topic"},
+            )
 
             # Wait for and receive the reply message
             message_hook.receive_subscription_message(
@@ -751,67 +755,34 @@ class AzureServiceBusRequestReplyOperator(BaseOperator):
             # Remove the subscription on the reply topic
             self._remove_reply_subscription(admin_hook)
 
-    def _send_request_message(self, message_hook: MessageHook, context: Context) -> None:
-        with message_hook.get_conn() as service_bus_client:
-            message = ServiceBusMessage(
-                self.request_body_generator(context),
-                application_properties={"reply_type": "topic"},
-                message_id=self.reply_correlation_id,
-                reply_to=self.reply_topic_name,
-            )
-            with service_bus_client.get_queue_sender(queue_name=self.request_queue_name) as sender:
-                sender.send_messages(message, timeout=60)
-                self.log.info(
-                    "Sent request with id %s to queue %s", self.reply_correlation_id, self.request_queue_name
-                )
-
     def _create_reply_subscription_for_correlation_id(
         self, admin_hook: AdminClientHook, context: Context
     ) -> None:
         """Create subscription on the reply topic for the correlation ID."""
-        with admin_hook.get_conn() as admin_asb_conn:
+        self.log.info("Creating subscription %s on topic %s", self.subscription_name, self.reply_topic_name)
+        rule_name = self.subscription_name + self.REPLY_RULE_SUFFIX
+        filter = CorrelationRuleFilter(correlation_id=self.reply_correlation_id)
+        try:
+            admin_hook.create_subscription(
+                topic_name=self.reply_topic_name,
+                subscription_name=self.subscription_name,
+                default_message_time_to_live="PT1H",  # 1 hour
+                dead_lettering_on_message_expiration=True,
+                dead_lettering_on_filter_evaluation_exceptions=True,
+                enable_batched_operations=False,
+                user_metadata=f"Subscription for reply to {self.reply_correlation_id} for task ID {context['task'].task_id}",
+                auto_delete_on_idle="PT6H",  # 6 hours
+                filter_rule_name=rule_name,
+                filter_rule=filter,
+            )
+        except ResourceExistsError:
+            # subscription already created, so return
             self.log.info(
-                "Creating subscription %s on topic %s", self.subscription_name, self.reply_topic_name
+                "Subscription %s on topic %s already existed.",
+                self.subscription_name,
+                self.reply_topic_name,
             )
-            try:
-                self._create_subscription(admin_asb_conn, context)
-            except ResourceExistsError:
-                # subscription already created, so return
-                self.log.info(
-                    "Subscription %s on topic %s already existed.",
-                    self.subscription_name,
-                    self.reply_topic_name,
-                )
-                return
-
-            # remove default rule (which accepts all messages)
-            try:
-                admin_asb_conn.delete_rule(self.reply_topic_name, self.subscription_name, "$Default")
-            except ResourceNotFoundError:
-                # as long as it is gone :)
-                self.log.debug("Could not find default rule '$Default' to delete; ignoring")
-
-            # add a rule to filter on the correlation ID
-            rule_name = self.subscription_name + self.REPLY_RULE_SUFFIX
-            filter = CorrelationRuleFilter(correlation_id=self.reply_correlation_id)
-            admin_asb_conn.create_rule(
-                self.reply_topic_name, self.subscription_name, rule_name, filter=filter
-            )
-            self.log.info(
-                "Created subscription %s on topic %s", self.subscription_name, self.reply_topic_name
-            )
-
-    def _create_subscription(self, admin_asb_conn: ServiceBusAdministrationClient, context: Context):
-        return admin_asb_conn.create_subscription(
-            topic_name=self.reply_topic_name,
-            subscription_name=self.subscription_name,
-            default_message_time_to_live="PT1H",  # 1 hour
-            dead_lettering_on_message_expiration=True,
-            dead_lettering_on_filter_evaluation_exceptions=True,
-            enable_batched_operations=False,
-            user_metadata=f"Subscription for reply to {self.reply_correlation_id} for task ID {context['task'].task_id}",
-            auto_delete_on_idle="PT6H",  # 6 hours
-        )
+            return
 
     def _remove_reply_subscription(self, admin_hook: AdminClientHook) -> None:
         try:
