@@ -25,7 +25,7 @@ from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, RootModel
 
 
 class AssetProfile(BaseModel):
@@ -173,6 +173,21 @@ class TIRuntimeCheckPayload(BaseModel):
     )
     inlets: Annotated[list[AssetProfile] | None, Field(title="Inlets")] = None
     outlets: Annotated[list[AssetProfile] | None, Field(title="Outlets")] = None
+
+
+class Task(RootModel[list]):
+    root: Annotated[list, Field(max_length=2, min_length=2)]
+
+
+class TISkippedDownstreamTasksStatePayload(BaseModel):
+    """
+    Schema for updating downstream tasks TaskInstance to a skipped state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    tasks: Annotated[list[str] | list[tuple[str, int]], Field(title="Tasks")] = None
 
 
 class TISuccessStatePayload(BaseModel):

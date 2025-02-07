@@ -121,6 +121,7 @@ class AbstractOperator(Templater, DAGNode):
             "node_id",  # Duplicates task_id
             "task_group",  # Doesn't have a useful repr, no point showing in UI
             "inherits_from_empty_operator",  # impl detail
+            "inherits_from_skippable_mixin",  # impl detail
             # Decide whether to start task execution from triggerer
             "start_trigger_args",
             "start_from_trigger",
@@ -153,6 +154,7 @@ class AbstractOperator(Templater, DAGNode):
 
     _is_sensor: bool = False
     _is_mapped: bool = False
+    _is_skippable: bool = False
 
     @property
     def dag_id(self) -> str:
@@ -207,6 +209,11 @@ class AbstractOperator(Templater, DAGNode):
                 f"'{self.task_id}' because it is not a teardown task."
             )
         self._on_failure_fail_dagrun = value
+
+    @property
+    def inherits_from_skippable_mixin(self):
+        """Used to determine if an Operator is inherited from SkipMixin/BranchMixin."""
+        return getattr(self, "_is_skippable", False)
 
     def as_setup(self):
         self.is_setup = True
