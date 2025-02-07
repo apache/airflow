@@ -22,6 +22,8 @@ import json
 import logging
 import os
 import random
+import re
+import shutil
 import signal
 import textwrap
 import time
@@ -34,7 +36,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import time_machine
-from sqlalchemy import func
+from sqlalchemy import func, select
 from uuid6 import uuid7
 
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -76,8 +78,33 @@ TEST_DAG_FOLDER = Path(__file__).parents[1].resolve() / "dags"
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-def _get_dag_file_paths(files: list[str | Path]) -> list[DagFileInfo]:
+def _get_file_infos(files: list[str | Path]) -> list[DagFileInfo]:
     return [DagFileInfo(bundle_name="testing", bundle_path=TEST_DAGS_FOLDER, rel_path=Path(f)) for f in files]
+
+
+def mock_get_mtime(file: Path):
+    f = str(file)
+    m = re.match(pattern=r".*ss=(.+?)\.\w+", string=f)
+    if not m:
+        raise ValueError(f"unexpected: {file}")
+    match = m.group(1)
+    if match == "<class 'FileNotFoundError'>":
+        raise FileNotFoundError()
+    try:
+        return int(match)
+    except Exception:
+        raise ValueError(f"could not convert value {match} to int")
+
+
+def encode_mtime_in_filename(val):
+    from pathlib import PurePath
+
+    out = []
+    for fname, mtime in val:
+        f = PurePath(PurePath(fname).name)
+        addition = f"ss={str(mtime)}"
+        out.append(f"{f.stem}-{addition}{f.suffix}")
+    return out
 
 
 class TestDagFileProcessorManager:
@@ -190,117 +217,129 @@ class TestDagFileProcessorManager:
         assert file_2 in manager._processors.keys()
         assert deque([file_3]) == manager._file_queue
 
-    def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
+    def test_handle_removed_files_when_processor_file_path_not_in_new_file_paths(self):
         """Ensure processors and file stats are removed when the file path is not in the new file paths"""
         manager = DagFileProcessorManager(max_runs=1)
+        bundle_name = "testing"
         file = DagFileInfo(
-            bundle_name="testing", rel_path=Path("missing_file.txt"), bundle_path=TEST_DAGS_FOLDER
+            bundle_name=bundle_name, rel_path=Path("missing_file.txt"), bundle_path=TEST_DAGS_FOLDER
         )
 
         manager._processors[file] = MagicMock()
         manager._file_stats[file] = DagFileStat()
 
-        manager.set_files(["abc.txt"])
+        manager.handle_removed_files({bundle_name: set()})
         assert manager._processors == {}
         assert file not in manager._file_stats
 
-    def test_set_file_paths_when_processor_file_path_is_in_new_file_paths(self):
+    def test_handle_removed_files_when_processor_file_path_is_present(self):
+        """handle_removed_files should not purge files that are still present."""
         manager = DagFileProcessorManager(max_runs=1)
-        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        bundle_name = "testing"
+        file = DagFileInfo(bundle_name=bundle_name, rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
         mock_processor = MagicMock()
 
         manager._processors[file] = mock_processor
 
-        manager.set_files([file])
+        manager.handle_removed_files(known_files={bundle_name: {file}})
         assert manager._processors == {file: mock_processor}
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
-    def test_file_paths_in_queue_sorted_alphabetically(self):
+    def test_files_in_queue_sorted_alphabetically(self):
         """Test dag files are sorted alphabetically"""
         file_names = ["file_3.py", "file_2.py", "file_4.py", "file_1.py"]
-        dag_files = _get_dag_file_paths(file_names)
-        ordered_dag_files = _get_dag_file_paths(sorted(file_names))
+        dag_files = _get_file_infos(file_names)
+        ordered_dag_files = _get_file_infos(sorted(file_names))
 
         manager = DagFileProcessorManager(max_runs=1)
-
-        manager.set_files(dag_files)
+        known_files = {"some-bundle": set(dag_files)}
         assert manager._file_queue == deque()
-        manager.prepare_file_queue()
+        manager.prepare_file_queue(known_files=known_files)
         assert manager._file_queue == deque(ordered_dag_files)
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "random_seeded_by_host"})
-    def test_file_paths_in_queue_sorted_random_seeded_by_host(self):
+    def test_files_sorted_random_seeded_by_host(self):
         """Test files are randomly sorted and seeded by host name"""
-        dag_files = _get_dag_file_paths(["file_3.py", "file_2.py", "file_4.py", "file_1.py"])
 
+        f_infos = _get_file_infos(["file_3.py", "file_2.py", "file_4.py", "file_1.py"])
+        known_files = {"anything": f_infos}
         manager = DagFileProcessorManager(max_runs=1)
 
-        manager.set_files(dag_files)
         assert manager._file_queue == deque()
-        manager.prepare_file_queue()
-
-        expected_order = deque(dag_files)
-        random.Random(get_hostname()).shuffle(expected_order)
-        assert manager._file_queue == expected_order
+        manager.prepare_file_queue(known_files=known_files)  # using list over test for reproducibility
+        random.Random(get_hostname()).shuffle(f_infos)
+        expected = deque(f_infos)
+        assert manager._file_queue == expected
 
         # Verify running it again produces same order
         manager._files = []
-        manager.prepare_file_queue()
-        assert manager._file_queue == expected_order
+        manager.prepare_file_queue(known_files=known_files)
+        assert manager._file_queue == expected
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_file_paths_in_queue_sorted_by_modified_time(self, mock_getmtime):
+    @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
+    def test_files_sorted_by_modified_time(self):
         """Test files are sorted by modified time"""
-        paths_with_mtime = {"file_3.py": 3.0, "file_2.py": 2.0, "file_4.py": 5.0, "file_1.py": 4.0}
-        dag_files = _get_dag_file_paths(paths_with_mtime.keys())
-        mock_getmtime.side_effect = list(paths_with_mtime.values())
+        paths_with_mtime = [
+            ("file_3.py", 3.0),
+            ("file_2.py", 2.0),
+            ("file_4.py", 5.0),
+            ("file_1.py", 4.0),
+        ]
+        filenames = encode_mtime_in_filename(paths_with_mtime)
+        dag_files = _get_file_infos(filenames)
 
         manager = DagFileProcessorManager(max_runs=1)
 
-        manager.set_files(dag_files)
         assert manager._file_queue == deque()
-        manager.prepare_file_queue()
-        ordered_files = _get_dag_file_paths(["file_4.py", "file_1.py", "file_3.py", "file_2.py"])
-        assert manager._file_queue == deque(ordered_files)
-
-    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_file_paths_in_queue_excludes_missing_file(self, mock_getmtime):
-        """Check that a file is not enqueued for processing if it has been deleted"""
-        dag_files = _get_dag_file_paths(["file_3.py", "file_2.py", "file_4.py"])
-        mock_getmtime.side_effect = [1.0, 2.0, FileNotFoundError()]
-
-        manager = DagFileProcessorManager(max_runs=1)
-
-        manager.set_files(dag_files)
-        manager.prepare_file_queue()
-
-        ordered_files = _get_dag_file_paths(["file_2.py", "file_3.py"])
-        assert manager._file_queue == deque(ordered_files)
-
-    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
-    @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_add_new_file_to_parsing_queue(self, mock_getmtime):
-        """Check that new file is added to parsing queue"""
-        dag_files = _get_dag_file_paths(["file_1.py", "file_2.py", "file_3.py"])
-        mock_getmtime.side_effect = [1.0, 2.0, 3.0]
-
-        manager = DagFileProcessorManager(max_runs=1)
-
-        manager.set_files(dag_files)
-        manager.prepare_file_queue()
-        ordered_files = _get_dag_file_paths(["file_3.py", "file_2.py", "file_1.py"])
-        assert manager._file_queue == deque(ordered_files)
-
-        manager.set_files(
+        manager.prepare_file_queue(known_files={"any": set(dag_files)})
+        ordered_files = _get_file_infos(
             [
-                *dag_files,
-                DagFileInfo(bundle_name="testing", rel_path=Path("file_4.py"), bundle_path=TEST_DAGS_FOLDER),
+                "file_4-ss=5.0.py",
+                "file_1-ss=4.0.py",
+                "file_3-ss=3.0.py",
+                "file_2-ss=2.0.py",
             ]
         )
-        manager.add_files_to_queue()
-        ordered_files = _get_dag_file_paths(["file_4.py", "file_3.py", "file_2.py", "file_1.py"])
+        assert manager._file_queue == deque(ordered_files)
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
+    def test_queued_files_exclude_missing_file(self):
+        """Check that a file is not enqueued for processing if it has been deleted"""
+        file_and_mtime = [("file_3.py", 2.0), ("file_2.py", 3.0), ("file_4.py", FileNotFoundError)]
+        filenames = encode_mtime_in_filename(file_and_mtime)
+        file_infos = _get_file_infos(filenames)
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.prepare_file_queue(known_files={"any": set(file_infos)})
+        ordered_files = _get_file_infos(["file_2-ss=3.0.py", "file_3-ss=2.0.py"])
+        assert manager._file_queue == deque(ordered_files)
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch("airflow.utils.file.os.path.getmtime", new=mock_get_mtime)
+    def test_add_new_file_to_parsing_queue(self):
+        """Check that new file is added to parsing queue"""
+        dag_files = _get_file_infos(["file_1-ss=2.0.py", "file_2-ss=3.0.py", "file_3-ss=4.0.py"])
+        from random import Random
+
+        Random("file_2.py").random()
+        manager = DagFileProcessorManager(max_runs=1)
+
+        manager.prepare_file_queue(known_files={"any": set(dag_files)})
+        assert set(manager._file_queue) == set(dag_files)
+
+        manager.prepare_file_queue(
+            known_files={"any": set((*dag_files, *_get_file_infos(["file_4-ss=1.0.py"])))}
+        )
+        # manager.add_files_to_queue()
+        ordered_files = _get_file_infos(
+            [
+                "file_3-ss=4.0.py",
+                "file_2-ss=3.0.py",
+                "file_1-ss=2.0.py",
+                "file_4-ss=1.0.py",
+            ]
+        )
         assert manager._file_queue == deque(ordered_files)
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
@@ -314,7 +353,7 @@ class TestDagFileProcessorManager:
         dag_file = DagFileInfo(
             bundle_name="testing", rel_path=Path("file_1.py"), bundle_path=TEST_DAGS_FOLDER
         )
-        dag_files = [dag_file]
+        known_files = {"does-not-matter": {dag_file}}
         mock_getmtime.side_effect = [initial_file_1_mtime]
 
         manager = DagFileProcessorManager(max_runs=3)
@@ -325,10 +364,9 @@ class TestDagFileProcessorManager:
             dag_file: DagFileStat(1, 0, last_finish_time, 1.0, 1, 1),
         }
         with time_machine.travel(freezed_base_time):
-            manager.set_files(dag_files)
             assert manager._file_queue == deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
-            manager.prepare_file_queue()
+            manager.prepare_file_queue(known_files=known_files)
             assert manager._file_queue == deque()
 
         # Simulate the DAG modification by using modified_time which is greater
@@ -336,13 +374,12 @@ class TestDagFileProcessorManager:
         file_1_new_mtime = freezed_base_time - timedelta(seconds=5)
         file_1_new_mtime_ts = file_1_new_mtime.timestamp()
         with time_machine.travel(freezed_base_time):
-            manager.set_files(dag_files)
             assert manager._file_queue == deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
             mock_getmtime.side_effect = [file_1_new_mtime_ts]
-            manager.prepare_file_queue()
+            manager.prepare_file_queue(known_files=known_files)
             # Check that file is added to the queue even though file was just recently passed
-            assert manager._file_queue == deque(dag_files)
+            assert manager._file_queue == deque([dag_file])
             assert last_finish_time < file_1_new_mtime
             assert (
                 manager._file_process_interval
@@ -363,7 +400,7 @@ class TestDagFileProcessorManager:
 
         manager = DagFileProcessorManager(dag_directory="directory", max_runs=1)
 
-        manager.set_files(dag_files)
+        manager.handle_removed_files(dag_files)
         manager._file_queue = deque(["file_2.py", "file_3.py", "file_4.py", "file_1.py"])
         manager._refresh_requested_filelocs()
         assert manager._file_queue == deque(["file_1.py", "file_2.py", "file_3.py", "file_4.py"])
@@ -608,32 +645,37 @@ class TestDagFileProcessorManager:
         assert dag.get_is_active()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_refresh_dags_dir_deactivates_deleted_zipped_dags(self, tmp_path, configure_testing_dag_bundle):
+    def test_refresh_dags_dir_deactivates_deleted_zipped_dags(
+        self, session, tmp_path, configure_testing_dag_bundle
+    ):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
-        dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
-        zipped_dag_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
-        dagbag.process_file(zipped_dag_path)
-        dag = dagbag.get_dag("test_zip_dag")
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        dag_id = "test_zip_dag"
+        filename = "test_zip.zip"
+        source_location = os.path.join(TEST_DAGS_FOLDER, filename)
+        bundle_path = Path(tmp_path, "test_refresh_dags_dir_deactivates_deleted_zipped_dags")
+        bundle_path.mkdir(exist_ok=True)
+        zip_dag_path = bundle_path / filename
+        shutil.copy(source_location, zip_dag_path)
 
-        # TODO: this test feels a bit fragile - pointing at the zip directly causes the test to fail
-        # TODO: jed look at this more closely - bagbad then process_file?!
+        with configure_testing_dag_bundle(bundle_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager.run()
 
-        # Mock might_contain_dag to mimic deleting the python file from the zip
-        with mock.patch("airflow.dag_processing.manager.might_contain_dag", return_value=False):
-            with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
-                manager = DagFileProcessorManager(max_runs=1)
-                manager.run()
+            assert SerializedDagModel.has_dag(dag_id)
+            assert DagCode.has_dag(dag_id)
+            assert DagVersion.get_latest_version(dag_id)
+            dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
+            assert dag.is_active is True
 
-        # Deleting the python file should not delete SDM for versioning sake
-        assert SerializedDagModel.has_dag("test_zip_dag")
-        # assert code not deleted for versioning sake
-        assert DagCode.has_dag(dag.dag_id)
-        # assert dagversion was not deleted
-        assert DagVersion.get_latest_version(dag.dag_id)
-        # assert dag deactivated
-        assert not dag.get_is_active()
+            os.remove(zip_dag_path)
+
+            manager.run()
+
+            assert SerializedDagModel.has_dag(dag_id)
+            assert DagCode.has_dag(dag_id)
+            assert DagVersion.get_latest_version(dag_id)
+            dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
+            assert dag.is_active is False
 
     def test_deactivate_deleted_dags(self, dag_maker):
         with dag_maker("test_dag1") as dag1:
@@ -643,12 +685,16 @@ class TestDagFileProcessorManager:
         dag_maker.sync_dagbag_to_db()
 
         active_files = [
-            DagFileInfo(bundle_name="dag_maker", rel_path=Path("test_dag1.py"), bundle_path=TEST_DAGS_FOLDER),
+            DagFileInfo(
+                bundle_name="dag_maker",
+                rel_path=Path("test_dag1.py"),
+                bundle_path=TEST_DAGS_FOLDER,
+            ),
             # Mimic that the test_dag2.py file is deleted
         ]
 
         manager = DagFileProcessorManager(max_runs=1)
-        manager.deactivate_deleted_dags(active_files=active_files)
+        manager.deactivate_deleted_dags("dag_maker", active_files)
 
         dagbag = DagBag(read_dags_from_db=True)
         # The DAG from test_dag1.py is still active
