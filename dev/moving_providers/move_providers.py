@@ -371,6 +371,8 @@ def move_provider_yaml(provider_id: str) -> tuple[list[str], list[str], list[str
         if line.startswith("    logo: "):
             logo_path = line[len("    logo: ") :]
             logo_name = logo_path.split("/")[-1]
+            if logo_path in already_moved_logos:
+                continue
             new_logo_dir = (
                 PROVIDERS_DIR_PATH / _get_provider_only_path(provider_id) / "docs" / "integration-logos"
             )
@@ -386,6 +388,7 @@ def move_provider_yaml(provider_id: str) -> tuple[list[str], list[str], list[str
                 remove_empty_parent_dir=True,
             )
             line = f"    logo: /docs/integration-logos/{logo_name}"
+            already_moved_logos.add(logo_path)
         if line == "dependencies:" and not in_dependencies:
             in_dependencies = True
             continue

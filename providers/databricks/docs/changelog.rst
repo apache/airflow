@@ -139,7 +139,7 @@ Features
 Misc
 ~~~~
 
-* ``Removed deprecated method referance airflow.www.auth.has_access when min airflow version >= 2.8.0 (#41747)``
+* ``Removed deprecated method reference airflow.www.auth.has_access when min airflow version >= 2.8.0 (#41747)``
 * ``remove deprecated soft_fail from providers (#41710)``
 
 6.9.0
@@ -451,7 +451,7 @@ Misc
 Features
 ~~~~~~~~
 
-* ``Add "QUEUED" to RUN_LIFE_CYCLE_STATES following deployement of … (#33886)``
+* ``Add "QUEUED" to RUN_LIFE_CYCLE_STATES following deployment of … (#33886)``
 * ``allow DatabricksSubmitRunOperator to accept a pipeline name for a pipeline_task (#32903)``
 
 Misc
