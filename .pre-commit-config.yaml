@@ -67,7 +67,7 @@ repos:
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|^airflow/www/static/js/types/api-generated.ts$|ui/openapi-gen/
+        exclude: ^\.github/.*$|^airflow/www/static/js/types/api-generated.ts$|ui/openapi-gen/|.*/dist/.*
         args:
           - --comment-style
           - "/*!| *| */"
@@ -309,7 +309,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
+        exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$|.*/dist/.*
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=providers/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
@@ -684,7 +684,8 @@ repos:
           ^contributing-docs/03_contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
           git|
-          ^newsfragments/43349\.significant\.rst$
+          ^newsfragments/43349\.significant\.rst$|
+          .*/dist/.*
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
         language: python
@@ -889,6 +890,14 @@ repos:
         entry: ./scripts/ci/pre_commit/compile_ui_assets_dev.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
+      - id: compile-fab-assets
+        name: Compile FAB provider assets
+        language: node
+        'types_or': [ javascript, ts, tsx ]
+        files: ^providers/fab/.*/www/
+        entry: ./scripts/ci/pre_commit/compile_fab_assets.py
+        pass_filenames: false
+        additional_dependencies: [ 'yarn@1.22.21' ]
       - id: compile-www-assets
         name: Compile www assets (manual)
         language: node
