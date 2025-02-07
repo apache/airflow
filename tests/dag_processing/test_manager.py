@@ -23,6 +23,7 @@ import logging
 import os
 import random
 import re
+import shutil
 import signal
 import textwrap
 import time
@@ -35,7 +36,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import time_machine
-from sqlalchemy import func
+from sqlalchemy import func, select
 from uuid6 import uuid7
 
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -644,32 +645,37 @@ class TestDagFileProcessorManager:
         assert dag.get_is_active()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_refresh_dags_dir_deactivates_deleted_zipped_dags(self, tmp_path, configure_testing_dag_bundle):
+    def test_refresh_dags_dir_deactivates_deleted_zipped_dags(
+        self, session, tmp_path, configure_testing_dag_bundle
+    ):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
-        dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
-        zipped_dag_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
-        dagbag.process_file(zipped_dag_path)
-        dag = dagbag.get_dag("test_zip_dag")
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        dag_id = "test_zip_dag"
+        filename = "test_zip.zip"
+        source_location = os.path.join(TEST_DAGS_FOLDER, filename)
+        bundle_path = Path(tmp_path, "test_refresh_dags_dir_deactivates_deleted_zipped_dags")
+        bundle_path.mkdir(exist_ok=True)
+        zip_dag_path = bundle_path / filename
+        shutil.copy(source_location, zip_dag_path)
 
-        # TODO: this test feels a bit fragile - pointing at the zip directly causes the test to fail
-        # TODO: jed look at this more closely - bagbad then process_file?!
+        with configure_testing_dag_bundle(bundle_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager.run()
 
-        # Mock might_contain_dag to mimic deleting the python file from the zip
-        with mock.patch("airflow.dag_processing.manager.might_contain_dag", return_value=False):
-            with configure_testing_dag_bundle(TEST_DAGS_FOLDER):
-                manager = DagFileProcessorManager(max_runs=1)
-                manager.run()
+            assert SerializedDagModel.has_dag(dag_id)
+            assert DagCode.has_dag(dag_id)
+            assert DagVersion.get_latest_version(dag_id)
+            dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
+            assert dag.is_active is True
 
-        # Deleting the python file should not delete SDM for versioning sake
-        assert SerializedDagModel.has_dag("test_zip_dag")
-        # assert code not deleted for versioning sake
-        assert DagCode.has_dag(dag.dag_id)
-        # assert dagversion was not deleted
-        assert DagVersion.get_latest_version(dag.dag_id)
-        # assert dag deactivated
-        assert not dag.get_is_active()
+            os.remove(zip_dag_path)
+
+            manager.run()
+
+            assert SerializedDagModel.has_dag(dag_id)
+            assert DagCode.has_dag(dag_id)
+            assert DagVersion.get_latest_version(dag_id)
+            dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
+            assert dag.is_active is False
 
     def test_deactivate_deleted_dags(self, dag_maker):
         with dag_maker("test_dag1") as dag1:
