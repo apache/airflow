@@ -230,6 +230,7 @@ class DagRun(StrictBaseModel):
     run_type: DagRunType
     conf: Annotated[dict[str, Any], Field(default_factory=dict)]
     external_trigger: bool = False
+    triggered_by: str
 
 
 class TIRunContext(BaseModel):

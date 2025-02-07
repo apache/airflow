@@ -272,6 +272,7 @@ class DagRunAlreadyExists(AirflowBadRequest):
             run_id=self.dag_run.run_id,
             external_trigger=self.dag_run.external_trigger,
             run_type=self.dag_run.run_type,
+            triggered_by=self.dag_run.triggered_by,
         )
         dag_run.id = self.dag_run.id
         return (

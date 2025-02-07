@@ -117,9 +117,9 @@ def captured_logs(request):
         # We need to replace remove the last processor (the one that turns JSON into text, as we want the
         # event dict for tests)
         proc = processors.pop()
-        assert isinstance(
-            proc, (structlog.dev.ConsoleRenderer, structlog.processors.JSONRenderer)
-        ), "Pre-condition"
+        assert isinstance(proc, (structlog.dev.ConsoleRenderer, structlog.processors.JSONRenderer)), (
+            "Pre-condition"
+        )
     try:
         cap = LogCapture()
         processors.append(cap)
@@ -205,6 +205,7 @@ def make_ti_context() -> MakeTIContextCallable:
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
                 conf=conf,
+                triggered_by="ui",
             ),
             max_tries=0,
         )
@@ -266,7 +267,9 @@ def mocked_parse(spy_agency):
 
             mocked_parse(
                 StartupDetails(
-                    ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
+                    ti=TaskInstance(
+                        id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1
+                    ),
                     file="",
                     requests_fd=0,
                 ),

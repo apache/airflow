@@ -151,6 +151,7 @@ def ti_run(
                 DR.conf,
                 DR.logical_date,
                 DR.external_trigger,
+                DR.triggered_by,
             ).filter_by(dag_id=dag_id, run_id=run_id)
         ).one_or_none()
 

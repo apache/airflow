@@ -303,6 +303,7 @@ class DagRun(BaseModel):
     run_type: DagRunType
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     external_trigger: Annotated[bool | None, Field(title="External Trigger")] = False
+    triggered_by: str
 
 
 class HTTPValidationError(BaseModel):

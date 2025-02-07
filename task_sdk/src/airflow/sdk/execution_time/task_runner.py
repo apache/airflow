@@ -160,7 +160,7 @@ class RuntimeTaskInstance(TaskInstance):
             }
             context.update(context_from_server)
 
-            if logical_date := dag_run.logical_date:
+            if (logical_date := dag_run.logical_date) and dag_run.triggered_by != "asset":
                 ds = logical_date.strftime("%Y-%m-%d")
                 ds_nodash = ds.replace("-", "")
                 ts = logical_date.isoformat()
