@@ -42,7 +42,6 @@ from airflow.exceptions import (
     DeserializingResultError,
 )
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.skipmixin import SkipMixin
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -52,6 +51,12 @@ from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess, execute_in_subprocess_with_kwargs
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.providers.standard.utils.skipmixin import SkipMixin
+else:
+    from airflow.models.skipmixin import SkipMixin
+
 
 log = logging.getLogger(__name__)
 
@@ -234,6 +239,8 @@ class BranchPythonOperator(PythonOperator, BranchMixIn):
     the DAG run's state to be inferred.
     """
 
+    inherits_from_skipmixin = True
+
     def execute(self, context: Context) -> Any:
         return self.do_branch(context, super().execute(context))
 
@@ -264,6 +271,8 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         skipped but the ``trigger_rule`` defined for all other downstream tasks will be respected.
     """
 
+    inherits_from_skipmixin = True
+
     def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
@@ -293,25 +302,24 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         to_skip = get_tasks_to_skip()
 
-        # this let's us avoid an intermediate list unless debug logging
+        # this lets us avoid an intermediate list unless debug logging
         if self.log.getEffectiveLevel() <= logging.DEBUG:
             self.log.debug("Downstream task IDs %s", to_skip := list(get_tasks_to_skip()))
 
         self.log.info("Skipping downstream tasks")
         if AIRFLOW_V_3_0_PLUS:
             self.skip(
-                dag_id=dag_run.dag_id,
-                run_id=dag_run.run_id,
+                ti=context["ti"],
                 tasks=to_skip,
-                map_index=context["ti"].map_index,
             )
         else:
-            self.skip(
-                dag_run=dag_run,
-                tasks=to_skip,
-                execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
-                map_index=context["ti"].map_index,
-            )
+            if to_skip:
+                self.skip(
+                    dag_run=context["dag_run"],
+                    tasks=to_skip,
+                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
+                    map_index=context["ti"].map_index,
+                )
 
         self.log.info("Done.")
         # returns the result of the super execute method as it is instead of returning None
@@ -865,6 +873,8 @@ class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BranchPythonVirtualenvOperator`
     """
+
+    inherits_from_skipmixin = True
 
     def execute(self, context: Context) -> Any:
         return self.do_branch(context, super().execute(context))
