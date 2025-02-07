@@ -19,18 +19,16 @@ from __future__ import annotations
 
 import json
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models.base import ID_LEN
+from airflow.sdk.execution_time.secrets_masker import redact
 from airflow.typing_compat import Self
-from airflow.utils.log.secrets_masker import redact
 
 
 class VariableResponse(BaseModel):
     """Variable serializer for responses."""
-
-    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     key: str
     val: str = Field(alias="value")

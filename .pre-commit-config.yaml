@@ -641,11 +641,11 @@ repos:
           ^providers/google/src/airflow/providers/google/cloud/operators/dataproc.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/mlengine.py$|
           ^providers/src/airflow/providers/microsoft/azure/hooks/cosmos.py$|
-          ^providers/src/airflow/providers/microsoft/winrm/hooks/winrm.py$|
+          ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
-          ^providers/src/airflow/providers/microsoft/winrm/operators/winrm.py$|
+          ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/operators/winrm.py$|
           ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
           ^providers/redis/src/airflow/providers/redis/provider.yaml$|
           ^airflow/serialization/serialized_objects.py$|
@@ -665,7 +665,7 @@ repos:
           ^providers/fab/docs/auth-manager/webserver-authentication.rst$|
           ^providers/google/docs/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
-          ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
+          ^providers/cncf/kubernetes/docs/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
           ^newsfragments/41761.significant.rst$|
@@ -1223,12 +1223,12 @@ repos:
           ^airflow/serialization/serde.py$ |
           ^airflow/utils/file.py$ |
           ^airflow/utils/helpers.py$ |
-          ^airflow/utils/log/secrets_masker.py$ |
           ^providers/ |
           ^tests/ |
           ^providers/tests/ |
           ^providers/.*/tests/ |
           ^task_sdk/src/airflow/sdk/definitions/dag.py$ |
+          ^task_sdk/src/airflow/sdk/execution_time/secrets_masker.py$ |
           ^task_sdk/src/airflow/sdk/definitions/_internal/node.py$ |
           ^dev/.*\.py$ |
           ^scripts/.*\.py$ |

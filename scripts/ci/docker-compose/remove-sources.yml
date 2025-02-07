@@ -38,8 +38,10 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/cassandra/src
       - ../../../empty:/opt/airflow/providers/apache/drill/src
       - ../../../empty:/opt/airflow/providers/apache/druid/src
+      - ../../../empty:/opt/airflow/providers/apache/flink/src
       - ../../../empty:/opt/airflow/providers/apache/hive/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
+      - ../../../empty:/opt/airflow/providers/apache/impala/src
       - ../../../empty:/opt/airflow/providers/apache/kafka/src
       - ../../../empty:/opt/airflow/providers/apache/kylin/src
       - ../../../empty:/opt/airflow/providers/apache/livy/src
@@ -47,9 +49,12 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/pinot/src
       - ../../../empty:/opt/airflow/providers/apache/spark/src
       - ../../../empty:/opt/airflow/providers/apprise/src
+      - ../../../empty:/opt/airflow/providers/arangodb/src
       - ../../../empty:/opt/airflow/providers/asana/src
       - ../../../empty:/opt/airflow/providers/atlassian/jira/src
       - ../../../empty:/opt/airflow/providers/celery/src
+      - ../../../empty:/opt/airflow/providers/cloudant/src
+      - ../../../empty:/opt/airflow/providers/cncf/kubernetes/src
       - ../../../empty:/opt/airflow/providers/cohere/src
       - ../../../empty:/opt/airflow/providers/common/compat/src
       - ../../../empty:/opt/airflow/providers/common/io/src
@@ -76,6 +81,7 @@ services:
       - ../../../empty:/opt/airflow/providers/jenkins/src
       - ../../../empty:/opt/airflow/providers/microsoft/mssql/src
       - ../../../empty:/opt/airflow/providers/microsoft/psrp/src
+      - ../../../empty:/opt/airflow/providers/microsoft/winrm/src
       - ../../../empty:/opt/airflow/providers/mongo/src
       - ../../../empty:/opt/airflow/providers/mysql/src
       - ../../../empty:/opt/airflow/providers/neo4j/src
@@ -111,6 +117,7 @@ services:
       - ../../../empty:/opt/airflow/providers/trino/src
       - ../../../empty:/opt/airflow/providers/vertica/src
       - ../../../empty:/opt/airflow/providers/weaviate/src
+      - ../../../empty:/opt/airflow/providers/yandex/src
       - ../../../empty:/opt/airflow/providers/ydb/src
       - ../../../empty:/opt/airflow/providers/zendesk/src
       # END automatically generated volumes by generate-volumes-for-sources pre-commit

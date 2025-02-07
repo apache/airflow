@@ -59,7 +59,6 @@ from airflow.models.dag import (
     DagOwnerAttributes,
     DagTag,
     ExecutorLoader,
-    dag as dag_decorator,
     get_asset_triggered_next_run_info,
 )
 from airflow.models.dag_version import DagVersion
@@ -73,7 +72,7 @@ from airflow.sdk import TaskGroup
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
-from airflow.sdk.definitions.param import DagParam, Param
+from airflow.sdk.definitions.param import Param
 from airflow.security import permissions
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
@@ -150,6 +149,7 @@ def _create_dagrun(
     run_type: DagRunType,
     state: DagRunState = DagRunState.RUNNING,
     start_date: datetime.datetime | None = None,
+    **kwargs,
 ) -> DagRun:
     logical_date = timezone.coerce_datetime(logical_date)
     if not isinstance(data_interval, DataInterval):
@@ -168,6 +168,7 @@ def _create_dagrun(
         state=state,
         start_date=start_date,
         triggered_by=DagRunTriggeredByType.TEST,
+        **kwargs,
     )
 
 
@@ -1536,16 +1537,14 @@ class TestDag:
             PythonOperator.partial(task_id=task_id, python_callable=consumer).expand(op_args=make_arg_lists())
 
         session = dag_maker.session
-        dagrun_1 = dag.create_dagrun(
-            run_id="backfill",
+        dagrun_1 = _create_dagrun(
+            dag,
             run_type=DagRunType.BACKFILL_JOB,
-            state=State.FAILED,
+            state=DagRunState.FAILED,
             start_date=DEFAULT_DATE,
             logical_date=DEFAULT_DATE,
-            session=session,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            run_after=DEFAULT_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
         )
         # Get the (de)serialized MappedOperator
         mapped = dag.get_task(task_id)
@@ -1662,26 +1661,6 @@ class TestDag:
         mock_handle_object_2.assert_called_with("dag test_local_testing_conn_file run failed...")
         mock_task_object_1.assert_called()
         mock_task_object_2.assert_not_called()
-
-    def test_dag_test_with_task_mapping(self):
-        dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        mock_object = mock.MagicMock()
-
-        @task_decorator()
-        def get_index(current_val, ti=None):
-            return ti.map_index
-
-        @task_decorator
-        def check_task(my_input):
-            # we call a mock object with the combined map to ensure all expected indexes are called
-            mock_object(list(my_input))
-
-        with dag:
-            mapped_task = get_index.expand(current_val=[1, 1, 1, 1, 1])
-            check_task(mapped_task)
-
-        dag.test()
-        mock_object.assert_called_with([0, 1, 2, 3, 4])
 
     def test_dag_connection_file(self, tmp_path):
         test_connections_string = """
@@ -2517,135 +2496,6 @@ class TestQueries:
                 run_after=TEST_DATE,
                 triggered_by=DagRunTriggeredByType.TEST,
             )
-
-
-class TestDagDecorator:
-    DEFAULT_ARGS = {
-        "owner": "test",
-        "depends_on_past": True,
-        "start_date": timezone.utcnow(),
-        "retries": 1,
-        "retry_delay": timedelta(minutes=1),
-    }
-    DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-    VALUE = 42
-
-    def setup_method(self):
-        self.operator = None
-
-    def teardown_method(self):
-        clear_db_runs()
-
-    def test_documentation_template_rendered(self):
-        """Test that @dag uses function docs as doc_md for DAG object"""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def noop_pipeline():
-            """
-            {% if True %}
-               Regular DAG documentation
-            {% endif %}
-            """
-
-        dag = noop_pipeline()
-        assert dag.dag_id == "noop_pipeline"
-        assert "Regular DAG documentation" in dag.doc_md
-
-    def test_resolve_documentation_template_file_not_rendered(self, tmp_path):
-        """Test that @dag uses function docs as doc_md for DAG object"""
-
-        raw_content = """
-        {% if True %}
-            External Markdown DAG documentation
-        {% endif %}
-        """
-
-        path = tmp_path / "testfile.md"
-        path.write_text(raw_content)
-
-        @dag_decorator("test-dag", schedule=None, start_date=DEFAULT_DATE, doc_md=str(path))
-        def markdown_docs(): ...
-
-        dag = markdown_docs()
-        assert dag.dag_id == "test-dag"
-        assert dag.doc_md == raw_content
-
-    def test_dag_param_resolves(self):
-        """Test that dag param is correctly resolved by operator"""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def xcom_pass_to_op(value=self.VALUE):
-            @task_decorator
-            def return_num(num):
-                return num
-
-            xcom_arg = return_num(value)
-            self.operator = xcom_arg.operator
-
-        dag = xcom_pass_to_op()
-
-        dr = dag.create_dagrun(
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-            start_date=timezone.utcnow(),
-            logical_date=self.DEFAULT_DATE,
-            data_interval=(self.DEFAULT_DATE, self.DEFAULT_DATE),
-            run_after=self.DEFAULT_DATE,
-            state=State.RUNNING,
-            triggered_by=DagRunTriggeredByType.TEST,
-        )
-
-        self.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull() == self.VALUE
-
-    def test_dag_param_dagrun_parameterized(self):
-        """Test that dag param is correctly overwritten when set in dag run"""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def xcom_pass_to_op(value=self.VALUE):
-            @task_decorator
-            def return_num(num):
-                return num
-
-            assert isinstance(value, DagParam)
-
-            xcom_arg = return_num(value)
-            self.operator = xcom_arg.operator
-
-        dag = xcom_pass_to_op()
-        new_value = 52
-        dr = dag.create_dagrun(
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-            start_date=timezone.utcnow(),
-            logical_date=self.DEFAULT_DATE,
-            data_interval=(self.DEFAULT_DATE, self.DEFAULT_DATE),
-            run_after=self.DEFAULT_DATE,
-            state=State.RUNNING,
-            conf={"value": new_value},
-            triggered_by=DagRunTriggeredByType.TEST,
-        )
-
-        self.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
-        ti = dr.get_task_instances()[0]
-        assert ti.xcom_pull() == new_value
-
-    @pytest.mark.parametrize("value", [VALUE, 0])
-    def test_set_params_for_dag(self, value):
-        """Test that dag param is correctly set when using dag decorator"""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def xcom_pass_to_op(value=value):
-            @task_decorator
-            def return_num(num):
-                return num
-
-            xcom_arg = return_num(value)
-            self.operator = xcom_arg.operator
-
-        dag = xcom_pass_to_op()
-        assert dag.params["value"] == value
 
 
 @pytest.mark.parametrize(

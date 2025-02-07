@@ -43,9 +43,7 @@ labelPRBasedOnFilePath:
     - providers/apache/druid/**
 
   provider:apache-flink:
-    - providers/src/airflow/providers/apache/flink/**/*
-    - docs/apache-airflow-providers-apache-flink/**/*
-    - providers/tests/apache/flink/**/*
+    - providers/apache/flink/**
 
   provider:apache-hdfs:
     - providers/src/airflow/providers/apache/hdfs/**/*
@@ -59,9 +57,7 @@ labelPRBasedOnFilePath:
     - providers/apache/iceberg/**
 
   provider:apache-impala:
-    - providers/src/airflow/providers/apache/impala/**/*
-    - docs/apache-airflow-providers-apache-impala/**/*
-    - providers/tests/apache/impala/**/*
+    - providers/apache/impala/**
 
   provider:apache-kafka:
     - providers/apache/kafka/**
@@ -85,9 +81,7 @@ labelPRBasedOnFilePath:
     - providers/apprise/**
 
   provider:arangodb:
-    - providers/src/airflow/providers/arangodb/**/*
-    - docs/apache-airflow-providers-arangodb/**/*
-    - providers/tests/arangodb/**/*
+    - providers/arangodb/**
 
   provider:asana:
     - providers/asana/**
@@ -99,19 +93,10 @@ labelPRBasedOnFilePath:
     - providers/celery/**
 
   provider:cloudant:
-    - providers/src/airflow/providers/cloudant/**/*
-    - docs/apache-airflow-providers-cloudant/**/*
-    - providers/tests/cloudant/**/*
+    - providers/cloudant/**
 
   provider:cncf-kubernetes:
-    - airflow/example_dags/example_kubernetes_executor.py
-    - airflow/example_dags/example_local_kubernetes_executor.py
-    - providers/src/airflow/providers/cncf/kubernetes/**/*
-    - providers/celery/src/airflow/providers/celery/executors/celery_kubernetes_executor.py
-    - docs/apache-airflow-providers-cncf-kubernetes/**/*
-    - kubernetes_tests/**/*
-    - providers/tests/cncf/kubernetes/**/*
-    - providers/tests/system/cncf/kubernetes/**/*
+    - providers/cncf/kubernetes/**
 
   provider:cohere:
     - providers/cohere/**
@@ -207,10 +192,7 @@ labelPRBasedOnFilePath:
     - providers/microsoft/psrp/**
 
   provider:microsoft-winrm:
-    - providers/src/airflow/providers/microsoft/winrm/**/*
-    - docs/apache-airflow-providers-microsoft-winrm/**/*
-    - providers/tests/microsoft/winrm/**/*
-    - providers/tests/system/microsoft/winrm/**/*
+    - providers/microsoft/winrm/**
 
   provider:mongo:
     - providers/mongo/**
@@ -320,10 +302,7 @@ labelPRBasedOnFilePath:
     - providers/weaviate/**
 
   provider:yandex:
-    - providers/src/airflow/providers/yandex/**/*
-    - docs/apache-airflow-providers-yandex/**/*
-    - providers/tests/yandex/**/*
-    - providers/tests/system/yandex/**/*
+    - providers/yandex/**
 
   provider:ydb:
     - providers/ydb/**

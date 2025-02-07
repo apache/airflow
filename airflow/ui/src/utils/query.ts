@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Query } from "@tanstack/react-query";
-
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { useConfig } from "src/queries/useConfig";
@@ -31,26 +29,6 @@ export const isStatePending = (state?: TaskInstanceState | null) =>
   state === "queued" ||
   state === "restarting" ||
   !Boolean(state);
-
-export type PartialQueryKey = { baseKey: string; options?: Record<string, unknown> };
-
-// This allows us to specify what query key values we actually care about and ignore the rest
-// ex: match everything with this dagId and dagRunId but ignore anything related to pagination
-export const doQueryKeysMatch = (query: Query, queryKeysToMatch: Array<PartialQueryKey>) => {
-  const [baseKey, options] = query.queryKey;
-
-  const matchedKey = queryKeysToMatch.find((qk) => qk.baseKey === baseKey);
-
-  if (!matchedKey) {
-    return false;
-  }
-
-  return matchedKey.options
-    ? Object.entries(matchedKey.options).every(
-        ([key, value]) => typeof options === "object" && (options as Record<string, unknown>)[key] === value,
-      )
-    : true;
-};
 
 export const useAutoRefresh = ({ dagId, isPaused }: { dagId?: string; isPaused?: boolean }) => {
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number | undefined;

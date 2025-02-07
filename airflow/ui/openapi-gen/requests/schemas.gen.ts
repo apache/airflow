@@ -4746,6 +4746,16 @@ export const $TaskInstanceHistoryResponse = {
       type: "string",
       title: "Executor Config",
     },
+    dag_version: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagVersionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: [
@@ -4772,6 +4782,7 @@ export const $TaskInstanceHistoryResponse = {
     "pid",
     "executor",
     "executor_config",
+    "dag_version",
   ],
   title: "TaskInstanceHistoryResponse",
   description: "TaskInstanceHistory serializer for responses.",
@@ -6226,4 +6237,22 @@ export const $XComResponseString = {
   required: ["key", "timestamp", "logical_date", "map_index", "task_id", "dag_id", "run_id", "value"],
   title: "XComResponseString",
   description: "XCom response serializer with string return type.",
+} as const;
+
+export const $XComUpdateBody = {
+  properties: {
+    value: {
+      title: "Value",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+      default: -1,
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["value"],
+  title: "XComUpdateBody",
+  description: "Payload serializer for updating an XCom entry.",
 } as const;

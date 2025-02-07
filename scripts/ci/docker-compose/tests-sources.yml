@@ -45,8 +45,10 @@ services:
       - ../../../providers/apache/cassandra/tests:/opt/airflow/providers/apache/cassandra/tests
       - ../../../providers/apache/drill/tests:/opt/airflow/providers/apache/drill/tests
       - ../../../providers/apache/druid/tests:/opt/airflow/providers/apache/druid/tests
+      - ../../../providers/apache/flink/tests:/opt/airflow/providers/apache/flink/tests
       - ../../../providers/apache/hive/tests:/opt/airflow/providers/apache/hive/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
+      - ../../../providers/apache/impala/tests:/opt/airflow/providers/apache/impala/tests
       - ../../../providers/apache/kafka/tests:/opt/airflow/providers/apache/kafka/tests
       - ../../../providers/apache/kylin/tests:/opt/airflow/providers/apache/kylin/tests
       - ../../../providers/apache/livy/tests:/opt/airflow/providers/apache/livy/tests
@@ -54,9 +56,12 @@ services:
       - ../../../providers/apache/pinot/tests:/opt/airflow/providers/apache/pinot/tests
       - ../../../providers/apache/spark/tests:/opt/airflow/providers/apache/spark/tests
       - ../../../providers/apprise/tests:/opt/airflow/providers/apprise/tests
+      - ../../../providers/arangodb/tests:/opt/airflow/providers/arangodb/tests
       - ../../../providers/asana/tests:/opt/airflow/providers/asana/tests
       - ../../../providers/atlassian/jira/tests:/opt/airflow/providers/atlassian/jira/tests
       - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
+      - ../../../providers/cloudant/tests:/opt/airflow/providers/cloudant/tests
+      - ../../../providers/cncf/kubernetes/tests:/opt/airflow/providers/cncf/kubernetes/tests
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/compat/tests:/opt/airflow/providers/common/compat/tests
       - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
@@ -83,6 +88,7 @@ services:
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
       - ../../../providers/microsoft/mssql/tests:/opt/airflow/providers/microsoft/mssql/tests
       - ../../../providers/microsoft/psrp/tests:/opt/airflow/providers/microsoft/psrp/tests
+      - ../../../providers/microsoft/winrm/tests:/opt/airflow/providers/microsoft/winrm/tests
       - ../../../providers/mongo/tests:/opt/airflow/providers/mongo/tests
       - ../../../providers/mysql/tests:/opt/airflow/providers/mysql/tests
       - ../../../providers/neo4j/tests:/opt/airflow/providers/neo4j/tests
@@ -118,6 +124,7 @@ services:
       - ../../../providers/trino/tests:/opt/airflow/providers/trino/tests
       - ../../../providers/vertica/tests:/opt/airflow/providers/vertica/tests
       - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
+      - ../../../providers/yandex/tests:/opt/airflow/providers/yandex/tests
       - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests
       - ../../../providers/zendesk/tests:/opt/airflow/providers/zendesk/tests
       # END automatically generated volumes by generate-volumes-for-sources pre-commit

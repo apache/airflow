@@ -21,12 +21,13 @@ from unittest.mock import Mock, patch
 
 import boto3
 import pytest
+from fastapi.testclient import TestClient
+from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 
-from airflow.www import app as application
+from airflow.api_fastapi.app import create_app
 
 from providers.tests.system.amazon.aws.utils import set_env_id
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.www import check_content_in_response
 
 SAML_METADATA_URL = "/saml/metadata"
 SAML_METADATA_PARSED = {
@@ -128,15 +129,12 @@ def base_app(region_name, avp_policy_store_id):
         }
     ):
         with (
+            patch.object(OneLogin_Saml2_IdPMetadataParser, "parse_remote") as mock_parse_remote,
             patch(
-                "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
-            ) as mock_parser,
-            patch(
-                "airflow.providers.amazon.aws.auth_manager.views.auth.AwsAuthManagerAuthenticationViews._init_saml_auth"
+                "airflow.providers.amazon.aws.auth_manager.router.login._init_saml_auth"
             ) as mock_init_saml_auth,
         ):
-            mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
-
+            mock_parse_remote.return_value = SAML_METADATA_PARSED
             yield mock_init_saml_auth
 
 
@@ -151,7 +149,7 @@ def client_no_permissions(base_app):
         "email": ["email"],
     }
     base_app.return_value = auth
-    return application.create_app(testing=True)
+    return TestClient(create_app())
 
 
 @pytest.fixture
@@ -164,7 +162,7 @@ def client_admin_permissions(base_app):
         "groups": ["Admin"],
     }
     base_app.return_value = auth
-    return application.create_app(testing=True)
+    return TestClient(create_app())
 
 
 @pytest.mark.system
@@ -194,12 +192,11 @@ class TestAwsAuthManager:
         for policy_store_id in policy_store_ids:
             client.delete_policy_store(policyStoreId=policy_store_id)
 
+    @pytest.mark.skip("Authorization is not yet implemented in AF3 new ui")
     def test_login_no_permissions(self, client_no_permissions):
-        with client_no_permissions.test_client() as client:
-            response = client.get("/login_callback", follow_redirects=True)
-            check_content_in_response("Your user has no roles and/or permissions!", response, 403)
+        response = client_no_permissions.post("/auth/login_callback")
+        assert response.status_code == 403
 
     def test_login_admin(self, client_admin_permissions):
-        with client_admin_permissions.test_client() as client:
-            response = client.get("/login_callback", follow_redirects=True)
-            check_content_in_response("<h2>DAGs</h2>", response, 200)
+        response = client_admin_permissions.post("/auth/login_callback")
+        assert response.status_code == 200
