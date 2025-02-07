@@ -263,6 +263,7 @@ def _create_backfill_dag_run(
     backfill_sort_ordinal,
     session,
 ):
+    clear_dag_run(dag, info, reprocess_behavior, session)
     with session.begin_nested() as nested:
         dr = session.scalar(
             with_row_locks(
@@ -420,3 +421,24 @@ def _create_backfill(
                 info,
             )
     return br
+
+
+def clear_dag_run(dag, info, reprocess_behavior, session):
+    dr = session.scalar(
+        with_row_locks(
+            query=_get_latest_dag_run_row_query(info, session),
+            session=session,
+        ),
+    )
+    if dr:
+        if dr.state in {DagRunState.SUCCESS, DagRunState.FAILED} and reprocess_behavior in {
+            ReprocessBehavior.COMPLETED,
+            ReprocessBehavior.FAILED,
+        }:
+            dag.clear(
+                run_id=dr.run_id,
+                dag_run_state=DagRunState.QUEUED,
+                session=session,
+                confirm_prompt=False,
+                dry_run=False,
+            )
