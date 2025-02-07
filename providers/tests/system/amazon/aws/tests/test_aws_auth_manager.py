@@ -192,11 +192,8 @@ class TestAwsAuthManager:
         for policy_store_id in policy_store_ids:
             client.delete_policy_store(policyStoreId=policy_store_id)
 
-    @pytest.mark.skip("Authorization is not yet implemented in AF3 new ui")
-    def test_login_no_permissions(self, client_no_permissions):
-        response = client_no_permissions.post("/auth/login_callback")
-        assert response.status_code == 403
-
     def test_login_admin(self, client_admin_permissions):
-        response = client_admin_permissions.post("/auth/login_callback")
-        assert response.status_code == 200
+        response = client_admin_permissions.post("/auth/login_callback", follow_redirects=False)
+        assert response.status_code == 303
+        assert "location" in response.headers
+        assert "webapp?token=" in response.headers["location"]
