@@ -324,7 +324,8 @@ class TestConfigLint:
     def test_lint_detects_multiple_issues(self):
         with mock.patch(
             "airflow.configuration.conf.has_option",
-            side_effect=lambda s, o: o in ["check_slas", "strict_dataset_uri_validation"],
+            side_effect=lambda s, o, lookup_from_deprecated_options: o
+            in ["check_slas", "strict_dataset_uri_validation"],
         ):
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
