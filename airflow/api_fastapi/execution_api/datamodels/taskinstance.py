@@ -264,3 +264,4 @@ class TIRuntimeCheckPayload(StrictBaseModel):
 
     inlets: list[AssetProfile] | None = None
     outlets: list[AssetProfile] | None = None
+    type: str | None = None
