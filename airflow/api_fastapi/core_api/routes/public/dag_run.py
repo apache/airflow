@@ -343,6 +343,7 @@ def trigger_dag_run(
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
+    now = pendulum.now("UTC")
     if not dm:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
 
@@ -364,9 +365,7 @@ def trigger_dag_run(
                 end=pendulum.instance(body.data_interval_end),
             )
         else:
-            data_interval = dag.timetable.infer_manual_data_interval(
-                run_after=coerced_logical_date or pendulum.now("UTC")
-            )
+            data_interval = dag.timetable.infer_manual_data_interval(run_after=coerced_logical_date or now)
 
         dag_run = dag.create_dagrun(
             run_id=cast(str, body.dag_run_id),
