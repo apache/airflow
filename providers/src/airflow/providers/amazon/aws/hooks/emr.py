@@ -362,11 +362,11 @@ class EmrContainerHook(AwsBaseHook):
     # Retry this method when the ``create_virtual_cluster`` raises
     # "Cluster XXX is not reachable as its connection is currently being updated".
     # Even though the EKS cluster status is ``ACTIVE``, ``create_virtual_cluster`` can raise this error.
-    # Retrying is the only option.
+    # Retrying is the only option. Retry up to 3 minutes
     @tenacity.retry(
         retry=retry_if_exception(is_connection_being_updated_exception),
-        stop=stop_after_attempt(5),
-        wait=wait_fixed(10),
+        stop=stop_after_attempt(12),
+        wait=wait_fixed(15),
     )
     def create_emr_on_eks_cluster(
         self,
