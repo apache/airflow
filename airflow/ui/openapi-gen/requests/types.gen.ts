@@ -1543,6 +1543,14 @@ export type XComResponseString = {
   value: string | null;
 };
 
+/**
+ * Payload serializer for updating an XCom entry.
+ */
+export type XComUpdateBody = {
+  value: unknown;
+  map_index?: number;
+};
+
 export type NextRunAssetsData = {
   dagId: string;
 };
@@ -2320,6 +2328,16 @@ export type GetXcomEntryData = {
 };
 
 export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
+
+export type UpdateXcomEntryData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: XComUpdateBody;
+  taskId: string;
+  xcomKey: string;
+};
+
+export type UpdateXcomEntryResponse = XComResponseNative;
 
 export type GetXcomEntriesData = {
   dagId: string;
@@ -4700,6 +4718,35 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: XComResponseNative | XComResponseString;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: UpdateXcomEntryData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: XComResponseNative;
         /**
          * Bad Request
          */

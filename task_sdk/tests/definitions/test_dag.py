@@ -25,7 +25,7 @@ import pytest
 from airflow.exceptions import DuplicateTaskIdFound
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
-from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -350,6 +350,13 @@ def test__tags_mutable():
     assert test_dag.tags == expected_tags
 
 
+def test_create_dag_while_active_context():
+    """Test that we can safely create a DAG whilst a DAG is activated via ``with dag1:``."""
+    with DAG(dag_id="simple_dag"):
+        DAG(dag_id="dag2")
+        # No asserts needed, it just needs to not fail
+
+
 class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",
@@ -418,12 +425,6 @@ class TestDagDecorator:
         with pytest.raises(TypeError):
             noop_pipeline()
 
-    def test_create_dag_while_active_context(self):
-        """Test that we can safely create a DAG whilst a DAG is activated via ``with dag1:``."""
-        with DAG(dag_id="simple_dag"):
-            DAG(dag_id="dag2")
-            # No asserts needed, it just needs to not fail
-
     def test_documentation_template_rendered(self):
         """Test that @dag uses function docs as doc_md for DAG object"""
 
@@ -457,3 +458,22 @@ class TestDagDecorator:
         dag = markdown_docs()
         assert dag.dag_id == "test-dag"
         assert dag.doc_md == raw_content
+
+    def test_dag_param_resolves(self):
+        """Test that dag param is correctly resolved by operator"""
+        from airflow.decorators import task
+
+        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
+        def xcom_pass_to_op(value=self.VALUE):
+            @task
+            def return_num(num):
+                return num
+
+            xcom_arg = return_num(value)
+            self.operator = xcom_arg.operator
+
+        xcom_pass_to_op()
+
+        assert isinstance(self.operator.op_args[0], DagParam)
+        self.operator.render_template_fields({})
+        assert self.operator.op_args[0] == 42

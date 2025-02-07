@@ -149,6 +149,7 @@ def _create_dagrun(
     run_type: DagRunType,
     state: DagRunState = DagRunState.RUNNING,
     start_date: datetime.datetime | None = None,
+    **kwargs,
 ) -> DagRun:
     logical_date = timezone.coerce_datetime(logical_date)
     if not isinstance(data_interval, DataInterval):
@@ -167,6 +168,7 @@ def _create_dagrun(
         state=state,
         start_date=start_date,
         triggered_by=DagRunTriggeredByType.TEST,
+        **kwargs,
     )
 
 
@@ -1535,16 +1537,14 @@ class TestDag:
             PythonOperator.partial(task_id=task_id, python_callable=consumer).expand(op_args=make_arg_lists())
 
         session = dag_maker.session
-        dagrun_1 = dag.create_dagrun(
-            run_id="backfill",
+        dagrun_1 = _create_dagrun(
+            dag,
             run_type=DagRunType.BACKFILL_JOB,
-            state=State.FAILED,
+            state=DagRunState.FAILED,
             start_date=DEFAULT_DATE,
             logical_date=DEFAULT_DATE,
-            session=session,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            run_after=DEFAULT_DATE,
-            triggered_by=DagRunTriggeredByType.TEST,
+            session=session,
         )
         # Get the (de)serialized MappedOperator
         mapped = dag.get_task(task_id)
@@ -1661,26 +1661,6 @@ class TestDag:
         mock_handle_object_2.assert_called_with("dag test_local_testing_conn_file run failed...")
         mock_task_object_1.assert_called()
         mock_task_object_2.assert_not_called()
-
-    def test_dag_test_with_task_mapping(self):
-        dag = DAG(dag_id="test_local_testing_conn_file", schedule=None, start_date=DEFAULT_DATE)
-        mock_object = mock.MagicMock()
-
-        @task_decorator()
-        def get_index(current_val, ti=None):
-            return ti.map_index
-
-        @task_decorator
-        def check_task(my_input):
-            # we call a mock object with the combined map to ensure all expected indexes are called
-            mock_object(list(my_input))
-
-        with dag:
-            mapped_task = get_index.expand(current_val=[1, 1, 1, 1, 1])
-            check_task(mapped_task)
-
-        dag.test()
-        mock_object.assert_called_with([0, 1, 2, 3, 4])
 
     def test_dag_connection_file(self, tmp_path):
         test_connections_string = """

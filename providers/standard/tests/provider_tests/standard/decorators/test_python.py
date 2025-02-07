@@ -18,7 +18,7 @@
 import sys
 import typing
 from collections import namedtuple
-from datetime import date, timedelta
+from datetime import date
 from typing import Union
 
 import pytest
@@ -26,15 +26,10 @@ import pytest
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
-from airflow.models.expandinput import DictOfListsExpandInput
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom_arg import PlainXComArg, XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -44,10 +39,17 @@ from provider_tests.standard.operators.test_python import BasePythonTest
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg
+    from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.utils.types import DagRunTriggeredByType
 else:
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.dag import DAG  # type: ignore[assignment]
+    from airflow.models.expandinput import DictOfListsExpandInput
     from airflow.models.mappedoperator import MappedOperator
+    from airflow.models.xcom_arg import XComArg
+    from airflow.utils.task_group import TaskGroup
 
 pytestmark = pytest.mark.db_test
 
@@ -733,6 +735,11 @@ def test_mapped_decorator_invalid_args() -> None:
 
 
 def test_partial_mapped_decorator() -> None:
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk.definitions.xcom_arg import PlainXComArg
+    else:
+        from airflow.models.xcom_arg import PlainXComArg  # type: ignore[attr-defined, no-redef]
+
     @task_decorator
     def product(number: int, multiple: int):
         return number * multiple
@@ -789,38 +796,12 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
     dec = run.task_instance_scheduling_decisions(session=session)
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task2"]
     ti = dec.schedulable_tis[0]
-    unmapped = ti.task.unmap((ti.get_template_context(session), session))
-    assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
 
-
-def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
-    with dag_maker(session=session):
-
-        @task_decorator
-        def task1(arg):
-            return ["x" * arg]
-
-        @task_decorator(retry_delay=30)
-        def task2(arg1, arg2): ...
-
-        task2.partial(arg1=1).expand(arg2=task1.expand(arg=[1, 2]))
-
-    run = dag_maker.create_dagrun()
-
-    # Expand and run task1.
-    dec = run.task_instance_scheduling_decisions(session=session)
-    assert [ti.task_id for ti in dec.schedulable_tis] == ["task1", "task1"]
-    for ti in dec.schedulable_tis:
-        ti.run(session=session)
-        assert not isinstance(ti.task, MappedOperator)
-        assert ti.task.retry_delay == timedelta(seconds=300)  # Operator default.
-
-    # Expand task2.
-    dec = run.task_instance_scheduling_decisions(session=session)
-    assert [ti.task_id for ti in dec.schedulable_tis] == ["task2", "task2"]
-    for ti in dec.schedulable_tis:
+    if AIRFLOW_V_3_0_PLUS:
+        unmapped = ti.task.unmap((ti.get_template_context(session),))
+    else:
         unmapped = ti.task.unmap((ti.get_template_context(session), session))
-        assert unmapped.retry_delay == timedelta(seconds=30)
+    assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
 
 
 def test_mapped_render_template_fields(dag_maker, session):

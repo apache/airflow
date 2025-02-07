@@ -358,6 +358,11 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minutes lifetime
     RENEWAL_DELTA = timedelta(minutes=54)  # Tokens will be renewed after 54 minutes
 
+    template_fields: Sequence[str] = tuple(
+        set(SQLExecuteQueryOperator.template_fields) | {"snowflake_conn_id"}
+    )
+    conn_id_field = "snowflake_conn_id"
+
     def __init__(
         self,
         *,

@@ -574,26 +574,9 @@ class TestFabAuthManager:
         ):
             auth_manager_with_appbuilder.security_manager
 
-    @pytest.mark.db_test
-    def test_get_url_login_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
-        with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
-            auth_manager_with_appbuilder.get_url_login()
-
-    @pytest.mark.db_test
-    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.url_for")
-    def test_get_url_login(self, mock_url_for, auth_manager_with_appbuilder):
-        auth_manager_with_appbuilder.security_manager.auth_view = Mock()
-        auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
-        auth_manager_with_appbuilder.get_url_login()
-        mock_url_for.assert_called_once_with("test_endpoint.login")
-
-    @pytest.mark.db_test
-    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.url_for")
-    def test_get_url_login_with_next(self, mock_url_for, auth_manager_with_appbuilder):
-        auth_manager_with_appbuilder.security_manager.auth_view = Mock()
-        auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
-        auth_manager_with_appbuilder.get_url_login(next_url="next_url")
-        mock_url_for.assert_called_once_with("test_endpoint.login", next="next_url")
+    def test_get_url_login(self, auth_manager):
+        result = auth_manager.get_url_login()
+        assert result == "http://localhost:29091/auth/login"
 
     @pytest.mark.db_test
     def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):

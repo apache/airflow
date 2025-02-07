@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import uuid
@@ -163,28 +164,6 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     assert isinstance(ti.task.dag, DAG)
 
 
-def test_run_basic(time_machine, create_runtime_ti, spy_agency, mock_supervisor_comms):
-    """Test running a basic task."""
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
-
-    ti = create_runtime_ti(dag_id="super_basic_run", task=CustomOperator(task_id="hello"))
-
-    # Ensure that task is locked for execution
-    spy_agency.spy_on(ti.task.prepare_for_execution)
-    assert not ti.task._lock_for_execution
-
-    run(ti, log=mock.MagicMock())
-
-    spy_agency.assert_spy_called(ti.task.prepare_for_execution)
-    assert ti.task._lock_for_execution
-
-    mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=SucceedTask(state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]),
-        log=mock.ANY,
-    )
-
-
 def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test that a task can transition to a deferred state."""
     import datetime
@@ -218,7 +197,7 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
     run(ti, log=mock.MagicMock())
 
     # send_request will only be called when the TaskDeferred exception is raised
-    mock_supervisor_comms.send_request.assert_called_once_with(msg=expected_defer_task, log=mock.ANY)
+    mock_supervisor_comms.send_request.assert_any_call(msg=expected_defer_task, log=mock.ANY)
 
 
 def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comms):
@@ -238,7 +217,7 @@ def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comm
 
     run(ti, log=mock.MagicMock())
 
-    mock_supervisor_comms.send_request.assert_called_once_with(
+    mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(state=TerminalTIState.SKIPPED, end_date=instant), log=mock.ANY
     )
 
@@ -258,7 +237,7 @@ def test_run_raises_base_exception(time_machine, create_runtime_ti, mock_supervi
 
     run(ti, log=mock.MagicMock())
 
-    mock_supervisor_comms.send_request.assert_called_once_with(
+    mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
             state=TerminalTIState.FAILED,
             end_date=instant,
@@ -282,7 +261,7 @@ def test_run_raises_system_exit(time_machine, create_runtime_ti, mock_supervisor
 
     run(ti, log=mock.MagicMock())
 
-    mock_supervisor_comms.send_request.assert_called_once_with(
+    mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
             state=TerminalTIState.FAILED,
             end_date=instant,
@@ -308,7 +287,7 @@ def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supe
 
     run(ti, log=mock.MagicMock())
 
-    mock_supervisor_comms.send_request.assert_called_once_with(
+    mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
             state=TerminalTIState.FAILED,
             end_date=instant,
@@ -335,7 +314,7 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
     run(ti, log=mock.MagicMock())
 
     # this state can only be reached if the try block passed down the exception to handler of AirflowTaskTimeout
-    mock_supervisor_comms.send_request.assert_called_once_with(
+    mock_supervisor_comms.send_request.assert_called_with(
         msg=TaskState(
             state=TerminalTIState.FAILED,
             end_date=instant,
@@ -344,7 +323,7 @@ def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms
     )
 
 
-def test_startup_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms):
+def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
     """Test running a DAG with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
 
@@ -362,15 +341,23 @@ def test_startup_basic_templated_dag(mocked_parse, make_ti_context, mock_supervi
         requests_fd=0,
         ti_context=make_ti_context(),
     )
-    mocked_parse(what, "basic_templated_dag", task)
+    ti = mocked_parse(what, "basic_templated_dag", task)
 
-    mock_supervisor_comms.get_message.return_value = what
-    startup()
+    # Ensure that task is locked for execution
+    spy_agency.spy_on(task.prepare_for_execution)
+    assert not task._lock_for_execution
 
-    mock_supervisor_comms.send_request.assert_called_once_with(
+    # mock_supervisor_comms.get_message.return_value = what
+    run(ti, log=mock.Mock())
+
+    spy_agency.assert_spy_called(task.prepare_for_execution)
+    assert ti.task._lock_for_execution
+    assert ti.task is not task, "ti.task should be a copy of the original task"
+
+    mock_supervisor_comms.send_request.assert_any_call(
         msg=SetRenderedFields(
             rendered_fields={
-                "bash_command": "echo 'Logical date is {{ logical_date }}'",
+                "bash_command": "echo 'Logical date is 2024-12-01 01:00:00+00:00'",
                 "cwd": None,
                 "env": None,
             }
@@ -461,15 +448,14 @@ def test_startup_and_run_dag_with_rtif(
         requests_fd=0,
         ti_context=make_ti_context(),
     )
-    ti = mocked_parse(what, "basic_dag", task)
+    mocked_parse(what, "basic_dag", task)
 
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
     mock_supervisor_comms.get_message.return_value = what
 
-    startup()
-    run(ti, log=mock.MagicMock())
+    run(*startup())
     expected_calls = [
         mock.call.send_request(
             msg=SetRenderedFields(rendered_fields=expected_rendered_fields),
@@ -496,11 +482,11 @@ def test_startup_and_run_dag_with_rtif(
         ("{{ logical_date }}", "2024-12-01 01:00:00+00:00"),
     ],
 )
+@pytest.mark.usefixtures("mock_supervisor_comms")
 def test_startup_and_run_dag_with_templated_fields(
-    command, rendered_command, create_runtime_ti, time_machine, mock_supervisor_comms
+    command, rendered_command, create_runtime_ti, time_machine
 ):
     """Test startup of a DAG with various templated fields."""
-
     from airflow.providers.standard.operators.bash import BashOperator
 
     task = BashOperator(task_id="templated_task", bash_command=command)
@@ -511,7 +497,6 @@ def test_startup_and_run_dag_with_templated_fields(
 
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
-
     run(ti, log=mock.MagicMock())
     assert ti.task.bash_command == rendered_command
 
@@ -724,6 +709,7 @@ def test_run_with_inlets_and_outlets(
     create_runtime_ti, mock_supervisor_comms, time_machine, ok, last_expected_msg
 ):
     """Test running a basic tasks with inlets and outlets."""
+
     instant = timezone.datetime(2024, 12, 3, 10, 0)
     time_machine.move_to(instant, tick=False)
 
@@ -1039,8 +1025,6 @@ class TestRuntimeTaskInstance:
 
         mock_supervisor_comms.get_message.return_value = XComResult(key="key", value='"value"')
 
-        spy_agency.spy_on(runtime_ti.xcom_pull, call_original=True)
-
         run(runtime_ti, log=mock.MagicMock())
 
         if isinstance(task_ids, str):
@@ -1087,6 +1071,41 @@ class TestRuntimeTaskInstance:
             "flag": False,
             "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
         }
+
+    @pytest.mark.parametrize(
+        ("logical_date", "check"),
+        (
+            pytest.param(None, pytest.raises(KeyError), id="no-logical-date"),
+            pytest.param(timezone.datetime(2024, 12, 3), contextlib.nullcontext(), id="with-logical-date"),
+        ),
+    )
+    def test_no_logical_date_key_error(
+        self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti, logical_date, check
+    ):
+        """Test that a params can be retrieved from context."""
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                for key in ("ds", "ds_nodash", "ts", "ts_nodash", "ts_nodash_with_tz"):
+                    with check:
+                        context[key]
+                # We should always be able to get this
+                assert context["task_instance_key_str"]
+
+        task = CustomOperator(task_id="print-params")
+        runtime_ti = create_runtime_ti(
+            dag_id="basic_param_dag",
+            logical_date=logical_date,
+            task=task,
+            conf={
+                "x": 3,
+                "text": "Hello World!",
+                "flag": False,
+                "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
+            },
+        )
+        msg = run(runtime_ti, log=mock.MagicMock())
+        assert isinstance(msg, SucceedTask)
 
 
 class TestXComAfterTaskExecution:

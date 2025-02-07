@@ -50,7 +50,7 @@ class LiteralValue(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Context) -> Any:
         return self.value
 
 
@@ -179,7 +179,7 @@ class Templater:
             return self._render_object_storage_path(value, context, jinja_env)
 
         if resolve := getattr(value, "resolve", None):
-            return resolve(context, include_xcom=True)
+            return resolve(context)
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:

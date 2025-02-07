@@ -19,61 +19,15 @@
 
 from __future__ import annotations
 
-import functools
-import operator
-from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 import airflow.sdk.definitions.taskgroup
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.typing_compat import TypeAlias
 
 TaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.TaskGroup
-
-
-class MappedTaskGroup(airflow.sdk.definitions.taskgroup.MappedTaskGroup):  # noqa: D101
-    # TODO: Rename this to SerializedMappedTaskGroup perhaps?
-
-    def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
-        """
-        Return mapped task groups in the hierarchy.
-
-        Groups are returned from the closest to the outmost. If *self* is a
-        mapped task group, it is returned first.
-
-        :meta private:
-        """
-        group: TaskGroup | None = self
-        while group is not None:
-            if isinstance(group, MappedTaskGroup):
-                yield group
-            group = group.parent_group
-
-    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        """
-        Return the number of instances a task in this group should be mapped to at run time.
-
-        This considers both literal and non-literal mapped arguments, and the
-        result is therefore available when all depended tasks have finished. The
-        return value should be identical to ``parse_time_mapped_ti_count`` if
-        all mapped arguments are literal.
-
-        If this group is inside mapped task groups, all the nested counts are
-        multiplied and accounted.
-
-        :meta private:
-
-        :raise NotFullyPopulated: If upstream tasks are not all complete yet.
-        :return: Total number of mapped TIs this task should have.
-        """
-        groups = self.iter_mapped_task_groups()
-        return functools.reduce(
-            operator.mul,
-            (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
-        )
+MappedTaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.MappedTaskGroup
 
 
 def task_group_to_dict(task_item_or_group):
