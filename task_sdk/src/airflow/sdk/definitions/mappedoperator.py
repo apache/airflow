@@ -749,6 +749,8 @@ class MappedOperator(AbstractOperator):
             op.is_setup = is_setup
             op.is_teardown = is_teardown
             op.on_failure_fail_dagrun = on_failure_fail_dagrun
+            op.downstream_task_ids = self.downstream_task_ids
+            op.upstream_task_ids = self.upstream_task_ids
             return op
 
         # TODO: TaskSDK: This probably doesn't need to live in definition time as the next section of code is

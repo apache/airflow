@@ -40,11 +40,13 @@ from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
     DeserializingResultError,
+    SkipDownstreamTaskInstances,
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
+from airflow.providers.common.compat.standard.short_circuit import get_tasks_to_skip
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
 from airflow.providers.standard.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.utils import hashlib_wrapper
@@ -272,48 +274,25 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
     def execute(self, context: Context) -> Any:
         condition = super().execute(context)
-        self.log.info("Condition result is %s", condition)
-
-        if condition:
-            self.log.info("Proceeding with downstream tasks...")
-            return condition
-
-        if not self.downstream_task_ids:
-            self.log.info("No downstream tasks; nothing to do.")
-            return condition
-
-        dag_run = context["dag_run"]
-
-        def get_tasks_to_skip():
-            if self.ignore_downstream_trigger_rules is True:
-                tasks = context["task"].get_flat_relatives(upstream=False)
-            else:
-                tasks = context["task"].get_direct_relatives(upstream=False)
-            for t in tasks:
-                if not t.is_teardown:
-                    yield t
-
-        to_skip = get_tasks_to_skip()
-
-        # this let's us avoid an intermediate list unless debug logging
-        if self.log.getEffectiveLevel() <= logging.DEBUG:
-            self.log.debug("Downstream task IDs %s", to_skip := list(get_tasks_to_skip()))
-
-        self.log.info("Skipping downstream tasks")
         if AIRFLOW_V_3_0_PLUS:
-            self.skip(
-                dag_id=dag_run.dag_id,
-                run_id=dag_run.run_id,
-                tasks=to_skip,
-                map_index=context["ti"].map_index,
-            )
+            raise SkipDownstreamTaskInstances(condition=condition,
+                                              ignore_downstream_trigger_rules=self.ignore_downstream_trigger_rules
+                                              )
         else:
-            self.skip(
-                dag_run=dag_run,
-                tasks=to_skip,
-                execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
-                map_index=context["ti"].map_index,
+            to_skip = get_tasks_to_skip(
+                log=self.log,
+                condition=condition,
+                task=context["task"],
+                downstream_task_ids=self.downstream_task_ids,
+                ignore_downstream_trigger_rules=self.ignore_downstream_trigger_rules,
             )
+            if to_skip:
+                self.skip(
+                    dag_run=context['dag_run'],
+                    tasks=to_skip,
+                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
+                    map_index=context["ti"].map_index,
+                )
 
         self.log.info("Done.")
         # returns the result of the super execute method as it is instead of returning None

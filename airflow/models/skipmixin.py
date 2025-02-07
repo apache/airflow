@@ -120,8 +120,13 @@ class SkipMixin(LoggingMixin):
             return
 
         task_ids_list = [d.task_id for d in task_list]
-        SkipMixin._set_state_to_skipped(dag_id, run_id, task_ids_list, session)
-        session.commit()
+
+        #  The following could be applied only for non-mapped tasks,
+        #  as future mapped tasks have not been expanded yet. Such tasks
+        #  have to be handled by NotPreviouslySkippedDep.
+        if map_index == -1:
+            SkipMixin._set_state_to_skipped(dag_id, run_id, task_ids_list, session)
+            session.commit()
 
         if task_id is not None:
             from airflow.models.xcom import XCom
