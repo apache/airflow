@@ -39,6 +39,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/drill/src
       - ../../../empty:/opt/airflow/providers/apache/druid/src
       - ../../../empty:/opt/airflow/providers/apache/flink/src
+      - ../../../empty:/opt/airflow/providers/apache/hdfs/src
       - ../../../empty:/opt/airflow/providers/apache/hive/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
       - ../../../empty:/opt/airflow/providers/apache/impala/src

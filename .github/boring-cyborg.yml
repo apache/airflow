@@ -46,9 +46,7 @@ labelPRBasedOnFilePath:
     - providers/apache/flink/**
 
   provider:apache-hdfs:
-    - providers/src/airflow/providers/apache/hdfs/**/*
-    - docs/apache-airflow-providers-apache-hdfs/**/*
-    - providers/tests/apache/hdfs/**/*
+    - providers/apache/hdfs/**
 
   provider:apache-hive:
     - providers/apache/hive/**
