@@ -10,6 +10,11 @@ The following DAG parsing configuration options were moved into the ``dag_proces
 * ``[scheduler] stale_dag_threshold`` → ``[dag_processor] stale_dag_threshold``
 * ``[scheduler] print_stats_interval`` → ``[dag_processor] print_stats_interval``
 
+The ``--subdir`` option has been removed from the following commands (it was a noop):
+
+* ``airflow dags pause``
+* ``airflow dags unpause``
+
 .. Provide additional contextual information
 
 .. Check the type of change that applies to this change
@@ -19,7 +24,7 @@ The following DAG parsing configuration options were moved into the ``dag_proces
   * [ ] Dag changes
   * [x] Config changes
   * [ ] API changes
-  * [ ] CLI changes
+  * [x] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency changes
