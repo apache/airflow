@@ -142,15 +142,7 @@ class RuntimeTaskInstance(TaskInstance):
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
-                "data_interval_end": dag_run.data_interval_end,
-                "data_interval_start": dag_run.data_interval_start,
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
-                "prev_data_interval_start_success": lazy_object_proxy.Proxy(
-                    lambda: get_previous_dagrun_success(self.id).data_interval_start
-                ),
-                "prev_data_interval_end_success": lazy_object_proxy.Proxy(
-                    lambda: get_previous_dagrun_success(self.id).data_interval_end
-                ),
                 "prev_start_date_success": lazy_object_proxy.Proxy(
                     lambda: get_previous_dagrun_success(self.id).start_date
                 ),
@@ -159,6 +151,20 @@ class RuntimeTaskInstance(TaskInstance):
                 ),
             }
             context.update(context_from_server)
+
+            if dag_run.triggered_by != "asset":
+                context.update(
+                    {
+                        "data_interval_end": dag_run.data_interval_end,
+                        "data_interval_start": dag_run.data_interval_start,
+                        "prev_data_interval_start_success": lazy_object_proxy.Proxy(
+                            lambda: get_previous_dagrun_success(self.id).data_interval_start
+                        ),
+                        "prev_data_interval_end_success": lazy_object_proxy.Proxy(
+                            lambda: get_previous_dagrun_success(self.id).data_interval_end
+                        ),
+                    }
+                )
 
             if (logical_date := dag_run.logical_date) and dag_run.triggered_by != "asset":
                 ds = logical_date.strftime("%Y-%m-%d")
