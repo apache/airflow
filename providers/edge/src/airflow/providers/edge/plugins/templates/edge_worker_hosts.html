@@ -118,7 +118,7 @@
                   <div style="padding-bottom: 1em;">
                     <label for="maintenance_comment">Maintenance Comment:</label>
                   </div>
-                  <textarea  name="maintenance_comment" rows="3" maxlength="1024" required>{{ host.maintenance_comment }}</textarea>
+                  <textarea  name="maintenance_comment" rows="3" maxlength="1024" required></textarea>
                   <br />
                   <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
                       Confirm Maintenance
@@ -127,12 +127,17 @@
               </form>
             {%- elif host.state in ["maintenance pending", "maintenance mode", "maintenance request"] -%}
               <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/off" method="POST">
-                <td>
-                  {% if host.maintenance_comment %}<div style="padding-bottom: 1em;">{{ host.maintenance_comment }}</div>{% endif %}
+                <td style="text-align: center; vertical-align: middle;">
+                  <textarea  name="maintenance_comment" rows="3" maxlength="1024" style="display: block; margin: 0 auto; width:100%;" required>{{ host.maintenance_comment }}</textarea>
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                  <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
-                      Exit Maintenance
-                  </button>
+                  <div style="margin-top: 10px;">
+                    <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px; margin-right: 5px;">
+                        Exit Maintenance
+                    </button>
+                    <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;" formaction="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/change_comment">
+                      Update comment
+                    </button>
+                  </div>
                 </td>
               </form>
             {%- elif host.state in ["offline", "unknown", "offline maintenance"] -%}

@@ -92,7 +92,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
         queues: list[str] | None,
         first_online: datetime | None = None,
         last_update: datetime | None = None,
-        maintenance_comment: str = "",
+        maintenance_comment: str | None = None,
     ):
         self.worker_name = worker_name
         self.state = state
@@ -187,7 +187,7 @@ def reset_metrics(worker_name: str) -> None:
 
 
 @provide_session
-def request_maintenance(worker_name: str, maintenance_comment: str, session: Session = NEW_SESSION) -> None:
+def request_maintenance(worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION) -> None:
     """Writes maintenance request to the db"""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
@@ -201,10 +201,17 @@ def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
     worker.state = EdgeWorkerState.MAINTENANCE_EXIT
-    worker.maintenance_comment = ""
+    worker.maintenance_comment = None
 
 
 @provide_session
 def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Remove a worker that is offline or just gone from DB"""
     session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
+
+@provide_session
+def change_maintenance_comment(worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION) -> None:
+    """Writes maintenance comment in the db."""
+    query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+    worker: EdgeWorkerModel = session.scalar(query)
+    worker.maintenance_comment = maintenance_comment
