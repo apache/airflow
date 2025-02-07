@@ -579,7 +579,7 @@ task to copy the same file to a date-partitioned storage location in S3 for long
     downstream task. For `traditional operator classes </howto/custom-operator.html>`,
     make sure these parameters are listed in ``template_fields`` class
     variable (like ``sqs_queue`` parameter in the ``SqsPublishOperator``
-    example above); for decorated task using TaskFlow and ``@task`` decorators,
+    example above); for decorated tasks using ``@task``- decorator,
     function parameters are already templated and no extra work is required.
 
     .. seealso:: `Requirements for using templated fields in operator class </howto/custom-operator.html#limitations>`
