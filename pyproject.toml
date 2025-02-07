@@ -645,6 +645,7 @@ dev = [
   "apache-airflow-providers-apache-drill",
   "apache-airflow-providers-apache-druid",
   "apache-airflow-providers-apache-flink",
+  "apache-airflow-providers-apache-hdfs",
   "apache-airflow-providers-apache-hive",
   "apache-airflow-providers-apache-iceberg",
   "apache-airflow-providers-apache-impala",
@@ -666,6 +667,7 @@ dev = [
   "apache-airflow-providers-common-io",
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-docker",
+  "apache-airflow-providers-databricks",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-dbt-cloud",
   "apache-airflow-providers-dingding",
@@ -706,6 +708,7 @@ dev = [
   "apache-airflow-providers-sendgrid",
   "apache-airflow-providers-sftp",
   "apache-airflow-providers-slack",
+  "apache-airflow-providers-smtp",
   "apache-airflow-providers-snowflake",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
@@ -740,6 +743,7 @@ apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
 apache-airflow-providers-apache-druid = { workspace = true }
 apache-airflow-providers-apache-flink = { workspace = true }
+apache-airflow-providers-apache-hdfs = { workspace = true }
 apache-airflow-providers-apache-hive = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
 apache-airflow-providers-apache-impala = { workspace = true }
@@ -760,6 +764,7 @@ apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
+apache-airflow-providers-databricks = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-dbt-cloud = { workspace = true }
 apache-airflow-providers-dingding = { workspace = true }
@@ -808,6 +813,7 @@ apache-airflow-providers-sendgrid = { workspace = true }
 apache-airflow-providers-sftp = { workspace = true }
 apache-airflow-providers-singularity = { workspace = true }
 apache-airflow-providers-slack = { workspace = true }
+apache-airflow-providers-smtp = { workspace = true }
 apache-airflow-providers-sqlite = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-snowflake = { workspace = true }
@@ -833,6 +839,7 @@ members = [
     "providers/apache/drill",
     "providers/apache/druid",
     "providers/apache/flink",
+    "providers/apache/hdfs",
     "providers/apache/hive",
     "providers/apache/iceberg",
     "providers/apache/impala",
@@ -853,6 +860,7 @@ members = [
     "providers/common/compat",
     "providers/common/io",
     "providers/common/sql",
+    "providers/databricks",
     "providers/datadog",
     "providers/dbt/cloud",
     "providers/dingding",
@@ -901,6 +909,7 @@ members = [
     "providers/sftp",
     "providers/singularity",
     "providers/slack",
+    "providers/smtp",
     "providers/sqlite",
     "providers/ssh",
     "providers/snowflake",

@@ -46,9 +46,7 @@ labelPRBasedOnFilePath:
     - providers/apache/flink/**
 
   provider:apache-hdfs:
-    - providers/src/airflow/providers/apache/hdfs/**/*
-    - docs/apache-airflow-providers-apache-hdfs/**/*
-    - providers/tests/apache/hdfs/**/*
+    - providers/apache/hdfs/**
 
   provider:apache-hive:
     - providers/apache/hive/**
@@ -114,10 +112,7 @@ labelPRBasedOnFilePath:
     - providers/standard/**
 
   provider:databricks:
-    - providers/src/airflow/providers/databricks/**/*
-    - docs/apache-airflow-providers-databricks/**/*
-    - providers/tests/databricks/**/*
-    - providers/tests/system/databricks/**/*
+    - providers/databricks/**
 
   provider:datadog:
     - providers/datadog/**
@@ -270,9 +265,7 @@ labelPRBasedOnFilePath:
     - providers/slack/**
 
   provider:smtp:
-    - providers/src/airflow/providers/smtp/**/*
-    - docs/apache-airflow-providers-smtp/**/*
-    - providers/tests/smtp/**/*
+    - providers/smtp/**
 
   provider:snowflake:
     - providers/snowflake/**
