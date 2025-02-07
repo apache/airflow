@@ -17,12 +17,15 @@
  * under the License.
  */
 import { Flex } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
-import { Outlet } from "react-router-dom";
+import { useEffect, type PropsWithChildren } from "react";
+import { Outlet, useSearchParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import { useConfig } from "src/queries/useConfig";
 
 import { Nav } from "./Nav";
+
+export const TOKEN_STORAGE_KEY = "token";
 
 export const BaseLayout = ({ children }: PropsWithChildren) => {
   const instanceName = useConfig("instance_name");
@@ -34,6 +37,19 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
   if (typeof instanceName === "string") {
     document.title = instanceName;
   }
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paramToken = searchParams.get("token");
+
+  const [, setToken] = useLocalStorage<string | null>(TOKEN_STORAGE_KEY, paramToken);
+
+  useEffect(() => {
+    if (paramToken !== null) {
+      setToken(paramToken);
+      searchParams.delete("token");
+      setSearchParams(searchParams);
+    }
+  }, [paramToken, searchParams, setSearchParams, setToken]);
 
   return (
     <>
