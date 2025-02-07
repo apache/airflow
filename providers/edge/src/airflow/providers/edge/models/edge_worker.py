@@ -75,7 +75,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
     __tablename__ = "edge_worker"
     worker_name = Column(String(64), primary_key=True, nullable=False)
     state = Column(String(20))
-    maintenance_comment = Column(String(128))
+    maintenance_comment = Column(String(1024))
     _queues = Column("queues", String(256))
     first_online = Column(UtcDateTime)
     last_update = Column(UtcDateTime)
