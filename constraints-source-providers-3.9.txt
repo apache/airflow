@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-07T13:55:45.374877
+# This constraints file was automatically generated on 2025-02-07T19:53:03.504248
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -49,7 +49,7 @@ adal==1.2.7
 adlfs==2024.12.0
 aiobotocore==2.19.0
 aiofiles==23.2.1
-aiohappyeyeballs==2.4.4
+aiohappyeyeballs==2.4.6
 aiohttp==3.11.12
 aioitertools==0.12.0
 aiomysql==0.2.0
@@ -79,7 +79,7 @@ apache-beam==2.62.0
 apispec==6.8.1
 apprise==1.9.2
 argcomplete==3.5.3
-asana==3.2.3
+asana==5.0.15
 asgiref==3.8.1
 asn1crypto==1.5.1
 astroid==3.3.8
@@ -338,7 +338,7 @@ libcst==1.6.0
 limits==4.0.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==25.0.1
+looker-sdk==25.2.0
 lxml==5.3.0
 lz4==4.4.3
 markdown-it-py==3.0.0
@@ -510,7 +510,7 @@ regex==2024.11.6
 requests-file==2.1.0
 requests-kerberos==0.15.0
 requests-mock==1.12.1
-requests-oauthlib==1.3.1
+requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
 requests==2.32.3
 requests_ntlm==1.3.0

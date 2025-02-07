@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-07T14:12:18.212819
+# This constraints file was automatically generated on 2025-02-07T20:08:32.192359
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -70,7 +70,7 @@ adal==1.2.7
 adlfs==2024.12.0
 aiobotocore==2.19.0
 aiofiles==23.2.1
-aiohappyeyeballs==2.4.4
+aiohappyeyeballs==2.4.6
 aiohttp==3.11.12
 aioitertools==0.12.0
 aiomysql==0.2.0
@@ -446,7 +446,7 @@ libcst==1.6.0
 limits==4.0.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==25.0.1
+looker-sdk==25.2.0
 lxml==5.3.0
 lz4==4.4.3
 markdown-it-py==3.0.0
