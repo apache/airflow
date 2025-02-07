@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-06T19:53:21.345331
+# This constraints file was automatically generated on 2025-02-07T02:24:16.228662
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -370,7 +370,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.36.0
 mypy-boto3-rds==1.36.14
 mypy-boto3-redshift-data==1.36.0
-mypy-boto3-s3==1.36.9
+mypy-boto3-s3==1.36.15
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.2.0
@@ -387,9 +387,9 @@ objsize==0.7.1
 openai==1.61.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.27.0
-openlineage-python==1.27.0
-openlineage_sql==1.27.0
+openlineage-integration-common==1.28.0
+openlineage-python==1.28.0
+openlineage_sql==1.28.0
 openpyxl==3.1.5
 opensearch-py==2.8.0
 opentelemetry-api==1.27.0

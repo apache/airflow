@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-06T19:58:02.341824
+# This constraints file was automatically generated on 2025-02-07T02:28:45.929124
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
