@@ -1090,7 +1090,10 @@ class TestDag:
 
         assert orm_dag.is_active
 
-        DagModel.deactivate_deleted_dags(list_py_file_paths(settings.DAGS_FOLDER))
+        DagModel.deactivate_deleted_dags(
+            bundle_name=orm_dag.bundle_name,
+            rel_filelocs=list_py_file_paths(settings.DAGS_FOLDER),
+        )
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
         assert not orm_dag.is_active
