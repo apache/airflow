@@ -26,6 +26,8 @@ import json
 from datetime import datetime
 
 import boto3
+from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from providers.amazon.tests.system.amazon.aws.utils.ec2 import get_default_vpc_id
 from sqlalchemy import Column, MetaData, String, Table, create_engine
 
 from airflow.decorators import task
@@ -45,9 +47,6 @@ from airflow.providers.amazon.aws.operators.rds import (
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-from providers.tests.system.amazon.aws.utils.ec2 import get_default_vpc_id
 
 """
 This example demonstrates how to use the DMS operators to create a serverless replication task to replicate data

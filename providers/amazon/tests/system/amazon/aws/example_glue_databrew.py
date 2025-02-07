@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import boto3
 import pendulum
+from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -31,8 +32,6 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_glue_databrew"
 

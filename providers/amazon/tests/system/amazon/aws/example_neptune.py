@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
+
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -26,8 +28,6 @@ from airflow.providers.amazon.aws.operators.neptune import (
     NeptuneStartDbClusterOperator,
     NeptuneStopDbClusterOperator,
 )
-
-from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_neptune"
 

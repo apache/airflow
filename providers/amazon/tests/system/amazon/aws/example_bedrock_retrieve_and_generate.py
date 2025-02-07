@@ -32,6 +32,7 @@ from opensearchpy import (
     OpenSearch,
     RequestsHttpConnection,
 )
+from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 from airflow import DAG
 from airflow.decorators import task, task_group
@@ -60,8 +61,6 @@ from airflow.providers.amazon.aws.utils import get_botocore_version
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 #######################################################################
 # NOTE:

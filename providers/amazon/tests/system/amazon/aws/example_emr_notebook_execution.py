@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr import (
@@ -27,8 +29,6 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrStopNotebookExecutionOperator,
 )
 from airflow.providers.amazon.aws.sensors.emr import EmrNotebookExecutionSensor
-
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_emr_notebook"
 # Externally fetched variables:

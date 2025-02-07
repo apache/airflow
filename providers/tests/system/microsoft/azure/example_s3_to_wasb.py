@@ -29,8 +29,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 )
 from airflow.providers.microsoft.azure.transfers.s3_to_wasb import S3ToAzureBlobStorageOperator
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
+from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
 

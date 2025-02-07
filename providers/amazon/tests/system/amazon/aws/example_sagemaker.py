@@ -24,6 +24,7 @@ from tempfile import NamedTemporaryFile
 from textwrap import dedent
 
 import boto3
+from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -53,8 +54,6 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
 )
 from airflow.providers.standard.operators.python import get_current_context
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 logger = logging.getLogger(__name__)
 

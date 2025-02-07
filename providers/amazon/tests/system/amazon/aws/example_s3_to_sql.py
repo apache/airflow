@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+
 from airflow import settings
 from airflow.decorators import task
 from airflow.models import Connection
@@ -40,7 +42,6 @@ from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.providers.common.sql.operators.sql import SQLTableCheckOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.watcher import watcher
 
 # Externally fetched variables:

@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
+
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -32,8 +34,6 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSDeleteBucketOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 # Externally fetched variables:
 GCP_PROJECT_ID = "GCP_PROJECT_ID"

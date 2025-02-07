@@ -18,6 +18,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from providers.amazon.tests.system.amazon.aws.utils.k8s import get_describe_pod_operator
+
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, FargateProfileStates
@@ -28,9 +31,6 @@ from airflow.providers.amazon.aws.operators.eks import (
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksFargateProfileStateSensor
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-from providers.tests.system.amazon.aws.utils.k8s import get_describe_pod_operator
 
 DAG_ID = "example_eks_with_fargate_in_one_step"
 

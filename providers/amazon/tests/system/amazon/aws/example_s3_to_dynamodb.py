@@ -20,6 +20,7 @@ import logging
 from datetime import datetime
 
 import boto3
+from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -31,8 +32,6 @@ from airflow.providers.amazon.aws.operators.s3 import (
 )
 from airflow.providers.amazon.aws.transfers.s3_to_dynamodb import S3ToDynamoDBOperator
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 log = logging.getLogger(__name__)
 

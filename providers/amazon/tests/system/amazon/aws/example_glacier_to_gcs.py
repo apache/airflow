@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
+from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -30,8 +31,6 @@ from airflow.providers.amazon.aws.operators.glacier import (
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor
 from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
 

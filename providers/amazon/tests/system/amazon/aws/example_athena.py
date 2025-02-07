@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
+from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -32,8 +33,6 @@ from airflow.providers.amazon.aws.operators.s3 import (
 )
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
 

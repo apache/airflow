@@ -23,10 +23,10 @@ import boto3
 import pytest
 from fastapi.testclient import TestClient
 from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
+from providers.amazon.tests.system.amazon.aws.utils import set_env_id
 
 from airflow.api_fastapi.app import create_app
 
-from providers.tests.system.amazon.aws.utils import set_env_id
 from tests_common.test_utils.config import conf_vars
 
 SAML_METADATA_URL = "/saml/metadata"

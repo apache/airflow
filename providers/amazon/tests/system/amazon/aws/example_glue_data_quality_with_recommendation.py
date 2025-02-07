@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
+
 from airflow import DAG
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
@@ -37,8 +39,6 @@ from airflow.providers.amazon.aws.sensors.glue import (
     GlueDataQualityRuleSetEvaluationRunSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 ROLE_ARN_KEY = "ROLE_ARN"
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()

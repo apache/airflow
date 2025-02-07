@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
+
 from airflow import DAG
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
@@ -35,8 +37,6 @@ from airflow.providers.amazon.aws.sensors.comprehend import (
     ComprehendCreateDocumentClassifierCompletedSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 ROLE_ARN_KEY = "ROLE_ARN"
 BUCKET_NAME_KEY = "BUCKET_NAME"

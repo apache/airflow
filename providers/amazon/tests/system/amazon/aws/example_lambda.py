@@ -22,6 +22,7 @@ from datetime import datetime
 from io import BytesIO
 
 import boto3
+from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -32,8 +33,6 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
 )
 from airflow.providers.amazon.aws.sensors.lambda_function import LambdaFunctionStateSensor
 from airflow.utils.trigger_rule import TriggerRule
-
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 DAG_ID = "example_lambda"
 
