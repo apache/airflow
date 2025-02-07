@@ -187,7 +187,9 @@ def reset_metrics(worker_name: str) -> None:
 
 
 @provide_session
-def request_maintenance(worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION) -> None:
+def request_maintenance(
+    worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
+) -> None:
     """Writes maintenance request to the db"""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
@@ -209,8 +211,11 @@ def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Remove a worker that is offline or just gone from DB"""
     session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
 
+
 @provide_session
-def change_maintenance_comment(worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION) -> None:
+def change_maintenance_comment(
+    worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
+) -> None:
     """Writes maintenance comment in the db."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
