@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 import re2
 
 from airflow import settings
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.sdk.execution_time.secrets_masker import should_hide_value_for_key
 from airflow.utils import cli_action_loggers, timezone
@@ -189,6 +190,7 @@ def process_subdir(subdir: str | None):
 
 def get_dag_by_file_location(dag_id: str):
     """Return DAG of a given dag_id by looking up file location."""
+    # TODO: AIP-66 - investigate more, can we use serdag?
     from airflow.models import DagBag, DagModel
 
     # Benefit is that logging from other dags in dagbag will not appear
@@ -366,3 +368,12 @@ def suppress_logs_and_warning(f: T) -> T:
                     logging.disable(logging.NOTSET)
 
     return cast(T, _wrapper)
+
+
+def validate_dag_bundle_arg(bundle_names: list[str]) -> None:
+    """Make sure only known bundles are passed as arguments."""
+    known_bundles = {b.name for b in DagBundlesManager().get_all_dag_bundles()}
+
+    unknown_bundles: set[str] = set(bundle_names) - known_bundles
+    if unknown_bundles:
+        raise SystemExit(f"Bundles not found: {', '.join(unknown_bundles)}")
