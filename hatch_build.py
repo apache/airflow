@@ -391,6 +391,7 @@ DEPENDENCIES = [
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
     "lazy-object-proxy>=1.2.0",
+    "libcst >=1.1.0",
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "markdown-it-py>=2.1.0",
