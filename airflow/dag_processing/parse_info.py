@@ -23,7 +23,7 @@ from pathlib import Path
 
 
 @dataclass(frozen=True)
-class BundleInfo:
+class ParseBundleInfo:
     """
     In-parsing time context about bundle being processed.
 
@@ -47,7 +47,7 @@ class ParseFileInfo:
     """
 
     rel_path: Path | str
-    bundle: BundleInfo
+    bundle: ParseBundleInfo
 
     @property
     def absolute_path(self) -> Path:

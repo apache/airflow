@@ -29,7 +29,7 @@ from pydantic import TypeAdapter
 
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
-from airflow.dag_processing.parse_info import BundleInfo, ParseFileInfo
+from airflow.dag_processing.parse_info import ParseBundleInfo, ParseFileInfo
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
@@ -81,7 +81,7 @@ class TestDagFileProcessor:
             DagFileParseRequest(
                 parse_file_info=ParseFileInfo(
                     rel_path=file_path,
-                    bundle=BundleInfo(
+                    bundle=ParseBundleInfo(
                         name="testing",
                         root_path=TEST_DAG_FOLDER,
                     ),
@@ -260,7 +260,7 @@ def test_parse_file_with_dag_callbacks(spy_agency):
         DagFileParseRequest(
             parse_file_info=ParseFileInfo(
                 rel_path="A",
-                bundle=BundleInfo(name="no matter", root_path="no matter"),
+                bundle=ParseBundleInfo(name="no matter", root_path="no matter"),
             ),
             requests_fd=1,
             callback_requests=requests,

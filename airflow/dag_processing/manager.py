@@ -50,7 +50,7 @@ import airflow.models
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
-from airflow.dag_processing.parse_info import BundleInfo, DagEntrypoint, ParseFileInfo
+from airflow.dag_processing.parse_info import DagEntrypoint, ParseBundleInfo, ParseFileInfo
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DagModel
@@ -398,7 +398,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
             return
 
-        bundle_info = BundleInfo(
+        bundle_info = ParseBundleInfo(
             name=request.bundle_name, root_path=bundle.path, version=request.bundle_version
         )
         file_info = ParseFileInfo(
@@ -508,7 +508,7 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.info("Found %s files for bundle %s", len(file_paths), bundle.name)
 
         rel_paths = (Path(x).relative_to(bundle.path) for x in file_paths)
-        bundle_info = BundleInfo(
+        bundle_info = ParseBundleInfo(
             name=bundle.name,
             root_path=bundle.path,
             version=bundle.version,

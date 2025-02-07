@@ -46,7 +46,7 @@ from airflow.dag_processing.manager import (
     DagFileProcessorManager,
     DagFileStat,
 )
-from airflow.dag_processing.parse_info import BundleInfo, ParseFileInfo
+from airflow.dag_processing.parse_info import ParseBundleInfo, ParseFileInfo
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models import DAG, DagBag, DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
@@ -78,8 +78,8 @@ TEST_DAG_FOLDER = Path(__file__).parents[1].resolve() / "dags"
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
-def _default_bundle_info() -> BundleInfo:
-    return BundleInfo(
+def _default_bundle_info() -> ParseBundleInfo:
+    return ParseBundleInfo(
         name="testing",
         root_path=TEST_DAGS_FOLDER,
     )
@@ -575,7 +575,7 @@ class TestDagFileProcessorManager:
     )
     def test_serialize_callback_requests(self, callbacks, path, expected_buffer):
         file_info = ParseFileInfo(
-            bundle=BundleInfo(name="testing", root_path="/opt/airflow/dags"), rel_path=path
+            bundle=ParseBundleInfo(name="testing", root_path="/opt/airflow/dags"), rel_path=path
         )
         processor = self.mock_processor()
         processor._on_child_started(callbacks=callbacks, parse_file_info=file_info)
@@ -697,7 +697,7 @@ class TestDagFileProcessorManager:
         with dag_maker("test_dag2") as dag2:
             dag2.relative_fileloc = "test_dag2.py"
         dag_maker.sync_dagbag_to_db()
-        maker_bundle = BundleInfo(name="dag_maker", root_path=TEST_DAGS_FOLDER)
+        maker_bundle = ParseBundleInfo(name="dag_maker", root_path=TEST_DAGS_FOLDER)
 
         active_files = [
             ParseFileInfo(bundle=maker_bundle, rel_path=Path("test_dag1.py")),
@@ -788,7 +788,7 @@ class TestDagFileProcessorManager:
                 processor_timeout=365 * 86_400,
             )
             manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
-            bundle_info = BundleInfo(name="testing", root_path=Path(tmp_path))
+            bundle_info = ParseBundleInfo(name="testing", root_path=Path(tmp_path))
 
             dag1_path = ParseFileInfo(bundle=bundle_info, rel_path=Path("file1.py"))
             dag1_req1 = DagCallbackRequest(
