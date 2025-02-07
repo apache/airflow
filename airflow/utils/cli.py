@@ -374,6 +374,6 @@ def validate_dag_bundle_arg(bundle_names: list[str]) -> None:
     """Make sure only known bundles are passed as arguments."""
     known_bundles = {b.name for b in DagBundlesManager().get_all_dag_bundles()}
 
-    non_existant_bundles: set[str] = set(bundle_names) - known_bundles
-    if non_existant_bundles:
-        raise SystemExit(f"Bundles not found: {', '.join(non_existant_bundles)}")
+    unknown_bundles: set[str] = set(bundle_names) - known_bundles
+    if unknown_bundles:
+        raise SystemExit(f"Bundles not found: {', '.join(unknown_bundles)}")

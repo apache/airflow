@@ -548,14 +548,14 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     manager.sync_bundles_to_db(session=session)
     session.commit()
 
-    bundles = list(manager.get_all_dag_bundles())
+    all_bundles = list(manager.get_all_dag_bundles())
     if args.bundle_name:
         validate_dag_bundle_arg(args.bundle_name)
         bundles_to_reserialize = set(args.bundle_name)
     else:
-        bundles_to_reserialize = {b.name for b in bundles}
+        bundles_to_reserialize = {b.name for b in all_bundles}
 
-    for bundle in bundles:
+    for bundle in all_bundles:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
