@@ -7,6 +7,7 @@ apache-airflow-providers-apache-cassandra
 apache-airflow-providers-apache-drill
 apache-airflow-providers-apache-druid
 apache-airflow-providers-apache-flink
+apache-airflow-providers-apache-hdfs
 apache-airflow-providers-apache-hive
 apache-airflow-providers-apache-iceberg
 apache-airflow-providers-apache-impala
@@ -78,6 +79,7 @@ apache-airflow-providers-sendgrid
 apache-airflow-providers-sftp
 apache-airflow-providers-singularity
 apache-airflow-providers-slack
+apache-airflow-providers-smtp
 apache-airflow-providers-sqlite
 apache-airflow-providers-ssh
 apache-airflow-providers-snowflake

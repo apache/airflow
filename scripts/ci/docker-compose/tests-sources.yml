@@ -46,6 +46,7 @@ services:
       - ../../../providers/apache/drill/tests:/opt/airflow/providers/apache/drill/tests
       - ../../../providers/apache/druid/tests:/opt/airflow/providers/apache/druid/tests
       - ../../../providers/apache/flink/tests:/opt/airflow/providers/apache/flink/tests
+      - ../../../providers/apache/hdfs/tests:/opt/airflow/providers/apache/hdfs/tests
       - ../../../providers/apache/hive/tests:/opt/airflow/providers/apache/hive/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
       - ../../../providers/apache/impala/tests:/opt/airflow/providers/apache/impala/tests
@@ -115,6 +116,7 @@ services:
       - ../../../providers/sftp/tests:/opt/airflow/providers/sftp/tests
       - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
       - ../../../providers/slack/tests:/opt/airflow/providers/slack/tests
+      - ../../../providers/smtp/tests:/opt/airflow/providers/smtp/tests
       - ../../../providers/snowflake/tests:/opt/airflow/providers/snowflake/tests
       - ../../../providers/sqlite/tests:/opt/airflow/providers/sqlite/tests
       - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests

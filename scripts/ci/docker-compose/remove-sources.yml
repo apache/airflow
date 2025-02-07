@@ -39,6 +39,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/drill/src
       - ../../../empty:/opt/airflow/providers/apache/druid/src
       - ../../../empty:/opt/airflow/providers/apache/flink/src
+      - ../../../empty:/opt/airflow/providers/apache/hdfs/src
       - ../../../empty:/opt/airflow/providers/apache/hive/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
       - ../../../empty:/opt/airflow/providers/apache/impala/src
@@ -108,6 +109,7 @@ services:
       - ../../../empty:/opt/airflow/providers/sftp/src
       - ../../../empty:/opt/airflow/providers/singularity/src
       - ../../../empty:/opt/airflow/providers/slack/src
+      - ../../../empty:/opt/airflow/providers/smtp/src
       - ../../../empty:/opt/airflow/providers/snowflake/src
       - ../../../empty:/opt/airflow/providers/sqlite/src
       - ../../../empty:/opt/airflow/providers/ssh/src
