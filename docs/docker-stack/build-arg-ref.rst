@@ -258,29 +258,18 @@ You can see some examples of those in:
 |                                    |                                          | ``docker-context-files``.                |
 +------------------------------------+------------------------------------------+------------------------------------------+
 
-Pre-caching PIP dependencies
-............................
+Caching dependencies
+....................
 
-When image is build from PIP, by default pre-caching of PIP dependencies is used. This is in order to speed-up incremental
-builds during development. When pre-cached PIP dependencies are used and ``pyproject.toml`` changes, the
-PIP dependencies are already pre-installed, thus resulting in much faster image rebuild. This is purely an optimization
-of time needed to build the images and should be disabled if you want to install Airflow from
-Docker context files.
+We are using ``--mount-type=cache`` volumes to speed up installation of dependencies for Airflow images. Combined with uv
+speed and extensive use of caching, as well as quick restoring of the cache in CI environment, this allows us to build images
+quickly - for both CI and local development purposes. The cache can be easily invalidated by providing a new value of
+``DEPENDENCY_CACHE_EPOCH`` build argument or changing it inside the Dockerfile.
 
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| Build argument                           | Default value                            | Description                              |
-+==========================================+==========================================+==========================================+
-| ``AIRFLOW_BRANCH``                       | ``main``                                 | the branch from which PIP dependencies   |
-|                                          |                                          | are pre-installed initially.             |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_REPO``                         | ``apache/airflow``                       | the repository from which PIP            |
-|                                          |                                          | dependencies are pre-installed.          |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PRE_CACHED_PIP_PACKAGES``      | ``false``                                | Allows to pre-cache airflow PIP packages |
-|                                          |                                          | from the GitHub of Apache Airflow        |
-|                                          |                                          | This allows to optimize iterations for   |
-|                                          |                                          | Image builds and speeds up CI builds.    |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``PIP_CACHE_EPOCH``                      | ``"0"``                                  | Allow to invalidate cache by passing a   |
-|                                          |                                          | new argument.                            |
-+------------------------------------------+------------------------------------------+------------------------------------------+
++------------------------------------+------------------------------------------+------------------------------------------+
+| Build argument                     | Default value                            | Description                              |
++====================================+==========================================+==========================================+
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``DEPENDENCY_CACHE_EPOCH``         | ``"0"``                                  | Allow to invalidate cache by passing a   |
+|                                    |                                          | new argument.                            |
++------------------------------------+------------------------------------------+------------------------------------------+

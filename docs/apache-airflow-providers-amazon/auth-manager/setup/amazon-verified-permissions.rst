@@ -79,7 +79,7 @@ Update the policy store schema
     the policy store.
   * You have an existing policy store used for Airflow and you made some modifications to its schema you want to revert.
   * You have an existing policy store used for Airflow and you want to update its schema to the latest version.
-    This is only needed if your policy store schema and `the latest schema version <https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/auth_manager/avp/schema.json>`_
+    This is only needed if your policy store schema and `the latest schema version <https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/amazon/aws/auth_manager/avp/schema.json>`_
     are different. If so, there should be a warning message when Airflow is starting.
 
 With CLI
@@ -100,7 +100,7 @@ Please follow the instructions below to update the Amazon Verified Permissions p
 2. Choose the policy store used by Airflow (by default its description is ``Airflow``).
 3. In the navigation pane on the left, choose **Schema**.
 4. Choose **Edit schema** and then choose **JSON mode**.
-5. Enter the content of `the latest schema version <https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/auth_manager/avp/schema.json>`_
+5. Enter the content of `the latest schema version <https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/amazon/aws/auth_manager/avp/schema.json>`_
    in the **Contents** field.
 6. Choose **Save changes**.
 

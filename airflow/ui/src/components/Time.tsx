@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { chakra, type SpanProps } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import advancedFormat from "dayjs/plugin/advancedFormat";
 import tz from "dayjs/plugin/timezone";
@@ -35,13 +36,9 @@ type Props = {
   readonly datetime?: string | null;
   readonly format?: string;
   readonly showTooltip?: boolean;
-};
+} & SpanProps;
 
-const Time = ({
-  datetime,
-  format = defaultFormat,
-  showTooltip = true,
-}: Props) => {
+const Time = ({ datetime, format = defaultFormat, showTooltip = true, ...rest }: Props) => {
   const { selectedTimezone } = useTimezone();
   const time = dayjs(datetime);
 
@@ -53,17 +50,15 @@ const Time = ({
   const utcTime = time.tz("UTC").format(defaultFormatWithTZ);
 
   return (
-    <time
-      dateTime={datetime}
-      // show title if date is not UTC
-      title={
-        selectedTimezone.toUpperCase() !== "UTC" && showTooltip
-          ? utcTime
-          : undefined
-      }
-    >
-      {formattedTime}
-    </time>
+    <chakra.span {...rest}>
+      <time
+        dateTime={datetime}
+        // show title if date is not UTC
+        title={selectedTimezone.toUpperCase() !== "UTC" && showTooltip ? utcTime : undefined}
+      >
+        {formattedTime}
+      </time>
+    </chakra.span>
   );
 };
 

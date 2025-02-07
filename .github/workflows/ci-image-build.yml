@@ -28,13 +28,6 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining self-hosted runners."
         required: true
         type: string
-      do-build:
-        description: >
-          Whether to actually do the build (true/false). If set to false, the build is done
-          already in pull-request-target workflow, so we skip it here.
-        required: false
-        default: "true"
-        type: string
       target-commit-sha:
         description: "The commit SHA to checkout for the build"
         required: false
@@ -59,6 +52,14 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "true"
         type: string
+      upload-image-artifact:
+        description: "Whether to upload docker image artifact"
+        required: true
+        type: string
+      upload-mount-cache-artifact:
+        description: "Whether to upload mount-cache artifact"
+        required: true
+        type: string
       debian-version:
         description: "Base Debian distribution to use for the build (bookworm)"
         type: string
@@ -69,10 +70,6 @@ on:  # yamllint disable-line rule:truthy
         default: "mariadb"
       use-uv:
         description: "Whether to use uv to build the image (true/false)"
-        required: true
-        type: string
-      image-tag:
-        description: "Tag to set for the image"
         required: true
         type: string
       python-versions:
@@ -99,25 +96,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Disable airflow repo cache read from main."
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   build-ci-images:
     strategy:
       fail-fast: true
       matrix:
-        # yamllint disable-line rule:line-length
-        python-version: ${{ inputs.do-build == 'true' && fromJSON(inputs.python-versions) || fromJSON('[""]') }}
+        python-version: ${{ fromJSON(inputs.python-versions) || fromJSON('[""]') }}
     timeout-minutes: 110
-    name: "\
-${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
-CI ${{ inputs.platform }} image\
-${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
-${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
-    # The ARM images need to be built using self-hosted runners as ARM macos public runners
-    # do not yet allow us to run docker effectively and fast.
-    # https://github.com/actions/runner-images/issues/9254#issuecomment-1917916016
-    # https://github.com/abiosoft/colima/issues/970
-    # https://github.com/actions/runner/issues/1456
-    # See https://github.com/apache/airflow/pull/38640
+    name: "Build CI ${{ inputs.platform }} image ${{ matrix.python-version }}"
     # NOTE!!!!! This has to be put in one line for runs-on to recognize the "fromJSON" properly !!!!
     # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
     # instead of an array of strings.
@@ -125,54 +113,62 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
     runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted) }}
     env:
       BACKEND: sqlite
+      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      USE_UV: ${{ inputs.use-uv }}
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: inputs.do-build == 'true'
       - name: "Checkout target branch"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Checkout target commit"
-        uses: ./.github/actions/checkout_target_commit
-        if: inputs.do-build == 'true'
-        with:
-          target-commit-sha: ${{ inputs.target-commit-sha }}
-          pull-request-target: ${{ inputs.pull-request-target }}
-          is-committer-build: ${{ inputs.is-committer-build }}
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
-        if: inputs.do-build == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        if: inputs.do-build == 'true'
-      - name: "Regenerate dependencies in case they were modified manually so that we can build an image"
-        shell: bash
+        with:
+          use-uv: ${{ inputs.use-uv }}
+      - name: "Restore ci-cache mount image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          key: "ci-cache-mount-save-v2-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          path: "/tmp/"
+        id: restore-cache-mount
+      - name: "Verify ci-cache file exists"
+        if: steps.restore-cache-mount.outputs.stash-hit == 'true'
+        env:
+          CACHE_FILE: "/tmp/ci-cache-mount-save-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
         run: |
-          pip install rich>=12.4.4 pyyaml
-          python scripts/ci/pre_commit/update_providers_dependencies.py
-        if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: inputs.do-build == 'true' && inputs.platform == 'linux/arm64'
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-        if: inputs.do-build == 'true'
+          if [ ! -f "$CACHE_FILE" ]; then
+            echo "Cache file not found:"
+            echo "$CACHE_FILE"
+            exit 1
+          fi
+        shell: bash
+      - name: "Import mount-cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+        run: >
+          breeze ci-image import-mount-cache
+          --cache-file /tmp/ci-cache-mount-save-v2-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+        if: steps.restore-cache-mount.outputs.stash-hit == 'true'
+      - name: "Login to ghcr.io"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
       - name: >
           Build ${{ inputs.push-image == 'true' && ' & push ' || '' }}
-          ${{ inputs.platform }}:${{ matrix.python-version }}:${{ inputs.image-tag }}
+          ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }} image
         run: >
-          breeze ci-image build --builder airflow_cache --tag-as-latest --image-tag "${{ inputs.image-tag }}"
-          --python "${{ matrix.python-version }}" --platform "${{ inputs.platform }}"
+          breeze ci-image build --platform "${PLATFORM}"
         env:
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
@@ -189,7 +185,32 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           GITHUB_USERNAME: ${{ github.actor }}
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
-        if: inputs.do-build == 'true'
-      - name: "Stop ARM instance"
-        run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && inputs.do-build == 'true' && inputs.platform == 'linux/arm64'
+          PLATFORM: ${{ inputs.platform }}
+      - name: "Export CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        env:
+          PLATFORM: ${{ inputs.platform }}
+        run: breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
+        if: inputs.upload-image-artifact == 'true'
+      - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          key: ci-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
+          if-no-files-found: 'error'
+          retention-days: '2'
+        if: inputs.upload-image-artifact == 'true'
+      - name: "Export mount cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+        run: >
+          breeze ci-image export-mount-cache
+          --cache-file /tmp/ci-cache-mount-save-v2-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
+        if: inputs.upload-mount-cache-artifact == 'true'
+      - name: "Stash cache mount ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          key: "ci-cache-mount-save-v2-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          path: "/tmp/ci-cache-mount-save-v2-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.gz"
+          if-no-files-found: 'error'
+          retention-days: 2
+        if: inputs.upload-mount-cache-artifact == 'true'

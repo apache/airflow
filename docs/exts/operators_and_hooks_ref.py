@@ -31,7 +31,7 @@ from docutils import nodes
 # No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
 from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
 from docutils.statemachine import StringList
-from provider_yaml_utils import get_provider_yaml_paths, load_package_data
+from provider_yaml_utils import get_all_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
 from sphinx.util.docutils import switch_source_input
 
@@ -198,7 +198,7 @@ def iter_deferrable_operators(module_filename: str) -> Iterator[tuple[str, str]]
 
 def _render_deferrable_operator_content(*, header_separator: str):
     providers = []
-    for provider_yaml_path in get_provider_yaml_paths():
+    for provider_yaml_path in get_all_provider_yaml_paths():
         provider_parent_path = Path(provider_yaml_path).parent
         provider_info: dict[str, Any] = {"name": "", "operators": []}
         for root, _, file_names in os.walk(provider_parent_path):
@@ -301,7 +301,7 @@ def _iter_module_for_deprecations(ast_node, file_path, class_name=None) -> list[
 
 def _render_deprecations_content(*, header_separator: str):
     providers = []
-    for provider_yaml_path in get_provider_yaml_paths():
+    for provider_yaml_path in get_all_provider_yaml_paths():
         provider_parent_path = Path(provider_yaml_path).parent
         provider_info: dict[str, Any] = {"name": "", "deprecations": []}
         for root, _, file_names in os.walk(provider_parent_path):
@@ -349,7 +349,7 @@ class BaseJinjaReferenceDirective(Directive):
 
         # record all filenames as dependencies -- this will at least
         # partially make automatic invalidation possible
-        for filepath in get_provider_yaml_paths():
+        for filepath in get_all_provider_yaml_paths():
             self.state.document.settings.record_dependencies.add(filepath)
 
         return node.children

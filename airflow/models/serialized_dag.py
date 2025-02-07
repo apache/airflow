@@ -85,7 +85,6 @@ class SerializedDagModel(Base):
     _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
     dag_hash = Column(String(32), nullable=False)
-    processor_subdir = Column(String(2000), nullable=True)
 
     dag_runs = relationship(
         DagRun,
@@ -108,11 +107,10 @@ class SerializedDagModel(Base):
 
     load_op_links = True
 
-    def __init__(self, dag: DAG | LazyDeserializedDAG, processor_subdir: str | None = None) -> None:
+    def __init__(self, dag: DAG | LazyDeserializedDAG) -> None:
         from airflow.models.dag import DAG
 
         self.dag_id = dag.dag_id
-        self.processor_subdir = processor_subdir
         dag_data = {}
         if isinstance(dag, DAG):
             dag_data = SerializedDAG.to_dict(dag)
@@ -167,8 +165,9 @@ class SerializedDagModel(Base):
     def write_dag(
         cls,
         dag: DAG | LazyDeserializedDAG,
+        bundle_name: str,
+        bundle_version: str | None = None,
         min_update_interval: int | None = None,
-        processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ) -> bool:
         """
@@ -179,7 +178,6 @@ class SerializedDagModel(Base):
 
         :param dag: a DAG to be written into database
         :param min_update_interval: minimal interval in seconds to update serialized DAG
-        :param processor_subdir: The dag directory of the processor
         :param session: ORM Session
 
         :returns: Boolean indicating if the DAG was written to the DB
@@ -197,22 +195,19 @@ class SerializedDagModel(Base):
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
-        new_serialized_dag = cls(dag, processor_subdir)
-        serialized_dag_db = session.execute(
-            select(cls.dag_hash, cls.processor_subdir)
-            .where(cls.dag_id == dag.dag_id)
-            .order_by(cls.created_at.desc())
+        new_serialized_dag = cls(dag)
+        serialized_dag_hash = session.scalars(
+            select(cls.dag_hash).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc())
         ).first()
 
-        if (
-            serialized_dag_db is not None
-            and serialized_dag_db.dag_hash == new_serialized_dag.dag_hash
-            and serialized_dag_db.processor_subdir == new_serialized_dag.processor_subdir
-        ):
+        if serialized_dag_hash is not None and serialized_dag_hash == new_serialized_dag.dag_hash:
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
+
         dagv = DagVersion.write_dag(
             dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
             session=session,
         )
         log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
@@ -296,7 +291,7 @@ class SerializedDagModel(Base):
     @property
     def data(self) -> dict | None:
         # use __data_cache to avoid decompress and loads
-        if not hasattr(self, "__data_cache") or self.__data_cache is None:
+        if not hasattr(self, "_SerializedDagModel__data_cache") or self.__data_cache is None:
             if self._data_compressed:
                 self.__data_cache = json.loads(zlib.decompress(self._data_compressed))
             else:
@@ -350,7 +345,8 @@ class SerializedDagModel(Base):
     @provide_session
     def bulk_sync_to_db(
         dags: list[DAG] | list[LazyDeserializedDAG],
-        processor_subdir: str | None = None,
+        bundle_name: str,
+        bundle_version: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -365,8 +361,9 @@ class SerializedDagModel(Base):
         for dag in dags:
             SerializedDagModel.write_dag(
                 dag=dag,
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
                 min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                processor_subdir=processor_subdir,
                 session=session,
             )
 

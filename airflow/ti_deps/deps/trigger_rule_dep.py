@@ -28,6 +28,7 @@ from sqlalchemy import and_, func, or_, select
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule as TR
 
 if TYPE_CHECKING:
@@ -64,8 +65,7 @@ class _UpstreamTIStates(NamedTuple):
         ``counter`` is inclusive of ``setup_counter`` -- e.g. if there are 2 skipped upstreams, one
         of which is a setup, then counter will show 2 skipped and setup counter will show 1.
 
-        :param ti: the ti that we want to calculate deps for
-        :param finished_tis: all the finished tasks of the dag_run
+        :param finished_upstreams: all the finished upstreams of the dag_run
         """
         counter: dict[str, int] = Counter()
         setup_counter: dict[str, int] = Counter()
@@ -139,10 +139,25 @@ class TriggerRuleDep(BaseTIDep):
             This extra closure allows us to query the database only when needed,
             and at most once.
             """
+            from airflow.models.baseoperator import BaseOperator
+
             if TYPE_CHECKING:
                 assert ti.task
 
-            return ti.task.get_mapped_ti_count(ti.run_id, session=session)
+            return BaseOperator.get_mapped_ti_count(ti.task, ti.run_id, session=session)
+
+        def _iter_expansion_dependencies(task_group: MappedTaskGroup) -> Iterator[str]:
+            from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+            if isinstance(ti.task, MappedOperator):
+                for op in ti.task.iter_mapped_dependencies():
+                    yield op.task_id
+            if task_group and task_group.iter_mapped_task_groups():
+                yield from (
+                    op.task_id
+                    for tg in task_group.iter_mapped_task_groups()
+                    for op in tg.iter_mapped_dependencies()
+                )
 
         @functools.lru_cache
         def _get_relevant_upstream_map_indexes(upstream_id: str) -> int | range | None:
@@ -156,6 +171,13 @@ class TriggerRuleDep(BaseTIDep):
             if TYPE_CHECKING:
                 assert ti.task
                 assert isinstance(ti.task.dag, DAG)
+
+            if isinstance(ti.task.task_group, MappedTaskGroup):
+                is_fast_triggered = ti.task.trigger_rule in (TR.ONE_SUCCESS, TR.ONE_FAILED, TR.ONE_DONE)
+                if is_fast_triggered and upstream_id not in set(
+                    _iter_expansion_dependencies(task_group=ti.task.task_group)
+                ):
+                    return None
 
             try:
                 expanded_ti_count = _get_expanded_ti_count()
@@ -218,7 +240,7 @@ class TriggerRuleDep(BaseTIDep):
             for upstream_id in relevant_tasks:
                 map_indexes = _get_relevant_upstream_map_indexes(upstream_id)
                 if map_indexes is None:  # All tis of this upstream are dependencies.
-                    yield (TaskInstance.task_id == upstream_id)
+                    yield TaskInstance.task_id == upstream_id
                     continue
                 # At this point we know we want to depend on only selected tis
                 # of this upstream task. Since the upstream may not have been
@@ -238,11 +260,9 @@ class TriggerRuleDep(BaseTIDep):
 
         def _evaluate_setup_constraint(*, relevant_setups) -> Iterator[tuple[TIDepStatus, bool]]:
             """
-            Evaluate whether ``ti``'s trigger rule was met.
+            Evaluate whether ``ti``'s trigger rule was met as part of the setup constraint.
 
-            :param ti: Task instance to evaluate the trigger rule of.
-            :param dep_context: The current dependency context.
-            :param session: Database session.
+            :param relevant_setups: Relevant setups for the current task instance.
             """
             if TYPE_CHECKING:
                 assert ti.task
@@ -328,13 +348,7 @@ class TriggerRuleDep(BaseTIDep):
                 )
 
         def _evaluate_direct_relatives() -> Iterator[TIDepStatus]:
-            """
-            Evaluate whether ``ti``'s trigger rule was met.
-
-            :param ti: Task instance to evaluate the trigger rule of.
-            :param dep_context: The current dependency context.
-            :param session: Database session.
-            """
+            """Evaluate whether ``ti``'s trigger rule in direct relatives was met."""
             if TYPE_CHECKING:
                 assert ti.task
 
@@ -434,7 +448,7 @@ class TriggerRuleDep(BaseTIDep):
                     )
                     if not past_depends_met:
                         yield self._failing_status(
-                            reason=("Task should be skipped but the past depends are not met")
+                            reason="Task should be skipped but the past depends are not met"
                         )
                         return
                 changed = ti.set_state(new_state, session)

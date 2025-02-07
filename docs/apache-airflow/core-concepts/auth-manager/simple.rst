@@ -31,22 +31,23 @@ the logic and implementation of the simple auth manager is **simple**.
 Manage users
 ------------
 
-Users are managed through the `webserver config file <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#config-file>`__.
-In this file, the list of users are defined in the constant ``SIMPLE_AUTH_MANAGER_USERS``. Example:
+Users are managed through the Airflow configuration. Example:
 
-.. code-block:: python
+.. code-block:: ini
 
-  SIMPLE_AUTH_MANAGER_USERS = [
-      {
-          "username": "admin",
-          "role": "admin",
-      }
-  ]
+  [core]
+  simple_auth_manager_users = "bob:admin,peter:viewer"
 
+The list of users are separated with a comma and each user is a couple username/role separated by a colon.
 Each user needs two pieces of information:
 
 * **username**. The user's username
 * **role**. The role associated to the user. For more information about these roles, :ref:`see next section <roles-permissions>`.
+
+In the example above, two users are defined:
+
+* **bob** whose role is **admin**
+* **peter** whose role is **viewer**
 
 The password is auto-generated for each user and printed out in the webserver logs.
 When generated, these passwords are also saved in your environment, therefore they will not change if you stop or restart your environment.
@@ -75,9 +76,9 @@ Disable authentication and allow everyone as admin
 This option allow you to disable authentication and allow everyone as admin.
 As a consequence, whoever access the Airflow UI is automatically logged in as an admin with all permissions.
 
-To enable this feature, you need to set the constant ``SIMPLE_AUTH_MANAGER_ALL_ADMINS`` to ``True`` in the `webserver config file <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#config-file>`__.
-Example:
+you can enable this feature through the config. Example:
 
-.. code-block:: python
+.. code-block:: ini
 
-  SIMPLE_AUTH_MANAGER_ALL_ADMINS = True
+  [core]
+  simple_auth_manager_all_admins = "True"

@@ -257,8 +257,7 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * @see [jsx-a11y/no-interactive-element-to-noninteractive-role](https://github.com/jsx-eslint/eslint-plugin-jsx-a11y/blob/main/docs/rules/no-interactive-element-to-noninteractive-role.md)
      */
-    [`${jsxA11yNamespace}/no-interactive-element-to-noninteractive-role`]:
-      ERROR,
+    [`${jsxA11yNamespace}/no-interactive-element-to-noninteractive-role`]: ERROR,
 
     /**
      * Avoid adding interactivity to non-interactive elements (event
@@ -274,8 +273,7 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * @see [jsx-a11y/no-noninteractive-element-to-interactive-role](https://github.com/jsx-eslint/eslint-plugin-jsx-a11y/blob/main/docs/rules/no-noninteractive-element-to-interactive-role.md)
      */
-    [`${jsxA11yNamespace}/no-noninteractive-element-to-interactive-role`]:
-      ERROR,
+    [`${jsxA11yNamespace}/no-noninteractive-element-to-interactive-role`]: ERROR,
 
     /**
      * Avoid adding tabindex to non-interactive elements.
@@ -395,8 +393,7 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
           { element: "noframes", message: "Use <iframe> instead." },
           {
             element: "param",
-            message:
-              "Use the <object> element with a data attribute to set the URL of an external resource.",
+            message: "Use the <object> element with a data attribute to set the URL of an external resource.",
           },
           { element: "plaintext", message: "Use <pre> instead." },
           { element: "rb", message: "Use UTF-8 instead." },
@@ -461,11 +458,11 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     [`${reactNamespace}/jsx-key`]: ERROR,
 
     /**
-     * Enforce JSX maximum depth to 5.
+     * Enforce JSX maximum depth to 7.
      *
      * @see [react/jsx-max-depth](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-max-depth.md)
      */
-    [`${reactNamespace}/jsx-max-depth`]: [ERROR, { max: 5 }],
+    [`${reactNamespace}/jsx-max-depth`]: [ERROR, { max: 7 }],
 
     /**
      * Disallow comments from being inserted as text nodes.
@@ -549,7 +546,7 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * @see [react/no-multi-comp](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/no-multi-comp.md)
      */
-    [`${reactNamespace}/no-multi-comp`]: WARN,
+    [`${reactNamespace}/no-multi-comp`]: [WARN, { ignoreStateless: true }],
 
     /**
      * Enforce that namespaces are not used in React elements.
@@ -620,10 +617,7 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * @see [Allow constant export](https://github.com/ArnaudBarre/eslint-plugin-react-refresh?tab=readme-ov-file#allowconstantexport-v040)
      */
-    [`${reactRefreshNamespace}/only-export-components`]: [
-      WARN,
-      { allowConstantExport: true },
-    ],
+    [`${reactRefreshNamespace}/only-export-components`]: [WARN, { allowConstantExport: true }],
   },
   settings: { react: { version: "18" } },
 });

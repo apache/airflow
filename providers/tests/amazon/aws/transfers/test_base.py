@@ -23,6 +23,7 @@ from airflow import DAG
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 from airflow.utils import timezone
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -50,6 +51,7 @@ class TestAwsToAwsBaseOperator:
                 run_id="something",
                 logical_date=timezone.datetime(2020, 1, 1),
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             ti.dag_run = DagRun(
@@ -57,6 +59,7 @@ class TestAwsToAwsBaseOperator:
                 run_id="something",
                 execution_date=timezone.datetime(2020, 1, 1),
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         session.add(ti)
         session.commit()

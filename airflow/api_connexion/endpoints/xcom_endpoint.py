@@ -19,7 +19,6 @@ from __future__ import annotations
 import copy
 from typing import TYPE_CHECKING
 
-from flask import g
 from sqlalchemy import and_, select
 
 from airflow.api_connexion import security
@@ -31,13 +30,13 @@ from airflow.api_connexion.schemas.xcom_schema import (
     xcom_schema_native,
     xcom_schema_string,
 )
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import DagRun as DR, XCom
 from airflow.settings import conf
 from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -63,7 +62,9 @@ def get_xcom_entries(
     """Get all XCom values."""
     query = select(XCom)
     if dag_id == "~":
-        readable_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
+        readable_dag_ids = get_auth_manager().get_permitted_dag_ids(
+            methods=["GET"], user=get_auth_manager().get_user()
+        )
         query = query.where(XCom.dag_id.in_(readable_dag_ids))
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     else:

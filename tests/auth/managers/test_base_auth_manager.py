@@ -20,9 +20,8 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from flask_appbuilder.menu import Menu
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
@@ -33,22 +32,39 @@ from airflow.auth.managers.models.resource_details import (
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
+    from flask_appbuilder.menu import MenuItem
+
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
     )
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
-class EmptyAuthManager(BaseAuthManager[BaseUser]):
-    def get_user(self) -> BaseUser:
+class BaseAuthManagerUserTest(BaseUser):
+    def __init__(self, *, name: str) -> None:
+        self.name = name
+
+    def get_id(self) -> str:
+        return self.name
+
+    def get_name(self) -> str:
+        return self.name
+
+
+class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
+    appbuilder: AirflowAppBuilder | None = None
+
+    def get_user(self) -> BaseAuthManagerUserTest:
         raise NotImplementedError()
 
-    def deserialize_user(self, token: dict[str, Any]) -> BaseUser:
+    def deserialize_user(self, token: dict[str, Any]) -> BaseAuthManagerUserTest:
         raise NotImplementedError()
 
-    def serialize_user(self, user: BaseUser) -> dict[str, Any]:
+    def serialize_user(self, user: BaseAuthManagerUserTest) -> dict[str, Any]:
         raise NotImplementedError()
 
     def is_authorized_configuration(
@@ -56,7 +72,7 @@ class EmptyAuthManager(BaseAuthManager[BaseUser]):
         *,
         method: ResourceMethod,
         details: ConfigurationDetails | None = None,
-        user: BaseUser | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
@@ -65,7 +81,7 @@ class EmptyAuthManager(BaseAuthManager[BaseUser]):
         *,
         method: ResourceMethod,
         details: ConnectionDetails | None = None,
-        user: BaseUser | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
@@ -75,30 +91,44 @@ class EmptyAuthManager(BaseAuthManager[BaseUser]):
         method: ResourceMethod,
         access_entity: DagAccessEntity | None = None,
         details: DagDetails | None = None,
-        user: BaseUser | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_asset(
-        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: AssetDetails | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_pool(
-        self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: PoolDetails | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_variable(
-        self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        details: VariableDetails | None = None,
+        user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: BaseAuthManagerUserTest | None = None
+    ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
+        self, *, method: ResourceMethod | str, resource_name: str, user: BaseAuthManagerUserTest | None = None
     ):
         raise NotImplementedError()
 
@@ -111,10 +141,13 @@ class EmptyAuthManager(BaseAuthManager[BaseUser]):
     def get_url_logout(self) -> str:
         raise NotImplementedError()
 
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+        raise NotImplementedError()
+
 
 @pytest.fixture
 def auth_manager():
-    return EmptyAuthManager(None)
+    return EmptyAuthManager()
 
 
 class TestBaseAuthManager:
@@ -123,6 +156,9 @@ class TestBaseAuthManager:
 
     def test_get_api_endpoints_return_none(self, auth_manager):
         assert auth_manager.get_api_endpoints() is None
+
+    def test_get_fastapi_app_return_none(self, auth_manager):
+        assert auth_manager.get_fastapi_app() is None
 
     def test_get_user_name(self, auth_manager):
         user = Mock()
@@ -154,6 +190,40 @@ class TestBaseAuthManager:
     def test_get_url_user_profile_return_none(self, auth_manager):
         assert auth_manager.get_url_user_profile() is None
 
+    @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
+    @patch.object(EmptyAuthManager, "deserialize_user")
+    def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_signer, auth_manager):
+        token = "token"
+        payload = {}
+        user = BaseAuthManagerUserTest(name="test")
+        signer = Mock()
+        signer.verify_token.return_value = payload
+        mock_jwt_signer.return_value = signer
+        mock_deserialize_user.return_value = user
+
+        result = auth_manager.get_user_from_token(token)
+
+        mock_deserialize_user.assert_called_once_with(payload)
+        signer.verify_token.assert_called_once_with(token)
+        assert result == user
+
+    @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
+    @patch.object(EmptyAuthManager, "serialize_user")
+    def test_get_jwt_token(self, mock_serialize_user, mock_jwt_signer, auth_manager):
+        token = "token"
+        serialized_user = "serialized_user"
+        signer = Mock()
+        signer.generate_signed_token.return_value = token
+        mock_jwt_signer.return_value = signer
+        mock_serialize_user.return_value = serialized_user
+        user = BaseAuthManagerUserTest(name="test")
+
+        result = auth_manager.get_jwt_token(user)
+
+        mock_serialize_user.assert_called_once_with(user)
+        signer.generate_signed_token.assert_called_once_with(serialized_user)
+        assert result == token
+
     @pytest.mark.parametrize(
         "return_values, expected",
         [
@@ -169,7 +239,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": DagDetails(id="dag1")},
                 {"method": "GET", "details": DagDetails(id="dag2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -190,7 +261,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": ConnectionDetails(conn_id="conn1")},
                 {"method": "GET", "details": ConnectionDetails(conn_id="conn2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -209,7 +281,8 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": PoolDetails(name="pool1")},
                 {"method": "GET", "details": PoolDetails(name="pool2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
 
@@ -230,15 +303,10 @@ class TestBaseAuthManager:
             [
                 {"method": "GET", "details": VariableDetails(key="var1")},
                 {"method": "GET", "details": VariableDetails(key="var2")},
-            ]
+            ],
+            user=Mock(),
         )
         assert result == expected
-
-    @patch("airflow.www.security_manager.AirflowSecurityManagerV2")
-    def test_security_manager_return_default_security_manager(
-        self, mock_airflow_security_manager, auth_manager
-    ):
-        assert auth_manager.security_manager == mock_airflow_security_manager()
 
     @pytest.mark.parametrize(
         "access_all, access_per_dag, dag_ids, expected",
@@ -274,7 +342,7 @@ class TestBaseAuthManager:
             method: ResourceMethod,
             access_entity: DagAccessEntity | None = None,
             details: DagDetails | None = None,
-            user: BaseUser | None = None,
+            user: BaseAuthManagerUserTest | None = None,
         ):
             if not details:
                 return access_all
@@ -292,76 +360,3 @@ class TestBaseAuthManager:
         session.execute.return_value = dags
         result = auth_manager.get_permitted_dag_ids(user=user, session=session)
         assert result == expected
-
-    @patch.object(EmptyAuthManager, "security_manager")
-    def test_filter_permitted_menu_items(self, mock_security_manager, auth_manager):
-        mock_security_manager.has_access.side_effect = [True, False, True, True, False]
-
-        menu = Menu()
-        menu.add_link(
-            # These may not all be valid types, but it does let us check each attr is copied
-            name="item1",
-            href="h1",
-            icon="i1",
-            label="l1",
-            baseview="b1",
-            cond="c1",
-        )
-        menu.add_link("item2")
-        menu.add_link("item3")
-        menu.add_link("item3.1", category="item3")
-        menu.add_link("item3.2", category="item3")
-
-        result = auth_manager.filter_permitted_menu_items(menu.get_list())
-
-        assert len(result) == 2
-        assert result[0].name == "item1"
-        assert result[1].name == "item3"
-        assert len(result[1].childs) == 1
-        assert result[1].childs[0].name == "item3.1"
-        # check we've copied every attr
-        assert result[0].href == "h1"
-        assert result[0].icon == "i1"
-        assert result[0].label == "l1"
-        assert result[0].baseview == "b1"
-        assert result[0].cond == "c1"
-
-    @patch.object(EmptyAuthManager, "security_manager")
-    def test_filter_permitted_menu_items_twice(self, mock_security_manager, auth_manager):
-        mock_security_manager.has_access.side_effect = [
-            # 1st call
-            True,  # menu 1
-            False,  # menu 2
-            True,  # menu 3
-            True,  # Item 3.1
-            False,  # Item 3.2
-            # 2nd call
-            False,  # menu 1
-            True,  # menu 2
-            True,  # menu 3
-            False,  # Item 3.1
-            True,  # Item 3.2
-        ]
-
-        menu = Menu()
-        menu.add_link("item1")
-        menu.add_link("item2")
-        menu.add_link("item3")
-        menu.add_link("item3.1", category="item3")
-        menu.add_link("item3.2", category="item3")
-
-        result = auth_manager.filter_permitted_menu_items(menu.get_list())
-
-        assert len(result) == 2
-        assert result[0].name == "item1"
-        assert result[1].name == "item3"
-        assert len(result[1].childs) == 1
-        assert result[1].childs[0].name == "item3.1"
-
-        result = auth_manager.filter_permitted_menu_items(menu.get_list())
-
-        assert len(result) == 2
-        assert result[0].name == "item2"
-        assert result[1].name == "item3"
-        assert len(result[1].childs) == 1
-        assert result[1].childs[0].name == "item3.2"

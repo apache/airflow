@@ -28,14 +28,6 @@ core:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/dags"
-    dag_bundle_storage_path:
-      description: |
-        The folder where Airflow bundles can store files locally (if required).
-        By default, this is ``tempfile.gettempdir()/airflow``. This path must be absolute.
-      version_added: 3.0.0
-      type: string
-      example: "`tempfile.gettempdir()/dag_bundles"
-      default: ~
     hostname_callable:
       description: |
         Hostname by providing a path to a callable, which will resolve the hostname.
@@ -92,6 +84,24 @@ core:
       type: string
       example: ~
       default: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+    simple_auth_manager_users:
+      description: |
+        The list of users and their associated role in simple auth manager. If the simple auth manager is
+        used in your environment, this list controls who can access the environment.
+
+        List of user-role delimited with a space. Each user-role is a comma delimited couple of username and
+        role. Roles are predefined in simple auth managers: viewer, user, op, admin.
+      version_added: 3.0.0
+      type: string
+      example: "bob:admin,peter:viewer"
+      default: "admin:admin"
+    simple_auth_manager_all_admins:
+      description: |
+        Whether to disable authentication and allow everyone as admin in the environment.
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "False"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -219,13 +229,6 @@ core:
       type: integer
       example: ~
       default: "2"
-    dag_file_processor_timeout:
-      description: |
-        How long before timing out a DagFileProcessor, which processes a dag file
-      version_added: 1.10.6
-      type: string
-      example: ~
-      default: "50"
     default_impersonation:
       description: |
         If set, tasks without a ``run_as_user`` argument will be run with this user
@@ -736,7 +739,7 @@ logging:
       default: ""
     delete_local_logs:
       description: |
-        Whether the local log files for GCS, S3, WASB and OSS remote logging should be deleted after
+        Whether the local log files for GCS, S3, WASB, HDFS and OSS remote logging should be deleted after
         they are uploaded to the remote location.
       version_added: 2.6.0
       type: string
@@ -883,10 +886,10 @@ logging:
     secret_mask_adapter:
       description: |
         An import path to a function to add adaptations of each secret added with
-        ``airflow.utils.log.secrets_masker.mask_secret`` to be masked in log messages. The given function
-        is expected to require a single parameter: the secret to be adapted. It may return a
-        single adaptation of the secret or an iterable of adaptations to each be masked as secrets.
-        The original secret will be masked as well as any adaptations returned.
+        ``airflow.sdk.execution_time.secrets_masker.mask_secret`` to be masked in log messages.
+        The given function is expected to require a single parameter: the secret to be adapted.
+        It may return a single adaptation of the secret or an iterable of adaptations to each be
+        masked as secrets. The original secret will be masked as well as any adaptations returned.
       version_added: 2.6.0
       type: string
       default: ""
@@ -909,28 +912,6 @@ logging:
       default: "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/\
                {%% if ti.map_index >= 0 %%}map_index={{ ti.map_index }}/{%% endif %%}\
                attempt={{ try_number|default(ti.try_number) }}.log"
-    log_processor_filename_template:
-      description: |
-        Formatting for how airflow generates file names for log
-      version_added: 2.0.0
-      type: string
-      example: ~
-      is_template: true
-      default: "{{ filename }}.log"
-    dag_processor_manager_log_location:
-      description: |
-        Full path of dag_processor_manager logfile.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "{AIRFLOW_HOME}/logs/dag_processor_manager/dag_processor_manager.log"
-    dag_processor_manager_log_stdout:
-      description: |
-        Whether DAG processor manager will write logs to stdout
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
     task_log_reader:
       description: |
         Name of handler to read task instance logs.
@@ -1592,9 +1573,9 @@ webserver:
       default: "120"
     worker_refresh_batch_size:
       description: |
-        Number of workers to refresh at a time. When set to 0, worker refresh is
-        disabled. When nonzero, airflow periodically refreshes webserver workers by
-        bringing up new ones and killing old ones.
+        Number of workers to refresh at a time through Gunicorn's built-in worker management.
+        When set to 0, worker refresh is disabled. When nonzero, airflow periodically refreshes
+        webserver workers by bringing up new ones and killing old ones.
       version_added: ~
       type: string
       example: ~
@@ -2034,6 +2015,22 @@ webserver:
       type: boolean
       example: ~
       default: "False"
+    max_form_memory_size:
+      description: |
+        The maximum size in bytes any non-file form field may be in a multipart/form-data body.
+        If this limit is exceeded, a 413 RequestEntityTooLarge error is raised by webserver.
+      version_added: 2.10.5
+      type: integer
+      example: ~
+      default: "500000"
+    max_form_parts:
+      description: |
+        The maximum number of fields that may be present in a multipart/form-data body.
+        If this limit is exceeded, a 413 RequestEntityTooLarge error is raised by webserver.
+      version_added: 2.10.5
+      type: integer
+      example: ~
+      default: "1000"
 email:
   description: |
     Configuration email backend and whether to
@@ -2238,15 +2235,6 @@ scheduler:
       type: float
       example: ~
       default: "1"
-    min_file_process_interval:
-      description: |
-        Number of seconds after which a DAG file is parsed. The DAG file is parsed every
-        ``[scheduler] min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
-        this interval. Keeping this number low will increase CPU usage.
-      version_added: ~
-      type: integer
-      example: ~
-      default: "30"
     parsing_cleanup_interval:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
@@ -2256,32 +2244,6 @@ scheduler:
       type: integer
       example: ~
       default: "60"
-    stale_dag_threshold:
-      description: |
-        How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
-        DAGs (DAGs which are no longer present in the expected files). The reason why we need
-        this threshold is to account for the time between when the file is parsed and when the
-        DAG is loaded. The absolute maximum that this could take is ``[core] dag_file_processor_timeout``,
-        but when you have a long timeout configured, it results in a significant delay in the
-        deactivation of stale dags.
-      version_added: 2.6.0
-      type: integer
-      example: ~
-      default: "50"
-    dag_dir_list_interval:
-      description: |
-        How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
-      version_added: ~
-      type: integer
-      example: ~
-      default: "300"
-    print_stats_interval:
-      description: |
-        How often should stats be printed to the logs. Setting to 0 will disable printing stats
-      version_added: ~
-      type: integer
-      example: ~
-      default: "30"
     pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
@@ -2421,48 +2383,8 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
-    parsing_processes:
-      description: |
-        The scheduler can run multiple processes in parallel to parse dags.
-        This defines how many processes will run.
-      version_added: 1.10.14
-      type: integer
-      example: ~
-      default: "2"
-    file_parsing_sort_mode:
-      description: |
-        One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
-        The scheduler will list and sort the dag files to decide the parsing order.
-
-        * ``modified_time``: Sort by modified time of the files. This is useful on large scale to parse the
-          recently modified DAGs first.
-        * ``random_seeded_by_host``: Sort randomly across multiple Schedulers but with same order on the
-          same host. This is useful when running with Scheduler in HA mode where each scheduler can
-          parse different DAG files.
-        * ``alphabetical``: Sort by filename
-      version_added: 2.1.0
-      type: string
-      example: ~
-      default: "modified_time"
-    standalone_dag_processor:
-      description: |
-        Whether the dag processor is running as a standalone process or it is a subprocess of a scheduler
-        job.
-      version_added: 2.3.0
-      type: boolean
-      example: ~
-      default: "False"
-    max_callbacks_per_loop:
-      description: |
-        Only applicable if ``[scheduler] standalone_dag_processor`` is true and  callbacks are stored
-        in database. Contains maximum number of callbacks that are fetched during a single loop.
-      version_added: 2.3.0
-      type: integer
-      example: ~
-      default: "20"
     dag_stale_not_seen_duration:
       description: |
-        Only applicable if ``[scheduler] standalone_dag_processor`` is true.
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
       version_added: 2.4.0
       type: integer
@@ -2632,56 +2554,137 @@ sensors:
       type: float
       example: ~
       default: "604800"
-usage_data_collection:
+dag_processor:
   description: |
-    Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic platform and usage data
-    during operation. This data assists Airflow maintainers in better understanding how Airflow is used.
-    Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
-    security fixes. Additionally, this information supports key decisions related to the development road map.
-    Check the FAQ doc for more information on what data is collected.
-
-    Deployments can opt-out of analytics by setting the ``enabled`` option
-    to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
-    Individual users can easily opt-out of analytics in various ways documented in the
-    `Scarf Do Not Track docs <https://docs.scarf.sh/gateway/#do-not-track>`__.
-
+    Configuration for the Airflow DAG processor. This includes, for example:
+      - DAG bundles, which allows Airflow to load DAGs from different sources
+      - Parsing configuration, like:
+         - how often to refresh DAGs from those sources
+         - how many files to parse concurrently
   options:
-    enabled:
+    dag_bundle_storage_path:
       description: |
-        Enable or disable usage data collection and sending.
-      version_added: 2.10.0
-      type: boolean
+        String path to folder where Airflow bundles can store files locally. Not templated.
+        If no path is provided, Airflow will use ``Path(tempfile.gettempdir()) / "airflow"``.
+        This path must be absolute.
+      version_added: 3.0.0
+      type: string
+      example: "/tmp/some-place"
+      default: ~
+
+    dag_bundle_config_list:
+      description: |
+        List of backend configs.  Must supply name, classpath, and kwargs for each backend.
+
+        By default, ``refresh_interval`` is set to ``[dag_processor] refresh_interval``, but that can
+        also be overridden in kwargs if desired.
+
+        The default is the dags folder dag bundle.
+
+        Note: As shown below, you can split your json config over multiple lines by indenting.
+        See configparser documentation for an example:
+        https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
+      version_added: 3.0.0
+      type: string
+      example: >
+        [
+            {
+                "name": "my-git-repo",
+                "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+                "kwargs": {
+                    "subdir": "dags",
+                    "tracking_ref": "main",
+                    "refresh_interval": 0
+            }
+            ]
+      default: >
+        [
+            {{
+              "name": "dags-folder",
+              "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+              "kwargs": {{}}
+            }}
+            ]
+    refresh_interval:
+      description: |
+        How often (in seconds) to refresh, or look for new files, in a DAG bundle.
+      version_added: ~
+      type: integer
       example: ~
-      default: "True"
-      see_also: ":ref:`Usage data collection FAQ <usage-data-collection>`"
-dag_bundles:
-  description: |
-    Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
-
-    Airflow will consume all options added to this section. Below you will see only the default,
-    ``dags_folder``. The option name is the bundle name and the value is a json object with the following
-    keys:
-
-    * classpath: The classpath of the bundle class
-    * kwargs: The keyword arguments to pass to the bundle class
-    * refresh_interval: The interval in seconds to refresh the bundle from its source.
-
-    For example, to add a new bundle named ``hello`` to my Airflow instance, add the following to your
-    airflow.cfg (this is just an example, the classpath and kwargs are not real):
-
-    .. code-block:: ini
-
-        [dag_bundles]
-        hello: {classpath: "airflow.some.classpath", kwargs: {"hello": "world"}, refresh_interval: 60}
-  options:
-    dags_folder:
+      default: "300"
+    parsing_processes:
       description: |
-        This is the default DAG bundle that loads DAGs from the traditional ``[core] dags_folder``.
-        By default, ``refresh_interval`` is set to ``[scheduler] dag_dir_list_interval``, but that can be
-        overridden here if desired.
-        Parsing DAGs from the DAG folder can be disabled by setting this option to an empty string.
+        The DAG processor can run multiple processes in parallel to parse dags.
+        This defines how many processes will run.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "2"
+    file_parsing_sort_mode:
+      description: |
+        One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
+        The DAG processor will list and sort the dag files to decide the parsing order.
+
+        * ``modified_time``: Sort by modified time of the files. This is useful on large scale to parse the
+          recently modified DAGs first.
+        * ``random_seeded_by_host``: Sort randomly across multiple DAG processors but with same order on the
+          same host, allowing each processor to parse the files in a different order.
+        * ``alphabetical``: Sort by filename
       version_added: ~
       type: string
       example: ~
-      default: '{{"classpath": "airflow.dag_processing.bundles.dagfolder.DagsFolderDagBundle",
-               "kwargs": {{}}}}'
+      default: "modified_time"
+    max_callbacks_per_loop:
+      description: |
+        The maximum number of callbacks that are fetched during a single loop.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "20"
+    min_file_process_interval:
+      description: |
+        Number of seconds after which a DAG file is parsed. The DAG file is parsed every
+        ``[dag_processor] min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
+        this interval. Keeping this number low will increase CPU usage.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "30"
+    stale_dag_threshold:
+      description: |
+        How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
+        DAGs (DAGs which are no longer present in the expected files). The reason why we need
+        this threshold is to account for the time between when the file is parsed and when the
+        DAG is loaded. The absolute maximum that this could take is
+        ``[dag_processor] dag_file_processor_timeout``, but when you have a long timeout configured,
+        it results in a significant delay in the deactivation of stale dags.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "50"
+    dag_file_processor_timeout:
+      description: |
+        How long before timing out a DagFileProcessor, which processes a dag file
+      version_added: ~
+      type: string
+      example: ~
+      default: "50"
+    print_stats_interval:
+      description: |
+        How often should DAG processor stats be printed to the logs. Setting to 0 will disable printing stats
+      version_added: ~
+      type: integer
+      example: ~
+      default: "30"
+fastapi:
+  description: Configuration for the Fastapi webserver.
+  options:
+    base_url:
+      description: |
+        The base url of the Fastapi endpoint. Airflow cannot guess what domain or CNAME you are using.
+        If the Airflow console (the front-end) and the Fastapi apis are on a different domain, this config
+        should contain the Fastapi apis endpoint.
+      version_added: ~
+      type: string
+      example: ~
+      default: "http://localhost:29091"

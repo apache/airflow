@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import logging
 import logging.config
+import os
 import pathlib
 import shutil
 import sys
@@ -38,17 +39,13 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.www.app import create_app
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import client_with_login
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -127,7 +124,7 @@ def _reset_modules_after_every_test(backup_modules):
 
 
 @pytest.fixture(autouse=True)
-def dags(log_app, create_dummy_dag, session):
+def dags(log_app, create_dummy_dag, testing_dag_bundle, session):
     dag, _ = create_dummy_dag(
         dag_id=DAG_ID,
         task_id=TASK_ID,
@@ -143,10 +140,10 @@ def dags(log_app, create_dummy_dag, session):
         session=session,
     )
 
-    bag = DagBag(include_examples=False)
+    bag = DagBag(os.devnull, include_examples=False)
     bag.bag_dag(dag=dag)
     bag.bag_dag(dag=dag_removed)
-    bag.sync_to_db(session=session)
+    bag.sync_to_db("testing", None, session=session)
     log_app.dag_bag = bag
 
     yield dag, dag_removed
@@ -157,27 +154,30 @@ def dags(log_app, create_dummy_dag, session):
 @pytest.fixture(autouse=True)
 def tis(dags, session):
     dag, dag_removed = dags
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
+        run_id=f"scheduled__{DEFAULT_DATE.isoformat()}",
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        run_after=DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
         start_date=DEFAULT_DATE,
         state=DagRunState.RUNNING,
         session=session,
-        **triggered_by_kwargs,
     )
     (ti,) = dagrun.task_instances
     ti.try_number = 1
     ti.hostname = "localhost"
     dagrun_removed = dag_removed.create_dagrun(
+        run_id=f"scheduled__{DEFAULT_DATE.isoformat()}",
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        run_after=DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
         start_date=DEFAULT_DATE,
         state=DagRunState.RUNNING,
         session=session,
-        **triggered_by_kwargs,
     )
     (ti_removed_dag,) = dagrun_removed.task_instances
     ti_removed_dag.try_number = 1

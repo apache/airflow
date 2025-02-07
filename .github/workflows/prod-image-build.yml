@@ -30,13 +30,6 @@ on:  # yamllint disable-line rule:truthy
           variations.
         required: true
         type: string
-      do-build:
-        description: >
-          Whether to actually do the build (true/false). If set to false, the build is done
-          already in pull-request-target workflow, so we skip it here.
-        required: false
-        default: "true"
-        type: string
       upload-package-artifact:
         description: >
           Whether to upload package artifacts (true/false). If false, the job will rely on artifacts prepared
@@ -62,6 +55,11 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to push image to the registry (true/false)"
         required: true
         type: string
+      upload-image-artifact:
+        description: "Whether to upload docker image artifact"
+        required: false
+        default: "false"
+        type: string
       debian-version:
         description: "Base Debian distribution to use for the build (bookworm)"
         type: string
@@ -72,10 +70,6 @@ on:  # yamllint disable-line rule:truthy
         default: "mariadb"
       use-uv:
         description: "Whether to use uv to build the image (true/false)"
-        required: true
-        type: string
-      image-tag:
-        description: "Tag to set for the image"
         required: true
         type: string
       python-versions:
@@ -118,12 +112,18 @@ on:  # yamllint disable-line rule:truthy
         description: "Disable airflow repo cache read from main."
         required: true
         type: string
+      prod-image-build:
+        description: "Whether this is a prod-image build (true/false)"
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
-
   build-prod-packages:
-    name: "${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} Airflow and provider packages"
+    name: "Build Airflow and provider packages"
     timeout-minutes: 10
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    if: inputs.prod-image-build == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
@@ -131,32 +131,23 @@ jobs:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
+        if: inputs.upload-package-artifact == 'true'
       - name: "Checkout target branch"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Checkout target commit"
-        uses: ./.github/actions/checkout_target_commit
-        with:
-          target-commit-sha: ${{ inputs.target-commit-sha }}
-          pull-request-target: ${{ inputs.pull-request-target }}
-          is-committer-build: ${{ inputs.is-committer-build }}
-        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
-        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "${{ inputs.default-python-version }}"
-        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
+        if: inputs.upload-package-artifact == 'true'
       - name: "Cleanup dist and context file"
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
-        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
+        if: inputs.upload-package-artifact == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        if: inputs.do-build == 'true' && inputs.upload-package-artifact == 'true'
+        with:
+          use-uv: ${{ inputs.use-uv }}
+        if: inputs.upload-package-artifact == 'true'
       - name: "Prepare providers packages"
         shell: bash
         run: >
@@ -164,28 +155,28 @@ jobs:
           --package-list-file ./prod_image_installed_providers.txt
           --package-format wheel
         if: >
-          inputs.do-build == 'true' &&
           inputs.upload-package-artifact == 'true' &&
           inputs.build-provider-packages == 'true'
       - name: "Prepare chicken-eggs provider packages"
         shell: bash
+        env:
+          CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
           breeze release-management prepare-provider-packages
-          --package-format wheel ${{ inputs.chicken-egg-providers }}
+          --package-format wheel ${CHICKEN_EGG_PROVIDERS}
         if: >
-          inputs.do-build  == 'true' &&
           inputs.upload-package-artifact == 'true' &&
           inputs.chicken-egg-providers != ''
       - name: "Prepare airflow package"
         shell: bash
         run: >
           breeze release-management prepare-airflow-package --package-format wheel
-        if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
+        if: inputs.upload-package-artifact == 'true'
       - name: "Prepare task-sdk package"
         shell: bash
         run: >
           breeze release-management prepare-task-sdk-package --package-format wheel
-        if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
+        if: inputs.upload-package-artifact == 'true'
       - name: "Upload prepared packages as artifacts"
         uses: actions/upload-artifact@v4
         with:
@@ -193,25 +184,21 @@ jobs:
           path: ./dist
           retention-days: 7
           if-no-files-found: error
-        if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
+        if: inputs.upload-package-artifact == 'true'
 
   build-prod-images:
     strategy:
       fail-fast: false
       matrix:
-        # yamllint disable-line rule:line-length
-        python-version: ${{ inputs.do-build == 'true' && fromJSON(inputs.python-versions) || fromJSON('[""]') }}
+        python-version: ${{ fromJSON(inputs.python-versions) || fromJSON('[""]') }}
     timeout-minutes: 80
-    name: "\
-${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
-PROD ${{ inputs.build-type }} image\
-${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
-${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
+    name: "Build PROD ${{ inputs.build-type }} image ${{ matrix.python-version }}"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     needs:
       - build-prod-packages
     env:
       BACKEND: sqlite
+      PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
@@ -225,63 +212,48 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      USE_UV: ${{ inputs.use-uv }}
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: inputs.do-build == 'true'
       - name: "Checkout target branch"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Checkout target commit"
-        uses: ./.github/actions/checkout_target_commit
-        with:
-          target-commit-sha: ${{ inputs.target-commit-sha }}
-          pull-request-target: ${{ inputs.pull-request-target }}
-          is-committer-build: ${{ inputs.is-committer-build }}
-        if: inputs.do-build == 'true'
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
-        if: inputs.do-build == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        if: inputs.do-build == 'true'
-      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
-        shell: bash
-        run: |
-          pip install rich>=12.4.4 pyyaml
-          python scripts/ci/pre_commit/update_providers_dependencies.py
-        if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
+        with:
+          use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist and context file"
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
-        if: inputs.do-build == 'true'
       - name: "Download packages prepared as artifacts"
         uses: actions/download-artifact@v4
         with:
           name: prod-packages
           path: ./docker-context-files
-        if: inputs.do-build == 'true'
       - name: "Download constraints"
         uses: actions/download-artifact@v4
         with:
           name: constraints
           path: ./docker-context-files
-        if: inputs.do-build == 'true'
-      - name: Login to ghcr.io
-        shell: bash
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-        if: inputs.do-build == 'true'
-      - name: "Build PROD images w/ source providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
+      - name: "Login to ghcr.io"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
+      - name: "Build PROD images w/ source providers ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         shell: bash
         run: >
-          breeze prod-image build --tag-as-latest --image-tag "${{ inputs.image-tag }}"
+          breeze prod-image build
+          --builder airflow_cache
           --commit-sha "${{ github.sha }}"
-          --install-packages-from-context --airflow-constraints-mode constraints-source-providers
-          --use-constraints-for-context-packages --python "${{ matrix.python-version }}"
+          --install-packages-from-context
+          --airflow-constraints-mode constraints-source-providers
+          --use-constraints-for-context-packages
         env:
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
@@ -290,14 +262,16 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
-        if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
-      - name: "Build PROD images with PyPi providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
+        if: inputs.build-provider-packages == 'true'
+      - name: "Build PROD images with PyPi providers ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         shell: bash
         run: >
-          breeze prod-image build --builder airflow_cache --tag-as-latest
-          --image-tag "${{ inputs.image-tag }}" --commit-sha "${{ github.sha }}"
-          --install-packages-from-context --airflow-constraints-mode constraints
-          --use-constraints-for-context-packages --python "${{ matrix.python-version }}"
+          breeze prod-image build
+          --builder airflow_cache
+          --commit-sha "${{ github.sha }}"
+          --install-packages-from-context
+          --airflow-constraints-mode constraints
+          --use-constraints-for-context-packages
         env:
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
@@ -306,9 +280,20 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
-        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
-      - name: Verify PROD image ${{ matrix.python-version }}:${{ inputs.image-tag }}
+        if: inputs.build-provider-packages != 'true'
+      - name: "Verify PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        run: breeze prod-image verify
+      - name: "Export PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        env:
+          PLATFORM: ${{ inputs.platform }}
         run: >
-          breeze prod-image verify --image-tag "${{ inputs.image-tag }}"
-          --python "${{ matrix.python-version }}"
-        if: inputs.do-build == 'true'
+          breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
+        if: inputs.upload-image-artifact == 'true'
+      - name: "Stash PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          key: prod-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          path: "/mnt/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
+          if-no-files-found: 'error'
+          retention-days: '2'
+        if: inputs.upload-image-artifact == 'true'

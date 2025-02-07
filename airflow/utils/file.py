@@ -245,7 +245,6 @@ def find_path_from_directory(
 def list_py_file_paths(
     directory: str | os.PathLike[str] | None,
     safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
-    include_examples: bool | None = None,
 ) -> list[str]:
     """
     Traverse a directory and look for Python files.
@@ -255,11 +254,8 @@ def list_py_file_paths(
         contains Airflow DAG definitions. If not provided, use the
         core.DAG_DISCOVERY_SAFE_MODE configuration setting. If not set, default
         to safe.
-    :param include_examples: include example DAGs
     :return: a list of paths to Python files in the specified directory
     """
-    if include_examples is None:
-        include_examples = conf.getboolean("core", "LOAD_EXAMPLES")
     file_paths: list[str] = []
     if directory is None:
         file_paths = []
@@ -267,11 +263,6 @@ def list_py_file_paths(
         file_paths = [str(directory)]
     elif os.path.isdir(directory):
         file_paths.extend(find_dag_file_paths(directory, safe_mode))
-    if include_examples:
-        from airflow import example_dags
-
-        example_dag_folder = next(iter(example_dags.__path__))
-        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, include_examples=False))
     return file_paths
 
 

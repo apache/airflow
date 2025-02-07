@@ -21,7 +21,6 @@ from datetime import datetime
 import pytest
 
 from airflow.callbacks.callback_requests import (
-    CallbackRequest,
     DagCallbackRequest,
     TaskCallbackRequest,
 )
@@ -38,18 +37,18 @@ class TestCallbackRequest:
     @pytest.mark.parametrize(
         "input,request_class",
         [
-            (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
             (
                 None,  # to be generated when test is run
                 TaskCallbackRequest,
             ),
             (
                 DagCallbackRequest(
-                    full_filepath="filepath",
+                    filepath="filepath",
                     dag_id="fake_dag",
                     run_id="fake_run",
-                    processor_subdir="/test_dir",
                     is_failure_callback=False,
+                    bundle_name="testing",
+                    bundle_version=None,
                 ),
                 DagCallbackRequest,
             ),
@@ -69,9 +68,7 @@ class TestCallbackRequest:
             )
 
             input = TaskCallbackRequest(
-                full_filepath="filepath",
-                ti=ti,
-                processor_subdir="/test_dir",
+                filepath="filepath", ti=ti, bundle_name="testing", bundle_version=None
             )
         json_str = input.to_json()
         result = request_class.from_json(json_str)
@@ -83,11 +80,7 @@ class TestCallbackRequest:
         ti.end_date = timezone.utcnow()
         session.merge(ti)
         session.flush()
-        input = TaskCallbackRequest(
-            full_filepath="filepath",
-            ti=ti,
-            processor_subdir="/test_dir",
-        )
+        input = TaskCallbackRequest(filepath="filepath", ti=ti, bundle_name="testing", bundle_version=None)
         json_str = input.to_json()
         result = TaskCallbackRequest.from_json(json_str)
         assert input == result

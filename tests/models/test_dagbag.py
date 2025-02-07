@@ -228,12 +228,12 @@ class TestDagBag:
         mocked_get_dagbag_import_timeout.return_value = 0
 
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
-        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_default_views.py"))
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
         mocked_timeout.assert_not_called()
 
         mocked_get_dagbag_import_timeout.return_value = -1
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
-        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_default_views.py"))
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
         mocked_timeout.assert_not_called()
 
     @patch("airflow.models.dagbag.timeout")
@@ -251,7 +251,7 @@ class TestDagBag:
         assert timeout_value != settings.conf.getfloat("core", "DAGBAG_IMPORT_TIMEOUT")
 
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
-        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_default_views.py"))
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
 
         mocked_timeout.assert_called_once_with(timeout_value, error_message=mock.ANY)
 
@@ -268,7 +268,7 @@ class TestDagBag:
         with pytest.raises(
             TypeError, match=r"Value \(1\) from get_dagbag_import_timeout must be int or float"
         ):
-            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_default_views.py"))
+            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
 
     @pytest.fixture
     def invalid_cron_dag(self) -> str:
@@ -463,7 +463,7 @@ class TestDagBag:
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
         remove dags from the DagBag
         """
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
 
         with dag_maker(
             dag_id="test_dag_removed_if_serialized_dag_is_removed",
@@ -521,7 +521,7 @@ class TestDagBag:
             import datetime
 
             from airflow.models.dag import DAG
-            from airflow.operators.empty import EmptyOperator
+            from airflow.providers.standard.operators.empty import EmptyOperator
 
             dag_name = "cycle_dag"
             default_args = {"owner": "owner1", "start_date": datetime.datetime(2016, 1, 1)}
@@ -671,7 +671,7 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
             dag_bag = DagBag(read_dags_from_db=True)
             ser_dag_1 = dag_bag.get_dag("example_bash_operator")
@@ -689,7 +689,7 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
@@ -703,7 +703,7 @@ with airflow.DAG(
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
-    def test_get_dag_refresh_race_condition(self, session):
+    def test_get_dag_refresh_race_condition(self, session, testing_dag_bundle):
         """
         Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
         is before DagBag.dags_last_fetched.
@@ -713,7 +713,7 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # deserialize the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 10)), tick=False):
@@ -739,7 +739,7 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
@@ -751,7 +751,7 @@ with airflow.DAG(
         assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_update_time > ser_dag_update_time
 
-    def test_collect_dags_from_db(self):
+    def test_collect_dags_from_db(self, testing_dag_bundle):
         """DAGs are collected from Database"""
         db.clear_db_dags()
         dagbag = DagBag(str(example_dags_folder))
@@ -759,7 +759,7 @@ with airflow.DAG(
         example_dags = dagbag.dags
         for dag in example_dags.values():
             dag.sync_to_db()
-            SerializedDagModel.write_dag(dag)
+            SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
 
         new_dagbag = DagBag(read_dags_from_db=True)
         assert len(new_dagbag.dags) == 0

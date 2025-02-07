@@ -80,6 +80,7 @@ SERVICE_ACCOUNT_NAME_TUPLES = [
 
 CUSTOM_SERVICE_ACCOUNT_NAMES = (
     (CUSTOM_SCHEDULER_NAME := "TestScheduler"),
+    (CUSTOM_DAG_PROCESSOR_NAME := "TestDagProcessor"),
     (CUSTOM_WEBSERVER_NAME := "TestWebserver"),
     (CUSTOM_API_SERVER_NAME := "TestAPISserver"),
     (CUSTOM_WORKER_NAME := "TestWorker"),
@@ -120,10 +121,12 @@ class TestRBAC:
                 (
                     ("Service", "test-rbac-api-server"),
                     ("Deployment", "test-rbac-api-server"),
+                    ("Deployment", "test-rbac-dag-processor"),
                 )
             )
             if sa:
                 tuples.append(("ServiceAccount", "test-rbac-api-server"))
+                tuples.append(("ServiceAccount", "test-rbac-dag-processor"))
         return tuples
 
     @parametrize_version
@@ -148,8 +151,9 @@ class TestRBAC:
                     },
                     "redis": {"serviceAccount": {"create": False}},
                     "scheduler": {"serviceAccount": {"create": False}},
+                    "dagProcessor": {"serviceAccount": {"create": False}},
                     "webserver": {"serviceAccount": {"create": False}},
-                    "apiServer": {"serviceAccount": {"create": False}},
+                    "_apiServer": {"serviceAccount": {"create": False}},
                     "workers": {"serviceAccount": {"create": False}},
                     "triggerer": {"serviceAccount": {"create": False}},
                     "statsd": {"serviceAccount": {"create": False}},
@@ -200,8 +204,9 @@ class TestRBAC:
                         },
                     },
                     "scheduler": {"serviceAccount": {"create": False}},
+                    "dagProcessor": {"serviceAccount": {"create": False}},
                     "webserver": {"serviceAccount": {"create": False}},
-                    "apiServer": {"serviceAccount": {"create": False}},
+                    "_apiServer": {"serviceAccount": {"create": False}},
                     "workers": {"serviceAccount": {"create": False}},
                     "triggerer": {"serviceAccount": {"create": False}},
                     "flower": {"enabled": True, "serviceAccount": {"create": False}},
@@ -260,8 +265,9 @@ class TestRBAC:
                     },
                 },
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
+                "dagProcessor": {"serviceAccount": {"name": CUSTOM_DAG_PROCESSOR_NAME}},
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
-                "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
+                "_apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
@@ -298,8 +304,9 @@ class TestRBAC:
                     },
                 },
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
+                "dagProcessor": {"serviceAccount": {"name": CUSTOM_DAG_PROCESSOR_NAME}},
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
-                "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
+                "_apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
@@ -353,6 +360,7 @@ class TestRBAC:
         ]
         service_account_names = [
             "test-rbac-scheduler",
+            "test-rbac-dag-processor",
             "test-rbac-webserver",
             "test-rbac-api-server",
             "test-rbac-triggerer",

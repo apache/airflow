@@ -22,6 +22,9 @@ inputs:
   python-version:
     description: 'Python version to use'
     default: "3.9"
+  use-uv:
+    description: 'Whether to use uv tool'
+    required: true
 outputs:
   host-python-version:
     description: Python version used in host
@@ -33,13 +36,11 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python-version }}
-        cache: 'pip'
-        cache-dependency-path: ./dev/breeze/pyproject.toml
+    # NOTE! Installing Breeze without using cache is FASTER than when using cache - uv is so fast and has
+    # so low overhead, that just running upload cache/restore cache is slower than installing it from scratch
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh
-      env:
-        PYTHON_VERSION: ${{ inputs.python-version }}
     - name: "Free space"
       shell: bash
       run: breeze ci free-space

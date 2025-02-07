@@ -38,11 +38,7 @@ const TimezoneSelector: React.FC = () => {
   const timezones = useMemo<Array<string>>(() => {
     const tzList = Intl.supportedValuesOf("timeZone");
     const guessedTz = dayjs.tz.guess();
-    const uniqueTimezones = new Set([
-      "UTC",
-      ...(guessedTz ? [guessedTz] : []),
-      ...tzList,
-    ]);
+    const uniqueTimezones = new Set(["UTC", ...(guessedTz ? [guessedTz] : []), ...tzList]);
 
     return [...uniqueTimezones];
   }, []);
@@ -56,17 +52,13 @@ const TimezoneSelector: React.FC = () => {
     [timezones],
   );
 
-  const handleTimezoneChange = (
-    selectedOption: SingleValue<TimezoneOption>,
-  ) => {
+  const handleTimezoneChange = (selectedOption: SingleValue<TimezoneOption>) => {
     if (selectedOption) {
       setSelectedTimezone(selectedOption.value);
     }
   };
 
-  const currentTime = dayjs()
-    .tz(selectedTimezone)
-    .format("YYYY-MM-DD HH:mm:ss");
+  const currentTime = dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss");
 
   return (
     <VStack align="stretch" gap={6}>

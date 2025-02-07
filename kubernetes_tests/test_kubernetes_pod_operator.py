@@ -39,8 +39,8 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
+from airflow.sdk.definitions.context import Context
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
 from kubernetes_tests.test_base import BaseK8STest, StringContainingId
@@ -1054,18 +1054,22 @@ class TestKubernetesPodOperatorSystem:
 
     def test_pod_name(self, mock_get_connection):
         pod_name_too_long = "a" * 221
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            name=pod_name_too_long,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        # Name is now in template fields, and it's final value requires context
+        # so we need to execute for name validation
+        context = create_context(k)
         with pytest.raises(AirflowException):
-            KubernetesPodOperator(
-                namespace="default",
-                image="ubuntu:16.04",
-                cmds=["bash", "-cx"],
-                arguments=["echo 10"],
-                labels=self.labels,
-                name=pod_name_too_long,
-                task_id=str(uuid4()),
-                in_cluster=False,
-                do_xcom_push=False,
-            )
+            k.execute(context)
 
     def test_on_kill(self, mock_get_connection):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
@@ -1399,6 +1403,8 @@ class TestKubernetesPodOperatorSystem:
         )
 
 
+# TODO: Task SDK: https://github.com/apache/airflow/issues/45438
+@pytest.mark.skip(reason="AIP-72: Secret Masking yet to be implemented")
 def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
     logger = logging.getLogger("airflow.task")
     monkeypatch.setattr(logger, "propagate", True)

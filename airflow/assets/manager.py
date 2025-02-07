@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
 
-from sqlalchemy import exc, select
+from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow.configuration import conf
@@ -31,7 +31,9 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     DagScheduleAssetAliasReference,
+    DagScheduleAssetNameReference,
     DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
 )
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.stats import Stats
@@ -42,7 +44,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk.definitions.asset import Asset, AssetAlias
+    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
 
 
 class AssetManager(LoggingMixin):
@@ -106,7 +108,7 @@ class AssetManager(LoggingMixin):
         cls,
         *,
         task_instance: TaskInstance | None = None,
-        asset: Asset,
+        asset: Asset | AssetModel | AssetUniqueKey,
         extra=None,
         aliases: Collection[AssetAlias] = (),
         source_alias_names: Iterable[str] | None = None,
@@ -119,7 +121,9 @@ class AssetManager(LoggingMixin):
         For local assets, look them up, record the asset event, queue dagruns, and broadcast
         the asset event
         """
-        asset_model = session.scalar(
+        from airflow.models.dag import DagModel
+
+        asset_model: AssetModel | None = session.scalar(
             select(AssetModel)
             .where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
             .options(
@@ -154,6 +158,7 @@ class AssetManager(LoggingMixin):
         dags_to_queue_from_asset = {
             ref.dag for ref in asset_model.consuming_dags if ref.dag.is_active and not ref.dag.is_paused
         }
+
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
             asset_alias_models = session.scalars(
@@ -174,11 +179,27 @@ class AssetManager(LoggingMixin):
                     if alias_ref.dag.is_active and not alias_ref.dag.is_paused
                 }
 
-        cls.notify_asset_changed(asset=asset)
+        dags_to_queue_from_asset_ref = set(
+            session.scalars(
+                select(DagModel)
+                .join(DagModel.schedule_asset_name_references, isouter=True)
+                .join(DagModel.schedule_asset_uri_references, isouter=True)
+                .where(
+                    or_(
+                        DagScheduleAssetNameReference.name == asset.name,
+                        DagScheduleAssetUriReference.uri == asset.uri,
+                    )
+                )
+            )
+        )
+
+        cls.notify_asset_changed(asset=asset_model.to_public())
 
         Stats.incr("asset.updates")
 
-        dags_to_queue = dags_to_queue_from_asset | dags_to_queue_from_asset_alias
+        dags_to_queue = (
+            dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref
+        )
         cls._queue_dagruns(asset_id=asset_model.id, dags_to_queue=dags_to_queue, session=session)
         return asset_event
 

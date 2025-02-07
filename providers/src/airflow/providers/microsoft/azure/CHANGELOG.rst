@@ -27,8 +27,15 @@
 Changelog
 ---------
 
-main
-....
+12.0.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
 
 .. warning::
   All deprecated classes, parameters and features have been removed from the microsoft azure provider package.
@@ -46,13 +53,28 @@ main
     * Removed deprecated class ``WasbBlobAsyncSensor``. Use ``WasbBlobSensor`` with ``deferrable=True`` instead.
     * Removed deprecated operator `AzureBlobStorageToGCSOperator`. Use ``airflow.providers.google.cloud.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`` instead.
 
+* ``Remove Provider Deprecations in Microsoft-AZURE (#44763)``
 
+Bug Fixes
+~~~~~~~~~
 
+* ``fix callable values in path and query parameters of MSGraphAsyncOperator (#43799)``
+* ``PowerBIDatasetRefreshOperator should fail when refresh fails (#44696)``
 
+Misc
+~~~~
 
+* ``Bump minimum Airflow version in providers to Airflow 2.9.0 (#44956)``
+* ``Move triggers to standard provider (#43608)``
+* ``Remove XCom pickling (#43905)``
+* ``Update DAG example links in multiple providers documents (#44034)``
+* ``Update path of example dags in docs (#45069)``
+* ``Avoid 1.1.8 version of msgraph-core (#45044)``
+* ``refactor: Added MS Graph connection type (#45006)``
 
-
-
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
 
 11.1.0
 ......

@@ -27,6 +27,9 @@ import yaml
 from packaging.specifiers import SpecifierSet
 from rich.console import Console
 
+sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
+from common_precommit_utils import get_provider_base_dir_from_path
+
 console = Console(color_system="standard", width=200)
 
 
@@ -36,10 +39,9 @@ COMMON_SQL_PROVIDER_LATEST_INCOMPATIBLE_VERSION: str = "1.9.0"
 MAKE_COMMON_METHOD_NAME: str = "_make_common_data_structure"
 
 
-def get_classes(file_path: str) -> Iterable[ast.ClassDef]:
+def get_classes(file_path: pathlib.Path) -> Iterable[ast.ClassDef]:
     """Return a list of class declared in the given python file."""
-    pathlib_path = pathlib.Path(file_path)
-    module = ast.parse(pathlib_path.read_text("utf-8"), str(pathlib_path))
+    module = ast.parse(file_path.read_text("utf-8"), filename=file_path.as_posix())
     for node in ast.walk(module):
         if isinstance(node, ast.ClassDef):
             yield node
@@ -61,12 +63,7 @@ def has_make_common_data_structure_method(node: ast.ClassDef) -> bool:
     return False
 
 
-def determine_provider_yaml_path(file_path: str) -> str:
-    """Determine the path of the provider.yaml file related to the given python file."""
-    return f"{file_path.split('/hooks')[0]}/provider.yaml"
-
-
-def get_yaml_content(file_path: str) -> dict:
+def get_yaml_content(file_path: pathlib.Path) -> dict:
     """Load content of a yaml files."""
     with open(file_path) as file:
         return yaml.safe_load(file)
@@ -93,13 +90,16 @@ def do_version_satisfies_constraints(
 
 def check_sql_providers_dependency():
     error_count: int = 0
-    for path in sys.argv[1:]:
-        if not path.startswith("airflow/providers/"):
+    for file_passed in sys.argv[1:]:
+        path = pathlib.Path(file_passed)
+        if not file_passed.startswith("providers/"):
             continue
 
         for clazz in get_classes(path):
             if is_subclass_of_dbapihook(node=clazz) and has_make_common_data_structure_method(node=clazz):
-                provider_yaml_path: str = determine_provider_yaml_path(file_path=path)
+                provider_yaml_path: pathlib.Path = (
+                    get_provider_base_dir_from_path(file_path=path) / "provider.yaml"
+                )
                 provider_metadata: dict = get_yaml_content(file_path=provider_yaml_path)
 
                 if version_constraint := get_common_sql_constraints(provider_metadata=provider_metadata):

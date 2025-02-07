@@ -44,9 +44,7 @@ describe("Test Time and TimezoneProvider", () => {
     const tz = "US/Samoa";
 
     render(
-      <TimezoneContext.Provider
-        value={{ selectedTimezone: tz, setSelectedTimezone: vi.fn() }}
-      >
+      <TimezoneContext.Provider value={{ selectedTimezone: tz, setSelectedTimezone: vi.fn() }}>
         <Time datetime={now.toISOString()} />
       </TimezoneContext.Provider>,
       {
@@ -58,8 +56,6 @@ describe("Test Time and TimezoneProvider", () => {
     const samoaTime = screen.getByText(nowTime.tz(tz).format(defaultFormat));
 
     expect(samoaTime).toBeDefined();
-    expect(samoaTime.title).toEqual(
-      nowTime.tz("UTC").format(defaultFormatWithTZ),
-    );
+    expect(samoaTime.title).toEqual(nowTime.tz("UTC").format(defaultFormatWithTZ));
   });
 });

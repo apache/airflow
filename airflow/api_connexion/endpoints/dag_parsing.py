@@ -26,12 +26,12 @@ from sqlalchemy import exc, select
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound, PermissionDenied
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -59,7 +59,7 @@ def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Resp
         raise NotFound("File not found")
 
     # Check if user has read access to all the DAGs defined in the file
-    if not get_auth_manager().batch_is_authorized_dag(requests):
+    if not get_auth_manager().batch_is_authorized_dag(requests, user=get_auth_manager().get_user()):
         raise PermissionDenied()
 
     parsing_request = DagPriorityParsingRequest(fileloc=path)

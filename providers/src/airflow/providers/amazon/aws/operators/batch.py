@@ -95,6 +95,7 @@ class BatchOperator(BaseOperator):
         If it is an array job, only the logs of the first task will be printed.
     :param awslogs_fetch_interval: The interval with which cloudwatch logs are to be fetched, 30 sec.
     :param poll_interval: (Deferrable mode only) Time in seconds to wait between polling.
+    :param submit_job_timeout: Execution timeout in seconds for submitted batch job.
 
     .. note::
         Any custom waiters must return a waiter for these calls:
@@ -184,6 +185,7 @@ class BatchOperator(BaseOperator):
         poll_interval: int = 30,
         awslogs_enabled: bool = False,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
+        submit_job_timeout: int | None = None,
         **kwargs,
     ) -> None:
         BaseOperator.__init__(self, **kwargs)
@@ -208,6 +210,7 @@ class BatchOperator(BaseOperator):
         self.poll_interval = poll_interval
         self.awslogs_enabled = awslogs_enabled
         self.awslogs_fetch_interval = awslogs_fetch_interval
+        self.submit_job_timeout = submit_job_timeout
 
         # params for hook
         self.max_retries = max_retries
@@ -314,6 +317,9 @@ class BatchOperator(BaseOperator):
             "shareIdentifier": self.share_identifier,
             "schedulingPriorityOverride": self.scheduling_priority_override,
         }
+
+        if self.submit_job_timeout:
+            args["timeout"] = {"attemptDurationSeconds": self.submit_job_timeout}
 
         try:
             response = self.hook.client.submit_job(**trim_none_values(args))

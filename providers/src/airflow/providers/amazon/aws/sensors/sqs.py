@@ -30,10 +30,11 @@ from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType, process_response
+from airflow.providers.amazon.aws.utils.sqs import process_response
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
+    from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType
     from airflow.utils.context import Context
 
 

@@ -20,6 +20,7 @@ import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, Protocol
+from unittest import mock
 
 import pytest
 
@@ -34,6 +35,9 @@ if TYPE_CHECKING:
     from structlog.typing import EventDict, WrappedLogger
 
     from airflow.sdk.api.datamodels._generated import TIRunContext
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.execution_time.comms import StartupDetails
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
 
 @pytest.hookimpl()
@@ -61,18 +65,19 @@ def pytest_runtest_setup(item):
 
 class LogCapture:
     # Like structlog.typing.LogCapture, but that doesn't add log_level in to the event dict
-    entries: list[EventDict]
+    entries: list[EventDict | bytes]
 
     def __init__(self) -> None:
         self.entries = []
 
-    def __call__(self, _: WrappedLogger, method_name: str, event_dict: EventDict) -> NoReturn:
+    def __call__(self, _: WrappedLogger, method_name: str, event: EventDict | bytes) -> NoReturn:
         from structlog.exceptions import DropEvent
 
-        if "level" not in event_dict:
-            event_dict["_log_level"] = method_name
+        if isinstance(event, dict):
+            if "level" not in event:
+                event["_log_level"] = method_name
 
-        self.entries.append(event_dict)
+        self.entries.append(event)
 
         raise DropEvent
 
@@ -92,20 +97,29 @@ def captured_logs(request):
     reset_logging()
     configure_logging(enable_pretty_log=False)
 
-    # Get log level from test parameter, defaulting to INFO if not provided
-    log_level = getattr(request, "param", logging.INFO)
+    # Get log level from test parameter, which can either be a single log level or a
+    # tuple of log level and desired output type, defaulting to INFO if not provided
+    log_level = logging.INFO
+    output = "dict"
+    param = getattr(request, "param", logging.INFO)
+    if isinstance(param, int):
+        log_level = param
+    elif isinstance(param, tuple):
+        log_level = param[0]
+        output = param[1]
 
     # We want to capture all logs, but we don't want to see them in the test output
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
 
-    # But we need to replace remove the last processor (the one that turns JSON into text, as we want the
-    # event dict for tests)
     cur_processors = structlog.get_config()["processors"]
     processors = cur_processors.copy()
-    proc = processors.pop()
-    assert isinstance(
-        proc, (structlog.dev.ConsoleRenderer, structlog.processors.JSONRenderer)
-    ), "Pre-condition"
+    if output == "dict":
+        # We need to replace remove the last processor (the one that turns JSON into text, as we want the
+        # event dict for tests)
+        proc = processors.pop()
+        assert isinstance(
+            proc, (structlog.dev.ConsoleRenderer, structlog.processors.JSONRenderer)
+        ), "Pre-condition"
     try:
         cap = LogCapture()
         processors.append(cap)
@@ -143,7 +157,9 @@ class MakeTIContextCallable(Protocol):
         data_interval_start: str | datetime = ...,
         data_interval_end: str | datetime = ...,
         start_date: str | datetime = ...,
+        run_after: str | datetime = ...,
         run_type: str = ...,
+        conf=None,
     ) -> TIRunContext: ...
 
 
@@ -156,7 +172,9 @@ class MakeTIContextDictCallable(Protocol):
         data_interval_start: str | datetime = ...,
         data_interval_end: str | datetime = ...,
         start_date: str | datetime = ...,
+        run_after: str | datetime = ...,
         run_type: str = ...,
+        conf=None,
     ) -> dict[str, Any]: ...
 
 
@@ -172,7 +190,9 @@ def make_ti_context() -> MakeTIContextCallable:
         data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
         start_date: str | datetime = "2024-12-01T01:00:00Z",
+        run_after: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
+        conf=None,
     ) -> TIRunContext:
         return TIRunContext(
             dag_run=DagRun(
@@ -183,7 +203,10 @@ def make_ti_context() -> MakeTIContextCallable:
                 data_interval_end=data_interval_end,  # type: ignore
                 start_date=start_date,  # type: ignore
                 run_type=run_type,  # type: ignore
-            )
+                run_after=run_after,  # type: ignore
+                conf=conf,
+            ),
+            max_tries=0,
         )
 
     return _make_context
@@ -200,7 +223,9 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
         start_date: str | datetime = "2024-12-01T00:00:00Z",
+        run_after: str | datetime = "2024-12-01T00:00:00Z",
         run_type: str = "manual",
+        conf=None,
     ) -> dict[str, Any]:
         context = make_ti_context(
             dag_id=dag_id,
@@ -209,8 +234,150 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
             data_interval_start=data_interval_start,
             data_interval_end=data_interval_end,
             start_date=start_date,
+            run_after=run_after,
             run_type=run_type,
+            conf=conf,
         )
         return context.model_dump(exclude_unset=True, mode="json")
 
     return _make_context_dict
+
+
+@pytest.fixture
+def mock_supervisor_comms():
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as supervisor_comms:
+        yield supervisor_comms
+
+
+@pytest.fixture
+def mocked_parse(spy_agency):
+    """
+    Fixture to set up an inline DAG and use it in a stubbed `parse` function. Use this fixture if you
+    want to isolate and test `parse` or `run` logic without having to define a DAG file.
+
+    This fixture returns a helper function `set_dag` that:
+    1. Creates an in line DAG with the given `dag_id` and `task` (limited to one task)
+    2. Constructs a `RuntimeTaskInstance` based on the provided `StartupDetails` and task.
+    3. Stubs the `parse` function using `spy_agency`, to return the mocked `RuntimeTaskInstance`.
+
+    After adding the fixture in your test function signature, you can use it like this ::
+
+            mocked_parse(
+                StartupDetails(
+                    ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
+                    file="",
+                    requests_fd=0,
+                ),
+                "example_dag_id",
+                CustomOperator(task_id="hello"),
+            )
+    """
+
+    def set_dag(what: StartupDetails, dag_id: str, task: BaseOperator) -> RuntimeTaskInstance:
+        from airflow.sdk.definitions.dag import DAG
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, parse
+        from airflow.utils import timezone
+
+        if not task.has_dag():
+            dag = DAG(dag_id=dag_id, start_date=timezone.datetime(2024, 12, 3))
+            task.dag = dag
+            task = dag.task_dict[task.task_id]
+        else:
+            dag = task.dag
+        if what.ti_context.dag_run.conf:
+            dag.params = what.ti_context.dag_run.conf  # type: ignore[assignment]
+        ti = RuntimeTaskInstance.model_construct(
+            **what.ti.model_dump(exclude_unset=True),
+            task=task,
+            _ti_context_from_server=what.ti_context,
+            max_tries=what.ti_context.max_tries,
+        )
+        if hasattr(parse, "spy"):
+            spy_agency.unspy(parse)
+        spy_agency.spy_on(parse, call_fake=lambda _: ti)
+        return ti
+
+    return set_dag
+
+
+@pytest.fixture
+def create_runtime_ti(mocked_parse, make_ti_context):
+    """
+    Fixture to create a Runtime TaskInstance for testing purposes without defining a dag file.
+
+    It mimics the behavior of the `parse` function by creating a `RuntimeTaskInstance` based on the provided
+    `StartupDetails` (formed from arguments) and task. This allows you to test the logic of a task without
+    having to define a DAG file, parse it, get context from the server, etc.
+
+    Example usage: ::
+
+        def test_custom_task_instance(create_runtime_ti):
+            class MyTaskOperator(BaseOperator):
+                def execute(self, context):
+                    assert context["dag_run"].run_id == "test_run"
+
+            task = MyTaskOperator(task_id="test_task")
+            ti = create_runtime_ti(task, context_from_server=make_ti_context(run_id="test_run"))
+            # Further test logic...
+    """
+    from uuid6 import uuid7
+
+    from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
+
+    def _create_task_instance(
+        task: BaseOperator,
+        dag_id: str = "test_dag",
+        run_id: str = "test_run",
+        logical_date: str | datetime = "2024-12-01T01:00:00Z",
+        data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
+        data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
+        start_date: str | datetime = "2024-12-01T01:00:00Z",
+        run_type: str = "manual",
+        try_number: int = 1,
+        map_index: int | None = -1,
+        upstream_map_indexes: dict[str, int] | None = None,
+        ti_id=None,
+        conf=None,
+    ) -> RuntimeTaskInstance:
+        if not ti_id:
+            ti_id = uuid7()
+
+        if task.has_dag():
+            dag_id = task.dag.dag_id
+
+        ti_context = make_ti_context(
+            dag_id=dag_id,
+            run_id=run_id,
+            logical_date=logical_date,
+            data_interval_start=data_interval_start,
+            data_interval_end=data_interval_end,
+            start_date=start_date,
+            run_type=run_type,
+            conf=conf,
+        )
+
+        if upstream_map_indexes is not None:
+            ti_context.upstream_map_indexes = upstream_map_indexes
+
+        startup_details = StartupDetails(
+            ti=TaskInstance(
+                id=ti_id,
+                task_id=task.task_id,
+                dag_id=dag_id,
+                run_id=run_id,
+                try_number=try_number,
+                map_index=map_index,
+            ),
+            dag_rel_path="",
+            bundle_info=BundleInfo(name="anything", version="any"),
+            requests_fd=0,
+            ti_context=ti_context,
+        )
+
+        ti = mocked_parse(startup_details, dag_id, task)
+        return ti
+
+    return _create_task_instance

@@ -27,11 +27,12 @@ This should generally only be called by internal methods such as
 
 from __future__ import annotations
 
+import json
 import logging
 import traceback
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
-from sqlalchemy import and_, delete, exists, func, select, tuple_
+from sqlalchemy import and_, delete, exists, func, insert, select, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
@@ -41,7 +42,9 @@ from airflow.models.asset import (
     AssetAliasModel,
     AssetModel,
     DagScheduleAssetAliasReference,
+    DagScheduleAssetNameReference,
     DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DAG, DagModel, DagOwnerAttributes, DagTag
@@ -49,8 +52,8 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
-from airflow.sdk.definitions.asset import Asset, AssetAlias
-from airflow.triggers.base import BaseTrigger
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
+from airflow.serialization.serialized_objects import BaseSerialization, SerializedAssetWatcher
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.timezone import utcnow
@@ -69,11 +72,14 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def _create_orm_dags(dags: Iterable[MaybeSerializedDAG], *, session: Session) -> Iterator[DagModel]:
+def _create_orm_dags(
+    bundle_name: str, dags: Iterable[MaybeSerializedDAG], *, session: Session
+) -> Iterator[DagModel]:
     for dag in dags:
         orm_dag = DagModel(dag_id=dag.dag_id)
         if dag.is_paused_upon_creation is not None:
             orm_dag.is_paused = dag.is_paused_upon_creation
+        orm_dag.bundle_name = bundle_name
         log.info("Creating ORM DAG for %s", dag.dag_id)
         session.add(orm_dag)
         yield orm_dag
@@ -169,7 +175,9 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
     )
 
 
-def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session, processor_subdir: str | None):
+def _serialize_dag_capturing_errors(
+    dag: MaybeSerializedDAG, bundle_name, session: Session, bundle_version: str | None
+):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
 
@@ -184,9 +192,10 @@ def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session, p
         # We can't use bulk_write_to_db as we want to capture each error individually
         dag_was_updated = SerializedDagModel.write_dag(
             dag,
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
             min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
-            processor_subdir=processor_subdir,
         )
         if dag_was_updated:
             _sync_dag_perms(dag, session=session)
@@ -200,6 +209,7 @@ def _serialize_dag_capturing_errors(dag: MaybeSerializedDAG, session: Session, p
     except Exception:
         log.exception("Failed to write serialized DAG dag_id=%s fileloc=%s", dag.dag_id, dag.fileloc)
         dagbag_import_error_traceback_depth = conf.getint("core", "dagbag_import_error_traceback_depth")
+        # todo AIP-66: this needs to use bundle name / rel fileloc instead
         return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
 
 
@@ -236,23 +246,35 @@ def _update_dag_warnings(
 
 
 def _update_import_errors(
-    files_parsed: set[str], import_errors: dict[str, str], processor_subdir: str | None, session: Session
+    files_parsed: set[str], bundle_name: str, import_errors: dict[str, str], session: Session
 ):
     from airflow.listeners.listener import get_listener_manager
 
     # We can remove anything from files parsed in this batch that doesn't have an error. We need to remove old
     # errors (i.e. from files that are removed) separately
 
-    session.execute(delete(ParseImportError).where(ParseImportError.filename.in_(list(files_parsed))))
+    session.execute(
+        delete(ParseImportError).where(
+            ParseImportError.filename.in_(list(files_parsed)), ParseImportError.bundle_name == bundle_name
+        )
+    )
 
-    query = select(ParseImportError.filename).where(ParseImportError.processor_subdir == processor_subdir)
-    existing_import_error_files = set(session.scalars(query))
+    existing_import_error_files = set(
+        session.execute(select(ParseImportError.filename, ParseImportError.bundle_name))
+    )
 
     # Add the errors of the processed files
     for filename, stacktrace in import_errors.items():
-        if filename in existing_import_error_files:
-            session.query(ParseImportError).where(ParseImportError.filename == filename).update(
-                {"filename": filename, "timestamp": utcnow(), "stacktrace": stacktrace},
+        if (filename, bundle_name) in existing_import_error_files:
+            session.query(ParseImportError).where(
+                ParseImportError.filename == filename, ParseImportError.bundle_name == bundle_name
+            ).update(
+                {
+                    "filename": filename,
+                    "bundle_name": bundle_name,
+                    "timestamp": utcnow(),
+                    "stacktrace": stacktrace,
+                },
             )
             # sending notification when an existing dag import error occurs
             get_listener_manager().hook.on_existing_dag_import_error(filename=filename, stacktrace=stacktrace)
@@ -260,20 +282,23 @@ def _update_import_errors(
             session.add(
                 ParseImportError(
                     filename=filename,
+                    bundle_name=bundle_name,
                     timestamp=utcnow(),
                     stacktrace=stacktrace,
-                    processor_subdir=processor_subdir,
                 )
             )
             # sending notification when a new dag import error occurs
             get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
-        session.query(DagModel).filter(DagModel.fileloc == filename).update({"has_import_errors": True})
+        session.query(DagModel).filter(
+            DagModel.fileloc == filename, DagModel.bundle_name == bundle_name
+        ).update({"has_import_errors": True})
 
 
 def update_dag_parsing_results_in_db(
+    bundle_name: str,
+    bundle_version: str | None,
     dags: Collection[MaybeSerializedDAG],
     import_errors: dict[str, str],
-    processor_subdir: str | None,
     warnings: set[DagWarning],
     session: Session,
     *,
@@ -309,11 +334,14 @@ def update_dag_parsing_results_in_db(
             )
             log.debug("Calling the DAG.bulk_sync_to_db method")
             try:
-                DAG.bulk_write_to_db(dags, processor_subdir=processor_subdir, session=session)
-                # Write Serialized DAGs to DB, capturing errors
+                DAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
-                    serialize_errors.extend(_serialize_dag_capturing_errors(dag, session, processor_subdir))
+                    serialize_errors.extend(
+                        _serialize_dag_capturing_errors(
+                            dag=dag, bundle_name=bundle_name, bundle_version=bundle_version, session=session
+                        )
+                    )
             except OperationalError:
                 session.rollback()
                 raise
@@ -329,8 +357,8 @@ def update_dag_parsing_results_in_db(
         good_dag_filelocs = {dag.fileloc for dag in dags if dag.fileloc not in import_errors}
         _update_import_errors(
             files_parsed=good_dag_filelocs,
+            bundle_name=bundle_name,
             import_errors=import_errors,
-            processor_subdir=processor_subdir,
             session=session,
         )
     except Exception:
@@ -349,6 +377,8 @@ class DagModelOperation(NamedTuple):
     """Collect DAG objects and perform database operations for them."""
 
     dags: dict[str, MaybeSerializedDAG]
+    bundle_name: str
+    bundle_version: str | None
 
     def find_orm_dags(self, *, session: Session) -> dict[str, DagModel]:
         """Find existing DagModel objects from DAG objects."""
@@ -368,7 +398,8 @@ class DagModelOperation(NamedTuple):
         orm_dags.update(
             (model.dag_id, model)
             for model in _create_orm_dags(
-                (dag for dag_id, dag in self.dags.items() if dag_id not in orm_dags),
+                bundle_name=self.bundle_name,
+                dags=(dag for dag_id, dag in self.dags.items() if dag_id not in orm_dags),
                 session=session,
             )
         )
@@ -378,7 +409,6 @@ class DagModelOperation(NamedTuple):
         self,
         orm_dags: dict[str, DagModel],
         *,
-        processor_subdir: str | None = None,
         session: Session,
     ) -> None:
         from airflow.configuration import conf
@@ -392,7 +422,8 @@ class DagModelOperation(NamedTuple):
         for dag_id, dm in sorted(orm_dags.items()):
             dag = self.dags[dag_id]
             dm.fileloc = dag.fileloc
-            dm.owners = dag.owner
+            dm.relative_fileloc = dag.relative_fileloc
+            dm.owners = dag.owner or conf.get("operators", "default_owner")
             dm.is_active = True
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
@@ -403,10 +434,8 @@ class DagModelOperation(NamedTuple):
                 dm._dag_display_property_value = dag.dag_display_name
             dm.description = dag.description
 
-            # These "is not None" checks are because with a LazySerializedDag object where the user hasn't
-            # specified an explicit value, we don't get the default values from the config in the lazy
-            # serialized ver
-            # we just
+            # These "is not None" checks are because a LazySerializedDag object does not
+            # provide the default value if the user doesn't provide an explicit value.
             if dag.max_active_tasks is not None:
                 dm.max_active_tasks = dag.max_active_tasks
             elif dag.max_active_tasks is None and dm.max_active_tasks is None:
@@ -434,7 +463,8 @@ class DagModelOperation(NamedTuple):
             dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
             dm.asset_expression = dag.timetable.asset_condition.as_expression()
-            dm.processor_subdir = processor_subdir
+            dm.bundle_name = self.bundle_name
+            dm.bundle_version = self.bundle_version
 
             last_automated_run: DagRun | None = run_info.latest_runs.get(dag.dag_id)
             if last_automated_run is None:
@@ -516,6 +546,8 @@ class AssetModelOperation(NamedTuple):
 
     schedule_asset_references: dict[str, list[Asset]]
     schedule_asset_alias_references: dict[str, list[AssetAlias]]
+    schedule_asset_name_references: set[tuple[str, str]]  # dag_id, ref_name.
+    schedule_asset_uri_references: set[tuple[str, str]]  # dag_id, ref_uri.
     outlet_references: dict[str, list[tuple[str, Asset]]]
     assets: dict[tuple[str, str], Asset]
     asset_aliases: dict[str, AssetAlias]
@@ -530,6 +562,18 @@ class AssetModelOperation(NamedTuple):
             schedule_asset_alias_references={
                 dag_id: [alias for _, alias in dag.timetable.asset_condition.iter_asset_aliases()]
                 for dag_id, dag in dags.items()
+            },
+            schedule_asset_name_references={
+                (dag_id, ref.name)
+                for dag_id, dag in dags.items()
+                for ref in dag.timetable.asset_condition.iter_asset_refs()
+                if isinstance(ref, AssetNameRef)
+            },
+            schedule_asset_uri_references={
+                (dag_id, ref.uri)
+                for dag_id, dag in dags.items()
+                for ref in dag.timetable.asset_condition.iter_asset_refs()
+                if isinstance(ref, AssetUriRef)
             },
             outlet_references={
                 dag_id: list(dag.get_task_assets(inlets=False, outlets=True)) for dag_id, dag in dags.items()
@@ -629,6 +673,44 @@ class AssetModelOperation(NamedTuple):
                 if alias_id not in orm_refs
             )
 
+    @staticmethod
+    def _add_dag_asset_references(
+        references: set[tuple[str, str]],
+        model: type[DagScheduleAssetNameReference] | type[DagScheduleAssetUriReference],
+        attr: str,
+        *,
+        session: Session,
+    ) -> None:
+        if not references:
+            return
+        orm_refs = set(
+            session.scalars(
+                select(model.dag_id, getattr(model, attr)).where(
+                    model.dag_id.in_(dag_id for dag_id, _ in references)
+                )
+            )
+        )
+        new_refs = references - orm_refs
+        old_refs = orm_refs - references
+        if old_refs:
+            session.execute(delete(model).where(tuple_(model.dag_id, getattr(model, attr)).in_(old_refs)))
+        if new_refs:
+            session.execute(insert(model), [{"dag_id": d, attr: r} for d, r in new_refs])
+
+    def add_dag_asset_name_uri_references(self, *, session: Session) -> None:
+        self._add_dag_asset_references(
+            self.schedule_asset_name_references,
+            DagScheduleAssetNameReference,
+            "name",
+            session=session,
+        )
+        self._add_dag_asset_references(
+            self.schedule_asset_uri_references,
+            DagScheduleAssetUriReference,
+            "uri",
+            session=session,
+        )
+
     def add_task_asset_references(
         self,
         dags: dict[str, DagModel],
@@ -662,50 +744,60 @@ class AssetModelOperation(NamedTuple):
         self, assets: dict[tuple[str, str], AssetModel], *, session: Session
     ) -> None:
         # Update references from assets being used
-        refs_to_add: dict[tuple[str, str], set[str]] = {}
-        refs_to_remove: dict[tuple[str, str], set[str]] = {}
-        triggers: dict[str, BaseTrigger] = {}
+        refs_to_add: dict[tuple[str, str], set[int]] = {}
+        refs_to_remove: dict[tuple[str, str], set[int]] = {}
+        triggers: dict[int, dict] = {}
 
         # Optimization: if no asset collected, skip fetching active assets
         active_assets = _find_active_assets(self.assets.keys(), session=session) if self.assets else {}
 
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
-            asset_watchers = asset.watchers if name_uri in active_assets else []
-            trigger_repr_to_trigger_dict: dict[str, BaseTrigger] = {
-                repr(trigger): trigger for trigger in asset_watchers
+            asset_watchers: list[SerializedAssetWatcher] = (
+                [cast(SerializedAssetWatcher, watcher) for watcher in asset.watchers]
+                if name_uri in active_assets
+                else []
+            )
+            trigger_hash_to_trigger_dict: dict[int, dict] = {
+                self._get_trigger_hash(
+                    watcher.trigger["classpath"], watcher.trigger["kwargs"]
+                ): watcher.trigger
+                for watcher in asset_watchers
             }
-            triggers.update(trigger_repr_to_trigger_dict)
-            trigger_repr_from_asset: set[str] = set(trigger_repr_to_trigger_dict.keys())
+            triggers.update(trigger_hash_to_trigger_dict)
+            trigger_hash_from_asset: set[int] = set(trigger_hash_to_trigger_dict.keys())
 
             asset_model = assets[name_uri]
-            trigger_repr_from_asset_model: set[str] = {
-                BaseTrigger.repr(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
+            trigger_hash_from_asset_model: set[int] = {
+                self._get_trigger_hash(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
             }
 
             # Optimization: no diff between the DB and DAG definitions, no update needed
-            if trigger_repr_from_asset == trigger_repr_from_asset_model:
+            if trigger_hash_from_asset == trigger_hash_from_asset_model:
                 continue
 
-            diff_to_add = trigger_repr_from_asset - trigger_repr_from_asset_model
-            diff_to_remove = trigger_repr_from_asset_model - trigger_repr_from_asset
+            diff_to_add = trigger_hash_from_asset - trigger_hash_from_asset_model
+            diff_to_remove = trigger_hash_from_asset_model - trigger_hash_from_asset
             if diff_to_add:
                 refs_to_add[name_uri] = diff_to_add
             if diff_to_remove:
                 refs_to_remove[name_uri] = diff_to_remove
 
         if refs_to_add:
-            all_trigger_reprs: set[str] = {
-                trigger_repr for trigger_reprs in refs_to_add.values() for trigger_repr in trigger_reprs
+            all_trigger_hashes: set[int] = {
+                trigger_hash for trigger_hashes in refs_to_add.values() for trigger_hash in trigger_hashes
             }
 
             all_trigger_keys: set[tuple[str, str]] = {
-                self._encrypt_trigger_kwargs(triggers[trigger_repr])
-                for trigger_reprs in refs_to_add.values()
-                for trigger_repr in trigger_reprs
+                (
+                    triggers[trigger_hash]["classpath"],
+                    Trigger.encrypt_kwargs(triggers[trigger_hash]["kwargs"]),
+                )
+                for trigger_hashes in refs_to_add.values()
+                for trigger_hash in trigger_hashes
             }
-            orm_triggers: dict[str, Trigger] = {
-                BaseTrigger.repr(trigger.classpath, trigger.kwargs): trigger
+            orm_triggers: dict[int, Trigger] = {
+                self._get_trigger_hash(trigger.classpath, trigger.kwargs): trigger
                 for trigger in session.scalars(
                     select(Trigger).where(
                         tuple_(Trigger.classpath, Trigger.encrypted_kwargs).in_(all_trigger_keys)
@@ -717,32 +809,34 @@ class AssetModelOperation(NamedTuple):
             new_trigger_models = [
                 trigger
                 for trigger in [
-                    Trigger.from_object(triggers[trigger_repr])
-                    for trigger_repr in all_trigger_reprs
-                    if trigger_repr not in orm_triggers
+                    Trigger(
+                        classpath=triggers[trigger_hash]["classpath"], kwargs=triggers[trigger_hash]["kwargs"]
+                    )
+                    for trigger_hash in all_trigger_hashes
+                    if trigger_hash not in orm_triggers
                 ]
             ]
             session.add_all(new_trigger_models)
             orm_triggers.update(
-                (BaseTrigger.repr(trigger.classpath, trigger.kwargs), trigger)
+                (self._get_trigger_hash(trigger.classpath, trigger.kwargs), trigger)
                 for trigger in new_trigger_models
             )
 
             # Add new references
-            for name_uri, trigger_reprs in refs_to_add.items():
+            for name_uri, trigger_hashes in refs_to_add.items():
                 asset_model = assets[name_uri]
                 asset_model.triggers.extend(
-                    [orm_triggers.get(trigger_repr) for trigger_repr in trigger_reprs]
+                    [orm_triggers.get(trigger_hash) for trigger_hash in trigger_hashes]
                 )
 
         if refs_to_remove:
             # Remove old references
-            for name_uri, trigger_reprs in refs_to_remove.items():
+            for name_uri, trigger_hashes in refs_to_remove.items():
                 asset_model = assets[name_uri]
                 asset_model.triggers = [
                     trigger
                     for trigger in asset_model.triggers
-                    if BaseTrigger.repr(trigger.classpath, trigger.kwargs) not in trigger_reprs
+                    if self._get_trigger_hash(trigger.classpath, trigger.kwargs) not in trigger_hashes
                 ]
 
         # Remove references from assets no longer used
@@ -754,6 +848,13 @@ class AssetModelOperation(NamedTuple):
                 asset_model.triggers = []
 
     @staticmethod
-    def _encrypt_trigger_kwargs(trigger: BaseTrigger) -> tuple[str, str]:
-        classpath, kwargs = trigger.serialize()
-        return classpath, Trigger.encrypt_kwargs(kwargs)
+    def _get_trigger_hash(classpath: str, kwargs: dict[str, Any]) -> int:
+        """
+        Return the hash of the trigger classpath and kwargs. This is used to uniquely identify a trigger.
+
+        We do not want to move this logic in a `__hash__` method in `BaseTrigger` because we do not want to
+        make the triggers hashable. The reason being, when the triggerer retrieve the list of triggers, we do
+        not want it dedupe them. When used to defer tasks, 2 triggers can have the same classpath and kwargs.
+        This is not true for event driven scheduling.
+        """
+        return hash((classpath, json.dumps(BaseSerialization.serialize(kwargs)).encode("utf-8")))

@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, TagLabel, Text } from "@chakra-ui/react";
+import { Badge, Skeleton, Text } from "@chakra-ui/react";
 
-import { Tag, Tooltip } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
 
 export const HealthSection = ({
   isLoading,
@@ -44,17 +44,16 @@ export const HealthSection = ({
         </div>
       }
       disabled={!Boolean(latestHeartbeat)}
-      showArrow
     >
-      <Tag
+      <Badge
         borderColor={status === "healthy" ? "success.100" : "error.100"}
         borderRadius="full"
         borderWidth={1}
         colorPalette={status === "healthy" ? "success" : "error"}
         size="lg"
       >
-        <TagLabel>{title}</TagLabel>
-      </Tag>
+        {title}
+      </Badge>
     </Tooltip>
   );
 };

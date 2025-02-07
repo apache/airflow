@@ -22,11 +22,12 @@ from datetime import datetime
 
 import pytest
 
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models import DagBag
 from airflow.models.dag import DAG
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -80,13 +81,15 @@ class TestTaskEndpoint:
             task5 = EmptyOperator(task_id=self.unscheduled_task_id2, params={"is_unscheduled": True})
         task1 >> task2
         task4 >> task5
+
+        DagBundlesManager().sync_bundles_to_db()
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {
             dag.dag_id: dag,
             mapped_dag.dag_id: mapped_dag,
             unscheduled_dag.dag_id: unscheduled_dag,
         }
-        dag_bag.sync_to_db()
+        dag_bag.sync_to_db("dags-folder", None)
         configured_app.dag_bag = dag_bag  # type:ignore
 
     @staticmethod
@@ -110,7 +113,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "EmptyOperator",
-                "module_path": "airflow.operators.empty",
+                "module_path": "airflow.providers.standard.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [self.task_id2],
@@ -121,7 +124,7 @@ class TestGetTask(TestTaskEndpoint):
             "owner": "airflow",
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "value": "bar",
                     "description": None,
                     "schema": {},
@@ -154,7 +157,10 @@ class TestGetTask(TestTaskEndpoint):
 
     def test_mapped_task(self):
         expected = {
-            "class_ref": {"class_name": "EmptyOperator", "module_path": "airflow.operators.empty"},
+            "class_ref": {
+                "class_name": "EmptyOperator",
+                "module_path": "airflow.providers.standard.operators.empty",
+            },
             "depends_on_past": False,
             "downstream_task_ids": [],
             "end_date": None,
@@ -193,7 +199,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "EmptyOperator",
-                "module_path": "airflow.operators.empty",
+                "module_path": "airflow.providers.standard.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [],
@@ -204,7 +210,7 @@ class TestGetTask(TestTaskEndpoint):
             "owner": "airflow",
             "params": {
                 "is_unscheduled": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "value": True,
                     "description": None,
                     "schema": {},
@@ -244,11 +250,11 @@ class TestGetTask(TestTaskEndpoint):
             expected["task_display_name"] = task_id
             assert response.json == expected
 
-    def test_should_respond_200_serialized(self):
+    def test_should_respond_200_serialized(self, testing_dag_bundle):
         # Get the dag out of the dagbag before we patch it to an empty one
         dag = self.app.dag_bag.get_dag(self.dag_id)
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         patcher = unittest.mock.patch.object(self.app, "dag_bag", dag_bag)
@@ -257,7 +263,7 @@ class TestGetTask(TestTaskEndpoint):
         expected = {
             "class_ref": {
                 "class_name": "EmptyOperator",
-                "module_path": "airflow.operators.empty",
+                "module_path": "airflow.providers.standard.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [self.task_id2],
@@ -268,7 +274,7 @@ class TestGetTask(TestTaskEndpoint):
             "owner": "airflow",
             "params": {
                 "foo": {
-                    "__class": "airflow.models.param.Param",
+                    "__class": "airflow.sdk.definitions.param.Param",
                     "value": "bar",
                     "description": None,
                     "schema": {},
@@ -334,7 +340,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.empty",
+                        "module_path": "airflow.providers.standard.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [self.task_id2],
@@ -345,7 +351,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "owner": "airflow",
                     "params": {
                         "foo": {
-                            "__class": "airflow.models.param.Param",
+                            "__class": "airflow.sdk.definitions.param.Param",
                             "value": "bar",
                             "description": None,
                             "schema": {},
@@ -373,7 +379,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.empty",
+                        "module_path": "airflow.providers.standard.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
@@ -415,7 +421,10 @@ class TestGetTasks(TestTaskEndpoint):
         expected = {
             "tasks": [
                 {
-                    "class_ref": {"class_name": "EmptyOperator", "module_path": "airflow.operators.empty"},
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.providers.standard.operators.empty",
+                    },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
                     "end_date": None,
@@ -446,7 +455,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.empty",
+                        "module_path": "airflow.providers.standard.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
@@ -494,7 +503,7 @@ class TestGetTasks(TestTaskEndpoint):
                 {
                     "class_ref": {
                         "class_name": "EmptyOperator",
-                        "module_path": "airflow.operators.empty",
+                        "module_path": "airflow.providers.standard.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [downstream_task_id] if downstream_task_id else [],
@@ -505,7 +514,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "owner": "airflow",
                     "params": {
                         "is_unscheduled": {
-                            "__class": "airflow.models.param.Param",
+                            "__class": "airflow.sdk.definitions.param.Param",
                             "value": True,
                             "description": None,
                             "schema": {},

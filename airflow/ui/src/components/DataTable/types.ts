@@ -17,11 +17,7 @@
  * under the License.
  */
 import type { SimpleGridProps } from "@chakra-ui/react";
-import type {
-  ColumnDef,
-  PaginationState,
-  SortingState,
-} from "@tanstack/react-table";
+import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
 export type TableState = {

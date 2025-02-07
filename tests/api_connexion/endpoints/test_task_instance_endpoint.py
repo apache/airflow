@@ -196,6 +196,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
@@ -254,6 +255,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "deferred",
             "task_id": "print_the_context",
@@ -301,6 +303,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "removed",
             "task_id": "print_the_context",
@@ -344,6 +347,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
@@ -396,6 +400,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
+                "scheduled_when": None,
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "running",
                 "task_id": "print_the_context",
@@ -1224,7 +1229,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.app.dag_bag.sync_to_db()
+        self.app.dag_bag.sync_to_db("dags-folder", None)
         response = self.client.post(
             f"/api/v1/dags/{request_dag}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1246,7 +1251,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         dag_id = "example_python_operator"
         payload = {"reset_dag_runs": True, "dry_run": False}
-        self.app.dag_bag.sync_to_db()
+        self.app.dag_bag.sync_to_db("dags-folder", None)
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1266,7 +1271,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert dagrun.state == "running"
 
         payload = {"dry_run": False, "reset_dag_runs": True, "task_ids": [""]}
-        self.app.dag_bag.sync_to_db()
+        self.app.dag_bag.sync_to_db("dags-folder", None)
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1693,7 +1698,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.app.dag_bag.sync_to_db()
+        self.app.dag_bag.sync_to_db("dags-folder", None)
         response = self.client.post(
             "/api/v1/dags/example_python_operator/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -2305,6 +2310,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
@@ -2364,6 +2370,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
+                "scheduled_when": None,
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "running",
                 "task_id": "print_the_context",
@@ -2586,6 +2593,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "success",
             "task_id": "print_the_context",
@@ -2621,6 +2629,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "success" if try_number == 1 else None,
             "task_id": "print_the_context",
@@ -2683,6 +2692,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
+                "scheduled_when": None,
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "failed" if try_number == 1 else None,
                 "task_id": "print_the_context",
@@ -2745,6 +2755,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "failed",
             "task_id": "print_the_context",
@@ -2780,6 +2791,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "removed",
             "task_id": "print_the_context",

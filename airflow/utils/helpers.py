@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.models.taskinstance import TaskInstance
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")
 GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")

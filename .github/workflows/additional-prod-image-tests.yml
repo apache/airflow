@@ -32,10 +32,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Branch used to construct constraints URL from."
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       upgrade-to-newer-dependencies:
         description: "Whether to upgrade to newer dependencies (true/false)"
         required: true
@@ -60,6 +56,12 @@ on:  # yamllint disable-line rule:truthy
         description: "Which version of python should be used by default"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
   prod-image-extra-checks-main:
     name: PROD image extra checks (main)
@@ -70,7 +72,6 @@ jobs:
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
       use-uv: "false"
-      image-tag: ${{ inputs.image-tag }}
       build-provider-packages: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
@@ -88,7 +89,6 @@ jobs:
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
       use-uv: "false"
-      image-tag: ${{ inputs.image-tag }}
       build-provider-packages: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
@@ -117,36 +117,30 @@ jobs:
           persist-credentials: false
       - name: "Cleanup docker"
         run: ./scripts/ci/cleanup_docker.sh
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: Login to ghcr.io
-        shell: bash
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: Pull PROD image ${{ inputs.default-python-version}}:${{ inputs.image-tag }}
-        run: breeze prod-image pull --tag-as-latest
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-          IMAGE_TAG: "${{ inputs.image-tag }}"
-      - name: "Setup python"
-        uses: actions/setup-python@v5
+      - name: "Prepare breeze & PROD image: ${{ inputs.default-python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
         with:
-          python-version: ${{ inputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/requirements.txt
+          platform: "linux/amd64"
+          image-type: "prod"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Test examples of PROD image building"
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ inputs.default-branch }}
+          DEFAULT_PYTHON_VERSION: ${{ inputs.default-python-version }}
         run: "
           cd ./docker_tests && \
           python -m pip install -r requirements.txt && \
-          TEST_IMAGE=\"ghcr.io/${{ github.repository }}/${{ inputs.default-branch }}\
-          /prod/python${{ inputs.default-python-version }}:${{ inputs.image-tag }}\" \
+          TEST_IMAGE=\"ghcr.io/$GITHUB_REPOSITORY/$DEFAULT_BRANCH\
+          /prod/python$DEFAULT_PYTHON_VERSION\" \
           python -m pytest test_examples_of_prod_image_building.py -n auto --color=yes"
 
   test-docker-compose-quick-start:
     timeout-minutes: 60
-    name: "Docker-compose quick start with PROD image verifying"
+    name: "Docker Compose quick start with PROD image verifying"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -161,14 +155,13 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: Login to ghcr.io
-        shell: bash
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: "Pull image ${{ inputs.default-python-version}}:${{ inputs.image-tag }}"
-        run: breeze prod-image pull --tag-as-latest
+      - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          image-type: "prod"
+          python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          use-uv: ${{ inputs.use-uv }}
+        id: breeze
       - name: "Test docker-compose quick start"
         run: breeze testing docker-compose-tests

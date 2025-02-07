@@ -142,6 +142,15 @@ If release name contains chart name it will be used as a full name.
         key: connection
     {{- end }}
   {{- end }}
+  {{- if .Values.opensearch.enabled }}
+    {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__OPENSEARCH__HOST }}
+  - name: AIRFLOW__OPENSEARCH__HOST
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "opensearch_secret" . }}
+        key: connection
+    {{- end }}
+  {{- end }}
 {{- end }}
 
 {{/* User defined Airflow environment variables */}}
@@ -427,6 +436,10 @@ If release name contains chart name it will be used as a full name.
   {{- default (printf "%s-elasticsearch" (include "airflow.fullname" .)) .Values.elasticsearch.secretName }}
 {{- end }}
 
+{{- define "opensearch_secret" -}}
+  {{- default (printf "%s-opensearch" (include "airflow.fullname" .)) .Values.opensearch.secretName }}
+{{- end }}
+
 {{- define "flower_secret" -}}
   {{- default (printf "%s-flower" (include "airflow.fullname" .)) .Values.flower.secretName }}
 {{- end }}
@@ -607,8 +620,8 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 
 {{/* Create the name of the API server service account to use */}}
-{{- define "apiServer.serviceAccountName" -}}
-  {{- include "_serviceAccountName" (merge (dict "key" "apiServer" "nameSuffix" "api-server" ) .) -}}
+{{- define "_apiServer.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "_apiServer" "nameSuffix" "api-server" ) .) -}}
 {{- end }}
 
 {{/* Create the name of the redis service account to use */}}

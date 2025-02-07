@@ -32,10 +32,6 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining self-hosted runners."
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       python-versions:
         description: "The list of python versions (stringified JSON array) to run the tests on."
         required: true
@@ -88,6 +84,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   # Push early BuildX cache to GitHub Registry in Apache repository, This cache does not wait for all the
   # tests to complete - it is run very early in the build process for "main" merges in order to refresh
@@ -103,8 +101,6 @@ jobs:
       contents: read
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
       packages: write
     secrets: inherit
     with:
@@ -117,7 +113,7 @@ jobs:
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: ${{ inputs.use-uv}}
+      use-uv: ${{ inputs.use-uv }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
       disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
@@ -149,8 +145,13 @@ jobs:
         run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
       - name: "Login to ghcr.io"
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        env:
+          actor: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$actor" --password-stdin
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 600 --platform "linux/amd64"
 
@@ -159,22 +160,23 @@ jobs:
 #  # There is no point in running this one in "canary" run, because the above step is doing the
 #  # same build anyway.
 #  build-ci-arm-images:
-#    name: Build CI ARM images (in-workflow)
+#    name: Build CI ARM images
 #    uses: ./.github/workflows/ci-image-build.yml
 #    permissions:
 #      contents: read
 #      packages: write
 #    secrets: inherit
 #    with:
+#      platform: "linux/arm64"
 #      push-image: "false"
+#      upload-image-artifact: "true"
+#      upload-mount-cache-artifact:  ${{ inputs.canary-run }}
 #      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
 #      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
-#      image-tag: ${{ inputs.image-tag }}
 #      python-versions: ${{ inputs.python-versions }}
-#      platform: "linux/arm64"
 #      branch: ${{ inputs.branch }}
 #      constraints-branch: ${{ inputs.constraints-branch }}
-#      use-uv: ${{ inputs.use-uv}}
+#      use-uv: ${{ inputs.use-uv }}
 #      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
 #      docker-cache: ${{ inputs.docker-cache }}
 #      disable-airflow-repo-cache:  ${{ inputs.disable-airflow-repo-cache }}

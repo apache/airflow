@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import inspect
 import json
 import logging
@@ -92,6 +93,7 @@ def _validate_env_id(env_id: str) -> str:
     return env_id.lower()
 
 
+@functools.cache
 def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     """
     Test values are stored in the SSM Value as a JSON-encoded dict of key/value pairs.

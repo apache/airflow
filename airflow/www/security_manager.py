@@ -24,6 +24,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from sqlalchemy import select
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
@@ -63,7 +64,6 @@ from airflow.security.permissions import (
     RESOURCE_XCOM,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = {

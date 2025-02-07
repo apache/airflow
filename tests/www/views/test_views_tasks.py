@@ -29,38 +29,32 @@ import time_machine
 
 from airflow import settings
 from airflow.models.dag import DAG
-from airflow.models.dagbag import DagBag
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.www.views import TaskInstanceModelView, _safe_parse_datetime
-
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+from providers.fab.tests.provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,
 )
+
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,
     client_with_login,
 )
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -81,24 +75,25 @@ def _reset_dagruns():
 @pytest.fixture(autouse=True)
 def _init_dagruns(app):
     with time_machine.travel(DEFAULT_DATE, tick=False):
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
-            **triggered_by_kwargs,
         )
         app.dag_bag.get_dag("example_python_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
-            **triggered_by_kwargs,
         )
         XCom.set(
             key="return_value",
@@ -112,27 +107,30 @@ def _init_dagruns(app):
             run_type=DagRunType.SCHEDULED,
             logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
-            **triggered_by_kwargs,
         )
         app.dag_bag.get_dag("latest_only").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
-            **triggered_by_kwargs,
         )
         app.dag_bag.get_dag("example_task_group").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
-            **triggered_by_kwargs,
         )
     yield
     clear_db_runs()
@@ -397,56 +395,62 @@ def test_rendered_k8s_without_k8s(admin_client):
 
 
 def test_tree_trigger_origin_tree_view(app, admin_client):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    clear_db_runs()
+    app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+        run_id="test",
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        run_after=DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
         start_date=timezone.utcnow(),
         state=State.RUNNING,
-        **triggered_by_kwargs,
     )
 
-    url = "tree?dag_id=test_tree_view"
+    url = "tree?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
-    params = {"origin": "/dags/test_tree_view/grid"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    params = {"origin": "/dags/example_bash_operator/grid"}
+    href = f"/dags/example_bash_operator/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
 def test_graph_trigger_origin_grid_view(app, admin_client):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    clear_db_runs()
+    app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+        run_id="test",
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        run_after=DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
         start_date=timezone.utcnow(),
         state=State.RUNNING,
-        **triggered_by_kwargs,
     )
 
-    url = "/dags/test_tree_view/graph"
+    url = "/dags/example_bash_operator/graph"
     resp = admin_client.get(url, follow_redirects=True)
-    params = {"origin": "/dags/test_tree_view/grid?tab=graph"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    params = {"origin": "/dags/example_bash_operator/grid?tab=graph"}
+    href = f"/dags/example_bash_operator/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
 def test_gantt_trigger_origin_grid_view(app, admin_client):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+    clear_db_runs()
+    app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+        run_id="test",
         run_type=DagRunType.SCHEDULED,
         logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        run_after=DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
         start_date=timezone.utcnow(),
         state=State.RUNNING,
-        **triggered_by_kwargs,
     )
 
-    url = "/dags/test_tree_view/gantt"
+    url = "/dags/example_bash_operator/gantt"
     resp = admin_client.get(url, follow_redirects=True)
-    params = {"origin": "/dags/test_tree_view/grid?tab=gantt"}
-    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    params = {"origin": "/dags/example_bash_operator/grid?tab=gantt"}
+    href = f"/dags/example_bash_operator/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
@@ -493,25 +497,6 @@ def test_last_dagruns_success_when_selecting_dags(admin_client):
 
 
 def test_code(admin_client):
-    url = "code?dag_id=example_bash_operator"
-    resp = admin_client.get(url, follow_redirects=True)
-    check_content_not_in_response("Failed to load DAG file Code", resp)
-    check_content_in_response("example_bash_operator", resp)
-
-
-def test_code_from_db(admin_client):
-    dag = DagBag(include_examples=True).get_dag("example_bash_operator")
-    SerializedDagModel.write_dag(dag)
-    url = "code?dag_id=example_bash_operator"
-    resp = admin_client.get(url, follow_redirects=True)
-    check_content_not_in_response("Failed to load DAG file Code", resp)
-    check_content_in_response("example_bash_operator", resp)
-
-
-def test_code_from_db_all_example_dags(admin_client):
-    dagbag = DagBag(include_examples=True)
-    for dag in dagbag.dags.values():
-        SerializedDagModel.write_dag(dag)
     url = "code?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response("Failed to load DAG file Code", resp)
@@ -618,7 +603,7 @@ class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
 def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, dag_maker):
     with dag_maker() as dag:
         EmptyOperator(task_id="task")
-    dag.sync_to_db()
+    dag_maker.sync_dagbag_to_db()
     # The delete-dag URL should be generated correctly
     test_dag_id = dag.dag_id
     resp = admin_client.get("/", follow_redirects=True)
@@ -627,12 +612,12 @@ def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, dag_maker):
 
 
 @pytest.fixture
-def new_dag_to_delete():
+def new_dag_to_delete(testing_dag_bundle):
     dag = DAG(
         "new_dag_to_delete", is_paused_upon_creation=True, schedule="0 * * * *", start_date=DEFAULT_DATE
     )
     session = settings.Session()
-    dag.sync_to_db(session=session)
+    DAG.bulk_write_to_db("testing", None, [dag], session=session)
     return dag
 
 
@@ -871,7 +856,6 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
     ):
         EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
         EmptyOperator(task_id="task_3")
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     run1 = dag_maker.create_dagrun(
         run_id="run_1",
         state=DagRunState.SUCCESS,
@@ -879,7 +863,6 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
         logical_date=dag_maker.dag.start_date,
         start_date=dag_maker.dag.start_date,
         session=session,
-        **triggered_by_kwargs,
     )
 
     run2 = dag_maker.create_dagrun(
@@ -889,7 +872,6 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
         logical_date=dag_maker.dag.start_date.add(days=1),
         start_date=dag_maker.dag.start_date.add(days=1),
         session=session,
-        **triggered_by_kwargs,
     )
 
     for run in (run1, run2):
@@ -1112,6 +1094,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "scheduled_dttm": None,
             "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
@@ -1149,6 +1132,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "scheduled_dttm": None,
             "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
@@ -1186,6 +1170,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "scheduled_dttm": None,
             "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
@@ -1223,6 +1208,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "scheduled_dttm": None,
             "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
@@ -1260,6 +1246,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "scheduled_dttm": None,
             "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
@@ -1297,6 +1284,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "scheduled_dttm": None,
             "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
@@ -1334,6 +1322,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "scheduled_dttm": None,
             "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,

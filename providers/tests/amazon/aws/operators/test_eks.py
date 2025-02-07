@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypedDict
 from unittest import mock
 
 import pytest
@@ -40,7 +40,6 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteFargateProfileTrigger,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.typing_compat import TypedDict
 
 from providers.tests.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,

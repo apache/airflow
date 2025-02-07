@@ -37,9 +37,10 @@ from markdown_it import MarkdownIt
 from markupsafe import Markup
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import delete, func, select, types
+from sqlalchemy import delete, func, select, tuple_, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
@@ -48,9 +49,7 @@ from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import WebEncoder
-from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
@@ -199,14 +198,19 @@ def encode_dag_run(
     return encoded_dag_run, None
 
 
-def check_import_errors(fileloc, session):
+def check_import_errors(fileloc, bundle_name, session):
     # Check dag import errors
     import_errors = session.scalars(
-        select(ParseImportError).where(ParseImportError.filename == fileloc)
+        select(ParseImportError).where(
+            ParseImportError.filename == fileloc, ParseImportError.bundle_name == bundle_name
+        )
     ).all()
     if import_errors:
         for import_error in import_errors:
-            flash(f"Broken DAG: [{import_error.filename}] {import_error.stacktrace}", "dag_import_error")
+            flash(
+                f"Broken DAG: [{import_error.filename}, Bundle name: {bundle_name}] {import_error.stacktrace}",
+                "dag_import_error",
+            )
 
 
 def check_dag_warnings(dag_id, session):
@@ -867,12 +871,7 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
 
     def delete_all(self, items: list[Model]) -> bool:
         self.session.execute(
-            delete(TI).where(
-                tuple_in_condition(
-                    (TI.dag_id, TI.run_id),
-                    ((x.dag_id, x.run_id) for x in items),
-                )
-            )
+            delete(TI).where(tuple_(TI.dag_id, TI.run_id).in_((x.dag_id, x.run_id) for x in items))
         )
         return super().delete_all(items)
 

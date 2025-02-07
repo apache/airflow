@@ -17,11 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import copy
+
 import pendulum
 import pytest
 
 from airflow.models import DagBag
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
@@ -30,8 +32,55 @@ from tests_common.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
-DAG_ID = "test_dag_id"
+DAG_ID = "dag_with_multiple_versions"
 DAG_ID_EXTERNAL_TRIGGER = "external_trigger"
+LATEST_VERSION_DAG_RESPONSE: dict = {
+    "edges": [],
+    "nodes": [
+        {
+            "children": None,
+            "id": "task1",
+            "is_mapped": None,
+            "label": "task1",
+            "tooltip": None,
+            "setup_teardown_type": None,
+            "type": "task",
+            "operator": "EmptyOperator",
+            "asset_condition_type": None,
+        },
+        {
+            "children": None,
+            "id": "task2",
+            "is_mapped": None,
+            "label": "task2",
+            "tooltip": None,
+            "setup_teardown_type": None,
+            "type": "task",
+            "operator": "EmptyOperator",
+            "asset_condition_type": None,
+        },
+        {
+            "children": None,
+            "id": "task3",
+            "is_mapped": None,
+            "label": "task3",
+            "tooltip": None,
+            "setup_teardown_type": None,
+            "type": "task",
+            "operator": "EmptyOperator",
+            "asset_condition_type": None,
+        },
+    ],
+    "arrange": "LR",
+}
+SECOND_VERSION_DAG_RESPONSE: dict = copy.deepcopy(LATEST_VERSION_DAG_RESPONSE)
+SECOND_VERSION_DAG_RESPONSE["nodes"] = [
+    node for node in SECOND_VERSION_DAG_RESPONSE["nodes"] if node["id"] != "task3"
+]
+FIRST_VERSION_DAG_RESPONSE: dict = copy.deepcopy(SECOND_VERSION_DAG_RESPONSE)
+FIRST_VERSION_DAG_RESPONSE["nodes"] = [
+    node for node in FIRST_VERSION_DAG_RESPONSE["nodes"] if node["id"] != "task2"
+]
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -58,7 +107,7 @@ def make_dag(dag_maker, session, time_machine):
     ):
         TriggerDagRunOperator(task_id="trigger_dag_run_operator", trigger_dag_id=DAG_ID)
 
-    dag_maker.dagbag.sync_to_db()
+    dag_maker.sync_dagbag_to_db()
 
     with dag_maker(
         dag_id=DAG_ID,
@@ -77,7 +126,7 @@ def make_dag(dag_maker, session, time_machine):
             >> EmptyOperator(task_id="task_2")
         )
 
-    dag_maker.dagbag.sync_to_db()
+    dag_maker.sync_dagbag_to_db()
 
 
 class TestStructureDataEndpoint:
@@ -211,14 +260,14 @@ class TestStructureDataEndpoint:
                         {
                             "is_setup_teardown": None,
                             "label": None,
-                            "source_id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
+                            "source_id": "sensor:dag_with_multiple_versions:dag_with_multiple_versions:external_task_sensor",
                             "target_id": "task_1",
                             "is_source_asset": None,
                         },
                         {
                             "is_setup_teardown": None,
                             "label": None,
-                            "source_id": "sensor:test_dag_id:test_dag_id:external_task_sensor",
+                            "source_id": "trigger:external_trigger:dag_with_multiple_versions:trigger_dag_run_operator",
                             "target_id": "task_1",
                             "is_source_asset": None,
                         },
@@ -280,17 +329,6 @@ class TestStructureDataEndpoint:
                         },
                         {
                             "children": None,
-                            "id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
-                            "is_mapped": None,
-                            "label": "trigger_dag_run_operator",
-                            "tooltip": None,
-                            "setup_teardown_type": None,
-                            "type": "trigger",
-                            "operator": None,
-                            "asset_condition_type": None,
-                        },
-                        {
-                            "children": None,
                             "id": "asset:s3://dataset-bucket/example.csv",
                             "is_mapped": None,
                             "label": "s3://dataset-bucket/example.csv",
@@ -302,12 +340,23 @@ class TestStructureDataEndpoint:
                         },
                         {
                             "children": None,
-                            "id": "sensor:test_dag_id:test_dag_id:external_task_sensor",
+                            "id": "sensor:dag_with_multiple_versions:dag_with_multiple_versions:external_task_sensor",
                             "is_mapped": None,
                             "label": "external_task_sensor",
                             "tooltip": None,
                             "setup_teardown_type": None,
                             "type": "sensor",
+                            "operator": None,
+                            "asset_condition_type": None,
+                        },
+                        {
+                            "children": None,
+                            "id": "trigger:external_trigger:dag_with_multiple_versions:trigger_dag_run_operator",
+                            "is_mapped": None,
+                            "label": "trigger_dag_run_operator",
+                            "tooltip": None,
+                            "setup_teardown_type": None,
+                            "type": "trigger",
                             "operator": None,
                             "asset_condition_type": None,
                         },
@@ -368,7 +417,7 @@ class TestStructureDataEndpoint:
                             "is_setup_teardown": None,
                             "label": None,
                             "source_id": "trigger_dag_run_operator",
-                            "target_id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
+                            "target_id": "trigger:external_trigger:dag_with_multiple_versions:trigger_dag_run_operator",
                         }
                     ],
                     "nodes": [
@@ -386,7 +435,7 @@ class TestStructureDataEndpoint:
                         {
                             "asset_condition_type": None,
                             "children": None,
-                            "id": "trigger:external_trigger:test_dag_id:trigger_dag_run_operator",
+                            "id": "trigger:external_trigger:dag_with_multiple_versions:trigger_dag_run_operator",
                             "is_mapped": None,
                             "label": "trigger_dag_run_operator",
                             "tooltip": None,
@@ -406,7 +455,48 @@ class TestStructureDataEndpoint:
         assert response.status_code == 200
         assert response.json() == expected
 
+    @pytest.mark.parametrize(
+        "params, expected",
+        [
+            pytest.param(
+                {"dag_id": DAG_ID},
+                LATEST_VERSION_DAG_RESPONSE,
+                id="get_default_version",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID, "version_number": 1},
+                FIRST_VERSION_DAG_RESPONSE,
+                id="get_oldest_version",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID, "version_number": 2},
+                SECOND_VERSION_DAG_RESPONSE,
+                id="get_specific_version",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID, "version_number": 3},
+                LATEST_VERSION_DAG_RESPONSE,
+                id="get_latest_version",
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_should_return_200_with_multiple_versions(self, test_client, params, expected):
+        response = test_client.get("/ui/structure/structure_data", params=params)
+        assert response.status_code == 200
+        assert response.json() == expected
+
     def test_should_return_404(self, test_client):
         response = test_client.get("/ui/structure/structure_data", params={"dag_id": "not_existing"})
         assert response.status_code == 404
         assert response.json()["detail"] == "Dag with id not_existing was not found"
+
+    def test_should_return_404_when_dag_version_not_found(self, test_client):
+        response = test_client.get(
+            "/ui/structure/structure_data", params={"dag_id": DAG_ID, "version_number": 999}
+        )
+        assert response.status_code == 404
+        assert (
+            response.json()["detail"]
+            == "Dag with id dag_with_multiple_versions and version number 999 was not found"
+        )

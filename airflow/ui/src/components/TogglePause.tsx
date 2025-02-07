@@ -21,9 +21,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 import {
+  UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
   useDagServiceGetDagsKey,
   useDagServicePatchDag,
+  useDagsServiceRecentDagRunsKey,
+  UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
 import { useConfig } from "src/queries/useConfig";
 
@@ -37,32 +40,27 @@ type Props = {
   readonly skipConfirm?: boolean;
 };
 
-export const TogglePause = ({
-  dagDisplayName,
-  dagId,
-  isPaused,
-  skipConfirm,
-}: Props) => {
+export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm }: Props) => {
   const queryClient = useQueryClient();
   const { onClose, onOpen, open } = useDisclosure();
 
   const onSuccess = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: [useDagServiceGetDagsKey],
-    });
+    const queryKeys = [
+      [useDagServiceGetDagsKey],
+      [useDagsServiceRecentDagRunsKey],
+      UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
+      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
+    ];
 
-    await queryClient.invalidateQueries({
-      queryKey: UseDagServiceGetDagDetailsKeyFn({ dagId }),
-    });
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
   };
 
   const { mutate } = useDagServicePatchDag({
     onSuccess,
   });
 
-  const showConfirmation = Boolean(
-    useConfig("require_confirmation_dag_change"),
-  );
+  const showConfirmation = Boolean(useConfig("require_confirmation_dag_change"));
 
   const onToggle = useCallback(() => {
     mutate({
@@ -83,12 +81,7 @@ export const TogglePause = ({
 
   return (
     <>
-      <Switch
-        checked={!isPaused}
-        colorPalette="blue"
-        onCheckedChange={onChange}
-        size="sm"
-      />
+      <Switch checked={!isPaused} colorPalette="blue" onCheckedChange={onChange} size="sm" />
       <ConfirmationModal
         header={`${isPaused ? "Unpause" : "Pause"} ${dagDisplayName ?? dagId}?`}
         onConfirm={onToggle}

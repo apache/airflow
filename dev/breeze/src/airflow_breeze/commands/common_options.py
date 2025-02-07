@@ -36,6 +36,8 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_CORE_INTEGRATIONS,
     AUTOCOMPLETE_PROVIDERS_INTEGRATIONS,
     DEFAULT_UV_HTTP_TIMEOUT,
+    DOCKER_DEFAULT_PLATFORM,
+    SINGLE_PLATFORMS,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -248,14 +250,7 @@ option_providers_integration = click.option(
     multiple=True,
 )
 option_image_name = click.option(
-    "-n", "--image-name", help="Name of the image to verify (overrides --python and --image-tag)."
-)
-option_image_tag_for_running = click.option(
-    "--image-tag",
-    help="Tag of the image which is used to run the image (implies --mount-sources=skip).",
-    show_default=True,
-    default="latest",
-    envvar="IMAGE_TAG",
+    "-n", "--image-name", help="Name of the image to verify (overrides --python)."
 )
 option_keep_env_variables = click.option(
     "--keep-env-variables",
@@ -368,9 +363,11 @@ option_skip_db_tests = click.option(
     envvar="SKIP_DB_TESTS",
 )
 option_standalone_dag_processor = click.option(
-    "--standalone-dag-processor",
-    help="Run standalone dag processor for start-airflow.",
+    "--standalone-dag-processor/--no-standalone-dag-processor",
     is_flag=True,
+    default=True,
+    show_default=True,
+    help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
 option_upgrade_boto = click.option(
@@ -435,4 +432,11 @@ option_version_suffix_for_pypi = click.option(
     help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
     envvar="VERSION_SUFFIX_FOR_PYPI",
     default="",
+)
+option_platform_single = click.option(
+    "--platform",
+    help="Platform for Airflow image.",
+    default=DOCKER_DEFAULT_PLATFORM if not generating_command_images() else SINGLE_PLATFORMS[0],
+    envvar="PLATFORM",
+    type=BetterChoice(SINGLE_PLATFORMS),
 )

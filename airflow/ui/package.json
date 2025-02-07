@@ -22,6 +22,7 @@
     "@emotion/react": "^11.13.3",
     "@tanstack/react-query": "^5.52.1",
     "@tanstack/react-table": "^8.20.1",
+    "@types/debounce-promise": "^3.1.9",
     "@uiw/codemirror-themes-all": "^4.23.5",
     "@uiw/react-codemirror": "^4.23.5",
     "@visx/group": "^3.12.0",
@@ -31,18 +32,23 @@
     "chakra-react-select": "6.0.0-next.2",
     "chart.js": "^4.4.6",
     "dayjs": "^1.11.13",
+    "debounce-promise": "^3.1.2",
     "elkjs": "^0.9.3",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.20.0",
+    "react-hotkeys-hook": "^4.6.1",
     "react-icons": "^5.4.0",
+    "react-json-view": "^1.21.3",
     "react-markdown": "^9.0.1",
     "react-router-dom": "^6.26.2",
     "react-syntax-highlighter": "^15.5.6",
+    "remark-gfm": "^4.0.0",
     "use-debounce": "^10.0.3",
-    "usehooks-ts": "^3.1.0"
+    "usehooks-ts": "^3.1.0",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^1.6.0",
@@ -70,12 +76,13 @@
     "eslint-plugin-unicorn": "^55.0.0",
     "globals": "^15.9.0",
     "happy-dom": "^15.10.2",
+    "msw": "^2.7.0",
     "prettier": "^3.3.3",
     "typescript": "~5.5.4",
     "typescript-eslint": "^8.5.0",
-    "vite": "^5.4.6",
+    "vite": "^5.4.12",
     "vite-plugin-css-injected-by-js": "^3.5.2",
-    "vitest": "^2.1.1",
+    "vitest": "^2.1.9",
     "web-worker": "^1.3.0"
   }
 }

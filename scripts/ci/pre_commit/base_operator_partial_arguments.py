@@ -28,7 +28,9 @@ ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]
 
 BASEOPERATOR_PY = ROOT_DIR.joinpath("airflow", "models", "baseoperator.py")
 SDK_BASEOPERATOR_PY = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "definitions", "baseoperator.py")
-MAPPEDOPERATOR_PY = ROOT_DIR.joinpath("airflow", "models", "mappedoperator.py")
+SDK_MAPPEDOPERATOR_PY = ROOT_DIR.joinpath(
+    "task_sdk", "src", "airflow", "sdk", "definitions", "mappedoperator.py"
+)
 
 IGNORED = {
     # These are only used in the worker and thus mappable.
@@ -72,7 +74,7 @@ IGNORED = {
 
 BO_MOD = ast.parse(BASEOPERATOR_PY.read_text("utf-8"), str(BASEOPERATOR_PY))
 SDK_BO_MOD = ast.parse(SDK_BASEOPERATOR_PY.read_text("utf-8"), str(SDK_BASEOPERATOR_PY))
-MO_MOD = ast.parse(MAPPEDOPERATOR_PY.read_text("utf-8"), str(MAPPEDOPERATOR_PY))
+SDK_MO_MOD = ast.parse(SDK_MAPPEDOPERATOR_PY.read_text("utf-8"), str(SDK_MAPPEDOPERATOR_PY))
 
 # TODO: Task-SDK: Look at the BaseOperator init functions in both airflow.models.baseoperator and combine
 # them, until we fully remove BaseOperator class from core.
@@ -100,19 +102,19 @@ SDK_BO_INIT = next(
 )
 
 # We now define the signature in a type checking block, the runtime impl uses **kwargs
-BO_TYPE_CHECKING_BLOCKS = (
+SDK_BO_TYPE_CHECKING_BLOCKS = (
     node
-    for node in ast.iter_child_nodes(BO_MOD)
+    for node in ast.iter_child_nodes(SDK_BO_MOD)
     if isinstance(node, ast.If) and node.test.id == "TYPE_CHECKING"  # type: ignore[attr-defined]
 )
 BO_PARTIAL = next(
     node
-    for node in itertools.chain.from_iterable(map(ast.iter_child_nodes, BO_TYPE_CHECKING_BLOCKS))
+    for node in itertools.chain.from_iterable(map(ast.iter_child_nodes, SDK_BO_TYPE_CHECKING_BLOCKS))
     if isinstance(node, ast.FunctionDef) and node.name == "partial"
 )
 MO_CLS = next(
     node
-    for node in ast.iter_child_nodes(MO_MOD)
+    for node in ast.iter_child_nodes(SDK_MO_MOD)
     if isinstance(node, ast.ClassDef) and node.name == "MappedOperator"
 )
 

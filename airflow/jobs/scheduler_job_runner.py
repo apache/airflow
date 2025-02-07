@@ -30,18 +30,16 @@ from contextlib import ExitStack, suppress
 from datetime import timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 from deprecated import deprecated
-from sqlalchemy import and_, delete, exists, func, not_, select, text, update
+from sqlalchemy import and_, delete, exists, func, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
+from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
-from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import workloads
@@ -77,12 +75,7 @@ from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import (
-    is_lock_not_available_error,
-    prohibit_commit,
-    tuple_in_condition,
-    with_row_locks,
-)
+from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, with_row_locks
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -93,7 +86,6 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Query, Session
 
-    from airflow.dag_processing.manager import DagFileProcessorAgent
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.sqlalchemy import (
@@ -156,8 +148,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     If so, it creates appropriate TaskInstances and sends run commands to the
     executor. It does this for each task in each DAG and repeats.
 
-    :param subdir: directory containing Python files with Airflow DAG
-        definitions, or a specific path to a file
     :param num_runs: The number of times to run the scheduling loop. If you
         have a large number of DAG files this could complete before each file
         has been parsed. -1 for unlimited times.
@@ -173,14 +163,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def __init__(
         self,
         job: Job,
-        subdir: str = settings.DAGS_FOLDER,
         num_runs: int = conf.getint("scheduler", "num_runs"),
         num_times_parse_dags: int = -1,
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
         log: logging.Logger | None = None,
     ):
         super().__init__(job)
-        self.subdir = subdir
         self.num_runs = num_runs
         # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
         # number of times. This is only to support testing, and isn't something a user is likely to want to
@@ -189,7 +177,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint("scheduler", "scheduler_zombie_task_threshold")
-        self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
@@ -209,10 +196,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if log:
             self._log = log
 
-        # Dag Processor agent - not used in Dag Processor standalone mode.
-        self.processor_agent: DagFileProcessorAgent | None = None
-
-        self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
+        self.dagbag = DagBag(read_dags_from_db=True, load_op_links=False)
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -236,7 +220,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return resetter
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
-        """Clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
             return
@@ -247,8 +230,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             tracemalloc.stop()
 
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
-        if self.processor_agent:
-            self.processor_agent.end()
         sys.exit(os.EX_OK)
 
     def _log_memory_usage(self, signum: int, frame: FrameType | None) -> None:
@@ -357,28 +338,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .join(TI.dag_run)
                 .where(DR.state == DagRunState.RUNNING)
                 .join(TI.dag_model)
-                .where(not_(DM.is_paused))
+                .where(~DM.is_paused)
                 .where(TI.state == TaskInstanceState.SCHEDULED)
                 .options(selectinload(TI.dag_model))
                 .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
             )
 
             if starved_pools:
-                query = query.where(not_(TI.pool.in_(starved_pools)))
+                query = query.where(TI.pool.not_in(starved_pools))
 
             if starved_dags:
-                query = query.where(not_(TI.dag_id.in_(starved_dags)))
+                query = query.where(TI.dag_id.not_in(starved_dags))
 
             if starved_tasks:
-                task_filter = tuple_in_condition((TI.dag_id, TI.task_id), starved_tasks)
-                query = query.where(not_(task_filter))
+                query = query.where(tuple_(TI.dag_id, TI.task_id).not_in(starved_tasks))
 
             if starved_tasks_task_dagrun_concurrency:
-                task_filter = tuple_in_condition(
-                    (TI.dag_id, TI.run_id, TI.task_id),
-                    starved_tasks_task_dagrun_concurrency,
+                query = query.where(
+                    tuple_(TI.dag_id, TI.run_id, TI.task_id).not_in(starved_tasks_task_dagrun_concurrency)
                 )
-                query = query.where(not_(task_filter))
 
             query = query.limit(max_tis)
 
@@ -658,7 +636,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Has a real queue_activity implemented
             if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
                 workload = workloads.ExecuteTask.make(ti)
-                executor.queue_workload(workload)
+                executor.queue_workload(workload, session=session)
                 continue
 
             command = ti.command_as_list(
@@ -739,9 +717,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.bulk_save_objects(objects=objects, preserve_order=False)
 
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
-        if not self._standalone_dag_processor and not self.processor_agent:
-            raise ValueError("Processor agent is not started.")
-
         return SchedulerJobRunner.process_executor_events(
             executor=executor, dag_bag=self.dagbag, job_id=self.job.id, session=session
         )
@@ -781,7 +756,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
-        query = select(TI).where(filter_for_tis).options(selectinload(TI.dag_model))
+        query = (
+            select(TI)
+            .where(filter_for_tis)
+            .options(selectinload(TI.dag_model))
+            .options(joinedload(TI.dag_version))
+        )
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
         tis_query: Query = with_row_locks(query, of=TI, session=session, skip_locked=True)
@@ -800,7 +780,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor=%s, executor_state=%s, try_number=%s, max_tries=%s, "
-                "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
+                "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, scheduled_dttm=%s,"
                 "queued_by_job_id=%s, pid=%s"
             )
             cls.logger().info(
@@ -822,6 +802,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.priority_weight,
                 ti.operator,
                 ti.queued_dttm,
+                ti.scheduled_dttm,
                 ti.queued_by_job_id,
                 ti.pid,
             )
@@ -861,7 +842,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 if info is not None:
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
-                cls.logger().error(msg)
                 session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
 
                 # Get task from the Serialized DAG
@@ -874,11 +854,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
                 ti.task = task
                 if task.on_retry_callback or task.on_failure_callback:
+                    # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
+                    # too, which would lead to double logging
+                    cls.logger().error(msg)
                     request = TaskCallbackRequest(
-                        full_filepath=ti.dag_model.fileloc,
+                        filepath=ti.dag_model.relative_fileloc,
+                        bundle_name=ti.dag_version.bundle_name,
+                        bundle_version=ti.dag_version.bundle_version,
                         ti=ti,
                         msg=msg,
-                        processor_subdir=ti.dag_model.processor_subdir,
                     )
                     executor.send_callback(request)
                 else:
@@ -919,60 +903,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
 
     def _execute(self) -> int | None:
-        from airflow.dag_processing.manager import DagFileProcessorAgent
-
         self.log.info("Starting the scheduler")
 
         executor_class, _ = ExecutorLoader.import_default_executor_cls()
 
         self.log.info("Processing each file at most %s times", self.num_times_parse_dags)
 
-        processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
-        processor_timeout = timedelta(seconds=processor_timeout_seconds)
-        if not self._standalone_dag_processor and not self.processor_agent:
-            self.processor_agent = DagFileProcessorAgent(
-                dag_directory=Path(self.subdir),
-                max_runs=self.num_times_parse_dags,
-                processor_timeout=processor_timeout,
-            )
-
         reset_signals = self.register_signals()
         try:
-            callback_sink: PipeCallbackSink | DatabaseCallbackSink
+            callback_sink: DatabaseCallbackSink
 
-            if self.processor_agent:
-                self.log.debug("Using PipeCallbackSink as callback sink.")
-                callback_sink = PipeCallbackSink(get_sink_pipe=self.processor_agent.get_callbacks_pipe)
-            else:
-                from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+            from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 
-                self.log.debug("Using DatabaseCallbackSink as callback sink.")
-                callback_sink = DatabaseCallbackSink()
+            self.log.debug("Using DatabaseCallbackSink as callback sink.")
+            callback_sink = DatabaseCallbackSink()
 
             for executor in self.job.executors:
                 executor.job_id = self.job.id
                 executor.callback_sink = callback_sink
                 executor.start()
 
-            if self.processor_agent:
-                self.processor_agent.start()
-
-            execute_start_time = timezone.utcnow()
-
             self._run_scheduler_loop()
-
-            if self.processor_agent:
-                # Stop any processors
-                self.processor_agent.terminate()
-
-                # Verify that all files were processed, and if so, deactivate DAGs that
-                # haven't been touched by the scheduler as they likely have been
-                # deleted.
-                if self.processor_agent.all_files_processed:
-                    self.log.info(
-                        "Deactivating DAGs that haven't been touched since %s", execute_start_time.isoformat()
-                    )
-                    DAG.deactivate_stale_dags(execute_start_time)
 
             settings.Session.remove()  # type: ignore
         except Exception:
@@ -984,11 +935,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     executor.end()
                 except Exception:
                     self.log.exception("Exception when executing Executor.end on %s", executor)
-            if self.processor_agent:
-                try:
-                    self.processor_agent.end()
-                except Exception:
-                    self.log.exception("Exception when executing DagFileProcessorAgent.end")
 
             # Under normal execution, this doesn't metter, but by resetting signals it lets us run more things
             # in the same process under testing without leaking global state
@@ -1033,8 +979,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 #. Execute queued tasks in executor asynchronously
                 #. Sync on the states of running tasks
         """
-        if not self.processor_agent and not self._standalone_dag_processor:
-            raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean("core", "unit_test_mode")
 
         timers = EventScheduler()
@@ -1079,11 +1023,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._update_asset_orphanage,
         )
 
-        if self._standalone_dag_processor:
-            timers.call_regular_interval(
-                conf.getfloat("scheduler", "parsing_cleanup_interval"),
-                self._cleanup_stale_dags,
-            )
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"),
+            self._cleanup_stale_dags,
+        )
 
         for loop_count in itertools.count(start=1):
             with (
@@ -1125,9 +1068,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     except Exception:
                         self.log.exception("Something went wrong when trying to save task event logs.")
 
-                if self.processor_agent:
-                    self.processor_agent.heartbeat()
-
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(
                     job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
@@ -1160,16 +1100,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 if span.is_recording():
                     span.add_event("Exiting scheduler loop as requested number of runs has been reached")
-                break
-            if self.processor_agent and self.processor_agent.done:
-                self.log.info(
-                    "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d"
-                    " scheduler loops",
-                    self.num_times_parse_dags,
-                    loop_count,
-                )
-                if span.is_recording():
-                    span.add_event("Exiting scheduler loop as requested DAG parse count has been reached")
                 break
 
     def _do_scheduling(self, session: Session) -> int:
@@ -1224,8 +1154,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for dag_run, callback_to_run in callback_tuples:
             dag = cached_get_dag(dag_run.dag_id)
             if dag:
-                # Sending callbacks there as in standalone_dag_processor they are adding to the database,
-                # so it must be done outside of prohibit_commit.
+                # Sending callbacks to the database, so it must be done outside of prohibit_commit.
                 self._send_dag_callbacks_to_processor(dag, callback_to_run)
             else:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
@@ -1315,9 +1244,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         existing_dagruns = (
             session.execute(
                 select(DagRun.dag_id, DagRun.logical_date).where(
-                    tuple_in_condition(
-                        (DagRun.dag_id, DagRun.logical_date),
-                        ((dm.dag_id, dm.next_dagrun) for dm in dag_models),
+                    tuple_(DagRun.dag_id, DagRun.logical_date).in_(
+                        (dm.dag_id, dm.next_dagrun) for dm in dag_models
                     ),
                 )
             )
@@ -1356,15 +1284,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
                 try:
                     dag.create_dagrun(
-                        run_type=DagRunType.SCHEDULED,
+                        run_id=dag.timetable.generate_run_id(
+                            run_type=DagRunType.SCHEDULED,
+                            logical_date=dag_model.next_dagrun,
+                            data_interval=data_interval,
+                        ),
                         logical_date=dag_model.next_dagrun,
-                        state=DagRunState.QUEUED,
                         data_interval=data_interval,
-                        external_trigger=False,
-                        session=session,
-                        dag_version=latest_dag_version,
-                        creating_job_id=self.job.id,
+                        run_after=dag_model.next_dagrun_create_after,
+                        run_type=DagRunType.SCHEDULED,
                         triggered_by=DagRunTriggeredByType.TIMETABLE,
+                        dag_version=latest_dag_version,
+                        state=DagRunState.QUEUED,
+                        creating_job_id=self.job.id,
+                        session=session,
                     )
                     active_runs_of_dags[dag.dag_id] += 1
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
@@ -1403,7 +1336,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
             session.execute(
                 select(DagRun.dag_id, DagRun.logical_date).where(
-                    tuple_in_condition((DagRun.dag_id, DagRun.logical_date), logical_dates.items())
+                    tuple_(DagRun.dag_id, DagRun.logical_date).in_(logical_dates.items())
                 )
             )
         )
@@ -1460,25 +1393,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ).all()
 
                 data_interval = dag.timetable.data_interval_for_events(logical_date, asset_events)
-                run_id = dag.timetable.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED,
-                    logical_date=logical_date,
-                    data_interval=data_interval,
-                    session=session,
-                    events=asset_events,
-                )
-
                 dag_run = dag.create_dagrun(
-                    run_id=run_id,
-                    run_type=DagRunType.ASSET_TRIGGERED,
+                    run_id=dag.timetable.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED,
+                        logical_date=logical_date,
+                        data_interval=data_interval,
+                        session=session,
+                        events=asset_events,
+                    ),
                     logical_date=logical_date,
                     data_interval=data_interval,
-                    state=DagRunState.QUEUED,
-                    external_trigger=False,
-                    session=session,
-                    dag_version=latest_dag_version,
-                    creating_job_id=self.job.id,
+                    run_after=max(logical_dates.values()),
+                    run_type=DagRunType.ASSET_TRIGGERED,
                     triggered_by=DagRunTriggeredByType.ASSET,
+                    dag_version=latest_dag_version,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
                 )
                 Stats.incr("asset.triggered_dagruns")
                 dag_run.consumed_asset_events.extend(asset_events)
@@ -1703,11 +1634,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
 
                 callback_to_execute = DagCallbackRequest(
-                    full_filepath=dag.fileloc,
+                    filepath=dag_model.relative_fileloc,
                     dag_id=dag.dag_id,
                     run_id=dag_run.run_id,
+                    bundle_name=dag_model.bundle_name,
+                    bundle_version=dag_run.bundle_version,
                     is_failure_callback=True,
-                    processor_subdir=dag_model.processor_subdir,
                     msg="timed_out",
                 )
 
@@ -1890,6 +1822,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .values(
                 state=TaskInstanceState.SCHEDULED,
                 queued_dttm=None,
+                scheduled_dttm=timezone.utcnow(),
             )
             .execution_options(synchronize_session=False)
         )
@@ -2044,6 +1977,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         state=TaskInstanceState.SCHEDULED,
                         next_method=TRIGGER_FAIL_REPR,
                         next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                        scheduled_dttm=timezone.utcnow(),
                         trigger_id=None,
                     )
                 ).rowcount
@@ -2066,11 +2000,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if zombies := self._find_zombies(session=session):
                 self._purge_zombies(zombies, session=session)
 
-    def _find_zombies(self, *, session: Session) -> list[tuple[TI, str, str]]:
+    def _find_zombies(self, *, session: Session) -> list[TI]:
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-        zombies = session.execute(
-            select(TI, DM.fileloc, DM.processor_subdir)
+        zombies = session.scalars(
+            select(TI)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)
             .where(
@@ -2083,12 +2017,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.warning("Failing %s TIs without heartbeat after %s", len(zombies), limit_dttm)
         return zombies
 
-    def _purge_zombies(self, zombies: list[tuple[TI, str, str]], *, session: Session) -> None:
-        for ti, file_loc, processor_subdir in zombies:
+    def _purge_zombies(self, zombies: list[TI], *, session: Session) -> None:
+        for ti in zombies:
             zombie_message_details = self._generate_zombie_message_details(ti)
             request = TaskCallbackRequest(
-                full_filepath=file_loc,
-                processor_subdir=processor_subdir,
+                filepath=ti.dag_model.relative_fileloc,
+                bundle_name=ti.dag_version.bundle_name,
+                bundle_version=ti.dag_run.bundle_version,
                 ti=ti,
                 msg=str(zombie_message_details),
             )
@@ -2100,14 +2035,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
                         "seconds) and will be terminated. "
                         "See https://airflow.apache.org/docs/apache-airflow/"
-                        "stable/core-concepts/tasks.html#zombie-undead-tasks"
+                        "stable/core-concepts/tasks.html#zombie-tasks"
                     ),
                 )
             )
             self.log.error(
                 "Detected zombie job: %s "
                 "(See https://airflow.apache.org/docs/apache-airflow/"
-                "stable/core-concepts/tasks.html#zombie-undead-tasks)",
+                "stable/core-concepts/tasks.html#zombie-tasks)",
                 request,
             )
             self.job.executor.send_callback(request)
@@ -2143,7 +2078,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         In case one of DagProcessors is stopped (in case there are multiple of them
         for different dag folders), its dags are never marked as inactive.
-        Executed on schedule only if [scheduler]standalone_dag_processor is True.
+        TODO: AIP-66 Does it make sense to mark them as inactive just because the processor isn't running?
         """
         self.log.debug("Checking dags not parsed within last %s seconds.", self._dag_stale_not_seen_duration)
         limit_lpt = timezone.utcnow() - timedelta(seconds=self._dag_stale_not_seen_duration)
@@ -2191,7 +2126,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if assets:
             session.execute(
                 delete(AssetActive).where(
-                    tuple_in_condition((AssetActive.name, AssetActive.uri), ((a.name, a.uri) for a in assets))
+                    tuple_(AssetActive.name, AssetActive.uri).in_((a.name, a.uri) for a in assets)
                 )
             )
         Stats.gauge("asset.orphaned", len(assets))
@@ -2204,7 +2139,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         active_assets = set(
             session.execute(
                 select(AssetActive.name, AssetActive.uri).where(
-                    tuple_in_condition((AssetActive.name, AssetActive.uri), ((a.name, a.uri) for a in assets))
+                    tuple_(AssetActive.name, AssetActive.uri).in_((a.name, a.uri) for a in assets)
                 )
             )
         )

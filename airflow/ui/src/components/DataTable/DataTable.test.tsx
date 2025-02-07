@@ -67,7 +67,7 @@ describe("DataTable", () => {
     render(
       <DataTable
         columns={columns}
-        data={data}
+        data={[{ name: "John Doe" }]}
         initialState={{ pagination, sorting: [] }}
         onStateChange={onStateChange}
         total={2}
@@ -84,7 +84,7 @@ describe("DataTable", () => {
     render(
       <DataTable
         columns={columns}
-        data={data}
+        data={[{ name: "John Doe" }]}
         initialState={{
           pagination: { pageIndex: 0, pageSize: 10 },
           sorting: [],
@@ -98,6 +98,24 @@ describe("DataTable", () => {
     );
 
     expect(screen.getByTestId("next")).toBeDisabled();
+  });
+
+  it("renders no pagination when not needed", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        initialState={{ pagination, sorting: [] }}
+        onStateChange={onStateChange}
+        total={2}
+      />,
+      {
+        wrapper: ChakraWrapper,
+      },
+    );
+
+    expect(screen.queryByTestId("prev")).toBeNull();
+    expect(screen.queryByTestId("next")).toBeNull();
   });
 
   it("when isLoading renders skeleton columns", () => {
@@ -117,17 +135,9 @@ describe("DataTable", () => {
   });
 
   it("displays cards if mode is card and there is cardDef", () => {
-    render(
-      <DataTable
-        cardDef={cardDef}
-        columns={columns}
-        data={data}
-        displayMode="card"
-      />,
-      {
-        wrapper: ChakraWrapper,
-      },
-    );
+    render(<DataTable cardDef={cardDef} columns={columns} data={data} displayMode="card" />, {
+      wrapper: ChakraWrapper,
+    });
 
     expect(screen.getByText("My name is John Doe.")).toBeInTheDocument();
   });

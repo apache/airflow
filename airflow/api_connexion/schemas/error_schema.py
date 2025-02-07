@@ -35,6 +35,7 @@ class ImportErrorSchema(SQLAlchemySchema):
     import_error_id = auto_field("id", dump_only=True)
     timestamp = auto_field(format="iso", dump_only=True)
     filename = auto_field(dump_only=True)
+    bundle_name = auto_field(dump_only=True)
     stack_trace = auto_field("stacktrace", dump_only=True)
 
 

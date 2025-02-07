@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.sdk.definitions.mixins import DependencyMixin
+from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
@@ -71,7 +71,7 @@ class EdgeModifier(DependencyMixin):
         stream: list[DependencyMixin],
     ):
         from airflow.models.xcom_arg import XComArg
-        from airflow.sdk.definitions.node import DAGNode
+        from airflow.sdk.definitions._internal.node import DAGNode
         from airflow.sdk.definitions.taskgroup import TaskGroup
 
         for node in self._make_list(nodes):
@@ -93,7 +93,7 @@ class EdgeModifier(DependencyMixin):
         convert them to TaskGroups
         """
         from airflow.models.xcom_arg import XComArg
-        from airflow.sdk.definitions.node import DAGNode
+        from airflow.sdk.definitions._internal.node import DAGNode
         from airflow.sdk.definitions.taskgroup import TaskGroup
 
         group_ids = set()
@@ -118,7 +118,7 @@ class EdgeModifier(DependencyMixin):
             self._downstream = self._convert_stream_to_task_groups(self._downstream)
 
     def _convert_stream_to_task_groups(self, stream: Sequence[DependencyMixin]) -> Sequence[DependencyMixin]:
-        from airflow.sdk.definitions.node import DAGNode
+        from airflow.sdk.definitions._internal.node import DAGNode
 
         return [
             node.task_group

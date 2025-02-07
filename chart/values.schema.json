@@ -657,7 +657,7 @@
             }
         },
         "airflowLocalSettings": {
-            "description": "`airflow_local_settings` file as a string (can be templated).",
+            "description": "`airflow_local_settings` file as a string (templated).",
             "type": [
                 "string",
                 "null"
@@ -887,7 +887,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2024.09.19-1.22.1"
+                            "default": "airflow-pgbouncer-2025.01.10-1.24.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -1093,11 +1093,16 @@
                     "description": "Enable ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` variable to be read from the Elasticsearch Host Secret - Airflow <1.10.4 variant",
                     "type": "boolean",
                     "default": true
+                },
+                "AIRFLOW__OPENSEARCH__HOST": {
+                    "description": "Enable ``AIRFLOW__OPENSEARCH__HOST`` variable to be read from the OpenSearch Host Secret",
+                    "type": "boolean",
+                    "default": true
                 }
             }
         },
         "extraEnv": {
-            "description": "Extra env 'items' that will be added to the definition of Airflow containers; a string is expected (can be templated).",
+            "description": "Extra env 'items' that will be added to the definition of Airflow containers; a string is expected (templated).",
             "type": [
                 "null",
                 "string"
@@ -1109,7 +1114,7 @@
             ]
         },
         "extraEnvFrom": {
-            "description": "Extra envFrom 'items' that will be added to the definition of Airflow containers; a string is expected (can be templated).",
+            "description": "Extra envFrom 'items' that will be added to the definition of Airflow containers; a string is expected (templated).",
             "type": [
                 "null",
                 "string"
@@ -1163,7 +1168,7 @@
             "x-docsSection": "Kubernetes",
             "default": {},
             "additionalProperties": {
-                "description": "Name of the secret (can be templated).",
+                "description": "Name of the secret (templated).",
                 "type": "object",
                 "minProperties": 1,
                 "additionalProperties": false,
@@ -1194,11 +1199,11 @@
                         "default": true
                     },
                     "data": {
-                        "description": "Content **as string** for the 'data' item of the secret (can be templated)",
+                        "description": "Content **as string** for the 'data' item of the secret (templated)",
                         "type": "string"
                     },
                     "stringData": {
-                        "description": "Content **as string** for the 'stringData' item of the secret (can be templated)",
+                        "description": "Content **as string** for the 'stringData' item of the secret (templated)",
                         "type": "string"
                     }
                 }
@@ -1218,7 +1223,7 @@
             "x-docsSection": "Kubernetes",
             "default": {},
             "additionalProperties": {
-                "description": "Name of the configMap (can be templated).",
+                "description": "Name of the configMap (templated).",
                 "type": "object",
                 "minProperties": 1,
                 "additionalProperties": false,
@@ -1245,7 +1250,7 @@
                         "default": true
                     },
                     "data": {
-                        "description": "Content **as string** for the 'data' item of the configmap (can be templated)",
+                        "description": "Content **as string** for the 'data' item of the configmap (templated)",
                         "type": "string"
                     }
                 }
@@ -1483,7 +1488,7 @@
                     "default": "airflow@FOO.COM"
                 },
                 "reinitFrequency": {
-                    "description": "How often (in seconds) airflow kerberos will reinitialize the credentials cache.",
+                    "description": "How often (in minutes) airflow kerberos will reinitialize the credentials cache.",
                     "type": "integer",
                     "default": 3600
                 },
@@ -1785,7 +1790,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -3156,7 +3161,7 @@
                             "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -3581,8 +3586,11 @@
             "properties": {
                 "enabled": {
                     "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
-                    "type": "boolean",
-                    "default": false
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
@@ -4668,8 +4676,8 @@
                 }
             }
         },
-        "apiServer": {
-            "description": "Airflow API server settings.",
+        "_apiServer": {
+            "description": "Airflow API server settings. Experimental / for dev purpose only.",
             "type": "object",
             "x-docsSection": "API Server",
             "additionalProperties": false,
@@ -4941,7 +4949,7 @@
                                     },
                                     "default": [
                                         {
-                                            "port": "{{ .Values.ports.apiServer }}"
+                                            "port": "{{ .Values.ports._apiServer }}"
                                         }
                                     ],
                                     "examples": [
@@ -5168,7 +5176,7 @@
                             "default": [
                                 {
                                     "name": "api-server",
-                                    "port": "{{ .Values.ports.apiServer }}"
+                                    "port": "{{ .Values.ports._apiServer }}"
                                 }
                             ],
                             "examples": [
@@ -5876,7 +5884,7 @@
                     }
                 },
                 "webserverConfig": {
-                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
+                    "description": "This string (templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
                     "type": [
                         "string",
                         "null"
@@ -6233,6 +6241,28 @@
                             "description": "Flower Readiness probe period seconds.",
                             "type": "integer",
                             "default": 5
+                        }
+                    }
+                },
+                "startupProbe": {
+                    "description": "Startup probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "timeoutSeconds": {
+                            "description": "Flower Startup probe timeout seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Flower Startup probe failure threshold.",
+                            "type": "integer",
+                            "default": 6
+                        },
+                        "periodSeconds": {
+                            "description": "Flower Startup probe period seconds.",
+                            "type": "integer",
+                            "default": 10
                         }
                     }
                 },
@@ -7021,6 +7051,14 @@
                         "additionalProperties": false
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the PgBouncer objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "enabled": {
                     "description": "Enable PgBouncer.",
                     "type": "boolean",
@@ -7075,6 +7113,12 @@
                         "type": "string"
                     },
                     "default": null
+                },
+                "mountConfigSecret": {
+                    "description": "Whether to mount the config secret files under `/etc/pgbouncer/` by default.",
+                    "type": "boolean",
+                    "x-docsSection": "Common",
+                    "default": true
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
@@ -7614,6 +7658,14 @@
                                     "default": 1
                                 }
                             }
+                        },
+                        "extraVolumeMounts": {
+                            "description": "Mount additional volumes into PgBouncer Metrics Exporter.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                            }
                         }
                     }
                 }
@@ -7684,7 +7736,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8044,6 +8096,69 @@
                 }
             }
         },
+        "opensearch": {
+            "description": "OpenSearch logging configuration.",
+            "type": "object",
+            "x-docsSection": "Airflow",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable OpenSearch task logging.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "secretName": {
+                    "description": "A secret containing the connection string.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "connection": {
+                    "description": "OpenSearch connection configuration.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": false,
+                    "properties": {
+                        "scheme": {
+                            "description": "Scheme",
+                            "type": "string",
+                            "default": "http"
+                        },
+                        "user": {
+                            "description": "Username",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "pass": {
+                            "description": "Password",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "host": {
+                            "description": "Host",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "port": {
+                            "description": "Port",
+                            "type": "number",
+                            "default": 80
+                        }
+                    },
+                    "examples": [
+                        {
+                            "scheme": "https",
+                            "user": "...",
+                            "pass": "...",
+                            "host": "...",
+                            "port": "..."
+                        }
+                    ]
+                }
+            }
+        },
         "ports": {
             "description": "All ports used by chart.",
             "type": "object",
@@ -8060,7 +8175,7 @@
                     "type": "integer",
                     "default": 8080
                 },
-                "apiServer": {
+                "_apiServer": {
                     "description": "API server port.",
                     "type": "integer",
                     "default": 9091
@@ -8553,7 +8668,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here.",
+                            "description": "If using a custom StorageClass, pass name here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8807,7 +8922,7 @@
                             ]
                         },
                         "envFrom": {
-                            "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (can be templated).",
+                            "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (templated).",
                             "type": [
                                 "null",
                                 "string"
@@ -8862,7 +8977,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here.",
+                            "description": "If using a custom StorageClass, pass name here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -12081,6 +12196,16 @@
                     "description": "Number of days to retain the logs when running the Airflow log groomer sidecar.",
                     "type": "integer",
                     "default": 15
+                },
+                "env": {
+                    "description": "Add additional env vars to log groomer sidecar container (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "x-kubernetes-patch-merge-key": "name",
+                    "x-kubernetes-patch-strategy": "merge"
                 },
                 "resources": {
                     "description": "Resources for Airflow log groomer sidecar.",

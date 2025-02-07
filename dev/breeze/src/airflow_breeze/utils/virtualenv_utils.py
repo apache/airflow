@@ -59,13 +59,9 @@ def create_venv(
     if not python_path.exists():
         get_console().print(f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n")
         sys.exit(1)
-    if check_if_cache_exists("use_uv"):
-        command = create_uv_command(python_path)
-    else:
-        command = create_pip_command(python_path)
     if pip_version:
         result = run_command(
-            [*command, "install", f"pip=={pip_version}", "-q"],
+            [python_path.as_posix(), "-m", "pip", "install", f"pip=={pip_version}", "-q"],
             check=False,
             capture_output=False,
             text=True,
@@ -78,7 +74,7 @@ def create_venv(
             sys.exit(result.returncode)
     if uv_version:
         result = run_command(
-            [*command, "install", f"uv=={uv_version}", "-q"],
+            [python_path.as_posix(), "-m", "pip", "install", f"uv=={uv_version}", "-q"],
             check=False,
             capture_output=False,
             text=True,
@@ -89,6 +85,10 @@ def create_venv(
                 f"{result.stdout}\n{result.stderr}"
             )
             sys.exit(result.returncode)
+    if check_if_cache_exists("use_uv"):
+        command = create_uv_command(python_path)
+    else:
+        command = create_pip_command(python_path)
     if requirements_file:
         requirements_file = Path(requirements_file).absolute().as_posix()
         result = run_command(

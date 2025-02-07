@@ -29,10 +29,10 @@ import pendulum
 from flask import after_this_request, request
 from pendulum.parsing.exceptions import ParserError
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.models import Log
-from airflow.utils.log import secrets_masker
+from airflow.sdk.execution_time import secrets_masker
 from airflow.utils.session import create_session
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 T = TypeVar("T", bound=Callable)
 
@@ -95,7 +95,7 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     user_display = get_auth_manager().get_user_display_name()
 
                 isAPIRequest = request.blueprint == "/api/v1"
-                hasJsonBody = request.headers.get("content-type") == "application/json" and request.json
+                hasJsonBody = "application/json" in request.headers.get("content-type", "") and request.json
 
                 fields_skip_logging = {
                     "csrf_token",

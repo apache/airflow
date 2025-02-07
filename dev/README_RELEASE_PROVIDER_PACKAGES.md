@@ -231,7 +231,8 @@ To set provider as removed do the following:
 First thing that release manager has to do is to change version of the provider to a target
 version. Each provider has a `provider.yaml` file that, among others, stores information
 about provider versions. When you attempt to release a provider you should update that
-information based on the changes for the provider, and its `CHANGELOG.rst`. It might be that
+information based on the changes for the provider, and its `CHANGELOG.rst` (or `changelog.rst` in the
+new provider's structure). It might be that
 `CHANGELOG.rst` already contains the right target version. This will be especially true if some
 changes in the provider add new features (then minor version is increased) or when the changes
 introduce backwards-incompatible, breaking change in the provider (then major version is

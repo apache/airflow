@@ -27,7 +27,7 @@ from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowException
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -65,7 +65,7 @@ class TestSkipMixin:
             logical_date=now,
             state=State.FAILED,
         )
-        SkipMixin().skip(dag_run=dag_run, tasks=tasks)
+        SkipMixin().skip(dag_id=dag_run.dag_id, run_id=dag_run.run_id, tasks=tasks)
 
         session.query(TI).filter(
             TI.dag_id == "dag",
@@ -77,7 +77,7 @@ class TestSkipMixin:
 
     def test_skip_none_tasks(self):
         session = Mock()
-        SkipMixin().skip(dag_run=None, tasks=[])
+        SkipMixin().skip(dag_id="test_dag", run_id="test_run", tasks=[])
         assert not session.query.called
         assert not session.commit.called
 
@@ -92,7 +92,7 @@ class TestSkipMixin:
         ],
         ids=["list-of-task-ids", "tuple-of-task-ids", "str-task-id", "None", "empty-list"],
     )
-    def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states):
+    def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states, session):
         with dag_maker(
             "dag_test_skip_all_except",
             serialized=True,
@@ -110,6 +110,8 @@ class TestSkipMixin:
 
         SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
 
+        session.expire_all()
+
         def get_state(ti):
             ti.refresh_from_db()
             return ti.state
@@ -118,6 +120,7 @@ class TestSkipMixin:
 
         assert executed_states == expected_states
 
+    @pytest.mark.need_serialized_dag
     def test_mapped_tasks_skip_all_except(self, dag_maker):
         with dag_maker("dag_test_skip_all_except") as dag:
 

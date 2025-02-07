@@ -22,7 +22,7 @@ import { MdOutlineHealthAndSafety } from "react-icons/md";
 import { useMonitorServiceGetHealth } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
-import { HealthTag } from "./HealthTag";
+import { HealthBadge } from "./HealthBadge";
 
 export const Health = () => {
   const { data, error, isLoading } = useMonitorServiceGetHealth();
@@ -37,25 +37,21 @@ export const Health = () => {
       </Flex>
       <ErrorAlert error={error} />
       <HStack alignItems="center" gap={2}>
-        <HealthTag
-          isLoading={isLoading}
-          status={data?.metadatabase.status}
-          title="MetaDatabase"
-        />
-        <HealthTag
+        <HealthBadge isLoading={isLoading} status={data?.metadatabase.status} title="MetaDatabase" />
+        <HealthBadge
           isLoading={isLoading}
           latestHeartbeat={data?.scheduler.latest_scheduler_heartbeat}
           status={data?.scheduler.status}
           title="Scheduler"
         />
-        <HealthTag
+        <HealthBadge
           isLoading={isLoading}
           latestHeartbeat={data?.triggerer.latest_triggerer_heartbeat}
           status={data?.triggerer.status}
           title="Triggerer"
         />
         {data?.dag_processor ? (
-          <HealthTag
+          <HealthBadge
             isLoading={isLoading}
             latestHeartbeat={data.dag_processor.latest_dag_processor_heartbeat}
             status={data.dag_processor.status}

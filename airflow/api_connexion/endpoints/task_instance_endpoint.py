@@ -19,7 +19,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from flask import g
 from marshmallow import ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.exc import MultipleResultsFound
@@ -47,6 +46,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.api_connexion.security import get_readable_dags
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun as DR
@@ -58,7 +58,6 @@ from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.www.decorators import action_logging
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -387,10 +386,10 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
             }
             for id in dag_ids
         ]
-        if not get_auth_manager().batch_is_authorized_dag(requests):
+        if not get_auth_manager().batch_is_authorized_dag(requests, user=get_auth_manager().get_user()):
             raise PermissionDenied(detail=f"User not allowed to access some of these DAGs: {list(dag_ids)}")
     else:
-        dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
+        dag_ids = get_auth_manager().get_permitted_dag_ids(user=get_auth_manager().get_user())
 
     states = _convert_ti_states(data["state"])
     base_query = select(TI).join(TI.dag_run)

@@ -321,7 +321,10 @@ class TestAirflowCommon:
                     "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
+                    # the following vars only appear if remote logging is set, so disabling them in this test is kind of a no-op
                     "AIRFLOW__ELASTICSEARCH__HOST": False,
+                    "AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST": False,
+                    "AIRFLOW__OPENSEARCH__HOST": False,
                 },
             },
             show_only=[

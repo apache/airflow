@@ -26,9 +26,7 @@ export type TimezoneContextType = {
   setSelectedTimezone: (timezone: string) => void;
 };
 
-export const TimezoneContext = createContext<TimezoneContextType | undefined>(
-  undefined,
-);
+export const TimezoneContext = createContext<TimezoneContextType | undefined>(undefined);
 
 const TIMEZONE_KEY = "timezone";
 
@@ -45,9 +43,5 @@ export const TimezoneProvider = ({ children }: PropsWithChildren) => {
     [selectedTimezone, setSelectedTimezone],
   );
 
-  return (
-    <TimezoneContext.Provider value={value}>
-      {children}
-    </TimezoneContext.Provider>
-  );
+  return <TimezoneContext.Provider value={value}>{children}</TimezoneContext.Provider>;
 };

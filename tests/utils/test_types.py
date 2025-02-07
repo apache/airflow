@@ -20,60 +20,42 @@ from datetime import timedelta
 
 import pytest
 
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-
-from tests.models import DEFAULT_DATE
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
 
-def test_runtype_enum_escape():
+def test_runtype_enum_escape(dag_maker, session):
     """
     Make sure DagRunType.SCHEDULE is converted to string 'scheduled' when
     referenced in DB query
     """
-    with create_session() as session:
-        dag = DAG(dag_id="test_enum_dags", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            state=State.RUNNING,
-            logical_date=DEFAULT_DATE,
-            start_date=DEFAULT_DATE,
-            session=session,
-            data_interval=data_interval,
-            **triggered_by_kwargs,
-        )
+    with dag_maker(dag_id="test_enum_dags", schedule=timedelta(days=1), session=session):
+        pass
+    dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        query = session.query(
-            DagRun.dag_id,
-            DagRun.state,
-            DagRun.run_type,
-        ).filter(
-            DagRun.dag_id == dag.dag_id,
-            # make sure enum value can be used in filter queries
-            DagRun.run_type == DagRunType.SCHEDULED,
-        )
-        assert str(query.statement.compile(compile_kwargs={"literal_binds": True})) == (
-            "SELECT dag_run.dag_id, dag_run.state, dag_run.run_type \n"
-            "FROM dag_run \n"
-            "WHERE dag_run.dag_id = 'test_enum_dags' AND dag_run.run_type = 'scheduled'"
-        )
+    query = session.query(
+        DagRun.dag_id,
+        DagRun.state,
+        DagRun.run_type,
+    ).filter(
+        DagRun.dag_id == "test_enum_dags",
+        # make sure enum value can be used in filter queries
+        DagRun.run_type == DagRunType.SCHEDULED,
+    )
+    assert str(query.statement.compile(compile_kwargs={"literal_binds": True})) == (
+        "SELECT dag_run.dag_id, dag_run.state, dag_run.run_type \n"
+        "FROM dag_run \n"
+        "WHERE dag_run.dag_id = 'test_enum_dags' AND dag_run.run_type = 'scheduled'"
+    )
 
-        rows = query.all()
-        assert len(rows) == 1
-        assert rows[0].dag_id == dag.dag_id
-        assert rows[0].state == State.RUNNING
-        # make sure value in db is stored as `scheduled`, not `DagRunType.SCHEDULED`
-        assert rows[0].run_type == "scheduled"
+    rows = query.all()
+    assert len(rows) == 1
+    assert rows[0].dag_id == "test_enum_dags"
+    assert rows[0].state == State.RUNNING
+    # make sure value in db is stored as `scheduled`, not `DagRunType.SCHEDULED`
+    assert rows[0].run_type == "scheduled"
 
-        session.rollback()
+    session.rollback()

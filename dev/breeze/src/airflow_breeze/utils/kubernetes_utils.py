@@ -33,7 +33,7 @@ from time import sleep
 from typing import Any, NamedTuple
 from urllib import request
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_ARCHITECTURES,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -51,7 +51,7 @@ from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_uv_command
 
-K8S_ENV_PATH = BUILD_CACHE_DIR / ".k8s-env"
+K8S_ENV_PATH = BUILD_CACHE_DIR / "k8s-env"
 K8S_CLUSTERS_PATH = BUILD_CACHE_DIR / ".k8s-clusters"
 K8S_BIN_BASE_PATH = K8S_ENV_PATH / "bin"
 KIND_BIN_PATH = K8S_BIN_BASE_PATH / "kind"
@@ -305,8 +305,10 @@ def _requirements_changed() -> bool:
 
 def _install_packages_in_k8s_virtualenv():
     if check_if_cache_exists("use_uv"):
+        get_console().print("[info]Using uv to install k8s env[/]")
         command = create_uv_command(PYTHON_BIN_PATH)
     else:
+        get_console().print("[info]Using pip to install k8s env[/]")
         command = create_pip_command(PYTHON_BIN_PATH)
     install_command_no_constraints = [
         *command,
@@ -334,7 +336,7 @@ def _install_packages_in_k8s_virtualenv():
             "--constraint",
             "https://raw.githubusercontent.com/"
             f"{APACHE_AIRFLOW_GITHUB_REPOSITORY}/"
-            f"constraints-{AIRFLOW_BRANCH}/constraints-{python_major_minor_version}.txt",
+            f"{DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH}/constraints-{python_major_minor_version}.txt",
         ],
     )
     install_packages_result = run_command(
@@ -406,7 +408,7 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
             f"{venv_command_result.stdout}\n{venv_command_result.stderr}"
         )
         return venv_command_result
-    get_console().print(f"[info]Reinstalling PIP version in {K8S_ENV_PATH}")
+    get_console().print(f"[info]Reinstalling pip=={PIP_VERSION} in {K8S_ENV_PATH}")
     command = create_pip_command(PYTHON_BIN_PATH)
     pip_reinstall_result = run_command(
         [*command, "install", f"pip=={PIP_VERSION}"],
@@ -419,6 +421,7 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
             f"{pip_reinstall_result.stdout}\n{pip_reinstall_result.stderr}"
         )
         return pip_reinstall_result
+    get_console().print(f"[info]Reinstalling uv=={UV_VERSION} in {K8S_ENV_PATH}")
     uv_reinstall_result = run_command(
         [*command, "install", f"uv=={UV_VERSION}"],
         check=False,

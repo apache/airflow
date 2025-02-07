@@ -143,8 +143,10 @@ class TestBaseChartTest:
             expected.update(
                 (
                     ("Deployment", "test-basic-api-server"),
+                    ("Deployment", "test-basic-dag-processor"),
                     ("Service", "test-basic-api-server"),
                     ("ServiceAccount", "test-basic-api-server"),
+                    ("ServiceAccount", "test-basic-dag-processor"),
                     ("Service", "test-basic-triggerer"),
                 )
             )

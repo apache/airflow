@@ -33,10 +33,10 @@ from setproctitle import setproctitle
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskReturnCode
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.settings import CAN_FORK
 from airflow.stats import Stats
 from airflow.utils.configuration import tmp_configuration_copy
-from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import IS_WINDOWS, getuser

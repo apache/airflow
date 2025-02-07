@@ -25,25 +25,17 @@ type ContentProps = {
   portalRef?: React.RefObject<HTMLElement>;
 } & ChakraDialog.ContentProps;
 
-export const Content = forwardRef<HTMLDivElement, ContentProps>(
-  (props, ref) => {
-    const {
-      backdrop = true,
-      children,
-      portalled = true,
-      portalRef,
-      ...rest
-    } = props;
+export const Content = forwardRef<HTMLDivElement, ContentProps>((props, ref) => {
+  const { backdrop = true, children, portalled = true, portalRef, ...rest } = props;
 
-    return (
-      <Portal container={portalRef} disabled={!portalled}>
-        {backdrop ? <ChakraDialog.Backdrop /> : undefined}
-        <ChakraDialog.Positioner>
-          <ChakraDialog.Content ref={ref} {...rest}>
-            {children}
-          </ChakraDialog.Content>
-        </ChakraDialog.Positioner>
-      </Portal>
-    );
-  },
-);
+  return (
+    <Portal container={portalRef} disabled={!portalled}>
+      {backdrop ? <ChakraDialog.Backdrop /> : undefined}
+      <ChakraDialog.Positioner>
+        <ChakraDialog.Content ref={ref} {...rest}>
+          {children}
+        </ChakraDialog.Content>
+      </ChakraDialog.Positioner>
+    </Portal>
+  );
+});

@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Union, overload
 
 import attrs
 
+from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.serialization.dag_dependency import DagDependency
 
 if TYPE_CHECKING:
@@ -36,17 +37,25 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.asset import AssetModel
+    from airflow.serialization.serialized_objects import SerializedAssetWatcher
     from airflow.triggers.base import BaseTrigger
+
+    AttrsInstance = attrs.AttrsInstance
+else:
+    AttrsInstance = object
 
 
 __all__ = [
     "Asset",
     "Dataset",
     "Model",
-    "AssetRef",
     "AssetAlias",
     "AssetAll",
     "AssetAny",
+    "AssetNameRef",
+    "AssetRef",
+    "AssetUriRef",
+    "AssetWatcher",
 ]
 
 
@@ -105,14 +114,8 @@ def normalize_noop(parts: SplitResult) -> SplitResult:
 def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | None:
     if scheme == "file":
         return normalize_noop
-    from packaging.version import Version
-
-    from airflow import __version__ as AIRFLOW_VERSION
     from airflow.providers_manager import ProvidersManager
 
-    AIRFLOW_V_2 = Version(AIRFLOW_VERSION).base_version < Version("3.0.0").base_version
-    if AIRFLOW_V_2:
-        return ProvidersManager().dataset_uri_handlers.get(scheme)  # type: ignore[attr-defined]
     return ProvidersManager().asset_uri_handlers.get(scheme)
 
 
@@ -230,13 +233,16 @@ class BaseAsset:
         """
         raise NotImplementedError
 
-    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
+    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
         raise NotImplementedError
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         raise NotImplementedError
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
+        raise NotImplementedError
+
+    def iter_asset_refs(self) -> Iterator[AssetRef]:
         raise NotImplementedError
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
@@ -246,6 +252,19 @@ class BaseAsset:
         :meta private:
         """
         raise NotImplementedError
+
+
+@attrs.define(frozen=True)
+class AssetWatcher:
+    """A representation of an asset watcher. The name uniquely identifies the watch."""
+
+    name: str
+    # This attribute serves double purpose.
+    # For a "normal" asset instance loaded from DAG, this holds the trigger used to monitor an external
+    # resource. In that case, ``AssetWatcher`` is used directly by users.
+    # For an asset recreated from a serialized DAG, this holds the serialized data of the trigger. In that
+    # case, `SerializedAssetWatcher` is used. We need to keep the two types to make mypy happy.
+    trigger: BaseTrigger | dict
 
 
 @attrs.define(init=False, unsafe_hash=False)
@@ -267,7 +286,7 @@ class Asset(os.PathLike, BaseAsset):
         factory=dict,
         converter=_set_extra_default,
     )
-    watchers: list[BaseTrigger] = attrs.field(
+    watchers: list[AssetWatcher | SerializedAssetWatcher] = attrs.field(
         factory=list,
     )
 
@@ -282,7 +301,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         group: str = ...,
         extra: dict | None = None,
-        watchers: list[BaseTrigger] = ...,
+        watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """Canonical; both name and uri are provided."""
 
@@ -293,7 +312,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         group: str = ...,
         extra: dict | None = None,
-        watchers: list[BaseTrigger] = ...,
+        watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
 
@@ -304,7 +323,7 @@ class Asset(os.PathLike, BaseAsset):
         uri: str,
         group: str = ...,
         extra: dict | None = None,
-        watchers: list[BaseTrigger] = ...,
+        watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
 
@@ -315,7 +334,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         group: str | None = None,
         extra: dict | None = None,
-        watchers: list[BaseTrigger] | None = None,
+        watchers: list[AssetWatcher | SerializedAssetWatcher] | None = None,
     ) -> None:
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
@@ -339,6 +358,24 @@ class Asset(os.PathLike, BaseAsset):
             kwargs["watchers"] = watchers
 
         self.__attrs_init__(name=name, uri=uri, **kwargs)
+
+    @overload
+    @staticmethod
+    def ref(*, name: str) -> AssetNameRef: ...
+
+    @overload
+    @staticmethod
+    def ref(*, uri: str) -> AssetUriRef: ...
+
+    @staticmethod
+    def ref(*, name: str = "", uri: str = "") -> AssetRef:
+        if name and uri:
+            raise TypeError("Asset reference must be made to either name or URI, not both")
+        if name:
+            return AssetNameRef(name)
+        if uri:
+            return AssetUriRef(uri)
+        raise TypeError("Asset reference expects keyword argument 'name' or 'uri'")
 
     def __fspath__(self) -> str:
         return self.uri
@@ -388,8 +425,11 @@ class Asset(os.PathLike, BaseAsset):
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         return iter(())
 
-    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
-        return statuses.get(self.uri, False)
+    def iter_asset_refs(self) -> Iterator[AssetRef]:
+        return iter(())
+
+    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
+        return statuses.get(AssetUniqueKey.from_asset(self), False)
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
@@ -404,12 +444,80 @@ class Asset(os.PathLike, BaseAsset):
             dependency_id=self.name,
         )
 
+    def asprofile(self) -> AssetProfile:
+        """
+        Profiles Asset to AssetProfile.
 
-@attrs.define(kw_only=True)
-class AssetRef:
-    """Reference to an asset."""
+        :meta private:
+        """
+        return AssetProfile(name=self.name or None, uri=self.uri or None, asset_type=Asset.__name__)
+
+
+class AssetRef(BaseAsset, AttrsInstance):
+    """
+    Reference to an asset.
+
+    This class is not intended to be instantiated directly. Call ``Asset.ref``
+    instead to create one of the subclasses.
+
+    :meta private:
+    """
+
+    def as_expression(self) -> Any:
+        return {"asset_ref": attrs.asdict(self)}
+
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
+        return iter(())
+
+    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
+        return iter(())
+
+    def iter_asset_refs(self) -> Iterator[AssetRef]:
+        yield self
+
+    def _resolve_asset(self, *, session: Session | None = None) -> Asset | None:
+        from airflow.models.asset import resolve_ref_to_asset
+        from airflow.utils.session import create_session
+
+        with contextlib.nullcontext(session) if session else create_session() as session:
+            asset = resolve_ref_to_asset(**attrs.asdict(self), session=session)
+        return asset.to_public() if asset else None
+
+    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
+        if asset := self._resolve_asset(session=session):
+            return asset.evaluate(statuses=statuses, session=session)
+        return False
+
+    def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
+        (dependency_id,) = attrs.astuple(self)
+        if asset := self._resolve_asset():
+            yield DagDependency(
+                source=f"asset-ref:{dependency_id}" if source else "asset",
+                target="asset" if source else f"asset-ref:{dependency_id}",
+                dependency_type="asset",
+                dependency_id=asset.name,
+            )
+        else:
+            yield DagDependency(
+                source=source or "asset-ref",
+                target=target or "asset-ref",
+                dependency_type="asset-ref",
+                dependency_id=dependency_id,
+            )
+
+
+@attrs.define(hash=True)
+class AssetNameRef(AssetRef):
+    """Name reference to an asset."""
 
     name: str
+
+
+@attrs.define(hash=True)
+class AssetUriRef(AssetRef):
+    """URI reference to an asset."""
+
+    uri: str
 
 
 class Dataset(Asset):
@@ -447,7 +555,7 @@ class AssetAlias(BaseAsset):
         """
         return {"alias": {"name": self.name, "group": self.group}}
 
-    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
+    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
         return any(x.evaluate(statuses=statuses, session=session) for x in self._resolve_assets(session))
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
@@ -455,6 +563,9 @@ class AssetAlias(BaseAsset):
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         yield self.name, self
+
+    def iter_asset_refs(self) -> Iterator[AssetRef]:
+        return iter(())
 
     def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         """
@@ -498,27 +609,20 @@ class _AssetBooleanCondition(BaseAsset):
             raise TypeError("expect asset expressions in condition")
         self.objects = objects
 
-    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
+    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses, session=session) for x in self.objects)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        seen: set[AssetUniqueKey] = set()  # We want to keep the first instance.
         for o in self.objects:
-            for k, v in o.iter_assets():
-                if k in seen:
-                    continue
-                yield k, v
-                seen.add(k)
+            yield from o.iter_assets()
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        """Filter asset aliases in the condition."""
-        seen: set[str] = set()  # We want to keep the first instance.
         for o in self.objects:
-            for k, v in o.iter_asset_aliases():
-                if k in seen:
-                    continue
-                yield k, v
-                seen.add(k)
+            yield from o.iter_asset_aliases()
+
+    def iter_asset_refs(self) -> Iterator[AssetRef]:
+        for o in self.objects:
+            yield from o.iter_asset_refs()
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
@@ -574,3 +678,12 @@ class AssetAll(_AssetBooleanCondition):
         :meta private:
         """
         return {"all": [o.as_expression() for o in self.objects]}
+
+
+@attrs.define
+class AssetAliasEvent:
+    """Representation of asset event to be triggered by an asset alias."""
+
+    source_alias_name: str
+    dest_asset_key: AssetUniqueKey
+    extra: dict[str, Any]

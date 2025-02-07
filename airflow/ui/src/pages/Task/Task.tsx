@@ -19,10 +19,7 @@
 import { LiaSlashSolid } from "react-icons/lia";
 import { useParams, Link as RouterLink } from "react-router-dom";
 
-import {
-  useDagServiceGetDagDetails,
-  useTaskServiceGetTask,
-} from "openapi/queries";
+import { useDagServiceGetDagDetails, useTaskServiceGetTask } from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
@@ -36,11 +33,7 @@ const tabs = [
 export const Task = () => {
   const { dagId = "", taskId = "" } = useParams();
 
-  const {
-    data: task,
-    error,
-    isLoading,
-  } = useTaskServiceGetTask({ dagId, taskId });
+  const { data: task, error, isLoading } = useTaskServiceGetTask({ dagId, taskId });
 
   const {
     data: dag,
@@ -57,20 +50,11 @@ export const Task = () => {
   ];
 
   return (
-    <DetailsLayout
-      dag={dag}
-      error={error ?? dagError}
-      isLoading={isLoading || isDagLoading}
-      tabs={tabs}
-    >
+    <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
       <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
         {links.map((link, index) => {
           if (index === links.length - 1) {
-            return (
-              <Breadcrumb.CurrentLink key={link.label}>
-                {link.label}
-              </Breadcrumb.CurrentLink>
-            );
+            return <Breadcrumb.CurrentLink key={link.label}>{link.label}</Breadcrumb.CurrentLink>;
           }
 
           return link.value === undefined ? (

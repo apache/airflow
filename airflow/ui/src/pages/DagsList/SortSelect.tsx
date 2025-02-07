@@ -22,9 +22,7 @@ import { Select } from "src/components/ui";
 import { dagSortOptions } from "src/constants/sortParams";
 
 type Props = {
-  readonly handleSortChange: ({
-    value,
-  }: SelectValueChangeDetails<Array<string>>) => void;
+  readonly handleSortChange: ({ value }: SelectValueChangeDetails<Array<string>>) => void;
   readonly orderBy?: string;
 };
 

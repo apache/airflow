@@ -26,32 +26,25 @@ export type SwitchProps = {
   trackLabel?: { off: React.ReactNode; on: React.ReactNode };
 } & ChakraSwitch.RootProps;
 
-export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
-  (props, ref) => {
-    const { children, inputProps, rootRef, thumbLabel, trackLabel, ...rest } =
-      props;
+export const Switch = forwardRef<HTMLInputElement, SwitchProps>((props, ref) => {
+  const { children, inputProps, rootRef, thumbLabel, trackLabel, ...rest } = props;
 
-    return (
-      <ChakraSwitch.Root ref={rootRef} {...rest}>
-        <ChakraSwitch.HiddenInput ref={ref} {...inputProps} />
-        <ChakraSwitch.Control>
-          <ChakraSwitch.Thumb>
-            {thumbLabel ? (
-              <ChakraSwitch.ThumbIndicator fallback={thumbLabel.off}>
-                {thumbLabel.on}
-              </ChakraSwitch.ThumbIndicator>
-            ) : undefined}
-          </ChakraSwitch.Thumb>
-          {trackLabel ? (
-            <ChakraSwitch.Indicator fallback={trackLabel.off}>
-              {trackLabel.on}
-            </ChakraSwitch.Indicator>
+  return (
+    <ChakraSwitch.Root ref={rootRef} {...rest}>
+      <ChakraSwitch.HiddenInput ref={ref} {...inputProps} />
+      <ChakraSwitch.Control>
+        <ChakraSwitch.Thumb>
+          {thumbLabel ? (
+            <ChakraSwitch.ThumbIndicator fallback={thumbLabel.off}>
+              {thumbLabel.on}
+            </ChakraSwitch.ThumbIndicator>
           ) : undefined}
-        </ChakraSwitch.Control>
-        {Boolean(children) && (
-          <ChakraSwitch.Label>{children}</ChakraSwitch.Label>
-        )}
-      </ChakraSwitch.Root>
-    );
-  },
-);
+        </ChakraSwitch.Thumb>
+        {trackLabel ? (
+          <ChakraSwitch.Indicator fallback={trackLabel.off}>{trackLabel.on}</ChakraSwitch.Indicator>
+        ) : undefined}
+      </ChakraSwitch.Control>
+      {Boolean(children) && <ChakraSwitch.Label>{children}</ChakraSwitch.Label>}
+    </ChakraSwitch.Root>
+  );
+});

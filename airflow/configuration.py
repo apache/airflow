@@ -48,7 +48,6 @@ from typing_extensions import overload
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.utils import yaml
-from airflow.utils.empty_set import _get_empty_set_for_configuration
 from airflow.utils.module_loading import import_string
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.weight_rule import WeightRule
@@ -187,7 +186,7 @@ class AirflowConfigParser(ConfigParser):
 
     This is a subclass of ConfigParser that supports defaults and deprecated options.
 
-    The defaults are stored in the ``_default_values ConfigParser. The configuration description keeps
+    The defaults are stored in the ``_default_values``. The configuration description keeps
     description of all the options available in Airflow (description follow config.yaml.schema).
 
     :param default_config: default configuration (in the form of ini file).
@@ -304,9 +303,7 @@ class AirflowConfigParser(ConfigParser):
     @functools.cached_property
     def sensitive_config_values(self) -> set[tuple[str, str]]:
         if self.configuration_description is None:
-            return (
-                _get_empty_set_for_configuration()
-            )  # we can't use set() here because set is defined below # ¯\_(ツ)_/¯
+            return set()
         flattened = {
             (s, k): item
             for s, s_c in self.configuration_description.items()
@@ -327,7 +324,9 @@ class AirflowConfigParser(ConfigParser):
     # A mapping of (new section, new option) -> (old section, old option, since_version).
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
-    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {}
+    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
+        ("dag_processor", "refresh_interval"): ("scheduler", "dag_dir_list_interval", "3.0"),
+    }
 
     # A mapping of new section -> (old section, since_version).
     deprecated_sections: dict[str, tuple[str, str]] = {}
@@ -390,7 +389,11 @@ class AirflowConfigParser(ConfigParser):
         ("core", "default_task_weight_rule"): sorted(WeightRule.all_weight_rules()),
         ("core", "dag_ignore_file_syntax"): ["regexp", "glob"],
         ("core", "mp_start_method"): multiprocessing.get_all_start_methods(),
-        ("scheduler", "file_parsing_sort_mode"): ["modified_time", "random_seeded_by_host", "alphabetical"],
+        ("dag_processor", "file_parsing_sort_mode"): [
+            "modified_time",
+            "random_seeded_by_host",
+            "alphabetical",
+        ],
         ("logging", "logging_level"): _available_logging_levels,
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
@@ -515,6 +518,8 @@ class AirflowConfigParser(ConfigParser):
         if example is not None and include_examples:
             if extra_spacing:
                 file.write("#\n")
+            example_lines = example.splitlines()
+            example = "\n# ".join(example_lines)
             file.write(f"# Example: {option} = {example}\n")
             needs_separation = True
         if include_sources and sources_dict:
@@ -553,6 +558,8 @@ class AirflowConfigParser(ConfigParser):
             file.write(f"# {option} = \n")
         else:
             if comment_out_everything:
+                value_lines = value.splitlines()
+                value = "\n# ".join(value_lines)
                 file.write(f"# {option} = {value}\n")
             else:
                 file.write(f"{option} = {value}\n")
@@ -775,7 +782,7 @@ class AirflowConfigParser(ConfigParser):
         )
 
     def mask_secrets(self):
-        from airflow.utils.log.secrets_masker import mask_secret
+        from airflow.sdk.execution_time.secrets_masker import mask_secret
 
         for section, key in self.sensitive_config_values:
             try:

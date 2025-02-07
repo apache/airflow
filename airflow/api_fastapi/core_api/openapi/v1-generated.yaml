@@ -93,6 +93,17 @@ paths:
           items:
             type: string
           title: Tags
+      - name: tags_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          title: Tags Match Mode
       - name: owners
         in: query
         required: false
@@ -218,14 +229,6 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: root
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Root
       - name: include_upstream
         in: query
         required: false
@@ -240,6 +243,14 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
       - name: external_dependencies
         in: query
         required: false
@@ -247,6 +258,14 @@ paths:
           type: boolean
           default: false
           title: External Dependencies
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       responses:
         '200':
           description: Successful Response
@@ -319,6 +338,122 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BackfillCollectionResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/grid/{dag_id}:
+    get:
+      tags:
+      - Grid
+      summary: Grid Data
+      description: Return grid data.
+      operationId: grid_data
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: include_upstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Upstream
+      - name: include_downstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Downstream
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Logical Date Lte
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GridResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -1365,6 +1500,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/backfills/dry_run:
+    post:
+      tags:
+      - Backfill
+      summary: Create Backfill Dry Run
+      operationId: create_backfill_dry_run
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackfillPostBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DryRunBackfillCollectionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/{connection_id}:
     delete:
       tags:
@@ -1621,44 +1805,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/connections/bulk:
-    post:
+    patch:
       tags:
       - Connection
-      summary: Post Connections
-      description: Create connection entry.
-      operationId: post_connections
+      summary: Bulk Connections
+      description: Bulk create, update, and delete connections.
+      operationId: bulk_connections
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConnectionBulkBody'
-        required: true
+              $ref: '#/components/schemas/BulkBody_ConnectionBody_'
       responses:
-        '201':
+        '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConnectionCollectionResponse'
+                $ref: '#/components/schemas/BulkResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '409':
-          description: Conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -1679,7 +1856,7 @@ paths:
         as some hook classes tries to find out the `conn` from their __init__ method
         & errors out if not found.
 
-        It also deletes the conn id env variable after the test.'
+        It also deletes the conn id env connection after the test.'
       operationId: test_connection
       requestBody:
         content:
@@ -1712,6 +1889,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/defaults:
+    post:
+      tags:
+      - Connection
+      summary: Create Default Connections
+      description: Create default connections.
+      operationId: create_default_connections
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -2395,6 +2594,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dagReports:
+    get:
+      tags:
+      - DagReport
+      summary: Get Dag Reports
+      description: Get DAG report.
+      operationId: get_dag_reports
+      parameters:
+      - name: subdir
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Subdir
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/config:
     get:
       tags:
@@ -2656,6 +2899,17 @@ paths:
           items:
             type: string
           title: Tags
+      - name: tags_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          title: Tags Match Mode
       - name: owners
         in: query
         required: false
@@ -2703,6 +2957,50 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: dag_run_start_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run Start Date Gte
+      - name: dag_run_start_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run Start Date Lte
+      - name: dag_run_end_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run End Date Gte
+      - name: dag_run_end_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run End Date Lte
+      - name: dag_run_state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Dag Run State
       - name: order_by
         in: query
         required: false
@@ -2776,6 +3074,17 @@ paths:
           items:
             type: string
           title: Tags
+      - name: tags_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          title: Tags Match Mode
       - name: owners
         in: query
         required: false
@@ -3296,6 +3605,13 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
       responses:
         '200':
           description: Successful Response
@@ -3802,6 +4118,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pool Name Pattern
       responses:
         '200':
           description: Successful Response
@@ -3844,7 +4168,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PoolPostBody'
+              $ref: '#/components/schemas/PoolBody'
       responses:
         '201':
           description: Successful Response
@@ -3876,44 +4200,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/pools/bulk:
-    post:
+    patch:
       tags:
       - Pool
-      summary: Post Pools
-      description: Create multiple pools.
-      operationId: post_pools
+      summary: Bulk Pools
+      description: Bulk create, update, and delete pools.
+      operationId: bulk_pools
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PoolPostBulkBody'
-        required: true
+              $ref: '#/components/schemas/BulkBody_PoolBody_'
       responses:
-        '201':
+        '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PoolCollectionResponse'
+                $ref: '#/components/schemas/BulkResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '409':
-          description: Conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -4063,6 +4380,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - XCom
+      summary: Update Xcom Entry
+      description: Update an existing XCom entry.
+      operationId: update_xcom_entry
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: xcom_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Xcom Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XComUpdateBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XComResponseNative'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     get:
       tags:
@@ -4132,7 +4523,75 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/XComCollection'
+                $ref: '#/components/schemas/XComCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - XCom
+      summary: Create Xcom Entry
+      description: Create an XCom entry.
+      operationId: create_xcom_entry
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XComCreateBody'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XComResponseNative'
         '401':
           content:
             application/json:
@@ -4224,7 +4683,7 @@ paths:
       tags:
       - Task Instance
       summary: Patch Task Instance
-      description: Update the state of a task instance.
+      description: Update a task instance.
       operationId: patch_task_instance
       parameters:
       - name: dag_id
@@ -4299,6 +4758,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -4451,6 +4916,14 @@ paths:
           items:
             type: string
           title: Executor
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Version Number
       - name: limit
         in: query
         required: false
@@ -4825,7 +5298,7 @@ paths:
       tags:
       - Task Instance
       summary: Patch Task Instance
-      description: Update the state of a task instance.
+      description: Update a task instance.
       operationId: patch_task_instance
       parameters:
       - name: dag_id
@@ -4899,6 +5372,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -5067,6 +5546,14 @@ paths:
           items:
             type: string
           title: Executor
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Version Number
       - name: limit
         in: query
         required: false
@@ -5344,7 +5831,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceReferenceCollectionResponse'
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
           content:
             application/json:
@@ -5357,6 +5844,177 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run:
+    patch:
+      tags:
+      - Task Instance
+      summary: Patch Task Instance Dry Run
+      description: Update a task instance dry_run mode.
+      operationId: patch_task_instance_dry_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInstanceBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run:
+    patch:
+      tags:
+      - Task Instance
+      summary: Patch Task Instance Dry Run
+      description: Update a task instance dry_run mode.
+      operationId: patch_task_instance_dry_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInstanceBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -5717,6 +6375,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VariableResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Variable
+      summary: Bulk Variables
+      description: Bulk create, update, and delete variables.
+      operationId: bulk_variables
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkBody_VariableBody_'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResponse'
         '401':
           content:
             application/json:
@@ -6098,6 +6799,21 @@ components:
         asset_id:
           type: integer
           title: Asset Id
+        uri:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        group:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group
         extra:
           anyOf:
           - type: object
@@ -6238,6 +6954,7 @@ components:
           type: integer
           title: Max Active Runs
           default: 10
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -6313,6 +7030,316 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
+    BulkAction:
+      type: string
+      enum:
+      - create
+      - delete
+      - update
+      title: BulkAction
+      description: Bulk Action to be performed on the used model.
+    BulkActionNotOnExistence:
+      type: string
+      enum:
+      - fail
+      - skip
+      title: BulkActionNotOnExistence
+      description: Bulk Action to be taken if the entity does not exist.
+    BulkActionOnExistence:
+      type: string
+      enum:
+      - fail
+      - skip
+      - overwrite
+      title: BulkActionOnExistence
+      description: Bulk Action to be taken if the entity already exists or not.
+    BulkActionResponse:
+      properties:
+        success:
+          items:
+            type: string
+          type: array
+          title: Success
+          description: A list of unique id/key representing successful operations.
+          default: []
+        errors:
+          items:
+            type: object
+          type: array
+          title: Errors
+          description: A list of errors encountered during the operation, each containing
+            details about the issue.
+          default: []
+      type: object
+      title: BulkActionResponse
+      description: 'Serializer for individual bulk action responses.
+
+
+        Represents the outcome of a single bulk operation (create, update, or delete).
+
+        The response includes a list of successful keys and any errors encountered
+        during the operation.
+
+        This structure helps users understand which key actions succeeded and which
+        failed.'
+    BulkBody_ConnectionBody_:
+      properties:
+        actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/BulkCreateAction_ConnectionBody_'
+            - $ref: '#/components/schemas/BulkUpdateAction_ConnectionBody_'
+            - $ref: '#/components/schemas/BulkDeleteAction_ConnectionBody_'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - actions
+      title: BulkBody[ConnectionBody]
+    BulkBody_PoolBody_:
+      properties:
+        actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/BulkCreateAction_PoolBody_'
+            - $ref: '#/components/schemas/BulkUpdateAction_PoolBody_'
+            - $ref: '#/components/schemas/BulkDeleteAction_PoolBody_'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - actions
+      title: BulkBody[PoolBody]
+    BulkBody_VariableBody_:
+      properties:
+        actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/BulkCreateAction_VariableBody_'
+            - $ref: '#/components/schemas/BulkUpdateAction_VariableBody_'
+            - $ref: '#/components/schemas/BulkDeleteAction_VariableBody_'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - actions
+      title: BulkBody[VariableBody]
+    BulkCreateAction_ConnectionBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/ConnectionBody'
+          type: array
+          title: Entities
+          description: A list of entities to be created.
+        action_on_existence:
+          $ref: '#/components/schemas/BulkActionOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkCreateAction[ConnectionBody]
+    BulkCreateAction_PoolBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/PoolBody'
+          type: array
+          title: Entities
+          description: A list of entities to be created.
+        action_on_existence:
+          $ref: '#/components/schemas/BulkActionOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkCreateAction[PoolBody]
+    BulkCreateAction_VariableBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/VariableBody'
+          type: array
+          title: Entities
+          description: A list of entities to be created.
+        action_on_existence:
+          $ref: '#/components/schemas/BulkActionOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkCreateAction[VariableBody]
+    BulkDeleteAction_ConnectionBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            type: string
+          type: array
+          title: Entities
+          description: A list of entity id/key to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteAction[ConnectionBody]
+    BulkDeleteAction_PoolBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            type: string
+          type: array
+          title: Entities
+          description: A list of entity id/key to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteAction[PoolBody]
+    BulkDeleteAction_VariableBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            type: string
+          type: array
+          title: Entities
+          description: A list of entity id/key to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteAction[VariableBody]
+    BulkResponse:
+      properties:
+        create:
+          anyOf:
+          - $ref: '#/components/schemas/BulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk create operation, including successful
+            keys and errors.
+        update:
+          anyOf:
+          - $ref: '#/components/schemas/BulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk update operation, including successful
+            keys and errors.
+        delete:
+          anyOf:
+          - $ref: '#/components/schemas/BulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk delete operation, including successful
+            keys and errors.
+      type: object
+      title: BulkResponse
+      description: 'Serializer for responses to bulk entity operations.
+
+
+        This represents the results of create, update, and delete actions performed
+        on entity in bulk.
+
+        Each action (if requested) is represented as a field containing details about
+        successful keys and any encountered errors.
+
+        Fields are populated in the response only if the respective action was part
+        of the request, else are set None.'
+    BulkUpdateAction_ConnectionBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/ConnectionBody'
+          type: array
+          title: Entities
+          description: A list of entities to be updated.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkUpdateAction[ConnectionBody]
+    BulkUpdateAction_PoolBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/PoolBody'
+          type: array
+          title: Entities
+          description: A list of entities to be updated.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkUpdateAction[PoolBody]
+    BulkUpdateAction_VariableBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/VariableBody'
+          type: array
+          title: Entities
+          description: A list of entities to be updated.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkUpdateAction[VariableBody]
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -6342,11 +7369,18 @@ components:
         reset_dag_runs:
           type: boolean
           title: Reset Dag Runs
-          default: false
+          default: true
         task_ids:
           anyOf:
           - items:
-              type: string
+              anyOf:
+              - type: string
+              - prefixItems:
+                - type: string
+                - type: integer
+                type: array
+                maxItems: 2
+                minItems: 2
             type: array
           - type: 'null'
           title: Task Ids
@@ -6371,6 +7405,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: ClearTaskInstancesBody
       description: Request body for Clear Task Instances endpoint.
@@ -6381,6 +7416,7 @@ components:
             $ref: '#/components/schemas/ConfigSection'
           type: array
           title: Sections
+      additionalProperties: false
       type: object
       required:
       - sections
@@ -6401,6 +7437,7 @@ components:
             maxItems: 2
             minItems: 2
           title: Value
+      additionalProperties: false
       type: object
       required:
       - key
@@ -6503,6 +7540,7 @@ components:
             $ref: '#/components/schemas/ConfigOption'
           type: array
           title: Options
+      additionalProperties: false
       type: object
       required:
       - name
@@ -6554,24 +7592,13 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+      additionalProperties: false
       type: object
       required:
       - connection_id
       - conn_type
       title: ConnectionBody
       description: Connection Serializer for requests body.
-    ConnectionBulkBody:
-      properties:
-        connections:
-          items:
-            $ref: '#/components/schemas/ConnectionBody'
-          type: array
-          title: Connections
-      type: object
-      required:
-      - connections
-      title: ConnectionBulkBody
-      description: Connections Serializer for requests body.
     ConnectionCollectionResponse:
       properties:
         connections:
@@ -6905,6 +7932,7 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
+      additionalProperties: false
       type: object
       required:
       - is_paused
@@ -7052,6 +8080,7 @@ components:
           type: boolean
           title: Only Failed
           default: false
+      additionalProperties: false
       type: object
       title: DAGRunClearBody
       description: DAG Run serializer for clear endpoint body.
@@ -7083,6 +8112,7 @@ components:
             maxLength: 1000
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       title: DAGRunPatchBody
       description: DAG Run Serializer for PATCH requests.
@@ -7293,6 +8323,7 @@ components:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      additionalProperties: false
       type: object
       title: DAGRunsBatchBody
       description: List DAG Runs body for batch endpoint.
@@ -7577,6 +8608,7 @@ components:
           type: string
           format: date-time
           title: Data Interval End
+      additionalProperties: false
       type: object
       required:
       - run_id
@@ -7640,6 +8672,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -7706,6 +8739,40 @@ components:
       - dag_id
       title: DagTagResponse
       description: DAG Tag serializer for responses.
+    DagVersionResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        version_number:
+          type: integer
+          title: Version Number
+        dag_id:
+          type: string
+          title: Dag Id
+        bundle_name:
+          type: string
+          title: Bundle Name
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - version_number
+      - dag_id
+      - bundle_name
+      - bundle_version
+      - created_at
+      title: DagVersionResponse
+      description: Dag Version serializer for responses.
     DagWarningType:
       type: string
       enum:
@@ -7718,6 +8785,33 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
+    DryRunBackfillCollectionResponse:
+      properties:
+        backfills:
+          items:
+            $ref: '#/components/schemas/DryRunBackfillResponse'
+          type: array
+          title: Backfills
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - backfills
+      - total_entries
+      title: DryRunBackfillCollectionResponse
+      description: Backfill collection serializer for responses in dry-run mode.
+    DryRunBackfillResponse:
+      properties:
+        logical_date:
+          type: string
+          format: date-time
+          title: Logical Date
+      type: object
+      required:
+      - logical_date
+      title: DryRunBackfillResponse
+      description: Backfill serializer for responses in dry-run mode.
     EdgeResponse:
       properties:
         is_setup_teardown:
@@ -7858,6 +8952,145 @@ components:
       - name
       title: FastAPIAppResponse
       description: Serializer for Plugin FastAPI App responses.
+    GridDAGRunwithTIs:
+      properties:
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        queued_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued At
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        state:
+          $ref: '#/components/schemas/DagRunState'
+        run_type:
+          $ref: '#/components/schemas/DagRunType'
+        data_interval_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval Start
+        data_interval_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval End
+        version_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        task_instances:
+          items:
+            $ref: '#/components/schemas/GridTaskInstanceSummary'
+          type: array
+          title: Task Instances
+      type: object
+      required:
+      - dag_run_id
+      - queued_at
+      - start_date
+      - end_date
+      - state
+      - run_type
+      - data_interval_start
+      - data_interval_end
+      - version_number
+      - note
+      - task_instances
+      title: GridDAGRunwithTIs
+      description: DAG Run model for the Grid UI.
+    GridResponse:
+      properties:
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/GridDAGRunwithTIs'
+          type: array
+          title: Dag Runs
+      type: object
+      required:
+      - dag_runs
+      title: GridResponse
+      description: Response model for the Grid UI.
+    GridTaskInstanceSummary:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        try_number:
+          type: integer
+          title: Try Number
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        queued_dttm:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued Dttm
+        child_states:
+          anyOf:
+          - additionalProperties:
+              type: integer
+            type: object
+          - type: 'null'
+          title: Child States
+        task_count:
+          type: integer
+          title: Task Count
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - task_id
+      - try_number
+      - start_date
+      - end_date
+      - queued_dttm
+      - child_states
+      - task_count
+      - state
+      - note
+      title: GridTaskInstanceSummary
+      description: Task Instance Summary model for the Grid UI.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -7941,6 +9174,9 @@ components:
         filename:
           type: string
           title: Filename
+        bundle_name:
+          type: string
+          title: Bundle Name
         stack_trace:
           type: string
           title: Stack Trace
@@ -7949,6 +9185,7 @@ components:
       - import_error_id
       - timestamp
       - filename
+      - bundle_name
       - stack_trace
       title: ImportErrorResponse
       description: Import Error Response.
@@ -8103,15 +9340,10 @@ components:
       description: Node serializer for responses.
     PatchTaskInstanceBody:
       properties:
-        dry_run:
-          type: boolean
-          title: Dry Run
-          default: true
         new_state:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
-          title: New State
         note:
           anyOf:
           - type: string
@@ -8134,6 +9366,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: PatchTaskInstanceBody
       description: Request body for Clear Task Instances endpoint.
@@ -8196,11 +9429,6 @@ components:
         source:
           type: string
           title: Source
-        ti_deps:
-          items:
-            type: string
-          type: array
-          title: Ti Deps
         listeners:
           items:
             type: string
@@ -8222,11 +9450,35 @@ components:
       - global_operator_extra_links
       - operator_extra_links
       - source
-      - ti_deps
       - listeners
       - timetables
       title: PluginResponse
       description: Plugin serializer.
+    PoolBody:
+      properties:
+        name:
+          type: string
+          maxLength: 256
+          title: Name
+        slots:
+          type: integer
+          title: Slots
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        include_deferred:
+          type: boolean
+          title: Include Deferred
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - slots
+      title: PoolBody
+      description: Pool serializer for post bodies.
     PoolCollectionResponse:
       properties:
         pools:
@@ -8265,45 +9517,10 @@ components:
           - type: boolean
           - type: 'null'
           title: Include Deferred
+      additionalProperties: false
       type: object
       title: PoolPatchBody
       description: Pool serializer for patch bodies.
-    PoolPostBody:
-      properties:
-        name:
-          type: string
-          maxLength: 256
-          title: Name
-        slots:
-          type: integer
-          title: Slots
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
-        include_deferred:
-          type: boolean
-          title: Include Deferred
-          default: false
-      type: object
-      required:
-      - name
-      - slots
-      title: PoolPostBody
-      description: Pool serializer for post bodies.
-    PoolPostBulkBody:
-      properties:
-        pools:
-          items:
-            $ref: '#/components/schemas/PoolPostBody'
-          type: array
-          title: Pools
-      type: object
-      required:
-      - pools
-      title: PoolPostBulkBody
-      description: Pools serializer for post bodies.
     PoolResponse:
       properties:
         name:
@@ -8632,6 +9849,12 @@ components:
             format: date-time
           - type: 'null'
           title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
         pid:
           anyOf:
           - type: integer
@@ -8645,6 +9868,10 @@ components:
         executor_config:
           type: string
           title: Executor Config
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
       type: object
       required:
       - task_id
@@ -8666,45 +9893,13 @@ components:
       - priority_weight
       - operator
       - queued_when
+      - scheduled_when
       - pid
       - executor
       - executor_config
+      - dag_version
       title: TaskInstanceHistoryResponse
       description: TaskInstanceHistory serializer for responses.
-    TaskInstanceReferenceCollectionResponse:
-      properties:
-        task_instances:
-          items:
-            $ref: '#/components/schemas/TaskInstanceReferenceResponse'
-          type: array
-          title: Task Instances
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - task_instances
-      - total_entries
-      title: TaskInstanceReferenceCollectionResponse
-      description: Task Instance Reference collection serializer for responses.
-    TaskInstanceReferenceResponse:
-      properties:
-        task_id:
-          type: string
-          title: Task Id
-        dag_run_id:
-          type: string
-          title: Dag Run Id
-        dag_id:
-          type: string
-          title: Dag Id
-      type: object
-      required:
-      - task_id
-      - dag_run_id
-      - dag_id
-      title: TaskInstanceReferenceResponse
-      description: Task Instance Reference serializer for responses.
     TaskInstanceResponse:
       properties:
         id:
@@ -8793,6 +9988,12 @@ components:
             format: date-time
           - type: 'null'
           title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
         pid:
           anyOf:
           - type: integer
@@ -8828,6 +10029,10 @@ components:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
           - type: 'null'
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
       type: object
       required:
       - id
@@ -8851,6 +10056,7 @@ components:
       - priority_weight
       - operator
       - queued_when
+      - scheduled_when
       - pid
       - executor
       - executor_config
@@ -8858,6 +10064,7 @@ components:
       - rendered_map_index
       - trigger
       - triggerer_job
+      - dag_version
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:
@@ -9052,6 +10259,7 @@ components:
           - type: string
           - type: 'null'
           title: Order By
+      additionalProperties: false
       type: object
       title: TaskInstancesBatchBody
       description: Task Instance body for get batch.
@@ -9087,6 +10295,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -9312,6 +10521,7 @@ components:
           - type: string
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.
@@ -9387,17 +10597,17 @@ components:
       properties:
         key:
           type: string
+          maxLength: 250
           title: Key
         value:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Value
         description:
           anyOf:
           - type: string
           - type: 'null'
           title: Description
+      additionalProperties: false
       type: object
       required:
       - key
@@ -9426,20 +10636,22 @@ components:
           type: string
           title: Key
         value:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Value
         description:
           anyOf:
           - type: string
           - type: 'null'
           title: Description
+        is_encrypted:
+          type: boolean
+          title: Is Encrypted
       type: object
       required:
       - key
       - value
       - description
+      - is_encrypted
       title: VariableResponse
       description: Variable serializer for responses.
     VersionInfo:
@@ -9458,7 +10670,7 @@ components:
       - git_version
       title: VersionInfo
       description: Version information serializer for responses.
-    XComCollection:
+    XComCollectionResponse:
       properties:
         xcom_entries:
           items:
@@ -9472,8 +10684,26 @@ components:
       required:
       - xcom_entries
       - total_entries
-      title: XComCollection
-      description: List of XCom items.
+      title: XComCollectionResponse
+      description: XCom Collection serializer for responses.
+    XComCreateBody:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          title: Value
+        map_index:
+          type: integer
+          title: Map Index
+          default: -1
+      additionalProperties: false
+      type: object
+      required:
+      - key
+      - value
+      title: XComCreateBody
+      description: Payload serializer for creating an XCom entry.
     XComResponse:
       properties:
         key:
@@ -9591,3 +10821,17 @@ components:
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.
+    XComUpdateBody:
+      properties:
+        value:
+          title: Value
+        map_index:
+          type: integer
+          title: Map Index
+          default: -1
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      title: XComUpdateBody
+      description: Payload serializer for updating an XCom entry.

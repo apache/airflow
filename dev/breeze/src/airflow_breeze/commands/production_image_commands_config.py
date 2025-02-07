@@ -22,6 +22,8 @@ PRODUCTION_IMAGE_TOOLS_COMMANDS: dict[str, str | list[str]] = {
         "build",
         "pull",
         "verify",
+        "save",
+        "load",
     ],
 }
 PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -32,10 +34,8 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--build-progress",
                 "--docker-cache",
                 "--docker-host",
-                "--image-tag",
                 "--install-airflow-version",
                 "--python",
-                "--tag-as-latest",
                 "--version-suffix-for-pypi",
             ],
         },
@@ -123,11 +123,9 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
         {
             "name": "Pull image flags",
             "options": [
-                "--image-tag",
                 "--python",
                 "--verify",
                 "--wait-for-image",
-                "--tag-as-latest",
             ],
         },
         {
@@ -156,7 +154,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--image-name",
                 "--python",
                 "--slim-image",
-                "--image-tag",
                 "--pull",
             ],
         },
@@ -176,6 +173,34 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             "options": [
                 "--github-repository",
                 "--github-token",
+            ],
+        },
+    ],
+    "breeze prod-image save": [
+        {
+            "name": "Save image flags",
+            "options": [
+                "--python",
+                "--platform",
+                "--github-repository",
+                "--image-file",
+                "--image-file-dir",
+            ],
+        },
+    ],
+    "breeze prod-image load": [
+        {
+            "name": "Load image flags",
+            "options": [
+                "--python",
+                "--platform",
+                "--image-file",
+                "--image-file-dir",
+                "--github-repository",
+                "--github-token",
+                "--from-run",
+                "--from-pr",
+                "--skip-image-file-deletion",
             ],
         },
     ],

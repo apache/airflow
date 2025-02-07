@@ -29,7 +29,7 @@ from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
+from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_rebuilt
 from airflow_breeze.utils.parallel import (
     DOCKER_PULL_PROGRESS_REGEXP,
     GenericRegexpProgressMatcher,
@@ -53,7 +53,6 @@ def run_pull_in_parallel(
     python_version_list: list[str],
     verify: bool,
     include_success_outputs: bool,
-    tag_as_latest: bool,
     wait_for_image: bool,
     extra_pytest_args: tuple,
 ):
@@ -77,7 +76,6 @@ def run_pull_in_parallel(
                 d = {
                     "image_params": image_param,
                     "wait_for_image": wait_for_image,
-                    "tag_as_latest": tag_as_latest,
                     "poll_time_seconds": 10.0,
                     "output": outputs[index],
                 }
@@ -101,7 +99,6 @@ def run_pull_in_parallel(
 def run_pull_image(
     image_params: CommonBuildParams,
     wait_for_image: bool,
-    tag_as_latest: bool,
     output: Output | None,
     poll_time_seconds: float = 10.0,
     max_time_minutes: float = 70,
@@ -113,24 +110,23 @@ def run_pull_image(
 
     :param output: output to write to
     :param wait_for_image: whether we should wait for the image to be available
-    :param tag_as_latest: tag the image as latest
     :param poll_time_seconds: what's the polling time between checks if images are there (default 10 s)
     :param max_time_minutes: what's the maximum time to wait for the image to be pulled (default 70 minutes)
     :return: Tuple of return code and description of the image pulled
     """
     get_console(output=output).print(
         f"\n[info]Pulling {image_params.image_type} image of airflow python version: "
-        f"{image_params.python} image: {image_params.airflow_image_name_with_tag} "
+        f"{image_params.python} image: {image_params.airflow_image_name} "
         f"with wait for image: {wait_for_image} and max time to poll {max_time_minutes} minutes[/]\n"
     )
     current_loop = 1
     start_time = time.time()
     while True:
-        command_to_run = ["docker", "pull", image_params.airflow_image_name_with_tag]
+        command_to_run = ["docker", "pull", image_params.airflow_image_name]
         command_result = run_command(command_to_run, check=False, output=output)
         if command_result.returncode == 0:
             command_result = run_command(
-                ["docker", "inspect", image_params.airflow_image_name_with_tag, "-f", "{{.Size}}"],
+                ["docker", "inspect", image_params.airflow_image_name, "-f", "{{.Size}}"],
                 capture_output=True,
                 output=output,
                 text=True,
@@ -152,22 +148,20 @@ def run_pull_image(
                         command_result.returncode,
                         f"Image Python {image_params.python}",
                     )
-            if tag_as_latest:
-                command_result = tag_image_as_latest(image_params=image_params, output=output)
-                if command_result.returncode == 0 and isinstance(image_params, BuildCiParams):
-                    mark_image_as_refreshed(image_params)
+                if isinstance(image_params, BuildCiParams):
+                    mark_image_as_rebuilt(image_params)
             return command_result.returncode, f"Image Python {image_params.python}"
         if wait_for_image:
             if get_verbose() or get_dry_run():
                 get_console(output=output).print(
-                    f"\n[info]Waiting: #{current_loop} {image_params.airflow_image_name_with_tag}.[/]\n"
+                    f"\n[info]Waiting: #{current_loop} {image_params.airflow_image_name}.[/]\n"
                 )
             time.sleep(poll_time_seconds)
             current_loop += 1
             current_time = time.time()
             if (current_time - start_time) / 60 > max_time_minutes:
                 get_console(output=output).print(
-                    f"\n[error]The image {image_params.airflow_image_name_with_tag} "
+                    f"\n[error]The image {image_params.airflow_image_name} "
                     f"did not appear in {max_time_minutes} minutes. Failing.[/]\n"
                 )
                 return 1, f"Image Python {image_params.python}"
@@ -179,33 +173,9 @@ def run_pull_image(
             return command_result.returncode, f"Image Python {image_params.python}"
 
 
-def tag_image_as_latest(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
-    if image_params.airflow_image_name_with_tag == image_params.airflow_image_name:
-        get_console(output=output).print(
-            f"[info]Skip tagging {image_params.airflow_image_name} as latest as it is already 'latest'[/]"
-        )
-        return subprocess.CompletedProcess(returncode=0, args=[])
-    command = run_command(
-        [
-            "docker",
-            "tag",
-            image_params.airflow_image_name_with_tag,
-            image_params.airflow_image_name + ":latest",
-        ],
-        output=output,
-        capture_output=True,
-        check=False,
-    )
-    if command.returncode != 0:
-        get_console(output=output).print(command.stdout)
-        get_console(output=output).print(command.stderr)
-    return command
-
-
 def run_pull_and_verify_image(
     image_params: CommonBuildParams,
     wait_for_image: bool,
-    tag_as_latest: bool,
     poll_time_seconds: float,
     extra_pytest_args: tuple,
     output: Output | None,
@@ -213,7 +183,6 @@ def run_pull_and_verify_image(
     return_code, info = run_pull_image(
         image_params=image_params,
         wait_for_image=wait_for_image,
-        tag_as_latest=tag_as_latest,
         output=output,
         poll_time_seconds=poll_time_seconds,
     )
@@ -222,7 +191,7 @@ def run_pull_and_verify_image(
             f"\n[error]Not running verification for {image_params.python} as pulling failed.[/]\n"
         )
     return verify_an_image(
-        image_name=image_params.airflow_image_name_with_tag,
+        image_name=image_params.airflow_image_name,
         image_type=image_params.image_type,
         output=output,
         slim_image=False,
@@ -239,9 +208,9 @@ def just_pull_ci_image(github_repository, python_version: str) -> tuple[ShellPar
         skip_image_upgrade_check=True,
         quiet=True,
     )
-    get_console().print(f"[info]Pulling {shell_params.airflow_image_name_with_tag}.[/]")
+    get_console().print(f"[info]Pulling {shell_params.airflow_image_name}.[/]")
     pull_command_result = run_command(
-        ["docker", "pull", shell_params.airflow_image_name_with_tag],
+        ["docker", "pull", shell_params.airflow_image_name],
         check=True,
     )
     return shell_params, pull_command_result
@@ -259,7 +228,7 @@ def check_if_ci_image_available(
         quiet=True,
     )
     inspect_command_result = run_command(
-        ["docker", "inspect", shell_params.airflow_image_name_with_tag],
+        ["docker", "inspect", shell_params.airflow_image_name],
         stdout=subprocess.DEVNULL,
         check=False,
     )
@@ -273,9 +242,7 @@ def find_available_ci_image(github_repository: str) -> ShellParams:
     for python_version in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS:
         shell_params, inspect_command_result = check_if_ci_image_available(github_repository, python_version)
         if inspect_command_result.returncode == 0:
-            get_console().print(
-                f"[info]Running fix_ownership with {shell_params.airflow_image_name_with_tag}.[/]"
-            )
+            get_console().print(f"[info]Running fix_ownership with {shell_params.airflow_image_name}.[/]")
             return shell_params
     shell_params, _ = just_pull_ci_image(github_repository, DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
     return shell_params

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from ast import literal_eval
 from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
@@ -26,8 +27,8 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
-from azure.identity import ClientSecretCredential
-from httpx import Timeout
+from azure.identity import CertificateCredential, ClientSecretCredential
+from httpx import AsyncHTTPTransport, Timeout
 from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
 from kiota_abstractions.request_information import RequestInformation
@@ -43,10 +44,16 @@ from kiota_serialization_text.text_parse_node_factory import TextParseNodeFactor
 from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
-from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
+from airflow.exceptions import (
+    AirflowBadRequest,
+    AirflowConfigException,
+    AirflowException,
+    AirflowNotFoundException,
+)
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
+    from azure.identity._internal.client_credential_base import ClientCredentialBase
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.request_information import QueryParams
     from kiota_abstractions.response_handler import NativeResponseType
@@ -107,6 +114,7 @@ class KiotaRequestAdapterHook(BaseHook):
     """
 
     DEFAULT_HEADERS = {"Accept": "application/json;q=1"}
+    DEFAULT_SCOPE = "https://graph.microsoft.com/.default"
     cached_request_adapters: dict[str, tuple[APIVersion, RequestAdapter]] = {}
     conn_type: str = "msgraph"
     conn_name_attr: str = "conn_id"
@@ -119,7 +127,7 @@ class KiotaRequestAdapterHook(BaseHook):
         timeout: float | None = None,
         proxies: dict | None = None,
         host: str = NationalClouds.Global.value,
-        scopes: list[str] | None = None,
+        scopes: str | list[str] | None = None,
         api_version: APIVersion | str | None = None,
     ):
         super().__init__()
@@ -127,7 +135,10 @@ class KiotaRequestAdapterHook(BaseHook):
         self.timeout = timeout
         self.proxies = proxies
         self.host = host
-        self.scopes = scopes or ["https://graph.microsoft.com/.default"]
+        if isinstance(scopes, str):
+            self.scopes = [scopes]
+        else:
+            self.scopes = scopes or [self.DEFAULT_SCOPE]
         self._api_version = self.resolve_api_version_from_value(api_version)
 
     @classmethod
@@ -140,20 +151,21 @@ class KiotaRequestAdapterHook(BaseHook):
         return {
             "tenant_id": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
             "api_version": StringField(
-                lazy_gettext("API Version"), widget=BS3TextFieldWidget(), default="v1.0"
+                lazy_gettext("API Version"), widget=BS3TextFieldWidget(), default=APIVersion.v1.value
             ),
             "authority": StringField(lazy_gettext("Authority"), widget=BS3TextFieldWidget()),
+            "certificate_path": StringField(lazy_gettext("Certificate path"), widget=BS3TextFieldWidget()),
+            "certificate_data": StringField(lazy_gettext("Certificate data"), widget=BS3TextFieldWidget()),
             "scopes": StringField(
                 lazy_gettext("Scopes"),
                 widget=BS3TextFieldWidget(),
-                default="https://graph.microsoft.com/.default",
+                default=cls.DEFAULT_SCOPE,
             ),
             "disable_instance_discovery": BooleanField(
                 lazy_gettext("Disable instance discovery"), default=False
             ),
-            "allowed_hosts": StringField(lazy_gettext("Allowed"), widget=BS3TextFieldWidget()),
+            "allowed_hosts": StringField(lazy_gettext("Allowed hosts"), widget=BS3TextFieldWidget()),
             "proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextAreaFieldWidget()),
-            "stream": BooleanField(lazy_gettext("Stream"), default=False),
             "verify": BooleanField(lazy_gettext("Verify"), default=True),
             "trust_env": BooleanField(lazy_gettext("Trust environment"), default=True),
             "base_url": StringField(lazy_gettext("Base URL"), widget=BS3TextFieldWidget()),
@@ -206,19 +218,20 @@ class KiotaRequestAdapterHook(BaseHook):
 
     @classmethod
     def to_httpx_proxies(cls, proxies: dict) -> dict:
-        proxies = proxies.copy()
-        if proxies.get("http"):
-            proxies["http://"] = proxies.pop("http")
-        if proxies.get("https"):
-            proxies["https://"] = proxies.pop("https")
-        if proxies.get("no"):
-            for url in proxies.pop("no", "").split(","):
-                proxies[cls.format_no_proxy_url(url.strip())] = None
+        if proxies:
+            proxies = proxies.copy()
+            if proxies.get("http"):
+                proxies["http://"] = AsyncHTTPTransport(proxy=proxies.pop("http"))
+            if proxies.get("https"):
+                proxies["https://"] = AsyncHTTPTransport(proxy=proxies.pop("https"))
+            if proxies.get("no"):
+                for url in proxies.pop("no", "").split(","):
+                    proxies[cls.format_no_proxy_url(url.strip())] = None
         return proxies
 
-    def to_msal_proxies(self, authority: str | None, proxies: dict):
+    def to_msal_proxies(self, authority: str | None, proxies: dict) -> dict | None:
         self.log.debug("authority: %s", authority)
-        if authority:
+        if authority and proxies:
             no_proxies = proxies.get("no")
             self.log.debug("no_proxies: %s", no_proxies)
             if no_proxies:
@@ -241,18 +254,17 @@ class KiotaRequestAdapterHook(BaseHook):
             client_id = connection.login
             client_secret = connection.password
             config = connection.extra_dejson if connection.extra else {}
-            tenant_id = config.get("tenant_id") or config.get("tenantId")
             api_version = self.get_api_version(config)
             host = self.get_host(connection)
             base_url = config.get("base_url", urljoin(host, api_version))
             authority = config.get("authority")
-            proxies = self.proxies or config.get("proxies", {})
-            msal_proxies = self.to_msal_proxies(authority=authority, proxies=proxies)
+            proxies = self.get_proxies(config)
             httpx_proxies = self.to_httpx_proxies(proxies=proxies)
             scopes = config.get("scopes", self.scopes)
+            if isinstance(scopes, str):
+                scopes = scopes.split(",")
             verify = config.get("verify", True)
             trust_env = config.get("trust_env", False)
-            disable_instance_discovery = config.get("disable_instance_discovery", False)
             allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
 
             self.log.info(
@@ -262,7 +274,6 @@ class KiotaRequestAdapterHook(BaseHook):
             )
             self.log.info("Host: %s", host)
             self.log.info("Base URL: %s", base_url)
-            self.log.info("Tenant id: %s", tenant_id)
             self.log.info("Client id: %s", client_id)
             self.log.info("Client secret: %s", client_secret)
             self.log.info("API version: %s", api_version)
@@ -271,24 +282,21 @@ class KiotaRequestAdapterHook(BaseHook):
             self.log.info("Timeout: %s", self.timeout)
             self.log.info("Trust env: %s", trust_env)
             self.log.info("Authority: %s", authority)
-            self.log.info("Disable instance discovery: %s", disable_instance_discovery)
             self.log.info("Allowed hosts: %s", allowed_hosts)
             self.log.info("Proxies: %s", proxies)
-            self.log.info("MSAL Proxies: %s", msal_proxies)
             self.log.info("HTTPX Proxies: %s", httpx_proxies)
-            credentials = ClientSecretCredential(
-                tenant_id=tenant_id,  # type: ignore
-                client_id=connection.login,
-                client_secret=connection.password,
+            credentials = self.get_credentials(
+                login=connection.login,
+                password=connection.password,
+                config=config,
                 authority=authority,
-                proxies=msal_proxies,
-                disable_instance_discovery=disable_instance_discovery,
-                connection_verify=verify,
+                verify=verify,
+                proxies=proxies,
             )
             http_client = GraphClientFactory.create_with_default_middleware(
                 api_version=api_version,  # type: ignore
                 client=httpx.AsyncClient(
-                    proxies=httpx_proxies,
+                    mounts=httpx_proxies,
                     timeout=Timeout(timeout=self.timeout),
                     verify=verify,
                     trust_env=trust_env,
@@ -312,6 +320,65 @@ class KiotaRequestAdapterHook(BaseHook):
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         self._api_version = api_version
         return request_adapter
+
+    def get_proxies(self, config: dict) -> dict:
+        proxies = self.proxies or config.get("proxies", {})
+        if isinstance(proxies, str):
+            # TODO: Once provider depends on Airflow 2.10 or higher code below won't be needed anymore as
+            #       we could then use the get_extra_dejson method on the connection which deserializes
+            #       nested json. Make sure to use connection.get_extra_dejson(nested=True) instead of
+            #       connection.extra_dejson.
+            with suppress(JSONDecodeError):
+                proxies = json.loads(proxies)
+            with suppress(Exception):
+                proxies = literal_eval(proxies)
+        if not isinstance(proxies, dict):
+            raise AirflowConfigException(
+                f"Proxies must be of type dict, got {type(proxies).__name__} instead!"
+            )
+        return proxies
+
+    def get_credentials(
+        self,
+        login: str | None,
+        password: str | None,
+        config,
+        authority: str | None,
+        verify: bool,
+        proxies: dict,
+    ) -> ClientCredentialBase:
+        tenant_id = config.get("tenant_id") or config.get("tenantId")
+        certificate_path = config.get("certificate_path")
+        certificate_data = config.get("certificate_data")
+        disable_instance_discovery = config.get("disable_instance_discovery", False)
+        msal_proxies = self.to_msal_proxies(authority=authority, proxies=proxies)
+        self.log.info("Tenant id: %s", tenant_id)
+        self.log.info("Certificate path: %s", certificate_path)
+        self.log.info("Certificate data: %s", certificate_data is not None)
+        self.log.info("Authority: %s", authority)
+        self.log.info("Disable instance discovery: %s", disable_instance_discovery)
+        self.log.info("MSAL Proxies: %s", msal_proxies)
+        if certificate_path or certificate_data:
+            return CertificateCredential(
+                tenant_id=tenant_id,  # type: ignore
+                client_id=login,  # type: ignore
+                password=password,
+                certificate_path=certificate_path,
+                certificate_data=certificate_data.encode() if certificate_data else None,
+                authority=authority,
+                proxies=msal_proxies,
+                disable_instance_discovery=disable_instance_discovery,
+                connection_verify=verify,
+            )
+        return ClientSecretCredential(
+            tenant_id=tenant_id,  # type: ignore
+            client_id=login,  # type: ignore
+            client_secret=password,  # type: ignore
+            authority=authority,
+            proxies=msal_proxies,
+            disable_instance_discovery=disable_instance_discovery,
+            connection_verify=verify,
+        )
 
     def test_connection(self):
         """Test HTTP Connection."""

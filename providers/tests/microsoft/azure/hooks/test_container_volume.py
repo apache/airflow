@@ -17,12 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest import mock
 
 import pytest
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
+
+pytestmark = pytest.mark.db_test
+
+if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    # Handle collection of the test by non-db case
+    Connection = mock.MagicMock()  # type: ignore[misc]
 
 
 class TestAzureContainerVolumeHook:

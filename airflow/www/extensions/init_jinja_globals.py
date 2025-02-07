@@ -21,11 +21,11 @@ import logging
 import pendulum
 
 import airflow
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
 from airflow.settings import IS_K8S_OR_K8SCELERY_EXECUTOR, STATE_COLORS
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import get_airflow_git_version
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 logger = logging.getLogger(__name__)
 

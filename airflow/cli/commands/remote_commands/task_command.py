@@ -28,14 +28,14 @@ import sys
 import textwrap
 from collections.abc import Generator
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import TYPE_CHECKING, Protocol, Union, cast
+from pathlib import Path
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
-from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import select
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
 from airflow.executors.executor_loader import ExecutorLoader
@@ -45,12 +45,12 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
-from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode
+from airflow.sdk.definitions.param import ParamsDict
+from airflow.sdk.execution_time.secrets_masker import RedactedIO
 from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
-from airflow.typing_compat import Literal
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import (
     get_dag,
@@ -61,22 +61,23 @@ from airflow.utils.cli import (
 )
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
-from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.types import DagRunTriggeredByType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.operator import Operator
 
-log = logging.getLogger(__name__)
+    CreateIfNecessary = Literal[False, "db", "memory"]
 
-CreateIfNecessary = Union[Literal[False], Literal["db"], Literal["memory"]]
+log = logging.getLogger(__name__)
 
 
 def _generate_temporary_run_id() -> str:
@@ -87,41 +88,6 @@ def _generate_temporary_run_id() -> str:
     be deleted after the task is run.
     """
     return f"__airflow_temporary_run_{timezone.utcnow().isoformat()}__"
-
-
-def _fetch_dag_run_from_run_id_or_logical_date_string(
-    *,
-    dag_id: str,
-    value: str,
-    session: Session,
-) -> tuple[DagRun, pendulum.DateTime | None]:
-    """
-    Try to find a DAG run with a given string value.
-
-    The string value may be a run ID, or a logical date in string form. We first
-    try to use it as a run_id; if a run is found, it is returned as-is.
-
-    Otherwise, the string value is parsed into a datetime. If that works, it is
-    used to find a DAG run.
-
-    The return value is a two-tuple. The first item is the found DAG run (or
-    *None* if one cannot be found). The second is the parsed logical date. This
-    second value can be used to create a new run by the calling function when
-    one cannot be found here.
-    """
-    if dag_run := DAG.fetch_dagrun(dag_id=dag_id, run_id=value, session=session):
-        return dag_run, dag_run.logical_date  # type: ignore[return-value]
-    try:
-        logical_date = timezone.parse(value)
-    except (ParserError, TypeError):
-        return dag_run, None
-    dag_run = session.scalar(
-        select(DagRun)
-        .where(DagRun.dag_id == dag_id, DagRun.logical_date == logical_date)
-        .order_by(DagRun.id.desc())
-        .limit(1)
-    )
-    return dag_run, logical_date
 
 
 def _get_dag_run(
@@ -150,7 +116,7 @@ def _get_dag_run(
 
     logical_date = None
     if logical_date_or_run_id:
-        dag_run, logical_date = _fetch_dag_run_from_run_id_or_logical_date_string(
+        dag_run, logical_date = fetch_dag_run_from_run_id_or_logical_date_string(
             dag_id=dag.dag_id,
             value=logical_date_or_run_id,
             session=session,
@@ -163,28 +129,33 @@ def _get_dag_run(
                 f"of {logical_date_or_run_id!r} not found"
             )
 
-    if logical_date is not None:
-        dag_run_logical_date = logical_date
-    else:
-        dag_run_logical_date = pendulum.instance(timezone.utcnow())
-
+    dag_run_logical_date = pendulum.instance(logical_date or timezone.utcnow())
     if create_if_necessary == "memory":
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_id=logical_date_or_run_id,
+            run_type=DagRunType.MANUAL,
+            external_trigger=True,
             logical_date=dag_run_logical_date,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
+            data_interval=data_interval,
+            run_after=data_interval.end,
             triggered_by=DagRunTriggeredByType.CLI,
+            state=DagRunState.RUNNING,
         )
         return dag_run, True
     elif create_if_necessary == "db":
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         dag_run = dag.create_dagrun(
-            state=DagRunState.QUEUED,
-            logical_date=dag_run_logical_date,
             run_id=_generate_temporary_run_id(),
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
-            session=session,
+            logical_date=dag_run_logical_date,
+            data_interval=data_interval,
+            run_after=data_interval.end,
+            run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
+            dag_version=None,
+            state=DagRunState.RUNNING,
+            session=session,
         )
         return dag_run, True
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
@@ -203,6 +174,11 @@ def _get_ti(
     dag = task.dag
     if dag is None:
         raise ValueError("Cannot get task instance for a task not assigned to a DAG")
+    if not isinstance(dag, DAG):
+        # TODO: Task-SDK: Shouldn't really happen, and this command will go away before 3.0
+        raise ValueError(
+            f"We need a {DAG.__module__}.DAG, but we got {type(dag).__module__}.{type(dag).__name__}!"
+        )
 
     # this check is imperfect because diff dags could have tasks with same name
     # but in a task, dag_id is a property that accesses its dag, and we don't
@@ -244,6 +220,9 @@ def _get_ti(
     # we do refresh_from_task so that if TI has come back via RPC, we ensure that ti.task
     # is the original task object and not the result of the round trip
     ti.refresh_from_task(task, pool_override=pool)
+
+    ti.dag_model  # we must ensure dag model is loaded eagerly for bundle info
+
     return ti, dr_created
 
 
@@ -285,8 +264,11 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
     if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
         from airflow.executors import workloads
 
-        workload = workloads.ExecuteTask.make(ti, dag_path=dag.relative_fileloc)
-        executor.queue_workload(workload)
+        if TYPE_CHECKING:
+            assert dag.relative_fileloc
+        workload = workloads.ExecuteTask.make(ti, dag_rel_path=Path(dag.relative_fileloc))
+        with create_session() as session:
+            executor.queue_workload(workload, session)
     else:
         executor.queue_task_instance(
             ti,
@@ -570,17 +552,11 @@ def _guess_debugger() -> _SupportedDebugger:
 @provide_session
 def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
-    dag_run = session.scalar(
-        select(DagRun).where(DagRun.run_id == args.logical_date_or_run_id, DagRun.dag_id == args.dag_id)
+    dag_run, _ = fetch_dag_run_from_run_id_or_logical_date_string(
+        dag_id=args.dag_id,
+        value=args.logical_date_or_run_id,
+        session=session,
     )
-    if not dag_run:
-        try:
-            logical_date = timezone.parse(args.logical_date_or_run_id)
-            dag_run = session.scalar(
-                select(DagRun).where(DagRun.logical_date == logical_date, DagRun.dag_id == args.dag_id)
-            )
-        except (ParserError, TypeError) as err:
-            raise AirflowException(f"Error parsing the supplied logical_date. Error: {err}")
 
     if dag_run is None:
         raise DagRunNotFound(
@@ -593,7 +569,7 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     def format_task_instance(ti: TaskInstance) -> dict[str, str]:
         data = {
             "dag_id": ti.dag_id,
-            "logical_date": dag_run.logical_date.isoformat(),
+            "logical_date": dag_run.logical_date.isoformat() if dag_run.logical_date else "",
             "task_id": ti.task_id,
             "state": ti.state,
             "start_date": ti.start_date.isoformat() if ti.start_date else "",

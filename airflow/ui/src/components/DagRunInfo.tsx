@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack, Text, HStack } from "@chakra-ui/react";
+import { VStack, Text, Box } from "@chakra-ui/react";
 import dayjs from "dayjs";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Tooltip, Status } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
 
 type Props = {
   readonly dataIntervalEnd?: string | null;
@@ -61,10 +62,7 @@ const DagRunInfo = ({
             </Text>
           ) : undefined}
           {Boolean(startDate) ? (
-            <Text>
-              Duration:{" "}
-              {dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds()}s
-            </Text>
+            <Text>Duration: {dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds()}s</Text>
           ) : undefined}
           <Text>
             Data Interval Start: <Time datetime={dataIntervalStart} />
@@ -74,14 +72,11 @@ const DagRunInfo = ({
           </Text>
         </VStack>
       }
-      showArrow
     >
-      <HStack fontSize="sm">
-        <Time datetime={dataIntervalStart} showTooltip={false} />
-        {state === undefined ? undefined : (
-          <Status state={state}>{state}</Status>
-        )}
-      </HStack>
+      <Box>
+        <Time datetime={dataIntervalStart} mr={2} showTooltip={false} />
+        {state === undefined ? undefined : <StateBadge state={state} />}
+      </Box>
     </Tooltip>
   ) : undefined;
 

@@ -16,22 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Button,
-  createListCollection,
-  HStack,
-  VStack,
-  Heading,
-} from "@chakra-ui/react";
+import { Button, createListCollection, HStack, VStack, Heading } from "@chakra-ui/react";
 
 import { useTaskInstanceServiceGetMappedTaskInstanceTries } from "openapi/queries";
-import type {
-  TaskInstanceHistoryResponse,
-  TaskInstanceResponse,
-} from "openapi/requests/types.gen";
+import type { TaskInstanceHistoryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import TaskInstanceTooltip from "./TaskInstanceTooltip";
-import { Select, Status } from "./ui";
+import { Select } from "./ui";
 
 type Props = {
   readonly onSelectTryNumber?: (tryNumber: number) => void;
@@ -39,18 +32,17 @@ type Props = {
   readonly taskInstance: TaskInstanceResponse;
 };
 
-export const TaskTrySelect = ({
-  onSelectTryNumber,
-  selectedTryNumber,
-  taskInstance,
-}: Props) => {
+export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstance }: Props) => {
   const {
     dag_id: dagId,
     dag_run_id: dagRunId,
     map_index: mapIndex,
+    state,
     task_id: taskId,
     try_number: finalTryNumber,
   } = taskInstance;
+
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: tiHistory } = useTaskInstanceServiceGetMappedTaskInstanceTries(
     {
@@ -62,6 +54,12 @@ export const TaskTrySelect = ({
     undefined,
     {
       enabled: Boolean(finalTryNumber && finalTryNumber > 1), // Only try to look up task tries if try number > 1
+      refetchInterval: (query) =>
+        // We actually want to use || here
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) || isStatePending(state)
+          ? refetchInterval
+          : false,
     },
   );
 
@@ -90,9 +88,7 @@ export const TaskTrySelect = ({
           onValueChange={(details) => {
             if (onSelectTryNumber) {
               onSelectTryNumber(
-                details.value[0] === undefined
-                  ? finalTryNumber
-                  : parseInt(details.value[0], 10),
+                details.value[0] === undefined ? finalTryNumber : parseInt(details.value[0], 10),
               );
             }
           }}
@@ -105,22 +101,18 @@ export const TaskTrySelect = ({
                   task_instance: TaskInstanceHistoryResponse;
                   value: number;
                 }>,
-              ) => (
-                <Status
-                  // eslint-disable-next-line unicorn/no-null
-                  state={items[0]?.task_instance.state ?? null}
-                >
-                  {items[0]?.value}
-                </Status>
-              )}
+              ) => <StateBadge state={items[0]?.task_instance.state}>{items[0]?.value}</StateBadge>}
             </Select.ValueText>
           </Select.Trigger>
-          <Select.Content>
+          <Select.Content flexDirection="column-reverse">
             {tryOptions.items.map((option) => (
               <Select.Item item={option} key={option.value}>
-                <Status state={option.task_instance.state}>
-                  {option.value}
-                </Status>
+                <span>
+                  {option.value}:
+                  <StateBadge ml={2} state={option.task_instance.state}>
+                    {option.task_instance.state}
+                  </StateBadge>
+                </span>
               </Select.Item>
             ))}
           </Select.Content>
@@ -138,12 +130,10 @@ export const TaskTrySelect = ({
                     onSelectTryNumber(ti.try_number);
                   }
                 }}
-                variant={
-                  selectedTryNumber === ti.try_number ? "surface" : "outline"
-                }
+                variant={selectedTryNumber === ti.try_number ? "surface" : "outline"}
               >
                 {ti.try_number}
-                <Status state={ti.state} />
+                <StateBadge state={ti.state} />
               </Button>
             </TaskInstanceTooltip>
           ))}

@@ -1,0 +1,87 @@
+{
+    "kind": "bigquery#job",
+    "etag": "PJw7+a1NbcFIk85B7OCePA==",
+    "id": "job_f94357cf9ddbab1dd8d084a74cf525b3",
+    "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/airflow-openlineage/jobs/job_f94357cf9ddbab1dd8d084a74cf525b3?location=EU",
+    "user_email": "svc-account@airflow-openlineage.iam.gserviceaccount.com",
+    "configuration": {
+        "load": {
+            "sourceUris": [
+                "gs://airflow-openlineage/*.csv"
+            ],
+            "schema": {
+                "fields": [
+                    {
+                        "name": "name",
+                        "type": "STRING"
+                    },
+                    {
+                        "name": "age",
+                        "type": "INTEGER"
+                    },
+                    {
+                        "name": "email",
+                        "type": "STRING"
+                    },
+                    {
+                        "name": "country",
+                        "type": "STRING"
+                    }
+                ]
+            },
+            "destinationTable": {
+                "projectId": "airflow-openlineage",
+                "datasetId": "new_dataset",
+                "tableId": "job_load"
+            },
+            "writeDisposition": "WRITE_TRUNCATE",
+            "skipLeadingRows": 1,
+            "sourceFormat": "CSV"
+        },
+        "jobType": "LOAD"
+    },
+    "jobReference": {
+        "projectId": "airflow-openlineage",
+        "jobId": "job_f94357cf9ddbab1dd8d084a74cf525b3",
+        "location": "EU"
+    },
+    "statistics": {
+        "creationTime": 1734541391943.0,
+        "startTime": 1734541392059.0,
+        "endTime": 1734541393953.0,
+        "completionRatio": 1,
+        "load": {
+            "inputFiles": "2",
+            "inputFileBytes": "512",
+            "outputRows": "10",
+            "outputBytes": "546",
+            "badRecords": "0",
+            "timeline": [
+                {
+                    "elapsedMs": "1044",
+                    "totalSlotMs": "196",
+                    "pendingUnits": "0",
+                    "completedUnits": "1",
+                    "activeUnits": "0"
+                },
+                {
+                    "elapsedMs": "853",
+                    "totalSlotMs": "196",
+                    "pendingUnits": "0",
+                    "completedUnits": "1",
+                    "estimatedRunnableUnits": "0"
+                }
+            ]
+        },
+        "totalSlotMs": "196",
+        "reservation_id": "default-pipeline",
+        "finalExecutionDurationMs": "843"
+    },
+    "status": {
+        "state": "DONE"
+    },
+    "principal_subject": "serviceAccount:svc-account@airflow-openlineage.iam.gserviceaccount.com",
+    "jobCreationReason": {
+        "code": "REQUESTED"
+    }
+}

@@ -94,6 +94,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--package-format",
+                "--version-suffix-for-pypi",
                 "--use-local-hatch",
             ],
         }
@@ -262,7 +263,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-mode",
                 "--chicken-egg-providers",
                 "--github-repository",
-                "--image-tag",
                 "--python",
                 "--use-uv",
             ],

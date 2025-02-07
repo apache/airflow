@@ -63,17 +63,15 @@ function in_container_go_to_airflow_sources() {
 function in_container_get_packaging_tool() {
     ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
     ## `scripts/docker/common.sh`
-    local PYTHON_BIN
-    PYTHON_BIN=$(which python)
     if [[ ${AIRFLOW_USE_UV} == "true" ]]; then
         echo
         echo "${COLOR_BLUE}Using 'uv' to install Airflow${COLOR_RESET}"
         echo
-        export PACKAGING_TOOL=""
+        export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
         if [[ -z ${VIRTUAL_ENV=} ]]; then
-            export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
-            export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
+            export EXTRA_INSTALL_FLAGS="--system"
+            export EXTRA_UNINSTALL_FLAGS="--system"
         else
             export EXTRA_INSTALL_FLAGS=""
             export EXTRA_UNINSTALL_FLAGS=""
@@ -90,7 +88,7 @@ function in_container_get_packaging_tool() {
         export PACKAGING_TOOL_CMD="pip"
         export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
         export EXTRA_UNINSTALL_FLAGS="--yes"
-        export UPGRADE_EAGERLY="--upgrade-strategy eager"
+        export UPGRADE_EAGERLY="--upgrade --upgrade-strategy eager"
         export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
     fi
 }

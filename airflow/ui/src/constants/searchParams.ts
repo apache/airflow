@@ -26,7 +26,4 @@ export enum SearchParamsKeys {
   TAGS = "tags",
 }
 
-export type SearchParamsKeysType = Record<
-  keyof typeof SearchParamsKeys,
-  string
->;
+export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;

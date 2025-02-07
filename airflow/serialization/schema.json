@@ -64,6 +64,10 @@
                 {"type": "null"},
                 { "$ref": "#/definitions/dict" }
             ]
+        },
+        "watchers": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/trigger" }
         }
       },
       "required": [ "uri", "extra" ]
@@ -126,6 +130,14 @@
         ],
         "additionalProperties": false
     },
+    "trigger": {
+      "type": "object",
+      "properties": {
+        "classpath": { "type": "string" },
+        "kwargs": { "$ref": "#/definitions/dict" }
+      },
+      "required": [ "classpath", "kwargs" ]
+    },
     "dict": {
       "description": "A python dictionary containing values of any type",
       "type": "object"
@@ -165,6 +177,7 @@
         },
         "catchup": { "type": "boolean" },
         "fileloc": { "type" : "string"},
+        "relative_fileloc": { "type" : "string"},
         "_processor_dags_folder": {
             "anyOf": [
                 { "type": "null" },
@@ -279,12 +292,6 @@
           "items": { "type": "string" }
         },
         "_is_dummy": { "type": "boolean" },
-        "deps": {
-          "description": "list of dep classes -- if non-standard",
-          "type": "array",
-          "items": { "type": "string" },
-          "uniqueItems": true
-        },
         "doc":  { "type": "string" },
         "doc_md":  { "type": "string" },
         "doc_json":  { "type": "string" },
@@ -293,6 +300,7 @@
         "_logger_name": { "type": "string" },
         "_log_config_logger_name": { "type": "string" },
         "_is_mapped": { "const": true, "$comment": "only present when True" },
+        "_is_sensor": { "const": true, "$comment": "only present when True" },
         "expand_input": { "type": "object" },
         "partial_kwargs": { "type": "object" },
         "map_index_template": { "type": "string" },
@@ -310,6 +318,7 @@
       "type": "object",
       "required": [
         "_group_id",
+        "group_display_name",
         "prefix_group_id",
         "children",
         "tooltip",
@@ -322,6 +331,7 @@
       ],
       "properties": {
         "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "group_display_name": {"type": "string" },
         "is_mapped": { "type": "boolean" },
         "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },

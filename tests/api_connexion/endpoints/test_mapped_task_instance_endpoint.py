@@ -24,6 +24,7 @@ import urllib
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
@@ -122,12 +123,13 @@ class TestMappedTaskInstanceEndpoint:
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)
                 session.add(ti)
 
+            DagBundlesManager().sync_bundles_to_db()
             self.app.dag_bag = DagBag(os.devnull, include_examples=False)
             self.app.dag_bag.dags = {dag_id: dag_maker.dag}
-            self.app.dag_bag.sync_to_db()
+            self.app.dag_bag.sync_to_db("dags-folder", None)
             session.flush()
 
-            mapped.expand_mapped_task(dr.run_id, session=session)
+            TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
 
     @pytest.fixture
     def one_task_with_mapped_tis(self, dag_maker, session):
@@ -224,6 +226,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "priority_weight": 1,
             "queue": "default",
             "queued_when": None,
+            "scheduled_when": None,
             "rendered_fields": {},
             "rendered_map_index": None,
             "start_date": "2020-01-01T00:00:00+00:00",

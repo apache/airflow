@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1730011042
+source-date-epoch: 1734527035
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 9.2.0
   - 9.1.0
   - 9.0.0
   - 8.29.0
@@ -119,8 +120,7 @@ additional-extras:
       # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
       # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
       # In addition FAB also limit sqlalchemy to < 2.0
-      - pandas>=2.1.2,<2.2;python_version>="3.9"
-      - pandas>=1.5.3,<2.2;python_version<"3.9"
+      - pandas>=2.1.2,<2.2
 
 
   # There is conflict between boto3 and aiobotocore dependency botocore.
@@ -884,8 +884,15 @@ extra-links:
   - airflow.providers.amazon.aws.links.emr.EmrServerlessS3LogsLink
   - airflow.providers.amazon.aws.links.glue.GlueJobRunDetailsLink
   - airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink
+  - airflow.providers.amazon.aws.links.sagemaker.SageMakerTransformJobLink
   - airflow.providers.amazon.aws.links.step_function.StateMachineDetailsLink
   - airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink
+  - airflow.providers.amazon.aws.links.comprehend.ComprehendPiiEntitiesDetectionLink
+  - airflow.providers.amazon.aws.links.comprehend.ComprehendDocumentClassifierLink
+  - airflow.providers.amazon.aws.links.datasync.DataSyncTaskLink
+  - airflow.providers.amazon.aws.links.datasync.DataSyncTaskExecutionLink
+  - airflow.providers.amazon.aws.links.ec2.EC2InstanceLink
+  - airflow.providers.amazon.aws.links.ec2.EC2InstanceDashboardLink
 
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook

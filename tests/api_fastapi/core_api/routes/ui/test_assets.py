@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.db import initial_db_init
@@ -46,7 +46,7 @@ def test_next_run_assets(test_client, dag_maker):
         EmptyOperator(task_id="task1")
 
     dag_maker.create_dagrun()
-    dag_maker.dagbag.sync_to_db()
+    dag_maker.sync_dagbag_to_db()
 
     response = test_client.get("/ui/next_run_assets/upstream")
 

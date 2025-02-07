@@ -34,4 +34,29 @@ As part of this change the following breaking changes have occurred:
 
   .. code-block:: bash
 
-      airflow db drop-archived -t "_xcom_archive"
+      airflow db drop-archived -t "_xcAm_archive"
+
+- The ability to specify scheduling conditions for an operator via the ``deps`` class attribute has been removed.
+
+  If you were defining custom scheduling conditions on an operator class (usually by subclassing BaseTIDep) this ability has been removed.
+
+  It is recommended that you replace such a custom operator with a deferrable sensor, a condition or another triggering mechanism.
+
+
+* Types of change
+
+  * [x] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``core.task_runner``
+    * [x] ``core.enable_xcom_pickling``

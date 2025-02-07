@@ -10,3 +10,14 @@ Removed a set of deprecations in from ``airflow.models.taskinstance``.
  - Removed deprecated property ``previous_start_date_success`` from ``TaskInstance``. Please use ``get_previous_start_date`` instead.
  - Removed deprecated function ``as_dict`` from ``SimpleTaskInstance``. Please use ``BaseSerialization.serialize`` instead.
  - Removed deprecated function ``from_dict`` from ``SimpleTaskInstance``. Please use ``BaseSerialization.deserialize`` instead.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

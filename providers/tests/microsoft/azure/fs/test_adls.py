@@ -17,12 +17,20 @@
 
 from __future__ import annotations
 
+import os
 from unittest import mock
 
 import pytest
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.fs.adls import get_fs
+
+if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    # Handle collection of the test by non-db case
+    Connection = mock.MagicMock()  # type: ignore[misc]
+
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture

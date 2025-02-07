@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Button, Box, Text, Spacer, HStack } from "@chakra-ui/react";
+import { Input, Button, Box, Spacer, HStack, Field } from "@chakra-ui/react";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
@@ -29,12 +29,14 @@ import { useDagParams } from "src/queries/useDagParams";
 import { useTrigger } from "src/queries/useTrigger";
 
 import { ErrorAlert } from "../ErrorAlert";
+import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { Accordion } from "../ui";
+import { useParamStore } from "./useParamStore";
 
 type TriggerDAGFormProps = {
-  dagId: string;
-  onClose: () => void;
-  open: boolean;
+  readonly dagId: string;
+  readonly onClose: () => void;
+  readonly open: boolean;
 };
 
 export type DagRunTriggerParams = {
@@ -45,41 +47,46 @@ export type DagRunTriggerParams = {
   note: string;
 };
 
-const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
-  dagId,
-  onClose,
-  open,
-}) => {
-  const [errors, setErrors] = useState<{ conf?: string; date?: string }>({});
-  const conf = useDagParams(dagId, open);
-  const { error: errorTrigger, isPending, triggerDagRun } = useTrigger(onClose);
+const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
+  const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
+  const initialParamsDict = useDagParams(dagId, open);
+  const {
+    dateValidationError,
+    error: errorTrigger,
+    isPending,
+    triggerDagRun,
+  } = useTrigger({ dagId, onSuccessConfirm: onClose });
+  const { conf, setConf } = useParamStore();
 
-  const dagRunRequestBody: DagRunTriggerParams = useMemo(
-    () => ({
+  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
+    defaultValues: {
       conf,
       dagRunId: "",
       dataIntervalEnd: "",
       dataIntervalStart: "",
       note: "",
-    }),
-    [conf],
-  );
+    },
+  });
 
-  const {
-    control,
-    formState: { isDirty },
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-  } = useForm<DagRunTriggerParams>({ defaultValues: dagRunRequestBody });
+  // Automatically reset form when conf is fetched
+  useEffect(() => {
+    if (conf) {
+      reset({ conf });
+    }
+  }, [conf, reset]);
+
+  useEffect(() => {
+    if (Boolean(dateValidationError)) {
+      setErrors((prev) => ({ ...prev, date: dateValidationError }));
+    }
+  }, [dateValidationError]);
 
   const dataIntervalStart = watch("dataIntervalStart");
   const dataIntervalEnd = watch("dataIntervalEnd");
 
-  useEffect(() => {
-    reset(dagRunRequestBody);
-  }, [dagRunRequestBody, reset]);
+  const onSubmit = (data: DagRunTriggerParams) => {
+    triggerDagRun(data);
+  };
 
   const validateAndPrettifyJson = (value: string) => {
     try {
@@ -87,10 +94,15 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
       setErrors((prev) => ({ ...prev, conf: undefined }));
 
-      return JSON.stringify(parsedJson, undefined, 2);
+      const formattedJson = JSON.stringify(parsedJson, undefined, 2);
+
+      if (formattedJson !== conf) {
+        setConf(formattedJson); // Update only if the value is different
+      }
+
+      return formattedJson;
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred.";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
 
       setErrors((prev) => ({
         ...prev,
@@ -101,108 +113,84 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     }
   };
 
-  const onSubmit = (data: DagRunTriggerParams) => {
-    if (Boolean(data.dataIntervalStart) !== Boolean(data.dataIntervalEnd)) {
-      setErrors((prev) => ({
-        ...prev,
-        date: "Either both Data Interval Start and End must be provided, or both must be empty.",
-      }));
-
-      return;
-    }
-    triggerDagRun(dagId, data);
-  };
-
-  const validateDates = (
-    fieldName: "dataIntervalEnd" | "dataIntervalStart",
-  ) => {
-    const startDate = dataIntervalStart
-      ? new Date(dataIntervalStart)
-      : undefined;
-    const endDate = dataIntervalEnd ? new Date(dataIntervalEnd) : undefined;
-
+  const resetDateError = () => {
     setErrors((prev) => ({ ...prev, date: undefined }));
-
-    if (startDate && endDate) {
-      if (fieldName === "dataIntervalStart" && startDate > endDate) {
-        setValue("dataIntervalStart", dataIntervalEnd);
-      } else if (fieldName === "dataIntervalEnd" && endDate < startDate) {
-        setValue("dataIntervalEnd", dataIntervalStart);
-      }
-    }
   };
 
   const { colorMode } = useColorMode();
 
   return (
     <>
-      <ErrorAlert error={errorTrigger} />
-      <Accordion.Root collapsible mt={4} size="lg" variant="enclosed">
+      <Accordion.Root
+        collapsible
+        defaultValue={[flexibleFormDefaultSection]}
+        mb={4}
+        mt={4}
+        size="lg"
+        variant="enclosed"
+      >
+        <FlexibleForm initialParamsDict={initialParamsDict} />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
-          <Accordion.ItemTrigger cursor="button">
-            Advanced Options
-          </Accordion.ItemTrigger>
+          <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>
             <Box p={5}>
-              <Text fontSize="md" mb={2}>
-                Data Interval Start Date
-              </Text>
               <Controller
                 control={control}
                 name="dataIntervalStart"
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    max={dataIntervalEnd || undefined}
-                    onBlur={() => validateDates("dataIntervalStart")}
-                    placeholder="yyyy-mm-ddThh:mm"
-                    size="sm"
-                    type="datetime-local"
-                  />
+                  <Field.Root invalid={Boolean(errors.date)}>
+                    <Field.Label fontSize="md">Data Interval Start Date</Field.Label>
+                    <Input
+                      {...field}
+                      max={dataIntervalEnd || undefined}
+                      onBlur={resetDateError}
+                      placeholder="yyyy-mm-ddThh:mm"
+                      size="sm"
+                      type="datetime-local"
+                    />
+                  </Field.Root>
                 )}
               />
 
-              <Text fontSize="md" mb={2} mt={6}>
-                Data Interval End Date
-              </Text>
               <Controller
                 control={control}
                 name="dataIntervalEnd"
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    min={dataIntervalStart || undefined}
-                    onBlur={() => validateDates("dataIntervalEnd")}
-                    placeholder="yyyy-mm-ddThh:mm"
-                    size="sm"
-                    type="datetime-local"
-                  />
+                  <Field.Root invalid={Boolean(errors.date)} mt={6}>
+                    <Field.Label fontSize="md">Data Interval End Date</Field.Label>
+                    <Input
+                      {...field}
+                      min={dataIntervalStart || undefined}
+                      onBlur={resetDateError}
+                      placeholder="yyyy-mm-ddThh:mm"
+                      size="sm"
+                      type="datetime-local"
+                    />
+                  </Field.Root>
                 )}
               />
 
-              <Text fontSize="md" mb={2} mt={6}>
-                Run ID
-              </Text>
               <Controller
                 control={control}
                 name="dagRunId"
                 render={({ field }) => (
-                  <Input
-                    {...field}
-                    placeholder="Run Id, optional - will be generated if not provided"
-                    size="sm"
-                  />
+                  <Field.Root mt={6}>
+                    <Field.Label fontSize="md">Run ID</Field.Label>
+                    <Input
+                      {...field}
+                      placeholder="Run Id, optional - will be generated if not provided"
+                      size="sm"
+                    />
+                  </Field.Root>
                 )}
               />
 
-              <Text fontSize="md" mb={2} mt={6}>
-                Configuration JSON
-              </Text>
               <Controller
                 control={control}
                 name="conf"
                 render={({ field }) => (
-                  <Box mb={4}>
+                  <Field.Root invalid={Boolean(errors.conf)} mt={6}>
+                    <Field.Label fontSize="md">Configuration JSON</Field.Label>
                     <CodeMirror
                       {...field}
                       basicSetup={{
@@ -214,55 +202,39 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       extensions={[json()]}
                       height="200px"
                       onBlur={() => {
-                        const prettifiedJson = validateAndPrettifyJson(
-                          field.value,
-                        );
-
-                        field.onChange(prettifiedJson);
+                        field.onChange(validateAndPrettifyJson(field.value));
                       }}
                       style={{
-                        border: "1px solid #CBD5E0",
+                        border: "1px solid var(--chakra-colors-border)",
                         borderRadius: "8px",
                         outline: "none",
                         padding: "2px",
+                        width: "100%",
                       }}
                       theme={colorMode === "dark" ? githubDark : githubLight}
                     />
-                    {Boolean(errors.conf) && (
-                      <Text color="red.500" fontSize="sm" mt={2}>
-                        {errors.conf}
-                      </Text>
-                    )}
-                  </Box>
+                    {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
+                  </Field.Root>
                 )}
               />
 
-              <Text fontSize="md" mb={2} mt={6}>
-                Dag Run Notes
-              </Text>
               <Controller
                 control={control}
                 name="note"
                 render={({ field }) => (
-                  <Input {...field} placeholder="Optional" size="sm" />
+                  <Field.Root mt={6}>
+                    <Field.Label fontSize="md">Dag Run Notes</Field.Label>
+                    <Input {...field} placeholder="Optional" size="sm" />
+                  </Field.Root>
                 )}
               />
             </Box>
           </Accordion.ItemContent>
         </Accordion.Item>
       </Accordion.Root>
-      {Boolean(errors.date) && (
-        <Text color="red.500" fontSize="sm" mt={2}>
-          {errors.date}
-        </Text>
-      )}
+      <ErrorAlert error={errors.date ?? errorTrigger} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
-          {isDirty ? (
-            <Button onClick={() => reset()} variant="outline">
-              Reset
-            </Button>
-          ) : undefined}
           <Spacer />
           <Button
             colorPalette="blue"

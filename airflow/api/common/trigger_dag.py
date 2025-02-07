@@ -101,12 +101,14 @@ def _trigger_dag(
     dag_run = dag.create_dagrun(
         run_id=run_id,
         logical_date=logical_date,
-        state=DagRunState.QUEUED,
+        data_interval=data_interval,
+        run_after=data_interval.end,
         conf=run_conf,
+        run_type=DagRunType.MANUAL,
+        triggered_by=triggered_by,
         external_trigger=True,
         dag_version=dag_version,
-        data_interval=data_interval,
-        triggered_by=triggered_by,
+        state=DagRunState.QUEUED,
         session=session,
     )
 

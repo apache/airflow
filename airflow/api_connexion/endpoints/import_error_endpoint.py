@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound, PermissionDenied
@@ -29,12 +29,12 @@ from airflow.api_connexion.schemas.error_schema import (
     import_error_collection_schema,
     import_error_schema,
 )
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import AccessView, DagDetails
 from airflow.models.dag import DagModel
 from airflow.models.errors import ParseImportError
 from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -56,12 +56,14 @@ def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) ->
         )
     session.expunge(error)
 
-    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
+    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET", user=get_auth_manager().get_user())
     if not can_read_all_dags:
         readable_dag_ids = security.get_readable_dags()
         file_dag_ids = {
             dag_id[0]
-            for dag_id in session.query(DagModel.dag_id).filter(DagModel.fileloc == error.filename).all()
+            for dag_id in session.query(DagModel.dag_id)
+            .filter(DagModel.fileloc == error.filename, DagModel.bundle_name == error.bundle_name)
+            .all()
         }
 
         # Can the user read any DAGs in the file?
@@ -93,14 +95,22 @@ def get_import_errors(
     query = select(ParseImportError)
     query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
 
-    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
+    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET", user=get_auth_manager().get_user())
 
     if not can_read_all_dags:
         # if the user doesn't have access to all DAGs, only display errors from visible DAGs
         readable_dag_ids = security.get_readable_dags()
-        dagfiles_stmt = select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids))
-        query = query.where(ParseImportError.filename.in_(dagfiles_stmt))
-        count_query = count_query.where(ParseImportError.filename.in_(dagfiles_stmt))
+        dagfiles_stmt = session.execute(
+            select(DagModel.fileloc, DagModel.bundle_name)
+            .distinct()
+            .where(DagModel.dag_id.in_(readable_dag_ids))
+        ).all()
+        query = query.where(
+            tuple_(ParseImportError.filename, ParseImportError.bundle_name or None).in_(dagfiles_stmt)
+        )
+        count_query = count_query.where(
+            tuple_(ParseImportError.filename, ParseImportError.bundle_name).in_(dagfiles_stmt)
+        )
 
     total_entries = session.scalars(count_query).one()
     import_errors = session.scalars(query.offset(offset).limit(limit)).all()
@@ -109,7 +119,12 @@ def get_import_errors(
         for import_error in import_errors:
             # Check if user has read access to all the DAGs defined in the file
             file_dag_ids = (
-                session.query(DagModel.dag_id).filter(DagModel.fileloc == import_error.filename).all()
+                session.query(DagModel.dag_id)
+                .filter(
+                    DagModel.fileloc == import_error.filename,
+                    DagModel.bundle_name == import_error.bundle_name,
+                )
+                .all()
             )
             requests: Sequence[IsAuthorizedDagRequest] = [
                 {
@@ -118,7 +133,7 @@ def get_import_errors(
                 }
                 for dag_id in file_dag_ids
             ]
-            if not get_auth_manager().batch_is_authorized_dag(requests):
+            if not get_auth_manager().batch_is_authorized_dag(requests, user=get_auth_manager().get_user()):
                 session.expunge(import_error)
                 import_error.stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
 

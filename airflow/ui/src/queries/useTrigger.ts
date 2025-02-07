@@ -20,38 +20,37 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
-  useDagRunServiceGetDagRunsKey,
+  UseDagRunServiceGetDagRunsKeyFn,
   useDagRunServiceTriggerDagRun,
   useDagServiceGetDagsKey,
   useDagsServiceRecentDagRunsKey,
+  UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
 
-export const useTrigger = (onClose: () => void) => {
+export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
+  const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
+
   const onSuccess = async () => {
     const queryKeys = [
-      useDagServiceGetDagsKey,
-      useDagsServiceRecentDagRunsKey,
-      useDagRunServiceGetDagRunsKey,
+      [useDagServiceGetDagsKey],
+      [useDagsServiceRecentDagRunsKey],
+      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
     ];
 
-    await Promise.all(
-      queryKeys.map((key) =>
-        queryClient.invalidateQueries({ queryKey: [key] }),
-      ),
-    );
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
       description: "DAG run has been successfully triggered.",
       title: "DAG Run Request Submitted",
       type: "success",
     });
-
-    onClose();
+    onSuccessConfirm();
   };
 
   const onError = (_error: unknown) => {
@@ -63,28 +62,44 @@ export const useTrigger = (onClose: () => void) => {
     onSuccess,
   });
 
-  const triggerDagRun = (
-    dagId: string,
-    dagRunRequestBody: DagRunTriggerParams,
-  ) => {
-    const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<
-      string,
-      unknown
-    >;
+  const triggerDagRun = (dagRunRequestBody: DagRunTriggerParams) => {
+    const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<string, unknown>;
 
-    const formattedDataIntervalStart = dagRunRequestBody.dataIntervalStart
-      ? new Date(dagRunRequestBody.dataIntervalStart).toISOString()
+    const DataIntervalStart = dagRunRequestBody.dataIntervalStart
+      ? new Date(dagRunRequestBody.dataIntervalStart)
       : undefined;
-    const formattedDataIntervalEnd = dagRunRequestBody.dataIntervalEnd
-      ? new Date(dagRunRequestBody.dataIntervalEnd).toISOString()
+    const DataIntervalEnd = dagRunRequestBody.dataIntervalEnd
+      ? new Date(dagRunRequestBody.dataIntervalEnd)
       : undefined;
 
-    const checkDagRunId =
-      dagRunRequestBody.dagRunId === ""
-        ? undefined
-        : dagRunRequestBody.dagRunId;
-    const checkNote =
-      dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
+    if (Boolean(DataIntervalStart) !== Boolean(DataIntervalEnd)) {
+      setDateValidationError({
+        body: {
+          detail:
+            "Either both Data Interval Start Date and End Date must be provided, or both must be empty.",
+        },
+      });
+
+      return;
+    }
+
+    if (DataIntervalStart && DataIntervalEnd) {
+      if (DataIntervalStart > DataIntervalEnd) {
+        setDateValidationError({
+          body: {
+            detail: "Data Interval Start Date must be less than or equal to Data Interval End Date.",
+          },
+        });
+
+        return;
+      }
+    }
+
+    const formattedDataIntervalStart = DataIntervalStart?.toISOString() ?? undefined;
+    const formattedDataIntervalEnd = DataIntervalEnd?.toISOString() ?? undefined;
+
+    const checkDagRunId = dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId;
+    const checkNote = dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
 
     mutate({
       dagId,
@@ -98,5 +113,5 @@ export const useTrigger = (onClose: () => void) => {
     });
   };
 
-  return { error, isPending, triggerDagRun };
+  return { dateValidationError, error, isPending, triggerDagRun };
 };

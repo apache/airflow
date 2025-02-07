@@ -75,7 +75,7 @@ def _get_version_revision(
     return _get_version_revision(new_version, recursion_limit)
 
 
-def run_db_migrate_command(args, command, revision_heads_map: dict[str, str], reserialize_dags: bool = True):
+def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
     """
     Run the db migrate command.
 
@@ -122,19 +122,11 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str], re
         print(f"Performing upgrade to the metadata database {settings.engine.url!r}")
     else:
         print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
-    if reserialize_dags:
-        command(
-            to_revision=to_revision,
-            from_revision=from_revision,
-            show_sql_only=args.show_sql_only,
-            reserialize_dags=True,
-        )
-    else:
-        command(
-            to_revision=to_revision,
-            from_revision=from_revision,
-            show_sql_only=args.show_sql_only,
-        )
+    command(
+        to_revision=to_revision,
+        from_revision=from_revision,
+        show_sql_only=args.show_sql_only,
+    )
     if not args.show_sql_only:
         print("Database migrating done!")
 
@@ -202,7 +194,7 @@ def migratedb(args):
             raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
         if parsed_version < parse_version("2.0.0"):
             raise SystemExit("--from-version must be greater or equal to 2.0.0")
-    run_db_migrate_command(args, db.upgradedb, _REVISION_HEADS_MAP, reserialize_dags=True)
+    run_db_migrate_command(args, db.upgradedb, _REVISION_HEADS_MAP)
 
 
 @cli_utils.action_cli(check_db=False)

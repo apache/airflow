@@ -63,11 +63,14 @@ jobs:
         run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: "false"
       - name: Selective checks
         id: selective-checks
         env:
           VERBOSE: "false"
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+
   release-images:
     timeout-minutes: 120
     name: "Release images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}"
@@ -99,6 +102,8 @@ jobs:
         run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: "false"
       - name: Free space
         run: breeze ci free-space --answer yes
       - name: "Cleanup dist and context file"
@@ -108,7 +113,10 @@ jobs:
           echo ${{ secrets.DOCKERHUB_TOKEN }} |
           docker login --password-stdin --username ${{ secrets.DOCKERHUB_USER }}
       - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
       - name: "Install buildx plugin"
         # yamllint disable rule:line-length
         run: |
@@ -141,10 +149,12 @@ jobs:
         # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
         # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
         shell: bash
+        env:
+          CHICKEN_EGG_PROVIDERS: ${{ needs.build-info.outputs.chicken-egg-providers }}
         run: >
           breeze release-management prepare-provider-packages
           --package-format wheel
-          --version-suffix-for-pypi dev0 ${{ needs.build-info.outputs.chicken-egg-providers }}
+          --version-suffix-for-pypi dev0 ${CHICKEN_EGG_PROVIDERS}
         if: needs.build-info.outputs.chicken-egg-providers != ''
       - name: "Copy dist packages to docker-context files"
         shell: bash
@@ -152,42 +162,61 @@ jobs:
         if: needs.build-info.outputs.chicken-egg-providers != ''
       - name: >
           Release regular images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
-        run: >
-          breeze release-management release-prod-images
-          --dockerhub-repo ${{ github.repository }}
-          --airflow-version  ${{ github.event.inputs.airflowVersion }}
-          ${{ needs.build-info.outputs.skipLatest }}
-          ${{ needs.build-info.outputs.limitPlatform }}
-          --limit-python ${{ matrix.python-version }}
-          --chicken-egg-providers "${{ needs.build-info.outputs.chicken-egg-providers }}"
         env:
           COMMIT_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
+          SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest }}
+          LIMIT_PLATFORM: ${{ needs.build-info.outputs.limitPlatform }}
+          CHICKEN_EGG_PROVIDERS: ${{ needs.build-info.outputs.chicken-egg-providers }}
+        run: >
+          breeze release-management release-prod-images
+          --dockerhub-repo "${REPOSITORY}"
+          --airflow-version "${AIRFLOW_VERSION}"
+          ${SKIP_LATEST}
+          ${LIMIT_PLATFORM}
+          --limit-python ${PYTHON_VERSION}
+          --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}"
       - name: >
           Release slim images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
-        run: >
-          breeze release-management release-prod-images
-          --dockerhub-repo ${{ github.repository }}
-          --airflow-version  ${{ github.event.inputs.airflowVersion }}
-          ${{ needs.build-info.outputs.skipLatest }}
-          ${{ needs.build-info.outputs.limitPlatform }}
-          --limit-python ${{ matrix.python-version }} --slim-images
         env:
           COMMIT_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
+          SKIP_LATEST: ${{ needs.build-info.outputs.skipLatest }}
+          LIMIT_PLATFORM: ${{ needs.build-info.outputs.limitPlatform }}
+        run: >
+          breeze release-management release-prod-images
+          --dockerhub-repo "${REPOSITORY}"
+          --airflow-version "${AIRFLOW_VERSION}"
+          ${SKIP_LATEST}
+          ${LIMIT_PLATFORM}
+          --limit-python ${PYTHON_VERSION} --slim-images
       - name: >
           Verify regular AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
+          REPOSITORY: ${{ github.repository }}
         run: >
           breeze prod-image verify
           --pull
           --image-name
-          ${{github.repository}}:${{github.event.inputs.airflowVersion}}-python${{matrix.python-version}}
+          ${REPOSITORY}:${AIRFLOW_VERSION}-python${PYTHON_VERSION}
       - name: >
           Verify slim AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+          AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
+          REPOSITORY: ${{ github.repository }}
         run: >
           breeze prod-image verify
           --pull
           --slim-image
           --image-name
-          ${{github.repository}}:slim-${{github.event.inputs.airflowVersion}}-python${{matrix.python-version}}
+          ${REPOSITORY}:slim-${AIRFLOW_VERSION}-python${PYTHON_VERSION}
       - name: "Docker logout"
         run: docker logout
         if: always()

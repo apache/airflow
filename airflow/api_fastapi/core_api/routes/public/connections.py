@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import os
-from typing import Annotated, cast
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -27,17 +27,22 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkBody,
+    BulkResponse,
+)
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
-    ConnectionBulkBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
+from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
@@ -135,22 +140,13 @@ def post_connection(
     return connection
 
 
-@connections_router.post(
-    "/bulk",
-    status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
-)
-def post_connections(
-    post_body: ConnectionBulkBody,
+@connections_router.patch("")
+def bulk_connections(
+    request: BulkBody[ConnectionBody],
     session: SessionDep,
-) -> ConnectionCollectionResponse:
-    """Create connection entry."""
-    connections = [Connection(**body.model_dump(by_alias=True)) for body in post_body.connections]
-    session.add_all(connections)
-    return ConnectionCollectionResponse(
-        connections=cast(list[ConnectionResponse], connections),
-        total_entries=len(connections),
-    )
+) -> BulkResponse:
+    """Bulk create, update, and delete connections."""
+    return BulkConnectionService(session=session, request=request).handle_request()
 
 
 @connections_router.patch(
@@ -187,13 +183,13 @@ def patch_connection(
 
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
     else:
         try:
             ConnectionBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
 
     for key, val in data.items():
         setattr(connection, key, val)
@@ -212,7 +208,7 @@ def test_connection(
 
     This method first creates an in-memory transient conn_id & exports that to an env var,
     as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
-    It also deletes the conn id env variable after the test.
+    It also deletes the conn id env connection after the test.
     """
     if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
         raise HTTPException(
@@ -232,3 +228,14 @@ def test_connection(
         return ConnectionTestResponse.model_validate({"status": test_status, "message": test_message})
     finally:
         os.environ.pop(conn_env_var, None)
+
+
+@connections_router.post(
+    "/defaults",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def create_default_connections(
+    session: SessionDep,
+):
+    """Create default connections."""
+    db_create_default_connections(session)

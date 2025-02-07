@@ -20,7 +20,7 @@
 ################################
 ## Airflow Worker HPA
 #################################
-{{- if and (and (not .Values.workers.keda.enabled) .Values.workers.hpa.enabled) (has .Values.executor (list "CeleryExecutor" "CeleryKubernetesExecutor")) }}
+{{- if and (and (not .Values.workers.keda.enabled) .Values.workers.hpa.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

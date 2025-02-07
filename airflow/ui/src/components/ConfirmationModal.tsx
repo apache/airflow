@@ -29,13 +29,7 @@ type Props = {
   readonly open: boolean;
 };
 
-export const ConfirmationModal = ({
-  children,
-  header,
-  onConfirm,
-  onOpenChange,
-  open,
-}: Props) => (
+export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, open }: Props) => (
   <Dialog.Root onOpenChange={onOpenChange} open={open}>
     <Dialog.Content backdrop>
       <Dialog.Header>

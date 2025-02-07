@@ -27,6 +27,7 @@ from typing import (
     Any,
     Callable,
     Generic,
+    Literal,
     Optional,
     TypeVar,
     Union,
@@ -36,7 +37,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, case, or_
+from sqlalchemy import Column, and_, case, or_
 from sqlalchemy.inspection import inspect
 
 from airflow.models import Base
@@ -47,12 +48,15 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement, Select
@@ -232,6 +236,7 @@ class FilterOptionEnum(Enum):
     IN = "in"
     NOT_IN = "not_in"
     ANY_EQUAL = "any_eq"
+    ALL_EQUAL = "all_eq"
     IS_NONE = "is_none"
 
 
@@ -264,6 +269,9 @@ class FilterParam(BaseParam[T]):
             if self.filter_option == FilterOptionEnum.ANY_EQUAL:
                 conditions = [self.attribute == val for val in self.value]
                 return select.where(or_(*conditions))
+            if self.filter_option == FilterOptionEnum.ALL_EQUAL:
+                conditions = [self.attribute == val for val in self.value]
+                return select.where(and_(*conditions))
             raise HTTPException(
                 400, f"Invalid filter option {self.filter_option} for list value {self.value}"
             )
@@ -323,21 +331,33 @@ def filter_param_factory(
     return depends_filter
 
 
-class _TagsFilter(BaseParam[list[str]]):
+class _TagFilterModel(BaseModel):
+    """Tag Filter Model with a match mode parameter."""
+
+    tags: list[str]
+    tags_match_mode: Literal["any", "all"] | None
+
+
+class _TagsFilter(BaseParam[_TagFilterModel]):
     """Filter on tags."""
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
-        if not self.value:
+        if not self.value or not self.value.tags:
             return select
 
-        conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value]
-        return select.where(or_(*conditions))
+        conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value.tags]
+        operator = or_ if not self.value.tags_match_mode or self.value.tags_match_mode == "any" else and_
+        return select.where(operator(*conditions))
 
-    def depends(self, tags: list[str] = Query(default_factory=list)) -> _TagsFilter:
-        return self.set_value(tags)
+    def depends(
+        self,
+        tags: list[str] = Query(default_factory=list),
+        tags_match_mode: Literal["any", "all"] | None = None,
+    ) -> _TagsFilter:
+        return self.set_value(_TagFilterModel(tags=tags, tags_match_mode=tags_match_mode))
 
 
 class _OwnersFilter(BaseParam[list[str]]):
@@ -442,6 +462,12 @@ class RangeFilter(BaseParam[Range]):
     def depends(self, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use the `range_filter_factory` function to create the dependency")
 
+    def is_active(self) -> bool:
+        """Check if the range filter has any active bounds."""
+        return self.value is not None and (
+            self.value.lower_bound is not None or self.value.upper_bound is not None
+        )
+
 
 def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
@@ -528,6 +554,32 @@ QueryDagRunStateFilter = Annotated[
     ),
 ]
 
+
+def _transform_dag_run_types(types: list[str] | None) -> list[DagRunType | None] | None:
+    try:
+        if not types:
+            return None
+        return [None if run_type in ("none", None) else DagRunType(run_type) for run_type in types]
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid value for run type. Valid values are {', '.join(DagRunType)}",
+        )
+
+
+QueryDagRunRunTypesFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            attribute=DagRun.run_type,
+            _type=list[str],
+            filter_option=FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            transform_callable=_transform_dag_run_types,
+        )
+    ),
+]
+
 # DAGTags
 QueryDagTagPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagTag.name, "tag_name_pattern"))
@@ -584,6 +636,17 @@ QueryTIExecutorFilter = Annotated[
 QueryTITaskDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
 ]
+QueryTIDagVersionFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            DagVersion.version_number,
+            list[int],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+        )
+    ),
+]
 
 # Assets
 QueryAssetNamePatternSearch = Annotated[
@@ -600,4 +663,34 @@ QueryAssetDagIdPatternSearch = Annotated[
 # Variables
 QueryVariableKeyPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(Variable.key, "variable_key_pattern"))
+]
+
+# Pools
+QueryPoolNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(Pool.pool, "pool_name_pattern"))
+]
+
+
+# UI Shared
+def _optional_boolean(value: bool | None) -> bool | None:
+    return value if value is not None else False
+
+
+QueryIncludeUpstream = Annotated[Union[bool], AfterValidator(_optional_boolean)]
+QueryIncludeDownstream = Annotated[Union[bool], AfterValidator(_optional_boolean)]
+
+state_priority: list[None | TaskInstanceState] = [
+    TaskInstanceState.FAILED,
+    TaskInstanceState.UPSTREAM_FAILED,
+    TaskInstanceState.UP_FOR_RETRY,
+    TaskInstanceState.UP_FOR_RESCHEDULE,
+    TaskInstanceState.QUEUED,
+    TaskInstanceState.SCHEDULED,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.RUNNING,
+    TaskInstanceState.RESTARTING,
+    None,
+    TaskInstanceState.SUCCESS,
+    TaskInstanceState.SKIPPED,
+    TaskInstanceState.REMOVED,
 ]

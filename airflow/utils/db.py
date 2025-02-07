@@ -94,7 +94,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
-    "3.0.0": "237cef8dfea1",
+    "3.0.0": "6a9e7a527a88",
 }
 
 
@@ -921,14 +921,6 @@ def check_and_run_migrations():
         sys.exit(1)
 
 
-def _reserialize_dags(*, session: Session) -> None:
-    from airflow.models.dagbag import DagBag
-
-    dagbag = DagBag(collect_dags=False)
-    dagbag.collect_dags(only_if_updated=False)
-    dagbag.sync_to_db(session=session)
-
-
 @provide_session
 def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     """
@@ -1167,8 +1159,6 @@ def upgradedb(
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         import sqlalchemy.pool
 
-        previous_revision = _get_current_revision(session=session)
-
         log.info("Migrating the Airflow database")
         val = os.environ.get("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
         try:
@@ -1192,9 +1182,6 @@ def upgradedb(
                 os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = val
             settings.reconfigure_orm()
 
-        if reserialize_dags and current_revision != previous_revision:
-            log.info("Reserializing the DAGs")
-            _reserialize_dags(session=session)
         add_default_pool_if_not_exists(session=session)
         synchronize_log_template(session=session)
 

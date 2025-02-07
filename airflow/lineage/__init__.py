@@ -28,7 +28,7 @@ from airflow.lineage.backend import LineageBackend
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 PIPELINE_OUTLETS = "pipeline_outlets"
 PIPELINE_INLETS = "pipeline_inlets"

@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from sqlalchemy import Boolean, Column, Integer, String, Text, func, select
 
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.typing_compat import TypedDict
 from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import with_row_locks

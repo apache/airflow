@@ -26,19 +26,21 @@ from unittest.mock import call
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
-from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
@@ -46,18 +48,14 @@ from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
-
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 if TYPE_CHECKING:
@@ -99,11 +97,11 @@ class TestDagRun:
         logical_date: datetime.datetime | None = None,
         is_backfill: bool = False,
         state: DagRunState = DagRunState.RUNNING,
+        dag_version: DagVersion | None = None,
         session: Session,
     ):
         now = timezone.utcnow()
         logical_date = pendulum.instance(logical_date or now)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         if is_backfill:
             run_type = DagRunType.BACKFILL_JOB
             data_interval = dag.infer_automated_data_interval(logical_date)
@@ -111,38 +109,43 @@ class TestDagRun:
             run_type = DagRunType.MANUAL
             data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
         dag_run = dag.create_dagrun(
+            run_id=dag.timetable.generate_run_id(
+                run_type=run_type,
+                logical_date=logical_date,
+                data_interval=data_interval,
+            ),
             run_type=run_type,
             logical_date=logical_date,
             data_interval=data_interval,
+            run_after=data_interval.end,
             start_date=now,
             state=state,
             external_trigger=False,
-            **triggered_by_kwargs,  # type: ignore
+            dag_version=dag_version or DagVersion.get_latest_version(dag.dag_id, session=session),
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         if task_states is not None:
             for task_id, task_state in task_states.items():
                 ti = dag_run.get_task_instance(task_id)
+                if TYPE_CHECKING:
+                    assert ti
                 ti.set_state(task_state, session)
             session.flush()
 
         return dag_run
 
-    @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
-    def test_clear_task_instances_for_backfill_unfinished_dagrun(self, state, session):
+    def test_clear_task_instances_for_backfill_running_dagrun(self, session):
         now = timezone.utcnow()
-        dag_id = "test_clear_task_instances_for_backfill_dagrun"
-        dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=now)
-        dag_run = self.create_dag_run(dag, logical_date=now, is_backfill=True, state=state, session=session)
-
-        task0 = EmptyOperator(task_id="backfill_task_0", owner="test", dag=dag)
-        ti0 = TI(task=task0, run_id=dag_run.run_id)
-        ti0.run()
+        state = DagRunState.RUNNING
+        dag_id = "test_clear_task_instances_for_backfill_running_dagrun"
+        with DAG(dag_id=dag_id) as dag:
+            EmptyOperator(task_id="backfill_task_0")
+        self.create_dag_run(dag, logical_date=now, is_backfill=True, state=state, session=session)
 
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
         clear_task_instances(qry, session)
-        session.commit()
-        ti0.refresh_from_db()
+        session.flush()
         dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.logical_date == now).first()
         assert dr0.state == state
         assert dr0.clear_number < 1
@@ -150,18 +153,14 @@ class TestDagRun:
     @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
     def test_clear_task_instances_for_backfill_finished_dagrun(self, state, session):
         now = timezone.utcnow()
-        dag_id = "test_clear_task_instances_for_backfill_dagrun"
-        dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=now)
-        dag_run = self.create_dag_run(dag, logical_date=now, is_backfill=True, state=state, session=session)
-
-        task0 = EmptyOperator(task_id="backfill_task_0", owner="test", dag=dag)
-        ti0 = TI(task=task0, run_id=dag_run.run_id)
-        ti0.run()
+        dag_id = "test_clear_task_instances_for_backfill_finished_dagrun"
+        with DAG(dag_id=dag_id) as dag:
+            EmptyOperator(task_id="backfill_task_0")
+        self.create_dag_run(dag, logical_date=now, is_backfill=True, state=state, session=session)
 
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).all()
         clear_task_instances(qry, session)
-        session.commit()
-        ti0.refresh_from_db()
+        session.flush()
         dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.logical_date == now).first()
         assert dr0.state == DagRunState.QUEUED
         assert dr0.clear_number == 1
@@ -279,18 +278,11 @@ class TestDagRun:
         dag_run.update_state()
         assert dag_run.state == DagRunState.SUCCESS
 
-    def test_dagrun_success_conditions(self, session):
-        dag = DAG(
-            "test_dagrun_success_conditions",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-            default_args={"owner": "owner1"},
-        )
-
+    def test_dagrun_success_conditions(self, dag_maker, session):
         # A -> B
         # A -> C -> D
         # ordered: B, D, C, A or D, B, C, A or D, C, B, A
-        with dag:
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
             op1 = EmptyOperator(task_id="A")
             op2 = EmptyOperator(task_id="B")
             op3 = EmptyOperator(task_id="C")
@@ -298,18 +290,7 @@ class TestDagRun:
             op1.set_upstream([op2, op3])
             op3.set_upstream(op4)
 
-        dag.clear()
-
-        now = pendulum.now("UTC")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_success_conditions",
-            state=DagRunState.RUNNING,
-            logical_date=now,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=now),
-            start_date=now,
-            **triggered_by_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
 
         # op1 = root
         ti_op1 = dr.get_task_instance(task_id=op1.task_id)
@@ -330,32 +311,14 @@ class TestDagRun:
         dr.update_state()
         assert dr.state == DagRunState.SUCCESS
 
-    def test_dagrun_deadlock(self, session):
-        dag = DAG(
-            "text_dagrun_deadlock",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-            default_args={"owner": "owner1"},
-        )
-
-        with dag:
+    def test_dagrun_deadlock(self, dag_maker, session):
+        with dag_maker(schedule=datetime.timedelta(days=1), session=session):
             op1 = EmptyOperator(task_id="A")
             op2 = EmptyOperator(task_id="B")
             op2.trigger_rule = TriggerRule.ONE_FAILED
             op2.set_upstream(op1)
 
-        dag.clear()
-        now = pendulum.now("UTC")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_deadlock",
-            state=DagRunState.RUNNING,
-            logical_date=now,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=now),
-            start_date=now,
-            session=session,
-            **triggered_by_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
 
         ti_op1: TI = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti_op2: TI = dr.get_task_instance(task_id=op2.task_id, session=session)
@@ -366,60 +329,37 @@ class TestDagRun:
         assert dr.state == DagRunState.RUNNING
 
         ti_op2.set_state(state=None, session=session)
-        op2.trigger_rule = "invalid"  # type: ignore
+        ti_op2.task.trigger_rule = "invalid"  # type: ignore
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
-    def test_dagrun_no_deadlock_with_restarting(self, session):
-        dag = DAG(
-            "test_dagrun_no_deadlock_with_restarting",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-        )
-        with dag:
+    def test_dagrun_no_deadlock_with_restarting(self, dag_maker, session):
+        with dag_maker(schedule=datetime.timedelta(days=1)):
             op1 = EmptyOperator(task_id="upstream_task")
             op2 = EmptyOperator(task_id="downstream_task")
             op2.set_upstream(op1)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_no_deadlock_with_shutdown",
-            state=DagRunState.RUNNING,
-            logical_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
-            start_date=DEFAULT_DATE,
-            **triggered_by_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
         upstream_ti = dr.get_task_instance(task_id="upstream_task")
         upstream_ti.set_state(TaskInstanceState.RESTARTING, session=session)
 
         dr.update_state()
         assert dr.state == DagRunState.RUNNING
 
-    def test_dagrun_no_deadlock_with_depends_on_past(self, session):
-        dag = DAG("test_dagrun_no_deadlock", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE)
-        with dag:
+    def test_dagrun_no_deadlock_with_depends_on_past(self, dag_maker, session):
+        with dag_maker(schedule=datetime.timedelta(days=1)):
             EmptyOperator(task_id="dop", depends_on_past=True)
             EmptyOperator(task_id="tc", max_active_tis_per_dag=1)
 
-        dag.clear()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
+        dr = dag_maker.create_dagrun(
             run_id="test_dagrun_no_deadlock_1",
-            state=DagRunState.RUNNING,
-            logical_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            run_type=DagRunType.SCHEDULED,
             start_date=DEFAULT_DATE,
-            **triggered_by_kwargs,
         )
-        next_date = DEFAULT_DATE + datetime.timedelta(days=1)
-        dr2 = dag.create_dagrun(
+        dr2 = dag_maker.create_dagrun_after(
+            dr,
             run_id="test_dagrun_no_deadlock_2",
-            state=DagRunState.RUNNING,
-            logical_date=next_date,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=next_date),
-            start_date=next_date,
-            **triggered_by_kwargs,
+            start_date=DEFAULT_DATE + datetime.timedelta(days=1),
         )
         ti1_op1 = dr.get_task_instance(task_id="dop")
         dr2.get_task_instance(task_id="dop")
@@ -518,17 +458,22 @@ class TestDagRun:
         assert dag_run.state == DagRunState.SUCCESS
         mock_on_success.assert_called_once()
 
-    def test_dagrun_update_state_with_handle_callback_success(self, session):
+    def test_dagrun_update_state_with_handle_callback_success(self, testing_dag_bundle, session):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_success"
 
+        relative_fileloc = "test_dagrun_update_state_with_handle_callback_success.py"
         dag = DAG(
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=on_success_callable,
         )
-        DAG.bulk_write_to_db(dags=[dag], processor_subdir="/tmp/test", session=session)
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.relative_fileloc = relative_fileloc
+        session.merge(dm)
+        session.commit()
 
         dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_state_succeeded2", dag=dag)
@@ -541,33 +486,42 @@ class TestDagRun:
 
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.dag_model = dm
 
         _, callback = dag_run.update_state(execute_callbacks=False)
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
-
         assert callback == DagCallbackRequest(
-            full_filepath=dag_run.dag.fileloc,
+            filepath=dag_run.dag.relative_fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             run_id=dag_run.run_id,
             is_failure_callback=False,
-            processor_subdir="/tmp/test",
+            bundle_name="testing",
+            bundle_version=None,
             msg="success",
         )
 
-    def test_dagrun_update_state_with_handle_callback_failure(self, session):
+    def test_dagrun_update_state_with_handle_callback_failure(self, testing_dag_bundle, session):
         def on_failure_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_failure"
 
+        relative_fileloc = "test_dagrun_update_state_with_handle_callback_failure.py"
         dag = DAG(
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             schedule=datetime.timedelta(days=1),
             start_date=datetime.datetime(2017, 1, 1),
             on_failure_callback=on_failure_callable,
         )
-        DAG.bulk_write_to_db(dags=[dag], processor_subdir="/tmp/test", session=session)
+        DAG.bulk_write_to_db("testing", None, dags=[dag], session=session)
+        dm = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dm.relative_fileloc = relative_fileloc
+        session.merge(dm)
+        session.commit()
 
         dag_task1 = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
         dag_task2 = EmptyOperator(task_id="test_state_failed2", dag=dag)
@@ -580,42 +534,32 @@ class TestDagRun:
 
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        dag.relative_fileloc = relative_fileloc
+        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.dag_model = dm
 
         _, callback = dag_run.update_state(execute_callbacks=False)
         assert dag_run.state == DagRunState.FAILED
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
         assert callback == DagCallbackRequest(
-            full_filepath=dag_run.dag.fileloc,
+            filepath=dag.relative_fileloc,
             dag_id="test_dagrun_update_state_with_handle_callback_failure",
             run_id=dag_run.run_id,
             is_failure_callback=True,
-            processor_subdir="/tmp/test",
             msg="task_failure",
+            bundle_name="testing",
+            bundle_version=None,
         )
 
-    def test_dagrun_set_state_end_date(self, session):
-        dag = DAG(
-            "test_dagrun_set_state_end_date",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-            default_args={"owner": "owner1"},
-        )
+    def test_dagrun_set_state_end_date(self, dag_maker, session):
+        with dag_maker(schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE):
+            pass
 
-        dag.clear()
-
-        now = pendulum.now("UTC")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_set_state_end_date",
-            state=DagRunState.RUNNING,
-            logical_date=now,
-            data_interval=dag.timetable.infer_manual_data_interval(now),
-            start_date=now,
-            **triggered_by_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
 
         # Initial end_date should be NULL
         # DagRunState.SUCCESS and DagRunState.FAILED are all ending state and should set end_date
@@ -628,7 +572,7 @@ class TestDagRun:
         session.merge(dr)
         session.commit()
 
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_set_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
         assert dr_database.end_date is not None
         assert dr.end_date == dr_database.end_date
 
@@ -636,44 +580,26 @@ class TestDagRun:
         session.merge(dr)
         session.commit()
 
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_set_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
 
         assert dr_database.end_date is None
 
         dr.set_state(DagRunState.FAILED)
         session.merge(dr)
         session.commit()
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_set_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
 
         assert dr_database.end_date is not None
         assert dr.end_date == dr_database.end_date
 
-    def test_dagrun_update_state_end_date(self, session):
-        dag = DAG(
-            "test_dagrun_update_state_end_date",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-            default_args={"owner": "owner1"},
-        )
-
+    def test_dagrun_update_state_end_date(self, dag_maker, session):
         # A -> B
-        with dag:
+        with dag_maker(schedule=datetime.timedelta(days=1)):
             op1 = EmptyOperator(task_id="A")
             op2 = EmptyOperator(task_id="B")
             op1.set_upstream(op2)
 
-        dag.clear()
-
-        now = pendulum.now("UTC")
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_id="test_dagrun_update_state_end_date",
-            state=DagRunState.RUNNING,
-            logical_date=now,
-            data_interval=dag.timetable.infer_manual_data_interval(now),
-            start_date=now,
-            **triggered_by_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
 
         # Initial end_date should be NULL
         # DagRunState.SUCCESS and DagRunState.FAILED are all ending state and should set end_date
@@ -689,7 +615,7 @@ class TestDagRun:
 
         dr.update_state()
 
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_update_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
         assert dr_database.end_date is not None
         assert dr.end_date == dr_database.end_date
 
@@ -697,7 +623,7 @@ class TestDagRun:
         ti_op2.set_state(state=TaskInstanceState.RUNNING, session=session)
         dr.update_state()
 
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_update_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
 
         assert dr._state == DagRunState.RUNNING
         assert dr.end_date is None
@@ -707,7 +633,7 @@ class TestDagRun:
         ti_op2.set_state(state=TaskInstanceState.FAILED, session=session)
         dr.update_state()
 
-        dr_database = session.query(DagRun).filter(DagRun.run_id == "test_dagrun_update_state_end_date").one()
+        dr_database = session.query(DagRun).filter(DagRun.run_id == dr.run_id).one()
 
         assert dr_database.end_date is not None
         assert dr.end_date == dr_database.end_date
@@ -825,7 +751,7 @@ class TestDagRun:
         assert task.queue == "queue1"
 
     @pytest.mark.parametrize(
-        "prev_ti_state, is_ti_success",
+        "prev_ti_state, is_ti_schedulable",
         [
             (TaskInstanceState.SUCCESS, True),
             (TaskInstanceState.SKIPPED, True),
@@ -834,37 +760,40 @@ class TestDagRun:
             (None, False),
         ],
     )
-    def test_depends_on_past(self, dagbag, session, prev_ti_state, is_ti_success):
-        dag_id = "test_depends_on_past"
+    def test_depends_on_past(self, dag_maker, session, prev_ti_state, is_ti_schedulable):
+        # DAG tests depends_on_past dependencies
+        with dag_maker(
+            dag_id="test_depends_on_past", schedule=datetime.timedelta(days=1), session=session
+        ) as dag:
+            BaseOperator(
+                task_id="test_dop_task",
+                depends_on_past=True,
+            )
 
-        dag = dagbag.get_dag(dag_id)
         task = dag.tasks[0]
 
-        dag_run_1 = self.create_dag_run(
-            dag,
+        dag_run_1: DagRun = dag_maker.create_dagrun(
             logical_date=timezone.datetime(2016, 1, 1, 0, 0, 0),
-            is_backfill=True,
-            session=session,
+            run_type=DagRunType.SCHEDULED,
         )
-        dag_run_2 = self.create_dag_run(
-            dag,
+        dag_run_2: DagRun = dag_maker.create_dagrun(
             logical_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
-            is_backfill=True,
-            session=session,
+            run_type=DagRunType.SCHEDULED,
         )
 
         prev_ti = TI(task, run_id=dag_run_1.run_id)
-        prev_ti.refresh_from_db()
+        prev_ti.refresh_from_db(session=session)
+        prev_ti.set_state(prev_ti_state, session=session)
+        session.flush()
         ti = TI(task, run_id=dag_run_2.run_id)
-        ti.refresh_from_db()
+        ti.refresh_from_db(session=session)
 
-        prev_ti.set_state(prev_ti_state)
-        ti.set_state(TaskInstanceState.QUEUED)
-        ti.run()
-        assert (ti.state == TaskInstanceState.SUCCESS) == is_ti_success
+        decision = dag_run_2.task_instance_scheduling_decisions(session=session)
+        schedulable_tis = [ti.task_id for ti in decision.schedulable_tis]
+        assert ("test_dop_task" in schedulable_tis) == is_ti_schedulable
 
     @pytest.mark.parametrize(
-        "prev_ti_state, is_ti_success",
+        "prev_ti_state, is_ti_schedulable",
         [
             (TaskInstanceState.SUCCESS, True),
             (TaskInstanceState.SKIPPED, True),
@@ -873,38 +802,43 @@ class TestDagRun:
             (None, False),
         ],
     )
-    def test_wait_for_downstream(self, dagbag, session, prev_ti_state, is_ti_success):
+    def test_wait_for_downstream(self, dag_maker, session, prev_ti_state, is_ti_schedulable):
         dag_id = "test_wait_for_downstream"
-        dag = dagbag.get_dag(dag_id)
+
+        with dag_maker(dag_id=dag_id, session=session) as dag:
+            dag_wfd_upstream = EmptyOperator(
+                task_id="upstream_task",
+                wait_for_downstream=True,
+            )
+            dag_wfd_downstream = EmptyOperator(task_id="downstream_task")
+            dag_wfd_upstream >> dag_wfd_downstream
         upstream, downstream = dag.tasks
 
         # For ti.set_state() to work, the DagRun has to exist,
         # Otherwise ti.previous_ti returns an unpersisted TI
-        dag_run_1 = self.create_dag_run(
-            dag,
+        dag_run_1: DagRun = dag_maker.create_dagrun(
             logical_date=timezone.datetime(2016, 1, 1, 0, 0, 0),
-            is_backfill=True,
-            session=session,
+            run_type=DagRunType.SCHEDULED,
         )
-        dag_run_2 = self.create_dag_run(
-            dag,
+        dag_run_2: DagRun = dag_maker.create_dagrun(
             logical_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
-            is_backfill=True,
-            session=session,
+            run_type=DagRunType.SCHEDULED,
         )
 
-        prev_ti_downstream = TI(task=downstream, run_id=dag_run_1.run_id)
-        prev_ti_downstream.refresh_from_db()
-        ti = TI(task=upstream, run_id=dag_run_2.run_id)
-        ti.refresh_from_db()
-        prev_ti = ti.get_previous_ti()
-        prev_ti.set_state(TaskInstanceState.SUCCESS)
-        assert prev_ti.state == TaskInstanceState.SUCCESS
+        ti = dag_run_2.get_task_instance(task_id=upstream.task_id, session=session)
+        prev_ti_downstream = dag_run_1.get_task_instance(task_id=downstream.task_id, session=session)
+        prev_ti_upstream = ti.get_previous_ti(session=session)
+        assert ti
+        assert prev_ti_upstream
+        assert prev_ti_downstream
+        prev_ti_upstream.state = TaskInstanceState.SUCCESS
 
-        prev_ti_downstream.set_state(prev_ti_state)
-        ti.set_state(TaskInstanceState.QUEUED)
-        ti.run()
-        assert (ti.state == TaskInstanceState.SUCCESS) == is_ti_success
+        prev_ti_downstream.state = prev_ti_state
+        session.flush()
+
+        decision = dag_run_2.task_instance_scheduling_decisions(session=session)
+        schedulable_tis = [ti.task_id for ti in decision.schedulable_tis]
+        assert (upstream.task_id in schedulable_tis) == is_ti_schedulable
 
     @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
     def test_next_dagruns_to_examine_only_unpaused(self, session, state):
@@ -925,15 +859,20 @@ class TestDagRun:
         )
         session.add(orm_dag)
         session.flush()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
+            run_id=dag.timetable.generate_run_id(
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+                data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
+            ),
             run_type=DagRunType.SCHEDULED,
             state=state,
             logical_date=DEFAULT_DATE,
             data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
+            run_after=DEFAULT_DATE,
             start_date=DEFAULT_DATE if state == DagRunState.RUNNING else None,
             session=session,
-            **triggered_by_kwargs,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         if state == DagRunState.RUNNING:
@@ -998,15 +937,20 @@ class TestDagRun:
             orm_dag = DagModel(**orm_dag_kwargs)
             session.add(orm_dag)
             session.flush()
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
+                run_id=dag.timetable.generate_run_id(
+                    run_type=DagRunType.SCHEDULED,
+                    logical_date=dag.start_date,
+                    data_interval=dag.infer_automated_data_interval(dag.start_date),
+                ),
                 run_type=DagRunType.SCHEDULED,
                 state=DagRunState.SUCCESS,
                 logical_date=dag.start_date,
                 data_interval=dag.infer_automated_data_interval(dag.start_date),
+                run_after=dag.start_date,
                 start_date=dag.start_date,
+                triggered_by=DagRunTriggeredByType.TEST,
                 session=session,
-                **triggered_by_kwargs,
             )
             ti = dag_run.get_task_instance(dag_task.task_id, session)
             ti.set_state(TaskInstanceState.SUCCESS, session)
@@ -1067,12 +1011,7 @@ class TestDagRun:
         with dag_maker(session=session) as dag:
             PythonOperator(task_id="t1", python_callable=lambda: print)
             PythonOperator(task_id="t2", python_callable=lambda: print)
-        dr = dag.create_dagrun(
-            state=DagRunState.FAILED,
-            triggered_by=DagRunTriggeredByType.TEST,
-            run_id="abc123",
-            session=session,
-        )
+        dr = dag_maker.create_dagrun(state=DagRunState.FAILED)
         for ti in dr.get_task_instances(session=session):
             ti.state = TaskInstanceState.FAILED
         session.commit()
@@ -1150,7 +1089,6 @@ def test_expand_mapped_task_instance_at_create(is_noop, dag_maker, session):
         assert indices == [(0,), (1,), (2,), (3,)]
 
 
-@pytest.mark.need_serialized_dag
 @pytest.mark.parametrize("is_noop", [True, False])
 def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session):
     with mock.patch("airflow.settings.task_instance_mutation_hook") as mock_mut:
@@ -1177,67 +1115,56 @@ def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session)
 def test_mapped_literal_verify_integrity(dag_maker, session):
     """Test that when the length of a mapped literal changes we remove extra TIs"""
 
-    with dag_maker(session=session) as dag:
+    @task
+    def task_2(arg2): ...
 
-        @task
-        def task_2(arg2): ...
-
+    with dag_maker(session=session):
         task_2.expand(arg2=[1, 2, 3, 4])
 
     dr = dag_maker.create_dagrun()
 
-    # Now "change" the DAG and we should see verify_integrity REMOVE some TIs
-    dag._remove_task("task_2")
-
-    with dag:
-        mapped = task_2.expand(arg2=[1, 2]).operator
-
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
-    dr.verify_integrity()
-
-    indices = (
-        session.query(TI.map_index, TI.state)
-        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+    query = (
+        select(TI.map_index, TI.state)
+        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
         .order_by(TI.map_index)
-        .all()
     )
+    indices = session.execute(query).all()
 
+    assert indices == [(0, None), (1, None), (2, None), (3, None)]
+
+    # Now "change" the DAG and we should see verify_integrity REMOVE some TIs
+    with dag_maker(session=session):
+        task_2.expand(arg2=[1, 2])
+
+    # Update it to use the new serialized DAG
+    dr.dag = dag_maker.dag
+    dr.verify_integrity(session=session)
+
+    indices = session.execute(query).all()
     assert indices == [(0, None), (1, None), (2, TaskInstanceState.REMOVED), (3, TaskInstanceState.REMOVED)]
 
 
 def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
     """Test that when we change from literal to a XComArg the TIs are removed"""
 
-    with dag_maker(session=session) as dag:
-        t1 = BaseOperator(task_id="task_1")
+    @task
+    def task_2(arg2): ...
 
-        @task
-        def task_2(arg2): ...
-
+    with dag_maker(session=session):
         task_2.expand(arg2=[1, 2, 3, 4])
 
     dr = dag_maker.create_dagrun()
 
-    # Now "change" the DAG and we should see verify_integrity REMOVE some TIs
-    dag._remove_task("task_2")
+    with dag_maker(session=session):
+        t1 = BaseOperator(task_id="task_1")
+        task_2.expand(arg2=t1.output)
 
-    with dag:
-        mapped = task_2.expand(arg2=t1.output).operator
-
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
-    dr.verify_integrity()
+    dr.dag = dag_maker.dag
+    dr.verify_integrity(session=session)
 
     indices = (
         session.query(TI.map_index, TI.state)
-        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
         .order_by(TI.map_index)
         .all()
     )
@@ -1253,16 +1180,20 @@ def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
 def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     """Test that when the length of mapped literal increases, additional ti is added"""
 
-    with dag_maker(session=session) as dag:
+    @task
+    def task_2(arg2): ...
 
-        @task
-        def task_2(arg2): ...
-
+    with dag_maker(session=session):
         task_2.expand(arg2=[1, 2, 3, 4])
 
     dr = dag_maker.create_dagrun()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis]
+
+    query = (
+        select(TI.map_index, TI.state)
+        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
+        .order_by(TI.map_index)
+    )
+    indices = session.execute(query).all()
     assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
@@ -1271,21 +1202,14 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     ]
 
     # Now "increase" the length of literal
-    dag._remove_task("task_2")
+    with dag_maker(session=session):
+        task_2.expand(arg2=[1, 2, 3, 4, 5])
 
-    with dag:
-        task_2.expand(arg2=[1, 2, 3, 4, 5]).operator
-
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
+    dr.dag = dag_maker.dag
     # Every mapped task is revised at task_instance_scheduling_decision
     dr.task_instance_scheduling_decisions()
 
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis]
+    indices = session.execute(query).all()
     assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
@@ -1298,16 +1222,19 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
 def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     """Test that when the length of mapped literal reduces, removed state is added"""
 
-    with dag_maker(session=session) as dag:
+    @task
+    def task_2(arg2): ...
 
-        @task
-        def task_2(arg2): ...
-
+    with dag_maker(session=session):
         task_2.expand(arg2=[1, 2, 3, 4])
 
     dr = dag_maker.create_dagrun()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis]
+    query = (
+        select(TI.map_index, TI.state)
+        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
+        .order_by(TI.map_index)
+    )
+    indices = session.execute(query).all()
     assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
@@ -1315,23 +1242,15 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
         (3, State.NONE),
     ]
 
-    # Now "reduce" the length of literal
-    dag._remove_task("task_2")
+    with dag_maker(session=session):
+        task_2.expand(arg2=[1, 2])
 
-    with dag:
-        task_2.expand(arg2=[1, 2]).operator
-
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
+    dr.dag = dag_maker.dag
     # Since we change the literal on the dag file itself, the dag_hash will
     # change which will have the scheduler verify the dr integrity
-    dr.verify_integrity()
+    dr.verify_integrity(session=session)
 
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis]
+    indices = session.execute(query).all()
     assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
@@ -1342,13 +1261,13 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
 
 def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, session):
     """Test that when the length of mapped literal increases at runtime, additional ti is added"""
-    from airflow.models import Variable
-
-    Variable.set(key="arg1", value=[1, 2, 3])
+    # Variable.set(key="arg1", value=[1, 2, 3])
 
     @task
     def task_1():
-        return Variable.get("arg1", deserialize_json=True)
+        # Behave as if we did this
+        # return Variable.get("arg1", deserialize_json=True)
+        ...
 
     with dag_maker(session=session) as dag:
 
@@ -1357,47 +1276,37 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
 
         task_2.expand(arg2=task_1())
 
-    dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
-    ti.run()
-    dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, State.NONE),
-        (1, State.NONE),
-        (2, State.NONE),
-    ]
+    dr: DagRun = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="task_1", session=session)
+    assert ti
+    ti.state = TaskInstanceState.SUCCESS
+    # Behave as if TI ran after: Variable.set(key="arg1", value=[1, 2, 3])
+    session.add(TaskMap.from_task_instance_xcom(ti, [1, 2, 3]))
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    indices = [(ti.task_id, ti.map_index) for ti in decision.schedulable_tis]
+    assert indices == [("task_2", 0), ("task_2", 1), ("task_2", 2)]
 
     # Now "clear" and "increase" the length of literal
     dag.clear()
-    Variable.set(key="arg1", value=[1, 2, 3, 4])
 
-    with dag:
-        task_2.expand(arg2=task_1()).operator
-
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
-
-    # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
-    task1 = dag.get_task("task_1")
-    ti.refresh_from_task(task1)
-    ti.run()
+    # "Run" the first task again to get the new lengths
+    ti = dr.get_task_instance(task_id="task_1", session=session)
+    assert ti
+    # Behave as if we did and re-ran the task: Variable.set(key="arg1", value=[1, 2, 3, 4])
+    session.merge(TaskMap.from_task_instance_xcom(ti, [1, 2, 3, 4]))
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
 
     # this would be called by the localtask job
-    dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
-
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    indices = [(ti.task_id, ti.state, ti.map_index) for ti in decision.schedulable_tis]
     assert sorted(indices) == [
-        (0, State.NONE),
-        (1, State.NONE),
-        (2, State.NONE),
-        (3, State.NONE),
+        ("task_2", None, 0),
+        ("task_2", None, 1),
+        ("task_2", None, 2),
+        ("task_2", None, 3),
     ]
 
 
@@ -1406,13 +1315,11 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     Test that when the length of mapped literal reduces at runtime, the missing task instances
     are marked as removed
     """
-    from airflow.models import Variable
-
-    Variable.set(key="arg1", value=[1, 2, 3])
 
     @task
     def task_1():
-        return Variable.get("arg1", deserialize_json=True)
+        # return Variable.get("arg1", deserialize_json=True)
+        ...
 
     with dag_maker(session=session) as dag:
 
@@ -1421,42 +1328,36 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
 
         task_2.expand(arg2=task_1())
 
-    dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
-    ti.run()
-    dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, State.NONE),
-        (1, State.NONE),
-        (2, State.NONE),
-    ]
+    dr: DagRun = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="task_1", session=session)
+    assert ti
+    ti.state = TaskInstanceState.SUCCESS
+    # Behave as if TI ran after: Variable.set(key="arg1", value=[1, 2, 3])
+    session.add(TaskMap.from_task_instance_xcom(ti, [1, 2, 3]))
+    session.flush()
+
+    dr.task_instance_scheduling_decisions(session=session)
+    query = (
+        select(TI.map_index, TI.state)
+        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
+        .order_by(TI.map_index)
+    )
+    indices = session.execute(query).all()
+    assert indices == [(0, None), (1, None), (2, None)]
 
     # Now "clear" and "reduce" the length of literal
     dag.clear()
-    Variable.set(key="arg1", value=[1, 2])
 
-    with dag:
-        task_2.expand(arg2=task_1()).operator
+    # "Run" the first task again to get the new lengths
+    ti = dr.get_task_instance(task_id="task_1", session=session)
+    assert ti
+    # Behave as if we did and re-ran the task: Variable.set(key="arg1", value=[1, 2])
+    session.merge(TaskMap.from_task_instance_xcom(ti, [1, 2]))
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
 
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
-
-    # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
-    task1 = dag.get_task("task_1")
-    ti.refresh_from_task(task1)
-    ti.run()
-
-    # this would be called by the localtask job
-    dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
-
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    dr.verify_integrity(session=session)
+    indices = session.execute(query).all()
     assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
@@ -1496,385 +1397,68 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
     assert len(decision.schedulable_tis) == 2
 
 
-def test_mapped_literal_length_with_no_change_at_runtime_doesnt_call_verify_integrity(dag_maker, session):
-    """
-    Test that when there's no change to mapped task indexes at runtime, the dagrun.verify_integrity
-    is not called
-    """
-    from airflow.models import Variable
-
-    Variable.set(key="arg1", value=[1, 2, 3])
-
-    @task
-    def task_1():
-        return Variable.get("arg1", deserialize_json=True)
-
-    with dag_maker(session=session) as dag:
-
-        @task
-        def task_2(arg2): ...
-
-        task_2.expand(arg2=task_1())
-
-    dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
-    ti.run()
-    dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, State.NONE),
-        (1, State.NONE),
-        (2, State.NONE),
-    ]
-
-    # Now "clear" and no change to length
-    dag.clear()
-    Variable.set(key="arg1", value=[1, 2, 3])
-
-    with dag:
-        task_2.expand(arg2=task_1()).operator
-
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
-
-    # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
-    task1 = dag.get_task("task_1")
-    ti.refresh_from_task(task1)
-    ti.run()
-
-    # this would be called by the localtask job
-    # Verify that DagRun.verify_integrity is not called
-    with mock.patch("airflow.models.dagrun.DagRun.verify_integrity") as mock_verify_integrity:
-        dr.task_instance_scheduling_decisions()
-        mock_verify_integrity.assert_not_called()
-
-
-def test_calls_to_verify_integrity_with_mapped_task_increase_at_runtime(dag_maker, session):
-    """
-    Test increase in mapped task at runtime with calls to dagrun.verify_integrity
-    """
-    from airflow.models import Variable
-
-    Variable.set(key="arg1", value=[1, 2, 3])
-
-    @task
-    def task_1():
-        return Variable.get("arg1", deserialize_json=True)
-
-    with dag_maker(session=session) as dag:
-
-        @task
-        def task_2(arg2): ...
-
-        task_2.expand(arg2=task_1())
-
-    dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
-    ti.run()
-    dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, State.NONE),
-        (1, State.NONE),
-        (2, State.NONE),
-    ]
-    # Now "clear" and "increase" the length of literal
-    dag.clear()
-    Variable.set(key="arg1", value=[1, 2, 3, 4, 5])
-
-    with dag:
-        task_2.expand(arg2=task_1()).operator
-
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
-
-    # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
-    task1 = dag.get_task("task_1")
-    ti.refresh_from_task(task1)
-    ti.run()
-    task2 = dag.get_task("task_2")
-    for ti in dr.get_task_instances():
-        if ti.map_index < 0:
-            ti.task = task1
-        else:
-            ti.task = task2
-        session.merge(ti)
-    session.flush()
-    # create the additional task
-    dr.task_instance_scheduling_decisions()
-    # Run verify_integrity as a whole and assert new tasks were added
-    dr.verify_integrity()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, State.NONE),
-        (1, State.NONE),
-        (2, State.NONE),
-        (3, State.NONE),
-        (4, State.NONE),
-    ]
-    ti3 = dr.get_task_instance(task_id="task_2", map_index=3)
-    ti3.task = task2
-    ti3.state = TaskInstanceState.FAILED
-    session.merge(ti3)
-    session.flush()
-    # assert repeated calls did not change the instances
-    dr.verify_integrity()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, State.NONE),
-        (1, State.NONE),
-        (2, State.NONE),
-        (3, TaskInstanceState.FAILED),
-        (4, State.NONE),
-    ]
-
-
-def test_calls_to_verify_integrity_with_mapped_task_reduction_at_runtime(dag_maker, session):
-    """
-    Test reduction in mapped task at runtime with calls to dagrun.verify_integrity
-    """
-    from airflow.models import Variable
-
-    Variable.set(key="arg1", value=[1, 2, 3])
-
-    @task
-    def task_1():
-        return Variable.get("arg1", deserialize_json=True)
-
-    with dag_maker(session=session) as dag:
-
-        @task
-        def task_2(arg2): ...
-
-        task_2.expand(arg2=task_1())
-
-    dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
-    ti.run()
-    dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, State.NONE),
-        (1, State.NONE),
-        (2, State.NONE),
-    ]
-    # Now "clear" and "reduce" the length of literal
-    dag.clear()
-    Variable.set(key="arg1", value=[1])
-
-    with dag:
-        task_2.expand(arg2=task_1()).operator
-
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
-
-    # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
-    task1 = dag.get_task("task_1")
-    ti.refresh_from_task(task1)
-    ti.run()
-    task2 = dag.get_task("task_2")
-    for ti in dr.get_task_instances():
-        if ti.map_index < 0:
-            ti.task = task1
-        else:
-            ti.task = task2
-            ti.state = TaskInstanceState.SUCCESS
-        session.merge(ti)
-    session.flush()
-
-    # Run verify_integrity as a whole and assert some tasks were removed
-    dr.verify_integrity()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, TaskInstanceState.SUCCESS),
-        (1, TaskInstanceState.REMOVED),
-        (2, TaskInstanceState.REMOVED),
-    ]
-
-    # assert repeated calls did not change the instances
-    dr.verify_integrity()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, TaskInstanceState.SUCCESS),
-        (1, TaskInstanceState.REMOVED),
-        (2, TaskInstanceState.REMOVED),
-    ]
-
-
-def test_calls_to_verify_integrity_with_mapped_task_with_no_changes_at_runtime(dag_maker, session):
-    """
-    Test no change in mapped task at runtime with calls to dagrun.verify_integrity
-    """
-    from airflow.models import Variable
-
-    Variable.set(key="arg1", value=[1, 2, 3])
-
-    @task
-    def task_1():
-        return Variable.get("arg1", deserialize_json=True)
-
-    with dag_maker(session=session) as dag:
-
-        @task
-        def task_2(arg2): ...
-
-        task_2.expand(arg2=task_1())
-
-    dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
-    ti.run()
-    dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, State.NONE),
-        (1, State.NONE),
-        (2, State.NONE),
-    ]
-    # Now "clear" and return the same length
-    dag.clear()
-    Variable.set(key="arg1", value=[1, 2, 3])
-
-    with dag:
-        task_2.expand(arg2=task_1()).operator
-
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
-
-    # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
-    task1 = dag.get_task("task_1")
-    ti.refresh_from_task(task1)
-    ti.run()
-    task2 = dag.get_task("task_2")
-    for ti in dr.get_task_instances():
-        if ti.map_index < 0:
-            ti.task = task1
-        else:
-            ti.task = task2
-            ti.state = TaskInstanceState.SUCCESS
-        session.merge(ti)
-    session.flush()
-
-    # Run verify_integrity as a whole and assert no changes
-    dr.verify_integrity()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, TaskInstanceState.SUCCESS),
-        (1, TaskInstanceState.SUCCESS),
-        (2, TaskInstanceState.SUCCESS),
-    ]
-
-    # assert repeated calls did not change the instances
-    dr.verify_integrity()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, TaskInstanceState.SUCCESS),
-        (1, TaskInstanceState.SUCCESS),
-        (2, TaskInstanceState.SUCCESS),
-    ]
-
-
 def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_maker, session, caplog):
     """
     Test zero length reduction in mapped task at runtime with calls to dagrun.verify_integrity
     """
     import logging
 
-    from airflow.models import Variable
-
-    Variable.set(key="arg1", value=[1, 2, 3])
-
-    @task
-    def task_1():
-        return Variable.get("arg1", deserialize_json=True)
-
     with dag_maker(session=session) as dag:
+
+        @task
+        def task_1():
+            # return Variable.get("arg1", deserialize_json=True)
+            ...
 
         @task
         def task_2(arg2): ...
 
         task_2.expand(arg2=task_1())
 
-    dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
-    ti.run()
-    dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
-    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert sorted(indices) == [
-        (0, State.NONE),
-        (1, State.NONE),
-        (2, State.NONE),
-    ]
-    ti1 = next(i for i in tis if i.map_index == 0)
+    dr: DagRun = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="task_1", session=session)
+    assert ti
+    # "Run" task_1
+    ti.state = TaskInstanceState.SUCCESS
+    # Behave as if TI ran after: Variable.set(key="arg1", value=[1, 2, 3])
+    session.add(TaskMap.from_task_instance_xcom(ti, [1, 2, 3]))
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    ti_2 = decision.schedulable_tis[0]
+    assert ti_2
+
+    query = (
+        select(TI.map_index, TI.state)
+        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
+        .order_by(TI.map_index)
+    )
+    indices = session.execute(query).all()
+    assert sorted(indices) == [(0, State.NONE), (1, State.NONE), (2, State.NONE)]
+
     # Now "clear" and "reduce" the length to empty list
     dag.clear()
-    Variable.set(key="arg1", value=[])
-
-    with dag:
-        task_2.expand(arg2=task_1()).operator
-
-    # At this point, we need to test that the change works on the serialized
-    # DAG (which is what the scheduler operates on)
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
-    dr.dag = serialized_dag
+    # We don't execute task anymore, but this is what we are
+    # simulating happened:
+    # Variable.set(key="arg1", value=[])
+    session.merge(TaskMap.from_task_instance_xcom(ti, []))
+    session.flush()
 
     # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
-    task1 = dag.get_task("task_1")
-    ti.refresh_from_task(task1)
-    ti.run()
-    task2 = dag.get_task("task_2")
-    for ti in dr.get_task_instances():
-        if ti.map_index < 0:
-            ti.task = task1
-        else:
-            ti.task = task2
-        session.merge(ti)
-    session.flush()
     with caplog.at_level(logging.DEBUG):
         # Run verify_integrity as a whole and assert the tasks were removed
-        dr.verify_integrity()
-        tis = dr.get_task_instances()
-        indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-        assert sorted(indices) == [
-            (0, TaskInstanceState.REMOVED),
-            (1, TaskInstanceState.REMOVED),
-            (2, TaskInstanceState.REMOVED),
-        ]
-        assert (
-            f"Removing task '{ti1}' as the map_index is longer than the resolved mapping list (0)"
-            in caplog.text
-        )
+        dr.verify_integrity(session=session)
+    indices = session.execute(query).all()
+    assert indices == [
+        (0, TaskInstanceState.REMOVED),
+        (1, TaskInstanceState.REMOVED),
+        (2, TaskInstanceState.REMOVED),
+    ]
+    assert (
+        f"Removing task '{ti_2}' as the map_index is longer than the resolved mapping list (0)" in caplog.text
+    )
 
 
-@pytest.mark.need_serialized_dag
 def test_mapped_mixed_literal_not_expanded_at_create(dag_maker, session):
     literal = [1, 2, 3, 4]
     with dag_maker(session=session):
@@ -2051,8 +1635,6 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
 
 
 def test_mapped_task_all_finish_before_downstream(dag_maker, session):
-    result = None
-
     with dag_maker(session=session) as dag:
 
         @dag.task
@@ -2065,8 +1647,8 @@ def test_mapped_task_all_finish_before_downstream(dag_maker, session):
 
         @dag.task
         def consumer(value):
-            nonlocal result
-            result = list(value)
+            ...
+            # result = list(value)
 
         consumer(value=double.expand(value=make_list()))
 
@@ -2080,25 +1662,28 @@ def test_mapped_task_all_finish_before_downstream(dag_maker, session):
     assert _task_ids(decision.schedulable_tis) == ["make_list"]
 
     # After make_list is run, double is expanded.
-    decision.schedulable_tis[0].run(verbose=False, session=session)
+    ti = decision.schedulable_tis[0]
+    ti.state = TaskInstanceState.SUCCESS
+    session.add(TaskMap.from_task_instance_xcom(ti, [1, 2]))
+    session.flush()
+
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert _task_ids(decision.schedulable_tis) == ["double", "double"]
 
     # Running just one of the mapped tis does not make downstream schedulable.
-    decision.schedulable_tis[0].run(verbose=False, session=session)
+    ti = decision.schedulable_tis[0]
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert _task_ids(decision.schedulable_tis) == ["double"]
 
-    # Downstream is schedulable after all mapped tis are run.
-    decision.schedulable_tis[0].run(verbose=False, session=session)
+    # Downstream is scheduleable after all mapped tis are run.
+    ti = decision.schedulable_tis[0]
+    ti.state = TaskInstanceState.SUCCESS
+    session.flush()
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert _task_ids(decision.schedulable_tis) == ["consumer"]
-
-    # We should be able to get all values aggregated from mapped upstreams.
-    decision.schedulable_tis[0].run(verbose=False, session=session)
-    decision = dr.task_instance_scheduling_decisions(session=session)
-    assert decision.schedulable_tis == []
-    assert result == [2, 4]
 
 
 def test_schedule_tis_map_index(dag_maker, session):
@@ -2177,6 +1762,7 @@ def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):
     assert empty_ti.try_number == 1
 
 
+@pytest.mark.xfail(reason="We can't keep this bevaviour with remote workers where scheduler can't reach xcom")
 def test_schedule_tis_start_trigger_through_expand(dag_maker, session):
     """
     Test that an operator with start_trigger_args set can be directly deferred during scheduling.
@@ -2331,28 +1917,18 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
 @pytest.mark.parametrize(
     "partial_params, mapped_params, expected",
     [
-        pytest.param(None, [{"a": 1}], [[("a", 1)]], id="simple"),
-        pytest.param({"b": 2}, [{"a": 1}], [[("a", 1), ("b", 2)]], id="merge"),
-        pytest.param({"b": 2}, [{"a": 1, "b": 3}], [[("a", 1), ("b", 3)]], id="override"),
+        pytest.param(None, [{"a": 1}], 1, id="simple"),
+        pytest.param({"b": 2}, [{"a": 1}], 1, id="merge"),
+        pytest.param({"b": 2}, [{"a": 1, "b": 3}], 1, id="override"),
     ],
 )
 def test_mapped_expand_against_params(dag_maker, partial_params, mapped_params, expected):
-    results = []
-
-    class PullOperator(BaseOperator):
-        def execute(self, context):
-            results.append(sorted(context["params"].items()))
-
     with dag_maker():
-        PullOperator.partial(task_id="t", params=partial_params).expand(params=mapped_params)
+        BaseOperator.partial(task_id="t", params=partial_params).expand(params=mapped_params)
 
     dr: DagRun = dag_maker.create_dagrun()
     decision = dr.task_instance_scheduling_decisions()
-
-    for ti in decision.schedulable_tis:
-        ti.run()
-
-    assert sorted(results) == expected
+    assert len(decision.schedulable_tis) == expected
 
 
 def test_mapped_task_group_expands(dag_maker, session):
@@ -2397,9 +1973,7 @@ def test_operator_mapped_task_group_receives_value(dag_maker, session):
     with dag_maker(session=session):
 
         @task
-        def t(value, *, ti=None):
-            results[(ti.task_id, ti.map_index)] = value
-            return value
+        def t(value): ...
 
         @task_group
         def tg(va):
@@ -2421,24 +1995,29 @@ def test_operator_mapped_task_group_receives_value(dag_maker, session):
 
     dr: DagRun = dag_maker.create_dagrun()
 
-    results = {}
+    results = set()
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
-    assert results == {("tg.t1", 0): ["a", "b"], ("tg.t1", 1): [4], ("tg.t1", 2): ["z"]}
+        results.add((ti.task_id, ti.map_index))
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+    assert results == {("tg.t1", 0), ("tg.t1", 1), ("tg.t1", 2)}
 
-    results = {}
+    results.clear()
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
-    assert results == {("tg.t2", 0): ["a", "b"], ("tg.t2", 1): [4], ("tg.t2", 2): ["z"]}
+        results.add((ti.task_id, ti.map_index))
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+    assert results == {("tg.t2", 0), ("tg.t2", 1), ("tg.t2", 2)}
 
-    results = {}
+    results.clear()
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
-    assert len(results) == 1
-    assert list(results[("t3", -1)]) == [["a", "b"], [4], ["z"]]
+        results.add((ti.task_id, ti.map_index))
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+    assert results == {("t3", -1)}
 
 
 def test_mapping_against_empty_list(dag_maker, session):
@@ -2506,19 +2085,84 @@ def test_mapped_task_depends_on_past(dag_maker, session):
     decision = dr1.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 2
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
 
     # Now print_value in dr2 can run
     decision = dr2.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 2
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        ti.state = TaskInstanceState.SUCCESS
+    session.flush()
 
     # Both runs are finished now.
     decision = dr1.task_instance_scheduling_decisions(session=session)
     assert len(decision.unfinished_tis) == 0
     decision = dr2.task_instance_scheduling_decisions(session=session)
     assert len(decision.unfinished_tis) == 0
+
+
+def test_xcom_map_skip_raised(dag_maker, session):
+    result = None
+
+    with dag_maker(session=session) as dag:
+        # Note: this doesn't actually run this dag, the callbacks are for reference only.
+
+        @dag.task()
+        def push():
+            return ["a", "b", "c"]
+
+        @dag.task()
+        def forward(value):
+            return value
+
+        @dag.task(trigger_rule=TriggerRule.ALL_DONE)
+        def collect(value):
+            nonlocal result
+            result = list(value)
+
+        def skip_c(v):
+            ...
+            # if v == "c":
+            #     raise AirflowSkipException
+            # return {"value": v}
+
+        collect(value=forward.expand_kwargs(push().map(skip_c)))
+
+    dr: DagRun = dag_maker.create_dagrun(session=session)
+
+    def _task_ids(tis):
+        return [(ti.task_id, ti.map_index) for ti in tis]
+
+    # Check that when forward w/ map_index=2 ends up skipping, that the collect task can still be
+    # scheduled!
+
+    # Run "push".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("push", -1)]
+    ti = decision.schedulable_tis[0]
+    ti.state = TaskInstanceState.SUCCESS
+    session.add(TaskMap.from_task_instance_xcom(ti, push.function()))
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [
+        ("forward", 0),
+        ("forward", 1),
+        ("forward", 2),
+    ]
+    # Run "forward". "c"/index 2 is skipped. Runtime behaviour checked in test_xcom_map_raise_to_skip in
+    # TaskSDK
+    for ti, state in zip(
+        decision.schedulable_tis,
+        [TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED],
+    ):
+        ti.state = state
+    session.flush()
+
+    # Now "collect" should only get "a" and "b".
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert _task_ids(decision.schedulable_tis) == [("collect", -1)]
 
 
 def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
@@ -2792,7 +2436,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
 
     with dag_maker() as dag:
         for line in input:
-            tasks = [make_task(x, dag) for x in line.split(" >> ")]
+            tasks = [make_task(x, dag_maker.dag) for x in line.split(" >> ")]
             reduce(lambda x, y: x >> y, tasks)
 
     dr = dag_maker.create_dagrun()
@@ -2823,9 +2467,10 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
 def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
     with conf_vars({("scheduler", "allowed_run_id_pattern"): pattern}):
         with dag_maker():
-            ...
+            pass
+        run_type = DagRunType.from_run_id(run_id)
         if result:
-            dag_maker.create_dagrun(run_id=run_id)
+            dag_maker.create_dagrun(run_id=run_id, run_type=run_type)
         else:
-            with pytest.raises(AirflowException):
-                dag_maker.create_dagrun(run_id=run_id)
+            with pytest.raises(ValueError):
+                dag_maker.create_dagrun(run_id=run_id, run_type=run_type)

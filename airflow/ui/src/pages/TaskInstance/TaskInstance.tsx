@@ -17,18 +17,12 @@
  * under the License.
  */
 import { LiaSlashSolid } from "react-icons/lia";
-import {
-  useParams,
-  Link as RouterLink,
-  useSearchParams,
-} from "react-router-dom";
+import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom";
 
-import {
-  useDagServiceGetDagDetails,
-  useTaskInstanceServiceGetMappedTaskInstance,
-} from "openapi/queries";
+import { useDagServiceGetDagDetails, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
@@ -47,16 +41,7 @@ export const TaskInstance = () => {
   const mapIndexParam = searchParams.get("map_index");
   const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
 
-  const {
-    data: taskInstance,
-    error,
-    isLoading,
-  } = useTaskInstanceServiceGetMappedTaskInstance({
-    dagId,
-    dagRunId: runId,
-    mapIndex,
-    taskId,
-  });
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const {
     data: dag,
@@ -66,6 +51,23 @@ export const TaskInstance = () => {
     dagId,
   });
 
+  const {
+    data: taskInstance,
+    error,
+    isLoading,
+  } = useTaskInstanceServiceGetMappedTaskInstance(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex,
+      taskId,
+    },
+    undefined,
+    {
+      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+    },
+  );
+
   const links = [
     { label: "Dags", value: "/dags" },
     { label: dag?.dag_display_name ?? dagId, value: `/dags/${dagId}` },
@@ -74,24 +76,15 @@ export const TaskInstance = () => {
   ];
 
   if (mapIndexParam !== null) {
-    links.push({ label: mapIndexParam });
+    links.push({ label: taskInstance?.rendered_map_index ?? mapIndexParam });
   }
 
   return (
-    <DetailsLayout
-      dag={dag}
-      error={error ?? dagError}
-      isLoading={isLoading || isDagLoading}
-      tabs={tabs}
-    >
+    <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
       <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
         {links.map((link, index) => {
           if (index === links.length - 1) {
-            return (
-              <Breadcrumb.CurrentLink key={link.label}>
-                {link.label}
-              </Breadcrumb.CurrentLink>
-            );
+            return <Breadcrumb.CurrentLink key={link.label}>{link.label}</Breadcrumb.CurrentLink>;
           }
 
           return link.value === undefined ? (
@@ -106,7 +99,10 @@ export const TaskInstance = () => {
         })}
       </Breadcrumb.Root>
       {taskInstance === undefined ? undefined : (
-        <Header taskInstance={taskInstance} />
+        <Header
+          isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
+          taskInstance={taskInstance}
+        />
       )}
     </DetailsLayout>
   );

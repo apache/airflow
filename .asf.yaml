@@ -118,6 +118,11 @@ github:
         required_approving_review_count: 1
       required_linear_history: true
       required_conversation_resolution: true
+    providers-fab/v1-5:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_conversation_resolution: true
   collaborators:
     # Max 10 collaborators allowed
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
@@ -130,6 +135,7 @@ github:
     - cmarteepants
     - bugraoz93
     - briana-okyere
+    - gyli
 
 notifications:
   jobs: jobs@airflow.apache.org

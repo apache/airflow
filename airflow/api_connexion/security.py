@@ -19,9 +19,10 @@ from __future__ import annotations
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
-from flask import Response, g
+from flask import Response
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     AssetDetails,
@@ -33,7 +34,6 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.utils.airflow_flask_app import get_airflow_app
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
@@ -78,7 +78,9 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
             section: str | None = kwargs.get("section")
             return _requires_access(
                 is_authorized_callback=lambda: get_auth_manager().is_authorized_configuration(
-                    method=method, details=ConfigurationDetails(section=section)
+                    method=method,
+                    details=ConfigurationDetails(section=section),
+                    user=get_auth_manager().get_user(),
                 ),
                 func=func,
                 args=args,
@@ -97,7 +99,9 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[T], T]:
             connection_id: str | None = kwargs.get("connection_id")
             return _requires_access(
                 is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
-                    method=method, details=ConnectionDetails(conn_id=connection_id)
+                    method=method,
+                    details=ConnectionDetails(conn_id=connection_id),
+                    user=get_auth_manager().get_user(),
                 ),
                 func=func,
                 args=args,
@@ -120,6 +124,7 @@ def requires_access_dag(
                     method=method,
                     access_entity=access_entity,
                     details=DagDetails(id=dag_id),
+                    user=get_auth_manager().get_user(),
                 )
             else:
                 # here we know dag_id is not provided.
@@ -127,6 +132,7 @@ def requires_access_dag(
                 if get_auth_manager().is_authorized_dag(
                     method=method,
                     access_entity=access_entity,
+                    user=get_auth_manager().get_user(),
                 ):
                     return True
                 elif access_entity:
@@ -138,7 +144,9 @@ def requires_access_dag(
             # but we leave it to the endpoint function to properly restrict access beyond that
             if method not in ("GET", "PUT"):
                 return False
-            return any(get_auth_manager().get_permitted_dag_ids(methods=[method]))
+            return any(
+                get_auth_manager().get_permitted_dag_ids(user=get_auth_manager().get_user(), methods=[method])
+            )
 
         return callback
 
@@ -165,7 +173,9 @@ def requires_access_asset(method: ResourceMethod) -> Callable[[T], T]:
             uri: str | None = kwargs.get("uri")
             return _requires_access(
                 is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
-                    method=method, details=AssetDetails(uri=uri)
+                    method=method,
+                    details=AssetDetails(uri=uri),
+                    user=get_auth_manager().get_user(),
                 ),
                 func=func,
                 args=args,
@@ -184,7 +194,9 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[T], T]:
             pool_name: str | None = kwargs.get("pool_name")
             return _requires_access(
                 is_authorized_callback=lambda: get_auth_manager().is_authorized_pool(
-                    method=method, details=PoolDetails(name=pool_name)
+                    method=method,
+                    details=PoolDetails(name=pool_name),
+                    user=get_auth_manager().get_user(),
                 ),
                 func=func,
                 args=args,
@@ -203,7 +215,9 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[T], T]:
             variable_key: str | None = kwargs.get("variable_key")
             return _requires_access(
                 is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
-                    method=method, details=VariableDetails(key=variable_key)
+                    method=method,
+                    details=VariableDetails(key=variable_key),
+                    user=get_auth_manager().get_user(),
                 ),
                 func=func,
                 args=args,
@@ -220,7 +234,9 @@ def requires_access_view(access_view: AccessView) -> Callable[[T], T]:
         @wraps(func)
         def decorated(*args, **kwargs):
             return _requires_access(
-                is_authorized_callback=lambda: get_auth_manager().is_authorized_view(access_view=access_view),
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
+                    access_view=access_view, user=get_auth_manager().get_user()
+                ),
                 func=func,
                 args=args,
                 kwargs=kwargs,
@@ -240,7 +256,9 @@ def requires_access_custom_view(
         def decorated(*args, **kwargs):
             return _requires_access(
                 is_authorized_callback=lambda: get_auth_manager().is_authorized_custom_view(
-                    method=method, resource_name=resource_name
+                    method=method,
+                    resource_name=resource_name,
+                    user=get_auth_manager().get_user(),
                 ),
                 func=func,
                 args=args,
@@ -253,4 +271,4 @@ def requires_access_custom_view(
 
 
 def get_readable_dags() -> set[str]:
-    return get_auth_manager().get_permitted_dag_ids(user=g.user)
+    return get_auth_manager().get_permitted_dag_ids(user=get_auth_manager().get_user())

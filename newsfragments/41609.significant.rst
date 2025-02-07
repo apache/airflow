@@ -1,1 +1,18 @@
 Removed deprecated ``dependency_detector`` parameter from ``scheduler``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``scheduler.dependency_detector``

@@ -417,7 +417,7 @@ def prepare_docker_build_command(
     final_command.extend(image_params.common_docker_build_flags)
     final_command.extend(["--pull"])
     final_command.extend(image_params.prepare_arguments_for_docker_build_command())
-    final_command.extend(["-t", image_params.airflow_image_name_with_tag, "--target", "main", "."])
+    final_command.extend(["-t", image_params.airflow_image_name, "--target", "main", "."])
     final_command.extend(
         ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
     )
@@ -433,7 +433,7 @@ def construct_docker_push_command(
     :param image_params: parameters of the image
     :return: Command to run as list of string
     """
-    return ["docker", "push", image_params.airflow_image_name_with_tag]
+    return ["docker", "push", image_params.airflow_image_name]
 
 
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
@@ -534,7 +534,6 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
         docker_syntax = get_docker_syntax_version()
         get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
         warm_up_image_param = copy.deepcopy(image_params_list[0])
-        warm_up_image_param.image_tag = "warmup"
         warm_up_image_param.push = False
         warm_up_image_param.platform = platform
         build_command = prepare_base_build_command(image_params=warm_up_image_param)
@@ -580,6 +579,8 @@ def fix_ownership_using_docker(quiet: bool = False):
         "-e",
         f"HOST_GROUP_ID={get_host_group_id()}",
         "-e",
+        f"VERBOSE={str(get_verbose()).lower()}",
+        "-e",
         f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
         "--rm",
         "-t",
@@ -591,7 +592,8 @@ def fix_ownership_using_docker(quiet: bool = False):
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
     """
-    Removes specified docker networks. If no networks are specified, it removes all unused networks.
+    Removes specified docker networks. If no networks are specified, it removes all networks created by breeze.
+    Any network with label "com.docker.compose.project=breeze" are removed when no networks are specified.
     Errors are ignored (not even printed in the output), so you can safely call it without checking
     if the networks exist.
 
@@ -599,7 +601,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
     """
     if networks is None:
         run_command(
-            ["docker", "network", "prune", "-f"],
+            ["docker", "network", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
             check=False,
             stderr=DEVNULL,
         )
@@ -607,6 +609,30 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
         for network in networks:
             run_command(
                 ["docker", "network", "rm", network],
+                check=False,
+                stderr=DEVNULL,
+            )
+
+
+def remove_docker_volumes(volumes: list[str] | None = None) -> None:
+    """
+    Removes specified docker volumes. If no volumes are specified, it removes all volumes created by breeze.
+    Any volume with label "com.docker.compose.project=breeze" are removed when no volumes are specified.
+    Errors are ignored (not even printed in the output), so you can safely call it without checking
+    if the volumes exist.
+
+    :param volumes: list of volumes to remove
+    """
+    if volumes is None:
+        run_command(
+            ["docker", "volume", "prune", "-f", "-a", "--filter", "label=com.docker.compose.project=breeze"],
+            check=False,
+            stderr=DEVNULL,
+        )
+    else:
+        for volume in volumes:
+            run_command(
+                ["docker", "volume", "rm", volume],
                 check=False,
                 stderr=DEVNULL,
             )

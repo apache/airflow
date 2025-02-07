@@ -21,12 +21,12 @@ import sys
 from pathlib import Path
 
 
-def get_real_platform(single_platform: str) -> str:
+def get_normalized_platform(single_platform: str) -> str:
     """
     Replace different platform variants of the platform provided platforms with the two canonical ones we
-    are using: amd64 and arm64.
+    are using: linux/amd64 and linux/arm64.
     """
-    return single_platform.replace("x86_64", "amd64").replace("aarch64", "arm64").replace("/", "-")
+    return single_platform.replace("x86_64", "amd64").replace("aarch64", "arm64")
 
 
 def _exists_no_permission_error(p: str) -> bool:

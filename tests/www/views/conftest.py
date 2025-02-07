@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any, NamedTuple
@@ -31,6 +32,7 @@ from airflow.www.app import create_app
 
 from tests_common.test_utils.api_connexion_utils import delete_user
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests_common.test_utils.www import (
     client_with_login,
@@ -47,8 +49,8 @@ def session():
 
 @pytest.fixture(autouse=True, scope="module")
 def examples_dag_bag(session):
-    DagBag(include_examples=True).sync_to_db()
-    dag_bag = DagBag(include_examples=True, read_dags_from_db=True)
+    parse_and_sync_to_db(os.devnull, include_examples=True)
+    dag_bag = DagBag(read_dags_from_db=True)
     session.commit()
     return dag_bag
 

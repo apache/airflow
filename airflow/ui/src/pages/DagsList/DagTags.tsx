@@ -48,7 +48,6 @@ export const DagTags = ({ hideIcon = false, tags }: Props) =>
               ))}
             </VStack>
           }
-          showArrow
         >
           <Text>, +{tags.length - MAX_TAGS} more</Text>
         </Tooltip>

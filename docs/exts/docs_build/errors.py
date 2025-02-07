@@ -66,9 +66,9 @@ def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None
     console.print()
     for package_name, errors in build_errors.items():
         if package_name:
-            console.print("=" * 30 + f" [info]{package_name}[/] " + "=" * 30)
+            console.print("=" * 30 + f" [bright_blue]{package_name}[/] " + "=" * 30)
         else:
-            console.print("=" * 30, " [info]General[/] ", "=" * 30)
+            console.print("=" * 30, " [bright_blue]General[/] ", "=" * 30)
         for warning_no, error in enumerate(sorted(errors), 1):
             console.print("-" * 30, f"[red]Error {warning_no:3}[/]", "-" * 20)
             console.print(error.message)

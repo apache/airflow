@@ -167,55 +167,20 @@ These can be useful if your code has extra knowledge about its environment and w
 
 .. _concepts:zombies:
 
-Zombie/Undead Tasks
--------------------
+Zombie Tasks
+------------
 
-No system runs perfectly, and task instances are expected to die once in a while. Airflow detects two kinds of task/process mismatch:
+No system runs perfectly, and task instances are expected to die once in a while.
 
-* *Zombie tasks* are ``TaskInstances`` stuck in a ``running`` state despite their associated jobs being inactive
-  (e.g. their process did not send a recent heartbeat as it got killed, or the machine died). Airflow will find these
-  periodically, clean them up, and either fail or retry the task depending on its settings. Tasks can become zombies for
-  many reasons, including:
+*Zombie tasks* are ``TaskInstances`` stuck in a ``running`` state despite their associated jobs being inactive
+(e.g. their process did not send a recent heartbeat as it got killed, or the machine died). Airflow will find these
+periodically, clean them up, and either fail or retry the task depending on its settings. Tasks can become zombies for
+many reasons, including:
 
-    * The Airflow worker ran out of memory and was OOMKilled.
-    * The Airflow worker failed its liveness probe, so the system (for example, Kubernetes) restarted the worker.
-    * The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
+* The Airflow worker ran out of memory and was OOMKilled.
+* The Airflow worker failed its liveness probe, so the system (for example, Kubernetes) restarted the worker.
+* The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
 
-* *Undead tasks* are tasks that are *not* supposed to be running but are, often caused when you manually edit Task
-  Instances via the UI. Airflow will find them periodically and terminate them.
-
-
-Below is the code snippet from the Airflow scheduler that runs periodically to detect zombie/undead tasks.
-
-.. exampleinclude:: /../../airflow/jobs/scheduler_job_runner.py
-    :language: python
-    :start-after: [START find_and_purge_zombies]
-    :end-before: [END find_and_purge_zombies]
-
-
-The explanation of the criteria used in the above snippet to detect zombie tasks is as below:
-
-1. **Task Instance State**
-
-    Only task instances in the RUNNING state are considered potential zombies.
-
-2. **Job State and Heartbeat Check**
-
-    Zombie tasks are identified if the associated job is not in the RUNNING state or if the latest heartbeat of the job is
-    earlier than the calculated time threshold (limit_dttm). The heartbeat is a mechanism to indicate that a task or job is
-    still alive and running.
-
-3. **Job Type**
-
-    The job associated with the task must be of type ``LocalTaskJob``.
-
-4. **Queued by Job ID**
-
-    Only tasks queued by the same job that is currently being processed are considered.
-
-These conditions collectively help identify running tasks that may be zombies based on their state, associated job
-state, heartbeat status, job type, and the specific job that queued them. If a task meets these criteria, it is
-considered a potential zombie, and further actions, such as logging and sending a callback request, are taken.
 
 Reproducing zombie tasks locally
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

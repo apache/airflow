@@ -16,27 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
+import { MdRefresh } from "react-icons/md";
 
+import { StateBadge } from "src/components/StateBadge";
+import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useOpenGroups } from "src/context/openGroups";
 import { pluralize } from "src/utils";
 
 import { NodeWrapper } from "./NodeWrapper";
-import { TaskName } from "./TaskName";
+import { TaskLink } from "./TaskLink";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const TaskNode = ({
   data: {
     childCount,
+    depth,
     height,
     isGroup,
     isMapped,
     isOpen,
+    isSelected,
     label,
     operator,
     setupTeardownType,
-    type: nodeType,
+    taskInstance,
     width,
   },
   id,
@@ -50,48 +55,65 @@ export const TaskNode = ({
 
   return (
     <NodeWrapper>
-      <Flex alignItems="center" flexDirection="column">
-        <Flex
-          bg="bg"
-          borderColor="fg"
-          borderRadius={5}
-          borderWidth={1}
-          height={`${height}px`}
-          justifyContent="space-between"
-          px={3}
-          py={2}
-          width={`${width}px`}
+      <Flex alignItems="center" cursor="default" flexDirection="column">
+        <TaskInstanceTooltip
+          openDelay={500}
+          positioning={{
+            placement: "top-start",
+          }}
+          taskInstance={taskInstance}
         >
-          <Box>
-            <Text fontSize="xs" fontWeight="lighter" textTransform="capitalize">
-              {isGroup ? "Task Group" : operator}
-            </Text>
-            <Text color="blue.solid" textTransform="capitalize">
-              {nodeType}
-            </Text>
-            <TaskName
-              id={id}
-              isGroup={isGroup}
-              isMapped={isMapped}
-              isOpen={isOpen}
-              label={label}
-              setupTeardownType={setupTeardownType}
-            />
-          </Box>
-          <Box>
-            {isGroup ? (
-              <Button
-                colorPalette="blue"
-                onClick={onClick}
-                p={0}
-                variant="plain"
-              >
-                {isOpen ? "- " : "+ "}
-                {pluralize("task", childCount, undefined, false)}
-              </Button>
-            ) : undefined}
-          </Box>
-        </Flex>
+          <Flex
+            // Alternate background color for nested open groups
+            bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
+            borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border"}
+            borderRadius={5}
+            borderWidth={isSelected ? 6 : 2}
+            height={`${height}px`}
+            justifyContent="space-between"
+            px={3}
+            py={isSelected ? 1 : 2}
+            width={`${width}px`}
+          >
+            <Box>
+              <TaskLink
+                id={id}
+                isGroup={isGroup}
+                isMapped={isMapped}
+                isOpen={isOpen}
+                label={label}
+                setupTeardownType={setupTeardownType}
+              />
+              <Text color="fg.muted" fontSize="sm" textTransform="capitalize">
+                {isGroup ? "Task Group" : operator}
+              </Text>
+              {taskInstance === undefined ? undefined : (
+                <HStack>
+                  <StateBadge fontSize="xs" state={taskInstance.state}>
+                    {taskInstance.state}
+                  </StateBadge>
+                  {taskInstance.try_number > 1 ? <MdRefresh /> : undefined}
+                </HStack>
+              )}
+            </Box>
+            <Box>
+              {isGroup ? (
+                <Button
+                  colorPalette="blue"
+                  cursor="pointer"
+                  height="inherit"
+                  onClick={onClick}
+                  pb={2}
+                  pr={0}
+                  variant="plain"
+                >
+                  {isOpen ? "- " : "+ "}
+                  {pluralize("task", childCount, undefined, false)}
+                </Button>
+              ) : undefined}
+            </Box>
+          </Flex>
+        </TaskInstanceTooltip>
         {Boolean(isMapped) || Boolean(isGroup && !isOpen) ? (
           <>
             <Box

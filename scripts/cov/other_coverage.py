@@ -91,7 +91,6 @@ Other tests to potentially run against the source_file packages:
     "tests/security",
     "tests/sensors",
     "tests/task",
-    "tests/template",
     "tests/testconfig",
     "tests/timetables",
 """

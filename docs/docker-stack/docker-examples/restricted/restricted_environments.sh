@@ -53,7 +53,6 @@ docker build . \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
     --build-arg INSTALL_MSSQL_CLIENT="false" \
     --build-arg INSTALL_POSTGRES_CLIENT="true" \
-    --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
     --build-arg DOCKER_CONTEXT_FILES="docker-context-files" \
     --build-arg INSTALL_PACKAGES_FROM_CONTEXT="true" \
     --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-3.9.txt" \

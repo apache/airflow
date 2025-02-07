@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated, Literal, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel  # noqa: TC001
 from airflow.utils.state import TaskInstanceState
@@ -27,18 +27,17 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 
-class CallbackRequest(BaseModel):
+class BaseCallbackRequest(BaseModel):
     """
     Base Class with information about the callback to be executed.
 
     :param msg: Additional Message that can be used for logging
-    :param processor_subdir: Directory used by Dag Processor when parsed the dag.
     """
 
-    full_filepath: str
+    filepath: str
     """File Path to use to run the callback"""
-    processor_subdir: str | None = None
-    """Directory used by Dag Processor when parsed the dag"""
+    bundle_name: str
+    bundle_version: str | None
     msg: str | None = None
     """Additional Message that can be used for logging to determine failure/zombie"""
 
@@ -50,7 +49,7 @@ class CallbackRequest(BaseModel):
         return self.model_dump_json(**kwargs)
 
 
-class TaskCallbackRequest(CallbackRequest):
+class TaskCallbackRequest(BaseCallbackRequest):
     """
     Task callback status information.
 
@@ -62,6 +61,7 @@ class TaskCallbackRequest(CallbackRequest):
     """Simplified Task Instance representation"""
     task_callback_type: TaskInstanceState | None = None
     """Whether on success, on failure, on retry"""
+    type: Literal["TaskCallbackRequest"] = "TaskCallbackRequest"
 
     @property
     def is_failure_callback(self) -> bool:
@@ -75,10 +75,17 @@ class TaskCallbackRequest(CallbackRequest):
         }
 
 
-class DagCallbackRequest(CallbackRequest):
+class DagCallbackRequest(BaseCallbackRequest):
     """A Class with information about the success/failure DAG callback to be executed."""
 
     dag_id: str
     run_id: str
     is_failure_callback: bool | None = True
     """Flag to determine whether it is a Failure Callback or Success Callback"""
+    type: Literal["DagCallbackRequest"] = "DagCallbackRequest"
+
+
+CallbackRequest = Annotated[
+    Union[DagCallbackRequest, TaskCallbackRequest],
+    Field(discriminator="type"),
+]

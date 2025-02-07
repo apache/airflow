@@ -32,14 +32,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Stringified JSON array of helm test packages to test"
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       default-python-version:
         description: "Which version of python should be used by default"
         required: true
         type: string
+      use-uv:
+        description: "Whether to use uvloop (true/false)"
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
   tests-helm:
     timeout-minutes: 80
@@ -57,7 +59,6 @@ jobs:
       DB_RESET: "false"
       JOB_ID: "helm-tests"
       USE_XDIST: "true"
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
@@ -70,12 +71,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{inputs.default-python-version}}:${{inputs.image-tag}}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
-        run: breeze testing helm-tests --test-type "${{ matrix.helm-test-package }}"
+        env:
+          HELM_TEST_PACKAGE: "${{ matrix.helm-test-package }}"
+        run: breeze testing helm-tests --test-type "${HELM_TEST_PACKAGE}"
 
   tests-helm-release:
     timeout-minutes: 80
@@ -95,6 +100,8 @@ jobs:
         run: ./scripts/ci/cleanup_docker.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
       - name: Setup git for tagging
         run: |
           git config --global user.email "name@example.com"

@@ -43,14 +43,12 @@ const VARIANT_MAP: Record<PaginationVariant, ButtonVariantMap> = {
   subtle: { current: "subtle", default: "ghost", ellipsis: "plain" },
 };
 
-export const Root = forwardRef<HTMLDivElement, PaginationRootProps>(
-  (props, ref) => {
-    const { size = "sm", variant = "outline", ...rest } = props;
+export const Root = forwardRef<HTMLDivElement, PaginationRootProps>((props, ref) => {
+  const { size = "sm", variant = "outline", ...rest } = props;
 
-    return (
-      <RootPropsProvider value={{ size, variantMap: VARIANT_MAP[variant] }}>
-        <ChakraPagination.Root ref={ref} type="button" {...rest} />
-      </RootPropsProvider>
-    );
-  },
-);
+  return (
+    <RootPropsProvider value={{ size, variantMap: VARIANT_MAP[variant] }}>
+      <ChakraPagination.Root ref={ref} type="button" {...rest} />
+    </RootPropsProvider>
+  );
+});

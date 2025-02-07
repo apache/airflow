@@ -16,33 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  createListCollection,
-  Flex,
-  HStack,
-  Link,
-  type SelectValueChangeDetails,
-  Text,
-} from "@chakra-ui/react";
+import { Box, Flex, HStack, Link, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback } from "react";
-import {
-  useParams,
-  Link as RouterLink,
-  useSearchParams,
-} from "react-router-dom";
+import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse, DagRunState } from "openapi/requests/types.gen";
-import ClearRunButton from "src/components/ClearRun/ClearRunButton";
+import { ClearRunButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Select, Status } from "src/components/ui";
-import { capitalize, getDuration } from "src/utils";
+import { Select } from "src/components/ui";
+import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
+import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
   {
@@ -63,7 +54,7 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
       row: {
         original: { state },
       },
-    }) => <Status state={state}>{state}</Status>,
+    }) => <StateBadge state={state}>{state}</StateBadge>,
     header: () => "State",
   },
   {
@@ -88,35 +79,24 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     header: "End Date",
   },
   {
-    cell: ({ row: { original } }) =>
-      getDuration(original.start_date, original.end_date),
+    cell: ({ row: { original } }) => getDuration(original.start_date, original.end_date),
     header: "Duration",
   },
   {
-    accessorKey: "clear_dag_run",
+    accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearRunButton
-          dagId={row.original.dag_id}
-          dagRunId={row.original.dag_run_id}
-          withText={false}
-        />
+        <ClearRunButton dagRun={row.original} withText={false} />
+        <MarkRunAsButton dagRun={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
     header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
 ];
-
-const stateOptions = createListCollection({
-  items: [
-    { label: "All States", value: "all" },
-    { label: "Queued", value: "queued" },
-    { label: "Running", value: "running" },
-    { label: "Failed", value: "failed" },
-    { label: "Success", value: "success" },
-  ],
-});
 
 const STATE_PARAM = "state";
 
@@ -128,11 +108,13 @@ export const Runs = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-logical_date";
 
   const filteredState = searchParams.get(STATE_PARAM);
 
-  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns(
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
       limit: pagination.pageSize,
@@ -141,7 +123,11 @@ export const Runs = () => {
       state: filteredState === null ? undefined : [filteredState],
     },
     undefined,
-    { enabled: !isNaN(pagination.pageSize) },
+    {
+      enabled: !isNaN(pagination.pageSize),
+      refetchInterval: (query) =>
+        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
+    },
   );
 
   const handleStateChange = useCallback(
@@ -153,11 +139,11 @@ export const Runs = () => {
       } else {
         searchParams.set(STATE_PARAM, val);
       }
-      setSearchParams(searchParams);
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
@@ -177,9 +163,7 @@ export const Runs = () => {
                 filteredState === null ? (
                   "All States"
                 ) : (
-                  <Status state={filteredState as DagRunState}>
-                    {capitalize(filteredState)}
-                  </Status>
+                  <StateBadge state={filteredState as DagRunState}>{capitalize(filteredState)}</StateBadge>
                 )
               }
             </Select.ValueText>
@@ -190,9 +174,7 @@ export const Runs = () => {
                 {option.value === "all" ? (
                   option.label
                 ) : (
-                  <Status state={option.value as DagRunState}>
-                    {option.label}
-                  </Status>
+                  <StateBadge state={option.value as DagRunState}>{option.label}</StateBadge>
                 )}
               </Select.Item>
             ))}
@@ -204,7 +186,6 @@ export const Runs = () => {
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="Dag Run"
         onStateChange={setTableURLState}

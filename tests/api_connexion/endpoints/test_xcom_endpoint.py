@@ -25,7 +25,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.timezone import utcnow
@@ -226,52 +226,67 @@ class TestGetXComEntry(TestXComEndpoint):
         )
 
     @pytest.mark.parametrize(
-        "allowed, query, expected_status_or_value",
+        "allowed, query, expected_status_or_value, key",
         [
             pytest.param(
                 True,
                 "?deserialize=true",
                 "real deserialized TEST_VALUE",
+                "key",
                 id="true",
             ),
             pytest.param(
                 False,
                 "?deserialize=true",
                 400,
+                "key",
                 id="disallowed",
             ),
             pytest.param(
                 True,
                 "?deserialize=false",
                 "orm deserialized TEST_VALUE",
+                "key",
                 id="false-irrelevant",
             ),
             pytest.param(
                 False,
                 "?deserialize=false",
                 "orm deserialized TEST_VALUE",
+                "key",
                 id="false",
             ),
             pytest.param(
                 True,
                 "",
                 "orm deserialized TEST_VALUE",
+                "key",
                 id="default-irrelevant",
             ),
             pytest.param(
                 False,
                 "",
                 "orm deserialized TEST_VALUE",
+                "key",
                 id="default",
+            ),
+            pytest.param(
+                False,
+                "",
+                "orm deserialized TEST_VALUE",
+                "key/with/slashes",
+                id="key-with-slashes",
             ),
         ],
     )
     @conf_vars({("core", "xcom_backend"): "tests.api_connexion.endpoints.test_xcom_endpoint.CustomXCom"})
-    def test_custom_xcom_deserialize(self, allowed: bool, query: str, expected_status_or_value: int | str):
+    def test_custom_xcom_deserialize(
+        self, allowed: bool, query: str, expected_status_or_value: int | str, key: str
+    ):
         XCom = resolve_xcom_backend()
-        self._create_xcom_entry("dag", "run", utcnow(), "task", "key", backend=XCom)
+        self._create_xcom_entry("dag", "run", utcnow(), "task", key, backend=XCom)
 
-        url = f"/api/v1/dags/dag/dagRuns/run/taskInstances/task/xcomEntries/key{query}"
+        url = f"/api/v1/dags/dag/dagRuns/run/taskInstances/task/xcomEntries/{key}{query}"
         with mock.patch("airflow.api_connexion.endpoints.xcom_endpoint.XCom", XCom):
             with conf_vars({("api", "enable_xcom_deserialize_support"): str(allowed)}):
                 response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})

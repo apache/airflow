@@ -24,6 +24,7 @@ import pytest
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
 from airflow.utils import timezone
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -88,6 +89,7 @@ class TestMongoToS3Operator:
                 logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         else:
             dag_run = DagRun(
@@ -95,6 +97,7 @@ class TestMongoToS3Operator:
                 execution_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
             )
         ti = TaskInstance(task=self.mock_operator)
         ti.dag_run = dag_run

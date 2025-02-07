@@ -82,7 +82,7 @@ apache-airflow-providers-microsoft-azure package
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 11.1.0
+Release: 12.0.0
 
 Provider package
 ----------------
@@ -100,12 +100,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
 
 ======================================  ===================
 PIP package                             Version required
 ======================================  ===================
-``apache-airflow``                      ``>=2.8.0``
+``apache-airflow``                      ``>=2.9.0``
 ``adlfs``                               ``>=2023.10.0``
 ``azure-batch``                         ``>=8.0.0``
 ``azure-cosmos``                        ``>=4.6.0``
@@ -127,7 +127,7 @@ PIP package                             Version required
 ``azure-mgmt-datafactory``              ``>=2.0.0``
 ``azure-mgmt-containerregistry``        ``>=8.0.0``
 ``azure-mgmt-containerinstance``        ``>=10.1.0``
-``msgraph-core``                        ``>=1.0.0``
+``msgraph-core``                        ``>=1.0.0,!=1.1.8``
 ``microsoft-kiota-http``                ``>=1.3.0,!=1.3.4``
 ``microsoft-kiota-serialization-json``  ``==1.0.0``
 ``microsoft-kiota-serialization-text``  ``==1.0.0``
@@ -147,14 +147,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-microsoft-azure[amazon]
 
 
-====================================================================================================  ==========
-Dependent package                                                                                     Extra
-====================================================================================================  ==========
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_  ``amazon``
-`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
-`apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_  ``oracle``
-`apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_      ``sftp``
-====================================================================================================  ==========
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                ``amazon``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                ``oracle``
+`apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_                    ``sftp``
+==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -162,5 +162,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 11.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 11.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 12.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 12.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-12.0.0-py3-none-any.whl.sha512>`__)

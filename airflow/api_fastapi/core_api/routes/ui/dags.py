@@ -136,7 +136,7 @@ def recent_dag_runs(
             dag_response = DAGResponse.model_validate(dag)
             dag_runs_by_dag_id[dag_id] = DAGWithLatestDagRunsResponse.model_validate(
                 {
-                    **dag_response.dict(),
+                    **dag_response.model_dump(),
                     "latest_dag_runs": [dag_run_response],
                 }
             )

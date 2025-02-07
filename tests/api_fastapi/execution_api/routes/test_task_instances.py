@@ -22,21 +22,37 @@ from unittest import mock
 
 import pytest
 import uuid6
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
+from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.utils import timezone
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
-from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
+from tests_common.test_utils.db import clear_db_assets, clear_db_runs, clear_rendered_ti_fields
 
 pytestmark = pytest.mark.db_test
 
 
 DEFAULT_START_DATE = timezone.parse("2024-10-31T11:00:00Z")
 DEFAULT_END_DATE = timezone.parse("2024-10-31T12:00:00Z")
+
+
+def _create_asset_aliases(session, num: int = 2) -> None:
+    asset_aliases = [
+        AssetAliasModel(
+            id=i,
+            name=f"simple{i}",
+            group="alias",
+        )
+        for i in range(1, 1 + num)
+    ]
+    session.add_all(asset_aliases)
+    session.commit()
 
 
 class TestTIRunState:
@@ -83,11 +99,14 @@ class TestTIRunState:
                 "logical_date": instant_str,
                 "data_interval_start": instant.subtract(days=1).to_iso8601_string(),
                 "data_interval_end": instant_str,
+                "run_after": instant_str,
                 "start_date": instant_str,
                 "end_date": None,
+                "external_trigger": False,
                 "run_type": "manual",
                 "conf": {},
             },
+            "max_tries": 0,
             "variables": [],
             "connections": [],
         }
@@ -136,6 +155,92 @@ class TestTIRunState:
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
 
+    def test_xcom_cleared_when_ti_runs(self, client, session, create_task_instance, time_machine):
+        """
+        Test that the xcoms are cleared when the Task Instance state is updated to running.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_xcom_cleared_when_ti_runs",
+            state=State.QUEUED,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        # Lets stage a xcom push
+        ti.xcom_push(key="key", value="value")
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        # Once the task is running, we can check if xcom is cleared
+        assert ti.xcom_pull(task_ids="test_xcom_cleared_when_ti_runs", key="key") is None
+
+    def test_xcom_not_cleared_for_deferral(self, client, session, create_task_instance, time_machine):
+        """
+        Test that the xcoms are not cleared when the Task Instance state is re-running after deferral.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_xcom_not_cleared_for_deferral",
+            state=State.RUNNING,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        # Move this task to deferred
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+            "trigger_timeout": "P1D",  # 1 day
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        # Deferred -> Queued so that we can run it again
+        query = update(TaskInstance).where(TaskInstance.id == ti.id).values(state="queued")
+        session.execute(query)
+        session.commit()
+
+        # Lets stage a xcom push
+        ti.xcom_push(key="key", value="value")
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        assert ti.xcom_pull(task_ids="test_xcom_not_cleared_for_deferral", key="key") == "value"
+
 
 class TestTIUpdateState:
     def setup_method(self):
@@ -178,6 +283,87 @@ class TestTIUpdateState:
         ti = session.get(TaskInstance, ti.id)
         assert ti.state == expected_state
         assert ti.end_date == end_date
+
+    @pytest.mark.parametrize(
+        ("task_outlets", "outlet_events"),
+        [
+            (
+                [{"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task", "asset_type": "Asset"}],
+                [
+                    {
+                        "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                        "asset_alias_events": [],
+                    }
+                ],
+            ),
+            (
+                [{"asset_type": "AssetAlias"}],
+                [
+                    {
+                        "source_alias_name": "example-alias",
+                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                    }
+                ],
+            ),
+        ],
+    )
+    def test_ti_update_state_to_success_with_asset_events(
+        self, client, session, create_task_instance, task_outlets, outlet_events
+    ):
+        clear_db_assets()
+        clear_db_runs()
+
+        asset = AssetModel(
+            id=1,
+            name="s3://bucket/my-task",
+            uri="s3://bucket/my-task",
+            group="asset",
+            extra={},
+        )
+        asset_active = AssetActive.for_asset(asset)
+        session.add_all([asset, asset_active])
+        asset_type = task_outlets[0]["asset_type"]
+        if asset_type == "AssetAlias":
+            _create_asset_aliases(session, num=1)
+            asset_alias = session.query(AssetAliasModel).all()
+            assert len(asset_alias) == 1
+            assert asset_alias == [AssetAliasModel(name="simple1")]
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_with_asset_events",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": task_outlets,
+                "outlet_events": outlet_events,
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        # check if asset was created properly
+        asset = session.query(AssetModel).all()
+        assert len(asset) == 1
+        assert asset == [AssetModel(name="s3://bucket/my-task", uri="s3://bucket/my-task", extra={})]
+
+        event = session.query(AssetEvent).all()
+        assert len(event) == 1
+        assert event[0].asset_id == 1
+        assert event[0].asset == AssetModel(name="s3://bucket/my-task", uri="s3://bucket/my-task", extra={})
+        assert event[0].extra == {}
+        if asset_type == "AssetAlias":
+            assert event[0].source_aliases == [AssetAliasModel(name="example-alias")]
 
     def test_ti_update_state_not_found(self, client, session):
         """
@@ -231,13 +417,20 @@ class TestTIUpdateState:
             "end_date": "2024-10-31T12:00:00Z",
         }
 
-        with mock.patch(
-            "airflow.api_fastapi.common.db.common.Session.execute",
-            side_effect=[
-                mock.Mock(one=lambda: ("running",)),  # First call returns "queued"
-                SQLAlchemyError("Database error"),  # Second call raises an error
-            ],
+        with (
+            mock.patch(
+                "airflow.api_fastapi.common.db.common.Session.execute",
+                side_effect=[
+                    mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
+                    mock.Mock(one=lambda: ("running", 1, 0)),  # Second call returns "queued"
+                    SQLAlchemyError("Database error"),  # Last call raises an error
+                ],
+            ),
+            mock.patch(
+                "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
+            ) as mock_register_asset_changes_in_db,
         ):
+            mock_register_asset_changes_in_db.return_value = None
             response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
@@ -339,6 +532,190 @@ class TestTIUpdateState:
         assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
         assert trs[0].map_index == -1
         assert trs[0].duration == 129600
+
+    @pytest.mark.parametrize(
+        ("retries", "expected_state"),
+        [
+            (0, State.FAILED),
+            (None, State.FAILED),
+            (3, State.UP_FOR_RETRY),
+        ],
+    )
+    def test_ti_update_state_to_failed_with_retries(
+        self, client, session, create_task_instance, retries, expected_state
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_retry",
+            state=State.RUNNING,
+        )
+
+        if retries is not None:
+            ti.max_tries = retries
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == expected_state
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_when_ti_is_restarting",
+            state=State.RUNNING,
+        )
+        # update state to restarting
+        ti.state = State.RESTARTING
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        # restarting is always retried
+        assert ti.state == State.UP_FOR_RETRY
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_when_ti_has_higher_tries_than_retries(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_when_ti_has_higher_tries_than_retries",
+            state=State.RUNNING,
+        )
+        # two maximum tries defined, but third try going on
+        ti.max_tries = 2
+        ti.try_number = 3
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAILED,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        # all retries exhausted, marking as failed
+        assert ti.state == State.FAILED
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+
+    def test_ti_update_state_to_failed_without_retry_table_check(self, client, session, create_task_instance):
+        # we just want to fail in this test, no need to retry
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_failed_table_check",
+            state=State.RUNNING,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TerminalTIState.FAIL_WITHOUT_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+
+        ti = session.get(TaskInstance, ti.id)
+        assert ti.state == State.FAILED
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+        assert ti.duration == 3600.00
+
+    @pytest.mark.parametrize(
+        ("state", "expected_status_code"),
+        [
+            (State.RUNNING, 204),
+            (State.SUCCESS, 409),
+            (State.QUEUED, 409),
+            (State.FAILED, 409),
+        ],
+    )
+    def test_ti_runtime_checks_success(
+        self, client, session, create_task_instance, state, expected_status_code
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_runtime_checks",
+            state=state,
+        )
+        session.commit()
+
+        with mock.patch(
+            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
+        ) as mock_validate_inlet_outlet_assets_activeness:
+            mock_validate_inlet_outlet_assets_activeness.return_value = None
+            response = client.post(
+                f"/execution/task-instances/{ti.id}/runtime-checks",
+                json={
+                    "inlets": [],
+                    "outlets": [],
+                },
+            )
+
+            assert response.status_code == expected_status_code
+
+        session.expire_all()
+
+    def test_ti_runtime_checks_failure(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_runtime_checks_failure",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        with mock.patch(
+            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
+        ) as mock_validate_inlet_outlet_assets_activeness:
+            mock_validate_inlet_outlet_assets_activeness.side_effect = (
+                AirflowInactiveAssetInInletOrOutletException([AssetUniqueKey(name="abc", uri="something")])
+            )
+            response = client.post(
+                f"/execution/task-instances/{ti.id}/runtime-checks",
+                json={
+                    "inlets": [],
+                    "outlets": [],
+                },
+            )
+
+            assert response.status_code == 400
+
+        session.expire_all()
 
 
 class TestTIHealthEndpoint:
@@ -509,33 +886,6 @@ class TestTIHealthEndpoint:
         session.refresh(ti)
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
 
-    def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
-        ti = create_task_instance(
-            task_id="test_ti_update_state_to_failed_table_check",
-            state=State.RUNNING,
-        )
-        ti.start_date = DEFAULT_START_DATE
-        session.commit()
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
-            json={
-                "state": State.FAILED,
-                "end_date": DEFAULT_END_DATE.isoformat(),
-            },
-        )
-
-        assert response.status_code == 204
-        assert response.text == ""
-
-        session.expire_all()
-
-        ti = session.get(TaskInstance, ti.id)
-        assert ti.state == State.FAILED
-        assert ti.next_method is None
-        assert ti.next_kwargs is None
-        assert ti.duration == 3600.00
-
 
 class TestTIPutRTIF:
     def setup_method(self):
@@ -600,3 +950,68 @@ class TestTIPutRTIF:
         response = client.put(f"/execution/task-instances/{random_id}/rtif", json=payload)
         assert response.status_code == 404
         assert response.json()["detail"] == "Not Found"
+
+
+class TestPreviousDagRun:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_ti_previous_dag_run(self, client, session, create_task_instance, dag_maker):
+        """Test that the previous dag run is returned correctly for a task instance."""
+        ti = create_task_instance(
+            task_id="test_ti_previous_dag_run",
+            dag_id="test_dag",
+            logical_date=timezone.datetime(2025, 1, 19),
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 17),
+            session=session,
+        )
+        session.commit()
+
+        # Create 2 DagRuns for the same DAG to verify that the correct DagRun (last) is returned
+        dr1 = dag_maker.create_dagrun(
+            run_id="test_run_id_1",
+            logical_date=timezone.datetime(2025, 1, 17),
+            run_type="scheduled",
+            state=State.SUCCESS,
+            session=session,
+        )
+        dr1.end_date = timezone.datetime(2025, 1, 17, 1, 0, 0)
+
+        dr2 = dag_maker.create_dagrun(
+            run_id="test_run_id_2",
+            logical_date=timezone.datetime(2025, 1, 18),
+            run_type="scheduled",
+            state=State.SUCCESS,
+            session=session,
+        )
+
+        dr2.end_date = timezone.datetime(2025, 1, 18, 1, 0, 0)
+
+        session.commit()
+
+        response = client.get(f"/execution/task-instances/{ti.id}/previous-successful-dagrun")
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": "2025-01-18T00:00:00Z",
+            "data_interval_end": "2025-01-19T00:00:00Z",
+            "start_date": "2024-01-17T00:00:00Z",
+            "end_date": "2025-01-18T01:00:00Z",
+        }
+
+    def test_ti_previous_dag_run_not_found(self, client, session):
+        ti_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+
+        assert session.get(TaskInstance, ti_id) is None
+
+        response = client.get(f"/execution/task-instances/{ti_id}/previous-successful-dagrun")
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "start_date": None,
+            "end_date": None,
+        }

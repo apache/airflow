@@ -104,7 +104,7 @@ and build DAG relations between them. This is because of the design decision for
 and the impact the top-level code parsing speed on both performance and scalability of Airflow.
 
 Airflow scheduler executes the code outside the Operator's ``execute`` methods with the minimum interval of
-:ref:`min_file_process_interval<config:scheduler__min_file_process_interval>` seconds. This is done in order
+:ref:`min_file_process_interval<config:dag_processor__min_file_process_interval>` seconds. This is done in order
 to allow dynamic scheduling of the DAGs - where scheduling and dependencies might change over time and
 impact the next schedule of the DAG. Airflow scheduler tries to continuously make sure that what you have
 in DAGs is correctly reflected in scheduled tasks.
@@ -442,10 +442,10 @@ at the following configuration parameters and fine tune them according your need
 each parameter by following the links):
 
 * :ref:`config:scheduler__scheduler_idle_sleep_time`
-* :ref:`config:scheduler__min_file_process_interval`
-* :ref:`config:scheduler__dag_dir_list_interval`
-* :ref:`config:scheduler__parsing_processes`
-* :ref:`config:scheduler__file_parsing_sort_mode`
+* :ref:`config:dag_processor__min_file_process_interval`
+* :ref:`config:dag_processor__refresh_interval`
+* :ref:`config:dag_processor__parsing_processes`
+* :ref:`config:dag_processor__file_parsing_sort_mode`
 
 Example of watcher pattern with trigger rules
 ---------------------------------------------
@@ -725,13 +725,14 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     from airflow import DAG
     from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.types import DagRunType
+    from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
     DATA_INTERVAL_START = pendulum.datetime(2021, 9, 13, tz="UTC")
     DATA_INTERVAL_END = DATA_INTERVAL_START + datetime.timedelta(days=1)
 
     TEST_DAG_ID = "my_custom_operator_dag"
     TEST_TASK_ID = "my_custom_operator_task"
+    TEST_RUN_ID = "my_custom_operator_dag_run"
 
 
     @pytest.fixture()
@@ -750,11 +751,13 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     def test_my_custom_operator_execute_no_trigger(dag):
         dagrun = dag.create_dagrun(
-            state=DagRunState.RUNNING,
-            execution_date=DATA_INTERVAL_START,
+            run_id=TEST_RUN_ID,
+            logical_date=DATA_INTERVAL_START,
             data_interval=(DATA_INTERVAL_START, DATA_INTERVAL_END),
-            start_date=DATA_INTERVAL_END,
             run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.TIMETABLE,
+            state=DagRunState.RUNNING,
+            start_date=DATA_INTERVAL_END,
         )
         ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
         ti.task = dag.get_task(task_id=TEST_TASK_ID)

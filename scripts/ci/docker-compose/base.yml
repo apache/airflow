@@ -17,7 +17,7 @@
 ---
 services:
   airflow:
-    image: ${AIRFLOW_CI_IMAGE_WITH_TAG}
+    image: ${AIRFLOW_CI_IMAGE}
     pull_policy: never
     environment:
       - USER=root

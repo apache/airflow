@@ -21,7 +21,8 @@ on:  # yamllint disable-line rule:truthy
   push:
     branches:
       - main
-
+permissions:
+  contents: read
 jobs:
   get-pr-info:
     name: "Get PR information"

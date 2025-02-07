@@ -57,14 +57,16 @@ export const useTaskXcomEntry = ({
 }: TaskXcomProps) =>
   useQuery(
     ["taskXcom", dagId, dagRunId, taskId, mapIndex, xcomKey, tryNumber],
-    () =>
-      axios.get<AxiosResponse, API.XCom>(
-        getMetaValue("task_xcom_entry_api")
-          .replace("_DAG_RUN_ID_", dagRunId)
-          .replace("_TASK_ID_", taskId)
-          .replace("_XCOM_KEY_", xcomKey),
-        { params: { map_index: mapIndex, stringify: false } }
-      ),
+    () => {
+      const taskXcomEntryApiUrl = getMetaValue("task_xcom_entry_api")
+        .replace("_DAG_RUN_ID_", dagRunId)
+        .replace("_TASK_ID_", taskId)
+        .replace("_XCOM_KEY_", encodeURIComponent(xcomKey));
+
+      return axios.get<AxiosResponse, API.XCom>(taskXcomEntryApiUrl, {
+        params: { map_index: mapIndex, stringify: false },
+      });
+    },
     {
       enabled: !!xcomKey,
     }

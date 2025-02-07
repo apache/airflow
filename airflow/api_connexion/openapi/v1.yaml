@@ -3370,6 +3370,10 @@ components:
           type: string
           readOnly: true
           description: The filename
+        bundle_name:
+          type: string
+          readOnly: true
+          description: The bundle name
         stack_trace:
           type: string
           readOnly: true
@@ -5528,6 +5532,7 @@ components:
       name: xcom_key
       schema:
         type: string
+        format: path
       required: true
       description: The XCom key.
 

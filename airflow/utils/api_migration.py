@@ -25,9 +25,6 @@ from __future__ import annotations
 
 from typing import Callable, TypeVar
 
-from airflow.typing_compat import ParamSpec
-
-PS = ParamSpec("PS")
 RT = TypeVar("RT")
 
 

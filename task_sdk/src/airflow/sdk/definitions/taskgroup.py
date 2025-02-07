@@ -36,21 +36,22 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk.definitions.node import DAGNode
+from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.models.expandinput import ExpandInput
-    from airflow.sdk.definitions.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions._internal.mixins import DependencyMixin
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
-    from airflow.sdk.definitions.mixins import DependencyMixin
+    from airflow.sdk.types import Operator
     from airflow.serialization.enums import DagAttributeTypes
 
 
 def _default_parent_group() -> TaskGroup | None:
-    from airflow.sdk.definitions.contextmanager import TaskGroupContext
+    from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
     return TaskGroupContext.get_current()
 
@@ -65,7 +66,7 @@ def _parent_used_group_ids(tg: TaskGroup) -> set:
 # that it makes Mypy (1.9.0 and 1.13.0 tested) seem to entirely loose track that this is an Attrs class. So
 # we've gone with this and moved on with our lives, mypy is to much of a dark beast to battle over this.
 def _default_dag(instance: TaskGroup):
-    from airflow.sdk.definitions.contextmanager import DagContext
+    from airflow.sdk.definitions._internal.contextmanager import DagContext
 
     if (pg := instance.parent_group) is not None:
         return pg.dag
@@ -101,11 +102,15 @@ class TaskGroup(DAGNode):
     :param ui_fgcolor: The label color of the TaskGroup node when displayed in the UI
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
+    :param group_display_name: If set, this will be the display name for the TaskGroup node in the UI.
     """
 
     _group_id: str | None = attrs.field(
-        validator=attrs.validators.optional(attrs.validators.instance_of(str))
+        validator=attrs.validators.optional(attrs.validators.instance_of(str)),
+        # This is the default behaviour for attrs, but by specifying this it makes IDEs happier
+        alias="group_id",
     )
+    group_display_name: str = attrs.field(default="", validator=attrs.validators.instance_of(str))
     prefix_group_id: bool = attrs.field(default=True)
     parent_group: TaskGroup | None = attrs.field(factory=_default_parent_group)
     dag: DAG = attrs.field(default=attrs.Factory(_default_dag, takes_self=True))
@@ -215,8 +220,8 @@ class TaskGroup(DAGNode):
 
         :meta private:
         """
-        from airflow.sdk.definitions.abstractoperator import AbstractOperator
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         if TaskGroupContext.active:
             if task.task_group and task.task_group != self:
@@ -270,7 +275,7 @@ class TaskGroup(DAGNode):
     @property
     def label(self) -> str | None:
         """group_id excluding parent's group_id used as the node label in UI."""
-        return self._group_id
+        return self.group_display_name or self._group_id
 
     def update_relative(
         self,
@@ -344,13 +349,13 @@ class TaskGroup(DAGNode):
                 task.set_downstream(task_or_task_list)
 
     def __enter__(self) -> TaskGroup:
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         TaskGroupContext.push(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+        from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 
         TaskGroupContext.pop()
 
@@ -559,7 +564,7 @@ class TaskGroup(DAGNode):
 
     def iter_tasks(self) -> Iterator[AbstractOperator]:
         """Return an iterator of the child tasks."""
-        from airflow.models.abstractoperator import AbstractOperator
+        from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 
         groups_to_visit = [self]
 
@@ -573,7 +578,7 @@ class TaskGroup(DAGNode):
                     groups_to_visit.append(child)
                 else:
                     raise ValueError(
-                        f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
+                        f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child).__module__}.{type(child)}"
                     )
 
 
@@ -602,13 +607,6 @@ class MappedTaskGroup(TaskGroup):
                 )
             yield from self._iter_child(child)
 
-    def iter_mapped_dependencies(self) -> Iterator[DAGNode]:
-        """Upstream dependencies that provide XComs used by this mapped task group."""
-        from airflow.models.xcom_arg import XComArg
-
-        for op, _ in XComArg.iter_xcom_references(self._expand_input):
-            yield op
-
     @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
@@ -635,11 +633,18 @@ class MappedTaskGroup(TaskGroup):
             self.set_upstream(op)
         super().__exit__(exc_type, exc_val, exc_tb)
 
+    def iter_mapped_dependencies(self) -> Iterator[Operator]:
+        """Upstream dependencies that provide XComs used by this mapped task group."""
+        from airflow.models.xcom_arg import XComArg
+
+        for op, _ in XComArg.iter_xcom_references(self._expand_input):
+            yield op
+
 
 def task_group_to_dict(task_item_or_group):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
-    from airflow.models.abstractoperator import AbstractOperator
-    from airflow.models.mappedoperator import MappedOperator
+    from airflow.sdk.definitions.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sensors.base import BaseSensorOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):

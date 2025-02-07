@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetRef, BaseAsset
+from airflow.sdk.definitions.asset import Asset, AssetNameRef, AssetRef, BaseAsset
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
@@ -31,9 +31,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.io.path import ObjectStoragePath
-    from airflow.models.param import ParamsDict
     from airflow.sdk.definitions.asset import AssetAlias, AssetUniqueKey
     from airflow.sdk.definitions.dag import DAG, DagStateChangeCallback, ScheduleArg
+    from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.triggers.base import BaseTrigger
     from airflow.typing_compat import Self
@@ -49,7 +49,7 @@ class _AssetMainOperator(PythonOperator):
         return cls(
             task_id="__main__",
             inlets=[
-                AssetRef(name=inlet_asset_name)
+                Asset.ref(name=inlet_asset_name)
                 for inlet_asset_name in inspect.signature(definition._function).parameters
                 if inlet_asset_name not in ("self", "context")
             ],
@@ -75,7 +75,7 @@ class _AssetMainOperator(PythonOperator):
         from airflow.models.asset import fetch_active_assets_by_name
         from airflow.utils.session import create_session
 
-        asset_names = {asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetRef)}
+        asset_names = {asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetNameRef)}
         if "self" in inspect.signature(self.python_callable).parameters:
             asset_names.add(self._definition_name)
 
@@ -122,7 +122,7 @@ class MultiAssetDefinition(BaseAsset):
         with self._source.create_dag(dag_id=self._function.__name__):
             _AssetMainOperator.from_definition(self)
 
-    def evaluate(self, statuses: dict[str, bool], *, session: Session | None = None) -> bool:
+    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
         return all(o.evaluate(statuses=statuses, session=session) for o in self._source.outlets)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
@@ -132,6 +132,10 @@ class MultiAssetDefinition(BaseAsset):
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         for o in self._source.outlets:
             yield from o.iter_asset_aliases()
+
+    def iter_asset_refs(self) -> Iterator[AssetRef]:
+        for o in self._source.outlets:
+            yield from o.iter_asset_refs()
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         for obj in self._source.outlets:

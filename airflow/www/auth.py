@@ -30,6 +30,7 @@ from flask_appbuilder.const import (
     PERMISSION_PREFIX,
 )
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
@@ -40,7 +41,6 @@ from airflow.auth.managers.models.resource_details import (
 )
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
@@ -139,7 +139,8 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
     if is_authorized:
         return func(*args, **kwargs)
     elif get_auth_manager().is_logged_in() and not get_auth_manager().is_authorized_view(
-        access_view=AccessView.WEBSITE
+        access_view=AccessView.WEBSITE,
+        user=get_auth_manager().get_user(),
     ):
         return (
             render_template(
@@ -158,7 +159,11 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
 
 
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_configuration(method=method))
+    return _has_access_no_details(
+        lambda: get_auth_manager().is_authorized_configuration(
+            method=method, user=get_auth_manager().get_user()
+        )
+    )
 
 
 def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
@@ -173,7 +178,9 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
                 }
                 for connection in connections
             ]
-            is_authorized = get_auth_manager().batch_is_authorized_connection(requests)
+            is_authorized = get_auth_manager().batch_is_authorized_connection(
+                requests, user=get_auth_manager().get_user()
+            )
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
@@ -222,6 +229,7 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
                 method=method,
                 access_entity=access_entity,
                 details=None if not dag_id else DagDetails(id=dag_id),
+                user=get_auth_manager().get_user(),
             )
 
             return _has_access(
@@ -250,7 +258,9 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
                 for item in items
                 if item is not None
             ]
-            is_authorized = get_auth_manager().batch_is_authorized_dag(requests)
+            is_authorized = get_auth_manager().batch_is_authorized_dag(
+                requests, user=get_auth_manager().get_user()
+            )
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
@@ -265,7 +275,9 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
 
 def has_access_asset(method: ResourceMethod) -> Callable[[T], T]:
     """Check current user's permissions against required permissions for assets."""
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_asset(method=method))
+    return _has_access_no_details(
+        lambda: get_auth_manager().is_authorized_asset(method=method, user=get_auth_manager().get_user())
+    )
 
 
 def has_access_pool(method: ResourceMethod) -> Callable[[T], T]:
@@ -280,7 +292,9 @@ def has_access_pool(method: ResourceMethod) -> Callable[[T], T]:
                 }
                 for pool in pools
             ]
-            is_authorized = get_auth_manager().batch_is_authorized_pool(requests)
+            is_authorized = get_auth_manager().batch_is_authorized_pool(
+                requests, user=get_auth_manager().get_user()
+            )
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
@@ -299,7 +313,9 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
         def decorated(*args, **kwargs):
             if len(args) == 1:
                 # No items provided
-                is_authorized = get_auth_manager().is_authorized_variable(method=method)
+                is_authorized = get_auth_manager().is_authorized_variable(
+                    method=method, user=get_auth_manager().get_user()
+                )
             else:
                 variables: set[Variable] = set(args[1])
                 requests: Sequence[IsAuthorizedVariableRequest] = [
@@ -309,7 +325,9 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
                     }
                     for variable in variables
                 ]
-                is_authorized = get_auth_manager().batch_is_authorized_variable(requests)
+                is_authorized = get_auth_manager().batch_is_authorized_variable(
+                    requests, user=get_auth_manager().get_user()
+                )
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
@@ -324,4 +342,8 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
 
 def has_access_view(access_view: AccessView = AccessView.WEBSITE) -> Callable[[T], T]:
     """Check current user's permissions to access the website."""
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_view(access_view=access_view))
+    return _has_access_no_details(
+        lambda: get_auth_manager().is_authorized_view(
+            access_view=access_view, user=get_auth_manager().get_user()
+        )
+    )

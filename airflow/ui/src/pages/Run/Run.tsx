@@ -19,12 +19,10 @@
 import { LiaSlashSolid } from "react-icons/lia";
 import { useParams, Link as RouterLink } from "react-router-dom";
 
-import {
-  useDagRunServiceGetDagRun,
-  useDagServiceGetDagDetails,
-} from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
 import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
@@ -32,19 +30,13 @@ const tabs = [
   { label: "Task Instances", value: "" },
   { label: "Events", value: "events" },
   { label: "Code", value: "code" },
+  { label: "Details", value: "details" },
 ];
 
 export const Run = () => {
   const { dagId = "", runId = "" } = useParams();
 
-  const {
-    data: dagRun,
-    error,
-    isLoading,
-  } = useDagRunServiceGetDagRun({
-    dagId,
-    dagRunId: runId,
-  });
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const {
     data: dag,
@@ -54,25 +46,38 @@ export const Run = () => {
     dagId,
   });
 
+  const {
+    data: dagRun,
+    error,
+    isLoading,
+  } = useDagRunServiceGetDagRun(
+    {
+      dagId,
+      dagRunId: runId,
+    },
+    undefined,
+    {
+      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+    },
+  );
+
   return (
-    <DetailsLayout
-      dag={dag}
-      error={error ?? dagError}
-      isLoading={isLoading || isLoadinDag}
-      tabs={tabs}
-    >
+    <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isLoadinDag} tabs={tabs}>
       <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
         <Breadcrumb.Link asChild color="fg.info">
           <RouterLink to="/dags">Dags</RouterLink>
         </Breadcrumb.Link>
         <Breadcrumb.Link asChild color="fg.info">
-          <RouterLink to={`/dags/${dagId}`}>
-            {dag?.dag_display_name ?? dagId}
-          </RouterLink>
+          <RouterLink to={`/dags/${dagId}`}>{dag?.dag_display_name ?? dagId}</RouterLink>
         </Breadcrumb.Link>
         <Breadcrumb.CurrentLink>{runId}</Breadcrumb.CurrentLink>
       </Breadcrumb.Root>
-      {dagRun === undefined ? undefined : <Header dagRun={dagRun} />}
+      {dagRun === undefined ? undefined : (
+        <Header
+          dagRun={dagRun}
+          isRefreshing={Boolean(isStatePending(dagRun.state) && Boolean(refetchInterval))}
+        />
+      )}
     </DetailsLayout>
   );
 };

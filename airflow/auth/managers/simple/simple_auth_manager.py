@@ -22,17 +22,26 @@ import os
 import random
 from collections import namedtuple
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from flask import session, url_for
+from fastapi import FastAPI
+from flask import session
+from starlette.requests import Request
+from starlette.responses import HTMLResponse
+from starlette.staticfiles import StaticFiles
+from starlette.templating import Jinja2Templates
 from termcolor import colored
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
-from airflow.configuration import AIRFLOW_HOME
+from airflow.configuration import AIRFLOW_HOME, conf
+from airflow.settings import AIRFLOW_PATH
 
 if TYPE_CHECKING:
+    from flask_appbuilder.menu import MenuItem
+
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
@@ -73,12 +82,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     Default auth manager used in Airflow. This auth manager should not be used in production.
     This auth manager is very basic and only intended for development and testing purposes.
-
-    :param appbuilder: the flask app builder
     """
-
-    # Cache containing the password associated to a username
-    passwords: dict[str, str] = {}
 
     @staticmethod
     def get_generated_password_file() -> str:
@@ -87,51 +91,59 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             "simple_auth_manager_passwords.json.generated",
         )
 
-    def init(self) -> None:
-        if not self.appbuilder:
-            return
+    @staticmethod
+    def get_users() -> list[dict[str, str]]:
+        users = [u.split(":") for u in conf.getlist("core", "simple_auth_manager_users")]
+        return [{"username": username, "role": role} for username, role in users]
+
+    @staticmethod
+    def get_passwords(users: list[dict[str, str]]) -> dict[str, str]:
         user_passwords_from_file = {}
 
         # Read passwords from file
-        if os.path.isfile(self.get_generated_password_file()):
-            with open(self.get_generated_password_file()) as file:
+        password_file = SimpleAuthManager.get_generated_password_file()
+        if os.path.isfile(password_file):
+            with open(password_file) as file:
                 passwords_str = file.read().strip()
                 user_passwords_from_file = json.loads(passwords_str)
 
-        users = self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_USERS", [])
         usernames = {user["username"] for user in users}
-        self.passwords = {
+        return {
             username: password
             for username, password in user_passwords_from_file.items()
             if username in usernames
         }
-        for user in users:
-            if user["username"] not in self.passwords:
-                # User dot not exist in the file, adding it
-                self.passwords[user["username"]] = self._generate_password()
 
-            self._print_output(f"Password for user '{user['username']}': {self.passwords[user['username']]}")
+    def init(self) -> None:
+        users = self.get_users()
+        passwords = self.get_passwords(users)
+        for user in users:
+            if user["username"] not in passwords:
+                # User dot not exist in the file, adding it
+                passwords[user["username"]] = self._generate_password()
+
+            self._print_output(f"Password for user '{user['username']}': {passwords[user['username']]}")
 
         with open(self.get_generated_password_file(), "w") as file:
-            file.write(json.dumps(self.passwords))
+            file.write(json.dumps(passwords))
 
     def is_logged_in(self) -> bool:
-        return "user" in session or (
-            self.appbuilder is not None
-            and self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_ALL_ADMINS", False)
-        )
+        # Remove this method when legacy UI is removed
+        return "user" in session or conf.getboolean("core", "simple_auth_manager_all_admins")
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return url_for("SimpleAuthManagerAuthenticationViews.login", next=kwargs.get("next_url"))
+        return "/auth/webapp/login"
 
     def get_url_logout(self) -> str:
-        return url_for("SimpleAuthManagerAuthenticationViews.logout")
+        # Remove this method when legacy UI is removed
+        raise NotImplementedError()
 
     def get_user(self) -> SimpleAuthManagerUser | None:
+        # Remove this method when legacy UI is removed
         if not self.is_logged_in():
             return None
-        if self.appbuilder and self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_ALL_ADMINS", False):
+        if conf.getboolean("core", "simple_auth_manager_all_admins"):
             return SimpleAuthManagerUser(username="anonymous", role="admin")
         else:
             return session["user"]
@@ -146,8 +158,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         details: ConfigurationDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP, user=user)
 
@@ -155,8 +167,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         details: ConnectionDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP, user=user)
 
@@ -164,9 +176,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         access_entity: DagAccessEntity | None = None,
         details: DagDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -179,8 +191,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         details: AssetDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -193,8 +205,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         details: PoolDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -207,38 +219,69 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self,
         *,
         method: ResourceMethod,
+        user: SimpleAuthManagerUser,
         details: VariableDetails | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ) -> bool:
         return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP, user=user)
 
-    def is_authorized_view(
-        self, *, access_view: AccessView, user: SimpleAuthManagerUser | None = None
-    ) -> bool:
+    def is_authorized_view(self, *, access_view: AccessView, user: SimpleAuthManagerUser) -> bool:
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser | None = None
+        self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
-    def register_views(self) -> None:
-        if not self.appbuilder:
-            return
-        self.appbuilder.add_view_no_menu(
-            SimpleAuthManagerAuthenticationViews(
-                users=self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_USERS", []),
-                passwords=self.passwords,
-            )
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+        return menu_items
+
+    def get_fastapi_app(self) -> FastAPI | None:
+        """
+        Specify a sub FastAPI application specific to the auth manager.
+
+        This sub application, if specified, is mounted in the main FastAPI application.
+        """
+        from airflow.auth.managers.simple.router.login import login_router
+
+        dev_mode = os.environ.get("DEV_MODE", False) == "true"
+        directory = Path(AIRFLOW_PATH) / (
+            "airflow/auth/managers/simple/ui/dev" if dev_mode else "airflow/auth/managers/simple/ui/dist"
+        )
+        Path(directory).mkdir(exist_ok=True)
+
+        templates = Jinja2Templates(directory=directory)
+
+        app = FastAPI(
+            title="Simple auth manager sub application",
+            description=(
+                "This is the simple auth manager fastapi sub application. This API is only available if the "
+                "auth manager used in the Airflow environment is simple auth manager. "
+                "This sub application provides the login form for users to log in."
+            ),
+        )
+        app.include_router(login_router)
+        app.mount(
+            "/static",
+            StaticFiles(
+                directory=directory,
+                html=True,
+            ),
+            name="simple_auth_manager_ui_folder",
         )
 
+        @app.get("/webapp/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
+        def webapp(request: Request, rest_of_path: str):
+            return templates.TemplateResponse("/index.html", {"request": request}, media_type="text/html")
+
+        return app
+
+    @staticmethod
     def _is_authorized(
-        self,
         *,
         method: ResourceMethod,
         allow_role: SimpleAuthManagerRole,
+        user: SimpleAuthManagerUser,
         allow_get_role: SimpleAuthManagerRole | None = None,
-        user: SimpleAuthManagerUser | None = None,
     ):
         """
         Return whether the user is authorized to access a given resource.
@@ -246,14 +289,10 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         :param method: the method to perform
         :param allow_role: minimal role giving access to the resource, if the user's role is greater or
             equal than this role, they have access
+        :param user: the user to check the authorization for
         :param allow_get_role: minimal role giving access to the resource, if the user's role is greater or
             equal than this role, they have access. If not provided, ``allow_role`` is used
-        :param user: the user to check the authorization for. If not provided, the current user is used
         """
-        user = user or self.get_user()
-        if not user:
-            return False
-
         user_role = user.get_role()
         if not user_role:
             return False

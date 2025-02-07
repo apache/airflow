@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from typing_extensions import TypeAlias
 
     from airflow.models.baseoperator import TaskPreExecuteHook
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
     BoolConditionFunc: TypeAlias = Callable[[Context], bool]
     MsgConditionFunc: TypeAlias = "Callable[[Context], tuple[bool, str | None]]"

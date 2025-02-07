@@ -90,7 +90,6 @@ class TestPluginSchema(TestPluginBase):
             "operator_extra_links": [str(MockOperatorLink())],
             "source": None,
             "name": "test_plugin",
-            "ti_deps": [],
             "listeners": [],
             "timetables": [],
         }
@@ -115,7 +114,6 @@ class TestPluginCollectionSchema(TestPluginBase):
                     "operator_extra_links": [str(MockOperatorLink())],
                     "source": None,
                     "name": "test_plugin",
-                    "ti_deps": [],
                     "listeners": [],
                     "timetables": [],
                 },
@@ -131,7 +129,6 @@ class TestPluginCollectionSchema(TestPluginBase):
                     "operator_extra_links": [str(MockOperatorLink())],
                     "source": None,
                     "name": "test_plugin_2",
-                    "ti_deps": [],
                     "listeners": [],
                     "timetables": [],
                 },

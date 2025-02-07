@@ -20,24 +20,20 @@ name: K8s tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-default:
-        description: "The array of labels (in json form) determining default runner used for the build."
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
       python-versions-list-as-string:
         description: "List of Python versions to test: space separated string"
         required: true
         type: string
-      kubernetes-versions-list-as-string:
-        description: "List of Kubernetes versions to test"
-        required: true
-        type: string
-      kubernetes-combos-list-as-string:
-        description: "List of combinations of Kubernetes and Python versions to test: space separated string"
+      kubernetes-combos:
+        description: "Array of combinations of Kubernetes and Python versions to test"
         required: true
         type: string
       include-success-outputs:
@@ -52,22 +48,22 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   tests-kubernetes:
-    timeout-minutes: 240
-    name: "\
-      K8S System:${{ matrix.executor }} - ${{ matrix.use-standard-naming }} - \
-      ${{ inputs.kubernetes-versions-list-as-string }}"
+    timeout-minutes: 60
+    name: "K8S System:${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-${{ matrix.use-standard-naming }}"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
         use-standard-naming: [true, false]
+        kubernetes-combo: ${{ fromJSON(inputs.kubernetes-combos) }}
       fail-fast: false
     env:
       DEBUG_RESOURCES: ${{ inputs.debug-resources }}
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
-      IMAGE_TAG: ${{ inputs.image-tag }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
@@ -76,55 +72,58 @@ jobs:
       - name: "Cleanup repo"
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Prepare PYTHON_MAJOR_MINOR_VERSION and KUBERNETES_VERSION"
+        id: prepare-versions
+        env:
+          KUBERNETES_COMBO: ${{ matrix.kubernetes-combo }}
+        run: |
+          echo "PYTHON_MAJOR_MINOR_VERSION=${KUBERNETES_COMBO}" | sed 's/-.*//' >> $GITHUB_ENV
+          echo "KUBERNETES_VERSION=${KUBERNETES_COMBO}" | sed 's/=[^-]*-/=/'  >> $GITHUB_ENV
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        id: breeze
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: Pull PROD images ${{ inputs.python-versions-list-as-string }}:${{ inputs.image-tag }}
-        run: breeze prod-image pull --run-in-parallel --tag-as-latest
-        env:
-          PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
-          # Force more parallelism for pull even on public images
-          PARALLELISM: 6
-      - name: "Cache bin folder with tools for kubernetes testing"
-        uses: actions/cache@v4
+      # env.PYTHON_MAJOR_MINOR_VERSION, env.KUBERNETES_VERSION are set in the previous
+      # step id: prepare-versions
+      - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: ./.github/actions/prepare_breeze_and_image
         with:
-          path: ".build/.k8s-env"
-          key: "\
-            k8s-env-${{ steps.breeze.outputs.host-python-version }}-\
-            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','hatch_build.py') }}"
-      - name: "Switch breeze to use uv"
-        run: breeze setup config --use-uv
-        if: inputs.use-uv == 'true'
-      - name: Run complete K8S tests ${{ inputs.kubernetes-combos-list-as-string }}
-        run: breeze k8s run-complete-tests --run-in-parallel --upgrade --no-copy-local-sources
+          platform: ${{ inputs.platform }}
+          image-type: "prod"
+          python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          use-uv: ${{ inputs.use-uv }}
+        id: breeze
+      # preparing k8s environment with uv takes < 15 seconds with `uv` - there is no point in caching it.
+      - name: "\
+          Run complete K8S tests ${{ matrix.executor }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-\
+          ${{env.KUBERNETES_VERSION}}-${{ matrix.use-standard-naming }}"
+        run: breeze k8s run-complete-tests --upgrade --no-copy-local-sources
         env:
-          PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
-          KUBERNETES_VERSIONS: ${{ inputs.kubernetes-versions-list-as-string }}
           EXECUTOR: ${{ matrix.executor }}
           USE_STANDARD_NAMING: ${{ matrix.use-standard-naming }}
           VERBOSE: "false"
-      - name: Upload KinD logs on failure ${{ inputs.kubernetes-combos-list-as-string }}
+      - name: "\
+          Upload KinD logs on failure ${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-\
+          ${{ matrix.use-standard-naming }}"
         uses: actions/upload-artifact@v4
         if: failure() || cancelled()
         with:
-          name: kind-logs-${{ matrix.executor }}-${{ matrix.use-standard-naming }}
+          name: "\
+            kind-logs-${{ matrix.kubernetes-combo }}-${{ matrix.executor }}-\
+            ${{ matrix.use-standard-naming }}"
           path: /tmp/kind_logs_*
-          retention-days: 7
-      - name: Upload test resource logs on failure ${{ inputs.kubernetes-combos-list-as-string }}
+          retention-days: '7'
+      - name: "\
+          Upload test resource logs on failure ${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-\
+          ${{ matrix.use-standard-naming }}"
         uses: actions/upload-artifact@v4
         if: failure() || cancelled()
         with:
-          name: k8s-test-resources-${{ matrix.executor }}-${{ matrix.use-standard-naming }}
+          name: "\
+            k8s-test-resources-${{ matrix.kubernetes-combo }}-${{ matrix.executor }}-\
+            ${{ matrix.use-standard-naming }}"
           path: /tmp/k8s_test_resources_*
-          retention-days: 7
+          retention-days: '7'
       - name: "Delete clusters just in case they are left"
         run: breeze k8s delete-cluster --all
         if: always()

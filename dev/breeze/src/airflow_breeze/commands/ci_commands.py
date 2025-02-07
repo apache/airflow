@@ -296,8 +296,6 @@ class WorkflowInfo(NamedTuple):
         yield get_ga_output(name="pr_number", value=str(self.pr_number) if self.pr_number else "")
         yield get_ga_output(name="event_name", value=str(self.event_name))
         yield get_ga_output(name="runs-on", value=self.get_runs_on())
-        yield get_ga_output(name="in-workflow-build", value=self.in_workflow_build())
-        yield get_ga_output(name="build-job-description", value=self.get_build_job_description())
         yield get_ga_output(name="canary-run", value=self.is_canary_run())
         yield get_ga_output(name="run-coverage", value=self.run_coverage())
 
@@ -313,16 +311,6 @@ class WorkflowInfo(NamedTuple):
         if not os.environ.get("AIRFLOW_SELF_HOSTED_RUNNER"):
             return RUNS_ON_PUBLIC_RUNNER
         return RUNS_ON_SELF_HOSTED_RUNNER
-
-    def in_workflow_build(self) -> str:
-        if self.event_name == GithubEvents.PUSH.value or self.head_repo == self.target_repo:
-            return "true"
-        return "false"
-
-    def get_build_job_description(self) -> str:
-        if self.in_workflow_build() == "true":
-            return "Build"
-        return "Skip Build (look in pull_request_target)"
 
     def is_canary_run(self) -> str:
         if (

@@ -17,9 +17,9 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
-import { FiClipboard } from "react-icons/fi";
+import { FiClipboard, FiZap } from "react-icons/fi";
 
-import { stateColor } from "src/utils/stateColor";
+import { StateIcon } from "src/components/StateIcon";
 
 import { DAGImportErrors } from "./DAGImportErrors";
 import { DagFilterButton } from "./DagFilterButton";
@@ -33,22 +33,16 @@ export const Stats = () => (
       </Heading>
     </Flex>
     <HStack>
-      <DagFilterButton
-        badgeColor={stateColor.failed}
-        filter="failed"
-        link="dags?last_dag_run_state=failed"
-      />
+      <DagFilterButton colorPalette="failed" filter="failed" link="dags?last_dag_run_state=failed">
+        <StateIcon state="failed" />
+      </DagFilterButton>
       <DAGImportErrors />
-      <DagFilterButton
-        badgeColor={stateColor.running}
-        filter="running"
-        link="dags?last_dag_run_state=running"
-      />
-      <DagFilterButton
-        badgeColor="blue.solid"
-        filter="active"
-        link="dags?paused=false"
-      />
+      <DagFilterButton colorPalette="running" filter="running" link="dags?last_dag_run_state=running">
+        <StateIcon state="running" />
+      </DagFilterButton>
+      <DagFilterButton colorPalette="blue" filter="active" link="dags?paused=false">
+        <FiZap />
+      </DagFilterButton>
     </HStack>
   </Box>
 );

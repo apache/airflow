@@ -5,7 +5,7 @@
   "importOrderSeparation": true,
   "jsxSingleQuote": false,
   "plugins": ["@trivago/prettier-plugin-sort-imports"],
-  "printWidth": 80,
+  "printWidth": 110,
   "singleQuote": false,
   "tabWidth": 2,
   "trailingComma": "all",

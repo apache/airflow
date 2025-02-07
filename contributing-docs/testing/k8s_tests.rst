@@ -34,7 +34,7 @@ Before running ``breeze k8s`` cluster commands you need to setup the environment
 by ``breeze k8s setup-env`` command. Breeze in this command makes sure to download tools that
 are needed to run k8s tests: Helm, Kind, Kubectl in the right versions and sets up a
 Python virtualenv that is needed to run the tests. All those tools and env are setup in
-``.build/.k8s-env`` folder. You can activate this environment yourselves as usual by sourcing
+``.build/k8s-env`` folder. You can activate this environment yourselves as usual by sourcing
 ``bin/activate`` script, but since we are supporting multiple clusters in the same installation
 it is best if you use ``breeze k8s shell`` with the right parameters specifying which cluster
 to use.
@@ -129,8 +129,8 @@ Entering shell with Kubernetes Cluster
 This shell is prepared to run Kubernetes tests interactively. It has ``kubectl`` and ``kind`` cli tools
 available in the path, it has also activated virtualenv environment that allows you to run tests via pytest.
 
-The virtualenv is available in ./.build/.k8s-env/
-The binaries are available in ``.build/.k8s-env/bin`` path.
+The virtualenv is available in ./.build/k8s-env/
+The binaries are available in ``.build/k8s-env/bin`` path.
 
 .. code-block:: bash
 
@@ -184,26 +184,26 @@ The typical session for tests with Kubernetes looks like follows:
     breeze k8s setup-env
 
 The first time you run it, it should result in creating the virtualenv and installing good versions
-of kind, kubectl and helm. All of them are installed in ``./build/.k8s-env`` (binaries available in ``bin``
+of kind, kubectl and helm. All of them are installed in ``./build/k8s-env`` (binaries available in ``bin``
 sub-folder of it).
 
 .. code-block:: text
 
-    Initializing K8S virtualenv in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env
-    Reinstalling PIP version in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env
-    Installing necessary packages in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env
+    Initializing K8S virtualenv in /Users/jarek/IdeaProjects/airflow/.build/k8s-env
+    Reinstalling PIP version in /Users/jarek/IdeaProjects/airflow/.build/k8s-env
+    Installing necessary packages in /Users/jarek/IdeaProjects/airflow/.build/k8s-env
     The ``kind`` tool is not downloaded yet. Downloading 0.14.0 version.
     Downloading from: https://github.com/kubernetes-sigs/kind/releases/download/v0.14.0/kind-darwin-arm64
     The ``kubectl`` tool is not downloaded yet. Downloading 1.24.3 version.
     Downloading from: https://storage.googleapis.com/kubernetes-release/release/v1.24.3/bin/darwin/arm64/kubectl
     The ``helm`` tool is not downloaded yet. Downloading 3.9.2 version.
     Downloading from: https://get.helm.sh/helm-v3.9.2-darwin-arm64.tar.gz
-    Extracting the darwin-arm64/helm to /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin
-    Moving the helm to /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin/helm
+    Extracting the darwin-arm64/helm to /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin
+    Moving the helm to /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin/helm
 
 
 This prepares the virtual environment for tests and downloads the right versions of the tools
-to ``./build/.k8s-env``
+to ``./build/k8s-env``
 
 2. Create the KinD cluster:
 
@@ -404,10 +404,10 @@ Should show the status of current KinD cluster.
 
 .. code-block:: text
 
-    K8S Virtualenv is initialized in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env
-    Good version of kind installed: 0.14.0 in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin
-    Good version of kubectl installed: 1.25.0 in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin
-    Good version of helm installed: 3.9.2 in /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin
+    K8S Virtualenv is initialized in /Users/jarek/IdeaProjects/airflow/.build/k8s-env
+    Good version of kind installed: 0.14.0 in /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin
+    Good version of kubectl installed: 1.25.0 in /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin
+    Good version of helm installed: 3.9.2 in /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin
     Stable repo is already added
     Uploading Airflow image ghcr.io/apache/airflow/main/prod/python3.9-kubernetes to cluster airflow-python-3.9-v1.24.2
     Image: "ghcr.io/apache/airflow/main/prod/python3.9-kubernetes" with ID "sha256:fb6195f7c2c2ad97788a563a3fe9420bf3576c85575378d642cd7985aff97412" not yet present on node "airflow-python-3.9-v1.24.2-worker", loading...
@@ -511,7 +511,7 @@ The virtualenv required will be created automatically when the scripts are run.
     Running tests with kind-airflow-python-3.9-v1.24.2 cluster.
      Command to run: pytest kubernetes_tests
     ========================================================================================= test session starts ==========================================================================================
-    platform darwin -- Python 3.9.9, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin/python
+    platform darwin -- Python 3.9.9, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /Users/jarek/IdeaProjects/airflow/.build/k8s-env/bin/python
     cachedir: .pytest_cache
     rootdir: /Users/jarek/IdeaProjects/airflow/kubernetes_tests
     plugins: anyio-3.6.1, instafail-0.4.2, xdist-2.5.0, forked-1.4.0, timeouts-1.2.1, cov-3.0.0
@@ -525,7 +525,7 @@ The virtualenv required will be created automatically when the scripts are run.
 
 8b) You can enter an interactive shell to run tests one-by-one
 
-This enters the virtualenv in ``.build/.k8s-env`` folder:
+This enters the virtualenv in ``.build/k8s-env`` folder:
 
 .. code-block:: bash
 
@@ -561,7 +561,7 @@ tests using the standard IntelliJ Run/Debug feature. You just need a few steps:
     :alt: Kubernetes testing virtualenv
 
 The virtualenv is created in your "Airflow" source directory in the
-``.build/.k8s-env`` folder and you have to find ``python`` binary and choose
+``.build/k8s-env`` folder and you have to find ``python`` binary and choose
 it when selecting interpreter.
 
 9b) Choose pytest as test runner:

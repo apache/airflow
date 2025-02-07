@@ -21,11 +21,10 @@ import asyncio
 import copy
 import functools
 import logging
-import pathlib
 import sys
 import time
 from collections import defaultdict
-from collections.abc import Collection, Container, Generator, Iterable, Sequence
+from collections.abc import Collection, Generator, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
@@ -58,9 +57,9 @@ from sqlalchemy import (
     and_,
     case,
     func,
-    not_,
     or_,
     select,
+    tuple_,
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -91,7 +90,7 @@ from airflow.models.taskinstance import (
     clear_task_instances,
 )
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk.definitions.asset import Asset, AssetAlias, BaseAsset
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
 from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
@@ -108,7 +107,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -189,7 +188,7 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     Overridden DagRuns are ignored.
     """
     DR = DagRun
-    query = select(DR).where(DR.dag_id == dag_id)
+    query = select(DR).where(DR.dag_id == dag_id, DR.logical_date.is_not(None))
     if not include_externally_triggered:
         query = query.where(DR.external_trigger == expression.false())
     query = query.order_by(DR.logical_date.desc())
@@ -246,27 +245,29 @@ def _triggerer_is_healthy():
 
 @provide_session
 def _create_orm_dagrun(
-    dag,
-    dag_id,
-    run_id,
-    logical_date,
-    start_date,
-    external_trigger,
-    conf,
-    state,
-    run_type,
-    dag_version,
-    creating_job_id,
-    data_interval,
-    backfill_id,
-    session,
-    triggered_by,
-):
+    *,
+    dag: DAG,
+    run_id: str,
+    logical_date: datetime | None,
+    data_interval: DataInterval | None,
+    run_after: datetime,
+    start_date: datetime | None,
+    external_trigger: bool,
+    conf: Any,
+    state: DagRunState | None,
+    run_type: DagRunType,
+    dag_version: DagVersion | None,
+    creating_job_id: int | None,
+    backfill_id: int | None,
+    triggered_by: DagRunTriggeredByType,
+    session: Session = NEW_SESSION,
+) -> DagRun:
     run = DagRun(
-        dag_id=dag_id,
+        dag_id=dag.dag_id,
         run_id=run_id,
         logical_date=logical_date,
         start_date=start_date,
+        run_after=run_after,
         external_trigger=external_trigger,
         conf=conf,
         state=state,
@@ -276,6 +277,7 @@ def _create_orm_dagrun(
         data_interval=data_interval,
         triggered_by=triggered_by,
         backfill_id=backfill_id,
+        bundle_version=session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)),
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
@@ -418,9 +420,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: {"dag_owner": "https://airflow.apache.org/"}
     :param auto_register: Automatically register this DAG when it is used in a ``with`` block
-    :param fail_stop: Fails currently running tasks when task in DAG fails.
-        **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
-        An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
+    :param fail_fast: Fails currently running tasks when task in DAG fails.
+        **Warning**: A fail fast dag can only have tasks with the default trigger rule ("all_success").
+        An exception will be thrown if any task in a fail fast dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
     """
 
@@ -734,20 +736,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     def timetable_summary(self) -> str:
         return self.timetable.summary
 
-    @property
-    def relative_fileloc(self) -> pathlib.Path:
-        """File location of the importable dag 'file' relative to the configured DAGs folder."""
-        path = pathlib.Path(self.fileloc)
-        try:
-            rel_path = path.relative_to(self._processor_dags_folder or settings.DAGS_FOLDER)
-            if rel_path == pathlib.Path("."):
-                return path
-            else:
-                return rel_path
-        except ValueError:
-            # Not relative to DAGS_FOLDER.
-            return path
-
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
         """Return a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
@@ -769,6 +757,16 @@ class DAG(TaskSDKDag, LoggingMixin):
     def get_is_paused(self, session=NEW_SESSION) -> None:
         """Return a boolean indicating whether this DAG is paused."""
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
+
+    @provide_session
+    def get_bundle_name(self, session=NEW_SESSION) -> str | None:
+        """Return the bundle name this DAG is in."""
+        return session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == self.dag_id))
+
+    @provide_session
+    def get_bundle_version(self, session=NEW_SESSION) -> str | None:
+        """Return the bundle version that was seen when this dag was processed."""
+        return session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == self.dag_id))
 
     @methodtools.lru_cache(maxsize=None)
     @classmethod
@@ -1081,7 +1079,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     tis = tis.where(TaskInstance.state.in_(state))
 
         if exclude_run_ids:
-            tis = tis.where(not_(TaskInstance.run_id.in_(exclude_run_ids)))
+            tis = tis.where(TaskInstance.run_id.not_in(exclude_run_ids))
 
         if include_dependent_dags:
             # Recursively find external tasks indicated by ExternalTaskMarker
@@ -1192,7 +1190,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         elif isinstance(next(iter(exclude_task_ids), None), str):
             tis = tis.where(TI.task_id.notin_(exclude_task_ids))
         else:
-            tis = tis.where(not_(tuple_in_condition((TI.task_id, TI.map_index), exclude_task_ids)))
+            tis = tis.where(tuple_(TI.task_id, TI.map_index).not_in(exclude_task_ids))
 
         return tis
 
@@ -1382,6 +1380,40 @@ class DAG(TaskSDKDag, LoggingMixin):
             )
 
         return altered
+
+    @overload
+    def clear(
+        self,
+        *,
+        dry_run: Literal[True],
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        run_id: str,
+        only_failed: bool = False,
+        only_running: bool = False,
+        confirm_prompt: bool = False,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
+        session: Session = NEW_SESSION,
+        dag_bag: DagBag | None = None,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+        exclude_run_ids: frozenset[str] | None = frozenset(),
+    ) -> list[TaskInstance]: ...  # pragma: no cover
+
+    @overload
+    def clear(
+        self,
+        *,
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        run_id: str,
+        only_failed: bool = False,
+        only_running: bool = False,
+        confirm_prompt: bool = False,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dry_run: Literal[False] = False,
+        session: Session = NEW_SESSION,
+        dag_bag: DagBag | None = None,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+        exclude_run_ids: frozenset[str] | None = frozenset(),
+    ) -> int: ...  # pragma: no cover
 
     @overload
     def clear(
@@ -1589,6 +1621,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param mark_success_pattern: regex of task_ids to mark as success instead of running
         :param session: database connection (optional)
         """
+        from airflow.serialization.serialized_objects import SerializedDAG
 
         def add_logger_if_needed(ti: TaskInstance):
             """
@@ -1631,15 +1664,18 @@ class DAG(TaskSDKDag, LoggingMixin):
             self.log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
             data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
+
             dr: DagRun = _get_or_create_dagrun(
-                dag=self,
+                dag=scheduler_dag,
                 start_date=logical_date,
                 logical_date=logical_date,
+                data_interval=data_interval,
+                run_after=data_interval.end,
                 run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
-                data_interval=data_interval,
             )
 
             tasks = self.task_dict
@@ -1667,6 +1703,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if s.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         s.try_number += 1
                     s.state = TaskInstanceState.SCHEDULED
+                    s.scheduled_dttm = timezone.utcnow()
                 session.commit()
                 # triggerer may mark tasks scheduled so we read from DB
                 all_tis = set(dr.get_task_instances(session=session))
@@ -1717,86 +1754,64 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def create_dagrun(
         self,
-        state: DagRunState,
         *,
-        triggered_by: DagRunTriggeredByType | None,
-        logical_date: datetime | None = None,
-        run_id: str | None = None,
-        start_date: datetime | None = None,
-        external_trigger: bool | None = False,
+        run_id: str,
+        logical_date: datetime | None,
+        data_interval: tuple[datetime, datetime],
+        run_after: datetime,
         conf: dict | None = None,
-        run_type: DagRunType | None = None,
-        session: Session = NEW_SESSION,
+        run_type: DagRunType,
+        triggered_by: DagRunTriggeredByType,
+        external_trigger: bool = False,
         dag_version: DagVersion | None = None,
+        state: DagRunState,
+        start_date: datetime | None = None,
         creating_job_id: int | None = None,
-        data_interval: tuple[datetime, datetime] | None = None,
         backfill_id: int | None = None,
-    ):
+        session: Session = NEW_SESSION,
+    ) -> DagRun:
         """
-        Create a dag run from this dag including the tasks associated with this dag.
+        Create a run for this DAG to run its tasks.
 
-        Returns the dag run.
-
-        :param state: the state of the dag run
-        :param triggered_by: The entity which triggers the DagRun
-        :param run_id: defines the run id for this dag run
-        :param run_type: type of DagRun
-        :param logical_date: the logical date of this dag run
         :param start_date: the date this dag run should be evaluated
-        :param external_trigger: whether this dag run is externally triggered
         :param conf: Dict containing configuration/parameters to pass to the DAG
-        :param creating_job_id: id of the job creating this DagRun
-        :param session: database session
-        :param dag_version: The DagVersion object for this run
-        :param data_interval: Data interval of the DagRun
-        :param backfill_id: id of the backfill run if one exists
+        :param creating_job_id: ID of the job creating this DagRun
+        :param backfill_id: ID of the backfill run if one exists
+        :return: The created DAG run.
+
+        :meta private:
         """
         logical_date = timezone.coerce_datetime(logical_date)
 
         if data_interval and not isinstance(data_interval, DataInterval):
             data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
 
-        if data_interval is None and logical_date is not None:
-            raise ValueError(
-                "Calling `DAG.create_dagrun()` without an explicit data interval is not supported."
-            )
-
-        if run_type is None or isinstance(run_type, DagRunType):
+        if isinstance(run_type, DagRunType):
             pass
-        elif isinstance(run_type, str):  # Compatibility: run_type used to be a str.
+        elif isinstance(run_type, str):  # Ensure the input value is valid.
             run_type = DagRunType(run_type)
         else:
-            raise ValueError(f"`run_type` should be a DagRunType, not {type(run_type)}")
+            raise ValueError(f"run_type should be a DagRunType, not {type(run_type)}")
 
-        if run_id:  # Infer run_type from run_id if needed.
-            if not isinstance(run_id, str):
-                raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
-            inferred_run_type = DagRunType.from_run_id(run_id)
-            if run_type is None:
-                # No explicit type given, use the inferred type.
-                run_type = inferred_run_type
-            elif run_type == DagRunType.MANUAL and inferred_run_type != DagRunType.MANUAL:
-                # Prevent a manual run from using an ID that looks like a scheduled run.
+        if not isinstance(run_id, str):
+            raise ValueError(f"`run_id` should be a str, not {type(run_id)}")
+
+        # This is also done on the DagRun model class, but SQLAlchemy column
+        # validator does not work well for some reason.
+        if not re2.match(RUN_ID_REGEX, run_id):
+            regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
+            if not regex or not re2.match(regex, run_id):
+                raise ValueError(
+                    f"The run_id provided '{run_id}' does not match regex pattern "
+                    f"'{regex}' or '{RUN_ID_REGEX}'"
+                )
+
+        # Prevent a manual run from using an ID that looks like a scheduled run.
+        if run_type == DagRunType.MANUAL:
+            if (inferred_run_type := DagRunType.from_run_id(run_id)) != DagRunType.MANUAL:
                 raise ValueError(
                     f"A {run_type.value} DAG run cannot use ID {run_id!r} since it "
                     f"is reserved for {inferred_run_type.value} runs"
-                )
-        elif run_type and logical_date is not None:  # Generate run_id from run_type and logical_date.
-            run_id = self.timetable.generate_run_id(
-                run_type=run_type, logical_date=logical_date, data_interval=data_interval
-            )
-        else:
-            raise AirflowException(
-                "Creating DagRun needs either `run_id` or both `run_type` and `logical_date`"
-            )
-
-        regex = airflow_conf.get("scheduler", "allowed_run_id_pattern")
-
-        if run_id and not re2.match(RUN_ID_REGEX, run_id):
-            if not regex.strip() or not re2.match(regex.strip(), run_id):
-                raise AirflowException(
-                    f"The provided run ID '{run_id}' is invalid. It does not match either "
-                    f"the configured pattern: '{regex}' or the built-in pattern: '{RUN_ID_REGEX}'"
                 )
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
@@ -1806,15 +1821,17 @@ class DAG(TaskSDKDag, LoggingMixin):
             assert self.params
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
-        copied_params.update(conf or {})
+        if conf:
+            copied_params.update(conf)
         copied_params.validate()
 
-        run = _create_orm_dagrun(
+        return _create_orm_dagrun(
             dag=self,
-            dag_id=self.dag_id,
             run_id=run_id,
             logical_date=logical_date,
-            start_date=start_date,
+            data_interval=data_interval,
+            run_after=timezone.coerce_datetime(run_after),
+            start_date=timezone.coerce_datetime(start_date),
             external_trigger=external_trigger,
             conf=conf,
             state=state,
@@ -1822,18 +1839,17 @@ class DAG(TaskSDKDag, LoggingMixin):
             dag_version=dag_version,
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
-            data_interval=data_interval,
-            session=session,
             triggered_by=triggered_by,
+            session=session,
         )
-        return run
 
     @classmethod
     @provide_session
     def bulk_write_to_db(
         cls,
+        bundle_name: str,
+        bundle_version: str | None,
         dags: Collection[MaybeSerializedDAG],
-        processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ):
         """
@@ -1848,10 +1864,12 @@ class DAG(TaskSDKDag, LoggingMixin):
         from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 
         log.info("Sync %s DAGs", len(dags))
-        dag_op = DagModelOperation({dag.dag_id: dag for dag in dags})  # type: ignore[misc]
+        dag_op = DagModelOperation(
+            bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in dags}
+        )  # type: ignore[misc]
 
         orm_dags = dag_op.add_dags(session=session)
-        dag_op.update_dags(orm_dags, processor_subdir=processor_subdir, session=session)
+        dag_op.update_dags(orm_dags, session=session)
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
@@ -1862,18 +1880,22 @@ class DAG(TaskSDKDag, LoggingMixin):
         orm_dags = dag_op.find_orm_dags(session=session)  # Refetch so relationship is up to date.
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
+        asset_op.add_dag_asset_name_uri_references(session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_asset_trigger_references(orm_assets, session=session)
         session.flush()
 
     @provide_session
-    def sync_to_db(self, processor_subdir: str | None = None, session=NEW_SESSION):
+    def sync_to_db(self, session=NEW_SESSION):
         """
         Save attributes about this DAG to the DB.
 
         :return: None
         """
-        self.bulk_write_to_db([self], processor_subdir=processor_subdir, session=session)
+        # TODO: AIP-66 should this be in the model?
+        bundle_name = self.get_bundle_name(session=session)
+        bundle_version = self.get_bundle_version(session=session)
+        self.bulk_write_to_db(bundle_name, bundle_version, [self], session=session)
 
     def get_default_view(self):
         """Allow backward compatible jinja2 templates."""
@@ -2048,11 +2070,10 @@ class DagModel(Base):
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
     fileloc = Column(String(2000))
-    # The base directory used by Dag Processor that parsed this dag.
-    processor_subdir = Column(String(2000), nullable=True)
+    relative_fileloc = Column(String(2000))
     bundle_name = Column(StringID(), ForeignKey("dag_bundle.name"), nullable=True)
-    # The version of the bundle the last time the DAG was parsed
-    latest_bundle_version = Column(String(200), nullable=True)
+    # The version of the bundle the last time the DAG was processed
+    bundle_version = Column(String(200), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
     # Display name of the dag
@@ -2100,6 +2121,16 @@ class DagModel(Base):
     )
     schedule_asset_alias_references = relationship(
         "DagScheduleAssetAliasReference",
+        back_populates="dag",
+        cascade="all, delete, delete-orphan",
+    )
+    schedule_asset_name_references = relationship(
+        "DagScheduleAssetNameReference",
+        back_populates="dag",
+        cascade="all, delete, delete-orphan",
+    )
+    schedule_asset_uri_references = relationship(
+        "DagScheduleAssetUriReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
@@ -2209,18 +2240,6 @@ class DagModel(Base):
     def safe_dag_id(self):
         return self.dag_id.replace(".", "__dot__")
 
-    @property
-    def relative_fileloc(self) -> pathlib.Path | None:
-        """File location of the importable dag 'file' relative to the configured DAGs folder."""
-        if self.fileloc is None:
-            return None
-        path = pathlib.Path(self.fileloc)
-        try:
-            return path.relative_to(settings.DAGS_FOLDER)
-        except ValueError:
-            # Not relative to DAGS_FOLDER.
-            return path
-
     @provide_session
     def set_is_paused(self, is_paused: bool, session=NEW_SESSION) -> None:
         """
@@ -2261,31 +2280,25 @@ class DagModel(Base):
     @provide_session
     def deactivate_deleted_dags(
         cls,
-        alive_dag_filelocs: Container[str],
-        processor_subdir: str | None,
+        active: set[tuple[str, str]],
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
-        :param alive_dag_filelocs: file paths of alive DAGs
-        :param processor_subdir: dag processor subdir
+        :param active: tuples (bundle name, relative fileloc) of files that were observed.
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
         dag_models = session.scalars(
             select(cls).where(
-                cls.fileloc.is_not(None),
-                or_(
-                    cls.processor_subdir.is_(None),
-                    cls.processor_subdir == processor_subdir,
-                ),
+                cls.relative_fileloc.is_not(None),
             )
         )
 
-        for dag_model in dag_models:
-            if dag_model.fileloc not in alive_dag_filelocs:
-                dag_model.is_active = False
+        for dm in dag_models:
+            if (dm.bundle_name, dm.relative_fileloc) not in active:
+                dm.is_active = False
 
     @classmethod
     def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:
@@ -2298,7 +2311,7 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
-        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict) -> bool | None:
+        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
@@ -2309,22 +2322,17 @@ class DagModel(Base):
                 return None
 
         # this loads all the ADRQ records.... may need to limit num dags
-        all_records = session.scalars(select(AssetDagRunQueue)).all()
-        by_dag = defaultdict(list)
-        for r in all_records:
+        by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
+        for r in session.scalars(select(AssetDagRunQueue)):
             by_dag[r.target_dag_id].append(r)
-        del all_records
-        dag_statuses = {}
+        dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {}
         for dag_id, records in by_dag.items():
-            dag_statuses[dag_id] = {x.asset.uri: True for x in records}
-        ser_dags = SerializedDagModel.get_latest_serialized_dags(
-            dag_ids=list(dag_statuses.keys()), session=session
-        )
+            dag_statuses[dag_id] = {AssetUniqueKey.from_asset(x.asset): True for x in records}
+        ser_dags = SerializedDagModel.get_latest_serialized_dags(dag_ids=list(dag_statuses), session=session)
 
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
-
             if not dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
@@ -2465,14 +2473,16 @@ def _run_task(
 
 
 def _get_or_create_dagrun(
+    *,
     dag: DAG,
-    conf: dict[Any, Any] | None,
-    start_date: datetime,
-    logical_date: datetime,
     run_id: str,
-    session: Session,
+    logical_date: datetime,
+    data_interval: tuple[datetime, datetime],
+    run_after: datetime,
+    conf: dict | None,
     triggered_by: DagRunTriggeredByType,
-    data_interval: tuple[datetime, datetime] | None = None,
+    start_date: datetime,
+    session: Session,
 ) -> DagRun:
     """
     Create a DAG run, replacing an existing instance if needed to prevent collisions.
@@ -2488,24 +2498,24 @@ def _get_or_create_dagrun(
 
     :return: The newly created DAG run.
     """
-    log.info("dagrun id: %s", dag.dag_id)
     dr: DagRun = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.logical_date == logical_date)
     )
     if dr:
         session.delete(dr)
         session.commit()
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     dr = dag.create_dagrun(
-        state=DagRunState.RUNNING,
-        logical_date=logical_date,
         run_id=run_id,
+        logical_date=logical_date,
+        data_interval=data_interval,
+        run_after=run_after,
+        conf=conf,
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.RUNNING,
+        triggered_by=triggered_by,
+        dag_version=DagVersion.get_latest_version(dag.dag_id, session=session),
         start_date=start_date or logical_date,
         session=session,
-        conf=conf,
-        data_interval=data_interval,
-        triggered_by=triggered_by,
-        dag_version=dag_version,
     )
     log.info("created dagrun %s", dr)
     return dr

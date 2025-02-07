@@ -24,7 +24,7 @@ import pytest
 
 from airflow.decorators import dag, task, task_group
 from airflow.models.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput, MappedArgument
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -215,6 +215,7 @@ def test_expand_kwargs_create_mapped():
 
 
 @pytest.mark.db_test
+@pytest.mark.need_serialized_dag
 def test_task_group_expand_kwargs_with_upstream(dag_maker, session, caplog):
     with dag_maker() as dag:
 
@@ -239,6 +240,7 @@ def test_task_group_expand_kwargs_with_upstream(dag_maker, session, caplog):
 
 
 @pytest.mark.db_test
+@pytest.mark.need_serialized_dag
 def test_task_group_expand_with_upstream(dag_maker, session, caplog):
     with dag_maker() as dag:
 
@@ -333,3 +335,19 @@ def test_override_dag_default_args_nested_tg():
     assert test_task.retries == 1
     assert test_task.owner == "y"
     assert test_task.execution_timeout == timedelta(seconds=10)
+
+
+def test_task_group_display_name_used_as_label():
+    """Test that the group_display_name for TaskGroup is used as the label for display on the UI."""
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task_group(group_display_name="my_custom_name")
+        def tg():
+            pass
+
+        tg()
+
+    p = pipeline()
+
+    assert p.task_group_dict["tg"].label == "my_custom_name"

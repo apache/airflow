@@ -28,10 +28,6 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining the labels used for docs build."
         required: true
         type: string
-      image-tag:
-        description: "Tag to set for the image"
-        required: true
-        type: string
       needs-mypy:
         description: "Whether to run mypy checks (true/false)"
         required: true
@@ -108,16 +104,65 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run coverage or not (true/false)"
         required: true
         type: string
-
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
+  install-pre-commit:
+    timeout-minutes: 5
+    name: "Install pre-commit for cache (only canary runs)"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+    if: inputs.basic-checks-only == 'false'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: inputs.canary-run == 'true'
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+        if: inputs.canary-run == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ inputs.use-uv }}
+        id: breeze
+        if: inputs.canary-run == 'true'
+      - name: "Install pre-commit"
+        uses: ./.github/actions/install-pre-commit
+        id: pre-commit
+        with:
+          python-version: ${{steps.breeze.outputs.host-python-version}}
+        if: inputs.canary-run == 'true'
+      - name: "Prepare .tar file from pre-commit cache"
+        run: |
+          tar -C ~ -czf /tmp/cache-pre-commit.tar.gz .cache/pre-commit .cache/uv
+        shell: bash
+        if: inputs.canary-run == 'true'
+      - name: "Save pre-commit cache"
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          # yamllint disable rule:line-length
+          key: cache-pre-commit-v4-${{ steps.breeze.outputs.host-python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          path: /tmp/cache-pre-commit.tar.gz
+          if-no-files-found: 'error'
+          retention-days: '2'
+        if: inputs.canary-run == 'true'
+
   static-checks:
     timeout-minutes: 45
     name: "Static checks"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    needs: install-pre-commit
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "${{ inputs.upgrade-to-newer-dependencies }}"
-      IMAGE_TAG: ${{ inputs.image-tag }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: inputs.basic-checks-only == 'false' && inputs.latest-versions-only != 'true'
     steps:
@@ -128,16 +173,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ inputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/pyproject.toml
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version}}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
         uses: ./.github/actions/install-pre-commit
@@ -158,6 +199,7 @@ jobs:
     timeout-minutes: 45
     name: "MyPy checks"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    needs: install-pre-commit
     if: inputs.needs-mypy == 'true'
     strategy:
       fail-fast: false
@@ -165,7 +207,6 @@ jobs:
         mypy-check: ${{ fromJSON(inputs.mypy-checks) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: "Cleanup repo"
@@ -175,10 +216,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
         id: breeze
       - name: "Install pre-commit"
         uses: ./.github/actions/install-pre-commit
@@ -186,7 +229,7 @@ jobs:
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: "MyPy checks for ${{ matrix.mypy-check }}"
-        run: pre-commit run --color always --verbose --hook-stage manual ${{matrix.mypy-check}} --all-files
+        run: pre-commit run --color always --verbose --hook-stage manual "$MYPY_CHECK" --all-files
         env:
           VERBOSE: "false"
           COLUMNS: "250"
@@ -194,6 +237,7 @@ jobs:
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
           INCLUDE_MYPY_VOLUME: "false"
+          MYPY_CHECK: ${{ matrix.mypy-check }}
 
   build-docs:
     timeout-minutes: 150
@@ -208,7 +252,6 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       INCLUDE_NOT_READY_PROVIDERS: "true"
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -221,28 +264,41 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
-      - uses: actions/cache@v4
-        id: cache-doc-inventories
+        with:
+          platform: "linux/amd64"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
+      - name: "Restore docs inventory cache"
+        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           path: ./docs/_inventory_cache/
-          key: docs-inventory-${{ hashFiles('pyproject.toml;') }}
-          restore-keys: |
-            docs-inventory-${{ hashFiles('pyproject.toml;') }}
-            docs-inventory-
+          # TODO(potiuk): do better with determining the key
+          key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
+        id: restore-docs-inventory-cache
       - name: "Building docs with ${{ matrix.flag }} flag"
+        env:
+          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
-          breeze build-docs ${{ inputs.docs-list-as-string }} ${{ matrix.flag }}
+          breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }}
+      - name: "Save docs inventory cache"
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          path: ./docs/_inventory_cache/
+          key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
+          if-no-files-found: 'error'
+          retention-days: '2'
+        # If we upload from multiple matrix jobs we could end up with a race condition. so just pick one job
+        # to be responsible for updating it. https://github.com/actions/upload-artifact/issues/506
+        if: steps.restore-docs-inventory-cache != 'true' && matrix.flag == '--docs-only'
       - name: "Upload build docs"
         uses: actions/upload-artifact@v4
         with:
           name: airflow-docs
           path: './docs/_build'
-          retention-days: 7
-          if-no-files-found: error
+          retention-days: '7'
+          if-no-files-found: 'error'
         if: matrix.flag == '--docs-only'
 
   publish-docs:
@@ -254,7 +310,6 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       INCLUDE_NOT_READY_PROVIDERS: "true"
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -283,12 +338,18 @@ jobs:
         run: >
           git clone https://github.com/apache/airflow-site.git /mnt/airflow-site/airflow-site &&
           echo "AIRFLOW_SITE_DIRECTORY=/mnt/airflow-site/airflow-site" >> "$GITHUB_ENV"
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Publish docs"
+        env:
+          DOCS_LIST_AS_STRING: ${{ inputs.docs-list-as-string }}
         run: >
           breeze release-management publish-docs --override-versioned --run-in-parallel
-          ${{ inputs.docs-list-as-string }}
+          ${DOCS_LIST_AS_STRING}
       - name: Check disk space available
         run: df -h
       - name: "Generate back references for providers"
@@ -331,7 +392,6 @@ jobs:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
-      IMAGE_TAG: "${{ inputs.image-tag }}"
       JOB_ID: "python-api-client-tests"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERBOSE: "true"
@@ -353,8 +413,12 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
           path: ./airflow-client-python
-      - name: "Prepare breeze & CI image: ${{inputs.default-python-version}}:${{inputs.image-tag}}"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: "linux/amd64"
+          python: ${{ inputs.default-python-version }}
+          use-uv: ${{ inputs.use-uv }}
       - name: "Generate airflow python client"
         run: >
           breeze release-management prepare-python-client --package-format both

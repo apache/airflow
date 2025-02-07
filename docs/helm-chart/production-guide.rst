@@ -236,7 +236,8 @@ This setting can be configured in the Airflow chart at different levels:
   webserver:
     safeToEvict: true
 
-When using ``KubernetesExecutor``, ``workers.safeToEvict`` should be set to ``false`` to avoid them being removed before finishing.
+``workers.safeToEvict`` defaults to ``false``, and when using ``KubernetesExecutor``
+``workers.safeToEvict`` shouldn't be set to ``true`` or workers may be removed before finishing.
 
 Extending and customizing Airflow Image
 ---------------------------------------
@@ -632,7 +633,7 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 | ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | | ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND``     |
 |                                                       |                                          | | ``AIRFLOW__CELERY__RESULT_BACKEND``            |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
-| ``<RELEASE_NAME>-airflow-brokerUrl``                  | ``.Values.data.brokerUrlSecretName``     | ``AIRFLOW__CELERY__BROKER_URL``                  |
+| ``<RELEASE_NAME>-airflow-broker-url``                 | ``.Values.data.brokerUrlSecretName``     | ``AIRFLOW__CELERY__BROKER_URL``                  |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-elasticsearch``                      | ``.Values.elasticsearch.secretName``     | | ``AIRFLOW__ELASTICSEARCH__HOST``               |
 |                                                       |                                          | | ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` |

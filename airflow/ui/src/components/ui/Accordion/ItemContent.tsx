@@ -21,10 +21,7 @@ import { forwardRef } from "react";
 
 type AccordionItemContentProps = {} & Accordion.ItemContentProps;
 
-export const ItemContent = forwardRef<
-  HTMLDivElement,
-  AccordionItemContentProps
->((props, ref) => (
+export const ItemContent = forwardRef<HTMLDivElement, AccordionItemContentProps>((props, ref) => (
   <Accordion.ItemContent>
     <Accordion.ItemBody {...props} ref={ref} />
   </Accordion.ItemContent>

@@ -1,0 +1,51 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: 'Prepare single CI image'
+description: >
+  Recreates current python image from artifacts (needed for the hard-coded actions calling all
+  possible Python versions in "prepare_all_ci_images" action. Hopefully we can get rid of it when
+  the https://github.com/apache/airflow/issues/45268 is resolved and we contribute capability of
+  downloading multiple keys to the stash action.
+inputs:
+  python:
+    description: 'Python version for image to prepare'
+    required: true
+  python-versions-list-as-string:
+    description: 'Stringified array of all Python versions to prepare - separated by spaces.'
+    required: true
+  platform:
+    description: 'Platform for the build - linux/amd64 or linux/arm64'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: "Restore CI docker images ${{ inputs.platform }}:${{ inputs.python }}"
+      uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+      with:
+        key: ci-image-save-${{ inputs.platform }}-${{ inputs.python }}
+        path: "/mnt/"
+        only-current-branch: 'true'
+      if: contains(inputs.python-versions-list-as-string, inputs.python)
+    - name: "Load CI image ${{ inputs.platform }}:${{ inputs.python }}"
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+      run: breeze ci-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt/"
+      shell: bash
+      if: contains(inputs.python-versions-list-as-string, inputs.python)

@@ -2,3 +2,14 @@ The ``task_fail`` table has been removed from the Airflow database.
 
 This table was used to store task failures, but it was not used by any Airflow components.
 Use the REST API to get task failures instead (which gets it from the ``task_instance`` table)
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

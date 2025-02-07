@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -24,17 +24,23 @@ from pydantic import ValidationError
 from sqlalchemy import delete, select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import (
+    QueryLimit,
+    QueryOffset,
+    QueryPoolNamePatternSearch,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.pools import (
     BasePool,
+    PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
-    PoolPostBody,
-    PoolPostBulkBody,
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -91,11 +97,13 @@ def get_pools(
         SortParam,
         Depends(SortParam(["id", "name"], Pool).dynamic_depends()),
     ],
+    pool_name_pattern: QueryPoolNamePatternSearch,
     session: SessionDep,
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
         statement=select(Pool),
+        filters=[pool_name_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -147,7 +155,7 @@ def patch_pool(
         fields_to_update = fields_to_update.intersection(update_mask)
         data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
-        data = patch_body.model_dump(by_alias=True)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
         try:
             BasePool.model_validate(data)
         except ValidationError as e:
@@ -167,7 +175,7 @@ def patch_pool(
     ),  # handled by global exception handler
 )
 def post_pool(
-    body: PoolPostBody,
+    body: PoolBody,
     session: SessionDep,
 ) -> PoolResponse:
     """Create a Pool."""
@@ -176,23 +184,10 @@ def post_pool(
     return pool
 
 
-@pools_router.post(
-    "/bulk",
-    status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_409_CONFLICT,  # handled by global exception handler
-        ]
-    ),
-)
-def post_pools(
-    body: PoolPostBulkBody,
+@pools_router.patch("")
+def bulk_pools(
+    request: BulkBody[PoolBody],
     session: SessionDep,
-) -> PoolCollectionResponse:
-    """Create multiple pools."""
-    pools = [Pool(**body.model_dump()) for body in body.pools]
-    session.add_all(pools)
-    return PoolCollectionResponse(
-        pools=cast(list[PoolResponse], pools),
-        total_entries=len(pools),
-    )
+) -> BulkResponse:
+    """Bulk create, update, and delete pools."""
+    return BulkPoolService(session=session, request=request).handle_request()

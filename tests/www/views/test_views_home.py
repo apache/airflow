@@ -27,8 +27,8 @@ from airflow.security import permissions
 from airflow.utils.state import State
 from airflow.www.utils import UIAlert
 from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
+from providers.fab.tests.provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
 from tests_common.test_utils.permissions import _resource_name
 from tests_common.test_utils.www import (
@@ -240,7 +240,11 @@ def _broken_dags(session):
     from airflow.models.errors import ParseImportError
 
     for dag_id in TEST_FILTER_DAG_IDS:
-        session.add(ParseImportError(filename=f"/{dag_id}.py", stacktrace="Some Error\nTraceback:\n"))
+        session.add(
+            ParseImportError(
+                filename=f"/{dag_id}.py", bundle_name="dag_maker", stacktrace="Some Error\nTraceback:\n"
+            )
+        )
     session.commit()
 
 
@@ -253,7 +257,9 @@ def _broken_dags_after_working(dag_maker, session):
             pass
 
     # Then create an import error against that file
-    session.add(ParseImportError(filename=path, stacktrace="Some Error\nTraceback:\n"))
+    session.add(
+        ParseImportError(filename=path, bundle_name="dag_maker", stacktrace="Some Error\nTraceback:\n")
+    )
     session.commit()
 
 

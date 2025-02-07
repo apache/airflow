@@ -24,13 +24,13 @@ import jinja2
 import pytest
 
 from airflow.notifications.basenotifier import BaseNotifier
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 pytestmark = pytest.mark.db_test
 
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
 class MockNotifier(BaseNotifier):

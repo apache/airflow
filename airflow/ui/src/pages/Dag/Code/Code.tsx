@@ -19,20 +19,11 @@
 import { Box, Button, Heading, HStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import {
-  createElement,
-  PrismLight as SyntaxHighlighter,
-} from "react-syntax-highlighter";
+import { createElement, PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
-import {
-  oneLight,
-  oneDark,
-} from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneLight, oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-import {
-  useDagServiceGetDagDetails,
-  useDagSourceServiceGetDagSource,
-} from "openapi/queries";
+import { useDagServiceGetDagDetails, useDagSourceServiceGetDagSource } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { ProgressBar } from "src/components/ui";
@@ -82,20 +73,12 @@ export const Code = () => {
             Parsed at: <Time datetime={dag.last_parsed_time} />
           </Heading>
         )}
-        <Button
-          aria-label={wrap ? "Unwrap" : "Wrap"}
-          bg="bg.panel"
-          onClick={toggleWrap}
-          variant="outline"
-        >
+        <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
           {wrap ? "Unwrap" : "Wrap"}
         </Button>
       </HStack>
       <ErrorAlert error={error ?? codeError} />
-      <ProgressBar
-        size="xs"
-        visibility={isLoading || isCodeLoading ? "visible" : "hidden"}
-      />
+      <ProgressBar size="xs" visibility={isLoading || isCodeLoading ? "visible" : "hidden"} />
       <div
         style={{
           fontSize: "14px",

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from starlette.routing import Mount
@@ -27,13 +28,16 @@ from airflow.api_fastapi.core_api.app import (
     init_dag_bag,
     init_error_handlers,
     init_flask_plugins,
+    init_middlewares,
     init_plugins,
     init_views,
 )
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import BaseAuthManager
 
 log = logging.getLogger(__name__)
 
@@ -68,12 +72,14 @@ def create_app(apps: str = "all") -> FastAPI:
         init_dag_bag(app)
         init_views(app)
         init_plugins(app)
+        init_auth_manager(app)
         init_flask_plugins(app)
         init_error_handlers(app)
-        init_auth_manager()
+        init_middlewares(app)
 
     if "execution" in apps_list or "all" in apps_list:
         task_exec_api_app = create_task_execution_api_app(app)
+        init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
     init_config(app)
@@ -112,34 +118,28 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
     return auth_manager_cls
 
 
-def init_auth_manager() -> BaseAuthManager:
-    """
-    Initialize the auth manager.
-
-    Import the user manager class and instantiate it.
-    """
+def create_auth_manager() -> BaseAuthManager:
+    """Create the auth manager."""
     global auth_manager
     auth_manager_cls = get_auth_manager_cls()
     auth_manager = auth_manager_cls()
-    auth_manager.init()
     return auth_manager
+
+
+def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
+    """Initialize the auth manager."""
+    am = create_auth_manager()
+    am.init()
+
+    if app and (auth_manager_fastapi_app := am.get_fastapi_app()):
+        app.mount("/auth", auth_manager_fastapi_app)
+
+    return am
 
 
 def get_auth_manager() -> BaseAuthManager:
     """Return the auth manager, provided it's been initialized before."""
     global auth_manager
-    if auth_manager is None:
-        """
-        The auth manager can be init in the main Flask application but also in the mini Flask application
-        in Fab provider.
-        This is temporary, the goal is to remove the main Flask application from core Airflow. Once that done,
-        we'll be able to remove this if because the auth manager will be only init in the min Flask
-        application defined in Fab provider.
-        """
-        from airflow.www.extensions.init_auth_manager import get_auth_manager as get_auth_manager_flask
-
-        if auth_manager_flask := get_auth_manager_flask():
-            auth_manager = auth_manager_flask
 
     if auth_manager is None:
         raise RuntimeError(

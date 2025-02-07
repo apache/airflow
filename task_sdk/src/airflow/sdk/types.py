@@ -17,59 +17,91 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, Protocol, Union
 
-
-class ArgNotSet:
-    """
-    Sentinel type for annotations, useful when None is not viable.
-
-    Use like this::
-
-        def is_arg_passed(arg: Union[ArgNotSet, None] = NOTSET) -> bool:
-            if arg is NOTSET:
-                return False
-            return True
-
-
-        is_arg_passed()  # False.
-        is_arg_passed(None)  # True.
-    """
-
-    @staticmethod
-    def serialize():
-        return "NOTSET"
-
-    @classmethod
-    def deserialize(cls):
-        return cls
-
-
-NOTSET = ArgNotSet()
-"""Sentinel value for argument default. See ``ArgNotSet``."""
-
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    import logging
+    from collections.abc import Iterator
+    from datetime import datetime
 
-    from airflow.sdk.definitions.node import DAGNode
+    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, BaseAssetUniqueKey
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
 
-    Logger = logging.Logger
-else:
-
-    class Logger: ...
+    Operator = Union[BaseOperator, MappedOperator]
 
 
-def validate_instance_args(instance: DAGNode, expected_arg_types: dict[str, Any]) -> None:
-    """Validate that the instance has the expected types for the arguments."""
-    from airflow.sdk.definitions.taskgroup import TaskGroup
+class DagRunProtocol(Protocol):
+    """Minimal interface for a DAG run available during the execution."""
 
-    typ = "task group" if isinstance(instance, TaskGroup) else "task"
+    dag_id: str
+    run_id: str
+    logical_date: datetime | None
+    data_interval_start: datetime | None
+    data_interval_end: datetime | None
+    start_date: datetime
+    end_date: datetime | None
+    run_type: Any
+    run_after: datetime
+    conf: dict[str, Any] | None
+    # This shouldn't be "| None", but there's a bug in the datamodel generator, and None evaluates to Falsey
+    # too, so this is "okay"
+    external_trigger: bool | None = False
 
-    for arg_name, expected_arg_type in expected_arg_types.items():
-        instance_arg_value = getattr(instance, arg_name, None)
-        if instance_arg_value is not None and not isinstance(instance_arg_value, expected_arg_type):
-            raise TypeError(
-                f"{arg_name!r} for {typ} {instance.node_id!r} expects {expected_arg_type}, got {type(instance_arg_value)} with value "
-                f"{instance_arg_value!r}"
-            )
+
+class RuntimeTaskInstanceProtocol(Protocol):
+    """Minimal interface for a task instance available during the execution."""
+
+    task: BaseOperator
+    task_id: str
+    dag_id: str
+    run_id: str
+    try_number: int
+    map_index: int | None
+    max_tries: int
+    hostname: str | None = None
+
+    def xcom_pull(
+        self,
+        task_ids: str | list[str] | None = None,
+        dag_id: str | None = None,
+        key: str = "return_value",
+        # TODO: `include_prior_dates` isn't yet supported in the SDK
+        # include_prior_dates: bool = False,
+        *,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
+        default: Any = None,
+        run_id: str | None = None,
+    ) -> Any: ...
+
+    def xcom_push(self, key: str, value: Any) -> None: ...
+
+    def get_template_context(self) -> Context: ...
+
+
+class OutletEventAccessorProtocol(Protocol):
+    """Protocol for managing access to a specific outlet event accessor."""
+
+    key: BaseAssetUniqueKey
+    extra: dict[str, Any]
+    asset_alias_events: list[AssetAliasEvent]
+
+    def __init__(
+        self,
+        *,
+        key: BaseAssetUniqueKey,
+        extra: dict[str, Any],
+        asset_alias_events: list[AssetAliasEvent],
+    ) -> None: ...
+    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None: ...
+
+
+class OutletEventAccessorsProtocol(Protocol):
+    """Protocol for managing access to outlet event accessors."""
+
+    def __iter__(self) -> Iterator[Asset | AssetAlias]: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, key: Asset | AssetAlias) -> OutletEventAccessorProtocol: ...

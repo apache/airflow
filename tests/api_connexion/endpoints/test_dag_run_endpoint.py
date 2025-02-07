@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import urllib
 from datetime import timedelta
 from unittest import mock
@@ -24,12 +25,14 @@ import pytest
 import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.models import Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
-from airflow.models.param import Param
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.param import Param
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State
@@ -88,8 +91,9 @@ class TestDagRunEndpoint:
         with create_session() as session:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
+        DagBundlesManager().sync_bundles_to_db()
         self.app.dag_bag.bag_dag(dag)
-        self.app.dag_bag.sync_to_db()
+        self.app.dag_bag.sync_to_db("dags-folder", None)
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
@@ -1521,6 +1525,60 @@ class TestPatchDagRunState(TestDagRunEndpoint):
 
         assert response.status_code == 200
         assert response.json == expected_response_json
+
+    @pytest.mark.parametrize("state", ["failed", "success", "queued"])
+    @pytest.mark.parametrize("run_type", [state.value for state in DagRunType])
+    def test_action_logging(self, state, run_type, dag_maker, session):
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = "TEST_DAG_RUN_ID"
+        with dag_maker(dag_id) as dag:
+            task = EmptyOperator(task_id="task_id", dag=dag)
+        self.app.dag_bag.bag_dag(dag)
+        dr = dag_maker.create_dagrun(run_id=dag_run_id, run_type=run_type)
+        ti = dr.get_task_instance(task_id="task_id")
+        ti.task = task
+        ti.state = State.RUNNING
+        session.merge(ti)
+        session.commit()
+
+        request_json = {"state": state}
+
+        self.client.patch(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+
+        log = (
+            session.query(Log)
+            .filter(
+                Log.dag_id == dag_id,
+                Log.run_id == dag_run_id,
+                Log.event == "api.update_dag_run_state",
+            )
+            .order_by(Log.id.desc())
+            .first()
+        )
+        assert log.extra == json.dumps(request_json)
+
+        self.client.patch(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+            headers={"content-type": "application/json; charset=utf-8"},
+        )
+
+        log = (
+            session.query(Log)
+            .filter(
+                Log.dag_id == dag_id,
+                Log.run_id == dag_run_id,
+                Log.event == "api.update_dag_run_state",
+            )
+            .order_by(Log.id.desc())
+            .first()
+        )
+        assert log.extra == json.dumps(request_json)
 
     def test_schema_validation_error_raises(self, dag_maker, session):
         dag_id = "TEST_DAG_ID"

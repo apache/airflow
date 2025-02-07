@@ -31,12 +31,15 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
     VariableCollectionResponse,
     VariableResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
@@ -87,7 +90,7 @@ def get_variables(
         SortParam,
         Depends(
             SortParam(
-                ["key", "id", "_val", "description"],
+                ["key", "id", "_val", "description", "is_encrypted"],
                 Variable,
             ).dynamic_depends()
         ),
@@ -143,13 +146,13 @@ def patch_variable(
     fields_to_update = patch_body.model_fields_set
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
     else:
         try:
             VariableBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
 
     for key, val in data.items():
         setattr(variable, key, val)
@@ -160,14 +163,33 @@ def patch_variable(
 @variables_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+    dependencies=[Depends(action_logging())],
 )
 def post_variable(
     post_body: VariableBody,
     session: SessionDep,
 ) -> VariableResponse:
     """Create a variable."""
+    # Check if the key already exists
+    existing_variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
+    if existing_variable:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"The Variable with key: `{post_body.key}` already exists",
+        )
+
     Variable.set(**post_body.model_dump(), session=session)
 
     variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
 
     return variable
+
+
+@variables_router.patch("")
+def bulk_variables(
+    request: BulkBody[VariableBody],
+    session: SessionDep,
+) -> BulkResponse:
+    """Bulk create, update, and delete variables."""
+    return BulkVariableService(session=session, request=request).handle_request()

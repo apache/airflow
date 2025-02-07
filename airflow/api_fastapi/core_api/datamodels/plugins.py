@@ -72,7 +72,6 @@ class PluginResponse(BaseModel):
     global_operator_extra_links: list[str]
     operator_extra_links: list[str]
     source: Annotated[str, BeforeValidator(coerce_to_string)]
-    ti_deps: list[Annotated[str, BeforeValidator(coerce_to_string)]]
     listeners: list[str]
     timetables: list[str]
 

@@ -1262,6 +1262,7 @@ class TestWorkerServiceAccount:
             ("LocalExecutor", False),
             ("CeleryExecutor", True),
             ("CeleryKubernetesExecutor", True),
+            ("CeleryExecutor,KubernetesExecutor", True),
             ("KubernetesExecutor", True),
             ("LocalKubernetesExecutor", True),
         ],

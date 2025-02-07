@@ -1,0 +1,23 @@
+Ensure teardown tasks are executed when DAG run is set to failed
+
+Previously when a DAG run was manually set to "failed" or to "success" state the terminal state was set to all tasks.
+But this was a gap for cases when setup- and teardown tasks were defined: If teardown was used to clean-up infrastructure
+or other resources, they were also skipped and thus resources could stay allocated.
+
+As of now when setup tasks had been executed before and the DAG is manually set to "failed" or "success" then teardown
+tasks are executed. Teardown tasks are skipped  if the setup was also skipped.
+
+As a side effect this means if the DAG contains teardown tasks, then the manual marking of DAG as "failed" or "success"
+will need to keep the DAG in running state to ensure that teardown tasks will be scheduled. They would not be scheduled
+if the DAG is diorectly set to "failed" or "success".
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

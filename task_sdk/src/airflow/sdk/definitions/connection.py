@@ -17,7 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import logging
+from json import JSONDecodeError
+
 import attrs
+
+log = logging.getLogger(__name__)
 
 
 @attrs.define
@@ -50,3 +56,15 @@ class Connection:
     def get_uri(self): ...
 
     def get_hook(self): ...
+
+    @property
+    def extra_dejson(self) -> dict:
+        """Deserialize `extra` property to JSON."""
+        extra = {}
+        if self.extra:
+            try:
+                extra = json.loads(self.extra)
+            except JSONDecodeError:
+                log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
+        # TODO: Mask sensitive keys from this list or revisit if it will be done in server
+        return extra
