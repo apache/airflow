@@ -128,8 +128,6 @@ class Templater:
                 setattr(parent, attr_name, rendered_content)
 
     def _render(self, template, context, dag=None) -> Any:
-        if dag and dag.is_asset_triggerable:
-            context.pop("logical_date", None)
         if dag and dag.render_template_as_native_obj:
             return render_template_as_native(template, context)
         return render_template_to_string(template, context)
