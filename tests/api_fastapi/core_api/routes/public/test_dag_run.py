@@ -883,9 +883,7 @@ class TestPatchDagRun:
         assert body["dag_run_id"] == run_id
         assert body.get("state") == response_body.get("state")
         assert body.get("note") == response_body.get("note")
-        _check_last_log(
-            session, dag_id=dag_id, event=f"/public/dags/{dag_id}/dagRuns/{run_id}", logical_date=None
-        )
+        _check_last_log(session, dag_id=dag_id, event="patch_dag_run", logical_date=None)
 
     @pytest.mark.parametrize(
         "query_params, patch_body, response_body, expected_status_code",
@@ -976,9 +974,7 @@ class TestDeleteDagRun:
     def test_delete_dag_run(self, test_client, session):
         response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
         assert response.status_code == 204
-        _check_last_log(
-            session, dag_id=DAG1_ID, event=f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", logical_date=None
-        )
+        _check_last_log(session, dag_id=DAG1_ID, event="delete_dag_run", logical_date=None)
 
     def test_delete_dag_run_not_found(self, test_client):
         response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/invalid")
@@ -1075,7 +1071,7 @@ class TestClearDagRun:
         _check_last_log(
             session,
             dag_id=DAG1_ID,
-            event=f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            event="clear_dag_run",
             logical_date=None,
         )
 
@@ -1201,7 +1197,7 @@ class TestTriggerDagRun:
         }
 
         assert response.json() == expected_response_json
-        _check_last_log(session, dag_id=DAG1_ID, event=f"/public/dags/{DAG1_ID}/dagRuns", logical_date=None)
+        _check_last_log(session, dag_id=DAG1_ID, event="trigger_dag_run", logical_date=None)
 
     @pytest.mark.parametrize(
         "post_body, expected_detail",
