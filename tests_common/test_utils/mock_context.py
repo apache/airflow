@@ -56,14 +56,16 @@ def mock_context(task) -> Context:
             default: Any = None,
             run_id: str | None = None,
         ) -> Any:
-            if map_indexes:
-                return values.get(
-                    f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}_{map_indexes}", default
-                )
-            return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}", default)
+            key = f"{self.task_id}_{self.dag_id}_{key}"
+            if map_indexes is not None and (not isinstance(map_indexes, int) or map_indexes >= 0):
+                key += f"_{map_indexes}"
+            return values.get(key, default)
 
         def xcom_push(self, key: str, value: Any, session: Session = NEW_SESSION, **kwargs) -> None:
-            values[f"{self.task_id}_{self.dag_id}_{key}_{self.map_index}"] = value
+            key = f"{self.task_id}_{self.dag_id}_{key}"
+            if self.map_index is not None and self.map_index >= 0:
+                key += f"_{self.map_index}"
+            values[key] = value
 
     values["ti"] = MockedTaskInstance(task=task)
 

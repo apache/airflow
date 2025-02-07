@@ -23,6 +23,10 @@ from typing import TYPE_CHECKING
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
+from airflow.providers.amazon.aws.links.ec2 import (
+    EC2InstanceDashboardLink,
+    EC2InstanceLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -47,6 +51,7 @@ class EC2StartInstanceOperator(BaseOperator):
         between each instance state checks until operation is completed
     """
 
+    operator_extra_links = (EC2InstanceLink(),)
     template_fields: Sequence[str] = ("instance_id", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
@@ -71,6 +76,13 @@ class EC2StartInstanceOperator(BaseOperator):
         self.log.info("Starting EC2 instance %s", self.instance_id)
         instance = ec2_hook.get_instance(instance_id=self.instance_id)
         instance.start()
+        EC2InstanceLink.persist(
+            context=context,
+            operator=self,
+            aws_partition=ec2_hook.conn_partition,
+            instance_id=self.instance_id,
+            region_name=ec2_hook.conn_region_name,
+        )
         ec2_hook.wait_for_state(
             instance_id=self.instance_id,
             target_state="running",
@@ -97,6 +109,7 @@ class EC2StopInstanceOperator(BaseOperator):
         between each instance state checks until operation is completed
     """
 
+    operator_extra_links = (EC2InstanceLink(),)
     template_fields: Sequence[str] = ("instance_id", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
@@ -120,7 +133,15 @@ class EC2StopInstanceOperator(BaseOperator):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         self.log.info("Stopping EC2 instance %s", self.instance_id)
         instance = ec2_hook.get_instance(instance_id=self.instance_id)
+        EC2InstanceLink.persist(
+            context=context,
+            operator=self,
+            aws_partition=ec2_hook.conn_partition,
+            instance_id=self.instance_id,
+            region_name=ec2_hook.conn_region_name,
+        )
         instance.stop()
+
         ec2_hook.wait_for_state(
             instance_id=self.instance_id,
             target_state="stopped",
@@ -154,6 +175,7 @@ class EC2CreateInstanceOperator(BaseOperator):
         in the `running` state before returning.
     """
 
+    operator_extra_links = (EC2InstanceDashboardLink(),)
     template_fields: Sequence[str] = (
         "image_id",
         "max_count",
@@ -198,6 +220,15 @@ class EC2CreateInstanceOperator(BaseOperator):
         )["Instances"]
 
         instance_ids = self._on_kill_instance_ids = [instance["InstanceId"] for instance in instances]
+        # Console link is for EC2 dashboard list, not individual instances when more than 1 instance
+
+        EC2InstanceDashboardLink.persist(
+            context=context,
+            operator=self,
+            region_name=ec2_hook.conn_region_name,
+            aws_partition=ec2_hook.conn_partition,
+            instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(instance_ids),
+        )
         for instance_id in instance_ids:
             self.log.info("Created EC2 instance %s", instance_id)
 
@@ -311,6 +342,7 @@ class EC2RebootInstanceOperator(BaseOperator):
         in the `running` state before returning.
     """
 
+    operator_extra_links = (EC2InstanceDashboardLink(),)
     template_fields: Sequence[str] = ("instance_ids", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
@@ -341,6 +373,14 @@ class EC2RebootInstanceOperator(BaseOperator):
         self.log.info("Rebooting EC2 instances %s", ", ".join(self.instance_ids))
         ec2_hook.conn.reboot_instances(InstanceIds=self.instance_ids)
 
+        # Console link is for EC2 dashboard list, not individual instances
+        EC2InstanceDashboardLink.persist(
+            context=context,
+            operator=self,
+            region_name=ec2_hook.conn_region_name,
+            aws_partition=ec2_hook.conn_partition,
+            instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(self.instance_ids),
+        )
         if self.wait_for_completion:
             ec2_hook.get_waiter("instance_running").wait(
                 InstanceIds=self.instance_ids,
@@ -374,6 +414,7 @@ class EC2HibernateInstanceOperator(BaseOperator):
         in the `stopped` state before returning.
     """
 
+    operator_extra_links = (EC2InstanceDashboardLink(),)
     template_fields: Sequence[str] = ("instance_ids", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
@@ -403,6 +444,15 @@ class EC2HibernateInstanceOperator(BaseOperator):
         ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, api_type="client_type")
         self.log.info("Hibernating EC2 instances %s", ", ".join(self.instance_ids))
         instances = ec2_hook.get_instances(instance_ids=self.instance_ids)
+
+        # Console link is for EC2 dashboard list, not individual instances
+        EC2InstanceDashboardLink.persist(
+            context=context,
+            operator=self,
+            region_name=ec2_hook.conn_region_name,
+            aws_partition=ec2_hook.conn_partition,
+            instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(self.instance_ids),
+        )
 
         for instance in instances:
             hibernation_options = instance.get("HibernationOptions")

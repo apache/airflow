@@ -16,15 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  createListCollection,
-  Flex,
-  HStack,
-  Link,
-  type SelectValueChangeDetails,
-  Text,
-} from "@chakra-ui/react";
+import { Box, Flex, HStack, Link, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback } from "react";
 import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom";
@@ -40,6 +32,7 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
+import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
 import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
@@ -104,16 +97,6 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     },
   },
 ];
-
-const stateOptions = createListCollection({
-  items: [
-    { label: "All States", value: "all" },
-    { label: "Queued", value: "queued" },
-    { label: "Running", value: "running" },
-    { label: "Failed", value: "failed" },
-    { label: "Success", value: "success" },
-  ],
-});
 
 const STATE_PARAM = "state";
 

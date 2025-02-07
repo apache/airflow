@@ -22,7 +22,6 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-from airflow.configuration import conf
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 
@@ -67,10 +66,8 @@ class SmtpNotifier(BaseNotifier):
 
     def __init__(
         self,
-        # TODO: Move from_email to keyword parameter in next major release so that users do not
-        # need to specify from_email. No argument here will lead to defaults from conf being used.
-        from_email: str | None,
         to: str | Iterable[str],
+        from_email: str | None = None,
         subject: str | None = None,
         html_content: str | None = None,
         files: list[str] | None = None,
@@ -85,7 +82,7 @@ class SmtpNotifier(BaseNotifier):
     ):
         super().__init__()
         self.smtp_conn_id = smtp_conn_id
-        self.from_email = from_email or conf.get("smtp", "smtp_mail_from")
+        self.from_email = from_email
         self.to = to
         self.files = files
         self.cc = cc
@@ -110,16 +107,20 @@ class SmtpNotifier(BaseNotifier):
     def notify(self, context):
         """Send a email via smtp server."""
         fields_to_re_render = []
+        if self.from_email is None:
+            if self.hook.from_email is not None:
+                self.from_email = self.hook.from_email
+            else:
+                raise ValueError("You should provide `from_email` or define it in the connection")
+            fields_to_re_render.append("from_email")
         if self.subject is None:
             smtp_default_templated_subject_path: str
             if self.hook.subject_template:
                 smtp_default_templated_subject_path = self.hook.subject_template
             else:
-                smtp_default_templated_subject_path = conf.get(
-                    "smtp",
-                    "templated_email_subject_path",
-                    fallback=(Path(__file__).parent / "templates" / "email_subject.jinja2").as_posix(),
-                )
+                smtp_default_templated_subject_path = (
+                    Path(__file__).parent / "templates" / "email_subject.jinja2"
+                ).as_posix()
             self.subject = self._read_template(smtp_default_templated_subject_path)
             fields_to_re_render.append("subject")
         if self.html_content is None:
@@ -127,11 +128,9 @@ class SmtpNotifier(BaseNotifier):
             if self.hook.html_content_template:
                 smtp_default_templated_html_content_path = self.hook.html_content_template
             else:
-                smtp_default_templated_html_content_path = conf.get(
-                    "smtp",
-                    "templated_html_content_path",
-                    fallback=(Path(__file__).parent / "templates" / "email.html").as_posix(),
-                )
+                smtp_default_templated_html_content_path = (
+                    Path(__file__).parent / "templates" / "email.html"
+                ).as_posix()
             self.html_content = self._read_template(smtp_default_templated_html_content_path)
             fields_to_re_render.append("html_content")
         if fields_to_re_render:
