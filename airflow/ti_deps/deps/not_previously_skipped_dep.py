@@ -34,11 +34,10 @@ class NotPreviouslySkippedDep(BaseTIDep):
     IS_TASK_DEP = True
 
     def _get_dep_statuses(self, ti, session, dep_context):
-        from airflow.models.skipmixin import (
+        from airflow.providers.standard.utils.skipmixin import (
             XCOM_SKIPMIXIN_FOLLOWED,
             XCOM_SKIPMIXIN_KEY,
             XCOM_SKIPMIXIN_SKIPPED,
-            SkipMixin,
         )
         from airflow.utils.state import TaskInstanceState
 
@@ -49,7 +48,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
         finished_task_ids = {t.task_id for t in finished_tis}
 
         for parent in upstream:
-            if isinstance(parent, SkipMixin):
+            if parent.inherits_from_skippable_mixin:
                 if parent.task_id not in finished_task_ids:
                     # This can happen if the parent task has not yet run.
                     continue
@@ -84,7 +83,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
                         )
                         if not past_depends_met:
                             yield self._failing_status(
-                                reason=("Task should be skipped but the past depends are not met")
+                                reason="Task should be skipped but the past depends are not met"
                             )
                             return
                     ti.set_state(TaskInstanceState.SKIPPED, session)

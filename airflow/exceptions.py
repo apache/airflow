@@ -394,6 +394,19 @@ class ConnectionNotUnique(AirflowException):
     """Raise when multiple values are found for the same connection ID."""
 
 
+class DownstreamTasksSkipped(AirflowException):
+    """
+    Signal an operator to skip its downstream tasks.
+
+    Special exception raised to signal that the operator it was raised from wishes to skip
+    downstream tasks. This is used in the ShortCircuitOperator.
+    """
+
+    def __init__(self, *, tasks: list[str] | list[tuple[str, int]]):
+        super().__init__()
+        self.tasks = tasks
+
+
 class TaskDeferred(BaseException):
     """
     Signal an operator moving to deferred state.
