@@ -97,7 +97,7 @@ export const RunDuration = ({
         data={{
           datasets: [
             {
-              backgroundColor: "grey",
+              backgroundColor: system.tokens.categoryMap.get("colors")?.get("queued.600")?.value as string,
               data: runs.map((run: DAGRunResponse) => Number(getDuration(run.queued_at, run.start_date))),
               label: "Queued duration",
             },
