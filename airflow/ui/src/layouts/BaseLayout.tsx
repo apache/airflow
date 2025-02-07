@@ -27,6 +27,8 @@ import { Nav } from "./Nav";
 
 export const TOKEN_STORAGE_KEY = "token";
 
+export const TOKEN_QUERY_PARAM_NAME = "token";
+
 export const BaseLayout = ({ children }: PropsWithChildren) => {
   const instanceName = useConfig("instance_name");
   // const instanceNameHasMarkup =
@@ -39,14 +41,14 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
   }
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const paramToken = searchParams.get("token");
+  const paramToken = searchParams.get(TOKEN_QUERY_PARAM_NAME);
 
   const [, setToken] = useLocalStorage<string | null>(TOKEN_STORAGE_KEY, paramToken);
 
   useEffect(() => {
     if (paramToken !== null) {
       setToken(paramToken);
-      searchParams.delete("token");
+      searchParams.delete(TOKEN_QUERY_PARAM_NAME);
       setSearchParams(searchParams);
     }
   }, [paramToken, searchParams, setSearchParams, setToken]);
