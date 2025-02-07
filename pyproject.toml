@@ -645,6 +645,7 @@ dev = [
   "apache-airflow-providers-apache-drill",
   "apache-airflow-providers-apache-druid",
   "apache-airflow-providers-apache-flink",
+  "apache-airflow-providers-apache-hdfs",
   "apache-airflow-providers-apache-hive",
   "apache-airflow-providers-apache-iceberg",
   "apache-airflow-providers-apache-impala",
@@ -741,6 +742,7 @@ apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
 apache-airflow-providers-apache-druid = { workspace = true }
 apache-airflow-providers-apache-flink = { workspace = true }
+apache-airflow-providers-apache-hdfs = { workspace = true }
 apache-airflow-providers-apache-hive = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
 apache-airflow-providers-apache-impala = { workspace = true }
@@ -835,6 +837,7 @@ members = [
     "providers/apache/drill",
     "providers/apache/druid",
     "providers/apache/flink",
+    "providers/apache/hdfs",
     "providers/apache/hive",
     "providers/apache/iceberg",
     "providers/apache/impala",
