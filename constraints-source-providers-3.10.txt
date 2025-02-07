@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-07T02:24:15.732135
+# This constraints file was automatically generated on 2025-02-07T07:57:24.201951
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -334,6 +334,7 @@ kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
+libcst==1.6.0
 limits==4.0.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
