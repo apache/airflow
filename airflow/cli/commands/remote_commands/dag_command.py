@@ -367,7 +367,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
         return [dag for dag in dags if dag.get_bundle_name() == bundle_name]
 
     AirflowConsole().print_as(
-        data=sorted(filter_dags_by_bundle(), key=operator.attrgetter("dag_id")),
+        data=sorted(filter_dags_by_bundle(dagbag.dags.values(), args.bundle_name), key=operator.attrgetter("dag_id")),
         output=args.output,
         mapper=get_dag_detail,
     )
