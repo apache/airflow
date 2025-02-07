@@ -60,6 +60,7 @@ services:
       - ../../../empty:/opt/airflow/providers/common/compat/src
       - ../../../empty:/opt/airflow/providers/common/io/src
       - ../../../empty:/opt/airflow/providers/common/sql/src
+      - ../../../empty:/opt/airflow/providers/databricks/src
       - ../../../empty:/opt/airflow/providers/datadog/src
       - ../../../empty:/opt/airflow/providers/dbt/cloud/src
       - ../../../empty:/opt/airflow/providers/dingding/src

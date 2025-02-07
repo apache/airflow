@@ -1114,7 +1114,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
             raise ValueError("Must specify either existing_cluster_id, new_cluster or environments.")
         return run_json
 
-    def _launch_job(self, context: Context | None = None) -> int:
+    def _launch_job(self, context: Context | None = None) -> int | None:
         """Launch the job on Databricks."""
         run_json = self._get_run_json()
         self.databricks_run_id = self._hook.submit_run(run_json)

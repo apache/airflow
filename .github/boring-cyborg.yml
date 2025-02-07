@@ -112,10 +112,7 @@ labelPRBasedOnFilePath:
     - providers/standard/**
 
   provider:databricks:
-    - providers/src/airflow/providers/databricks/**/*
-    - docs/apache-airflow-providers-databricks/**/*
-    - providers/tests/databricks/**/*
-    - providers/tests/system/databricks/**/*
+    - providers/databricks/**
 
   provider:datadog:
     - providers/datadog/**
