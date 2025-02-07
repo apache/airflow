@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.utils.helpers import prune_dict
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
@@ -300,10 +301,16 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                 user=test_user,
             )
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Paths changed in 3.0")
     def test_is_policy_store_schema_up_to_date_when_schema_up_to_date(self, facade, providers_src_folder):
-        schema_path = providers_src_folder.joinpath(
-            "amazon", "src", "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
-        ).resolve()
+        if AIRFLOW_V_3_0_PLUS:
+            schema_path = providers_src_folder.joinpath(
+                "amazon", "src", "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+            ).resolve()
+        else:
+            schema_path = providers_src_folder.joinpath(
+                "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+            ).resolve()
         with open(schema_path) as schema_file:
             avp_response = {"schema": schema_file.read()}
             mock_get_schema = Mock(return_value=avp_response)
@@ -312,9 +319,14 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
             assert facade.is_policy_store_schema_up_to_date()
 
     def test_is_policy_store_schema_up_to_date_when_schema_is_modified(self, facade, providers_src_folder):
-        schema_path = providers_src_folder.joinpath(
-            "amazon", "src", "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
-        ).resolve()
+        if AIRFLOW_V_3_0_PLUS:
+            schema_path = providers_src_folder.joinpath(
+                "amazon", "src", "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+            ).resolve()
+        else:
+            schema_path = providers_src_folder.joinpath(
+                "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+            ).resolve()
         with open(schema_path) as schema_file:
             schema = json.loads(schema_file.read())
             schema["new_field"] = "new_value"

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from typing import Any
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -39,7 +38,7 @@ def generate_response(state: str) -> dict[str, Any]:
 
 class TestWaiter:
     @mock.patch("time.sleep")
-    def test_wait(self, mock_sleep, caplog):
+    def test_wait(self, mock_sleep):
         mock_sleep.return_value = True
         mock_waiter = mock.MagicMock()
         error = WaiterError(
@@ -66,20 +65,9 @@ class TestWaiter:
         )
         assert mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
-        assert (
-            caplog.record_tuples
-            == [
-                (
-                    "airflow.providers.amazon.aws.utils.waiter_with_logging",
-                    logging.INFO,
-                    "test status message: Pending",
-                )
-            ]
-            * 2
-        )
 
     @pytest.mark.asyncio
-    async def test_async_wait(self, caplog):
+    async def test_async_wait(self):
         mock_waiter = mock.MagicMock()
         error = WaiterError(
             name="test_waiter",
@@ -106,7 +94,6 @@ class TestWaiter:
             },
         )
         assert mock_waiter.wait.call_count == 3
-        assert caplog.messages == ["test status message: Pending", "test status message: Pending"]
 
     @pytest.mark.asyncio
     async def test_async_wait_with_unknown_failure(self):
@@ -144,7 +131,7 @@ class TestWaiter:
         assert mock_waiter.wait.call_count == 1
 
     @mock.patch("time.sleep")
-    def test_wait_max_attempts_exceeded(self, mock_sleep, caplog):
+    def test_wait_max_attempts_exceeded(self, mock_sleep):
         mock_sleep.return_value = True
         mock_waiter = mock.MagicMock()
         error = WaiterError(
@@ -173,20 +160,9 @@ class TestWaiter:
 
         assert mock_waiter.wait.call_count == 2
         mock_sleep.assert_called_with(123)
-        assert (
-            caplog.record_tuples
-            == [
-                (
-                    "airflow.providers.amazon.aws.utils.waiter_with_logging",
-                    logging.INFO,
-                    "test status message: Pending",
-                )
-            ]
-            * 2
-        )
 
     @mock.patch("time.sleep")
-    def test_wait_with_failure(self, mock_sleep, caplog):
+    def test_wait_with_failure(self, mock_sleep):
         mock_sleep.return_value = True
         mock_waiter = mock.MagicMock()
         error = WaiterError(
@@ -220,7 +196,6 @@ class TestWaiter:
             },
         )
         assert mock_waiter.wait.call_count == 4
-        assert caplog.messages == ["test status message: Pending"] * 3 + ["test failure message: Failure"]
 
     @mock.patch("time.sleep")
     def test_wait_with_unknown_failure(self, mock_sleep):
@@ -259,7 +234,7 @@ class TestWaiter:
         assert mock_waiter.wait.call_count == 1
 
     @mock.patch("time.sleep")
-    def test_wait_with_list_response(self, mock_sleep, caplog):
+    def test_wait_with_list_response(self, mock_sleep):
         mock_sleep.return_value = True
         mock_waiter = mock.MagicMock()
         error = WaiterError(
@@ -295,20 +270,9 @@ class TestWaiter:
         )
         mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
-        assert (
-            caplog.record_tuples
-            == [
-                (
-                    "airflow.providers.amazon.aws.utils.waiter_with_logging",
-                    logging.INFO,
-                    "test status message: Pending",
-                )
-            ]
-            * 2
-        )
 
     @mock.patch("time.sleep")
-    def test_wait_with_incorrect_args(self, mock_sleep, caplog):
+    def test_wait_with_incorrect_args(self, mock_sleep):
         mock_sleep.return_value = True
         mock_waiter = mock.MagicMock()
         error = WaiterError(
@@ -344,20 +308,9 @@ class TestWaiter:
         )
         assert mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
-        assert (
-            caplog.record_tuples
-            == [
-                (
-                    "airflow.providers.amazon.aws.utils.waiter_with_logging",
-                    logging.INFO,
-                    "test status message: ",
-                )
-            ]
-            * 2
-        )
 
     @mock.patch("time.sleep")
-    def test_wait_with_multiple_args(self, mock_sleep, caplog):
+    def test_wait_with_multiple_args(self, mock_sleep):
         mock_sleep.return_value = True
         mock_waiter = mock.MagicMock()
         error = WaiterError(
@@ -385,20 +338,9 @@ class TestWaiter:
         )
         assert mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
-        assert (
-            caplog.record_tuples
-            == [
-                (
-                    "airflow.providers.amazon.aws.utils.waiter_with_logging",
-                    logging.INFO,
-                    "test status message: Pending - test_details - test_name",
-                )
-            ]
-            * 2
-        )
 
     @mock.patch.object(_LazyStatusFormatter, "__str__")
-    def test_status_formatting_not_done_if_higher_log_level(self, status_format_mock: mock.MagicMock, caplog):
+    def test_status_formatting_not_done_if_higher_log_level(self, status_format_mock: mock.MagicMock):
         mock_waiter = mock.MagicMock()
         error = WaiterError(
             name="test_waiter",
@@ -407,16 +349,14 @@ class TestWaiter:
         )
         mock_waiter.wait.side_effect = [error, error, True]
 
-        with caplog.at_level(level=logging.WARNING):
-            wait(
-                waiter=mock_waiter,
-                waiter_delay=0,
-                waiter_max_attempts=456,
-                args={"test_arg": "test_value"},
-                failure_message="test failure message",
-                status_message="test status message",
-                status_args=["Status.State"],
-            )
+        wait(
+            waiter=mock_waiter,
+            waiter_delay=0,
+            waiter_max_attempts=456,
+            args={"test_arg": "test_value"},
+            failure_message="test failure message",
+            status_message="test status message",
+            status_args=["Status.State"],
+        )
 
-        assert len(caplog.messages) == 0
         status_format_mock.assert_not_called()

@@ -25,6 +25,8 @@ from unittest import mock
 import pytest
 import time_machine
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 
 class TestGetEksToken:
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook")
@@ -47,7 +49,9 @@ class TestGetEksToken:
             ],
             [
                 [
-                    "airflow.providers.amazon.src.airflow.providers.amazon.aws.utils.eks_get_token",
+                    "airflow.providers.amazon.src.airflow.providers.amazon.aws.utils.eks_get_token"
+                    if AIRFLOW_V_3_0_PLUS
+                    else "airflow.providers.amazon.aws.utils.eks_get_token",
                     "--region-name",
                     "test-region",
                     "--cluster-name",
@@ -71,9 +75,10 @@ class TestGetEksToken:
         with mock.patch("sys.argv", args), contextlib.redirect_stdout(StringIO()) as temp_stdout:
             os.chdir(providers_src_folder)
             # We are not using run_module because of https://github.com/pytest-dev/pytest/issues/9007
-            runpy.run_path(
-                "amazon/src/airflow/providers/amazon/aws/utils/eks_get_token.py", run_name="__main__"
-            )
+            if AIRFLOW_V_3_0_PLUS:
+                runpy.run_path("src/airflow/providers/amazon/aws/utils/eks_get_token.py", run_name="__main__")
+            else:
+                runpy.run_path("airflow/providers/amazon/aws/utils/eks_get_token.py", run_name="__main__")
         output = temp_stdout.getvalue()
         token = "token: k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
         expected_token = output.split(",")[1].strip()

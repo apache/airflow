@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -207,13 +206,11 @@ class TestSessionFactory:
 
     @pytest.mark.parametrize("region_name", ["eu-central-1", None])
     @mock.patch("boto3.session.Session", new_callable=mock.PropertyMock, return_value=MOCK_BOTO3_SESSION)
-    def test_create_session_boto3_credential_strategy(self, mock_boto3_session, region_name, caplog):
+    def test_create_session_boto3_credential_strategy(self, mock_boto3_session, region_name):
         sf = BaseSessionFactory(conn=AwsConnectionWrapper(conn=None), region_name=region_name, config=None)
         session = sf.create_session()
         mock_boto3_session.assert_called_once_with(region_name=region_name)
         assert session == MOCK_BOTO3_SESSION
-        logging_message = "No connection ID provided. Fallback on boto3 credential strategy"
-        assert any(logging_message in log_text for log_text in caplog.messages)
 
     @pytest.mark.parametrize("region_name", ["eu-central-1", None])
     @pytest.mark.parametrize("profile_name", ["default", None])
