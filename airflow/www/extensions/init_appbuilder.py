@@ -212,6 +212,10 @@ class AirflowAppBuilder:
         auth_manager = create_auth_manager()
         auth_manager.appbuilder = self
         auth_manager.init()
+        # FAB auth manager is used in both the old FAB UI and the new React UI backend by Fastapi.
+        # It can behave differently depending on the application. Setting this flag so that it knows this
+        # instance is run in FAB.
+        auth_manager.is_in_fab = True
         if hasattr(auth_manager, "security_manager"):
             self.sm = auth_manager.security_manager
         else:

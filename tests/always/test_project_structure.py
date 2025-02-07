@@ -86,20 +86,20 @@ class TestProjectStructure:
             "providers/tests/celery/executors/test_celery_executor_utils.py",
             "providers/tests/celery/executors/test_default_celery.py",
             "providers/tests/cloudant/test_cloudant_fake.py",
-            "providers/tests/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
-            "providers/tests/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
-            "providers/tests/cncf/kubernetes/operators/test_kubernetes_pod.py",
-            "providers/tests/cncf/kubernetes/test_k8s_model.py",
-            "providers/tests/cncf/kubernetes/test_kube_client.py",
-            "providers/tests/cncf/kubernetes/test_kube_config.py",
-            "providers/tests/cncf/kubernetes/test_pod_generator_deprecated.py",
-            "providers/tests/cncf/kubernetes/test_pod_launcher_deprecated.py",
-            "providers/tests/cncf/kubernetes/test_python_kubernetes_script.py",
-            "providers/tests/cncf/kubernetes/test_secret.py",
-            "providers/tests/cncf/kubernetes/triggers/test_kubernetes_pod.py",
-            "providers/tests/cncf/kubernetes/utils/test_delete_from.py",
-            "providers/tests/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
-            "providers/tests/cncf/kubernetes/utils/test_xcom_sidecar.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/operators/test_kubernetes_pod.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_k8s_model.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_kube_client.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_kube_config.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_pod_generator_deprecated.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_pod_launcher_deprecated.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_python_kubernetes_script.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_secret.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/triggers/test_kubernetes_pod.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_delete_from.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_xcom_sidecar.py",
             "providers/google/tests/provider_tests/google/cloud/fs/test_gcs.py",
             "providers/google/tests/provider_tests/google/cloud/links/test_automl.py",
             "providers/google/tests/provider_tests/google/cloud/links/test_base.py",
@@ -266,7 +266,8 @@ class ProjectStructureTest:
                     continue
 
                 if is_new:
-                    results[f"{'.'.join(module.split('.')[2:])}.{current_node.name}"] = current_node
+                    module_path = module[module.find("airflow.providers") :]
+                    results[f"{module_path}.{current_node.name}"] = current_node
                 else:
                     results[f"{module}.{current_node.name}"] = current_node
         print(f"{results}")
@@ -568,7 +569,7 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
 
 
 class TestCncfProviderProjectStructure(ExampleCoverageTest):
-    PROVIDER = "cncf"
+    PROVIDER = "cncf/kubernetes"
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
     BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
 
