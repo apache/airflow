@@ -85,7 +85,6 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     logical_date: AwareDatetime | None
     data_interval_start: AwareDatetime | None = None
     data_interval_end: AwareDatetime | None = None
-
     conf: dict = Field(default_factory=dict)
     note: str | None = None
 
@@ -97,6 +96,8 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             )
         return values
 
+    ## when logical date is null, the run id should be generated from run_after + random string.
+    # TODO we need to modify this validator after https://github.com/apache/airflow/pull/46398 is merged
     @model_validator(mode="after")
     def validate_dag_run_id(self):
         if not self.dag_run_id:
