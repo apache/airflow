@@ -59,8 +59,10 @@ if TYPE_CHECKING:
     from flask_appbuilder.models.sqla import Model
     from pendulum.datetime import DateTime
     from pygments.lexer import Lexer
+    from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Select
+    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.sql.operators import ColumnOperators
 
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
@@ -682,6 +684,14 @@ def get_attr_renderer():
     }
 
 
+def generate_filter_value_query(
+    *, query: Query, model: Model, column_name: str, filter_cond: Callable[[ColumnElement], Query]
+) -> Query:
+    query, field = get_field_setup_query(query, model, column_name)
+    trimmed_value = func.btrim(func.convert_from(field, "UTF8"), '"')
+    return query.filter(filter_cond(trimmed_value))
+
+
 class UtcAwareFilterMixin:
     """Mixin for filter for UTC time."""
 
@@ -779,6 +789,104 @@ class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     """Retrieve conversion tables for UTC-Aware filters."""
 
 
+class XComFilterStartsWith(fab_sqlafilters.FilterStartsWith):
+    """Starts With filter for XCom values."""
+
+    def apply(self, query: Query, value: str) -> Query:
+        return generate_filter_value_query(
+            query=query,
+            model=self.model,
+            column_name=self.column_name,
+            filter_cond=lambda trimmed_value: trimmed_value.ilike(f"{value}%"),
+        )
+
+
+class XComFilterEndsWith(fab_sqlafilters.FilterEndsWith):
+    """Ends With filter for XCom values."""
+
+    def apply(self, query: Query, value: str) -> Query:
+        return generate_filter_value_query(
+            query=query,
+            model=self.model,
+            column_name=self.column_name,
+            filter_cond=lambda trimmed_value: trimmed_value.ilike(f"%{value}"),
+        )
+
+
+class XComFilterEqual(fab_sqlafilters.FilterEqual):
+    """Equality filter for XCom values."""
+
+    def apply(self, query: Query, value: str) -> Query:
+        value = set_value_to_type(self.datamodel, self.column_name, value)
+        return generate_filter_value_query(
+            query=query,
+            model=self.model,
+            column_name=self.column_name,
+            filter_cond=lambda trimmed_value: trimmed_value == value,
+        )
+
+
+class XComFilterContains(fab_sqlafilters.FilterContains):
+    """Not Equal To filter for XCom values."""
+
+    def apply(self, query: Query, value: str) -> Query:
+        return generate_filter_value_query(
+            query=query,
+            model=self.model,
+            column_name=self.column_name,
+            filter_cond=lambda trimmed_value: trimmed_value.ilike(f"%{value}%"),
+        )
+
+
+class XComFilterNotStartsWith(fab_sqlafilters.FilterNotStartsWith):
+    """Not Starts With filter for XCom values."""
+
+    def apply(self, query: Query, value: str) -> Query:
+        return generate_filter_value_query(
+            query=query,
+            model=self.model,
+            column_name=self.column_name,
+            filter_cond=lambda trimmed_value: ~trimmed_value.ilike(f"{value}%"),
+        )
+
+
+class XComFilterNotEndsWith(fab_sqlafilters.FilterNotEndsWith):
+    """Not Starts With filter for XCom values."""
+
+    def apply(self, query: Query, value: str) -> Query:
+        return generate_filter_value_query(
+            query=query,
+            model=self.model,
+            column_name=self.column_name,
+            filter_cond=lambda trimmed_value: ~trimmed_value.ilike(f"%{value}"),
+        )
+
+
+class XComFilterNotContains(fab_sqlafilters.FilterNotContains):
+    """Not Starts With filter for XCom values."""
+
+    def apply(self, query: Query, value: str) -> Query:
+        return generate_filter_value_query(
+            query=query,
+            model=self.model,
+            column_name=self.column_name,
+            filter_cond=lambda trimmed_value: ~trimmed_value.ilike(f"%{value}%"),
+        )
+
+
+class XComFilterNotEqual(fab_sqlafilters.FilterNotEqual):
+    """Not Starts With filter for XCom values."""
+
+    def apply(self, query: Query, value: str) -> Query:
+        value = set_value_to_type(self.datamodel, self.column_name, value)
+        return generate_filter_value_query(
+            query=query,
+            model=self.model,
+            column_name=self.column_name,
+            filter_cond=lambda trimmed_value: trimmed_value != value,
+        )
+
+
 class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     """Retrieve conversion tables for Airflow-specific filters."""
 
@@ -799,6 +907,19 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
         (
             "is_extendedjson",
             [],
+        ),
+        (
+            "is_xcom_value",
+            [
+                XComFilterStartsWith,
+                XComFilterEndsWith,
+                XComFilterEqual,
+                XComFilterContains,
+                XComFilterNotStartsWith,
+                XComFilterNotEndsWith,
+                XComFilterNotContains,
+                XComFilterNotEqual,
+            ],
         ),
         *fab_sqlafilters.SQLAFilterConverter.conversion_table,
     )
@@ -863,6 +984,10 @@ class CustomSQLAInterface(SQLAInterface):
                 and isinstance(obj.impl, ExtendedJSON)
             )
         return False
+
+    def is_xcom_value(self, col_name: str) -> bool:
+        """Check if it is col_name is value of xcom table."""
+        return col_name == "value" and self.obj.__tablename__ == "xcom"
 
     def get_col_default(self, col_name: str) -> Any:
         if col_name not in self.list_columns:
