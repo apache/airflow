@@ -57,6 +57,7 @@ from airflow.sdk.execution_time.comms import (
     RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
+    SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskState,
@@ -586,6 +587,7 @@ def run(
         AirflowSkipException,
         AirflowTaskTerminated,
         AirflowTaskTimeout,
+        DownstreamTasksSkipped,
         TaskDeferred,
     )
 
@@ -610,13 +612,12 @@ def run(
 
         _push_xcom_if_needed(result, ti, log)
 
-        task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
-        msg = SucceedTask(
-            end_date=datetime.now(tz=timezone.utc),
-            task_outlets=task_outlets,
-            outlet_events=outlet_events,
-        )
-        state = TerminalTIState.SUCCESS
+        msg, state = _handle_current_task_success(context, ti)
+    except DownstreamTasksSkipped as skip:
+        context = ti.get_template_context()
+        log.info("Skipping downstream tasks.")
+        SUPERVISOR_COMMS.send_request(log=log, msg=SkipDownstreamTasks(tasks=skip.tasks))
+        msg, state = _handle_current_task_success(context, ti)
     except TaskDeferred as defer:
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
@@ -695,6 +696,16 @@ def run(
             SUPERVISOR_COMMS.send_request(msg=msg, log=log)
     # Return the message to make unit tests easier too
     return state, msg, error
+
+
+def _handle_current_task_success(context, ti) -> tuple[SucceedTask, TerminalTIState]:
+    task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
+    msg = SucceedTask(
+        end_date=datetime.now(tz=timezone.utc),
+        task_outlets=task_outlets,
+        outlet_events=outlet_events,
+    )
+    return msg, TerminalTIState.SUCCESS
 
 
 def _execute_task(context: Context, ti: RuntimeTaskInstance):

@@ -21,6 +21,7 @@ import pytest
 from pendulum import datetime
 
 from airflow.decorators import task
+from airflow.exceptions import DownstreamTasksSkipped
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -57,9 +58,13 @@ def test_short_circuit_decorator(dag_maker):
         short_circuit_respect_trigger_rules >> [task_3, task_4] >> task_5
 
     dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances()
 
-    for t in dag_maker.dag.tasks:
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    for ti in tis:
+        try:
+            ti.run()
+        except DownstreamTasksSkipped:
+            ti.set_state(State.SUCCESS)
 
     task_state_mapping = {
         "short_circuit_false": State.SUCCESS,
@@ -72,7 +77,6 @@ def test_short_circuit_decorator(dag_maker):
         "task_5": State.SUCCESS,
     }
 
-    tis = dr.get_task_instances()
     for ti in tis:
         assert ti.state == task_state_mapping[ti.task_id]
 

@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from airflow import settings
 from airflow.decorators import task, task_group
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DownstreamTasksSkipped
+from airflow.models import MappedOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -55,7 +55,6 @@ class TestSkipMixin:
 
     @patch("airflow.utils.timezone.utcnow")
     def test_skip(self, mock_now, dag_maker):
-        session = settings.Session()
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         mock_now.return_value = now
         with dag_maker("dag"):
@@ -65,34 +64,43 @@ class TestSkipMixin:
             logical_date=now,
             state=State.FAILED,
         )
-        SkipMixin().skip(dag_id=dag_run.dag_id, run_id=dag_run.run_id, tasks=tasks)
 
-        session.query(TI).filter(
-            TI.dag_id == "dag",
-            TI.task_id == "task",
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
-        ).one()
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            SkipMixin().skip(ti=dag_run.get_task_instance("task"), tasks=tasks)
 
-    def test_skip_none_tasks(self):
-        session = Mock()
-        SkipMixin().skip(dag_id="test_dag", run_id="test_run", tasks=[])
-        assert not session.query.called
-        assert not session.commit.called
+        assert exc_info.value.tasks == ["task"]
+
+    def test_skip__no_tasks_passed(self):
+        assert SkipMixin().skip(ti=Mock(), tasks=[]) is None
+
+    def test_skip__only_mapped_operators_passed(self):
+        ti = Mock(map_index=2)
+        assert (
+            SkipMixin().skip(
+                ti=ti,
+                tasks=[MagicMock(spec=MappedOperator)],
+            )
+            is None
+        )
+
+    def test_skip__only_none_mapped_operators_passed(self):
+        ti = Mock(map_index=-1)
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            SkipMixin().skip(
+                ti=ti,
+                tasks=[MagicMock(spec=MappedOperator, task_id="task")],
+            )
+        assert exc_info.value.tasks == ["task"]
 
     @pytest.mark.parametrize(
         "branch_task_ids, expected_states",
         [
-            (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
-            (("task2",), {"task2": State.NONE, "task3": State.SKIPPED}),
-            ("task2", {"task2": State.NONE, "task3": State.SKIPPED}),
             (None, {"task2": State.SKIPPED, "task3": State.SKIPPED}),
             ([], {"task2": State.SKIPPED, "task3": State.SKIPPED}),
         ],
-        ids=["list-of-task-ids", "tuple-of-task-ids", "str-task-id", "None", "empty-list"],
+        ids=["None", "empty-list"],
     )
-    def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states, session):
+    def test_skip_all_except__branch_task_ids_none(self, dag_maker, branch_task_ids, expected_states):
         with dag_maker(
             "dag_test_skip_all_except",
             serialized=True,
@@ -105,20 +113,39 @@ class TestSkipMixin:
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
 
         ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
-        ti2 = TI(task2, run_id=DEFAULT_DAG_RUN_ID)
-        ti3 = TI(task3, run_id=DEFAULT_DAG_RUN_ID)
 
-        SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
 
-        session.expire_all()
+        assert set(exc_info.value.tasks) == {("task2", -1), ("task3", -1)}
 
-        def get_state(ti):
-            ti.refresh_from_db()
-            return ti.state
+    @pytest.mark.parametrize(
+        "branch_task_ids, expected_states",
+        [
+            (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
+            (("task2",), {"task2": State.NONE, "task3": State.SKIPPED}),
+            ("task2", {"task2": State.NONE, "task3": State.SKIPPED}),
+        ],
+        ids=["list-of-task-ids", "tuple-of-task-ids", "str-task-id"],
+    )
+    def test_skip_all_except__skip_task3(self, dag_maker, branch_task_ids, expected_states):
+        with dag_maker(
+            "dag_test_skip_all_except",
+            serialized=True,
+        ):
+            task1 = EmptyOperator(task_id="task1")
+            task2 = EmptyOperator(task_id="task2")
+            task3 = EmptyOperator(task_id="task3")
 
-        executed_states = {"task2": get_state(ti2), "task3": get_state(ti3)}
+            task1 >> [task2, task3]
+        dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
 
-        assert executed_states == expected_states
+        ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
+
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
+
+        assert set(exc_info.value.tasks) == {("task3", -1)}
 
     @pytest.mark.need_serialized_dag
     def test_mapped_tasks_skip_all_except(self, dag_maker):
@@ -151,8 +178,8 @@ class TestSkipMixin:
             return ti.state
 
         assert get_state(branch_a_ti_0) == State.NONE
-        assert get_state(branch_b_ti_0) == State.SKIPPED
-        assert get_state(branch_a_ti_1) == State.SKIPPED
+        assert get_state(branch_b_ti_0) == State.NONE
+        assert get_state(branch_a_ti_1) == State.NONE
         assert get_state(branch_b_ti_1) == State.NONE
 
     def test_raise_exception_on_not_accepted_branch_task_ids_type(self, dag_maker):
