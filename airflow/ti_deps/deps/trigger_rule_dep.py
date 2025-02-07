@@ -147,7 +147,7 @@ class TriggerRuleDep(BaseTIDep):
             return BaseOperator.get_mapped_ti_count(ti.task, ti.run_id, session=session)
 
         def _iter_expansion_dependencies(task_group: MappedTaskGroup) -> Iterator[str]:
-            from airflow.models.mappedoperator import MappedOperator
+            from airflow.sdk.definitions.mappedoperator import MappedOperator
 
             if isinstance(ti.task, MappedOperator):
                 for op in ti.task.iter_mapped_dependencies():
