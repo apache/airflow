@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-05T14:28:29.283569
+# This constraints file was automatically generated on 2025-02-07T03:00:52.069140
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -71,7 +71,7 @@ adlfs==2024.12.0
 aiobotocore==2.19.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.4
-aiohttp==3.11.11
+aiohttp==3.11.12
 aioitertools==0.12.0
 aiomysql==0.2.0
 aioresponses==0.7.8
@@ -277,7 +277,7 @@ curlify==2.2.1
 databricks-sql-connector==4.0.0
 dataclasses-json==0.6.7
 datadog==0.51.0
-db-dtypes==1.4.0
+db-dtypes==1.4.1
 debugpy==1.8.12
 decorator==5.1.1
 defusedxml==0.7.1
@@ -424,7 +424,7 @@ jedi==0.19.2
 jeepney==0.8.0
 jiter==0.8.2
 jmespath==0.10.0
-joserfc==1.0.2
+joserfc==1.0.3
 jpype1==1.5.2
 json-merge-patch==0.2
 jsondiff==2.2.1
@@ -449,7 +449,7 @@ ldap3==2.9.1
 limits==4.0.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==25.0.0
+looker-sdk==25.0.1
 lxml==5.3.0
 lz4==4.4.3
 markdown-it-py==3.0.0
@@ -479,9 +479,9 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.36.0
-mypy-boto3-rds==1.36.11
+mypy-boto3-rds==1.36.14
 mypy-boto3-redshift-data==1.36.0
-mypy-boto3-s3==1.36.9
+mypy-boto3-s3==1.36.15
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.2.0
@@ -496,12 +496,12 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.61.0
+openai==1.61.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.27.0
-openlineage-python==1.27.0
-openlineage_sql==1.27.0
+openlineage-integration-common==1.28.0
+openlineage-python==1.28.0
+openlineage_sql==1.28.0
 openpyxl==3.1.5
 opensearch-py==2.8.0
 opentelemetry-api==1.27.0
@@ -519,7 +519,7 @@ ordered-set==4.1.0
 orjson==3.10.15
 oss2==2.19.1
 packaging==24.2
-pandas-gbq==0.26.1
+pandas-gbq==0.27.0
 pandas-stubs==2.2.3.241126
 pandas==2.1.4
 papermill==2.6.0
@@ -681,7 +681,7 @@ sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
-std-uritemplate==2.0.1
+std-uritemplate==2.0.2
 strictyaml==1.7.3
 sympy==1.13.3
 tableauserverclient==0.36
