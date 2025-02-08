@@ -16,14 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Button, Box, Spacer, HStack, Field, VStack } from "@chakra-ui/react";
+import { Input, Box, Spacer, HStack, Field, VStack, Flex } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 
-import type { DAGResponse, DAGWithLatestDagRunsResponse, BackfillPostBody } from "openapi/requests/types.gen";
-import { useBackfillServiceCreateBackfillDryRun } from "src/queries/useBackfillServiceCreateBackfillDryRun";
+import type {
+  DAGResponse,
+  DAGWithLatestDagRunsResponse,
+  BackfillPostBody,
+  TaskInstanceCollectionResponse,
+} from "openapi/requests/types.gen";
+import { Button } from "src/components/ui";
+import { useCreateBackfill } from "src/queries/useCreateBackfill";
+import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 
+import { ActionAccordion } from "../ActionAccordion";
 import { ErrorAlert } from "../ErrorAlert";
+import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
 
 type RunBackfillFormProps = {
@@ -31,31 +40,40 @@ type RunBackfillFormProps = {
   readonly onClose: () => void;
 };
 
-// export type BackfillPostBody = {
-//   conf: string;
-//   dagId: string;
-//   dataIntervalEnd: string;
-//   dataIntervalStart: string;
-//   reprocessBehavior: string;
-// };
-
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
-  const { dateValidationError, error: errorTrigger } = useBackfillServiceCreateBackfillDryRun({
-    dagId: dag.dag_id,
-    onSuccessConfirm: onClose,
-  });
 
   const { control, handleSubmit, reset, watch } = useForm<BackfillPostBody>({
     defaultValues: {
-      dag_id: "",
+      dag_id: dag.dag_id,
       dag_run_conf: {},
-      from_date: "",
-      max_active_runs: 0,
-      reprocess_behavior: "none",
-      run_backwards: false,
-      to_date: "",
+      from_date: undefined,
+      max_active_runs: undefined,
+      reprocess_behavior: undefined,
+      run_backwards: undefined,
+      to_date: undefined,
     },
+    mode: "onBlur",
+  });
+  const values = useWatch<BackfillPostBody>({
+    control,
+  });
+  const { data } = useCreateBackfillDryRun({
+    requestBody: {
+      requestBody: {
+        dag_id: dag.dag_id,
+        dag_run_conf: undefined,
+        from_date: values.from_date ?? new Date().toDateString(),
+        max_active_runs: undefined,
+        reprocess_behavior: undefined,
+        run_backwards: undefined,
+        to_date: values.to_date ?? new Date().toDateString(),
+      },
+    },
+  });
+
+  const { createBackfill, dateValidationError, error, isPending } = useCreateBackfill({
+    onSuccessConfirm: onClose,
   });
 
   useEffect(() => {
@@ -67,18 +85,24 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const dataIntervalStart = watch("from_date");
   const dataIntervalEnd = watch("to_date");
 
-  const onSubmit = (data: BackfillPostBody) => {
-    reset(data);
-    onClose();
+  const onSubmit = (fdata: BackfillPostBody) => {
+    createBackfill({
+      requestBody: fdata,
+    });
   };
 
-  const onCancel = (data: BackfillPostBody) => {
-    reset(data);
+  const onCancel = (fdata: BackfillPostBody) => {
+    reset(fdata);
     onClose();
   };
 
   const resetDateError = () => {
     setErrors((prev) => ({ ...prev, date: undefined }));
+  };
+
+  const affectedTasks = data ?? {
+    task_instances: [],
+    total_entries: 0,
   };
 
   const reprocessBehaviors = [
@@ -99,7 +123,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                 <Field.Label fontSize="md">Data Interval Start Date</Field.Label>
                 <Input
                   {...field}
-                  max={dataIntervalEnd || undefined}
+                  max={dataIntervalStart || undefined}
                   onBlur={resetDateError}
                   size="sm"
                   type="datetime-local"
@@ -116,7 +140,8 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                 <Field.Label fontSize="md">Data Interval End Date</Field.Label>
                 <Input
                   {...field}
-                  min={dataIntervalStart || undefined}
+                  max={new Date().toDateString()}
+                  min={dataIntervalEnd || undefined}
                   onBlur={resetDateError}
                   size="sm"
                   type="datetime-local"
@@ -136,7 +161,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                 field.onChange(event);
               }}
             >
-              <RadioCardLabel fontSize="md">RUN TYPES</RadioCardLabel>
+              <RadioCardLabel fontSize="md">Run Types</RadioCardLabel>
               <VStack align="stretch">
                 {reprocessBehaviors.map((item) => (
                   <RadioCardItem
@@ -151,20 +176,43 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             </RadioCardRoot>
           )}
         />
+        <Spacer />
+        <Controller
+          control={control}
+          name="run_backwards"
+          render={({ field }) => (
+            <Checkbox checked={field.value} onChange={field.onChange}>
+              Run Backwards
+            </Checkbox>
+          )}
+        />
+        <Spacer />
+        <Controller
+          control={control}
+          name="max_active_runs"
+          render={({ field }) => (
+            <HStack>
+              <Input {...field} placeholder="" type="number" width={24} />
+              <Flex>Max Active Runs</Flex>
+            </HStack>
+          )}
+        />
+        <Spacer />
+        <ActionAccordion
+          affectedTasks={affectedTasks as TaskInstanceCollectionResponse}
+          note={null}
+          setNote={undefined}
+        />
       </VStack>
-      <ErrorAlert error={errors.date ?? errorTrigger} />
+      <ErrorAlert error={errors.date ?? error} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           <Spacer />
-          <Button
-            disabled={Boolean(errors.conf) || Boolean(errors.date)}
-            onClick={() => void handleSubmit(onCancel)()}
-          >
-            Cancel
-          </Button>
+          <Button onClick={() => void handleSubmit(onCancel)()}>Cancel</Button>
           <Button
             colorPalette="blue"
-            disabled={Boolean(errors.conf) || Boolean(errors.date)}
+            disabled={Boolean(errors.date) || affectedTasks.total_entries === 0}
+            loading={isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             Run Backfill
