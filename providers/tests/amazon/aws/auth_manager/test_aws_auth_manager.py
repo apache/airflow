@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import ANY, Mock, patch
 
 import pytest
-from flask import Flask, session
+from flask import session
 from flask_appbuilder.menu import MenuItem
 
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
@@ -38,11 +38,7 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
-from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
-from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
-    AwsSecurityManagerOverride,
-)
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.security.permissions import (
     RESOURCE_AUDIT_LOG,
@@ -50,11 +46,8 @@ from airflow.security.permissions import (
     RESOURCE_CONNECTION,
     RESOURCE_VARIABLE,
 )
-from airflow.www import app as application
-from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.www import check_content_in_response
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
@@ -100,55 +93,8 @@ def auth_manager():
 
 
 @pytest.fixture
-def auth_manager_with_appbuilder(auth_manager):
-    flask_app = Flask(__name__)
-    appbuilder = init_appbuilder(flask_app)
-    auth_manager.appbuilder = appbuilder
-    return auth_manager
-
-
-@pytest.fixture
 def test_user():
     return AwsAuthManagerUser(user_id="test_user_id", groups=[], username="test_username")
-
-
-@pytest.fixture
-def client_admin():
-    with conf_vars(
-        {
-            (
-                "core",
-                "auth_manager",
-            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-            ("aws_auth_manager", "region_name"): "us-east-1",
-            ("aws_auth_manager", "saml_metadata_url"): "/saml/metadata",
-            ("aws_auth_manager", "avp_policy_store_id"): "avp_policy_store_id",
-        }
-    ):
-        with (
-            patch(
-                "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
-            ) as mock_parser,
-            patch(
-                "airflow.providers.amazon.aws.auth_manager.views.auth.AwsAuthManagerAuthenticationViews._init_saml_auth"
-            ) as mock_init_saml_auth,
-            patch(
-                "airflow.providers.amazon.aws.auth_manager.avp.facade.AwsAuthManagerAmazonVerifiedPermissionsFacade.is_policy_store_schema_up_to_date"
-            ) as mock_is_policy_store_schema_up_to_date,
-        ):
-            mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
-            mock_is_policy_store_schema_up_to_date.return_value = True
-
-            auth = Mock()
-            auth.is_authenticated.return_value = True
-            auth.get_nameid.return_value = "user_admin_permissions"
-            auth.get_attributes.return_value = {
-                "id": ["user_admin_permissions"],
-                "groups": ["Admin"],
-                "email": ["email"],
-            }
-            mock_init_saml_auth.return_value = auth
-            yield application.create_app(testing=True)
 
 
 class TestAwsAuthManager:
@@ -718,56 +664,9 @@ class TestAwsAuthManager:
         auth_manager.avp_facade.get_batch_is_authorized_results.assert_called()
         assert result == {"dag_2"}
 
-    @patch("airflow.providers.amazon.aws.auth_manager.aws_auth_manager.url_for")
-    def test_get_url_login(self, mock_url_for, auth_manager):
-        auth_manager.get_url_login()
-        mock_url_for.assert_called_once_with("AwsAuthManagerAuthenticationViews.login")
-
-    @patch("airflow.providers.amazon.aws.auth_manager.aws_auth_manager.url_for")
-    def test_get_url_logout(self, mock_url_for, auth_manager):
-        auth_manager.get_url_logout()
-        mock_url_for.assert_called_once_with("AwsAuthManagerAuthenticationViews.logout")
-
-    @pytest.mark.db_test
-    def test_security_manager_return_default_security_manager(self, auth_manager_with_appbuilder):
-        assert isinstance(auth_manager_with_appbuilder.security_manager, AwsSecurityManagerOverride)
+    def test_get_url_login(self, auth_manager):
+        result = auth_manager.get_url_login()
+        assert result == "http://localhost:29091/auth/login"
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0
-
-    @pytest.mark.db_test
-    @patch(
-        "airflow.providers.amazon.aws.auth_manager.views.auth.conf.get_mandatory_value", return_value="test"
-    )
-    def test_register_views(self, mock_get_mandatory_value, auth_manager_with_appbuilder):
-        from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
-
-        with patch.object(AwsAuthManagerAuthenticationViews, "idp_data"):
-            auth_manager_with_appbuilder.appbuilder.add_view_no_menu = Mock()
-            auth_manager_with_appbuilder.register_views()
-            auth_manager_with_appbuilder.appbuilder.add_view_no_menu.assert_called_once()
-            assert isinstance(
-                auth_manager_with_appbuilder.appbuilder.add_view_no_menu.call_args.args[0],
-                AwsAuthManagerAuthenticationViews,
-            )
-
-    @pytest.mark.db_test
-    @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "get_batch_is_authorized_single_result")
-    @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "get_batch_is_authorized_results")
-    @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "is_authorized")
-    def test_aws_auth_manager_index(
-        self,
-        mock_is_authorized,
-        mock_get_batch_is_authorized_results,
-        mock_get_batch_is_authorized_single_result,
-        client_admin,
-    ):
-        """
-        Load the index page using AWS auth manager. Mock all interactions with Amazon Verified Permissions.
-        """
-        mock_is_authorized.return_value = True
-        mock_get_batch_is_authorized_results.return_value = []
-        mock_get_batch_is_authorized_single_result.return_value = {"decision": "ALLOW"}
-        with client_admin.test_client() as client:
-            response = client.get("/login_callback", follow_redirects=True)
-            check_content_in_response("<h2>DAGs</h2>", response, 200)

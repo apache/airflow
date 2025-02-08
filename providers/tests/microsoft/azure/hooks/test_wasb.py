@@ -528,24 +528,26 @@ class TestWasbHook:
         mocked_container_client.return_value.delete_container.assert_called()
 
     @pytest.mark.parametrize("exc", [ValueError, RuntimeError])
-    def test_delete_container_generic_exception(self, exc: type[Exception], caplog):
+    def test_delete_container_generic_exception(self, exc: type[Exception]):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
-        with mock.patch.object(WasbHook, "_get_container_client") as m:
+        with (
+            mock.patch.object(WasbHook, "_get_container_client") as m,
+            mock.patch.object(hook.log, "error") as log_mock,
+        ):
             m.return_value.delete_container.side_effect = exc("FakeException")
-            caplog.clear()
-            caplog.set_level("ERROR")
             with pytest.raises(exc, match="FakeException"):
                 hook.delete_container("mycontainer")
-            assert "Error deleting container: mycontainer" in caplog.text
+            log_mock.assert_called_with("Error deleting container: %s", "mycontainer")
 
-    def test_delete_container_resource_not_found(self, caplog):
+    def test_delete_container_resource_not_found(self):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
-        with mock.patch.object(WasbHook, "_get_container_client") as m:
+        with (
+            mock.patch.object(WasbHook, "_get_container_client") as m,
+            mock.patch.object(hook.log, "warning") as log_mock,
+        ):
             m.return_value.delete_container.side_effect = ResourceNotFoundError("FakeException")
-            caplog.clear()
-            caplog.set_level("WARNING")
             hook.delete_container("mycontainer")
-            assert "Unable to delete container mycontainer (not found)" in caplog.text
+            log_mock.assert_called_with("Unable to delete container %s (not found)", "mycontainer")
 
     @mock.patch.object(WasbHook, "delete_blobs")
     def test_delete_single_blob(self, delete_blobs, mocked_blob_service_client):

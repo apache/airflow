@@ -97,21 +97,37 @@ def testing_dag_bundle():
             session.add(testing)
 
 
+@contextmanager
+def _config_bundles(bundles: dict[str, Path | str]):
+    from tests_common.test_utils.config import conf_vars
+
+    bundle_config = []
+    for name, path in bundles.items():
+        bundle_config.append(
+            {
+                "name": name,
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(path), "refresh_interval": 0},
+            }
+        )
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+        yield
+
+
+@pytest.fixture
+def configure_dag_bundles():
+    """Configure arbitrary DAG bundles with the provided paths"""
+
+    return _config_bundles
+
+
 @pytest.fixture
 def configure_testing_dag_bundle():
     """Configure a "testing" DAG bundle with the provided path"""
-    from tests_common.test_utils.config import conf_vars
 
     @contextmanager
     def _config_bundle(path_to_parse: Path | str):
-        bundle_config = [
-            {
-                "name": "testing",
-                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"path": str(path_to_parse), "refresh_interval": 0},
-            }
-        ]
-        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+        with _config_bundles({"testing": path_to_parse}):
             yield
 
     return _config_bundle

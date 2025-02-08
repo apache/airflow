@@ -20,7 +20,7 @@ import os
 from unittest.mock import patch
 
 import pytest
-from asana import Client
+from asana.api_client import ApiClient
 
 from airflow.models import Connection
 from airflow.providers.asana.hooks.asana import AsanaHook
@@ -41,7 +41,7 @@ class TestAsanaHook:
         ):
             hook = AsanaHook()
         client = hook.get_conn()
-        assert isinstance(client, Client)
+        assert isinstance(client, ApiClient)
 
     def test_missing_password_raises(self):
         """
