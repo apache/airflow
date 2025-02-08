@@ -13,6 +13,8 @@ Instead, users can install ``smtp`` provider and import ``EmailOperator`` from t
   * [ ] Dependency changes
   * [x] Code interface changes
 
-.. * Migration rules needed
-.. TODO: create the migration rule that:
-* Import ``EmailOperator`` from ``airflow.providers.smtp.operators.smtp`` instead of ``airflow.operators.email``
+* Migration rules needed
+
+  * ruff
+  
+    * [ ] ``airflow.operators.email`` → ``airflow.providers.smtp.operators.smtp.EmailOperator``
