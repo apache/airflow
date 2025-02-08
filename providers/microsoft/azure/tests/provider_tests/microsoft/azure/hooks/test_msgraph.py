@@ -30,7 +30,7 @@ from kiota_serialization_json.json_parse_node import JsonParseNode
 from kiota_serialization_text.text_parse_node import TextParseNode
 from msgraph_core import APIVersion, NationalClouds
 from opentelemetry.trace import Span
-from providers.microsoft.azure.tests.provider_tests.microsoft.conftest import (
+from providers.microsoft.azure.tests.conftest import (
     get_airflow_connection,
     load_file,
     load_json,

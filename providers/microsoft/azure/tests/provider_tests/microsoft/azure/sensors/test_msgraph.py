@@ -20,7 +20,7 @@ import json
 from datetime import datetime
 
 import pytest
-from providers.microsoft.azure.tests.provider_tests.microsoft.conftest import load_json, mock_json_response
+from providers.microsoft.azure.tests.conftest import load_json, mock_json_response
 
 from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
 from airflow.triggers.base import TriggerEvent
