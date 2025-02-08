@@ -132,14 +132,14 @@ def remove_license_header(content: str) -> str:
 
 
 def load_json(*args: str):
-    directory = currentframe().f_back.f_globals["__name__"].split(".")[-3]  # type: ignore
-    with open(join(dirname(__file__), directory, join(*args)), encoding="utf-8") as file:
+    directory = currentframe().f_back.f_globals["__name__"].split(".")[:-2]  # type: ignore
+    with open(join(dirname(__file__), join(*directory), join(*args)), encoding="utf-8") as file:
         return json.load(file)
 
 
 def load_file(*args: str, mode="r", encoding="utf-8"):
-    directory = currentframe().f_back.f_globals["__name__"].split(".")[-3]  # type: ignore
-    with open(join(dirname(__file__), directory, join(*args)), mode=mode, encoding=encoding) as file:
+    directory = currentframe().f_back.f_globals["__name__"].split(".")[:-2]  # type: ignore
+    with open(join(dirname(__file__), join(*directory), join(*args)), mode=mode, encoding=encoding) as file:
         if mode == "r":
             return remove_license_header(file.read())
         return file.read()
