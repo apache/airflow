@@ -31,9 +31,10 @@ OP_KWARGS = {
     "data_interval_start": "2025-01-02T00:00:01Z",
     "data_interval_end": "2025-01-03T00:00:01Z",
     "conf": {"key": "value"},
-    "note": "test note"
+    "note": "test note",
 }
 RETURN_VALUE = {"RestApiCode": 200, "RestApiResponse": "test response"}
+
 
 class TestMwaaTriggerDagRunOperator:
     def test_init(self):
@@ -64,7 +65,7 @@ class TestMwaaTriggerDagRunOperator:
                 "data_interval_end": OP_KWARGS["data_interval_end"],
                 "conf": OP_KWARGS["conf"],
                 "note": OP_KWARGS["note"],
-            }
+            },
         )
         assert ret_val == RETURN_VALUE
 

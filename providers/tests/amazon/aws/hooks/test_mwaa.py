@@ -19,9 +19,10 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from botocore.exceptions import ClientError
 from moto import mock_aws
+
+from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 
 ENV_NAME = "test_env"
 PATH = "/dags/test_dag/dagRuns"
@@ -41,10 +42,11 @@ class TestMwaaHook:
         assert self.hook.get_conn() is not None
 
     @pytest.mark.parametrize(
-        "body", [
+        "body",
+        [
             None,  # test case: empty body
-            {"conf": {}}  # test case: non-empty body
-        ]
+            {"conf": {}},  # test case: non-empty body
+        ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.mwaa.MwaaHook.get_conn")
     def test_invoke_rest_api_success(self, mock_conn, body) -> None:
@@ -52,17 +54,22 @@ class TestMwaaHook:
         mock_conn.return_value.invoke_rest_api = boto_invoke_mock
 
         retval = self.hook.invoke_rest_api(ENV_NAME, PATH, METHOD, body, QUERY_PARAMS)
-        kwargs_to_assert = {"Name": ENV_NAME, "Path": PATH, "Method": METHOD, "Body": body if body else {},
-                            "QueryParameters": QUERY_PARAMS}
+        kwargs_to_assert = {
+            "Name": ENV_NAME,
+            "Path": PATH,
+            "Method": METHOD,
+            "Body": body if body else {},
+            "QueryParameters": QUERY_PARAMS,
+        }
         boto_invoke_mock.assert_called_once_with(**kwargs_to_assert)
-        assert retval == {k: v for k, v in self.example_responses["success"].items() if
-                          k != "ResponseMetadata"}
+        assert retval == {
+            k: v for k, v in self.example_responses["success"].items() if k != "ResponseMetadata"
+        }
 
     @mock.patch("airflow.providers.amazon.aws.hooks.mwaa.MwaaHook.get_conn")
     def test_invoke_rest_api_failure(self, mock_conn) -> None:
         error = ClientError(
-            error_response=self.example_responses["failure"],
-            operation_name="invoke_rest_api"
+            error_response=self.example_responses["failure"], operation_name="invoke_rest_api"
         )
         boto_invoke_mock = mock.MagicMock(side_effect=error)
         mock_conn.return_value.invoke_rest_api = boto_invoke_mock
@@ -71,42 +78,53 @@ class TestMwaaHook:
 
         with pytest.raises(ClientError) as caught_error:
             self.hook.invoke_rest_api(ENV_NAME, PATH, METHOD)
-            assert caught_error == error
 
-        expected_log = {k: v for k, v in self.example_responses["failure"].items()
-                        if k != "ResponseMetadata" and k != "Error"}
+        expected_log = {
+            k: v
+            for k, v in self.example_responses["failure"].items()
+            if k != "ResponseMetadata" and k != "Error"
+        }
         mock_log.assert_called_once_with(expected_log)
+        assert caught_error == error
 
     @pytest.fixture(autouse=True)
     def _setup_test_cases(self):
         self.example_responses = {
             "success": {
-                'ResponseMetadata': {'RequestId': 'some ID', 'HTTPStatusCode': 200,
-                                     'HTTPHeaders': {'header1': 'value1'}, 'RetryAttempts': 0},
-                'RestApiStatusCode': 200,
-                'RestApiResponse': {
-                    'conf': {},
-                    'dag_id': 'hello_world',
-                    'dag_run_id': 'manual__2025-02-08T00:33:09.457198+00:00',
-                    'data_interval_end': '2025-02-08T00:33:09.457198+00:00',
-                    'data_interval_start': '2025-02-08T00:33:09.457198+00:00',
-                    'execution_date': '2025-02-08T00:33:09.457198+00:00',
-                    'external_trigger': True,
-                    'logical_date': '2025-02-08T00:33:09.457198+00:00',
-                    'run_type': 'manual',
-                    'state': 'queued'
-                }
+                "ResponseMetadata": {
+                    "RequestId": "some ID",
+                    "HTTPStatusCode": 200,
+                    "HTTPHeaders": {"header1": "value1"},
+                    "RetryAttempts": 0,
+                },
+                "RestApiStatusCode": 200,
+                "RestApiResponse": {
+                    "conf": {},
+                    "dag_id": "hello_world",
+                    "dag_run_id": "manual__2025-02-08T00:33:09.457198+00:00",
+                    "data_interval_end": "2025-02-08T00:33:09.457198+00:00",
+                    "data_interval_start": "2025-02-08T00:33:09.457198+00:00",
+                    "execution_date": "2025-02-08T00:33:09.457198+00:00",
+                    "external_trigger": True,
+                    "logical_date": "2025-02-08T00:33:09.457198+00:00",
+                    "run_type": "manual",
+                    "state": "queued",
+                },
             },
             "failure": {
-                'Error': {'Message': '', 'Code': 'RestApiClientException'},
-                'ResponseMetadata': {'RequestId': 'some ID', 'HTTPStatusCode': 400,
-                                     'HTTPHeaders': {'header1': 'value1'}, 'RetryAttempts': 0},
-                'RestApiStatusCode': 404,
-                'RestApiResponse': {
-                    'detail': "DAG with dag_id: 'hello_world1' not found",
-                    'status': 404,
-                    'title': 'DAG not found',
-                    'type': 'https://airflow.apache.org/docs/apache-airflow/2.10.3/stable-rest-api-ref.html#section/Errors/NotFound'
-                }
-            }
+                "Error": {"Message": "", "Code": "RestApiClientException"},
+                "ResponseMetadata": {
+                    "RequestId": "some ID",
+                    "HTTPStatusCode": 400,
+                    "HTTPHeaders": {"header1": "value1"},
+                    "RetryAttempts": 0,
+                },
+                "RestApiStatusCode": 404,
+                "RestApiResponse": {
+                    "detail": "DAG with dag_id: 'hello_world1' not found",
+                    "status": 404,
+                    "title": "DAG not found",
+                    "type": "https://airflow.apache.org/docs/apache-airflow/2.10.3/stable-rest-api-ref.html#section/Errors/NotFound",
+                },
+            },
         }

@@ -24,7 +24,6 @@ from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperato
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-
 DAG_ID = "example_mwaa"
 
 # Externally fetched variables:
