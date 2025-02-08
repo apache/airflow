@@ -294,9 +294,13 @@ class SFTPHook(SSHHook):
         for dir_path in dirs:
             new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
             Path(new_local_path).mkdir(parents=True, exist_ok=True)
-        for file_path in files:
-            new_local_path = os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
-            self.retrieve_file(file_path, new_local_path, prefetch)
+        with self.get_conn() as conn:
+            for file_path in files:
+                new_local_path = os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
+                if isinstance(new_local_path, BytesIO):
+                    conn.getfo(file_path, new_local_path, prefetch=prefetch)
+                else:
+                    conn.get(file_path, new_local_path, prefetch=prefetch)
 
     def store_directory(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """
@@ -316,10 +320,16 @@ class SFTPHook(SSHHook):
                 dir_path = os.path.join(root, dir_name)
                 new_remote_path = os.path.join(remote_full_path, os.path.relpath(dir_path, local_full_path))
                 self.create_directory(new_remote_path)
-            for file_name in files:
-                file_path = os.path.join(root, file_name)
-                new_remote_path = os.path.join(remote_full_path, os.path.relpath(file_path, local_full_path))
-                self.store_file(new_remote_path, file_path, confirm)
+            with self.get_conn() as conn:
+                for file_name in files:
+                    file_path = os.path.join(root, file_name)
+                    new_remote_path = os.path.join(
+                        remote_full_path, os.path.relpath(file_path, local_full_path)
+                    )
+                    if isinstance(file_path, BytesIO):
+                        conn.putfo(file_path, new_remote_path, confirm=confirm)
+                    else:
+                        conn.put(file_path, new_remote_path, confirm=confirm)
 
     def get_mod_time(self, path: str) -> str:
         """
