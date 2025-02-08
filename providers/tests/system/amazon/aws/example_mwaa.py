@@ -29,7 +29,7 @@ DAG_ID = "example_mwaa"
 
 # Externally fetched variables:
 EXISTING_ENVIRONMENT_NAME_KEY = "ENVIRONMENT_NAME"
-EXISTING_DAG_ID_KEY = "TRIGGER_DAG_ID"
+EXISTING_DAG_ID_KEY = "DAG_ID"
 
 
 sys_test_context_task = (
@@ -59,8 +59,8 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
-    env_name = test_context["ENVIRONMENT_NAME"]
-    trigger_dag_id = test_context["TRIGGER_DAG_ID"]
+    env_name = test_context[EXISTING_ENVIRONMENT_NAME_KEY]
+    trigger_dag_id = test_context[EXISTING_DAG_ID_KEY]
 
     # [START howto_operator_mwaa_trigger_dag_run]
     trigger_dag_run = MwaaTriggerDagRunOperator(
