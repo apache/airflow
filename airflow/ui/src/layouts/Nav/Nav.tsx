@@ -59,7 +59,7 @@ export const Nav = () => {
         <NavButton
           icon={<FiCornerUpLeft size="1.75rem" />}
           title="Legacy UI"
-          to={import.meta.env.VITE_LEGACY_API_URL}
+          to="http://0.0.0.0:28080/home"
         />
         <DocsButton />
         <UserSettingsButton />
