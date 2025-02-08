@@ -85,7 +85,7 @@ class TestMwaaHook:
             if k != "ResponseMetadata" and k != "Error"
         }
         mock_log.assert_called_once_with(expected_log)
-        assert caught_error == error
+        assert caught_error.value == error
 
     @pytest.fixture(autouse=True)
     def _setup_test_cases(self):
