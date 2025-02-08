@@ -175,10 +175,7 @@ labelPRBasedOnFilePath:
     - providers/jenkins/**
 
   provider:microsoft-azure:
-    - providers/src/airflow/providers/microsoft/azure/**/*
-    - providers/tests/microsoft/azure/**/*
-    - docs/apache-airflow-providers-microsoft-azure/**/*
-    - providers/tests/system/microsoft/azure/**/*
+    - providers/microsoft/azure/**
 
   provider:microsoft-mssql:
     - providers/microsoft/mssql/**
