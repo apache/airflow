@@ -2,3 +2,5 @@
 # In order to test example dags easily we often create symbolic links in this directory
 # this line prevents accidental committing of such symbolic links.
 example_*
+
+*.zip
