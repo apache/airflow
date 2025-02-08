@@ -32,7 +32,7 @@ from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
 )
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -282,6 +282,7 @@ class TestDynamodbToS3:
                 logical_date=timezone.datetime(2020, 1, 1),
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
             )
         else:
             ti.dag_run = DagRun(

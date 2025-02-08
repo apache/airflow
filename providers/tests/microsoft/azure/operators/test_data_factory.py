@@ -299,7 +299,10 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
     def get_dag_run(self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:
         if AIRFLOW_V_3_0_PLUS:
             dag_run = DagRun(
-                dag_id=dag_id, run_type="manual", logical_date=timezone.datetime(2022, 1, 1), run_id=run_id
+                dag_id=dag_id,
+                run_type="manual",
+                logical_date=timezone.datetime(2022, 1, 1),
+                run_id=run_id,
             )
         else:
             dag_run = DagRun(  # type: ignore[call-arg]
@@ -354,8 +357,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
 
     @pytest.mark.db_test
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
-        ".defer"
+        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator.defer"
     )
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
@@ -377,8 +379,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
     @pytest.mark.db_test
     @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.FAILURE_STATES))
     @mock.patch(
-        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
-        ".defer"
+        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator.defer"
     )
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",

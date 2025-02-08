@@ -57,7 +57,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime, utcnow
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -660,6 +660,7 @@ class TestS3DeleteObjectsOperator:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
             )
         else:
             dag_run = DagRun(

@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunTriggeredByType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -62,7 +63,13 @@ class TestS3TaskHandler:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            dag_run = DagRun(dag_id=self.dag.dag_id, logical_date=date, run_id="test", run_type="manual")
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=date,
+                run_id="test",
+                run_type="manual",
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
         else:
             dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="manual")
         session.add(dag_run)

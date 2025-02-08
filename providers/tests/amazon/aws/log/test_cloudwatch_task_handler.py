@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow.utils.types import DagRunTriggeredByType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -74,7 +75,13 @@ class TestCloudwatchTaskHandler:
         self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            dag_run = DagRun(dag_id=self.dag.dag_id, logical_date=date, run_id="test", run_type="scheduled")
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=date,
+                run_id="test",
+                run_type="scheduled",
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
         else:
             dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
         session.add(dag_run)
@@ -124,8 +131,8 @@ class TestCloudwatchTaskHandler:
         ]
         assert [handler._event_to_str(event) for event in events] == (
             [
-                f"[{get_time_str(current_time-2000)}] First",
-                f"[{get_time_str(current_time-1000)}] Second",
+                f"[{get_time_str(current_time - 2000)}] First",
+                f"[{get_time_str(current_time - 1000)}] Second",
                 f"[{get_time_str(current_time)}] Third",
             ]
         )
@@ -150,8 +157,8 @@ class TestCloudwatchTaskHandler:
         msg_template = "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n"
         events = "\n".join(
             [
-                f"[{get_time_str(current_time-2000)}] First",
-                f"[{get_time_str(current_time-1000)}] Second",
+                f"[{get_time_str(current_time - 2000)}] First",
+                f"[{get_time_str(current_time - 1000)}] Second",
                 f"[{get_time_str(current_time)}] Third",
             ]
         )

@@ -32,7 +32,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor, WasbPrefixSensor
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.utils import timezone
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -120,6 +120,7 @@ class TestWasbBlobAsyncSensor:
                 dag_id=dag.dag_id,
                 logical_date=logical_date,
                 run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+                triggered_by=DagRunTriggeredByType.TEST,
             )
 
         task_instance = TaskInstance(task=task)
@@ -263,6 +264,7 @@ class TestWasbPrefixAsyncSensor:
                 dag_id=dag.dag_id,
                 logical_date=logical_date,
                 run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+                triggered_by=DagRunTriggeredByType.TEST,
             )
 
         task_instance = TaskInstance(task=task)
@@ -301,9 +303,9 @@ class TestWasbPrefixAsyncSensor:
         mock_hook.return_value.check_for_prefix.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute(self.create_context(self.SENSOR))
-        assert isinstance(
-            exc.value.trigger, WasbPrefixSensorTrigger
-        ), "Trigger is not a WasbPrefixSensorTrigger"
+        assert isinstance(exc.value.trigger, WasbPrefixSensorTrigger), (
+            "Trigger is not a WasbPrefixSensorTrigger"
+        )
 
     @pytest.mark.parametrize(
         "event",

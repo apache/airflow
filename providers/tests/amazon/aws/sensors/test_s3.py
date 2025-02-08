@@ -31,7 +31,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -135,6 +135,7 @@ class TestS3KeySensor:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
             )
         else:
             dag_run = DagRun(
@@ -178,6 +179,7 @@ class TestS3KeySensor:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
             )
         else:
             dag_run = DagRun(

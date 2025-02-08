@@ -33,7 +33,7 @@ from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.providers.amazon.aws.utils.waiter import WAITER_POLICY_NAME_MAPPING, WaitPolicy
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 from providers.tests.amazon.aws.utils.test_waiter import assert_expected_waiter_type
@@ -106,6 +106,7 @@ class TestEmrCreateJobFlowOperator:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
             )
         else:
             dag_run = DagRun(
@@ -154,6 +155,7 @@ class TestEmrCreateJobFlowOperator:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
             )
         else:
             dag_run = DagRun(
@@ -229,9 +231,9 @@ class TestEmrCreateJobFlowOperator:
         with pytest.raises(TaskDeferred) as exc:
             self.operator.execute(self.mock_context)
 
-        assert isinstance(
-            exc.value.trigger, EmrCreateJobFlowTrigger
-        ), "Trigger is not a EmrCreateJobFlowTrigger"
+        assert isinstance(exc.value.trigger, EmrCreateJobFlowTrigger), (
+            "Trigger is not a EmrCreateJobFlowTrigger"
+        )
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

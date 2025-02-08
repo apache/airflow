@@ -32,7 +32,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 )
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -215,6 +215,7 @@ class TestSageMakerExperimentOperator:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
             )
         else:
             dag_run = DagRun(
