@@ -361,14 +361,18 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
             dag_detail = _get_dagbag_dag_details(dag)
         return {col: dag_detail[col] for col in valid_cols}
 
-    def filter_dags_by_bundle(dags: list[DAG], bundle_name: str | None) -> list[DAG]:
+    def filter_dags_by_bundle(dags: list[DAG], bundle_names: list[str] | None) -> list[DAG]:
         """Filter DAGs based on the specified bundle name, if provided."""
-        if not bundle_name:
+        if not bundle_names:
             return dags
-        return [dag for dag in dags if dag.get_bundle_name() == bundle_name]
+
+        validate_dag_bundle_arg(bundle_names)
+        return [dag for dag in dags if dag.get_bundle_name() in bundle_names]
 
     AirflowConsole().print_as(
-        data=sorted(filter_dags_by_bundle(dagbag.dags.values(), args.bundle_name), key=operator.attrgetter("dag_id")),
+        data=sorted(
+            filter_dags_by_bundle(dagbag.dags.values(), args.bundle_name), key=operator.attrgetter("dag_id")
+        ),
         output=args.output,
         mapper=get_dag_detail,
     )
