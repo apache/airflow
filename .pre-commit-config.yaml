@@ -641,11 +641,11 @@ repos:
           ^providers/google/src/airflow/providers/google/cloud/operators/dataproc.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/mlengine.py$|
           ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos.py$|
-          ^providers/src/airflow/providers/microsoft/winrm/hooks/winrm.py$|
+          ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
-          ^providers/src/airflow/providers/microsoft/winrm/operators/winrm.py$|
+          ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/operators/winrm.py$|
           ^providers/opsgenie/src/airflow/providers/opsgenie/hooks/opsgenie.py$|
           ^providers/redis/src/airflow/providers/redis/provider.yaml$|
           ^airflow/serialization/serialized_objects.py$|
@@ -659,13 +659,14 @@ repos:
           ^dev/|
           ^docs/README.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
-          ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
           ^providers/apache/kafka/docs/connections/kafka.rst$|
+          ^providers/apache/hdfs/docs/connections.rst$|
+          ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
           ^providers/apache/spark/docs/decorators/pyspark.rst$|
           ^providers/microsoft/azure/docs/connections/azure_cosmos.rst$|
           ^providers/fab/docs/auth-manager/webserver-authentication.rst$|
           ^providers/google/docs/operators/cloud/kubernetes_engine.rst$|
-          ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
+          ^providers/cncf/kubernetes/docs/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
           ^newsfragments/41761.significant.rst$|

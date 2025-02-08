@@ -4676,8 +4676,8 @@
                 }
             }
         },
-        "apiServer": {
-            "description": "Airflow API server settings.",
+        "_apiServer": {
+            "description": "Airflow API server settings. Experimental / for dev purpose only.",
             "type": "object",
             "x-docsSection": "API Server",
             "additionalProperties": false,
@@ -4949,7 +4949,7 @@
                                     },
                                     "default": [
                                         {
-                                            "port": "{{ .Values.ports.apiServer }}"
+                                            "port": "{{ .Values.ports._apiServer }}"
                                         }
                                     ],
                                     "examples": [
@@ -5176,7 +5176,7 @@
                             "default": [
                                 {
                                     "name": "api-server",
-                                    "port": "{{ .Values.ports.apiServer }}"
+                                    "port": "{{ .Values.ports._apiServer }}"
                                 }
                             ],
                             "examples": [
@@ -8175,7 +8175,7 @@
                     "type": "integer",
                     "default": 8080
                 },
-                "apiServer": {
+                "_apiServer": {
                     "description": "API server port.",
                     "type": "integer",
                     "default": 9091

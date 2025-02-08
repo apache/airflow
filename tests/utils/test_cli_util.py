@@ -248,3 +248,11 @@ def test__search_for_dags_file():
     assert _search_for_dag_file(existing_folder.as_posix()) is None
     # when multiple files found, default to the dags folder
     assert _search_for_dag_file("any/hi/__init__.py") is None
+
+
+def test_validate_dag_bundle_arg():
+    with pytest.raises(SystemExit, match="Bundles not found: (x, y)|(y, x)"):
+        cli.validate_dag_bundle_arg(["x", "y", "dags-folder"])
+
+    # doesn't raise
+    cli.validate_dag_bundle_arg(["dags-folder"])

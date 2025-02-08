@@ -38,10 +38,8 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
 )
+from airflow.providers.google.cloud.openlineage.facets import BigQueryJobRunFacet
 from airflow.providers.google.cloud.openlineage.mixins import _BigQueryInsertJobOperatorOpenLineageMixin
-from airflow.providers.google.cloud.openlineage.utils import (
-    BigQueryJobRunFacet,
-)
 from airflow.providers.openlineage.sqlparser import SQLParser
 
 QUERY_JOB_PROPERTIES = {

@@ -64,7 +64,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 from airflow import settings, utils
@@ -2280,24 +2280,33 @@ class DagModel(Base):
     @provide_session
     def deactivate_deleted_dags(
         cls,
-        active: set[tuple[str, str]],
+        bundle_name: str,
+        rel_filelocs: list[str],
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
-        :param active: tuples (bundle name, relative fileloc) of files that were observed.
+        :param bundle_name: bundle for filelocs
+        :param rel_filelocs: relative filelocs for bundle
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
         dag_models = session.scalars(
-            select(cls).where(
-                cls.relative_fileloc.is_not(None),
+            select(cls)
+            .where(
+                cls.bundle_name == bundle_name,
+            )
+            .options(
+                load_only(
+                    cls.relative_fileloc,
+                    cls.is_active,
+                ),
             )
         )
 
         for dm in dag_models:
-            if (dm.bundle_name, dm.relative_fileloc) not in active:
+            if dm.relative_fileloc not in rel_filelocs:
                 dm.is_active = False
 
     @classmethod
