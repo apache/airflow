@@ -92,8 +92,6 @@ class TestProjectStructure:
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_k8s_model.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_kube_client.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_kube_config.py",
-            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_pod_generator_deprecated.py",
-            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_pod_launcher_deprecated.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_python_kubernetes_script.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_secret.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/triggers/test_kubernetes_pod.py",
