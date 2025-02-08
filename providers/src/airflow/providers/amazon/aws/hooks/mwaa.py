@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-import botocore.exceptions
+from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -71,11 +71,11 @@ class MwaaHook(AwsBaseHook):
         }
         try:
             result = self.get_conn().invoke_rest_api(**api_kwargs)
-            result.pop("ResponseMetadata")
+            result.pop("ResponseMetadata", None)
             return result
-        except botocore.exceptions.ClientError as e:
+        except ClientError as e:
             to_log = e.response
-            to_log.pop("ResponseMetadata")
-            to_log.pop("Error")
+            to_log.pop("ResponseMetadata", None)
+            to_log.pop("Error", None)
             self.log.error(to_log)
             raise e
