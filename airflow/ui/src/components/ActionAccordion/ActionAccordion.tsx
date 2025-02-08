@@ -73,7 +73,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
               onChange={(event: ChangeEvent<HTMLInputElement>) =>
                 setNote ? setNote(event.target.value) : undefined
               }
-              value={note || ""}
+              value={note}
             >
               <Editable.Preview
                 _hover={{ backgroundColor: "transparent" }}
