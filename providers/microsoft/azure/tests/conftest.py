@@ -16,26 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import json
-import pathlib
-import random
-import re
-import string
-from inspect import currentframe
-from json import JSONDecodeError
-from os.path import dirname, join
-from typing import Any, TypeVar
-from unittest.mock import MagicMock
-
 import pytest
-from httpx import Headers, Response
-from msgraph_core import APIVersion
 
-from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
-
-T = TypeVar("T", dict, str, Connection)
+pytest_plugins = "tests_common.pytest_plugin"
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -47,9 +30,27 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
+import json
+import pathlib
+import random
+import re
+import string
+from inspect import currentframe
+from json import JSONDecodeError
+from os.path import dirname, join
+from typing import Any, TypeVar
+from unittest.mock import MagicMock
+
+from httpx import Headers, Response
+from msgraph_core import APIVersion
+
+
 @pytest.fixture
 def create_mock_connection(monkeypatch):
     """Helper fixture for create test connection."""
+    from airflow.models import Connection
+
+    T = TypeVar("T", dict, str, Connection)
 
     def wrapper(conn: T, conn_id: str | None = None):
         conn_id = conn_id or "test_conn_" + "".join(
@@ -76,6 +77,9 @@ def create_mock_connection(monkeypatch):
 @pytest.fixture
 def create_mock_connections(create_mock_connection):
     """Helper fixture for create multiple test connections."""
+    from airflow.models import Connection
+
+    T = TypeVar("T", dict, str, Connection)
 
     def wrapper(*conns: T):
         return list(map(create_mock_connection, conns))
@@ -89,7 +93,9 @@ def mocked_connection(request, create_mock_connection):
     return create_mock_connection(request.param)
 
 
-def mock_connection(schema: str | None = None, host: str | None = None) -> Connection:
+def mock_connection(schema: str | None = None, host: str | None = None):
+    from airflow.models import Connection
+
     connection = MagicMock(spec=Connection)
     connection.schema = schema
     connection.host = host
@@ -188,9 +194,13 @@ def get_airflow_connection(
 
 @pytest.fixture(autouse=True)
 def clear_cache():
+    from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+
     KiotaRequestAdapterHook.cached_request_adapters.clear()
 
 
 @pytest.fixture
 def powerbi_hook():
+    from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
+
     return PowerBIHook(**{"conn_id": "powerbi_conn_id", "timeout": 3, "api_version": "v1.0"})
