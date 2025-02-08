@@ -27,6 +27,7 @@ import { ColorModeProvider } from "src/context/colorMode";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
 
+import { TOKEN_STORAGE_KEY } from "./layouts/BaseLayout";
 import { queryClient } from "./queryClient";
 import { system } from "./theme";
 
@@ -44,6 +45,18 @@ axios.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+axios.interceptors.request.use((config) => {
+  const token: string | null = localStorage.getItem(TOKEN_STORAGE_KEY);
+
+  if (token !== null) {
+    // usehooks-ts stores a JSON.stringified version of values, we cannot use usehooks-ts here because we are outside of
+    // a react component. Therefore using bare localStorage.getItem and manually parsing the value.
+    config.headers.Authorization = `Bearer ${JSON.parse(token)}`;
+  }
+
+  return config;
+});
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>

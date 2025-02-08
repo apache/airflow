@@ -35,7 +35,7 @@ from airflow.logging_config import configure_logging
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.base import TriggerEvent
@@ -93,10 +93,13 @@ def session():
 def create_trigger_in_db(session, trigger, operator=None):
     dag_model = DagModel(dag_id="test_dag")
     dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
+    date = pendulum.datetime(2023, 1, 1)
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
-        logical_date=pendulum.datetime(2023, 1, 1),
+        logical_date=date,
+        data_interval=(date, date),
+        run_after=date,
         run_type=DagRunType.MANUAL,
     )
     trigger_orm = Trigger.from_object(trigger)

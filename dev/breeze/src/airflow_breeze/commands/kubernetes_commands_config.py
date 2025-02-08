@@ -252,12 +252,6 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-success-outputs",
             ],
         },
-        {
-            "name": "Retry options",
-            "options": [
-                "--num-retries",
-            ],
-        },
     ],
     "breeze k8s k9s": [
         {

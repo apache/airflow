@@ -24,18 +24,14 @@ import pytest
 from airflow.models import DagBag, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs, clear_db_variables, parse_and_sync_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     _check_last_log,
     _check_last_log_masked_variable,
     check_content_in_response,
 )
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -60,7 +56,6 @@ def xcom_dag(dagbag):
 
 @pytest.fixture(autouse=True)
 def dagruns(bash_dag, xcom_dag):
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     bash_dagrun = bash_dag.create_dagrun(
         run_id="test_bash",
         run_type=DagRunType.SCHEDULED,
@@ -68,7 +63,8 @@ def dagruns(bash_dag, xcom_dag):
         data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
-        **triggered_by_kwargs,
+        run_after=EXAMPLE_DAG_DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
     )
 
     xcom_dagrun = xcom_dag.create_dagrun(
@@ -78,7 +74,8 @@ def dagruns(bash_dag, xcom_dag):
         data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
-        **triggered_by_kwargs,
+        run_after=EXAMPLE_DAG_DEFAULT_DATE,
+        triggered_by=DagRunTriggeredByType.TEST,
     )
 
     yield bash_dagrun, xcom_dagrun

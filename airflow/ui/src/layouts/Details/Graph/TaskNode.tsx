@@ -20,8 +20,8 @@ import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { MdRefresh } from "react-icons/md";
 
+import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
-import { Status } from "src/components/ui";
 import { useOpenGroups } from "src/context/openGroups";
 import { pluralize } from "src/utils";
 
@@ -84,14 +84,14 @@ export const TaskNode = ({
                 label={label}
                 setupTeardownType={setupTeardownType}
               />
-              <Text color="fg.muted" fontSize="sm" mt={1} textTransform="capitalize">
+              <Text color="fg.muted" fontSize="sm" textTransform="capitalize">
                 {isGroup ? "Task Group" : operator}
               </Text>
               {taskInstance === undefined ? undefined : (
                 <HStack>
-                  <Status fontSize="sm" state={taskInstance.state}>
+                  <StateBadge fontSize="xs" state={taskInstance.state}>
                     {taskInstance.state}
-                  </Status>
+                  </StateBadge>
                   {taskInstance.try_number > 1 ? <MdRefresh /> : undefined}
                 </HStack>
               )}

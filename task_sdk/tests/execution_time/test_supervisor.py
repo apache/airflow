@@ -39,7 +39,7 @@ from uuid6 import uuid7
 from airflow.executors.workloads import BundleInfo
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
@@ -50,9 +50,11 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    OKResponse,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
+    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SucceedTask,
@@ -236,7 +238,7 @@ class TestWatchedSubprocess:
         assert "Last chance exception handler" in captured.err
         assert "RuntimeError: Fake syntax error" in captured.err
 
-    def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch):
+    def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch, mocker, make_ti_context):
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
         import airflow.sdk.execution_time.supervisor
 
@@ -250,6 +252,8 @@ class TestWatchedSubprocess:
                 sleep(0.05)
 
         ti_id = uuid7()
+        _ = mocker.patch.object(sdk_client.TaskInstanceOperations, "start", return_value=make_ti_context())
+
         spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
@@ -269,7 +273,7 @@ class TestWatchedSubprocess:
         # The exact number we get will depend on timing behaviour, so be a little lenient
         assert 1 <= len(spy.calls) <= 4
 
-    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine):
+    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine, mocker, make_ti_context):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
@@ -283,6 +287,12 @@ class TestWatchedSubprocess:
             run_id="c",
             try_number=1,
         )
+
+        # Create a mock client to assert calls to the client
+        # We assume the implementation of the client is correct and only need to check the calls
+        mock_client = mocker.Mock(spec=sdk_client.Client)
+        mock_client.task_instances.start.return_value = make_ti_context()
+
         bundle_info = BundleInfo(name="my-bundle", version=None)
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             exit_code = supervise(
@@ -291,6 +301,7 @@ class TestWatchedSubprocess:
                 token="",
                 server="",
                 dry_run=True,
+                client=mock_client,
                 bundle_info=bundle_info,
             )
             assert exit_code == 0, captured_logs
@@ -1010,6 +1021,25 @@ class TestHandleRequest:
                     data_interval_end=timezone.parse("2025-01-10T14:00:00Z"),
                 ),
                 id="get_prev_successful_dagrun",
+            ),
+            pytest.param(
+                RuntimeCheckOnTask(
+                    inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
+                    outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
+                ),
+                b'{"ok":true,"type":"OKResponse"}\n',
+                "task_instances.runtime_checks",
+                (),
+                {
+                    "id": TI_ID,
+                    "msg": RuntimeCheckOnTask(
+                        inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        type="RuntimeCheckOnTask",
+                    ),
+                },
+                OKResponse(ok=True),
+                id="runtime_check_on_task",
             ),
         ],
     )

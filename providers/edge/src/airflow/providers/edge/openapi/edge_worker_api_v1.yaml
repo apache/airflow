@@ -80,13 +80,7 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                - items:
-                    type: string
-                  type: array
-                - type: object
-                  nullable: true
-                title: Response Set State
+                $ref: '#/components/schemas/WorkerSetStateReturn'
           description: Successful Response
         '400':
           content:
@@ -586,6 +580,11 @@ components:
       - terminating
       - offline
       - unknown
+      - maintenance mode
+      - maintenance request
+      - maintenance pending
+      - maintenance exit
+      - offline maintenance
       title: EdgeWorkerState
       type: string
     WorkerStateBody:
@@ -641,6 +640,23 @@ components:
       - free_concurrency
       title: WorkerQueuesBody
       type: object
+    WorkerSetStateReturn:
+      description: The state written in the database
+      properties:
+        queues:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: object
+            nullable: true
+          description: List of queues the worker is pulling jobs from. If not provided,
+            worker pulls from all queues.
+          title: Queues
+        state:
+          $ref: '#/components/schemas/EdgeWorkerState'
+          description: State of the worker from the view of the worker.
+      title: WorkerSetStateReturn
     EdgeJobFetched:
       description: Job that is to be executed on the edge worker.
       properties:

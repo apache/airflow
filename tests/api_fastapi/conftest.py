@@ -16,12 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import os
 
 import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.db import parse_and_sync_to_db
 
@@ -40,6 +44,28 @@ def client():
         return TestClient(app)
 
     return create_test_client
+
+
+@pytest.fixture
+def make_dag_with_multiple_versions(dag_maker):
+    """
+    Create DAG with multiple versions
+
+    Version 1 will have 1 task, version 2 will have 2 tasks, and version 3 will have 3 tasks.
+    """
+    dag_id = "dag_with_multiple_versions"
+
+    for version_number in range(1, 4):
+        with dag_maker(dag_id) as dag:
+            for task_number in range(version_number):
+                EmptyOperator(task_id=f"task{task_number + 1}")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
+        dag_maker.create_dagrun(
+            run_id=f"run{version_number}",
+            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+            dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
+        )
 
 
 @pytest.fixture(scope="module")

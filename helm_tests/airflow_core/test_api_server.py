@@ -39,9 +39,9 @@ class TestAPIServerDeployment:
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
-        values = {"apiServer": {}}
+        values = {"_apiServer": {}}
         if revision_history_limit:
-            values["apiServer"]["revisionHistoryLimit"] = revision_history_limit
+            values["_apiServer"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
             values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
@@ -54,7 +54,7 @@ class TestAPIServerDeployment:
     def test_should_add_scheme_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "livenessProbe": {"scheme": "HTTPS"},
                     "readinessProbe": {"scheme": "HTTPS"},
                     "startupProbe": {"scheme": "HTTPS"},
@@ -77,7 +77,7 @@ class TestAPIServerDeployment:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "apiServer": {
+                "_apiServer": {
                     "extraContainers": [
                         {"name": "{{.Chart.Name}}", "image": "test-registry/test-repo:test-tag"}
                     ],
@@ -94,7 +94,7 @@ class TestAPIServerDeployment:
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                 },
             },
@@ -108,7 +108,7 @@ class TestAPIServerDeployment:
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
                     "extraVolumeMounts": [
                         {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
@@ -146,7 +146,7 @@ class TestAPIServerDeployment:
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "waitForMigrations": {
                         "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                     },
@@ -171,7 +171,7 @@ class TestAPIServerDeployment:
     def test_disable_wait_for_migration(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "waitForMigrations": {"enabled": False},
                 },
             },
@@ -185,7 +185,7 @@ class TestAPIServerDeployment:
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "extraInitContainers": [
                         {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
                     ],
@@ -202,7 +202,7 @@ class TestAPIServerDeployment:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -215,7 +215,7 @@ class TestAPIServerDeployment:
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "affinity": {
                         "nodeAffinity": {
                             "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -300,7 +300,7 @@ class TestAPIServerDeployment:
         }
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "affinity": expected_affinity,
                     "tolerations": [
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
@@ -412,7 +412,7 @@ class TestAPIServerDeployment:
     def testapi_server_resources_are_configurable(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "resources": {
                         "limits": {"cpu": "200m", "memory": "128Mi"},
                         "requests": {"cpu": "300m", "memory": "169Mi"},
@@ -447,7 +447,7 @@ class TestAPIServerDeployment:
     def test_api_server_security_contexts_are_configurable(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "securityContexts": {
                         "pod": {
                             "fsGroup": 1000,
@@ -480,7 +480,7 @@ class TestAPIServerDeployment:
         with pytest.raises(CalledProcessError, match="Additional property securityContext is not allowed"):
             render_chart(
                 values={
-                    "apiServer": {
+                    "_apiServer": {
                         "securityContext": {
                             "fsGroup": 1000,
                             "runAsGroup": 1001,
@@ -518,7 +518,7 @@ class TestAPIServerDeployment:
     )
     def test_update_strategy(self, airflow_version, strategy, expected_strategy):
         docs = render_chart(
-            values={"airflowVersion": airflow_version, "apiServer": {"strategy": expected_strategy}},
+            values={"airflowVersion": airflow_version, "_apiServer": {"strategy": expected_strategy}},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
@@ -540,7 +540,7 @@ class TestAPIServerDeployment:
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
-            values={"apiServer": {"command": command, "args": args}},
+            values={"_apiServer": {"command": command, "args": args}},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
@@ -550,7 +550,7 @@ class TestAPIServerDeployment:
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "command": ["{{ .Release.Name }}"],
                     "args": ["{{ .Release.Service }}"],
                 }
@@ -563,7 +563,7 @@ class TestAPIServerDeployment:
 
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(
-            values={"apiServer": {"annotations": {"test_annotation": "test_annotation_value"}}},
+            values={"_apiServer": {"annotations": {"test_annotation": "test_annotation_value"}}},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
@@ -571,7 +571,7 @@ class TestAPIServerDeployment:
 
     def test_api_server_pod_hostaliases(self):
         docs = render_chart(
-            values={"apiServer": {"hostAliases": [{"ip": "127.0.0.1", "hostnames": ["foo.local"]}]}},
+            values={"_apiServer": {"hostAliases": [{"ip": "127.0.0.1", "hostnames": ["foo.local"]}]}},
             show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
@@ -600,8 +600,8 @@ class TestAPIServerService:
     def test_overrides(self):
         docs = render_chart(
             values={
-                "ports": {"apiServer": 9000},
-                "apiServer": {
+                "ports": {"_apiServer": 9000},
+                "_apiServer": {
                     "service": {
                         "type": "LoadBalancer",
                         "loadBalancerIP": "127.0.0.1",
@@ -628,7 +628,7 @@ class TestAPIServerService:
                     {
                         "name": "{{ .Release.Name }}",
                         "protocol": "UDP",
-                        "port": "{{ .Values.ports.apiServer }}",
+                        "port": "{{ .Values.ports._apiServer }}",
                     }
                 ],
                 [{"name": "release-name", "protocol": "UDP", "port": 9091}],
@@ -636,7 +636,7 @@ class TestAPIServerService:
             ([{"name": "only_sidecar", "port": "{{ int 9000 }}"}], [{"name": "only_sidecar", "port": 9000}]),
             (
                 [
-                    {"name": "api-server", "port": "{{ .Values.ports.apiServer }}"},
+                    {"name": "api-server", "port": "{{ .Values.ports._apiServer }}"},
                     {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
                 ],
                 [
@@ -648,7 +648,7 @@ class TestAPIServerService:
     )
     def test_ports_overrides(self, ports, expected_ports):
         docs = render_chart(
-            values={"apiServer": {"service": {"ports": ports}}},
+            values={"_apiServer": {"service": {"ports": ports}}},
             show_only=["templates/api-server/api-server-service.yaml"],
         )
 
@@ -656,7 +656,7 @@ class TestAPIServerService:
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
-            values={"apiServer": {"labels": {"test_label": "test_label_value"}}},
+            values={"_apiServer": {"labels": {"test_label": "test_label_value"}}},
             show_only=["templates/api-server/api-server-service.yaml"],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
@@ -677,7 +677,7 @@ class TestAPIServerService:
     )
     def test_nodeport_service(self, ports, expected_ports):
         docs = render_chart(
-            values={"apiServer": {"service": {"type": "NodePort", "ports": ports}}},
+            values={"_apiServer": {"service": {"type": "NodePort", "ports": ports}}},
             show_only=["templates/api-server/api-server-service.yaml"],
         )
 
@@ -698,7 +698,7 @@ class TestAPIServerNetworkPolicy:
         docs = render_chart(
             values={
                 "networkPolicies": {"enabled": True},
-                "apiServer": {
+                "_apiServer": {
                     "networkPolicy": {
                         "ingress": {
                             "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
@@ -722,7 +722,7 @@ class TestAPIServerNetworkPolicy:
             ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
                 [
-                    {"port": "{{ .Values.ports.apiServer }}"},
+                    {"port": "{{ .Values.ports._apiServer }}"},
                     {"port": 80},
                 ],
                 [
@@ -736,7 +736,7 @@ class TestAPIServerNetworkPolicy:
         docs = render_chart(
             values={
                 "networkPolicies": {"enabled": True},
-                "apiServer": {
+                "_apiServer": {
                     "networkPolicy": {
                         "ingress": {
                             "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}],
@@ -754,7 +754,7 @@ class TestAPIServerNetworkPolicy:
         docs = render_chart(
             values={
                 "networkPolicies": {"enabled": True},
-                "apiServer": {
+                "_apiServer": {
                     "labels": {"test_label": "test_label_value"},
                 },
             },
@@ -770,7 +770,7 @@ class TestAPIServerServiceAccount:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "serviceAccount": {"create": True},
                     "labels": {"test_label": "test_label_value"},
                 },
@@ -783,7 +783,7 @@ class TestAPIServerServiceAccount:
     def test_default_automount_service_account_token(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "serviceAccount": {"create": True},
                 },
             },
@@ -794,7 +794,7 @@ class TestAPIServerServiceAccount:
     def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
-                "apiServer": {
+                "_apiServer": {
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },

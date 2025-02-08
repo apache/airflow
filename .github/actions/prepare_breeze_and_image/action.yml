@@ -46,12 +46,6 @@ runs:
       with:
         use-uv: ${{ inputs.use-uv }}
       id: breeze
-    - name: Check free space
-      run: df -H
-      shell: bash
-    - name: Make /mnt/ directory writeable
-      run: sudo chown -R ${USER} /mnt
-      shell: bash
     - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
       uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:

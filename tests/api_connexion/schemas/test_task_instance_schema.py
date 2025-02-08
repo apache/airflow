@@ -27,7 +27,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.models import TaskInstance as TI
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -87,6 +87,7 @@ class TestTaskInstanceSchema:
             "priority_weight": 1,
             "queue": "default_queue",
             "queued_when": None,
+            "scheduled_when": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "TEST_TASK_ID",

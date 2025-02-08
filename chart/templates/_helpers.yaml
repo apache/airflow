@@ -620,8 +620,8 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 
 {{/* Create the name of the API server service account to use */}}
-{{- define "apiServer.serviceAccountName" -}}
-  {{- include "_serviceAccountName" (merge (dict "key" "apiServer" "nameSuffix" "api-server" ) .) -}}
+{{- define "_apiServer.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "_apiServer" "nameSuffix" "api-server" ) .) -}}
 {{- end }}
 
 {{/* Create the name of the redis service account to use */}}

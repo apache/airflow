@@ -30,17 +30,18 @@ from sqlalchemy.sql import select
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
-    DagRun,
     PrevSuccessfulDagRunResponse,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
     TIRunContext,
+    TIRuntimeCheckPayload,
     TIStateUpdate,
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
+from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
@@ -64,6 +65,7 @@ log = logging.getLogger(__name__)
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
     },
+    response_model_exclude_unset=True,
 )
 def ti_run(
     task_instance_id: UUID, ti_run_payload: Annotated[TIEnterRunningPayload, Body()], session: SessionDep
@@ -142,11 +144,13 @@ def ti_run(
                 DR.dag_id,
                 DR.data_interval_start,
                 DR.data_interval_end,
+                DR.run_after,
                 DR.start_date,
                 DR.end_date,
                 DR.run_type,
                 DR.conf,
                 DR.logical_date,
+                DR.external_trigger,
             ).filter_by(dag_id=dag_id, run_id=run_id)
         ).one_or_none()
 
@@ -168,7 +172,7 @@ def ti_run(
             )
 
         return TIRunContext(
-            dag_run=DagRun.model_validate(dr, from_attributes=True),
+            dag_run=dr,
             max_tries=max_tries,
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],
@@ -440,6 +444,46 @@ def get_previous_successful_dagrun(
         return PrevSuccessfulDagRunResponse()
 
     return PrevSuccessfulDagRunResponse.model_validate(dag_run)
+
+
+@router.post(
+    "/{task_instance_id}/runtime-checks",
+    status_code=status.HTTP_204_NO_CONTENT,
+    # TODO: Add description to the operation
+    # TODO: Add Operation ID to control the function name in the OpenAPI spec
+    # TODO: Do we need to use create_openapi_http_exception_doc here?
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"description": "Task Instance failed the runtime checks."},
+        status.HTTP_409_CONFLICT: {
+            "description": "Task Instance isn't in a running state. Cannot perform runtime checks."
+        },
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+            "description": "Invalid payload for requested runtime checks on the Task Instance."
+        },
+    },
+)
+def ti_runtime_checks(
+    task_instance_id: UUID,
+    payload: TIRuntimeCheckPayload,
+    session: SessionDep,
+):
+    ti_id_str = str(task_instance_id)
+    task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
+    if task_instance.state != State.RUNNING:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT)
+
+    try:
+        TI.validate_inlet_outlet_assets_activeness(payload.inlets, payload.outlets, session)  # type: ignore
+    except AirflowInactiveAssetInInletOrOutletException as e:
+        log.error("Task Instance %s fails the runtime checks.", ti_id_str)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "validation_failed",
+                "message": "Task Instance fails the runtime checks",
+                "error": str(e),
+            },
+        )
 
 
 def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:

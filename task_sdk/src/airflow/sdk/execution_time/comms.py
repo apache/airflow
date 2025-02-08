@@ -60,6 +60,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRunContext,
+    TIRuntimeCheckPayload,
     TISuccessStatePayload,
     VariableResponse,
     XComResponse,
@@ -118,6 +119,11 @@ class XComResult(XComResponse):
         return cls(**xcom_response.model_dump())
 
 
+class XComCountResponse(BaseModel):
+    len: int
+    type: Literal["XComLengthResponse"] = "XComLengthResponse"
+
+
 class ConnectionResult(ConnectionResponse):
     type: Literal["ConnectionResult"] = "ConnectionResult"
 
@@ -169,6 +175,11 @@ class ErrorResponse(BaseModel):
     type: Literal["ErrorResponse"] = "ErrorResponse"
 
 
+class OKResponse(BaseModel):
+    ok: bool
+    type: Literal["OKResponse"] = "OKResponse"
+
+
 ToTask = Annotated[
     Union[
         AssetResult,
@@ -178,6 +189,8 @@ ToTask = Annotated[
         StartupDetails,
         VariableResult,
         XComResult,
+        XComCountResponse,
+        OKResponse,
     ],
     Field(discriminator="type"),
 ]
@@ -220,6 +233,10 @@ class RescheduleTask(TIRescheduleStatePayload):
     type: Literal["RescheduleTask"] = "RescheduleTask"
 
 
+class RuntimeCheckOnTask(TIRuntimeCheckPayload):
+    type: Literal["RuntimeCheckOnTask"] = "RuntimeCheckOnTask"
+
+
 class GetXCom(BaseModel):
     key: str
     dag_id: str
@@ -227,6 +244,16 @@ class GetXCom(BaseModel):
     task_id: str
     map_index: int | None = None
     type: Literal["GetXCom"] = "GetXCom"
+
+
+class GetXComCount(BaseModel):
+    """Get the number of (mapped) XCom values available."""
+
+    key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    type: Literal["GetNumberXComs"] = "GetNumberXComs"
 
 
 class SetXCom(BaseModel):
@@ -257,6 +284,7 @@ class SetXCom(BaseModel):
     run_id: str
     task_id: str
     map_index: int | None = None
+    mapped_length: int | None = None
     type: Literal["SetXCom"] = "SetXCom"
 
 
@@ -312,11 +340,13 @@ ToSupervisor = Annotated[
         GetPrevSuccessfulDagRun,
         GetVariable,
         GetXCom,
+        GetXComCount,
         PutVariable,
         RescheduleTask,
         SetRenderedFields,
         SetXCom,
         TaskState,
+        RuntimeCheckOnTask,
     ],
     Field(discriminator="type"),
 ]

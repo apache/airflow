@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import collections.abc
 import contextlib
 import hashlib
 import itertools
@@ -31,6 +30,7 @@ from collections.abc import Collection, Generator, Iterable, Mapping
 from datetime import timedelta
 from enum import Enum
 from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import quote
 
@@ -97,7 +97,6 @@ from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
-from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
@@ -106,6 +105,7 @@ from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
@@ -158,7 +158,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
-    from airflow.typing_compat import Literal, TypeGuard
+    from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
 
@@ -256,7 +256,10 @@ def _run_raw_task(
         context = ti.get_template_context(ignore_param_exceptions=False, session=session)
 
         try:
-            ti._validate_inlet_outlet_assets_activeness(session=session)
+            if ti.task:
+                inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+                outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
+                TaskInstance.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
             if not mark_success:
                 TaskInstance._execute_task_with_callbacks(
                     self=ti,  # type: ignore[arg-type]
@@ -566,39 +569,6 @@ def _xcom_pull(
     default: Any = None,
     run_id: str | None = None,
 ) -> Any:
-    """
-    Pull XComs that optionally meet certain criteria.
-
-    :param key: A key for the XCom. If provided, only XComs with matching
-        keys will be returned. The default key is ``'return_value'``, also
-        available as constant ``XCOM_RETURN_KEY``. This key is automatically
-        given to XComs returned by tasks (as opposed to being pushed
-        manually). To remove the filter, pass *None*.
-    :param task_ids: Only XComs from tasks with matching ids will be
-        pulled. Pass *None* to remove the filter.
-    :param dag_id: If provided, only pulls XComs from this DAG. If *None*
-        (default), the DAG of the calling task is used.
-    :param map_indexes: If provided, only pull XComs with matching indexes.
-        If *None* (default), this is inferred from the task(s) being pulled
-        (see below for details).
-    :param include_prior_dates: If False, only XComs from the current
-        logical_date are returned. If *True*, XComs from previous dates
-        are returned as well.
-    :param run_id: If provided, only pulls XComs from a DagRun w/a matching run_id.
-        If *None* (default), the run_id of the calling task is used.
-
-    When pulling one single task (``task_id`` is *None* or a str) without
-    specifying ``map_indexes``, the return value is inferred from whether
-    the specified task is mapped. If not, value from the one single task
-    instance is returned. If the task to pull is mapped, an iterator (not a
-    list) yielding XComs from mapped task instances is returned. In either
-    case, ``default`` (*None* if not specified) is returned if no matching
-    XComs are found.
-
-    When pulling multiple tasks (i.e. either ``task_id`` or ``map_index`` is
-    a non-str iterable), a list of matching XComs is returned. Elements in
-    the list is ordered by item ordering in ``task_id`` and ``map_index``.
-    """
     if dag_id is None:
         dag_id = ti.dag_id
     if run_id is None:
@@ -627,11 +597,10 @@ def _xcom_pull(
             return default
         if map_indexes is not None or first.map_index < 0:
             return XCom.deserialize_value(first)
-        return LazyXComSelectSequence.from_select(
-            query.with_entities(XCom.value).order_by(None).statement,
-            order_by=[XCom.map_index],
-            session=session,
-        )
+
+        # raise RuntimeError("Nothing should hit this anymore")
+
+    # TODO: TaskSDK: We should remove this, but many tests still currently call `ti.run()`. See #45549
 
     # At this point either task_ids or map_indexes is explicitly multi-value.
     # Order return values to match task_ids and map_indexes ordering.
@@ -658,20 +627,6 @@ def _xcom_pull(
         order_by=ordering,
         session=session,
     )
-
-
-def _is_mappable_value(value: Any) -> TypeGuard[Collection]:
-    """
-    Whether a value can be used for task mapping.
-
-    We only allow collections with guaranteed ordering, but exclude character
-    sequences since that's usually not what users would expect to be mappable.
-    """
-    if not isinstance(value, (collections.abc.Sequence, dict)):
-        return False
-    if isinstance(value, (bytearray, bytes, str)):
-        return False
-    return True
 
 
 def _creator_note(val):
@@ -816,6 +771,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.operator = source.operator
     target.custom_operator_name = source.custom_operator_name
     target.queued_dttm = source.queued_dttm
+    target.scheduled_dttm = source.scheduled_dttm
     target.queued_by_job_id = source.queued_by_job_id
     target.last_heartbeat_at = source.last_heartbeat_at
     target.pid = source.pid
@@ -1041,14 +997,18 @@ def _get_template_context(
         )
         context["expanded_ti_count"] = expanded_ti_count
         if expanded_ti_count:
-            context["_upstream_map_indexes"] = {  # type: ignore[typeddict-unknown-key]
-                upstream.task_id: task_instance.get_relevant_upstream_map_indexes(
-                    upstream,
-                    expanded_ti_count,
-                    session=session,
-                )
-                for upstream in task.upstream_list
-            }
+            setattr(
+                task_instance,
+                "_upstream_map_indexes",
+                {
+                    upstream.task_id: task_instance.get_relevant_upstream_map_indexes(
+                        upstream,
+                        expanded_ti_count,
+                        session=session,
+                    )
+                    for upstream in task.upstream_list
+                },
+            )
     except NotMapped:
         pass
 
@@ -1199,7 +1159,7 @@ def _record_task_map_for_downstreams(
 
     :meta private:
     """
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator, is_mappable_value
 
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
@@ -1211,7 +1171,7 @@ def _record_task_map_for_downstreams(
         return
     if value is None:
         raise XComForMappingNotPushed()
-    if not _is_mappable_value(value):
+    if not is_mappable_value(value):
         raise UnmappableXComTypePushed(value)
     task_map = TaskMap.from_task_instance_xcom(task_instance, value)
     max_map_length = conf.getint("core", "max_map_length", fallback=1024)
@@ -1585,6 +1545,7 @@ class TaskInstance(Base, LoggingMixin):
     operator = Column(String(1000))
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
+    scheduled_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
 
     last_heartbeat_at = Column(UtcDateTime)
@@ -1820,7 +1781,9 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             raise ValueError("DagModel is empty")
 
-        path = dag.relative_fileloc
+        path = None
+        if dag.relative_fileloc:
+            path = Path(dag.relative_fileloc)
 
         if path:
             if not path.is_absolute():
@@ -2576,23 +2539,24 @@ class TaskInstance(Base, LoggingMixin):
             timing = timezone.utcnow() - self.queued_dttm
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
-            if self.start_date is None:
-                # This check does not work correctly before fields like `scheduled_dttm` are implemented.
-                # TODO: Change the level to WARNING once it's viable.
-                # see #30612 #34493 and #34771 for more details
-                self.log.debug(
+            if self.scheduled_dttm is None:
+                self.log.warning(
                     "cannot record %s for task %s because previous state change time has not been saved",
                     metric_name,
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.start_date
+            timing = timezone.utcnow() - self.scheduled_dttm
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
         # send metric twice, once (legacy) with tags in the name and once with tags as tags
         Stats.timing(f"dag.{self.dag_id}.{self.task_id}.{metric_name}", timing)
-        Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
+        Stats.timing(
+            f"task.{metric_name}",
+            timing,
+            tags={"task_id": self.task_id, "dag_id": self.dag_id, "queue": self.queue},
+        )
 
     def clear_next_method_args(self) -> None:
         """Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them."""
@@ -3146,7 +3110,7 @@ class TaskInstance(Base, LoggingMixin):
 
         try:
             # If we get here, either the task hasn't run or the RTIF record was purged.
-            from airflow.utils.log.secrets_masker import redact
+            from airflow.sdk.execution_time.secrets_masker import redact
 
             self.render_templates()
             for field_name in self.task.template_fields:
@@ -3239,39 +3203,8 @@ class TaskInstance(Base, LoggingMixin):
         default: Any = None,
         run_id: str | None = None,
     ) -> Any:
-        """
-        Pull XComs that optionally meet certain criteria.
-
-        :param key: A key for the XCom. If provided, only XComs with matching
-            keys will be returned. The default key is ``'return_value'``, also
-            available as constant ``XCOM_RETURN_KEY``. This key is automatically
-            given to XComs returned by tasks (as opposed to being pushed
-            manually). To remove the filter, pass *None*.
-        :param task_ids: Only XComs from tasks with matching ids will be
-            pulled. Pass *None* to remove the filter.
-        :param dag_id: If provided, only pulls XComs from this DAG. If *None*
-            (default), the DAG of the calling task is used.
-        :param map_indexes: If provided, only pull XComs with matching indexes.
-            If *None* (default), this is inferred from the task(s) being pulled
-            (see below for details).
-        :param include_prior_dates: If False, only XComs from the current
-            logical_date are returned. If *True*, XComs from previous dates
-            are returned as well.
-        :param run_id: If provided, only pulls XComs from a DagRun w/a matching run_id.
-            If *None* (default), the run_id of the calling task is used.
-
-        When pulling one single task (``task_id`` is *None* or a str) without
-        specifying ``map_indexes``, the return value is inferred from whether
-        the specified task is mapped. If not, value from the one single task
-        instance is returned. If the task to pull is mapped, an iterator (not a
-        list) yielding XComs from mapped task instances is returned. In either
-        case, ``default`` (*None* if not specified) is returned if no matching
-        XComs are found.
-
-        When pulling multiple tasks (i.e. either ``task_id`` or ``map_index`` is
-        a non-str iterable), a list of matching XComs is returned. Elements in
-        the list is ordered by item ordering in ``task_id`` and ``map_index``.
-        """
+        """:meta private:"""  # noqa: D400
+        # This is only kept for compatibility in tests for now while AIP-72 is in progress.
         return _xcom_pull(
             ti=self,
             task_ids=task_ids,
@@ -3568,16 +3501,20 @@ class TaskInstance(Base, LoggingMixin):
             }
         )
 
-    def _validate_inlet_outlet_assets_activeness(self, session: Session) -> None:
-        if not self.task or not (self.task.outlets or self.task.inlets):
+    @staticmethod
+    def validate_inlet_outlet_assets_activeness(
+        inlets: list[AssetProfile], outlets: list[AssetProfile], session: Session
+    ) -> None:
+        if not (inlets or outlets):
             return
 
         all_asset_unique_keys = {
-            AssetUniqueKey.from_asset(inlet_or_outlet)
-            for inlet_or_outlet in itertools.chain(self.task.inlets, self.task.outlets)
-            if isinstance(inlet_or_outlet, Asset)
+            AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
+            for inlet_or_outlet in itertools.chain(inlets, outlets)
         }
-        inactive_asset_unique_keys = self._get_inactive_asset_unique_keys(all_asset_unique_keys, session)
+        inactive_asset_unique_keys = TaskInstance._get_inactive_asset_unique_keys(
+            all_asset_unique_keys, session
+        )
         if inactive_asset_unique_keys:
             raise AirflowInactiveAssetInInletOrOutletException(inactive_asset_unique_keys)
 

@@ -42,7 +42,6 @@ import pytest
 from slugify import slugify
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.decorators import task_group
 from airflow.exceptions import (
     AirflowException,
     DeserializingResultError,
@@ -50,7 +49,7 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
     BranchPythonOperator,
@@ -91,8 +90,6 @@ DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not insta
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
-AIRFLOW_CONTEXT_NOT_IMPLEMENTED_YET_MESSAGE = r"The `use_airflow_context=True` is not yet implemented."
-
 
 class BasePythonTest:
     """Base test class for TestPythonOperator and TestPythonSensor classes"""
@@ -112,8 +109,12 @@ class BasePythonTest:
         self.run_id = f"run_{slugify(request.node.name, max_length=40)}"
         self.ds_templated = self.default_date.date().isoformat()
         self.ti_maker = create_serialized_task_instance_of_operator
+
         self.dag_maker = dag_maker
         self.dag_non_serialized = self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH).dag
+        # We need to entre the context in order to the factory to create things
+        with self.dag_maker:
+            ...
         clear_db_runs()
         yield
         clear_db_runs()
@@ -140,6 +141,10 @@ class BasePythonTest:
         return kwargs
 
     def create_dag_run(self) -> DagRun:
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        # Update the serialized DAG with any tasks added after initial dag was created
+        self.dag_maker.serialized_model = SerializedDagModel(self.dag_non_serialized)
         return self.dag_maker.create_dagrun(
             state=DagRunState.RUNNING,
             start_date=self.dag_maker.start_date,
@@ -755,39 +760,6 @@ class TestShortCircuitOperator(BasePythonTest):
             "skipped": ["empty_task"]
         }
 
-    def test_mapped_xcom_push_skipped_tasks(self, session):
-        with self.dag_non_serialized:
-
-            @task_group
-            def group(x):
-                short_op_push_xcom = ShortCircuitOperator(
-                    task_id="push_xcom_from_shortcircuit",
-                    python_callable=lambda arg: arg % 2 == 0,
-                    op_kwargs={"arg": x},
-                )
-                empty_task = EmptyOperator(task_id="empty_task")
-                short_op_push_xcom >> empty_task
-
-            group.expand(x=[0, 1])
-        dr = self.create_dag_run()
-        decision = dr.task_instance_scheduling_decisions(session=session)
-        for ti in decision.schedulable_tis:
-            ti.run()
-        # dr.run(start_date=self.default_date, end_date=self.default_date)
-        tis = dr.get_task_instances()
-
-        assert (
-            tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="return_value", map_indexes=0)
-            is True
-        )
-        assert (
-            tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=0)
-            is None
-        )
-        assert tis[0].xcom_pull(
-            task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=1
-        ) == {"skipped": ["group.empty_task"]}
-
 
 virtualenv_string_args: list[str] = []
 
@@ -1041,91 +1013,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
         task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
         assert task.execute_callable() == "EFGHI"
-
-    def test_current_context(self):
-        def f():
-            from airflow.providers.standard.operators.python import get_current_context
-
-            try:
-                from airflow.sdk.definitions.context import Context
-            except ImportError:
-                # TODO: Remove once provider drops support for Airflow 2
-                from airflow.utils.context import Context
-
-            context = get_current_context()
-            if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}:{context!r}"
-                raise TypeError(error_msg)
-
-            return []
-
-        # TODO: replace with commented code when context serialization is implemented in AIP-72
-        with pytest.raises(Exception, match=AIRFLOW_CONTEXT_NOT_IMPLEMENTED_YET_MESSAGE):
-            self.run_as_task(f, return_ti=True, use_airflow_context=True)
-
-        # ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-        # assert ti.state == TaskInstanceState.SUCCESS
-
-    def test_current_context_not_found_error(self):
-        def f():
-            from airflow.providers.standard.operators.python import get_current_context
-
-            get_current_context()
-            return []
-
-        with pytest.raises(
-            AirflowException,
-            match="Current context was requested but no context was found! "
-            "Are you running within an Airflow task?",
-        ):
-            self.run_as_task(f, return_ti=True, use_airflow_context=False)
-
-    def test_current_context_airflow_not_found_error(self):
-        airflow_flag: dict[str, bool] = {"expect_airflow": False}
-
-        error_msg = r"The `use_airflow_context` parameter is set to True, but expect_airflow is set to False."
-
-        if not issubclass(self.opcls, ExternalPythonOperator):
-            airflow_flag["system_site_packages"] = False
-            error_msg = (
-                r"The `use_airflow_context` parameter is set to True, but "
-                r"expect_airflow and system_site_packages are set to False."
-            )
-
-        def f():
-            from airflow.providers.standard.operators.python import get_current_context
-
-            get_current_context()
-            return []
-
-        with pytest.raises(AirflowException, match=error_msg):
-            self.run_as_task(
-                f, return_ti=True, multiple_outputs=False, use_airflow_context=True, **airflow_flag
-            )
-
-    def test_use_airflow_context_touch_other_variables(self):
-        def f():
-            from airflow.providers.standard.operators.python import get_current_context
-
-            try:
-                from airflow.sdk.definitions.context import Context
-            except ImportError:
-                # TODO: Remove once provider drops support for Airflow 2
-                from airflow.utils.context import Context
-
-            context = get_current_context()
-            if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}:{context!r}"
-                raise TypeError(error_msg)
-
-            return []
-
-        # TODO: replace with commented code when context serialization is implemented in AIP-72
-        with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_NOT_IMPLEMENTED_YET_MESSAGE):
-            self.run_as_task(f, return_ti=True, use_airflow_context=True)
-
-        # ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-        # assert ti.state == TaskInstanceState.SUCCESS
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
@@ -1486,45 +1373,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
-    def test_current_context_system_site_packages(self, session):
-        def f():
-            from airflow.providers.standard.operators.python import get_current_context
-
-            try:
-                from airflow.sdk.definitions.context import Context
-            except ImportError:
-                # TODO: Remove once provider drops support for Airflow 2
-                from airflow.utils.context import Context
-
-            context = get_current_context()
-            if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}:{context!r}"
-                raise TypeError(error_msg)
-
-            return []
-
-        # TODO: replace with commented code when context serialization is implemented in AIP-72
-        with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_NOT_IMPLEMENTED_YET_MESSAGE):
-            self.run_as_task(
-                f,
-                return_ti=True,
-                use_airflow_context=True,
-                session=session,
-                expect_airflow=False,
-                system_site_packages=True,
-            )
-
-        # ti = self.run_as_task(
-        #     f,
-        #     return_ti=True,
-        #     multiple_outputs=False,
-        #     use_airflow_context=True,
-        #     session=session,
-        #     expect_airflow=False,
-        #     system_site_packages=True,
-        # )
-        # assert ti.state == TaskInstanceState.SUCCESS
-
 
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
@@ -1853,45 +1701,6 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
             if "venv_cache_path" not in kwargs:
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
-
-    def test_current_context_system_site_packages(self, session):
-        def f():
-            from airflow.providers.standard.operators.python import get_current_context
-
-            try:
-                from airflow.sdk.definitions.context import Context
-            except ImportError:
-                # TODO: Remove once provider drops support for Airflow 2
-                from airflow.utils.context import Context
-
-            context = get_current_context()
-            if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}:{context!r}"
-                raise TypeError(error_msg)
-
-            return []
-
-        # TODO: replace with commented code when context serialization is implemented in AIP-72
-        with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_NOT_IMPLEMENTED_YET_MESSAGE):
-            self.run_as_task(
-                f,
-                return_ti=True,
-                use_airflow_context=True,
-                session=session,
-                expect_airflow=False,
-                system_site_packages=True,
-            )
-
-        # ti = self.run_as_task(
-        #     f,
-        #     return_ti=True,
-        #     multiple_outputs=False,
-        #     use_airflow_context=True,
-        #     session=session,
-        #     expect_airflow=False,
-        #     system_site_packages=True,
-        # )
-        # assert ti.state == TaskInstanceState.SUCCESS
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take

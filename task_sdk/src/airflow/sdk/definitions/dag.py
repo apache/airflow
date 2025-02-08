@@ -51,12 +51,12 @@ from airflow.exceptions import (
     ParamValidationError,
     TaskNotFound,
 )
-from airflow.models.param import DagParam, ParamsDict
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions.context import Context
+from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -359,6 +359,13 @@ class DAG:
     # argument "description" in call to "DAG"`` etc), so for init=True args we use the `default=Factory()`
     # style
 
+    def __rich_repr__(self):
+        yield "dag_id", self.dag_id
+        yield "schedule", self.schedule
+        yield "#tasks", len(self.tasks)
+
+    __rich_repr__.angular = True  # type: ignore[attr-defined]
+
     # NOTE: When updating arguments here, please also keep arguments in @dag()
     # below in sync. (Search for 'def dag(' in this file.)
     dag_id: str = attrs.field(kw_only=False, validator=attrs.validators.instance_of(str))
@@ -426,6 +433,7 @@ class DAG:
     )
 
     fileloc: str = attrs.field(init=False, factory=_default_fileloc)
+    relative_fileloc: str | None = attrs.field(init=False, default=None)
     partial: bool = attrs.field(init=False, default=False)
 
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(init=False, factory=dict)

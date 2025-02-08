@@ -281,6 +281,7 @@ class Trigger(Base):
             task_instance.trigger_id = None
             # Finally, mark it as scheduled so it gets re-queued
             task_instance.state = TaskInstanceState.SCHEDULED
+            task_instance.scheduled_dttm = timezone.utcnow()
 
     @classmethod
     @provide_session

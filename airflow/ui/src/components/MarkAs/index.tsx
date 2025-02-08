@@ -18,3 +18,4 @@
  */
 
 export { default as MarkRunAsButton } from "./Run";
+export { default as MarkTaskInstanceAsButton } from "./TaskInstance";
