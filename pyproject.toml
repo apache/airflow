@@ -641,6 +641,7 @@ dev = [
   "local-providers",
   "apache-airflow-providers-airbyte",
   "apache-airflow-providers-alibaba",
+  "apache-airflow-providers-amazon",
   "apache-airflow-providers-apache-beam",
   "apache-airflow-providers-apache-cassandra",
   "apache-airflow-providers-apache-drill",
@@ -740,6 +741,7 @@ dev = [
 local-providers = { workspace = true }
 apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
+apache-airflow-providers-amazon = { workspace = true }
 apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
@@ -837,6 +839,7 @@ members = [
     "providers",
     "providers/airbyte",
     "providers/alibaba",
+    "providers/amazon",
     "providers/apache/beam",
     "providers/apache/cassandra",
     "providers/apache/drill",

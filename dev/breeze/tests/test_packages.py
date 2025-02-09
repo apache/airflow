@@ -37,7 +37,6 @@ from airflow_breeze.utils.packages import (
     get_old_source_providers_package_path,
     get_pip_package_name,
     get_provider_info_dict,
-    get_provider_jinja_context,
     get_provider_requirements,
     get_removed_provider_ids,
     get_short_package_name,
@@ -379,38 +378,5 @@ def test_get_provider_info_dict():
     assert len(provider_info_dict["notifications"]) > 2
     assert len(provider_info_dict["secrets-backends"]) > 1
     assert len(provider_info_dict["logging"]) > 1
-    assert len(provider_info_dict["additional-extras"]) > 3
     assert len(provider_info_dict["config"].keys()) > 1
     assert len(provider_info_dict["executors"]) > 0
-
-
-# TODO(potiuk) - remove when all providers are new-style
-def test_old_provider_jinja_context():
-    provider_info = get_provider_info_dict("amazon")
-    version = provider_info["versions"][0]
-    context = get_provider_jinja_context(
-        provider_id="amazon", current_release_version=version, version_suffix="rc1"
-    )
-    expected = {
-        "PROVIDER_ID": "amazon",
-        "PACKAGE_PIP_NAME": "apache-airflow-providers-amazon",
-        "PACKAGE_DIST_PREFIX": "apache_airflow_providers_amazon",
-        "FULL_PACKAGE_NAME": "airflow.providers.amazon",
-        "RELEASE": version,
-        "RELEASE_NO_LEADING_ZEROS": version,
-        "VERSION_SUFFIX": ".rc1",
-        "PROVIDER_DESCRIPTION": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
-        "CHANGELOG_RELATIVE_PATH": "../../providers/src/airflow/providers/amazon",
-        "SUPPORTED_PYTHON_VERSIONS": ["3.9", "3.10", "3.11", "3.12"],
-        "PLUGINS": [],
-        "MIN_AIRFLOW_VERSION": "2.9.0",
-        "PROVIDER_REMOVED": False,
-        "PROVIDER_INFO": provider_info,
-    }
-
-    for key, value in expected.items():
-        assert context[key] == value
-    assert """"google" = [
-     "apache-airflow-providers-google",
-]""" in context["EXTRAS_REQUIREMENTS"]
-    assert len(context["PIP_REQUIREMENTS"]) > 10

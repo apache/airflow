@@ -221,7 +221,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_deferrable_default.py
         pass_filenames: false
         additional_dependencies: ["libcst>=1.1.0"]
-        files: ^(providers/src/)?airflow/.*/(sensors|operators)/.*\.py$
+        files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.19.1
     hooks:
@@ -338,7 +338,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/validate_operators_init.py
         pass_filenames: true
-        files: ^providers/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
       - id: update-providers-build-files
         name: Update providers build files
@@ -460,7 +460,7 @@ repos:
         description: Check dependency of SQL Providers with common data structure
         entry: ./scripts/ci/pre_commit/check_common_sql_dependency.py
         language: python
-        files: ^providers/src/airflow/providers/.*/hooks/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*/hooks/.*\.py$
         additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'packaging']
       - id: update-providers-dependencies
         name: Update dependencies for provider packages
@@ -559,10 +559,10 @@ repos:
           .*https://github.*[0-9]/providers/tests/system/|
           .*https://github.*/main/providers/tests/system/|
           .*https://github.*/master/providers/tests/system/|
-          .*https://github.*/main/providers/src/airflow/providers/.*/example_dags/|
-          .*https://github.*/master/providers/src/airflow/providers/.*/example_dags/
+          .*https://github.*/main/providers/.*/src/airflow/providers/.*/example_dags/|
+          .*https://github.*/master/providers/.*/src/airflow/providers/.*/example_dags/
         pass_filenames: true
-        files: ^docs/apache-airflow-providers-.*\.rst
+        files: ^providers/.*/docs/.*\.rst
       - id: check-safe-filter-usage-in-html
         language: pygrep
         name: Don't use safe in templates
@@ -625,8 +625,8 @@ repos:
           ^airflow/operators/__init__.py$|
           ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute.py$|
           ^providers/fab/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
-          ^providers/src/airflow/providers/amazon/aws/hooks/emr.py$|
-          ^providers/src/airflow/providers/amazon/aws/operators/emr.py$|
+          ^providers/amazon/src/airflow/providers/amazon/aws/hooks/emr.py$|
+          ^providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py$|
           ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats.py$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
@@ -802,7 +802,7 @@ repos:
         name: Check if aiobotocore is an optional dependency only
         entry: ./scripts/ci/pre_commit/check_aiobotocore_optional.py
         language: python
-        files: ^providers/src/airflow/providers/.*/provider\.yaml$
+        files: ^providers/.*/provider\.yaml$
         pass_filenames: true
         additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
@@ -1112,13 +1112,13 @@ repos:
       - id: check-changelog-has-no-duplicates
         name: Check changelogs for duplicate entries
         language: python
-        files: CHANGELOG\.(rst|txt)$
+        files: changelog\.(rst|txt)$
         entry: ./scripts/ci/pre_commit/changelog_duplicates.py
         pass_filenames: true
       - id: check-changelog-format
         name: Check changelog format
         language: python
-        files: CHANGELOG\.(rst|txt)$
+        files: changelog\.(rst|txt)$
         entry: ./scripts/ci/pre_commit/check_changelog_format.py
         pass_filenames: true
       - id: check-newsfragments-are-valid
@@ -1168,7 +1168,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_system_tests_hidden_in_index.py
         language: python
         pass_filenames: true
-        files: ^docs/apache-airflow-providers-[^/]*/index\.rst$
+        files: ^providers/.*/docs/index\.rst$
         additional_dependencies: ['rich>=12.4.4', 'pyyaml']
       - id: check-lazy-logging
         name: Check that all logging methods are lazy
@@ -1415,13 +1415,14 @@ repos:
         entry: ./scripts/ci/pre_commit/check_provider_yaml_files.py
         language: python
         files: ^providers/.*/provider\.yaml$
+        exclude: ^providers/.*/.venv/.*$
         additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: check-template-fields-valid
         name: Check templated fields mapped in operators/sensors
         language: python
         entry: ./scripts/ci/pre_commit/check_template_fields.py
-        files: ^(providers/src/)?airflow/.*/(sensors|operators)/.*\.py$
+        files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
         require_serial: true
       - id: update-migration-references
