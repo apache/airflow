@@ -48,7 +48,7 @@ class TestMwaaHook:
             {"conf": {}},  # test case: non-empty body
         ],
     )
-    @mock.patch("airflow.providers.amazon.aws.hooks.mwaa.MwaaHook.get_conn")
+    @mock.patch.object(MwaaHook, "get_conn")
     def test_invoke_rest_api_success(self, mock_conn, body) -> None:
         boto_invoke_mock = mock.MagicMock(return_value=self.example_responses["success"])
         mock_conn.return_value.invoke_rest_api = boto_invoke_mock
@@ -66,7 +66,7 @@ class TestMwaaHook:
             k: v for k, v in self.example_responses["success"].items() if k != "ResponseMetadata"
         }
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.mwaa.MwaaHook.get_conn")
+    @mock.patch.object(MwaaHook, "get_conn")
     def test_invoke_rest_api_failure(self, mock_conn) -> None:
         error = ClientError(
             error_response=self.example_responses["failure"], operation_name="invoke_rest_api"
@@ -79,13 +79,13 @@ class TestMwaaHook:
         with pytest.raises(ClientError) as caught_error:
             self.hook.invoke_rest_api(ENV_NAME, PATH, METHOD)
 
+        assert caught_error.value == error
         expected_log = {
             k: v
             for k, v in self.example_responses["failure"].items()
             if k != "ResponseMetadata" and k != "Error"
         }
         mock_log.assert_called_once_with(expected_log)
-        assert caught_error.value == error
 
     @pytest.fixture(autouse=True)
     def _setup_test_cases(self):

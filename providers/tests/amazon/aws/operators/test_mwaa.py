@@ -33,7 +33,14 @@ OP_KWARGS = {
     "conf": {"key": "value"},
     "note": "test note",
 }
-RETURN_VALUE = {"RestApiCode": 200, "RestApiResponse": "test response"}
+HOOK_RETURN_VALUE = {
+    "ResponseMetadata": {},
+    "RestApiStatusCode": 200,
+    "RestApiResponse": {
+        "dag_run_id": "manual__2025-02-08T00:33:09.457198+00:00",
+        "other_key": "value",
+    },
+}
 
 
 class TestMwaaTriggerDagRunOperator:
@@ -41,18 +48,18 @@ class TestMwaaTriggerDagRunOperator:
         op = MwaaTriggerDagRunOperator(**OP_KWARGS)
         assert op.env_name == OP_KWARGS["env_name"]
         assert op.trigger_dag_id == OP_KWARGS["trigger_dag_id"]
-        assert op.trigger_run_id is OP_KWARGS["trigger_run_id"]
-        assert op.logical_date is OP_KWARGS["logical_date"]
-        assert op.data_interval_start is OP_KWARGS["data_interval_start"]
-        assert op.data_interval_end is OP_KWARGS["data_interval_end"]
+        assert op.trigger_run_id == OP_KWARGS["trigger_run_id"]
+        assert op.logical_date == OP_KWARGS["logical_date"]
+        assert op.data_interval_start == OP_KWARGS["data_interval_start"]
+        assert op.data_interval_end == OP_KWARGS["data_interval_end"]
         assert op.conf == OP_KWARGS["conf"]
-        assert op.note is OP_KWARGS["note"]
+        assert op.note == OP_KWARGS["note"]
 
     @mock.patch.object(MwaaTriggerDagRunOperator, "hook")
     def test_execute(self, mock_hook):
-        mock_hook.invoke_rest_api.return_value = RETURN_VALUE
+        mock_hook.invoke_rest_api.return_value = HOOK_RETURN_VALUE
         op = MwaaTriggerDagRunOperator(**OP_KWARGS)
-        ret_val = op.execute({})
+        op_ret_val = op.execute({})
 
         mock_hook.invoke_rest_api.assert_called_once_with(
             env_name=OP_KWARGS["env_name"],
@@ -67,7 +74,7 @@ class TestMwaaTriggerDagRunOperator:
                 "note": OP_KWARGS["note"],
             },
         )
-        assert ret_val == RETURN_VALUE
+        assert op_ret_val == HOOK_RETURN_VALUE
 
     def test_template_fields(self):
         operator = MwaaTriggerDagRunOperator(**OP_KWARGS)

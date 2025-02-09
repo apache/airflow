@@ -22,7 +22,7 @@ from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
 
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_mwaa"
 
@@ -57,7 +57,6 @@ with DAG(
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
-    env_id = test_context[ENV_ID_KEY]
     env_name = test_context[EXISTING_ENVIRONMENT_NAME_KEY]
     trigger_dag_id = test_context[EXISTING_DAG_ID_KEY]
 
