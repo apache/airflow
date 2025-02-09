@@ -359,9 +359,13 @@ def initialize_airflow_tests(request):
             sys.exit(1)
 
 
+def _find_all_deprecation_ignore_files() -> list[str]:
+    all_deprecation_ignore_files = AIRFLOW_SOURCES_ROOT_DIR.rglob("deprecations_ignore.yml")
+    return list(path.as_posix() for path in all_deprecation_ignore_files)
+
+
 def pytest_configure(config: pytest.Config) -> None:
-    # Ensure that the airflow sources dir is at the end of the sys path if it's not already there. Needed to
-    # run import from `providers/tests/`
+    # Ensure that the airflow sources dir is at the end of the sys path if it's not already there.
     if os.environ.get("USE_AIRFLOW_VERSION") == "":
         # if USE_AIRFLOW_VERSION is not empty, we are running tests against the installed version of Airflow
         # and providers so there is no need to add the sources directory to the path
@@ -380,7 +384,7 @@ def pytest_configure(config: pytest.Config) -> None:
                 f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
             )
             pytest.exit(msg, returncode=6)
-
+    config.inicfg["airflow_deprecations_ignore"] = _find_all_deprecation_ignore_files()
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
     config.addinivalue_line("markers", "system: mark test to run as system test")
@@ -1712,3 +1716,15 @@ def create_db_api_hook(request):
     test_db_hook.escape_column_names = escape_column_names or False
 
     return test_db_hook
+
+
+@pytest.fixture(autouse=True, scope="session")
+def add_providers_test_folders_to_pythonpath():
+    old_path = sys.path.copy()
+    all_provider_tests_folders: list[Path] = list(Path(__file__).parents[1].glob("providers/*/tests"))
+    all_provider_tests_folders.extend(list(Path(__file__).parents[1].glob("providers/*/*/tests")))
+    for provider in all_provider_tests_folders:
+        sys.path.append(str(provider))
+    yield
+    sys.path.clear()
+    sys.path.extend(old_path)

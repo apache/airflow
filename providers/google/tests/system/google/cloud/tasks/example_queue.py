@@ -28,6 +28,10 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.api_core.retry import Retry
+from google.cloud.tasks_v2.types import Queue
+from google.protobuf.field_mask_pb2 import FieldMask
+
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -43,9 +47,6 @@ from airflow.providers.google.cloud.operators.tasks import (
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
-from google.api_core.retry import Retry
-from google.cloud.tasks_v2.types import Queue
-from google.protobuf.field_mask_pb2 import FieldMask
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "cloud_tasks_queue"

@@ -29,6 +29,7 @@ from unittest import mock
 
 import pytest
 
+import providers.microsoft.azure.tests.provider_tests.microsoft.azure.test_utils
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.transfers.s3_to_hive import S3ToHiveOperator, uncompress_file
 
@@ -220,8 +221,8 @@ class TestS3ToHiveTransfer:
 
             # file parameter to HiveCliHook.load_file is compared
             # against expected file output
-            mock_hiveclihook().load_file.side_effect = lambda *args, **kwargs: self._load_file_side_effect(
-                args, op_fn, ext
+            providers.microsoft.azure.tests.provider_tests.microsoft.azure.test_utils.load_file.side_effect = (
+                lambda *args, **kwargs: self._load_file_side_effect(args, op_fn, ext)
             )
             # Execute S3ToHiveTransfer
             s32hive = S3ToHiveOperator(**self.kwargs)

@@ -1630,7 +1630,10 @@ def get_provider_info():
             "immutabledict>=4.2.0",
         ],
         "optional-dependencies": {
-            "apache.beam": ["apache-beam[gcp]"],
+            "apache.beam": [
+                'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
+                'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
+            ],
             "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=10.1.0"],
             "leveldb": ["plyvel>=1.5.1"],
             "oracle": ["apache-airflow-providers-oracle>=3.1.0"],

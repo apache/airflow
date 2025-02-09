@@ -135,14 +135,6 @@ In a project like airflow it's important to have a consistent set of dependencie
 You can use ``uv sync`` to install dependencies from ``pyproject.toml`` file. This will install all dependencies
 from the ``pyproject.toml`` file in the current directory.
 
-.. note::
-
-   We are currently in the process of moving providers from old structure (where all providers were under
-   ``providers/src`` directory in a package structure shared between Providers) to a new structure
-   where each provider is a separate python package in ``providers`` directory. The "old" providers support
-   will be removed once we move all the providers to the new structure.
-
-
 .. code:: bash
 
     uv sync
@@ -188,32 +180,20 @@ run tests is to use ``pip`` to install airflow dependencies:
 
 .. code:: bash
 
-    pip install -e "./providers"
     pip install -e ".[devel,devel-tests,<OTHER EXTRAS>]" # for example: pip install -e ".[devel,devel-tests,google,postgres]"
 
-This will install:
+This will install airflow in ``editable`` mode - where sources of
+Airflow are taken directly from ``airflow`` source code.
 
-* old structure provider sources in ``editabl`e` mode - where sources are read from ``providers`` folder.
-* airflow in ``editable`` mode - where sources of Airflow are taken directly from ``airflow`` source code.
-
-You need to run this command in the virtualenv you want to install Airflow in -
-and you need to have the virtualenv activated.
-
-.. note::
-
-   For the providers that are already moved (i.e. have separate folder in ``providers`` directory), instead
-   of adding extra in airflow command you need to separately install the provider in the same venv. For example
-   to install ``airbyte`` provider you can run:
+You need to run this command in the virtualenv you want to install Airflow in and you need to have the virtualenv activated.
 
    .. code:: bash
 
-       pip install -e "./providers"
        pip install -e ".[devel,devel-tests,<OTHER EXTRAS>]" # for example: pip install -e ".[devel,devel-tests,google,postgres]"
        pip install -e "./providers/airbyte[devel]"
 
    This will install:
 
-       * old structure provider sources in ``editable`` mode - where sources are read from ``providers/src`` folder
        * airflow in ``editable`` mode - where sources of Airflow are taken directly from ``airflow`` source code.
        * airbyte provider in ``editable`` mode - where sources are read from ``providers/airbyte`` folder
 

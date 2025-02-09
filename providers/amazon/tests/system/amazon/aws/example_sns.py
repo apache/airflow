@@ -19,13 +19,13 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
-from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
