@@ -178,7 +178,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
         language: python
         additional_dependencies: ['rich>=12.4.4', "ruff==0.8.1"]
-        files: ^providers/src/airflow/providers/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*\.py$
         require_serial: true
       - id: update-black-version
         name: Update black versions everywhere (manual)
@@ -312,7 +312,7 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
     rev: v1.0.0
@@ -429,7 +429,7 @@ repos:
         language: python
         files: ^airflow/.*\.py$
         require_serial: true
-        exclude: ^airflow/kubernetes/|^providers/src/airflow/providers/
+        exclude: ^providers/.*/src/airflow/providers/
         entry: ./scripts/ci/pre_commit/check_cncf_k8s_used_for_k8s_executor_only.py
         additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-provider-compatibility
@@ -437,7 +437,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_provider_airflow_compatibility.py
         language: python
         pass_filenames: true
-        files: ^providers/src/airflow/providers/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: check-google-re2-as-dependency
         name: Check google-re2 declared as dep
@@ -446,7 +446,7 @@ repos:
         language: python
         pass_filenames: true
         require_serial: true
-        files: ^providers/src/airflow/providers/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
@@ -492,7 +492,7 @@ repos:
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/insert_extras.py
         language: python
-        files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^providers/src/airflow/providers/.*/provider\.yaml$|^Dockerfile.*
+        files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0']
       - id: check-extras-order
@@ -556,9 +556,9 @@ repos:
         language: pygrep
         entry: >
           (?i)
-          .*https://github.*[0-9]/providers/tests/system/|
-          .*https://github.*/main/providers/tests/system/|
-          .*https://github.*/master/providers/tests/system/|
+          .*https://github.*[0-9]/providers/.*/tests/system/|
+          .*https://github.*/main/providers/.*/tests/system/|
+          .*https://github.*/master/providers/.*/tests/system/|
           .*https://github.*/main/providers/.*/src/airflow/providers/.*/example_dags/|
           .*https://github.*/master/providers/.*/src/airflow/providers/.*/example_dags/
         pass_filenames: true
@@ -583,7 +583,7 @@ repos:
         description: Use AirflowProviderDeprecationWarning in providers
         entry: "^\\s*DeprecationWarning*"
         pass_filenames: true
-        files: ^providers/src/airflow/providers/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*\.py$
       - id: check-urlparse-usage-in-code
         language: pygrep
         name: Don't use urlparse in code
@@ -728,8 +728,6 @@ repos:
           ^airflow/decorators/.*$|
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
-          ^providers/src/airflow/providers/.*$|
-          ^providers/src/airflow/providers/standard/sensors/.*$|
           ^providers/.*/src/airflow/providers/.*$|
           ^providers/.*/src/airflow/providers/standard/sensors/.*$|
           ^dev/provider_packages/.*$
@@ -741,7 +739,6 @@ repos:
         pass_filenames: true
         files: >
           (?x)
-          ^providers/src/airflow/providers/.*\.py$|
           ^providers/.*/src/airflow/providers/.*\.py$
         exclude: providers/standard/.*/.*\.py$
       - id: check-get-lineage-collector-providers
@@ -750,7 +747,7 @@ repos:
         description: Make sure you import from airflow.provider.common.compat.lineage.hook instead of
           airflow.lineage.hook.
         entry: ./scripts/ci/pre_commit/check_get_lineage_collector_providers.py
-        files: ^providers/src/airflow/providers/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*\.py$
         exclude: ^providers/common/compat/src/airflow/providers/common/compat/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
       - id: check-decorated-operator-implements-custom-name
@@ -764,7 +761,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow/configuration\.py$|^providers/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/)?tests/.*$|^tests_common/
+        exclude: ^airflow/configuration\.py$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/.*/)?tests/.*$|^tests_common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -977,7 +974,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_system_tests.py
         language: python
         files: ^(providers/)?tests/system/.*/example_[^/]*\.py$
-        exclude: ^providers/tests/system/google/cloud/bigquery/example_bigquery_queries\.py$
+        exclude: ^providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme
