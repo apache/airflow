@@ -1253,8 +1253,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill/cloudpickle (which is slow apparently).
     @pytest.mark.execution_timeout(120)
-    # This filter can be removed if support for Airflow 2.x is dropped
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1314,8 +1312,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_operator(f, serializer=serializer, system_site_packages=True, requirements=None)
 
-    # This filter can be removed if support for Airflow 2.x is dropped
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1346,8 +1342,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=["pendulum"])
 
-    # This filter can be removed if support for Airflow 2.x is dropped
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.parametrize(
         "serializer",
         [
