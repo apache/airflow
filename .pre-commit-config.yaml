@@ -1184,6 +1184,7 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
+        exclude: ^tests/dags/test_zip/__init__\.py$
       - id: ts-compile-format-lint-www
         name: Compile / format / lint WWW
         description: TS types generation / ESLint / Prettier against UI files
