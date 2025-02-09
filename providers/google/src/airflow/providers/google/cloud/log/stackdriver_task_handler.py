@@ -25,6 +25,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
@@ -46,10 +47,6 @@ _GLOBAL_RESOURCE = Resource(type="global", labels={})
 _DEFAULT_SCOPESS = frozenset(
     ["https://www.googleapis.com/auth/logging.read", "https://www.googleapis.com/auth/logging.write"]
 )
-
-
-class RemovedInFutureProviderWarning(DeprecationWarning):
-    """Issued for usage of deprecated features that will be removed in a future version."""
 
 
 class StackdriverTaskHandler(logging.Handler):
@@ -109,7 +106,7 @@ class StackdriverTaskHandler(logging.Handler):
             warnings.warn(
                 "Param `name` is deprecated and will be removed in a future release. "
                 "Please use `gcp_log_name` instead. ",
-                RemovedInFutureProviderWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             gcp_log_name = str(name)
