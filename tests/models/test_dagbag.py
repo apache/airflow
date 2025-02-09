@@ -877,13 +877,20 @@ with airflow.DAG(
             assert dag_file not in dagbag.captured_warnings
             assert dagbag.dagbag_stats[0].warning_num == 0
 
-    def test_dabgag_captured_warnings_zip(self):
-        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_warnings.zip")
-        in_zip_dag_file = f"{dag_file}/test_dag_warnings.py"
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+    @pytest.fixture
+    def warning_zipped_dag_path(self, tmp_path: pathlib.Path) -> str:
+        warnings_dag_file = TEST_DAGS_FOLDER / "test_dag_warnings.py"
+        zipped = tmp_path / "test_dag_warnings.zip"
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.write(warnings_dag_file, warnings_dag_file.name)
+        return os.fspath(zipped)
+
+    def test_dabgag_captured_warnings_zip(self, warning_zipped_dag_path: str):
+        in_zip_dag_file = f"{warning_zipped_dag_path}/test_dag_warnings.py"
+        dagbag = DagBag(dag_folder=warning_zipped_dag_path, include_examples=False)
         assert len(dagbag.dag_ids) == 1
-        assert dag_file in dagbag.captured_warnings
-        captured_warnings = dagbag.captured_warnings[dag_file]
+        assert warning_zipped_dag_path in dagbag.captured_warnings
+        captured_warnings = dagbag.captured_warnings[warning_zipped_dag_path]
         assert len(captured_warnings) == 2
         assert captured_warnings[0] == (f"{in_zip_dag_file}:47: DeprecationWarning: Deprecated Parameter")
         assert captured_warnings[1] == f"{in_zip_dag_file}:49: UserWarning: Some Warning"
