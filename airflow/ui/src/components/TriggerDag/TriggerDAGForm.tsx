@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Button, Box, Spacer, HStack, Field } from "@chakra-ui/react";
+import { Input, Button, Box, Spacer, HStack, Field, Stack, Text, Editable, VStack } from "@chakra-ui/react";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
-import { useEffect, useState } from "react";
+import { type ChangeEvent, useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
@@ -30,8 +30,10 @@ import { useTrigger } from "src/queries/useTrigger";
 
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
+import ReactMarkdown from "../ReactMarkdown";
 import { Accordion } from "../ui";
 import { useParamStore } from "./useParamStore";
+import { validateAndPrettifyJson } from "./validateAndPrettyfyJSON";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
@@ -88,31 +90,6 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
     triggerDagRun(data);
   };
 
-  const validateAndPrettifyJson = (value: string) => {
-    try {
-      const parsedJson = JSON.parse(value) as JSON;
-
-      setErrors((prev) => ({ ...prev, conf: undefined }));
-
-      const formattedJson = JSON.stringify(parsedJson, undefined, 2);
-
-      if (formattedJson !== conf) {
-        setConf(formattedJson); // Update only if the value is different
-      }
-
-      return formattedJson;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
-
-      setErrors((prev) => ({
-        ...prev,
-        conf: `Invalid JSON format: ${errorMessage}`,
-      }));
-
-      return value;
-    }
-  };
-
   const resetDateError = () => {
     setErrors((prev) => ({ ...prev, date: undefined }));
   };
@@ -138,16 +115,22 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 control={control}
                 name="dataIntervalStart"
                 render={({ field }) => (
-                  <Field.Root invalid={Boolean(errors.date)}>
-                    <Field.Label fontSize="md">Data Interval Start Date</Field.Label>
-                    <Input
-                      {...field}
-                      max={dataIntervalEnd || undefined}
-                      onBlur={resetDateError}
-                      placeholder="yyyy-mm-ddThh:mm"
-                      size="sm"
-                      type="datetime-local"
-                    />
+                  <Field.Root invalid={Boolean(errors.date)} orientation="horizontal">
+                    <Stack>
+                      <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                        Data Interval Start Date
+                      </Field.Label>
+                    </Stack>
+                    <Stack css={{ flexBasis: "70%" }}>
+                      <Input
+                        {...field}
+                        max={dataIntervalEnd || undefined}
+                        onBlur={resetDateError}
+                        placeholder="yyyy-mm-ddThh:mm"
+                        size="sm"
+                        type="datetime-local"
+                      />
+                    </Stack>
                   </Field.Root>
                 )}
               />
@@ -156,16 +139,22 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 control={control}
                 name="dataIntervalEnd"
                 render={({ field }) => (
-                  <Field.Root invalid={Boolean(errors.date)} mt={6}>
-                    <Field.Label fontSize="md">Data Interval End Date</Field.Label>
-                    <Input
-                      {...field}
-                      min={dataIntervalStart || undefined}
-                      onBlur={resetDateError}
-                      placeholder="yyyy-mm-ddThh:mm"
-                      size="sm"
-                      type="datetime-local"
-                    />
+                  <Field.Root invalid={Boolean(errors.date)} mt={6} orientation="horizontal">
+                    <Stack>
+                      <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                        Data Interval End Date
+                      </Field.Label>
+                    </Stack>
+                    <Stack css={{ flexBasis: "70%" }}>
+                      <Input
+                        {...field}
+                        min={dataIntervalStart || undefined}
+                        onBlur={resetDateError}
+                        placeholder="yyyy-mm-ddThh:mm"
+                        size="sm"
+                        type="datetime-local"
+                      />
+                    </Stack>
                   </Field.Root>
                 )}
               />
@@ -174,13 +163,19 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 control={control}
                 name="dagRunId"
                 render={({ field }) => (
-                  <Field.Root mt={6}>
-                    <Field.Label fontSize="md">Run ID</Field.Label>
-                    <Input
-                      {...field}
-                      placeholder="Run Id, optional - will be generated if not provided"
-                      size="sm"
-                    />
+                  <Field.Root mt={6} orientation="horizontal">
+                    <Stack>
+                      <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                        Run ID
+                      </Field.Label>
+                    </Stack>
+                    <Stack css={{ flexBasis: "70%" }}>
+                      <Input
+                        {...field}
+                        placeholder="Run Id, optional - will be generated if not provided"
+                        size="sm"
+                      />
+                    </Stack>
                   </Field.Root>
                 )}
               />
@@ -202,7 +197,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                       extensions={[json()]}
                       height="200px"
                       onBlur={() => {
-                        field.onChange(validateAndPrettifyJson(field.value));
+                        field.onChange(validateAndPrettifyJson(field.value, conf, setConf, setErrors));
                       }}
                       style={{
                         border: "1px solid var(--chakra-colors-border)",
@@ -224,7 +219,36 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 render={({ field }) => (
                   <Field.Root mt={6}>
                     <Field.Label fontSize="md">Dag Run Notes</Field.Label>
-                    <Input {...field} placeholder="Optional" size="sm" />
+                    <Editable.Root
+                      onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                        field.value = event.target.value;
+                      }}
+                      value={field.value}
+                    >
+                      <Editable.Preview
+                        _hover={{ backgroundColor: "transparent" }}
+                        alignItems="flex-start"
+                        as={VStack}
+                        gap="0"
+                        height="150px"
+                        overflowY="auto"
+                        width="100%"
+                      >
+                        {Boolean(field.value) ? (
+                          <ReactMarkdown>{field.value}</ReactMarkdown>
+                        ) : (
+                          <Text color="fg.subtle">Add a note...</Text>
+                        )}
+                      </Editable.Preview>
+                      <Editable.Textarea
+                        {...field}
+                        data-testid="notes-input"
+                        height="150px"
+                        overflowY="auto"
+                        placeholder="Add a note..."
+                        resize="none"
+                      />
+                    </Editable.Root>
                   </Field.Root>
                 )}
               />
