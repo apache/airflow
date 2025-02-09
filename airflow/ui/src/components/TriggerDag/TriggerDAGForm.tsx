@@ -170,11 +170,8 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                       </Field.Label>
                     </Stack>
                     <Stack css={{ flexBasis: "70%" }}>
-                      <Input
-                        {...field}
-                        placeholder="Run Id, optional - will be generated if not provided"
-                        size="sm"
-                      />
+                      <Input {...field} size="sm" />
+                      <Field.HelperText>Optional - will be generated if not provided</Field.HelperText>
                     </Stack>
                   </Field.Root>
                 )}
