@@ -14,79 +14,93 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# final code
+
 from __future__ import annotations
-
 import time
-
 import pytest
-
 from kubernetes_tests.test_base import (
     EXECUTOR,
-    BaseK8STest,  # isort:skip (needed to workaround isort bug)
+    BaseK8STest,
 )
-
-
 @pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")
 class TestKubernetesExecutor(BaseK8STest):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.executor_config = {
+            "KubernetesExecutor": {
+                "config_file": "{{ params.config_path }}"
+            }
+        }
+
     @pytest.mark.execution_timeout(300)
     def test_integration_run_dag(self):
-        dag_id = "example_kubernetes_executor"
-        dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
-        print(f"Found the job with logical_date {logical_date}")
-
-        # Wait some time for the operator to complete
-        self.monitor_task(
-            host=self.host,
-            dag_run_id=dag_run_id,
-            dag_id=dag_id,
-            task_id="start_task",
-            expected_final_state="success",
-            timeout=300,
-        )
-
-        self.ensure_dag_expected_state(
-            host=self.host,
-            logical_date=logical_date,
-            dag_id=dag_id,
-            expected_final_state="success",
-            timeout=300,
-        )
+        try:
+            dag_id = "example_kubernetes_executor"
+            dag_run_id, logical_date = self.start_job_in_kubernetes(
+                dag_id, self.host, executor_config=self.executor_config
+            )
+            print(f"Found the job with logical_date {logical_date}")
+            # Wait some time for the operator to complete.
+            self.monitor_task(
+                host=self.host,
+                dag_run_id=dag_run_id,
+                dag_id=dag_id,
+                task_id="start_task",
+                expected_final_state="success",
+                timeout=300,
+            )
+            self.ensure_dag_expected_state(
+                host=self.host,
+                logical_date=logical_date,
+                dag_id=dag_id,
+                expected_final_state="success",
+                timeout=300,
+            )
+        except Exception as e:
+            self.log.error(f"Test integration run DAG failed: {e}")
+            pytest.fail(f"Test integration run DAG failed: {e}")
 
     @pytest.mark.execution_timeout(300)
     def test_integration_run_dag_with_scheduler_failure(self):
-        dag_id = "example_kubernetes_executor"
+        try:
+            dag_id = "example_kubernetes_executor"
+            dag_run_id, logical_date = self.start_job_in_kubernetes(
+                dag_id, self.host, executor_config=self.executor_config
+            )
+            # Simulate a scheduler failure
+            self._delete_airflow_pod("scheduler")
+            time.sleep(10)  # give time for pod to restart
+            # Wait some time for the operator to complete
+            self.monitor_task(
+                host=self.host,
+                dag_run_id=dag_run_id,
+                dag_id=dag_id,
+                task_id="start_task",
+                expected_final_state="success",
+                timeout=300,
+            )
+            self.monitor_task(
+                host=self.host,
+                dag_run_id=dag_run_id,
+                dag_id=dag_id,
+                task_id="other_namespace_task",
+                expected_final_state="success",
+                timeout=300,
+            )
+            self.ensure_dag_expected_state(
+                host=self.host,
+                logical_date=logical_date,
+                dag_id=dag_id,
+                expected_final_state="success",
+                timeout=300,
+            )
+            assert self._num_pods_in_namespace("test-namespace") == 0, "failed to delete pods in other namespace"
+        except Exception as e:
+            self.log.error(f"Test integration run DAG with scheduler failure failed: {e}")
+            pytest.fail(f"Test integration run DAG with scheduler failure failed: {e}")
 
-        dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
 
-        self._delete_airflow_pod("scheduler")
 
-        time.sleep(10)  # give time for pod to restart
 
-        # Wait some time for the operator to complete
-        self.monitor_task(
-            host=self.host,
-            dag_run_id=dag_run_id,
-            dag_id=dag_id,
-            task_id="start_task",
-            expected_final_state="success",
-            timeout=300,
-        )
-
-        self.monitor_task(
-            host=self.host,
-            dag_run_id=dag_run_id,
-            dag_id=dag_id,
-            task_id="other_namespace_task",
-            expected_final_state="success",
-            timeout=300,
-        )
-
-        self.ensure_dag_expected_state(
-            host=self.host,
-            logical_date=logical_date,
-            dag_id=dag_id,
-            expected_final_state="success",
-            timeout=300,
-        )
-
-        assert self._num_pods_in_namespace("test-namespace") == 0, "failed to delete pods in other namespace"
