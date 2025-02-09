@@ -717,7 +717,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             )
         ),
         pytest.param(
-            ("providers/src/airflow/providers/amazon/__init__.py",),
+            ("providers/amazon/src/airflow/providers/amazon/__init__.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
@@ -769,7 +769,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers tests run without amazon tests if no amazon file changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/amazon/file.py",),
+            ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "

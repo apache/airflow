@@ -71,7 +71,7 @@ def get_yaml_content(file_path: pathlib.Path) -> dict:
 
 def get_common_sql_constraints(provider_metadata: dict) -> str | None:
     """Return the version constraints of `apache-airflow-providers-common-sql`."""
-    dependencies: list[str] = provider_metadata["dependencies"]
+    dependencies: list[str] = provider_metadata.get("dependencies", [])
     for dependency in dependencies:
         if dependency.startswith(COMMON_SQL_PROVIDER_NAME):
             return dependency[len(COMMON_SQL_PROVIDER_NAME) :]

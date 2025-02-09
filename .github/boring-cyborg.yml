@@ -25,10 +25,7 @@ labelPRBasedOnFilePath:
     - providers/alibaba/**
 
   provider:amazon:
-    - providers/src/airflow/providers/amazon/**/*
-    - providers/tests/amazon/aws/**/*
-    - docs/apache-airflow-providers-amazon/**/*
-    - providers/tests/system/amazon/aws/**/*
+    - providers/amazon/**
 
   provider:apache-beam:
     - providers/apache/beam/**
@@ -300,12 +297,6 @@ labelPRBasedOnFilePath:
   provider:zendesk:
     - providers/zendesk/**
 
-  area:providers:
-    - providers/src/airflow/providers/**/*
-    - docs/apache-airflow-providers-*/**/*
-    - providers/tests/**/*
-    - providers/tests/system/**/*
-
   area:API:
     - airflow/api/**/*
     - airflow/api_connexion/**/*
@@ -371,11 +362,10 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow/administration-and-deployment/lineage.rst
 
   area:Logging:
-    - providers/src/airflow/providers/**/log/*
     - airflow/utils/log/**/*
     - docs/apache-airflow/administration-and-deployment/logging-monitoring/logging-*.rst
-    - providers/tests/**/log/*
     - tests/utils/log/**/*
+    - providers/**/log/*
 
   area:Plugins:
     - airflow/cli/commands/local_commands/plugins_command.py
@@ -403,9 +393,8 @@ labelPRBasedOnFilePath:
 
   area:Secrets:
     - airflow/secrets/**/*
-    - providers/src/airflow/providers/**/secrets/*
     - tests/secrets/**/*
-    - providers/tests/**/secrets/*
+    - providers/**/secrets/*
     - docs/apache-airflow/security/secrets/**/*
 
   area:Triggerer:
