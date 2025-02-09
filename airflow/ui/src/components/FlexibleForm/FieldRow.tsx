@@ -46,11 +46,15 @@ export const FieldRow = ({ name }: FlexibleFormElementProps) => {
       </Stack>
       <Stack css={{ flexBasis: "70%" }}>
         <FieldSelector name={name} />
-        <Field.HelperText>
-          {param.description ?? (
-            <Markdown remarkPlugins={[remarkGfm]}>{param.schema.description_md}</Markdown>
-          )}
-        </Field.HelperText>
+        {param.description === null ? (
+          param.schema.description_md === undefined ? undefined : (
+            <Field.HelperText>
+              <Markdown remarkPlugins={[remarkGfm]}>{param.schema.description_md}</Markdown>
+            </Field.HelperText>
+          )
+        ) : (
+          <Field.HelperText>{param.description}</Field.HelperText>
+        )}
       </Stack>
     </Field.Root>
   );
