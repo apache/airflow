@@ -576,13 +576,14 @@ task to copy the same file to a date-partitioned storage location in S3 for long
 .. note::
     Using the ``.output`` property as an input to another task is supported
     only for operator parameters listed as a ``template_field`` in the
-    downstream task. For `traditional operator classes </howto/custom-operator.html>`,
+    downstream task. For :doc:`traditional operator classes </howto/custom-operator>`,
     make sure these parameters are listed in ``template_fields`` class
     variable (like ``sqs_queue`` parameter in the ``SqsPublishOperator``
     example above); for decorated tasks using ``@task``- decorator,
     function parameters are already templated and no extra work is required.
 
-    .. seealso:: `Requirements for using templated fields in operator class </howto/custom-operator.html#limitations>`
+.. seealso::
+    - See :ref:`custom_operator/limitations` to understand requirements for using templated fields in operator classes.
 
 .. _taskflow/accessing_context_variables:
 
