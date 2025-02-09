@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowNotFoundException
+from airflow.exceptions import AirflowFailException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.sensors.base import BaseSensorOperator
@@ -104,18 +104,17 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
 
     :param export_task_identifier: A unique identifier for the snapshot export task.
     :param target_statuses: Target status of export task
+    :param error_statuses: Target error status of export task to fail the sensor
     """
 
-    template_fields: Sequence[str] = (
-        "export_task_identifier",
-        "target_statuses",
-    )
+    template_fields: Sequence[str] = ("export_task_identifier", "target_statuses", "error_statuses")
 
     def __init__(
         self,
         *,
         export_task_identifier: str,
         target_statuses: list[str] | None = None,
+        error_statuses: list[str] | None = None,
         aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
@@ -129,6 +128,7 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
             "canceling",
             "canceled",
         ]
+        self.error_statuses = error_statuses or ["failed"]
 
     def poke(self, context: Context):
         self.log.info(
@@ -136,6 +136,11 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         )
         try:
             state = self.hook.get_export_task_state(self.export_task_identifier)
+            if state in self.error_statuses:
+                raise AirflowFailException(
+                    f"Export task {self.export_task_identifier} failed with status {state}"
+                )
+
         except AirflowNotFoundException:
             return False
         return state in self.target_statuses
