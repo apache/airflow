@@ -20,6 +20,8 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
+from airflow.models import BaseOperator
+from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.servicebus.management import (
     AuthorizationRule,
@@ -27,15 +29,11 @@ from azure.servicebus.management import (
     SqlRuleFilter,
 )
 
-from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
-
 if TYPE_CHECKING:
     import datetime
 
     from airflow.utils.context import Context
     from azure.servicebus import ServiceBusMessage
-    from azure.servicebus.management import AuthorizationRule, CorrelationRuleFilter, SqlRuleFilter
 
     MessageCallback = Callable[[ServiceBusMessage, Context], None]
 
