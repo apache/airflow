@@ -20,7 +20,6 @@
 from __future__ import annotations
 
 import functools
-import json
 import logging
 import os
 import socket
@@ -160,11 +159,10 @@ def _build_metrics(func_name, namespace):
 
     # handle conn-json and conn-uri separately as it requires different handling
     if "--conn-json" in full_command:
+        import json
+
         json_index = full_command.index("--conn-json") + 1
         conn_json = json.loads(full_command[json_index])
-
-        print("conn-json is", conn_json)
-
         for k in conn_json:
             if k and should_hide_value_for_key(k):
                 conn_json[k] = "*" * 8
@@ -176,7 +174,6 @@ def _build_metrics(func_name, namespace):
         uri_index = full_command.index("--conn-uri") + 1
         conn_uri = full_command[uri_index]
         parsed_uri = urlparse(conn_uri)
-
         if parsed_uri.password:
             password = "*" * 8
             netloc = f"{parsed_uri.username}:{password}@{parsed_uri.hostname}"
