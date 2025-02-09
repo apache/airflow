@@ -121,6 +121,7 @@ class TestCliTasks:
             args = self.parser.parse_args(["tasks", "list", dag_id])
             task_command.task_list(args)
 
+    # This filter can be removed if support for Airflow 2.x is dropped
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test(self):
         """Test the `airflow test` command"""
@@ -134,6 +135,7 @@ class TestCliTasks:
         # Check that prints, and log messages, are shown
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
 
+    # This filter can be removed if support for Airflow 2.x is dropped
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @mock.patch("airflow.utils.timezone.utcnow")
     def test_test_no_logical_date(self, mock_utcnow):
@@ -245,6 +247,7 @@ class TestCliTasks:
 
         mock_fetch_dag_run_from_run_id_or_logical_date_string.assert_called_once()
 
+    # This filter can be removed if support for Airflow 2.x is dropped
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self, caplog):
         """Test the `airflow test` command"""
@@ -258,6 +261,7 @@ class TestCliTasks:
         )
 
     @pytest.mark.enable_redact
+    # This filter can be removed if support for Airflow 2.x is dropped
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_filters_secrets(self, capsys):
         """Test ``airflow test`` does not print secrets to stdout.
