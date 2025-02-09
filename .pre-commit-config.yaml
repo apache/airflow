@@ -556,9 +556,9 @@ repos:
         language: pygrep
         entry: >
           (?i)
-          .*https://github.*[0-9]/providers/tests/system/|
-          .*https://github.*/main/providers/tests/system/|
-          .*https://github.*/master/providers/tests/system/|
+          .*https://github.*[0-9]/providers/.*/tests/system/|
+          .*https://github.*/main/providers/.*/tests/system/|
+          .*https://github.*/master/providers/.*/tests/system/|
           .*https://github.*/main/providers/.*/src/airflow/providers/.*/example_dags/|
           .*https://github.*/master/providers/.*/src/airflow/providers/.*/example_dags/
         pass_filenames: true
@@ -761,7 +761,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow/configuration\.py$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/)?tests/.*$|^tests_common/
+        exclude: ^airflow/configuration\.py$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/.*/)?tests/.*$|^tests_common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -974,7 +974,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_system_tests.py
         language: python
         files: ^(providers/)?tests/system/.*/example_[^/]*\.py$
-        exclude: ^providers/tests/system/google/cloud/bigquery/example_bigquery_queries\.py$
+        exclude: ^providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme
