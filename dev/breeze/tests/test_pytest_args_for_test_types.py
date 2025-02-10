@@ -80,12 +80,15 @@ def _all_new_providers() -> list[str]:
         (
             GroupOfTests.PROVIDERS,
             "Providers",
-            [*[f"providers/{provider}/tests" for provider in _all_new_providers()], "providers/tests"],
+            [
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                "providers/tests",
+            ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon]",
-            ["providers/tests/amazon"],
+            ["providers/amazon/tests"],
         ),
         (
             GroupOfTests.PROVIDERS,
@@ -96,7 +99,7 @@ def _all_new_providers() -> list[str]:
             GroupOfTests.PROVIDERS,
             "Providers[amazon,google,apache.hive]",
             [
-                "providers/tests/amazon",
+                "providers/amazon/tests",
                 "providers/google/tests",
                 "providers/apache/hive/tests",
             ],
@@ -111,8 +114,6 @@ def _all_new_providers() -> list[str]:
                     if provider not in ["amazon", "google", "microsoft/azure"]
                 ],
                 "providers/tests",
-                "--ignore=providers/tests/amazon",
-                "--ignore=providers/tests/microsoft/azure",
             ],
         ),
         (
@@ -243,14 +244,14 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers[amazon]",
             [
-                "providers/tests/amazon",
+                "providers/amazon/tests",
             ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon] Providers[google]",
             [
-                "providers/tests/amazon",
+                "providers/amazon/tests",
                 "providers/google/tests",
             ],
         ),
@@ -276,9 +277,7 @@ def test_pytest_args_for_missing_provider():
                     if provider not in ["amazon", "google"]
                 ],
                 "providers/tests",
-                *[
-                    "providers/google/tests"
-                ],  # Once amazon is migrated to the new structure, amazon needs to be added to the list here.
+                *["providers/amazon/tests", "providers/google/tests"],
             ],
         ),
         (

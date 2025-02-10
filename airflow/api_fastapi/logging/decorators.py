@@ -79,10 +79,7 @@ def action_logging(event: str | None = None):
         user: Annotated[BaseUser, Depends(get_user_with_exception_handling)],
     ):
         """Log user actions."""
-        request_body = await request.json()
-        masked_body_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
-
-        event_name = event or request.url.path
+        event_name = event or request.scope["endpoint"].__name__
 
         if not user:
             user_name = "anonymous"
@@ -92,6 +89,10 @@ def action_logging(event: str | None = None):
             user_display = user.get_name()
 
         hasJsonBody = "application/json" in request.headers.get("content-type", "") and request.json
+
+        if hasJsonBody:
+            request_body = await request.json()
+            masked_body_json = {k: secrets_masker.redact(v, k) for k, v in request_body.items()}
 
         fields_skip_logging = {
             "csrf_token",
@@ -109,11 +110,11 @@ def action_logging(event: str | None = None):
             for k, v in itertools.chain(request.query_params.items(), request.path_params.items())
             if k not in fields_skip_logging
         }
-        if event_name and "/public/variables" in event_name:
+        if "variable" in event_name:
             extra_fields = _mask_variable_fields(
                 {k: v for k, v in request_body.items()} if hasJsonBody else extra_fields
             )
-        elif event_name and "/public/connections" in event_name:
+        elif "connection" in event_name:
             extra_fields = _mask_connection_fields(
                 {k: v for k, v in request_body.items()} if hasJsonBody else extra_fields
             )
@@ -124,7 +125,9 @@ def action_logging(event: str | None = None):
             **request.query_params,
             **request.path_params,
         }
-        params.update(masked_body_json)
+
+        if hasJsonBody:
+            params.update(masked_body_json)
         if params and "is_paused" in params:
             extra_fields["is_paused"] = params["is_paused"] == "false"
 
