@@ -1307,7 +1307,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                         operator.__name__ == encoded_op["task_type"]
                         and operator.__module__ == encoded_op["_task_module"]
                     ):
-                        op_extra_links_from_plugin.update({ope.name: ope})
+                        generic_ope = GenericOperatorLink(name=ope.name, xcom_key=ope.xcom_key)
+                        op_extra_links_from_plugin.update({ope.name: generic_ope})
 
             # If OperatorLinks are defined in Plugins but not in the Operator that is being Serialized
             # set the Operator links attribute

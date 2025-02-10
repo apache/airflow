@@ -718,7 +718,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
 
 
 def finalize(ti: RuntimeTaskInstance, log: Logger):
-    for oe in ti.task.operator_extra_links:
+    for oe in ti.task.operator_extra_link_dict.values():
         link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
         log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
         _xcom_push(ti, key=xcom_key, value=link)

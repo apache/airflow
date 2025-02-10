@@ -190,6 +190,8 @@ class AbstractOperator(Templater, DAGNode):
             if not link:
                 return None
 
+        print("Type of link is", type(link), link.__class__)
+
         el = link.get_link(ti=ti)
         return el.strip('"')
 
