@@ -24,6 +24,7 @@ from kubernetes_tests.test_base import (
     EXECUTOR,
     BaseK8STest,
 )
+gi
 @pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")
 class TestKubernetesExecutor(BaseK8STest):
     def __init__(self, *args, **kwargs):
