@@ -18,12 +18,14 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
 
-from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance
-from airflow.utils.session import create_session
 from sagemaker_studio.models.execution import ExecutionClient
 
-from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMakerNotebookHook
+from airflow.exceptions import AirflowException
+from airflow.models import TaskInstance
+from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
+    SageMakerNotebookHook,
+)
+from airflow.utils.session import create_session
 
 
 class TestSageMakerNotebookHook(TestCase):
@@ -33,7 +35,7 @@ class TestSageMakerNotebookHook(TestCase):
     )
     def setUp(self, mock_sdk):
         self.execution_name = "test-execution"
-        self.poll_interval = 10
+        self.waiter_delay = 10
         sdk_instance = mock_sdk.return_value
         sdk_instance.execution_client = MagicMock(spec=ExecutionClient)
         sdk_instance.execution_client.start_execution.return_value = {
@@ -47,7 +49,7 @@ class TestSageMakerNotebookHook(TestCase):
             },
             output_config={"output_formats": ["NOTEBOOK"]},
             execution_name=self.execution_name,
-            poll_interval=self.poll_interval,
+            waiter_delay=self.waiter_delay,
             compute={"instance_type": "ml.c4.2xlarge"},
         )
 
@@ -93,7 +95,7 @@ class TestSageMakerNotebookHook(TestCase):
                 "input_params": {"key": "value"},
             },
             execution_name=self.execution_name,
-            poll_interval=self.poll_interval,
+            waiter_delay=self.waiter_delay,
         )
 
         expected_config = {"notebook_config": {"output_formats": ["NOTEBOOK"]}}
@@ -168,7 +170,9 @@ class TestSageMakerNotebookHook(TestCase):
         error_message = ""
         with self.assertRaises(AirflowException) as cm:
             self.hook._handle_state(execution_id, status, error_message)
-        self.assertEqual(str(cm.exception), f"Exiting Execution {execution_id} State: {status}")
+        self.assertEqual(
+            str(cm.exception), f"Exiting Execution {execution_id} State: {status}"
+        )
 
     def test_handle_unexpected_state(self):
         execution_id = "123456"
@@ -185,7 +189,9 @@ class TestSageMakerNotebookHook(TestCase):
         with create_session():
             self.hook._set_xcom_files(self.files, self.context)
         expected_call = call(self.files, self.context)
-        mock_set_xcom_files.assert_called_once_with(*expected_call.args, **expected_call.kwargs)
+        mock_set_xcom_files.assert_called_once_with(
+            *expected_call.args, **expected_call.kwargs
+        )
 
     def test_set_xcom_files_negative_missing_context(self):
         with self.assertRaises(AirflowException) as cm:
@@ -199,7 +205,9 @@ class TestSageMakerNotebookHook(TestCase):
         with create_session():
             self.hook._set_xcom_s3_path(self.s3Path, self.context)
         expected_call = call(self.s3Path, self.context)
-        mock_set_xcom_s3_path.assert_called_once_with(*expected_call.args, **expected_call.kwargs)
+        mock_set_xcom_s3_path.assert_called_once_with(
+            *expected_call.args, **expected_call.kwargs
+        )
 
     def test_set_xcom_s3_path_negative_missing_context(self):
         with self.assertRaises(AirflowException) as cm:

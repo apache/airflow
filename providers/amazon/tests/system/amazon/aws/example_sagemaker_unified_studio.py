@@ -123,7 +123,7 @@ with DAG(
         termination_condition={"MaxRuntimeInSeconds": 600},  # optional
         tags={},  # optional
         wait_for_completion=True,  # optional
-        poll_interval=5,  # optional
+        waiter_delay=5,  # optional
         deferrable=False,  # optional
     )
     # [END howto_operator_sagemaker_unified_studio_notebook]

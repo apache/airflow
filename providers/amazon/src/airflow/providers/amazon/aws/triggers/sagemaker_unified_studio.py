@@ -27,24 +27,29 @@ class SageMakerNotebookJobTrigger(BaseTrigger):
     Examples:
      .. code-block:: python
 
-        from workflows.airflow.providers.amazon.aws.operators.sagemaker_workflows import NotebookOperator
+        from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import SageMakerNotebookJobTrigger
 
-        notebook_operator = NotebookJobTrigger(
+        notebook_trigger = SageMakerNotebookJobTrigger(
             execution_id='notebook_job_1234',
             execution_name='notebook_task',
-            poll_interval=10,
+            waiter_delay=10,
+            waiter_max_attempts=1440,
         )
 
     :param execution_id: A unique, meaningful id for the task.
     :param execution_name: A unique, meaningful name for the task.
-    :param poll_interval: Interval in seconds to check the notebook execution status.
+    :param waiter_delay: Interval in seconds to check the notebook execution status.
+    :param waiter_max_attempts: Number of attempts to wait before returning FAILED.
     """
 
-    def __init__(self, execution_id, execution_name, poll_interval, **kwargs):
+    def __init__(
+        self, execution_id, execution_name, waiter_delay, waiter_max_attempts, **kwargs
+    ):
         super().__init__(**kwargs)
         self.execution_id = execution_id
         self.execution_name = execution_name
-        self.poll_interval = poll_interval
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def serialize(self):
         return (

@@ -33,31 +33,31 @@ from airflow.utils.context import Context
 
 class SageMakerNotebookOperator(BaseOperator):
     """
-    Provides Notebook execution functionality for Sagemaker Workflows.
+    Provides Artifact execution functionality for Sagemaker Unified Studio Workflows.
 
     Examples:
      .. code-block:: python
 
-        from workflows.airflow.providers.amazon.aws.operators.sagemaker_workflows import NotebookOperator
+        from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import SageMakerNotebookOperator
 
-        notebook_operator = NotebookOperator(
+        notebook_operator = SageMakerNotebookOperator(
             task_id='notebook_task',
             input_config={'input_path': 'path/to/notebook.ipynb', 'input_params': ''},
             output_config={'output_format': 'ipynb'},
             wait_for_completion=True,
-            poll_interval=10,
-            max_polling_attempts=100,
+            waiter_delay=10,
+            waiter_max_attempts=1440,
         )
 
     :param task_id: A unique, meaningful id for the task.
     :param input_config: Configuration for the input file. Input path should be specified as a relative path.
         The provided relative path will be automatically resolved to an absolute path within
-        the context of the user's home directory in the IDE. Input params should be a dict
+        the context of the user's home directory in the IDE. Input params should be a dict.
         Example: {'input_path': 'folder/input/notebook.ipynb', 'input_params':{'key': 'value'}}
     :param output_config:  Configuration for the output format. It should include an output_format parameter to control
         the format of the notebook execution output.
         Example: {"output_formats": ["NOTEBOOK"]}
-    :param compute: compute configuration to use for the notebook execution. This is a required attribute
+    :param compute: compute configuration to use for the artifact execution. This is a required attribute
         if the execution is on a remote compute.
         Example: { "InstanceType": "ml.m5.large", "VolumeSizeInGB": 30, "VolumeKmsKeyId": "", "ImageUri": "string", "ContainerEntrypoint": [ "string" ]}
     :param termination_condition: conditions to match to terminate the remote execution.
@@ -65,7 +65,8 @@ class SageMakerNotebookOperator(BaseOperator):
     :param tags: tags to be associated with the remote execution runs.
         Example: { "md_analytics": "logs" }
     :param wait_for_completion: Indicates whether to wait for the notebook execution to complete. If True, wait for completion; if False, don't wait.
-    :param poll_interval: Interval in seconds to check the notebook execution status.
+    :param waiter_delay: Interval in seconds to check the notebook execution status.
+    :param waiter_max_attempts: Number of attempts to wait before returning FAILED.
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
@@ -84,7 +85,8 @@ class SageMakerNotebookOperator(BaseOperator):
         termination_condition: dict = {},
         tags: dict = {},
         wait_for_completion: bool = True,
-        poll_interval: int = 10,
+        waiter_delay: int = 10,
+        waiter_max_attempts: int = 1440,
         deferrable: bool = conf.getboolean(
             "operators", "default_deferrable", fallback=False
         ),
@@ -98,7 +100,8 @@ class SageMakerNotebookOperator(BaseOperator):
         self.termination_condition = termination_condition
         self.tags = tags
         self.wait_for_completion = wait_for_completion
-        self.poll_interval = poll_interval
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
         self.input_kwargs = kwargs
 
@@ -117,7 +120,8 @@ class SageMakerNotebookOperator(BaseOperator):
             compute=self.compute,
             termination_condition=self.termination_condition,
             tags=self.tags,
-            poll_interval=self.poll_interval,
+            waiter_delay=self.waiter_delay,
+            waiter_max_attempts=self.waiter_max_attempts,
         )
 
     def execute(self, context: Context):
@@ -129,7 +133,8 @@ class SageMakerNotebookOperator(BaseOperator):
                 trigger=SageMakerNotebookJobTrigger(
                     execution_id=execution_id,
                     execution_name=self.execution_name,
-                    poll_interval=self.poll_interval,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="execute_complete",
             )

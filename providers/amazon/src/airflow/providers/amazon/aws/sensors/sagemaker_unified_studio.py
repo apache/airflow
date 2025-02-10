@@ -27,7 +27,7 @@ from airflow.utils.context import Context
 
 class SageMakerNotebookSensor(BaseSensorOperator):
     """
-    Waits for an Sagemaker Workflows Notebook execution to reach any of the status below.
+    Waits for a Sagemaker Workflows Notebook execution to reach any of the status below.
 
     'FAILED', 'STOPPED', 'COMPLETED'
 
@@ -62,6 +62,6 @@ class SageMakerNotebookSensor(BaseSensorOperator):
     def execute(self, context: Context):
         # This will invoke poke method in the base sensor
         self.log.info(
-            f"Polling Sagemaker Workflows Notebook execution: {self.execution_name} and execution id: {self.execution_id}"
+            f"Polling Sagemaker Workflows Artifact execution: {self.execution_name} and execution id: {self.execution_id}"
         )
         super().execute(context=context)

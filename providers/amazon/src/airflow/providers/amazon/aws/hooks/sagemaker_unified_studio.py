@@ -30,35 +30,37 @@ from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local
 
 class SageMakerNotebookHook(BaseHook):
     """
-    Interact with the Sagemaker Workflows API.
+    Interact with Sagemaker Unified Studio Workflows.
 
     This hook provides a wrapper around the Sagemaker Workflows Notebook Execution API.
 
     Examples:
      .. code-block:: python
 
-        from workflows.airflow.providers.amazon.aws.hooks.notebook_hook import NotebookHook
+        from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMakerNotebookHook
 
-        notebook_hook = NotebookHook(
+        notebook_hook = SageMakerNotebookHook(
             input_config={'input_path': 'path/to/notebook.ipynb', 'input_params': {'param1': 'value1'}},
-            output_config={'output_uri': 'folder/output/location/prefix', 'output_format': 'ipynb'},
+            output_config={'output_uri': 'folder/output/location/prefix', 'output_formats': 'NOTEBOOK'},
             execution_name='notebook_execution',
-            poll_interval=10,
+            waiter_delay=10,
+            waiter_max_attempts=1440,
         )
 
     :param execution_name: The name of the notebook job to be executed, this is same as task_id.
     :param input_config: Configuration for the input file.
         Example: {'input_path': 'folder/input/notebook.ipynb', 'input_params': {'param1': 'value1'}}
-    :param output_config: Configuration for the output format. It should include an output_formats parameter to control
+    :param output_config: Configuration for the output format. It should include an output_formats parameter to specify the output format.
         Example: {'output_formats': ['NOTEBOOK']}
-    :param compute: compute configuration to use for the notebook execution. This is an required attribute
+    :param compute: compute configuration to use for the notebook execution. This is a required attribute
         if the execution is on a remote compute.
         Example: { "InstanceType": "ml.m5.large", "VolumeSizeInGB": 30, "VolumeKmsKeyId": "", "ImageUri": "string", "ContainerEntrypoint": [ "string" ]}
     :param termination_condition: conditions to match to terminate the remote execution.
         Example: { "MaxRuntimeInSeconds": 3600 }
     :param tags: tags to be associated with the remote execution runs.
         Example: { "md_analytics": "logs" }
-    :param poll_interval: Interval in seconds to check the notebook execution status.
+    :param waiter_delay: Interval in seconds to check the task execution status.
+    :param waiter_max_attempts: Number of attempts to wait before returning FAILED.
     """
 
     def __init__(
@@ -69,7 +71,8 @@ class SageMakerNotebookHook(BaseHook):
         compute: dict = {},
         termination_condition: dict = {},
         tags: dict = {},
-        poll_interval: int = 10,
+        waiter_delay: int = 10,
+        waiter_max_attempts: int = 1440,
         *args,
         **kwargs,
     ):
@@ -81,7 +84,8 @@ class SageMakerNotebookHook(BaseHook):
         self.compute = compute
         self.termination_condition = termination_condition
         self.tags = tags
-        self.poll_interval = poll_interval
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def _get_sagemaker_studio_config(self):
         config = ClientConfig()
@@ -99,9 +103,7 @@ class SageMakerNotebookHook(BaseHook):
         return config
 
     def _format_start_execution_output_config(self):
-        output_formats = (
-            self.output_config.get("output_formats") if self.output_config else ["NOTEBOOK"]
-        )
+        output_formats = self.output_config.get("output_formats")
         config = {
             "notebook_config": {
                 "output_formats": output_formats,
@@ -126,10 +128,13 @@ class SageMakerNotebookHook(BaseHook):
         return self._sagemaker_studio.execution_client.start_execution(request)
 
     def wait_for_execution_completion(self, execution_id, context):
-
-        while True:
-            time.sleep(self.poll_interval)
-            response = self.get_execution_response(execution_id)
+        wait_attempts = 0
+        while wait_attempts < self.waiter_max_attempts:
+            wait_attempts += 1
+            time.sleep(self.waiter_delay)
+            response = self._sagemaker_studio.execution_client.get_execution(
+                GetExecutionRequest(execution_id=execution_id)
+            )
             error_message = response.get("error_details", {}).get("error_message")
             status = response["status"]
             if "files" in response:
@@ -160,19 +165,13 @@ class SageMakerNotebookHook(BaseHook):
             value=s3_path,
         )
 
-    def get_execution_response(self, execution_id):
-        response = self._sagemaker_studio.execution_client.get_execution(
-            GetExecutionRequest(execution_id=execution_id)
-        )
-        return response
-
     def _handle_state(self, execution_id, status, error_message):
         finished_states = ["COMPLETED"]
         in_progress_states = ["IN_PROGRESS", "STOPPING"]
 
         if status in in_progress_states:
             self.log.info(
-                f"Execution {execution_id} is still in progress with state:{status}, will check for a terminal status again in {self.poll_interval}"
+                f"Execution {execution_id} is still in progress with state:{status}, will check for a terminal status again in {self.waiter_delay}"
             )
             return None
         execution_message = f"Exiting Execution {execution_id} State: {status}"

@@ -19,9 +19,12 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from airflow.exceptions import AirflowException
-
-from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import SageMakerNotebookOperator
-from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import SageMakerNotebookJobTrigger
+from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import (
+    SageMakerNotebookOperator,
+)
+from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
+    SageMakerNotebookJobTrigger,
+)
 
 
 class TestSageMakerNotebookOperator(TestCase):
@@ -49,7 +52,9 @@ class TestSageMakerNotebookOperator(TestCase):
         )
         assert isinstance(operator, SageMakerNotebookOperator)
 
-    @patch("airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook")
+    @patch(
+        "airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook"
+    )
     def test_execute_success(
         self, mock_notebook_hook
     ):  # Mock the NotebookHook and its execute method
@@ -69,9 +74,13 @@ class TestSageMakerNotebookOperator(TestCase):
         # Execute the operator
         operator.execute({})
         mock_hook_instance.start_notebook_execution.assert_called_once_with()
-        mock_hook_instance.wait_for_execution_completion.assert_called_once_with("123456", {})
+        mock_hook_instance.wait_for_execution_completion.assert_called_once_with(
+            "123456", {}
+        )
 
-    @patch("airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook")
+    @patch(
+        "airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook"
+    )
     def test_execute_failure_missing_input_config(self, mock_notebook_hook):
         operator = SageMakerNotebookOperator(
             task_id="test_id",
@@ -85,7 +94,9 @@ class TestSageMakerNotebookOperator(TestCase):
         self.assertEqual(str(cm.exception), "input_config is required")
         mock_notebook_hook.assert_not_called()
 
-    @patch("airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook")
+    @patch(
+        "airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook"
+    )
     def test_execute_failure_missing_input_path(self, mock_notebook_hook):
         operator = SageMakerNotebookOperator(
             task_id="test_id",
@@ -96,10 +107,14 @@ class TestSageMakerNotebookOperator(TestCase):
         with self.assertRaises(AirflowException) as cm:
             operator.execute({})
 
-        self.assertEqual(str(cm.exception), "input_path is a required field in the input_config")
+        self.assertEqual(
+            str(cm.exception), "input_path is a required field in the input_config"
+        )
         mock_notebook_hook.assert_not_called()
 
-    @patch("airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook")
+    @patch(
+        "airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook"
+    )
     def test_execute_with_wait_for_completion(self, mock_notebook_hook):
         # Mock the execute and job_completion methods of NotebookHook
         mock_hook_instance = mock_notebook_hook.return_value
@@ -107,7 +122,9 @@ class TestSageMakerNotebookOperator(TestCase):
             "execution_id": "123456",
             "executionType": "test",
         }
-        mock_hook_instance.wait_for_execution_completion.return_value = {"Status": "COMPLETED"}
+        mock_hook_instance.wait_for_execution_completion.return_value = {
+            "Status": "COMPLETED"
+        }
 
         # Create the operator with wait_for_completion set to True
         operator = SageMakerNotebookOperator(
@@ -121,9 +138,13 @@ class TestSageMakerNotebookOperator(TestCase):
 
         # Verify that execute and wait_for_execution_completion methods are called
         mock_hook_instance.start_notebook_execution.assert_called_once_with()
-        mock_hook_instance.wait_for_execution_completion.assert_called_once_with("123456", {})
+        mock_hook_instance.wait_for_execution_completion.assert_called_once_with(
+            "123456", {}
+        )
 
-    @patch("airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook")
+    @patch(
+        "airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook"
+    )
     @patch.object(SageMakerNotebookOperator, "defer")
     def test_execute_with_deferrable(self, mock_defer, mock_notebook_hook):
         mock_hook_instance = mock_notebook_hook.return_value
@@ -147,10 +168,12 @@ class TestSageMakerNotebookOperator(TestCase):
         assert isinstance(trigger_call, SageMakerNotebookJobTrigger)
         assert trigger_call.execution_id == "123456"
         assert trigger_call.execution_name == "test_id"
-        assert trigger_call.poll_interval == 10
+        assert trigger_call.waiter_delay == 10
         mock_hook_instance.wait_for_execution_completion.assert_not_called()
 
-    @patch("airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook")
+    @patch(
+        "airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook"
+    )
     def test_execute_without_wait_for_completion(self, mock_notebook_hook):
         # Mock the execute method of NotebookHook
         mock_hook_instance = mock_notebook_hook.return_value

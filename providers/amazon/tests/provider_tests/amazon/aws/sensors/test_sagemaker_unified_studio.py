@@ -19,9 +19,10 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.sensors.sagemaker_unified_studio import (
+    SageMakerNotebookSensor,
+)
 from airflow.utils.context import Context
-
-from airflow.providers.amazon.aws.sensors.sagemaker_unified_studio import SageMakerNotebookSensor
 
 
 class TestSageMakerNotebookSensor(TestCase):
@@ -37,7 +38,9 @@ class TestSageMakerNotebookSensor(TestCase):
         self.assertEqual(sensor.success_state, ["COMPLETED"])
         self.assertEqual(sensor.in_progress_states, ["PENDING", "RUNNING"])
 
-    @patch("airflow.providers.amazon.aws.sensors.sagemaker_unified_studio.SageMakerNotebookHook")
+    @patch(
+        "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio.SageMakerNotebookHook"
+    )
     def test_poke_success_state(self, mock_notebook_hook):
         mock_hook_instance = mock_notebook_hook.return_value
         mock_hook_instance.get_execution_status.return_value = "COMPLETED"
@@ -55,7 +58,9 @@ class TestSageMakerNotebookSensor(TestCase):
             execution_id="test_execution_id"
         )
 
-    @patch("airflow.providers.amazon.aws.sensors.sagemaker_unified_studio.SageMakerNotebookHook")
+    @patch(
+        "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio.SageMakerNotebookHook"
+    )
     def test_poke_failure_state(self, mock_notebook_hook):
         mock_hook_instance = mock_notebook_hook.return_value
         mock_hook_instance.get_execution_status.return_value = "FAILED"
@@ -70,12 +75,16 @@ class TestSageMakerNotebookSensor(TestCase):
         with self.assertRaises(AirflowException) as cm:
             sensor.poke()
 
-        self.assertEqual(str(cm.exception), "Exiting Execution test_execution_id State: FAILED")
+        self.assertEqual(
+            str(cm.exception), "Exiting Execution test_execution_id State: FAILED"
+        )
         mock_hook_instance.get_execution_status.assert_called_once_with(
             execution_id="test_execution_id"
         )
 
-    @patch("airflow.providers.amazon.aws.sensors.sagemaker_unified_studio.SageMakerNotebookHook")
+    @patch(
+        "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio.SageMakerNotebookHook"
+    )
     def test_poke_in_progress_state(self, mock_notebook_hook):
         mock_hook_instance = mock_notebook_hook.return_value
         mock_hook_instance.get_execution_status.return_value = "RUNNING"
