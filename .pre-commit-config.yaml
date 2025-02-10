@@ -1085,6 +1085,14 @@ repos:
         pass_filenames: true
         files: \.py$
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-zip-file-is-not-committed
+        name: Check no zip files are committed
+        description: Zip files are not allowed in the repository
+        language: fail
+        entry: |
+          Zip files are not allowed in the repository as they are hard to
+          track and have security implications. Please remove the zip file from the repository.
+        files: \.zip$
       - id: check-code-deprecations
         name: Check deprecations categories in decorators
         entry: ./scripts/ci/pre_commit/check_deprecations.py
