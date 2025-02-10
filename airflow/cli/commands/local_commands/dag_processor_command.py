@@ -33,9 +33,14 @@ log = logging.getLogger(__name__)
 
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
+    if args.bundle_name:
+        cli_utils.validate_dag_bundle_arg(args.bundle_name)
     return DagProcessorJobRunner(
         job=Job(),
-        processor=DagFileProcessorManager(max_runs=args.num_runs),
+        processor=DagFileProcessorManager(
+            max_runs=args.num_runs,
+            bundle_names_to_parse=args.bundle_name,
+        ),
     )
 
 
