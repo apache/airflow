@@ -36,6 +36,7 @@ from sqlalchemy import (
     desc,
     func,
     select,
+    update,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship, validates
@@ -56,6 +57,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.timetables.base import DagRunInfo
+
 
 log = logging.getLogger(__name__)
 
@@ -287,7 +289,7 @@ def _create_backfill_dag_run(
     session,
 ):
     # clear dag run if run exits and reprocess behaviour is in completed or failed
-    clear_run_if_dagrun_exists(dag, info, reprocess_behavior, session)
+    clear_run_if_dagrun_exists(dag, info, reprocess_behavior, backfill_id, session)
     with session.begin_nested():
         should_skip_create_backfill = should_create_backfill_dag_run(
             info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
@@ -436,7 +438,9 @@ def _create_backfill(
     return br
 
 
-def clear_run_if_dagrun_exists(dag, info, reprocess_behavior, session):
+def clear_run_if_dagrun_exists(dag, info, reprocess_behavior, backfill_id, session):
+    from airflow.models import DagRun
+
     dr = session.scalar(
         statement=_get_latest_dag_run_row_query(info, session),
     )
@@ -452,3 +456,11 @@ def clear_run_if_dagrun_exists(dag, info, reprocess_behavior, session):
                 confirm_prompt=False,
                 dry_run=False,
             )
+        # updating backfill id and run_type in dag_run table
+        update_backfill_id = (
+            update(DagRun)
+            .where(DagRun.logical_date == info.logical_date)
+            .values(backfill_id=backfill_id, run_type=DagRunType.BACKFILL_JOB)
+        )
+        session.execute(update_backfill_id)
+        session.commit()
