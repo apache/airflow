@@ -59,6 +59,7 @@ class ExternalDagLink(BaseOperatorLink):
     """
 
     name = "External DAG"
+    xcom_key = "external-dag-key"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         from airflow.models.renderedtifields import RenderedTaskInstanceFields

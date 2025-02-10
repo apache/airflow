@@ -717,7 +717,11 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
     _xcom_push(ti, "return_value", result, mapped_length=mapped_length)
 
 
-def finalize(log: Logger): ...
+def finalize(ti: RuntimeTaskInstance, log: Logger):
+    for oe in ti.task.operator_extra_links:
+        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
+        log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
+        _xcom_push(ti, key=xcom_key, value=link)
 
 
 def main():
@@ -728,7 +732,7 @@ def main():
     try:
         ti, log = startup()
         run(ti, log)
-        finalize(log)
+        finalize(ti, log)
     except KeyboardInterrupt:
         log = structlog.get_logger(logger_name="task")
         log.exception("Ctrl-c hit")

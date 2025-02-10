@@ -48,6 +48,7 @@ class AirflowLink(BaseOperatorLink):
     """Operator Link for Apache Airflow Website."""
 
     name = "airflow"
+    xcom_key = "airflow-link-key"
 
     def get_link(self, operator, *, ti_key):
         return "https://airflow.apache.org"

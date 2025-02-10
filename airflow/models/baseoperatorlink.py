@@ -20,14 +20,35 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, ClassVar
 
-import attr
+import attrs
+
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.sdk.api.datamodels._generated import TaskInstance
 
 
-@attr.s(auto_attribs=True)
+@attrs.define()
+class GenericOperatorLink(LoggingMixin):
+    """A generic operator link class that can retrieve link only using XCOMs. Used while deserializing operators."""
+
+    name: str
+    xcom_key: str
+
+    def get_link(self, ti: TaskInstance) -> str:
+        """
+        Retrieve the link from the XComs.
+
+        :param ti: Task instance from which to retrieve the link
+        :return: link to external system, but by pulling it from XComs
+        """
+        self.log.info("Retrieving link from XComs with key: %s for task id: %s", self.xcom_key, ti.task_id)
+        return ti.xcom_pull(key=self.xcom_key, task_ids=ti.task_id)  # type: ignore
+
+
+@attrs.define()
 class BaseOperatorLink(metaclass=ABCMeta):
     """Abstract base class that defines how we get an operator link."""
 
@@ -43,6 +64,15 @@ class BaseOperatorLink(metaclass=ABCMeta):
     @abstractmethod
     def name(self) -> str:
         """Name of the link. This will be the button name on the task UI."""
+
+    @property
+    @abstractmethod
+    def xcom_key(self) -> str:
+        """
+        XCom key with while the whole "link" for this operator link is stored.
+
+        On retrieving with this key, the entire link is returned.
+        """
 
     @abstractmethod
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:

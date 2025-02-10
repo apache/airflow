@@ -27,6 +27,7 @@ from collections.abc import (
     Iterator,
     Mapping,
 )
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import methodtools
@@ -34,6 +35,7 @@ import methodtools
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.templater import Templater
+from airflow.sdk.definitions.baseoperator import AirflowException, BaseOperator
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -42,7 +44,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.models.baseoperatorlink import BaseOperatorLink
-    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -135,6 +137,60 @@ class AbstractOperator(Templater, DAGNode):
             "operator_extra_link_dict",
         )
     )
+
+    @cached_property
+    def global_operator_extra_link_dict(self) -> dict[str, Any]:
+        """Returns dictionary of all global extra links."""
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.global_operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        return {link.name: link for link in plugins_manager.global_operator_extra_links}
+
+    @cached_property
+    def extra_links(self) -> list[str]:
+        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
+
+    @cached_property
+    def operator_extra_link_dict(self) -> dict[str, Any]:
+        """Returns dictionary of all extra links for the operator."""
+        op_extra_links_from_plugin: dict[str, Any] = {}
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        for ope in plugins_manager.operator_extra_links:
+            if ope.operators and self.operator_class in ope.operators:
+                op_extra_links_from_plugin.update({ope.name: ope})
+
+        operator_extra_links_all = {link.name: link for link in self.operator_extra_links}
+        # Extra links defined in Plugins overrides operator links defined in operator
+        operator_extra_links_all.update(op_extra_links_from_plugin)
+
+        return operator_extra_links_all
+
+    def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
+        """
+        For an operator, gets the URLs that the ``extra_links`` entry points to.
+
+        :meta private:
+
+        :raise ValueError: The error message of a ValueError will be passed on through to
+            the fronted to show up as a tooltip on the disabled link.
+        :param ti: The TaskInstance for the URL being searched for.
+        :param link_name: The name of the link we're looking for the URL for. Should be
+            one of the options specified in ``extra_links``.
+        """
+        link = self.operator_extra_link_dict.get(link_name)
+        if not link:
+            link = self.global_operator_extra_link_dict.get(link_name)
+            if not link:
+                return None
+
+        el = link.get_link(ti=ti)
+        return el.strip('"')
 
     def get_dag(self) -> DAG | None:
         raise NotImplementedError()

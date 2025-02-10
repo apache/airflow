@@ -222,6 +222,7 @@ class WorkflowJobRunLink(BaseOperatorLink, LoggingMixin):
     """Constructs a link to monitor a Databricks Job Run."""
 
     name = "See Databricks Job Run"
+    xcom_key = "workflow-job-run-link-key"
 
     def get_link(
         self,
@@ -255,6 +256,7 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
     """Constructs a link to send a request to repair all failed tasks in the Databricks workflow."""
 
     name = "Repair All Failed Tasks"
+    xcom_key = "workflow-job-repair-all-failed-key"
 
     def get_link(
         self,
@@ -348,6 +350,7 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
     """Construct a link to send a repair request for a single databricks task."""
 
     name = "Repair a single task"
+    xcom_key = "key"
 
     def get_link(
         self,
