@@ -1523,7 +1523,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             raise AirflowException("Can't load plugins")
         op_predefined_extra_links = {}
 
-        for item in encoded_op_links.items():
+        for name, xcom_key in encoded_op_links.items():
             # Get the name and xcom_key of the encoded operator and use it to create a GenericOperatorLink object
             # during deserialization.
             #
@@ -1536,7 +1536,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             #     'raise_error': 'key'
             # }
 
-            name, xcom_key = item
             op_predefined_extra_link = GenericOperatorLink(name=name, xcom_key=xcom_key)
             op_predefined_extra_links.update({op_predefined_extra_link.name: op_predefined_extra_link})
 
@@ -1557,10 +1556,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         :param operator_extra_links: Operator Link
         :return: Serialized Operator Link
         """
-        serialize_operator_extra_links = {}
-        for operator_extra_link in operator_extra_links:
-            serialize_operator_extra_links[operator_extra_link.name] = operator_extra_link.xcom_key
-        return serialize_operator_extra_links
+        return {link.name: link.xcom_key for link in operator_extra_links}
 
     @classmethod
     def serialize(cls, var: Any, *, strict: bool = False) -> Any:
