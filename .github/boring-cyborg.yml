@@ -25,10 +25,7 @@ labelPRBasedOnFilePath:
     - providers/alibaba/**
 
   provider:amazon:
-    - providers/src/airflow/providers/amazon/**/*
-    - providers/tests/amazon/aws/**/*
-    - docs/apache-airflow-providers-amazon/**/*
-    - providers/tests/system/amazon/aws/**/*
+    - providers/amazon/**
 
   provider:apache-beam:
     - providers/apache/beam/**
@@ -46,9 +43,7 @@ labelPRBasedOnFilePath:
     - providers/apache/flink/**
 
   provider:apache-hdfs:
-    - providers/src/airflow/providers/apache/hdfs/**/*
-    - docs/apache-airflow-providers-apache-hdfs/**/*
-    - providers/tests/apache/hdfs/**/*
+    - providers/apache/hdfs/**
 
   provider:apache-hive:
     - providers/apache/hive/**
@@ -114,10 +109,7 @@ labelPRBasedOnFilePath:
     - providers/standard/**
 
   provider:databricks:
-    - providers/src/airflow/providers/databricks/**/*
-    - docs/apache-airflow-providers-databricks/**/*
-    - providers/tests/databricks/**/*
-    - providers/tests/system/databricks/**/*
+    - providers/databricks/**
 
   provider:datadog:
     - providers/datadog/**
@@ -180,10 +172,7 @@ labelPRBasedOnFilePath:
     - providers/jenkins/**
 
   provider:microsoft-azure:
-    - providers/src/airflow/providers/microsoft/azure/**/*
-    - providers/tests/microsoft/azure/**/*
-    - docs/apache-airflow-providers-microsoft-azure/**/*
-    - providers/tests/system/microsoft/azure/**/*
+    - providers/microsoft/azure/**
 
   provider:microsoft-mssql:
     - providers/microsoft/mssql/**
@@ -270,9 +259,7 @@ labelPRBasedOnFilePath:
     - providers/slack/**
 
   provider:smtp:
-    - providers/src/airflow/providers/smtp/**/*
-    - docs/apache-airflow-providers-smtp/**/*
-    - providers/tests/smtp/**/*
+    - providers/smtp/**
 
   provider:snowflake:
     - providers/snowflake/**
@@ -309,12 +296,6 @@ labelPRBasedOnFilePath:
 
   provider:zendesk:
     - providers/zendesk/**
-
-  area:providers:
-    - providers/src/airflow/providers/**/*
-    - docs/apache-airflow-providers-*/**/*
-    - providers/tests/**/*
-    - providers/tests/system/**/*
 
   area:API:
     - airflow/api/**/*
@@ -381,11 +362,10 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow/administration-and-deployment/lineage.rst
 
   area:Logging:
-    - providers/src/airflow/providers/**/log/*
     - airflow/utils/log/**/*
     - docs/apache-airflow/administration-and-deployment/logging-monitoring/logging-*.rst
-    - providers/tests/**/log/*
     - tests/utils/log/**/*
+    - providers/**/log/*
 
   area:Plugins:
     - airflow/cli/commands/local_commands/plugins_command.py
@@ -413,9 +393,8 @@ labelPRBasedOnFilePath:
 
   area:Secrets:
     - airflow/secrets/**/*
-    - providers/src/airflow/providers/**/secrets/*
     - tests/secrets/**/*
-    - providers/tests/**/secrets/*
+    - providers/**/secrets/*
     - docs/apache-airflow/security/secrets/**/*
 
   area:Triggerer:

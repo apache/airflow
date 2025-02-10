@@ -483,6 +483,13 @@ class RemovedInAirflow3Warning(DeprecationWarning):
     "Indicates the airflow version that started raising this deprecation warning"
 
 
+class RemovedInAirflow4Warning(DeprecationWarning):
+    """Issued for usage of deprecated features that will be removed in Airflow4."""
+
+    deprecated_since: str | None = None
+    "Indicates the airflow version that started raising this deprecation warning"
+
+
 class AirflowProviderDeprecationWarning(DeprecationWarning):
     """Issued for usage of deprecated features of Airflow provider."""
 
