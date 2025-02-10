@@ -910,7 +910,7 @@ class AirflowConfigParser(ConfigParser):
                     DeprecationWarning,
                     stacklevel=2 + _extra_stacklevel,
                 )
-            # For when we rename whole sections
+            # For the cases in which we rename whole sections
             if section in self.inversed_deprecated_sections:
                 deprecated_section, deprecated_key = (section, key)
                 section = self.inversed_deprecated_sections[section]
