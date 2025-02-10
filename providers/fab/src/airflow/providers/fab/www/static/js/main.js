@@ -49,7 +49,6 @@ function changeDisplayedTimezone(tz) {
   const event = new CustomEvent(TimezoneEvent, {
     detail: tz,
   });
-  console.log('test')
   document.dispatchEvent(event);
 
   setDisplayedTimezone(tz);
