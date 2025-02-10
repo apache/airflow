@@ -47,7 +47,6 @@ ENDPOINT = "extra_links"
 
 class RaiseErrorLink(BaseOperatorLink):
     name = "raise_error"
-    xcom_key = "raise-error-key"
 
     def get_link(self, operator, *, ti_key):
         raise ValueError("This is an error")
@@ -55,7 +54,6 @@ class RaiseErrorLink(BaseOperatorLink):
 
 class NoResponseLink(BaseOperatorLink):
     name = "no_response"
-    xcom_key = "no-response-key"
 
     def get_link(self, operator, *, ti_key):
         return None
@@ -63,7 +61,6 @@ class NoResponseLink(BaseOperatorLink):
 
 class FooBarLink(BaseOperatorLink):
     name = "foo-bar"
-    xcom_key = "foo-bar-key"
 
     def get_link(self, operator, *, ti_key):
         return f"http://www.example.com/{operator.task_id}/foo-bar/{ti_key.run_id}"

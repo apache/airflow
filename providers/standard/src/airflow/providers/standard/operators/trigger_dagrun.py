@@ -70,7 +70,6 @@ class TriggerDagRunLink(BaseOperatorLink):
     """
 
     name = "Triggered DAG"
-    xcom_key = "trigger-dag-run-key"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
