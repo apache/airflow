@@ -22,7 +22,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import delete, inspect
+from sqlalchemy import delete, inspect, text
 from sqlalchemy.exc import NoSuchTableError
 
 from airflow.cli.cli_config import GroupCommand
@@ -88,7 +88,7 @@ class EdgeExecutor(BaseExecutor):
         if edge_worker_columns and "maintenance_comment" not in edge_worker_columns:
             connection = engine.connect()
             query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(1024);"
-            connection.execute(query)
+            connection.execute(text(query))
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):
