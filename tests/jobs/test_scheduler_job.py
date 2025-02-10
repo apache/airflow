@@ -2865,7 +2865,10 @@ class TestSchedulerJob:
             # Deactivate other dags in this file
             other_dag = dagbag.get_dag("test_task_start_date_scheduling")
             other_dag.is_paused_upon_creation = True
-            DAG.bulk_write_to_db("testing", None, [other_dag])
+            DAG.bulk_write_to_db("testing", None, [dag, other_dag])
+            session.flush()
+            SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+            SerializedDagModel.write_dag(other_dag, bundle_name="testing", session=session)
             scheduler_job = Job(executor=self.null_exec)
             self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
             run_job(scheduler_job, execute_callable=self.job_runner._execute)
@@ -3182,12 +3185,11 @@ class TestSchedulerJob:
         )
         assert ti2.state == State.QUEUED
 
-    def test_verify_integrity_if_dag_not_changed(self, dag_maker):
+    def test_verify_integrity_if_dag_not_changed(self, dag_maker, session):
         # CleanUp
-        with create_session() as session:
-            session.query(SerializedDagModel).filter(
-                SerializedDagModel.dag_id == "test_verify_integrity_if_dag_not_changed"
-            ).delete(synchronize_session=False)
+        session.query(SerializedDagModel).filter(
+            SerializedDagModel.dag_id == "test_verify_integrity_if_dag_not_changed"
+        ).delete(synchronize_session=False)
 
         with dag_maker(dag_id="test_verify_integrity_if_dag_not_changed") as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
@@ -3198,7 +3200,7 @@ class TestSchedulerJob:
         session = settings.Session()
         orm_dag = dag_maker.dag_model
         assert orm_dag is not None
-
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
@@ -3227,8 +3229,9 @@ class TestSchedulerJob:
         )
         assert tis_count == 1
 
-        latest_dag_version = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
-        assert dr.dag_version.serialized_dag.dag_hash == latest_dag_version
+        latest_dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
+        for ti in dr.task_instances:
+            assert ti.dag_version_id == latest_dag_version.id
 
         session.rollback()
         session.close()
@@ -3249,6 +3252,7 @@ class TestSchedulerJob:
         session = settings.Session()
         orm_dag = dag_maker.dag_model
         assert orm_dag is not None
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -3260,8 +3264,8 @@ class TestSchedulerJob:
         assert len(drs) == 1
         dr = drs[0]
 
-        dag_version_1 = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
-        assert dr.dag_version.serialized_dag.dag_hash == dag_version_1
+        dag_version_1 = DagVersion.get_latest_version(dr.dag_id, session=session)
+        assert dr.dag_versions()[-1] == dag_version_1.id
         assert self.job_runner.dagbag.dags == {"test_verify_integrity_if_dag_changed": dag}
         assert len(self.job_runner.dagbag.dags.get("test_verify_integrity_if_dag_changed").tasks) == 1
 
@@ -3269,7 +3273,7 @@ class TestSchedulerJob:
         BashOperator(task_id="bash_task_1", dag=dag, bash_command="echo hi")
         SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
 
-        dag_version_2 = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
+        dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
 
         self.job_runner._schedule_dag_run(dr, session)
@@ -3278,7 +3282,7 @@ class TestSchedulerJob:
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
         dr = drs[0]
-        assert dr.dag_version.serialized_dag.dag_hash == dag_version_2
+        assert dr.dag_versions(session)[-1] == dag_version_2.id
         assert self.job_runner.dagbag.dags == {"test_verify_integrity_if_dag_changed": dag}
         assert len(self.job_runner.dagbag.dags.get("test_verify_integrity_if_dag_changed").tasks) == 2
 
@@ -3293,8 +3297,8 @@ class TestSchedulerJob:
         )
         assert tis_count == 2
 
-        latest_dag_version = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
-        assert dr.dag_version.serialized_dag.dag_hash == latest_dag_version
+        latest_dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
+        assert dr.dag_versions()[-1] == latest_dag_version.id
 
         session.rollback()
         session.close()
@@ -5369,7 +5373,7 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
-    def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker):
+    def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker, session):
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
         """
@@ -5377,7 +5381,6 @@ class TestSchedulerJob:
 
         retry_times = 3
 
-        session = settings.Session()
         # Create the test DAG and task
         with dag_maker(
             dag_id="test_retry_on_db_error_when_update_timeout_triggers",
@@ -5385,7 +5388,7 @@ class TestSchedulerJob:
             schedule="@once",
             max_active_runs=1,
             session=session,
-        ):
+        ) as dag:
             EmptyOperator(task_id="dummy1")
 
         # Mock the db failure within retry times
@@ -5411,6 +5414,9 @@ class TestSchedulerJob:
                 # Create a Task Instance for the task that is allegedly deferred
                 # but past its timeout, and one that is still good.
                 # We don't actually need a linked trigger here; the code doesn't check.
+                dag.sync_to_db()
+                SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+                session.flush()
                 dr1 = dag_maker.create_dagrun()
                 dr2 = dag_maker.create_dagrun(
                     run_id="test2", logical_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
@@ -5520,7 +5526,7 @@ class TestSchedulerJob:
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         DAG.bulk_write_to_db("testing", None, [dag])
-
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         session.query(Job).delete()
 
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
@@ -5573,14 +5579,13 @@ class TestSchedulerJob:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_find_zombies_handle_failure_callbacks_are_correctly_passed_to_dag_processor(
-        self,
-        create_dagrun,
+        self, create_dagrun, session
     ):
         """
         Check that the same set of failure callback with zombies are passed to the dag
         file processors until the next zombie detection logic is invoked.
         """
-        with conf_vars({("core", "load_examples"): "False"}), create_session() as session:
+        with conf_vars({("core", "load_examples"): "False"}):
             dagbag = DagBag(
                 dag_folder=os.path.join(settings.DAGS_FOLDER, "test_example_bash_operator.py"),
                 read_dags_from_db=False,
@@ -5598,9 +5603,8 @@ class TestSchedulerJob:
                 data_interval=data_interval,
             )
             task = dag.get_task(task_id="run_this_last")
-            ti = TaskInstance(
-                task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_run.dag_version_id
-            )
+            dag_version_id = DagVersion.get_latest_version(dag.dag_id).id
+            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_version_id)
             ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
             ti.start_date = timezone.utcnow() - timedelta(minutes=10)
 

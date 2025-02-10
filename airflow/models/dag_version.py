@@ -61,7 +61,6 @@ class DagVersion(Base):
         cascade="all, delete, delete-orphan",
         cascade_backrefs=False,
     )
-    dag_runs = relationship("DagRun", back_populates="dag_version", cascade="all, delete, delete-orphan")
     task_instances = relationship("TaskInstance", back_populates="dag_version")
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
