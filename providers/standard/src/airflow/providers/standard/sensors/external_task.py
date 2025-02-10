@@ -28,7 +28,6 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
-from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
@@ -63,22 +62,15 @@ class ExternalDagLink(BaseOperatorLink):
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        ti = TaskInstance.get_task_instance(
-            dag_id=ti_key.dag_id, run_id=ti_key.run_id, task_id=ti_key.task_id, map_index=ti_key.map_index
-        )
-
         if TYPE_CHECKING:
-            assert ti is not None
+            assert isinstance(operator, (ExternalTaskMarker, ExternalTaskSensor))
 
-        template_fields = RenderedTaskInstanceFields.get_templated_fields(ti)
-        external_dag_id = (
-            template_fields["external_dag_id"] if template_fields else operator.external_dag_id  # type: ignore[attr-defined]
-        )
-        query = {
-            "dag_id": external_dag_id,
-            "logical_date": ti.logical_date.isoformat(),  # type: ignore[union-attr]
-        }
+        if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
+            external_dag_id: str = template_fields.get("external_dag_id", operator.external_dag_id)
+        else:
+            external_dag_id = operator.external_dag_id
 
+        query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
         return build_airflow_url_with_query(query)
 
 
