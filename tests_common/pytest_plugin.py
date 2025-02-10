@@ -947,7 +947,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
                 kwargs.setdefault("dag_version", None)
-                kwargs.setdefault("run_after", data_interval[-1])
+                kwargs.setdefault("run_after", data_interval[-1] if data_interval else timezone.utcnow())
             else:
                 kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
