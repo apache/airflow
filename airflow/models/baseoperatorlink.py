@@ -66,13 +66,15 @@ class BaseOperatorLink(metaclass=ABCMeta):
         """Name of the link. This will be the button name on the task UI."""
 
     @property
-    @abstractmethod
     def xcom_key(self) -> str:
         """
         XCom key with while the whole "link" for this operator link is stored.
 
         On retrieving with this key, the entire link is returned.
+
+        Defaults to `_link_<class name>` if not provided.
         """
+        return f"_link_{self.__class__.__name__}"
 
     @abstractmethod
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:

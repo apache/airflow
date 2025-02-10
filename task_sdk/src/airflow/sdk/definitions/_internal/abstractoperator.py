@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import inspect
 import logging
 from abc import abstractmethod
 from collections.abc import (
@@ -139,6 +140,17 @@ class AbstractOperator(Templater, DAGNode):
         )
     )
 
+    def unmap(self, resolve) -> BaseOperator:
+        """
+        Get the "normal" operator from current abstract operator.
+
+        MappedOperator uses this to unmap itself based on the map index. A non-
+        mapped operator (i.e. BaseOperator subclass) simply returns itself.
+
+        :meta private:
+        """
+        raise NotImplementedError()
+
     @cached_property
     def global_operator_extra_link_dict(self) -> dict[str, Any]:
         """Returns dictionary of all global extra links."""
@@ -190,9 +202,18 @@ class AbstractOperator(Templater, DAGNode):
             if not link:
                 return None
 
-        el = link.get_link(ti=ti)
-        # Temporary workaround till https://github.com/apache/airflow/issues/46513 is handled.
-        return el.strip('"')
+        # TODO: replace with isinstance checks when operator links ported to sdk
+        try:
+            el = link.get_link(ti=ti)
+            # Temporary workaround till https://github.com/apache/airflow/issues/46513 is handled.
+            return el.strip('"')
+        except (TypeError, AttributeError):
+            parameters = inspect.signature(link.get_link).parameters
+            old_signature = all(name != "ti_key" for name, p in parameters.items() if p.kind != p.VAR_KEYWORD)
+
+            if old_signature:
+                return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore
+            return link.get_link(self.unmap(None), ti_key=ti.id)
 
     def get_dag(self) -> DAG | None:
         raise NotImplementedError()
