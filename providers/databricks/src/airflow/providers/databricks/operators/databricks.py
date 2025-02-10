@@ -31,6 +31,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState, RunState
+
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     WorkflowRunMetadata,
@@ -40,7 +41,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRunLink,
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
-from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
+from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event, validate_serverless_job_settings
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -630,6 +631,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             pipeline_name = self.json["pipeline_task"]["pipeline_name"]
             self.json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
             del self.json["pipeline_task"]["pipeline_name"]
+        validate_serverless_job_settings(self.json)
         json_normalised = normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
         if self.deferrable:
@@ -1117,6 +1119,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     def _launch_job(self, context: Context | None = None) -> int | None:
         """Launch the job on Databricks."""
         run_json = self._get_run_json()
+        validate_serverless_job_settings(run_json)
         self.databricks_run_id = self._hook.submit_run(run_json)
         url = self._hook.get_run_page_url(self.databricks_run_id)
         self.log.info("Check the job run in Databricks: %s", url)
