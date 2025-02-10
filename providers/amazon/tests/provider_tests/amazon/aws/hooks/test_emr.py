@@ -27,7 +27,7 @@ import pytest
 from botocore.exceptions import WaiterError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 
 
@@ -174,9 +174,7 @@ class TestEmrHook:
             warnings.simplefilter("error")
             if sys.version_info >= (3, 12):
                 # Botocore generates deprecation warning on Python 3.12 connected with utcnow use
-                warnings.filterwarnings(
-                    "ignore", message=r".*datetime.utcnow.*", category=AirflowProviderDeprecationWarning
-                )
+                warnings.filterwarnings("ignore", message=r".*datetime.utcnow.*", category=DeprecationWarning)
             cluster = hook.create_job_flow(
                 {"Name": "test_cluster", "ReleaseLabel": "", "AmiVersion": "3.2", "Instances": {}}
             )
