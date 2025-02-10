@@ -19,6 +19,7 @@ import {
   GridService,
   ImportErrorService,
   JobService,
+  LoginService,
   MonitorService,
   PluginService,
   PoolService,
@@ -2702,5 +2703,24 @@ export const useVersionServiceGetVersionSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
     queryFn: () => VersionService.getVersion() as TData,
+    ...options,
+  });
+/**
+ * Login
+ * Redirect to the login URL depending on the AuthManager configured.
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useLoginServiceLoginSuspense = <
+  TData = Common.LoginServiceLoginDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseLoginServiceLoginKeyFn(queryKey),
+    queryFn: () => LoginService.login() as TData,
     ...options,
   });

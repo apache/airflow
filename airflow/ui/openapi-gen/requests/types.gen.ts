@@ -2424,6 +2424,8 @@ export type GetHealthResponse = HealthInfoResponse;
 
 export type GetVersionResponse = VersionInfo;
 
+export type LoginResponse = unknown;
+
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
     get: {
@@ -5085,6 +5087,20 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+      };
+    };
+  };
+  "/public/login": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Permanent Redirect
+         */
+        308: HTTPExceptionResponse;
       };
     };
   };

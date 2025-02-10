@@ -201,6 +201,7 @@ import type {
   ReparseDagFileResponse,
   GetHealthResponse,
   GetVersionResponse,
+  LoginResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -3356,6 +3357,24 @@ export class VersionService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/version",
+    });
+  }
+}
+
+export class LoginService {
+  /**
+   * Login
+   * Redirect to the login URL depending on the AuthManager configured.
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static login(): CancelablePromise<LoginResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/login",
+      errors: {
+        308: "Permanent Redirect",
+      },
     });
   }
 }

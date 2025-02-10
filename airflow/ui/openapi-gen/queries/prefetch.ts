@@ -19,6 +19,7 @@ import {
   GridService,
   ImportErrorService,
   JobService,
+  LoginService,
   MonitorService,
   PluginService,
   PoolService,
@@ -2297,4 +2298,15 @@ export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(),
     queryFn: () => VersionService.getVersion(),
+  });
+/**
+ * Login
+ * Redirect to the login URL depending on the AuthManager configured.
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseLoginServiceLogin = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseLoginServiceLoginKeyFn(),
+    queryFn: () => LoginService.login(),
   });
