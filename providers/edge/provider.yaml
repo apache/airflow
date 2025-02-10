@@ -25,7 +25,7 @@ source-date-epoch: 1737371680
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.13.1pre0
+  - 0.14.0pre0
 
 plugins:
   - name: edge_executor
