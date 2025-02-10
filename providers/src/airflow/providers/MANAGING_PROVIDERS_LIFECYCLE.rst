@@ -42,6 +42,8 @@ Using the code above you will set up Docker containers. These containers your lo
 In this way, the changes made in your IDE are already applied to the code inside the container and tests can
 be carried out quickly.
 
+# TODO(potiuk) - rename when all providers are new-style
+
 In this how-to guide our example provider name will be ``<NEW_PROVIDER>``.
 When you see this placeholder you must change for your provider name.
 

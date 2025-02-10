@@ -47,8 +47,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import FromClause
 
-    from airflow.models import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.types import Operator
 
 
 def get_serialized_template_fields(task: Operator):
@@ -145,7 +145,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         return prefix + ">"
 
     def _redact(self):
-        from airflow.utils.log.secrets_masker import redact
+        from airflow.sdk.execution_time.secrets_masker import redact
 
         if self.k8s_pod_yaml:
             self.k8s_pod_yaml = redact(self.k8s_pod_yaml)

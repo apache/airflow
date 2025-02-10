@@ -30,8 +30,8 @@ import re2
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
     from airflow.sdk.definitions._internal.types import Logger
+    from airflow.sdk.definitions.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.definitions.taskgroup import TaskGroup
@@ -99,8 +99,8 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             return self.dag.dag_id
         return "_in_memory_dag_"
 
+    @methodtools.lru_cache()  # type: ignore[misc]
     @property
-    @methodtools.lru_cache()
     def log(self) -> Logger:
         typ = type(self)
         name = f"{typ.__module__}.{typ.__qualname__}"
@@ -123,8 +123,8 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """Set relatives for the task or task list."""
-        from airflow.models.mappedoperator import MappedOperator
         from airflow.sdk.definitions.baseoperator import BaseOperator
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]

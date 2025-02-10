@@ -29,7 +29,7 @@ from airflow.typing_compat import ParamSpec
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
-    from airflow.utils.context import OutletEventAccessors
+    from airflow.sdk.types import OutletEventAccessorsProtocol
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -230,7 +230,7 @@ class _ExecutionCallableRunner(Protocol):
 
 def ExecutionCallableRunner(
     func: Callable[P, R],
-    outlet_events: OutletEventAccessors,
+    outlet_events: OutletEventAccessorsProtocol,
     *,
     logger: logging.Logger,
 ) -> _ExecutionCallableRunner:

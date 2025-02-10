@@ -33,13 +33,15 @@ from sqlalchemy import select
 from airflow.api.client import get_current_api_client
 from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli as cli_utils, timezone
-from airflow.utils.cli import get_dag, process_subdir, suppress_logs_and_warning
+from airflow.utils.cli import get_dag, process_subdir, suppress_logs_and_warning, validate_dag_bundle_arg
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -264,12 +266,17 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-    dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, logical_date=args.logical_date))
-    out = dr.state if dr else None
-    conf_out = ""
-    if out and dr.conf:
-        conf_out = ", " + json.dumps(dr.conf)
-    print(str(out) + conf_out)
+    dr, _ = fetch_dag_run_from_run_id_or_logical_date_string(
+        dag_id=dag.dag_id,
+        value=args.logical_date_or_run_id,
+        session=session,
+    )
+    if not dr:
+        print(None)
+    elif dr.conf:
+        print(f"{dr.state}, {json.dumps(dr.conf)}")
+    else:
+        print(dr.state)
 
 
 @cli_utils.action_cli
@@ -465,20 +472,20 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
         logical_end_date=args.end_date,
         session=session,
     )
+    dag_runs.sort(key=operator.attrgetter("run_after"), reverse=True)
 
-    dag_runs.sort(key=lambda x: x.logical_date, reverse=True)
-    AirflowConsole().print_as(
-        data=dag_runs,
-        output=args.output,
-        mapper=lambda dr: {
+    def _render_dagrun(dr: DagRun) -> dict[str, str]:
+        return {
             "dag_id": dr.dag_id,
             "run_id": dr.run_id,
             "state": dr.state,
-            "logical_date": dr.logical_date.isoformat(),
+            "run_after": dr.run_after.isoformat(),
+            "logical_date": dr.logical_date.isoformat() if dr.logical_date else "",
             "start_date": dr.start_date.isoformat() if dr.start_date else "",
             "end_date": dr.end_date.isoformat() if dr.end_date else "",
-        },
-    )
+        }
+
+    AirflowConsole().print_as(data=dag_runs, output=args.output, mapper=_render_dagrun)
 
 
 @cli_utils.action_cli
@@ -515,7 +522,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         tis = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == args.dag_id,
-                TaskInstance.logical_date == logical_date,
+                TaskInstance.run_id == dr.run_id,
             )
         ).all()
 
@@ -537,19 +544,20 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @provide_session
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
-    from airflow.dag_processing.bundles.manager import DagBundlesManager
-
     manager = DagBundlesManager()
     manager.sync_bundles_to_db(session=session)
     session.commit()
+
+    all_bundles = list(manager.get_all_dag_bundles())
     if args.bundle_name:
-        bundle = manager.get_bundle(args.bundle_name)
-        if not bundle:
-            raise SystemExit(f"Bundle {args.bundle_name} not found")
+        validate_dag_bundle_arg(args.bundle_name)
+        bundles_to_reserialize = set(args.bundle_name)
+    else:
+        bundles_to_reserialize = {b.name for b in all_bundles}
+
+    for bundle in all_bundles:
+        if bundle.name not in bundles_to_reserialize:
+            continue
+        bundle.initialize()
         dag_bag = DagBag(bundle.path, include_examples=False)
         dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
-    else:
-        bundles = manager.get_all_dag_bundles()
-        for bundle in bundles:
-            dag_bag = DagBag(bundle.path, include_examples=False)
-            dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)

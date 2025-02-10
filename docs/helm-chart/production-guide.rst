@@ -633,7 +633,7 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 | ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | | ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND``     |
 |                                                       |                                          | | ``AIRFLOW__CELERY__RESULT_BACKEND``            |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
-| ``<RELEASE_NAME>-airflow-brokerUrl``                  | ``.Values.data.brokerUrlSecretName``     | ``AIRFLOW__CELERY__BROKER_URL``                  |
+| ``<RELEASE_NAME>-airflow-broker-url``                 | ``.Values.data.brokerUrlSecretName``     | ``AIRFLOW__CELERY__BROKER_URL``                  |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-elasticsearch``                      | ``.Values.elasticsearch.secretName``     | | ``AIRFLOW__ELASTICSEARCH__HOST``               |
 |                                                       |                                          | | ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` |

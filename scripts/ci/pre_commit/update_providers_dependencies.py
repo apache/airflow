@@ -206,11 +206,15 @@ def check_if_different_provider_used(file_path: Path) -> None:
             warnings.append(f"The provider {imported_provider} from {file_path} cannot be found.")
             continue
 
-        if imported_provider == "standard":
-            # Standard -- i.e. BashOperator is used in a lot of example dags, but we don't want to mark this
+        if "/example_dags/" in file_path.as_posix():
+            # If provider is used in a example dags, we don't want to mark this
             # as a provider cross dependency
-            if file_path.name == "celery_executor_utils.py" or "/example_dags/" in file_path.as_posix():
-                continue
+            continue
+        if imported_provider == "standard" and file_path.name == "celery_executor_utils.py":
+            # some common standard operators are pre-imported in celery when it starts in order to speed
+            # up the task startup time - but it does not mean that standard provider is a cross-provider
+            # dependency of the celery executor
+            continue
         if imported_provider:
             if file_provider != imported_provider:
                 ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
@@ -234,9 +238,14 @@ if __name__ == "__main__":
             ALL_DEPENDENCIES[provider]["deps"].extend(
                 PYPROJECT_TOML_CONTENT[provider]["project"]["dependencies"]
             )
+            dependency_groups = PYPROJECT_TOML_CONTENT[provider].get("dependency-groups")
+            if dependency_groups and dependency_groups.get("dev"):
+                ALL_DEPENDENCIES[provider]["devel-deps"].extend(dependency_groups["dev"])
         else:
             ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
-        ALL_DEPENDENCIES[provider]["devel-deps"].extend(provider_yaml_content.get("devel-dependencies") or [])
+            ALL_DEPENDENCIES[provider]["devel-deps"].extend(
+                provider_yaml_content.get("devel-dependencies") or []
+            )
         ALL_DEPENDENCIES[provider]["plugins"].extend(provider_yaml_content.get("plugins") or [])
         STATES[provider] = provider_yaml_content["state"]
     if warnings:

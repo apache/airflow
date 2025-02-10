@@ -16,19 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Link } from "@chakra-ui/react";
+import { Box, Flex, Link, HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { useCallback, useState } from "react";
+import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
+import { SearchBar } from "src/components/SearchBar";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Status } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { Select } from "src/components/ui";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
+import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 const columns: Array<ColumnDef<TaskInstanceResponse>> = [
@@ -48,7 +54,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
       row: {
         original: { state },
       },
-    }) => <Status state={state}>{state}</Status>,
+    }) => <StateBadge state={state}>{state}</StateBadge>,
     header: () => "State",
   },
   {
@@ -86,6 +92,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     cell: ({ row }) => (
       <Flex justifyContent="end">
         <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
+        <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
       </Flex>
     ),
     enableSorting: false,
@@ -96,33 +103,132 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
   },
 ];
 
+const STATE_PARAM = "state";
+
 export const TaskInstances = () => {
   const { dagId = "", runId = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
+  const filteredState = searchParams.getAll(STATE_PARAM);
+  const hasFilteredState = filteredState.length > 0;
+  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
 
-  const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances(
+  const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
+    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
+  );
+
+  const handleStateChange = useCallback(
+    ({ value }: SelectValueChangeDetails<string>) => {
+      const [val, ...rest] = value;
+
+      if ((val === undefined || val === "all") && rest.length === 0) {
+        searchParams.delete(STATE_PARAM);
+      } else {
+        searchParams.delete(STATE_PARAM);
+        value.filter((state) => state !== "all").map((state) => searchParams.append(STATE_PARAM, state));
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
+
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      searchParams.set(NAME_PATTERN_PARAM, value);
+    } else {
+      searchParams.delete(NAME_PATTERN_PARAM);
+    }
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    setTaskDisplayNamePattern(value);
+    setSearchParams(searchParams);
+  };
+
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
       dagRunId: runId,
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      state: hasFilteredState ? filteredState : undefined,
+      taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
     },
     undefined,
-    { enabled: !isNaN(pagination.pageSize) },
+    {
+      enabled: !isNaN(pagination.pageSize),
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
+    },
   );
 
   return (
-    <Box>
+    <Box pt={4}>
+      <HStack>
+        <Select.Root
+          collection={stateOptions}
+          maxW="250px"
+          multiple
+          onValueChange={handleStateChange}
+          value={hasFilteredState ? filteredState : ["all"]}
+        >
+          <Select.Trigger
+            {...(hasFilteredState ? { clearable: true } : {})}
+            colorPalette="blue"
+            isActive={Boolean(filteredState)}
+          >
+            <Select.ValueText>
+              {() =>
+                hasFilteredState ? (
+                  <HStack gap="10px">
+                    {filteredState.map((state) => (
+                      <StateBadge key={state} state={state as TaskInstanceState}>
+                        {state === "none" ? "No Status" : capitalize(state)}
+                      </StateBadge>
+                    ))}
+                  </HStack>
+                ) : (
+                  "All States"
+                )
+              }
+            </Select.ValueText>
+          </Select.Trigger>
+          <Select.Content>
+            {stateOptions.items.map((option) => (
+              <Select.Item item={option} key={option.label}>
+                {option.value === "all" ? (
+                  option.label
+                ) : (
+                  <StateBadge state={option.value as TaskInstanceState}>{option.label}</StateBadge>
+                )}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={taskDisplayNamePattern ?? ""}
+          hideAdvanced
+          onChange={handleSearchChange}
+          placeHolder="Search Tasks"
+        />
+      </HStack>
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="Task Instance"
         onStateChange={setTableURLState}

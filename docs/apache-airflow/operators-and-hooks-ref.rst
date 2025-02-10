@@ -53,10 +53,7 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.operators.branch`
      -
 
-   * - :mod:`airflow.operators.empty`
-     -
-
-   * - :mod:`airflow.operators.email`
+   * - :mod:`airflow.providers.standard.operators.empty`
      -
 
    * - :mod:`airflow.operators.generic_transfer`

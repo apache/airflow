@@ -21,18 +21,20 @@ import datetime
 import logging
 from abc import abstractmethod
 from collections.abc import (
+    Callable,
     Collection,
     Iterable,
+    Iterator,
+    Mapping,
 )
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-)
+from typing import TYPE_CHECKING, Any, ClassVar
+
+import methodtools
 
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.templater import Templater
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
@@ -40,13 +42,18 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.models.baseoperatorlink import BaseOperatorLink
-    from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+    from airflow.sdk.types import Operator
+
+TaskStateChangeCallback = Callable[[Mapping[str, Any]], None]
 
 DEFAULT_OWNER: str = "airflow"
 DEFAULT_POOL_SLOTS: int = 1
+DEFAULT_POOL_NAME = "default_pool"
 DEFAULT_PRIORITY_WEIGHT: int = 1
 # Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
 # postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)
@@ -93,7 +100,7 @@ class AbstractOperator(Templater, DAGNode):
     priority_weight: int
 
     # Defines the operator level extra links.
-    operator_extra_links: Collection[BaseOperatorLink]
+    operator_extra_links: Collection[BaseOperatorLink] = ()
 
     owner: str
     task_id: str
@@ -164,6 +171,10 @@ class AbstractOperator(Templater, DAGNode):
     def task_display_name(self) -> str: ...
 
     @property
+    def is_mapped(self):
+        return self._is_mapped
+
+    @property
     def label(self) -> str | None:
         if self.task_display_name and self.task_display_name != self.task_id:
             return self.task_display_name
@@ -173,6 +184,29 @@ class AbstractOperator(Templater, DAGNode):
             # "task_group_id.task_id" -> "task_id"
             return self.task_id[len(tg.node_id) + 1 :]
         return self.task_id
+
+    @property
+    def on_failure_fail_dagrun(self):
+        """
+        Whether the operator should fail the dagrun on failure.
+
+        :meta private:
+        """
+        return self._on_failure_fail_dagrun
+
+    @on_failure_fail_dagrun.setter
+    def on_failure_fail_dagrun(self, value):
+        """
+        Setter for on_failure_fail_dagrun property.
+
+        :meta private:
+        """
+        if value is True and self.is_teardown is not True:
+            raise ValueError(
+                f"Cannot set task on_failure_fail_dagrun for "
+                f"'{self.task_id}' because it is not a teardown task."
+            )
+        self._on_failure_fail_dagrun = value
 
     def as_setup(self):
         self.is_setup = True
@@ -194,6 +228,15 @@ class AbstractOperator(Templater, DAGNode):
                 s.is_setup = True
                 s >> self
         return self
+
+    def __enter__(self):
+        if not self.is_setup and not self.is_teardown:
+            raise RuntimeError("Only setup/teardown tasks can be used as context managers.")
+        SetupTeardownContext.push_setup_teardown_task(self)
+        return SetupTeardownContext
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        SetupTeardownContext.set_work_task_roots_and_leaves()
 
     def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
         """
@@ -339,3 +382,111 @@ class AbstractOperator(Templater, DAGNode):
                 raise
             else:
                 setattr(parent, attr_name, rendered_content)
+
+    def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
+        """
+        Return mapped nodes that are direct dependencies of the current task.
+
+        For now, this walks the entire DAG to find mapped nodes that has this
+        current task as an upstream. We cannot use ``downstream_list`` since it
+        only contains operators, not task groups. In the future, we should
+        provide a way to record an DAG node's all downstream nodes instead.
+
+        Note that this does not guarantee the returned tasks actually use the
+        current task for task mapping, but only checks those task are mapped
+        operators, and are downstreams of the current task.
+
+        To get a list of tasks that uses the current task for task mapping, use
+        :meth:`iter_mapped_dependants` instead.
+        """
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+        from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
+
+        def _walk_group(group: TaskGroup) -> Iterable[tuple[str, DAGNode]]:
+            """
+            Recursively walk children in a task group.
+
+            This yields all direct children (including both tasks and task
+            groups), and all children of any task groups.
+            """
+            for key, child in group.children.items():
+                yield key, child
+                if isinstance(child, TaskGroup):
+                    yield from _walk_group(child)
+
+        dag = self.get_dag()
+        if not dag:
+            raise RuntimeError("Cannot check for mapped dependants when not attached to a DAG")
+        for key, child in _walk_group(dag.task_group):
+            if key == self.node_id:
+                continue
+            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
+                continue
+            if self.node_id in child.upstream_task_ids:
+                yield child
+
+    def iter_mapped_dependants(self) -> Iterator[MappedOperator | MappedTaskGroup]:
+        """
+        Return mapped nodes that depend on the current task the expansion.
+
+        For now, this walks the entire DAG to find mapped nodes that has this
+        current task as an upstream. We cannot use ``downstream_list`` since it
+        only contains operators, not task groups. In the future, we should
+        provide a way to record an DAG node's all downstream nodes instead.
+        """
+        return (
+            downstream
+            for downstream in self._iter_all_mapped_downstreams()
+            if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
+        )
+
+    def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
+        """
+        Return mapped task groups this task belongs to.
+
+        Groups are returned from the innermost to the outmost.
+
+        :meta private:
+        """
+        if (group := self.task_group) is None:
+            return
+        yield from group.iter_mapped_task_groups()
+
+    def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
+        """
+        Get the mapped task group "closest" to this task in the DAG.
+
+        :meta private:
+        """
+        return next(self.iter_mapped_task_groups(), None)
+
+    def get_needs_expansion(self) -> bool:
+        """
+        Return true if the task is MappedOperator or is in a mapped task group.
+
+        :meta private:
+        """
+        if self._needs_expansion is None:
+            if self.get_closest_mapped_task_group() is not None:
+                self._needs_expansion = True
+            else:
+                self._needs_expansion = False
+        return self._needs_expansion
+
+    @methodtools.lru_cache(maxsize=None)
+    def get_parse_time_mapped_ti_count(self) -> int:
+        """
+        Return the number of mapped task instances that can be created on DAG run creation.
+
+        This only considers literal mapped arguments, and would return *None*
+        when any non-literal values are used for mapping.
+
+        :raise NotFullyPopulated: If non-literal mapped arguments are encountered.
+        :raise NotMapped: If the operator is neither mapped, nor has any parent
+            mapped task groups.
+        :return: Total number of mapped TIs this task should have.
+        """
+        group = self.get_closest_mapped_task_group()
+        if group is None:
+            raise NotMapped()
+        return group.get_parse_time_mapped_ti_count()

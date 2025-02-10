@@ -998,9 +998,12 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         ci_image_params=ci_image_params,
         output=None,
     ):
-        run_build_ci_image(
+        return_code, info = run_build_ci_image(
             ci_image_params=ci_image_params, param_description=ci_image_params.python, output=None
         )
+        if return_code != 0:
+            get_console().print(f"[error]Error when building image! {info}")
+            sys.exit(return_code)
 
 
 @ci_image.command(name="export-mount-cache")

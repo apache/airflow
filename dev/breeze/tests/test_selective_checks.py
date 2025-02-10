@@ -84,7 +84,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             if received_value != expected_value:
                 if received_value is not None:
                     print_in_color(f"\n[red]ERROR: The key '{expected_key}' has unexpected value:")
-                    print(received_value)
+                    print(
+                        received_value,
+                    )
                     print_in_color("Expected value:\n")
                     print(expected_value)
                     print_in_color("\nOutput received:")
@@ -253,7 +255,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/src/airflow/providers/standard/operators/python.py",),
+                ("providers/standard/src/airflow/providers/standard/operators/python.py",),
                 {
                     "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
@@ -309,7 +311,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "airflow/api/file.py",
-                    "providers/tests/postgres/file.py",
+                    "providers/postgres/tests/provider_tests/postgres/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
@@ -341,7 +343,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/tests/apache/beam/file.py",),
+                ("providers/apache/beam/tests/provider_tests/apache/beam/file.py",),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
@@ -371,7 +373,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/tests/system/apache/beam/file.py",),
+                ("providers/apache/beam/tests/provider_tests/apache/beam/file.py",),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
@@ -402,7 +404,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/tests/system/apache/beam/file.py", "providers/tests/apache/beam/file.py"),
+                (
+                    "providers/apache/beam/tests/system/apache/beam/file.py",
+                    "providers/apache/beam/tests/provider_tests/apache/beam/file.py",
+                ),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
@@ -434,13 +439,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         (
             pytest.param(
                 (
-                    "providers/tests/system/apache/beam/file.py",
-                    "providers/tests/apache/beam/file.py",
-                    "providers/tests/system/zendesk/file.py",
-                    "providers/tests/zendesk/file.py",
+                    "providers/apache/beam/tests/system/apache/beam/file.py",
+                    "providers/apache/beam/tests/provider_tests/apache/beam/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "apache.beam common.compat google zendesk",
+                    "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -458,8 +461,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "Always",
-                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat,zendesk] Providers[google]",
-                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google] Providers[zendesk]",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
+                    "individual-providers-test-types-list-as-string": "Providers[apache.beam] Providers[common.compat] Providers[google]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
@@ -516,27 +519,26 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         ",mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk"
                         ",ts-compile-format-lint-ui,ts-compile-format-lint-www"
                     ),
-                    "skip-providers-tests": "true",
+                    "skip-providers-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": (
                         "API Always CLI Core Operators Other Serialization WWW"
                     ),
-                    "providers-test-types-list-as-string": "",
+                    "providers-test-types-list-as-string": "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]",
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-task-sdk']",
+                    "mypy-checks": "['mypy-providers', 'mypy-task-sdk']",
                 },
-                id="Task SDK source file changed - Task SDK & Core tests should run",
+                id="Task SDK source file changed - Task SDK, Core and provider tests should run",
             )
         ),
         (
             pytest.param(
                 (
                     "chart/aaaa.txt",
-                    "providers/tests/postgres/file.py",
+                    "providers/postgres/tests/provider_tests/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon common.sql google openlineage "
-                    "pgvector postgres",
+                    "selected-providers-list-as-string": "amazon common.sql google openlineage pgvector postgres",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -566,7 +568,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "INTHEWILD.md",
                     "chart/aaaa.txt",
-                    "providers/tests/http/file.py",
+                    "providers/http/tests/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "amazon apache.livy "
@@ -715,7 +717,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             )
         ),
         pytest.param(
-            ("providers/src/airflow/providers/amazon/__init__.py",),
+            ("providers/amazon/src/airflow/providers/amazon/__init__.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
@@ -767,7 +769,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers tests run without amazon tests if no amazon file changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/amazon/file.py",),
+            ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
@@ -796,8 +798,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             (
                 "tests/always/test_project_structure.py",
-                "providers/tests/common/io/operators/__init__.py",
-                "providers/tests/common/io/operators/test_file_transfer.py",
+                "providers/common/io/tests/operators/__init__.py",
+                "providers/common/io/tests/operators/test_file_transfer.py",
             ),
             {
                 "selected-providers-list-as-string": "common.compat common.io openlineage",
@@ -823,7 +825,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Only Always and common providers tests should run when only common.io and tests/always changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/standard/operators/bash.py",),
+            ("providers/standard/src/airflow/providers/standard/operators/bash.py",),
             {
                 "selected-providers-list-as-string": "common.compat standard",
                 "all-python-versions": "['3.9']",
@@ -848,7 +850,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers standard tests and Serialization tests to run when airflow bash.py changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/standard/operators/bash.py",),
+            ("providers/standard/src/airflow/providers/standard/operators/bash.py",),
             {
                 "selected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",
@@ -1030,7 +1032,7 @@ def test_excluded_providers():
     )
     assert_outputs_are_printed(
         {
-            "excluded-providers-as-string": json.dumps({"3.9": ["cloudant"], "3.12": ["apache.beam"]}),
+            "excluded-providers-as-string": json.dumps({"3.9": ["cloudant"]}),
         },
         str(stderr),
     )
@@ -1382,7 +1384,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "chart/aaaa.txt",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1409,7 +1411,7 @@ def test_expected_output_full_tests_needed(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1434,7 +1436,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "airflow/file.py",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1612,7 +1614,7 @@ def test_expected_output_push(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra "
@@ -1888,7 +1890,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
             id="pyproject.toml changed but no dependency change",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/microsoft/azure/provider.yaml",),
+            ("providers/microsoft/azure/src/airflow/providers/microsoft/azure/provider.yaml",),
             {
                 "upgrade-to-newer-dependencies": "false",
             },
@@ -1946,7 +1948,7 @@ def test_upgrade_to_newer_dependencies(
             id="Google provider docs changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/common/sql/common_sql_python.py",),
+            ("providers/common/sql/src/airflow/providers/common/sql/common_sql_python.py",),
             {
                 "docs-list-as-string": "amazon apache.drill apache.druid apache.hive "
                 "apache.impala apache.pinot common.sql databricks elasticsearch "
@@ -1988,7 +1990,7 @@ def test_upgrade_to_newer_dependencies(
             id="Only Airflow docs changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/celery/file.py",),
+            ("providers/celery/src/airflow/providers/celery/file.py",),
             {"docs-list-as-string": "celery cncf.kubernetes"},
             id="Celery python files changed",
         ),
@@ -2474,11 +2476,11 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             ("task_sdk/src/airflow/sdk/a_file.py",),
             {
                 "needs-mypy": "true",
-                "mypy-checks": "['mypy-task-sdk']",
+                "mypy-checks": "['mypy-providers', 'mypy-task-sdk']",
             },
             "main",
             (),
-            id="Airflow mypy checks on Task SDK files",
+            id="Airflow mypy checks on Task SDK files (implies providers)",
         ),
         pytest.param(
             ("docs/a_file.py",),

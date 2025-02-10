@@ -10,3 +10,14 @@ Removed a set of deprecations in ``DAG`` from ``airflow.models``.
 - Removed implicit support to call ``create_dagrun()`` without data interval.
 - Removed support for deprecated parameter ``concurrency`` in ``DagModel``.
 - Removed support for ``datetime`` in ``DagModel.calculate_dagrun_date_fields``. Use ``DataInterval``.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes

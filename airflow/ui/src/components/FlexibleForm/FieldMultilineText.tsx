@@ -19,13 +19,29 @@
 import { Textarea } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
-export const FieldMultilineText = ({ name, param }: FlexibleFormElementProps) => (
-  <Textarea
-    defaultValue={String(param.value ?? "")}
-    id={`element_${name}`}
-    name={`element_${name}`}
-    rows={6}
-    size="sm"
-  />
-);
+export const FieldMultilineText = ({ name }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+  const handleChange = (value: string) => {
+    if (paramsDict[name]) {
+      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+      // eslint-disable-next-line unicorn/no-null
+      paramsDict[name].value = value === "" ? null : value;
+    }
+
+    setParamsDict(paramsDict);
+  };
+
+  return (
+    <Textarea
+      id={`element_${name}`}
+      name={`element_${name}`}
+      onChange={(event) => handleChange(event.target.value)}
+      rows={6}
+      size="sm"
+      value={String(param.value ?? "")}
+    />
+  );
+};

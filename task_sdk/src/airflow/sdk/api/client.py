@@ -32,16 +32,21 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRuntimeCheckPayload
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     DagRunType,
+    PrevSuccessfulDagRunResponse,
+    TerminalStateNonSuccess,
     TerminalTIState,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
     TIRunContext,
+    TISuccessStatePayload,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
     VariablePostBody,
@@ -49,7 +54,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse
+from airflow.sdk.execution_time.comms import ErrorResponse, OKResponse, RuntimeCheckOnTask
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 
@@ -128,10 +133,17 @@ class TaskInstanceOperations:
         resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
         return TIRunContext.model_validate_json(resp.read())
 
-    def finish(self, id: uuid.UUID, state: TerminalTIState, when: datetime):
+    def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime):
         """Tell the API server that this TI has reached a terminal state."""
+        if state == TerminalTIState.SUCCESS:
+            raise ValueError("Logic error. SUCCESS state should call the `succeed` function instead")
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
-        body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
+        body = TITerminalStatePayload(end_date=when, state=TerminalStateNonSuccess(state))
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events):
+        """Tell the API server that this TI has succeeded."""
+        body = TISuccessStatePayload(end_date=when, task_outlets=task_outlets, outlet_events=outlet_events)
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def heartbeat(self, id: uuid.UUID, pid: int):
@@ -160,6 +172,28 @@ class TaskInstanceOperations:
         # decouple from the server response string
         return {"ok": True}
 
+    def get_previous_successful_dagrun(self, id: uuid.UUID) -> PrevSuccessfulDagRunResponse:
+        """
+        Get the previous successful dag run for a given task instance.
+
+        The data from it is used to get values for Task Context.
+        """
+        resp = self.client.get(f"task-instances/{id}/previous-successful-dagrun")
+        return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
+
+    def runtime_checks(self, id: uuid.UUID, msg: RuntimeCheckOnTask) -> OKResponse:
+        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True))
+        try:
+            self.client.post(f"task-instances/{id}/runtime-checks", content=body.model_dump_json())
+            return OKResponse(ok=True)
+        except ServerResponseError as e:
+            if e.response.status_code == 400:
+                return OKResponse(ok=False)
+            elif e.response.status_code == 409:
+                # The TI isn't in the right state to perform the check, but we shouldn't fail the task for that
+                return OKResponse(ok=True)
+            raise
+
 
 class ConnectionOperations:
     __slots__ = ("client",)
@@ -180,6 +214,7 @@ class ConnectionOperations:
                     status_code=e.response.status_code,
                 )
                 return ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
+            raise
         return ConnectionResponse.model_validate_json(resp.read())
 
 
@@ -221,6 +256,17 @@ class XComOperations:
     def __init__(self, client: Client):
         self.client = client
 
+    def head(self, dag_id: str, run_id: str, task_id: str, key: str) -> int:
+        """Get the number of mapped XCom values."""
+        resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
+
+        # content_range: str | None
+        if not (content_range := resp.headers["Content-Range"]) or not content_range.startswith(
+            "map_indexes "
+        ):
+            raise RuntimeError(f"Unable to parse Content-Range header from HEAD {resp.request.url}")
+        return int(content_range[len("map_indexes ") :])
+
     def get(
         self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int | None = None
     ) -> XComResponse:
@@ -228,7 +274,7 @@ class XComOperations:
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params = {}
-        if map_index is not None:
+        if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
         try:
             resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
@@ -258,13 +304,31 @@ class XComOperations:
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params = {}
-        if map_index:
+        if map_index is not None and map_index >= 0:
             params = {"map_index": map_index}
         self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params, json=value)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
         return {"ok": True}
+
+
+class AssetOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, name: str | None = None, uri: str | None = None) -> AssetResponse:
+        """Get Asset value from the API server."""
+        if name:
+            resp = self.client.get("assets/by-name", params={"name": name})
+        elif uri:
+            resp = self.client.get("assets/by-uri", params={"uri": uri})
+        else:
+            raise ValueError("Either `name` or `uri` must be provided")
+
+        return AssetResponse.model_validate_json(resp.read())
 
 
 class BearerAuth(httpx.Auth):
@@ -294,6 +358,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
                     "logical_date": "2021-01-01T00:00:00Z",
                     "start_date": "2021-01-01T00:00:00Z",
                     "run_type": DagRunType.MANUAL,
+                    "run_after": "2021-01-01T00:00:00Z",
                 },
                 "max_tries": 0,
             },
@@ -373,6 +438,12 @@ class Client(httpx.Client):
     def xcoms(self) -> XComOperations:
         """Operations related to XComs."""
         return XComOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def assets(self) -> AssetOperations:
+        """Operations related to Assets."""
+        return AssetOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

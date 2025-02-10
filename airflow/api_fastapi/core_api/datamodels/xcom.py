@@ -21,7 +21,7 @@ from typing import Any
 
 from pydantic import field_validator
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
 class XComResponse(BaseModel):
@@ -52,8 +52,23 @@ class XComResponseString(XComResponse):
         return str(v) if v is not None else None
 
 
-class XComCollection(BaseModel):
-    """List of XCom items."""
+class XComCollectionResponse(BaseModel):
+    """XCom Collection serializer for responses."""
 
     xcom_entries: list[XComResponse]
     total_entries: int
+
+
+class XComCreateBody(StrictBaseModel):
+    """Payload serializer for creating an XCom entry."""
+
+    key: str
+    value: Any
+    map_index: int = -1
+
+
+class XComUpdateBody(StrictBaseModel):
+    """Payload serializer for updating an XCom entry."""
+
+    value: Any
+    map_index: int = -1

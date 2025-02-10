@@ -22,8 +22,11 @@ import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
   useDagRunServicePatchDagRun,
+  useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
+
+import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
 const onError = () => {
   toaster.create({
@@ -33,17 +36,34 @@ const onError = () => {
   });
 };
 
-export const usePatchDagRun = ({ dagId, dagRunId }: { dagId: string; dagRunId: string }) => {
+export const usePatchDagRun = ({
+  dagId,
+  dagRunId,
+  onSuccess,
+}: {
+  dagId: string;
+  dagRunId: string;
+  onSuccess?: () => void;
+}) => {
   const queryClient = useQueryClient();
 
-  const onSuccess = async () => {
-    const queryKeys = [UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }), [useDagRunServiceGetDagRunsKey]];
+  const onSuccessFn = async () => {
+    const queryKeys = [
+      UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+      [useDagRunServiceGetDagRunsKey],
+      [useTaskInstanceServiceGetTaskInstancesKey, { dagId, dagRunId }],
+      [useClearDagRunDryRunKey, dagId],
+    ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+
+    if (onSuccess) {
+      onSuccess();
+    }
   };
 
   return useDagRunServicePatchDagRun({
     onError,
-    onSuccess,
+    onSuccess: onSuccessFn,
   });
 };

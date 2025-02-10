@@ -23,6 +23,7 @@ import remarkGfm from "remark-gfm";
 import type { ParamSpec } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 import { FieldSelector } from "./FieldSelector";
 
 const isRequired = (param: ParamSpec) =>
@@ -32,18 +33,25 @@ const isRequired = (param: ParamSpec) =>
   Boolean(param.schema.type) && (!Array.isArray(param.schema.type) || !param.schema.type.includes("null"));
 
 /** Render a normal form row with a field that is auto-selected */
-export const FieldRow = ({ name, param }: FlexibleFormElementProps) => (
-  <Field.Root orientation="horizontal" required={isRequired(param)}>
-    <Stack>
-      <Field.Label fontSize="md">
-        {param.schema.title ?? name} <Field.RequiredIndicator />
-      </Field.Label>
-    </Stack>
-    <Stack css={{ "flex-basis": "70%" }}>
-      <FieldSelector name={name} param={param} />
-      <Field.HelperText>
-        {param.description ?? <Markdown remarkPlugins={[remarkGfm]}>{param.schema.description_md}</Markdown>}
-      </Field.HelperText>
-    </Stack>
-  </Field.Root>
-);
+export const FieldRow = ({ name }: FlexibleFormElementProps) => {
+  const { paramsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+
+  return (
+    <Field.Root orientation="horizontal" required={isRequired(param)}>
+      <Stack>
+        <Field.Label fontSize="md">
+          {param.schema.title ?? name} <Field.RequiredIndicator />
+        </Field.Label>
+      </Stack>
+      <Stack css={{ "flex-basis": "70%" }}>
+        <FieldSelector name={name} />
+        <Field.HelperText>
+          {param.description ?? (
+            <Markdown remarkPlugins={[remarkGfm]}>{param.schema.description_md}</Markdown>
+          )}
+        </Field.HelperText>
+      </Stack>
+    </Field.Root>
+  );
+};

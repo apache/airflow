@@ -28,8 +28,111 @@ services:
       - ../../../.inputrc:/root/.inputrc:cached
       # Remove airflow sources from container
       - ../../../empty:/opt/airflow/airflow
-      # but keep tests
+      # Remove all provider sources from container
+      - ../../../empty:/opt/airflow/providers/airbyte/src
+      - ../../../empty:/opt/airflow/providers/alibaba/src
+      - ../../../empty:/opt/airflow/providers/apache/iceberg/src
+      - ../../../empty:/opt/airflow/providers/celery/src
+      - ../../../empty:/opt/airflow/providers/common/sql/src
+      - ../../../empty:/opt/airflow/providers/edge/src
+      - ../../../empty:/opt/airflow/providers/standard/src
+      # but keep providers tests
       - ../../../tests/:/opt/airflow/tests:cached
+      # START automatically generated volumes by generate-volumes-for-sources pre-commit
+      - ../../../providers/airbyte/tests:/opt/airflow/providers/airbyte/tests
+      - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
+      - ../../../providers/amazon/tests:/opt/airflow/providers/amazon/tests
+      - ../../../providers/apache/beam/tests:/opt/airflow/providers/apache/beam/tests
+      - ../../../providers/apache/cassandra/tests:/opt/airflow/providers/apache/cassandra/tests
+      - ../../../providers/apache/drill/tests:/opt/airflow/providers/apache/drill/tests
+      - ../../../providers/apache/druid/tests:/opt/airflow/providers/apache/druid/tests
+      - ../../../providers/apache/flink/tests:/opt/airflow/providers/apache/flink/tests
+      - ../../../providers/apache/hdfs/tests:/opt/airflow/providers/apache/hdfs/tests
+      - ../../../providers/apache/hive/tests:/opt/airflow/providers/apache/hive/tests
+      - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
+      - ../../../providers/apache/impala/tests:/opt/airflow/providers/apache/impala/tests
+      - ../../../providers/apache/kafka/tests:/opt/airflow/providers/apache/kafka/tests
+      - ../../../providers/apache/kylin/tests:/opt/airflow/providers/apache/kylin/tests
+      - ../../../providers/apache/livy/tests:/opt/airflow/providers/apache/livy/tests
+      - ../../../providers/apache/pig/tests:/opt/airflow/providers/apache/pig/tests
+      - ../../../providers/apache/pinot/tests:/opt/airflow/providers/apache/pinot/tests
+      - ../../../providers/apache/spark/tests:/opt/airflow/providers/apache/spark/tests
+      - ../../../providers/apprise/tests:/opt/airflow/providers/apprise/tests
+      - ../../../providers/arangodb/tests:/opt/airflow/providers/arangodb/tests
+      - ../../../providers/asana/tests:/opt/airflow/providers/asana/tests
+      - ../../../providers/atlassian/jira/tests:/opt/airflow/providers/atlassian/jira/tests
+      - ../../../providers/celery/tests:/opt/airflow/providers/celery/tests
+      - ../../../providers/cloudant/tests:/opt/airflow/providers/cloudant/tests
+      - ../../../providers/cncf/kubernetes/tests:/opt/airflow/providers/cncf/kubernetes/tests
+      - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
+      - ../../../providers/common/compat/tests:/opt/airflow/providers/common/compat/tests
+      - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
+      - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
+      - ../../../providers/databricks/tests:/opt/airflow/providers/databricks/tests
+      - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests
+      - ../../../providers/dbt/cloud/tests:/opt/airflow/providers/dbt/cloud/tests
+      - ../../../providers/dingding/tests:/opt/airflow/providers/dingding/tests
+      - ../../../providers/discord/tests:/opt/airflow/providers/discord/tests
+      - ../../../providers/docker/tests:/opt/airflow/providers/docker/tests
+      - ../../../providers/edge/tests:/opt/airflow/providers/edge/tests
+      - ../../../providers/elasticsearch/tests:/opt/airflow/providers/elasticsearch/tests
+      - ../../../providers/exasol/tests:/opt/airflow/providers/exasol/tests
+      - ../../../providers/fab/tests:/opt/airflow/providers/fab/tests
+      - ../../../providers/facebook/tests:/opt/airflow/providers/facebook/tests
+      - ../../../providers/ftp/tests:/opt/airflow/providers/ftp/tests
+      - ../../../providers/github/tests:/opt/airflow/providers/github/tests
+      - ../../../providers/google/tests:/opt/airflow/providers/google/tests
+      - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests
+      - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
+      - ../../../providers/http/tests:/opt/airflow/providers/http/tests
+      - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
+      - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests
+      - ../../../providers/jdbc/tests:/opt/airflow/providers/jdbc/tests
+      - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests
+      - ../../../providers/microsoft/azure/tests:/opt/airflow/providers/microsoft/azure/tests
+      - ../../../providers/microsoft/mssql/tests:/opt/airflow/providers/microsoft/mssql/tests
+      - ../../../providers/microsoft/psrp/tests:/opt/airflow/providers/microsoft/psrp/tests
+      - ../../../providers/microsoft/winrm/tests:/opt/airflow/providers/microsoft/winrm/tests
+      - ../../../providers/mongo/tests:/opt/airflow/providers/mongo/tests
+      - ../../../providers/mysql/tests:/opt/airflow/providers/mysql/tests
+      - ../../../providers/neo4j/tests:/opt/airflow/providers/neo4j/tests
+      - ../../../providers/odbc/tests:/opt/airflow/providers/odbc/tests
+      - ../../../providers/openai/tests:/opt/airflow/providers/openai/tests
+      - ../../../providers/openfaas/tests:/opt/airflow/providers/openfaas/tests
+      - ../../../providers/openlineage/tests:/opt/airflow/providers/openlineage/tests
+      - ../../../providers/opensearch/tests:/opt/airflow/providers/opensearch/tests
+      - ../../../providers/opsgenie/tests:/opt/airflow/providers/opsgenie/tests
+      - ../../../providers/oracle/tests:/opt/airflow/providers/oracle/tests
+      - ../../../providers/pagerduty/tests:/opt/airflow/providers/pagerduty/tests
+      - ../../../providers/papermill/tests:/opt/airflow/providers/papermill/tests
+      - ../../../providers/pgvector/tests:/opt/airflow/providers/pgvector/tests
+      - ../../../providers/pinecone/tests:/opt/airflow/providers/pinecone/tests
+      - ../../../providers/postgres/tests:/opt/airflow/providers/postgres/tests
+      - ../../../providers/presto/tests:/opt/airflow/providers/presto/tests
+      - ../../../providers/qdrant/tests:/opt/airflow/providers/qdrant/tests
+      - ../../../providers/redis/tests:/opt/airflow/providers/redis/tests
+      - ../../../providers/salesforce/tests:/opt/airflow/providers/salesforce/tests
+      - ../../../providers/samba/tests:/opt/airflow/providers/samba/tests
+      - ../../../providers/segment/tests:/opt/airflow/providers/segment/tests
+      - ../../../providers/sendgrid/tests:/opt/airflow/providers/sendgrid/tests
+      - ../../../providers/sftp/tests:/opt/airflow/providers/sftp/tests
+      - ../../../providers/singularity/tests:/opt/airflow/providers/singularity/tests
+      - ../../../providers/slack/tests:/opt/airflow/providers/slack/tests
+      - ../../../providers/smtp/tests:/opt/airflow/providers/smtp/tests
+      - ../../../providers/snowflake/tests:/opt/airflow/providers/snowflake/tests
+      - ../../../providers/sqlite/tests:/opt/airflow/providers/sqlite/tests
+      - ../../../providers/ssh/tests:/opt/airflow/providers/ssh/tests
+      - ../../../providers/standard/tests:/opt/airflow/providers/standard/tests
+      - ../../../providers/tableau/tests:/opt/airflow/providers/tableau/tests
+      - ../../../providers/telegram/tests:/opt/airflow/providers/telegram/tests
+      - ../../../providers/teradata/tests:/opt/airflow/providers/teradata/tests
+      - ../../../providers/trino/tests:/opt/airflow/providers/trino/tests
+      - ../../../providers/vertica/tests:/opt/airflow/providers/vertica/tests
+      - ../../../providers/weaviate/tests:/opt/airflow/providers/weaviate/tests
+      - ../../../providers/yandex/tests:/opt/airflow/providers/yandex/tests
+      - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests
+      - ../../../providers/zendesk/tests:/opt/airflow/providers/zendesk/tests
+      # END automatically generated volumes by generate-volumes-for-sources pre-commit
       # and entrypoint and in_container scripts for testing
       - ../../../scripts/docker/entrypoint_ci.sh:/entrypoint
       - ../../../scripts/in_container/:/opt/airflow/scripts/in_container

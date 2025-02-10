@@ -1,0 +1,21 @@
+Renamed DAG argument ``fail_stop`` to ``fail_fast`` across the codebase to align with Airflow 3.0.
+
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] arguments ``fail_stop`` → ``fail_fast`` in ``DAG``

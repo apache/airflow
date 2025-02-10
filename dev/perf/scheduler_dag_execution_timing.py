@@ -92,7 +92,7 @@ class ShortCircuitExecutorMixin:
 
             if not self.dags_to_watch:
                 self.log.warning("STOPPING SCHEDULER -- all runs complete")
-                self.job_runner.processor_agent._done = True
+                self.job_runner.num_runs = 1
                 return
         self.log.warning(
             "WAITING ON %d RUNS", sum(map(attrgetter("waiting_for"), self.dags_to_watch.values()))
@@ -173,6 +173,7 @@ def create_dag_runs(dag, num_runs, session):
             run_id=f"{id_prefix}{logical_date.isoformat()}",
             logical_date=logical_date,
             data_interval=(logical_date, logical_date),
+            run_after=logical_date,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.TEST,
             external_trigger=False,

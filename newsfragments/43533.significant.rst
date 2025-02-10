@@ -6,3 +6,25 @@ Following functions are removed:
 - ``round_time``
 - ``scale_time_units``
 - ``infer_time_unit``
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.dates.parse_execution_date``
+      * [x] ``airflow.utils.dates.round_time``
+      * [x] ``airflow.utils.dates.scale_time_units``
+      * [x] ``airflow.utils.dates.infer_time_unit``

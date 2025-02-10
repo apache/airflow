@@ -6,6 +6,7 @@ import {
   BackfillService,
   ConfigService,
   ConnectionService,
+  DagReportService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -444,6 +445,7 @@ export const useConfigServiceGetConfigValueSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIds
  * @param data.dagIdPattern
@@ -471,6 +473,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
@@ -483,6 +486,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -501,6 +505,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
         owners,
         paused,
         tags,
+        tagsMatchMode,
       },
       queryKey,
     ),
@@ -517,6 +522,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
         owners,
         paused,
         tags,
+        tagsMatchMode,
       }) as TData,
     ...options,
   });
@@ -558,6 +564,7 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
  * @param data.includeDownstream
  * @param data.root
  * @param data.externalDependencies
+ * @param data.versionNumber
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
@@ -572,19 +579,21 @@ export const useStructureServiceStructureDataSuspense = <
     includeDownstream,
     includeUpstream,
     root,
+    versionNumber,
   }: {
     dagId: string;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string;
+    versionNumber?: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseStructureServiceStructureDataKeyFn(
-      { dagId, externalDependencies, includeDownstream, includeUpstream, root },
+      { dagId, externalDependencies, includeDownstream, includeUpstream, root, versionNumber },
       queryKey,
     ),
     queryFn: () =>
@@ -594,6 +603,7 @@ export const useStructureServiceStructureDataSuspense = <
         includeDownstream,
         includeUpstream,
         root,
+        versionNumber,
       }) as TData,
     ...options,
   });
@@ -1050,6 +1060,32 @@ export const useDagStatsServiceGetDagStatsSuspense = <
     ...options,
   });
 /**
+ * Get Dag Reports
+ * Get DAG report.
+ * @param data The data for the request.
+ * @param data.subdir
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagReportServiceGetDagReportsSuspense = <
+  TData = Common.DagReportServiceGetDagReportsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    subdir,
+  }: {
+    subdir: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }, queryKey),
+    queryFn: () => DagReportService.getDagReports({ subdir }) as TData,
+    ...options,
+  });
+/**
  * List Dag Warnings
  * Get a list of DAG warnings.
  * @param data The data for the request.
@@ -1097,12 +1133,18 @@ export const useDagWarningServiceListDagWarningsSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.tagsMatchMode
  * @param data.owners
  * @param data.dagIdPattern
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
  * @param data.paused
  * @param data.lastDagRunState
+ * @param data.dagRunStartDateGte
+ * @param data.dagRunStartDateLte
+ * @param data.dagRunEndDateGte
+ * @param data.dagRunEndDateLte
+ * @param data.dagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -1115,6 +1157,11 @@ export const useDagServiceGetDagsSuspense = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunEndDateGte,
+    dagRunEndDateLte,
+    dagRunStartDateGte,
+    dagRunStartDateLte,
+    dagRunState,
     lastDagRunState,
     limit,
     offset,
@@ -1123,9 +1170,15 @@ export const useDagServiceGetDagsSuspense = <
     owners,
     paused,
     tags,
+    tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunEndDateGte?: string;
+    dagRunEndDateLte?: string;
+    dagRunStartDateGte?: string;
+    dagRunStartDateLte?: string;
+    dagRunState?: string[];
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -1134,6 +1187,7 @@ export const useDagServiceGetDagsSuspense = <
     owners?: string[];
     paused?: boolean;
     tags?: string[];
+    tagsMatchMode?: "any" | "all";
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1143,6 +1197,11 @@ export const useDagServiceGetDagsSuspense = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunEndDateGte,
+        dagRunEndDateLte,
+        dagRunStartDateGte,
+        dagRunStartDateLte,
+        dagRunState,
         lastDagRunState,
         limit,
         offset,
@@ -1151,6 +1210,7 @@ export const useDagServiceGetDagsSuspense = <
         owners,
         paused,
         tags,
+        tagsMatchMode,
       },
       queryKey,
     ),
@@ -1158,6 +1218,11 @@ export const useDagServiceGetDagsSuspense = <
       DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunEndDateGte,
+        dagRunEndDateLte,
+        dagRunStartDateGte,
+        dagRunStartDateLte,
+        dagRunState,
         lastDagRunState,
         limit,
         offset,
@@ -1166,6 +1231,7 @@ export const useDagServiceGetDagsSuspense = <
         owners,
         paused,
         tags,
+        tagsMatchMode,
       }) as TData,
     ...options,
   });
@@ -1387,6 +1453,7 @@ export const useEventLogServiceGetEventLogsSuspense = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
@@ -1398,18 +1465,20 @@ export const useExtraLinksServiceGetExtraLinksSuspense = <
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }, queryKey),
-    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }, queryKey),
+    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1419,6 +1488,7 @@ export const useExtraLinksServiceGetExtraLinksSuspense = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
@@ -1430,18 +1500,23 @@ export const useTaskInstanceServiceGetExtraLinksSuspense = <
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, taskId }, queryKey),
-    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
+    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn(
+      { dagId, dagRunId, mapIndex, taskId },
+      queryKey,
+    ),
+    queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }) as TData,
     ...options,
   });
 /**
@@ -1497,6 +1572,7 @@ export const useTaskInstanceServiceGetTaskInstanceSuspense = <
  * @param data.pool
  * @param data.queue
  * @param data.executor
+ * @param data.versionNumber
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -1529,6 +1605,7 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1550,6 +1627,7 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
     taskId: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1577,6 +1655,7 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       },
       queryKey,
     ),
@@ -1602,6 +1681,7 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       }) as TData,
     ...options,
   });
@@ -1822,6 +1902,7 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <
  * @param data.pool
  * @param data.queue
  * @param data.executor
+ * @param data.versionNumber
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -1855,6 +1936,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     taskId,
     updatedAtGte,
     updatedAtLte,
+    versionNumber,
   }: {
     dagId: string;
     dagRunId: string;
@@ -1877,6 +1959,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     taskId?: string;
     updatedAtGte?: string;
     updatedAtLte?: string;
+    versionNumber?: number[];
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1905,6 +1988,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       },
       queryKey,
     ),
@@ -1931,6 +2015,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         taskId,
         updatedAtGte,
         updatedAtLte,
+        versionNumber,
       }) as TData,
     ...options,
   });
@@ -2297,6 +2382,7 @@ export const usePoolServiceGetPoolSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.poolNamePattern
  * @returns PoolCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2309,17 +2395,19 @@ export const usePoolServiceGetPoolsSuspense = <
     limit,
     offset,
     orderBy,
+    poolNamePattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    poolNamePattern?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy }, queryKey),
-    queryFn: () => PoolService.getPools({ limit, offset, orderBy }) as TData,
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }, queryKey),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolNamePattern }) as TData,
     ...options,
   });
 /**
@@ -2420,7 +2508,7 @@ export const useXcomServiceGetXcomEntrySuspense = <
  * @param data.mapIndex
  * @param data.limit
  * @param data.offset
- * @returns XComCollection Successful Response
+ * @returns XComCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useXcomServiceGetXcomEntriesSuspense = <

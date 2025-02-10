@@ -65,21 +65,27 @@ This file contains:
 * user-facing name of the provider package
 * description of the package that is available in the documentation
 * list of versions of package that have been released so far
-* list of additional-extras that the provider package provides (together with dependencies of those extras)
 * list of integrations, operators, hooks, sensors, transfers provided by the provider (useful for documentation generation)
 * list of connection types, extra-links, secret backends, auth backends, and logging handlers (useful to both
   register them as they are needed by Airflow and to include them in documentation automatically).
 
-In the old provider.yaml we also keep additional information there - list of dependencies for the provider.
+In the old provider.yaml we also keep additional information there - list of dependencies, additional extras
+and development dependencies for the provider, however in the new provider structure, this information is
+kept in the standard way in the ``pyproject.toml`` file.
+
+Note that the ``provider.yaml`` file is regenerated automatically when the provider is released so you should
+not modify it - except updating dependencies, as your changes will be lost.
 
 In the old providers, you should only update dependencies for the provider in the corresponding
-``provider.yaml``, in the new providers you should update dependencies in the ``pyproject.toml`` file.
+``provider.yaml``, in the new providers you should update "dependencies", optional dependencies and "dev"
+dependency group in the ``pyproject.toml`` file.
 
 Eventually we might migrate ``provider.yaml`` fully to ``pyproject.toml`` file but that should be a separate
 change after we migrate all the providers to "new" structure.
 
 If you want to add dependencies to the provider, you should add them to the corresponding ``provider.yaml``
-and Airflow pre-commits and package generation commands will use them when preparing package information.
+and Airflow pre-commits and package generation commands will keep  those dependencies (including all comments)
+when regenerating the ``pyproject.toml`` file.
 
 Providers are not packaged together with the core when you build "apache-airflow" package.
 
@@ -88,10 +94,8 @@ transfer operators where operators use hooks from the other providers in case th
 data between the providers. The list of dependencies is maintained (automatically with the
 ``update-providers-dependencies`` pre-commit) in the ``generated/provider_dependencies.json``.
 
-Same pre-commit also updates generated dependencies in ``pyproject.toml`` for the new providers.
-
-Cross-dependencies between provider packages are converted into extras - if you need functionality from
-the other provider package you can install it adding [extra] after the
+Cross-dependencies between provider packages are converted into optional dependencies (extras) - if
+you need functionality from the other provider package you can install it adding [extra] after the
 ``apache-airflow-providers-PROVIDER`` for example:
 ``pip install apache-airflow-providers-google[amazon]`` in case you want to use GCP
 transfer operators from Amazon ECS.
@@ -143,6 +147,7 @@ of Airflow).
 The old ``provider.yaml`` file is compliant with the schema that is available in
 `json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider.yaml.schema.json>`_.
 
+# TODO(potiuk) - rename when all providers are new-style
 The new ``provider.yaml`` file is compliant with the new schema that is available in
 `json-schema specification <https://github.com/apache/airflow/blob/main/airflow/new_provider.yaml.schema.json>`_.
 

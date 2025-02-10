@@ -60,6 +60,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
@@ -97,8 +98,9 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-        ]
+        ],
     ),
+    dependencies=[Depends(action_logging())],
 )
 def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a DAG Run entry."""
@@ -109,7 +111,6 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-
     session.delete(dag_run)
 
 
@@ -119,8 +120,9 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-        ]
+        ],
     ),
+    dependencies=[Depends(action_logging())],
 )
 def patch_dag_run(
     dag_id: str,
@@ -147,13 +149,13 @@ def patch_dag_run(
 
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
         try:
             DAGRunPatchBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
     for attr_name, attr_value in data.items():
         if attr_name == "state":
@@ -213,7 +215,9 @@ def get_upstream_asset_events(
 
 
 @dag_run_router.post(
-    "/{dag_run_id}/clear", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND])
+    "/{dag_run_id}/clear",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(action_logging())],
 )
 def clear_dag_run(
     dag_id: str,
@@ -331,9 +335,13 @@ def get_dag_runs(
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def trigger_dag_run(
-    dag_id, body: TriggerDAGRunPostBody, request: Request, session: SessionDep
+    dag_id,
+    body: TriggerDAGRunPostBody,
+    request: Request,
+    session: SessionDep,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
@@ -372,6 +380,7 @@ def trigger_dag_run(
             run_id=run_id,
             logical_date=logical_date,
             data_interval=data_interval,
+            run_after=data_interval.end,
             conf=body.conf,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,

@@ -1,0 +1,14 @@
+Standalone DAG processor is now required
+
+The scheduler is no longer able to parse DAGs itself - it relies on the standalone DAG processor (introduced in Airflow 2.3) to do it instead. You can start one by running ``airflow dag-processor``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

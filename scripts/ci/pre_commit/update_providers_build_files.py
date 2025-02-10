@@ -57,6 +57,7 @@ def _find_old_providers_structure() -> None:
     providers.add(provider_name)
 
 
+# TODO(potiuk) - rename when all providers are new-style
 def _find_new_providers_structure() -> None:
     console.print(f"[bright_blue]Looking at {examined_file} for new structure provider.yaml")
     # find the folder where provider.yaml is

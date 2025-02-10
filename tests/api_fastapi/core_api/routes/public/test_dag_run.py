@@ -27,9 +27,9 @@ from sqlalchemy import select
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
-from airflow.models.param import Param
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.param import Param
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
@@ -41,6 +41,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
+from tests_common.test_utils.www import _check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -874,7 +875,7 @@ class TestPatchDagRun:
             ),
         ],
     )
-    def test_patch_dag_run(self, test_client, dag_id, run_id, patch_body, response_body):
+    def test_patch_dag_run(self, test_client, dag_id, run_id, patch_body, response_body, session):
         response = test_client.patch(f"/public/dags/{dag_id}/dagRuns/{run_id}", json=patch_body)
         assert response.status_code == 200
         body = response.json()
@@ -882,6 +883,7 @@ class TestPatchDagRun:
         assert body["dag_run_id"] == run_id
         assert body.get("state") == response_body.get("state")
         assert body.get("note") == response_body.get("note")
+        _check_last_log(session, dag_id=dag_id, event="patch_dag_run", logical_date=None)
 
     @pytest.mark.parametrize(
         "query_params, patch_body, response_body, expected_status_code",
@@ -969,9 +971,10 @@ class TestPatchDagRun:
 
 
 class TestDeleteDagRun:
-    def test_delete_dag_run(self, test_client):
+    def test_delete_dag_run(self, test_client, session):
         response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
         assert response.status_code == 204
+        _check_last_log(session, dag_id=DAG1_ID, event="delete_dag_run", logical_date=None)
 
     def test_delete_dag_run_not_found(self, test_client):
         response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/invalid")
@@ -1016,8 +1019,11 @@ class TestGetDagRunAssetTriggerEvents:
                 {
                     "timestamp": from_datetime_to_zulu(event.timestamp),
                     "asset_id": asset1_id,
+                    "uri": "file:///da1",
                     "extra": {},
                     "id": event.id,
+                    "group": "asset",
+                    "name": "ds1",
                     "source_dag_id": ti.dag_id,
                     "source_map_index": ti.map_index,
                     "source_run_id": ti.run_id,
@@ -1052,7 +1058,7 @@ class TestGetDagRunAssetTriggerEvents:
 
 
 class TestClearDagRun:
-    def test_clear_dag_run(self, test_client):
+    def test_clear_dag_run(self, test_client, session):
         response = test_client.post(
             f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
             json={"dry_run": False},
@@ -1062,6 +1068,12 @@ class TestClearDagRun:
         assert body["dag_id"] == DAG1_ID
         assert body["dag_run_id"] == DAG1_RUN1_ID
         assert body["state"] == "queued"
+        _check_last_log(
+            session,
+            dag_id=DAG1_ID,
+            event="clear_dag_run",
+            logical_date=None,
+        )
 
     @pytest.mark.parametrize(
         "body, dag_run_id, expected_state",
@@ -1137,12 +1149,7 @@ class TestTriggerDagRun:
         ],
     )
     def test_should_respond_200(
-        self,
-        test_client,
-        dag_run_id,
-        note,
-        data_interval_start,
-        data_interval_end,
+        self, test_client, dag_run_id, note, data_interval_start, data_interval_end, session
     ):
         fixed_now = timezone.utcnow().isoformat()
 
@@ -1190,6 +1197,7 @@ class TestTriggerDagRun:
         }
 
         assert response.json() == expected_response_json
+        _check_last_log(session, dag_id=DAG1_ID, event="trigger_dag_run", logical_date=None)
 
     @pytest.mark.parametrize(
         "post_body, expected_detail",
@@ -1319,7 +1327,7 @@ class TestTriggerDagRun:
         )
 
     @time_machine.travel(timezone.utcnow(), tick=False)
-    def test_should_response_200_for_duplicate_logical_date(self, test_client):
+    def test_should_response_409_for_duplicate_logical_date(self, test_client):
         RUN_ID_1 = "random_1"
         RUN_ID_2 = "random_2"
         now = timezone.utcnow().isoformat().replace("+00:00", "Z")
@@ -1333,28 +1341,26 @@ class TestTriggerDagRun:
             json={"dag_run_id": RUN_ID_2, "note": note},
         )
 
-        assert response_1.status_code == response_2.status_code == 200
-        body1 = response_1.json()
-        body2 = response_2.json()
+        assert response_1.status_code == 200
+        assert response_1.json() == {
+            "dag_run_id": RUN_ID_1,
+            "dag_id": DAG1_ID,
+            "logical_date": now,
+            "queued_at": now,
+            "start_date": None,
+            "end_date": None,
+            "data_interval_start": now,
+            "data_interval_end": now,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "state": "queued",
+            "external_trigger": True,
+            "triggered_by": "rest_api",
+            "conf": {},
+            "note": note,
+        }
 
-        for each_run_id, each_body in [(RUN_ID_1, body1), (RUN_ID_2, body2)]:
-            assert each_body == {
-                "dag_run_id": each_run_id,
-                "dag_id": DAG1_ID,
-                "logical_date": now,
-                "queued_at": now,
-                "start_date": None,
-                "end_date": None,
-                "data_interval_start": now,
-                "data_interval_end": now,
-                "last_scheduling_decision": None,
-                "run_type": "manual",
-                "state": "queued",
-                "external_trigger": True,
-                "triggered_by": "rest_api",
-                "conf": {},
-                "note": note,
-            }
+        assert response_2.status_code == 409
 
     @pytest.mark.parametrize(
         "data_interval_start, data_interval_end",

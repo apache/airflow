@@ -1,5 +1,26 @@
-Removed deprecated methods in airflow/utils/dates.py
+Removed deprecated methods in ``airflow/utils/dates.py``
 
-Methods removed:
-  * date_range
-  * days_ago (Use ``pendulum.today('UTC').add(days=-N, ...)``)
+* Methods removed
+
+  * ``date_range``
+  * ``days_ago`` (Use ``pendulum.today('UTC').add(days=-N, ...)``)
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.dates.date_range``
+      * [x] ``airflow.utils.dates.days_ago`` → ``pendulum.today("UTC").add(days=-N, ...)``

@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING, cast
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.taskmixin import DependencyMixin
-    from airflow.models.xcom_arg import PlainXComArg
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions.xcom_arg import PlainXComArg
 
 
 class BaseSetupTeardownContext:
@@ -335,7 +335,7 @@ class SetupTeardownContext(BaseSetupTeardownContext):
     @staticmethod
     def add_task(task: AbstractOperator | PlainXComArg):
         """Add task to context manager."""
-        from airflow.models.xcom_arg import PlainXComArg
+        from airflow.sdk.definitions.xcom_arg import PlainXComArg
 
         if not SetupTeardownContext.active:
             raise AirflowException("Cannot add task to context outside the context manager.")

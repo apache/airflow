@@ -28,8 +28,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from rich.syntax import Syntax
+
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     PROVIDER_DEPENDENCIES,
     PROVIDER_RUNTIME_DATA_SCHEMA_PATH,
     REGULAR_DOC_PACKAGES,
@@ -39,7 +42,7 @@ from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ORIGINAL_PROVIDERS_DIR,
     AIRFLOW_PROVIDERS_DIR,
-    BREEZE_SOURCES_ROOT,
+    BREEZE_SOURCES_DIR,
     DOCS_ROOT,
     GENERATED_PROVIDER_PACKAGES_DIR,
     OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
@@ -47,7 +50,9 @@ from airflow_breeze.utils.path_utils import (
     PROVIDER_DEPENDENCIES_JSON_FILE_PATH,
 )
 from airflow_breeze.utils.publish_docs_helpers import (
+    # TODO(potiuk) - rename when all providers are new-style
     NEW_PROVIDER_DATA_SCHEMA_PATH,
+    # TODO(potiuk) - remove when all providers are new-style
     OLD_PROVIDER_DATA_SCHEMA_PATH,
 )
 from airflow_breeze.utils.run_utils import run_command
@@ -130,12 +135,14 @@ class PipRequirements(NamedTuple):
         return cls(package=package, version_required=version_required.strip())
 
 
+# TODO(potiuk) - remove when all providers are new-style
 @clearable_cache
 def old_provider_yaml_schema() -> dict[str, Any]:
     with open(OLD_PROVIDER_DATA_SCHEMA_PATH) as schema_file:
         return json.load(schema_file)
 
 
+# TODO(potiuk) - rename when all providers are new-style
 @clearable_cache
 def new_provider_yaml_schema() -> dict[str, Any]:
     with open(NEW_PROVIDER_DATA_SCHEMA_PATH) as schema_file:
@@ -171,19 +178,24 @@ def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
         pass
     provider_id = get_short_package_name(provider_yaml_content["package-name"])
     PROVIDER_METADATA[provider_id] = provider_yaml_content
+    # TODO(potiuk) - remove if when all providers are new-style
     if not is_old_provider_structure:
         toml_content = load_pyproject_toml(provider_yaml_path.parent / "pyproject.toml")
-        PROVIDER_METADATA[provider_id]["dependencies"] = toml_content["project"]["dependencies"]
+        dependencies = toml_content["project"].get("dependencies")
+        if dependencies:
+            PROVIDER_METADATA[provider_id]["dependencies"] = dependencies
+        optional_dependencies = toml_content["project"].get("optional-dependencies")
+        if optional_dependencies:
+            PROVIDER_METADATA[provider_id]["optional-dependencies"] = optional_dependencies
+        dependency_groups = toml_content.get("dependency-groups")
+        if dependency_groups and dependency_groups.get("dev"):
+            devel_dependencies = dependency_groups.get("dev")
+            PROVIDER_METADATA[provider_id]["devel-dependencies"] = devel_dependencies
 
 
-def refresh_provider_metadata_with_provider_id(provider_id: str):
-    provider_yaml_path = get_old_source_providers_package_path(provider_id) / "provider.yaml"
-    refresh_provider_metadata_from_yaml_file(provider_yaml_path)
-
-
-def clear_cache_for_provider_metadata(provider_id: str):
+def clear_cache_for_provider_metadata(provider_yaml_path: Path):
     get_provider_packages_metadata.cache_clear()
-    refresh_provider_metadata_with_provider_id(provider_id)
+    refresh_provider_metadata_from_yaml_file(provider_yaml_path)
 
 
 @clearable_cache
@@ -511,7 +523,8 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
     return install_clause
 
 
-def get_install_requirements(provider_id: str, version_suffix: str) -> str:
+# TODO(potiuk): remove this function once we have all providers in the new structure
+def get_install_requirements_for_old_providers(provider_id: str, version_suffix: str) -> str:
     """
     Returns install requirements for the package.
 
@@ -527,10 +540,11 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
     install_requires = [
         apply_version_suffix(clause, version_suffix).replace('"', '\\"') for clause in dependencies
     ]
-    return "".join(f'\n    "{ir}",' for ir in install_requires)
+    return "\n".join(f'    "{ir}",' for ir in install_requires)
 
 
-def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[str]]:
+# TODO(potiuk): remove this function once we have all providers in the new structure
+def get_package_extras_for_old_providers(provider_id: str, version_suffix: str) -> str:
     """
     Finds extras for the package specified.
 
@@ -538,9 +552,9 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
     """
 
     if provider_id == "providers":
-        return {}
+        return ""
     if provider_id in get_removed_provider_ids():
-        return {}
+        return ""
 
     from packaging.requirements import Requirement
 
@@ -586,7 +600,18 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
                 extras_dict[name] = dependencies
     for extra, dependencies in extras_dict.items():
         extras_dict[extra] = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
-    return extras_dict
+
+    extras_requirements_list = []
+    for extra_name in sorted(extras_dict.keys()):
+        dependencies_list = extras_dict[extra_name]
+        if not dependencies_list:
+            continue
+        extras_requirements_list.append(f'"{extra_name}" = [')
+        for dependency in dependencies_list:
+            escaped_dependency = dependency.replace('"', '\\"')
+            extras_requirements_list.append(f'     "{escaped_dependency}",')
+        extras_requirements_list.append("]")
+    return "\n".join(extras_requirements_list)
 
 
 # TODO(potiuk) - this should be simplified once we have all providers in the new structure
@@ -610,7 +635,14 @@ def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
         import tomllib
     except ImportError:
         import tomli as tomllib
-    return tomllib.loads(pyproject_toml_file_path.read_text())
+    toml_content = pyproject_toml_file_path.read_text()
+    syntax = Syntax(toml_content, "toml", theme="ansi_dark", line_numbers=True)
+    try:
+        return tomllib.loads(toml_content)
+    except tomllib.TOMLDecodeError as e:
+        get_console().print(syntax)
+        get_console().print(f"[red]Error when loading {pyproject_toml_file_path}: {e}:")
+        sys.exit(1)
 
 
 def get_provider_details(provider_id: str) -> ProviderPackageDetails:
@@ -757,6 +789,12 @@ def get_provider_jinja_context(
         p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
     ]
     cross_providers_dependencies = get_cross_provider_dependent_packages(provider_package_id=provider_id)
+
+    # Most providers require the same python versions, but some may have exclusions
+    requires_python_version: str = f"~={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+    for excluded_python_version in provider_details.excluded_python_versions:
+        requires_python_version += f",!={excluded_python_version}"
+
     context: dict[str, Any] = {
         "PROVIDER_ID": provider_details.provider_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_id),
@@ -767,12 +805,16 @@ def get_provider_jinja_context(
         "VERSION_SUFFIX": format_version_suffix(version_suffix),
         "PIP_REQUIREMENTS": get_provider_requirements(provider_details.provider_id),
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
-        "INSTALL_REQUIREMENTS": get_install_requirements(
+        # TODO(potiuk) - remove when all providers are new-style
+        "INSTALL_REQUIREMENTS": get_install_requirements_for_old_providers(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
         ),
-        "EXTRAS_REQUIREMENTS": get_package_extras(
+        # TODO(potiuk) - remove when all providers are new-style
+        "EXTRAS_REQUIREMENTS": get_package_extras_for_old_providers(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
         ),
+        # TODO(potiuk) - remove when all providers are new-style
+        "DEPENDENCY_GROUPS": {},
         "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.root_provider_path,
             provider_details.documentation_provider_package_path,
@@ -790,6 +832,7 @@ def get_provider_jinja_context(
         "PIP_REQUIREMENTS_TABLE_RST": convert_pip_requirements_to_table(
             get_provider_requirements(provider_id), markdown=False
         ),
+        "REQUIRES_PYTHON": requires_python_version,
     }
     return context
 
@@ -799,6 +842,8 @@ def render_template(
     context: dict[str, Any],
     extension: str,
     autoescape: bool = True,
+    lstrip_blocks: bool = False,
+    trim_blocks: bool = False,
     keep_trailing_newline: bool = False,
 ) -> str:
     """
@@ -807,18 +852,20 @@ def render_template(
     :param context: Jinja2 context
     :param extension: Target file extension
     :param autoescape: Whether to autoescape HTML
+    :param lstrip_blocks: Whether to strip leading blocks
+    :param trim_blocks: Whether to trim blocks
     :param keep_trailing_newline: Whether to keep the newline in rendered output
     :return: rendered template
     """
     import jinja2
 
-    template_loader = jinja2.FileSystemLoader(
-        searchpath=BREEZE_SOURCES_ROOT / "src" / "airflow_breeze" / "templates"
-    )
+    template_loader = jinja2.FileSystemLoader(searchpath=BREEZE_SOURCES_DIR / "airflow_breeze" / "templates")
     template_env = jinja2.Environment(
         loader=template_loader,
         undefined=jinja2.StrictUndefined,
         autoescape=autoescape,
+        lstrip_blocks=lstrip_blocks,
+        trim_blocks=trim_blocks,
         keep_trailing_newline=keep_trailing_newline,
     )
     template = template_env.get_template(f"{template_name}_TEMPLATE{extension}.jinja2")

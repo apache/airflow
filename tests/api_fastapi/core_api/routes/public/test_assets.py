@@ -149,7 +149,7 @@ def _create_dag_run(session, num: int = 2):
             dag_id="source_dag_id",
             run_id=f"source_run_id_{i}",
             run_type=DagRunType.MANUAL,
-            logical_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE + timedelta(days=i - 1),
             start_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             external_trigger=True,
@@ -542,7 +542,10 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 1,
                     "asset_id": 1,
+                    "uri": "s3://bucket/key/1",
                     "extra": {"foo": "bar"},
+                    "group": "asset",
+                    "name": "simple1",
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
                     "source_run_id": "source_run_id_1",
@@ -564,6 +567,9 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 2,
                     "asset_id": 2,
+                    "uri": "s3://bucket/key/2",
+                    "group": "asset",
+                    "name": "simple2",
                     "extra": {"foo": "bar"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -573,7 +579,9 @@ class TestGetAssetEvents(TestAssets):
                         {
                             "run_id": "source_run_id_2",
                             "dag_id": "source_dag_id",
-                            "logical_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "logical_date": from_datetime_to_zulu_without_ms(
+                                DEFAULT_DATE + timedelta(days=1),
+                            ),
                             "start_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "end_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "state": "success",
@@ -704,6 +712,9 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 1,
                     "asset_id": 1,
+                    "uri": "s3://bucket/key/1",
+                    "group": "asset",
+                    "name": "sensitive1",
                     "extra": {"password": "***"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -726,6 +737,9 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 2,
                     "asset_id": 2,
+                    "uri": "s3://bucket/key/2",
+                    "group": "asset",
+                    "name": "sensitive2",
                     "extra": {"password": "***"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -735,7 +749,9 @@ class TestGetAssetEvents(TestAssets):
                         {
                             "run_id": "source_run_id_2",
                             "dag_id": "source_dag_id",
-                            "logical_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "logical_date": from_datetime_to_zulu_without_ms(
+                                DEFAULT_DATE + timedelta(days=1),
+                            ),
                             "start_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "end_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "state": "success",
@@ -912,6 +928,9 @@ class TestPostAssetEvents(TestAssets):
         assert response.json() == {
             "id": mock.ANY,
             "asset_id": 1,
+            "uri": "s3://bucket/key/1",
+            "group": "asset",
+            "name": "simple1",
             "extra": {"foo": "bar", "from_rest_api": True},
             "source_task_id": None,
             "source_dag_id": None,
@@ -938,6 +957,9 @@ class TestPostAssetEvents(TestAssets):
         assert response.json() == {
             "id": mock.ANY,
             "asset_id": 1,
+            "uri": "s3://bucket/key/1",
+            "group": "asset",
+            "name": "simple1",
             "extra": {"password": "***", "from_rest_api": True},
             "source_task_id": None,
             "source_dag_id": None,

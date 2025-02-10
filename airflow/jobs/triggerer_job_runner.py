@@ -323,7 +323,6 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.listener.stop()
 
     def _exit_gracefully(self, signum, frame) -> None:
-        """Clean up processor_agent to avoid leaving orphan processes."""
         # The first time, try to exit nicely
         if not self.trigger_runner.stop:
             self.log.info("Exiting gracefully upon receiving signal %s", signum)

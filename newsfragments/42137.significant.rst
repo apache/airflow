@@ -1,1 +1,12 @@
 Optional ``[saml]`` extra has been removed from Airflow core - instead Amazon Provider gets saml as required dependency.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Dependency changes
+  * [ ] Code interface changes

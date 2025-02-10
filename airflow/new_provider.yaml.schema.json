@@ -31,6 +31,13 @@
                 "removed"
             ]
         },
+        "excluded-python-versions": {
+            "description": "List of python versions excluded for that provider",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
         "integrations": {
             "description": "List of integrations supported by the provider.",
             "type": "array",
@@ -333,30 +340,6 @@
             "items": {
                 "type": "string"
             }
-        },
-        "additional-extras": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "description": "Name of the extra",
-                        "type": "string"
-                    },
-                    "dependencies": {
-                        "description": "Dependencies that should be added for the extra",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "required": [
-                    "name",
-                    "dependencies"
-                ]
-            },
-            "description": "Additional extras that the provider should have. Replaces auto-generated cross-provider extras, if matching the same prefix, so that you can specify boundaries for existing dependencies."
         },
         "task-decorators": {
             "type": "array",

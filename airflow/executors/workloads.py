@@ -34,7 +34,7 @@ __all__ = [
 ]
 
 
-class BaseActivity(BaseModel):
+class BaseWorkload(BaseModel):
     token: str
     """The identity token for this workload"""
 
@@ -75,7 +75,7 @@ class TaskInstance(BaseModel):
         )
 
 
-class ExecuteTask(BaseActivity):
+class ExecuteTask(BaseWorkload):
     """Execute the given Task."""
 
     ti: TaskInstance
@@ -97,7 +97,7 @@ class ExecuteTask(BaseActivity):
         from airflow.utils.helpers import log_filename_template_renderer
 
         ser_ti = TaskInstance.model_validate(ti, from_attributes=True)
-        bundle_info = BundleInfo.model_construct(
+        bundle_info = BundleInfo(
             name=ti.dag_model.bundle_name,
             version=ti.dag_run.bundle_version,
         )

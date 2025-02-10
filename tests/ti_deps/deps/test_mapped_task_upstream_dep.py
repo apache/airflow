@@ -22,13 +22,14 @@ from typing import TYPE_CHECKING
 import pytest
 
 from airflow.exceptions import AirflowFailException, AirflowSkipException
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -274,35 +275,6 @@ def test_step_by_step(
         assert not schedulable_tis
 
 
-def test_nested_mapped_task_groups(dag_maker, session: Session):
-    from airflow.decorators import task, task_group
-
-    with dag_maker(session=session):
-
-        @task
-        def t():
-            return [[1, 2], [3, 4]]
-
-        @task
-        def m(x):
-            return x
-
-        @task_group
-        def g1(x):
-            @task_group
-            def g2(y):
-                return m(y)
-
-            return g2.expand(y=x)
-
-        g1.expand(x=t())
-
-    # Add a test once nested mapped task groups become supported
-    with pytest.raises(NotImplementedError) as ctx:
-        dag_maker.create_dagrun()
-    assert str(ctx.value) == ""
-
-
 def test_mapped_in_mapped_task_group(dag_maker, session: Session):
     from airflow.decorators import task, task_group
 
@@ -391,7 +363,7 @@ def test_non_mapped_task_group(dag_maker, session: Session):
     assert not get_dep_statuses(dr, "tg.op1", session)
 
 
-@pytest.mark.parametrize("upstream_instance_state", [None, SKIPPED, FAILED])
+@pytest.mark.parametrize("upstream_instance_state", [SUCCESS, SKIPPED, FAILED])
 @pytest.mark.parametrize("testcase", ["task", "group"])
 def test_upstream_mapped_expanded(
     dag_maker, session: Session, upstream_instance_state: TaskInstanceState | None, testcase: str
@@ -432,35 +404,46 @@ def test_upstream_mapped_expanded(
     assert sorted(schedulable_tis) == [f"{mapped_task_1}_0", f"{mapped_task_1}_1", f"{mapped_task_1}_2"]
     assert not finished_tis_states
 
-    # Run expanded m1 tasks
-    schedulable_tis[f"{mapped_task_1}_1"].run()
-    schedulable_tis[f"{mapped_task_1}_2"].run()
-    if upstream_instance_state != FAILED:
-        schedulable_tis[f"{mapped_task_1}_0"].run()
-    else:
-        with pytest.raises(AirflowFailException):
-            schedulable_tis[f"{mapped_task_1}_0"].run()
+    # "Run" expanded m1 tasks
+    for ti, state in (
+        (schedulable_tis[f"{mapped_task_1}_1"], SUCCESS),
+        (schedulable_tis[f"{mapped_task_1}_2"], SUCCESS),
+        (schedulable_tis[f"{mapped_task_1}_0"], upstream_instance_state),
+    ):
+        ti.state = state
+        if state == SUCCESS:
+            ti.xcom_push(XCOM_RETURN_KEY, "doesn't matter", session=session)
+    session.flush()
     schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
 
     # Expect that m2 can still be expanded since the dependency check does not fail. If one of the expanded
     # m1 tasks fails or is skipped, there is one fewer m2 expanded tasks
     expected_schedulable = [f"{mapped_task_2}_0", f"{mapped_task_2}_1"]
-    if upstream_instance_state is None:
+    if upstream_instance_state is SUCCESS:
         expected_schedulable.append(f"{mapped_task_2}_2")
     assert list(schedulable_tis.keys()) == expected_schedulable
 
     # Run the expanded m2 tasks
-    schedulable_tis[f"{mapped_task_2}_0"].run()
-    schedulable_tis[f"{mapped_task_2}_1"].run()
-    if upstream_instance_state is None:
-        schedulable_tis[f"{mapped_task_2}_2"].run()
+
+    to_run: tuple[tuple[TaskInstance, TaskInstanceState], ...] = (
+        (schedulable_tis[f"{mapped_task_2}_0"], SUCCESS),
+        (schedulable_tis[f"{mapped_task_2}_1"], SUCCESS),
+    )
+    if upstream_instance_state == SUCCESS:
+        to_run += ((schedulable_tis[f"{mapped_task_2}_2"], upstream_instance_state),)
+    for ti, state in to_run:
+        ti.state = state
+        if state is SUCCESS:
+            ti.xcom_push(XCOM_RETURN_KEY, "doesn't matter", session=session)
+    session.flush()
     schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
     assert not schedulable_tis
+
     expected_finished_tis_states = {
         ti: "success"
         for ti in (f"{mapped_task_1}_1", f"{mapped_task_1}_2", f"{mapped_task_2}_0", f"{mapped_task_2}_1")
     }
-    if upstream_instance_state is None:
+    if upstream_instance_state is SUCCESS:
         expected_finished_tis_states[f"{mapped_task_1}_0"] = "success"
         expected_finished_tis_states[f"{mapped_task_2}_2"] = "success"
     else:

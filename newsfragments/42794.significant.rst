@@ -1,0 +1,22 @@
+Move filesystem, package_index, subprocess hooks to standard provider
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.hooks.filesystem.*`` → ``airflow.providers.standard.hooks.filesystem.*``
+      * [x] ``airflow.hooks.package_index.*`` → ``airflow.providers.standard.hooks.package_index.*``
+      * [x] ``airflow.hooks.subprocess.*`` → ``airflow.providers.standard.hooks.subprocess.*``

@@ -6,16 +6,21 @@ Remove ``TriggerRule.NONE_FAILED_OR_SKIPPED``
 
 * Types of change
 
-  * [x] DAG changes
+  * [x] Dag changes
   * [ ] Config changes
   * [ ] API changes
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency change
+  * [ ] Dependency changes
+  * [ ] Code interface changes
 
 .. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
 
-* Migrations rules needed
+* Migration rules needed
 
-  * Remove attribute ``TriggerRule.NONE_FAILED_OR_SKIPPED``
+  * ruff
+
+    * AIR302
+
+      * [x] ``TriggerRule.NONE_FAILED_OR_SKIPPED``

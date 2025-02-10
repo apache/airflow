@@ -165,6 +165,8 @@ class SerializedDagModel(Base):
     def write_dag(
         cls,
         dag: DAG | LazyDeserializedDAG,
+        bundle_name: str,
+        bundle_version: str | None = None,
         min_update_interval: int | None = None,
         session: Session = NEW_SESSION,
     ) -> bool:
@@ -201,8 +203,11 @@ class SerializedDagModel(Base):
         if serialized_dag_hash is not None and serialized_dag_hash == new_serialized_dag.dag_hash:
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
+
         dagv = DagVersion.write_dag(
             dag_id=dag.dag_id,
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
             session=session,
         )
         log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
@@ -286,7 +291,7 @@ class SerializedDagModel(Base):
     @property
     def data(self) -> dict | None:
         # use __data_cache to avoid decompress and loads
-        if not hasattr(self, "__data_cache") or self.__data_cache is None:
+        if not hasattr(self, "_SerializedDagModel__data_cache") or self.__data_cache is None:
             if self._data_compressed:
                 self.__data_cache = json.loads(zlib.decompress(self._data_compressed))
             else:
@@ -340,6 +345,8 @@ class SerializedDagModel(Base):
     @provide_session
     def bulk_sync_to_db(
         dags: list[DAG] | list[LazyDeserializedDAG],
+        bundle_name: str,
+        bundle_version: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -354,6 +361,8 @@ class SerializedDagModel(Base):
         for dag in dags:
             SerializedDagModel.write_dag(
                 dag=dag,
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
                 min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                 session=session,
             )

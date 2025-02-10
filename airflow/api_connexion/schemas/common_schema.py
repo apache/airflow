@@ -25,7 +25,7 @@ import marshmallow
 from dateutil import relativedelta
 from marshmallow import Schema, fields, validate
 
-from airflow.models.mappedoperator import MappedOperator
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
@@ -128,7 +128,7 @@ class ClassReferenceSchema(Schema):
 
     def _get_class_name(self, obj):
         if isinstance(obj, (MappedOperator, SerializedBaseOperator)):
-            return obj._task_type
+            return obj.task_type
         if isinstance(obj, type):
             return obj.__name__
         return type(obj).__name__

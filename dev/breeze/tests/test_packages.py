@@ -30,16 +30,13 @@ from airflow_breeze.utils.packages import (
     get_available_packages,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
-    get_install_requirements,
+    get_install_requirements_for_old_providers,
     get_long_package_name,
     get_min_airflow_version,
     get_old_documentation_package_path,
     get_old_source_providers_package_path,
-    get_package_extras,
     get_pip_package_name,
-    get_provider_details,
     get_provider_info_dict,
-    get_provider_jinja_context,
     get_provider_requirements,
     get_removed_provider_ids,
     get_short_package_name,
@@ -104,7 +101,7 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.9.0", "asana>=0.10,<4.0.0"]
+    assert get_provider_requirements("asana") == ["apache-airflow>=2.9.0", "asana>=5.0.0"]
 
 
 def test_get_removed_providers():
@@ -163,6 +160,7 @@ def test_get_old_documentation_package_path():
     )
 
 
+# TODO(potiuk) - remove when all providers are new-style
 @pytest.mark.parametrize(
     "provider, version_suffix, expected",
     [
@@ -172,7 +170,7 @@ def test_get_old_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow>=3.0.0.dev0",
-    "flask-appbuilder==4.5.2",
+    "flask-appbuilder==4.5.3",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -186,7 +184,7 @@ def test_get_old_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1.dev0",
     "apache-airflow>=3.0.0.dev0",
-    "flask-appbuilder==4.5.2",
+    "flask-appbuilder==4.5.3",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -200,7 +198,7 @@ def test_get_old_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1b0",
     "apache-airflow>=3.0.0b0",
-    "flask-appbuilder==4.5.2",
+    "flask-appbuilder==4.5.3",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -215,7 +213,7 @@ def test_get_old_documentation_package_path():
     "apache-airflow-providers-common-sql>=1.20.0b0",
     "apache-airflow>=2.9.0b0",
     "asyncpg>=0.30.0",
-    "psycopg2-binary>=2.9.7",
+    "psycopg2-binary>=2.9.9",
     """,
             id="beta0 suffix postgres",
         ),
@@ -226,153 +224,15 @@ def test_get_old_documentation_package_path():
     "apache-airflow-providers-common-sql>=1.20.0",
     "apache-airflow>=2.9.0",
     "asyncpg>=0.30.0",
-    "psycopg2-binary>=2.9.7",
+    "psycopg2-binary>=2.9.9",
     """,
             id="No suffix postgres",
         ),
     ],
 )
 def test_get_install_requirements(provider: str, version_suffix: str, expected: str):
-    actual = get_install_requirements(provider, version_suffix)
+    actual = get_install_requirements_for_old_providers(provider, version_suffix)
     assert actual.strip() == expected.strip()
-
-
-@pytest.mark.parametrize(
-    "version_suffix, expected",
-    [
-        pytest.param(
-            "",
-            {
-                "amazon": ["apache-airflow-providers-amazon>=2.6.0"],
-                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
-                "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
-                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=10.1.0"],
-                "facebook": ["apache-airflow-providers-facebook>=2.2.0"],
-                "leveldb": ["plyvel>=1.5.1"],
-                "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
-                "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
-                "mysql": ["apache-airflow-providers-mysql"],
-                "openlineage": ["apache-airflow-providers-openlineage"],
-                "oracle": ["apache-airflow-providers-oracle>=3.1.0"],
-                "postgres": ["apache-airflow-providers-postgres"],
-                "presto": ["apache-airflow-providers-presto"],
-                "salesforce": ["apache-airflow-providers-salesforce"],
-                "sftp": ["apache-airflow-providers-sftp"],
-                "ssh": ["apache-airflow-providers-ssh"],
-                "trino": ["apache-airflow-providers-trino"],
-            },
-            id="No suffix",
-        ),
-        pytest.param(
-            "dev0",
-            {
-                "amazon": ["apache-airflow-providers-amazon>=2.6.0.dev0"],
-                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
-                "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
-                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=10.1.0.dev0"],
-                "facebook": ["apache-airflow-providers-facebook>=2.2.0.dev0"],
-                "leveldb": ["plyvel>=1.5.1"],
-                "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
-                "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
-                "mysql": ["apache-airflow-providers-mysql"],
-                "openlineage": ["apache-airflow-providers-openlineage"],
-                "oracle": ["apache-airflow-providers-oracle>=3.1.0.dev0"],
-                "postgres": ["apache-airflow-providers-postgres"],
-                "presto": ["apache-airflow-providers-presto"],
-                "salesforce": ["apache-airflow-providers-salesforce"],
-                "sftp": ["apache-airflow-providers-sftp"],
-                "ssh": ["apache-airflow-providers-ssh"],
-                "trino": ["apache-airflow-providers-trino"],
-            },
-            id="With dev0 suffix",
-        ),
-        pytest.param(
-            "beta0",
-            {
-                "amazon": ["apache-airflow-providers-amazon>=2.6.0b0"],
-                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
-                "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
-                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=10.1.0b0"],
-                "facebook": ["apache-airflow-providers-facebook>=2.2.0b0"],
-                "leveldb": ["plyvel>=1.5.1"],
-                "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
-                "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
-                "mysql": ["apache-airflow-providers-mysql"],
-                "openlineage": ["apache-airflow-providers-openlineage"],
-                "oracle": ["apache-airflow-providers-oracle>=3.1.0b0"],
-                "postgres": ["apache-airflow-providers-postgres"],
-                "presto": ["apache-airflow-providers-presto"],
-                "salesforce": ["apache-airflow-providers-salesforce"],
-                "sftp": ["apache-airflow-providers-sftp"],
-                "ssh": ["apache-airflow-providers-ssh"],
-                "trino": ["apache-airflow-providers-trino"],
-            },
-            id="With beta0 suffix normalized automatically to b0 (PEP 440)",
-        ),
-    ],
-)
-def test_get_package_extras(version_suffix: str, expected: dict[str, list[str]]):
-    actual = get_package_extras("google", version_suffix=version_suffix)
-    assert actual == expected
-
-
-# TODO(potiuk) - remove this test when we remove the old providers structure
-def test_get_old_provider_details():
-    provider_details = get_provider_details("asana")
-    assert provider_details.provider_id == "asana"
-    assert provider_details.full_package_name == "airflow.providers.asana"
-    assert provider_details.pypi_package_name == "apache-airflow-providers-asana"
-    assert provider_details.root_provider_path == AIRFLOW_SOURCES_ROOT.joinpath(
-        "providers",
-        "src",
-        "airflow",
-        "providers",
-        "asana",
-    )
-    assert provider_details.base_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
-        "providers",
-        "src",
-        "airflow",
-        "providers",
-        "asana",
-    )
-    assert (
-        provider_details.documentation_provider_package_path == DOCS_ROOT / "apache-airflow-providers-asana"
-    )
-    assert "Asana" in provider_details.provider_description
-    assert len(provider_details.versions) > 11
-    assert provider_details.excluded_python_versions == []
-    assert provider_details.plugins == []
-    assert provider_details.changelog_path == provider_details.base_provider_package_path / "CHANGELOG.rst"
-    assert not provider_details.removed
-
-
-def test_get_new_provider_details():
-    provider_details = get_provider_details("airbyte")
-    assert provider_details.provider_id == "airbyte"
-    assert provider_details.full_package_name == "airflow.providers.airbyte"
-    assert provider_details.pypi_package_name == "apache-airflow-providers-airbyte"
-    assert provider_details.root_provider_path == AIRFLOW_SOURCES_ROOT.joinpath(
-        "providers",
-        "airbyte",
-    )
-    assert provider_details.base_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
-        "providers",
-        "airbyte",
-        "src",
-        "airflow",
-        "providers",
-        "airbyte",
-    )
-    assert provider_details.documentation_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
-        "providers", "airbyte", "docs"
-    )
-    assert "Airbyte" in provider_details.provider_description
-    assert len(provider_details.versions) > 11
-    assert provider_details.excluded_python_versions == []
-    assert provider_details.plugins == []
-    assert provider_details.changelog_path == provider_details.root_provider_path / "docs" / "changelog.rst"
-    assert not provider_details.removed
 
 
 @pytest.mark.parametrize(
@@ -518,35 +378,5 @@ def test_get_provider_info_dict():
     assert len(provider_info_dict["notifications"]) > 2
     assert len(provider_info_dict["secrets-backends"]) > 1
     assert len(provider_info_dict["logging"]) > 1
-    assert len(provider_info_dict["additional-extras"]) > 3
     assert len(provider_info_dict["config"].keys()) > 1
     assert len(provider_info_dict["executors"]) > 0
-
-
-def test_provider_jinja_context():
-    provider_info = get_provider_info_dict("amazon")
-    version = provider_info["versions"][0]
-    context = get_provider_jinja_context(
-        provider_id="amazon", current_release_version=version, version_suffix="rc1"
-    )
-    expected = {
-        "PROVIDER_ID": "amazon",
-        "PACKAGE_PIP_NAME": "apache-airflow-providers-amazon",
-        "PACKAGE_DIST_PREFIX": "apache_airflow_providers_amazon",
-        "FULL_PACKAGE_NAME": "airflow.providers.amazon",
-        "RELEASE": version,
-        "RELEASE_NO_LEADING_ZEROS": version,
-        "VERSION_SUFFIX": ".rc1",
-        "PROVIDER_DESCRIPTION": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
-        "CHANGELOG_RELATIVE_PATH": "../../providers/src/airflow/providers/amazon",
-        "SUPPORTED_PYTHON_VERSIONS": ["3.9", "3.10", "3.11", "3.12"],
-        "PLUGINS": [],
-        "MIN_AIRFLOW_VERSION": "2.9.0",
-        "PROVIDER_REMOVED": False,
-        "PROVIDER_INFO": provider_info,
-    }
-
-    for key, value in expected.items():
-        assert context[key] == value
-    assert context["EXTRAS_REQUIREMENTS"]["google"] == ["apache-airflow-providers-google"]
-    assert len(context["PIP_REQUIREMENTS"]) > 10

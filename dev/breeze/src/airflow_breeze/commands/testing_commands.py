@@ -148,7 +148,7 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-TEST_PROGRESS_REGEXP = r"tests/.*|providers/tests/.*|task_sdk/tests/.*|.*=====.*"
+TEST_PROGRESS_REGEXP = r"tests/.*|providers/.*/tests/.*|providers/tests/.*|task_sdk/tests/.*|.*=====.*"
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 
@@ -1217,8 +1217,16 @@ def _run_test_command(
     perform_environment_checks()
     if skip_providers:
         ignored_path_list = [
-            f"--ignore=providers/tests/{provider_id.replace('.','/')}"
-            for provider_id in skip_providers.split(" ")
+            # TODO(potiuk): remove the old ways once we migrate all providers to the new structure
+            *[
+                f"--ignore=providers/tests/{provider_id.replace('.','/')}"
+                for provider_id in skip_providers.split(" ")
+            ],
+            # New structure
+            *[
+                f"--ignore=providers/{provider_id.replace('.','/')}/tests"
+                for provider_id in skip_providers.split(" ")
+            ],
         ]
         extra_pytest_args = (*extra_pytest_args, *ignored_path_list)
     if run_in_parallel:

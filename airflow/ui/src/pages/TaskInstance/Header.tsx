@@ -16,17 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
-import { MdOutlineModeComment, MdOutlineTask } from "react-icons/md";
+import { Box, Flex, Heading, HStack, SimpleGrid, Spinner } from "@chakra-ui/react";
+import { FiMessageSquare } from "react-icons/fi";
+import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { Stat } from "src/components/Stat";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { Status } from "src/components/ui";
 import { getDuration } from "src/utils";
 
-export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => (
+export const Header = ({
+  isRefreshing,
+  taskInstance,
+}: {
+  readonly isRefreshing?: boolean;
+  readonly taskInstance: TaskInstanceResponse;
+}) => (
   <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
     <Flex alignItems="center" justifyContent="space-between" mb={2}>
       <HStack alignItems="center" gap={2}>
@@ -35,21 +44,22 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
           <strong>Task Instance: </strong>
           {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
         </Heading>
-        <Status state={taskInstance.state}>{taskInstance.state}</Status>
-        <Flex>
-          <div />
-        </Flex>
+        <StateBadge state={taskInstance.state}>{taskInstance.state}</StateBadge>
+        {isRefreshing ? <Spinner /> : <div />}
       </HStack>
-      <ClearTaskInstanceButton taskInstance={taskInstance} />
+      <HStack>
+        {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
+          <DisplayMarkdownButton
+            header="Task Instance Note"
+            icon={<FiMessageSquare color="black" />}
+            mdContent={taskInstance.note}
+            text="Note"
+          />
+        )}
+        <ClearTaskInstanceButton taskInstance={taskInstance} />
+        <MarkTaskInstanceAsButton taskInstance={taskInstance} />
+      </HStack>
     </Flex>
-    {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
-      <Flex alignItems="flex-start" justifyContent="space-between" mr={16}>
-        <MdOutlineModeComment size="3rem" />
-        <Text fontSize="sm" ml={3}>
-          {taskInstance.note}
-        </Text>
-      </Flex>
-    )}
     <SimpleGrid columns={6} gap={4} my={2}>
       <Stat label="Operator">{taskInstance.operator}</Stat>
       {taskInstance.map_index > -1 ? (
@@ -63,6 +73,9 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
         <Time datetime={taskInstance.end_date} />
       </Stat>
       <Stat label="Duration">{getDuration(taskInstance.start_date, taskInstance.end_date)}s</Stat>
+      {taskInstance.dag_version?.version_number !== undefined && (
+        <Stat label="Dag Version">{`v${taskInstance.dag_version.version_number}`}</Stat>
+      )}
     </SimpleGrid>
   </Box>
 );

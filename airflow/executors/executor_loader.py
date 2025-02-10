@@ -231,6 +231,10 @@ class ExecutorLoader:
     @classmethod
     def lookup_executor_name_by_str(cls, executor_name_str: str) -> ExecutorName:
         # lookup the executor by alias first, if not check if we're given a module path
+        if not _classname_to_executors or not _module_to_executors or not _alias_to_executors:
+            # if we haven't loaded the executors yet, such as directly calling load_executor
+            cls._get_executor_names()
+
         if executor_name := _alias_to_executors.get(executor_name_str):
             return executor_name
         elif executor_name := _module_to_executors.get(executor_name_str):
