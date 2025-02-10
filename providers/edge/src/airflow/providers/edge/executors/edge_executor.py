@@ -89,7 +89,6 @@ class EdgeExecutor(BaseExecutor):
             connection = engine.connect()
             query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(1024);"
             connection.execute(text(query))
-            session.commit()
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):
@@ -100,6 +99,7 @@ class EdgeExecutor(BaseExecutor):
             EdgeJobModel.metadata.create_all(engine)
             EdgeLogsModel.metadata.create_all(engine)
             EdgeWorkerModel.metadata.create_all(engine)
+            session.commit()
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         """
