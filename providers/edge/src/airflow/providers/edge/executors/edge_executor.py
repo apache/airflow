@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     import argparse
 
     from sqlalchemy.engine.base import Engine
-    
+
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstancekey import TaskInstanceKey
 
