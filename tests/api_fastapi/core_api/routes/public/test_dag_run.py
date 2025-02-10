@@ -1160,7 +1160,6 @@ class TestTriggerDagRun:
             f"/public/dags/{DAG1_ID}/dagRuns",
             json=request_json,
         )
-        print(f"body is {response.json()}")
         assert response.status_code == 200
 
         if dag_run_id is None:
