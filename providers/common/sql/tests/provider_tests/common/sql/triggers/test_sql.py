@@ -22,11 +22,10 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.triggers.base import TriggerEvent
 
-from providers.tests.microsoft.azure.base import Base
 from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
-class TestSQLExecuteQueryTrigger(Base):
+class TestSQLExecuteQueryTrigger:
     @mock.patch("airflow.hooks.base.BaseHook.get_hook")
     def test_run(self, mock_get_hook):
         data = [(1, "Alice"), (2, "Bob")]
