@@ -86,9 +86,10 @@ class EdgeExecutor(BaseExecutor):
 
         # version 0.14.0pre0 added new column maintenance_comment
         if edge_worker_columns and "maintenance_comment" not in edge_worker_columns:
-            connection = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+            connection = engine.connect()
             query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(1024);"
             connection.execute(text(query))
+            session.commit()
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):
