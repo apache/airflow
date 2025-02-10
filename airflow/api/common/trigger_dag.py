@@ -55,7 +55,7 @@ def _trigger_dag(
     :param dag_id: DAG ID
     :param dag_bag: DAG Bag model
     :param triggered_by: the entity which triggers the dag_run
-    :param run_after: the datetime before which dag won't run.
+    :param run_after: the datetime before which dag cannot run.
     :param run_id: ID of the run
     :param conf: configuration
     :param logical_date: logical date of the run

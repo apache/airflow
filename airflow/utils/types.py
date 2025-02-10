@@ -42,7 +42,7 @@ class DagRunType(str, enum.Enum):
 
     def generate_run_id(self, *, run_after: str) -> str:
         """
-        Generate a random string for DagRun.
+        Generate a string for DagRun based on run_after.
 
         :param run_after: Generate run_id from run_after.
         """
