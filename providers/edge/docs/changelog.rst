@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+0.14.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Add maintenance comment field, to make maintenance reason transparent.``
+
+
 0.13.1pre0
 ..........
 
