@@ -32,10 +32,10 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import methodtools
 
+from airflow.exceptions import AirflowException
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.templater import Templater
-from airflow.sdk.definitions.baseoperator import AirflowException, BaseOperator
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import MappedOperator
