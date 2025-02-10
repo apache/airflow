@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from sqlalchemy import delete, inspect, text
 from sqlalchemy.exc import NoSuchTableError
+from sqlalchemy.orm import Session
 
 from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
@@ -43,8 +44,7 @@ if TYPE_CHECKING:
     import argparse
 
     from sqlalchemy.engine.base import Engine
-    from sqlalchemy.orm import Session
-
+    
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -86,10 +86,10 @@ class EdgeExecutor(BaseExecutor):
 
         # version 0.14.0pre0 added new column maintenance_comment
         if edge_worker_columns and "maintenance_comment" not in edge_worker_columns:
-            with engine.connect() as connection:
-                with connection.begin():
-                    query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(1024);"
-                    connection.execute(text(query))
+            with Session(engine) as session:
+                query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(1024);"
+                session.execute(text(query))
+                session.commit()
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):
