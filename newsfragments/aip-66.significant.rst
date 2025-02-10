@@ -36,11 +36,11 @@ The ``--subdir`` option has been removed from the following commands (it was a n
 
   * ``airflow config lint``
 
-    * [ ] ``[core] dag_file_processor_timeout`` → ``[dag_processor] dag_file_processor_timeout``
-    * [ ] ``[scheduler] parsing_processes`` → ``[dag_processor] parsing_processes``
-    * [ ] ``[scheduler] file_parsing_sort_mode`` → ``[dag_processor] file_parsing_sort_mode``
-    * [ ] ``[scheduler] max_callbacks_per_loop`` → ``[dag_processor] max_callbacks_per_loop``
-    * [ ] ``[scheduler] min_file_process_interval`` → ``[dag_processor] min_file_process_interval``
-    * [ ] ``[scheduler] stale_dag_threshold`` → ``[dag_processor] stale_dag_threshold``
-    * [ ] ``[scheduler] print_stats_interval`` → ``[dag_processor] print_stats_interval``
-    * [ ] ``[scheduler] dag_dir_list_interval`` → ``[dag_processor] refresh_interval``
+    * [x] ``[core] dag_file_processor_timeout`` → ``[dag_processor] dag_file_processor_timeout``
+    * [x] ``[scheduler] parsing_processes`` → ``[dag_processor] parsing_processes``
+    * [x] ``[scheduler] file_parsing_sort_mode`` → ``[dag_processor] file_parsing_sort_mode``
+    * [x] ``[scheduler] max_callbacks_per_loop`` → ``[dag_processor] max_callbacks_per_loop``
+    * [x] ``[scheduler] min_file_process_interval`` → ``[dag_processor] min_file_process_interval``
+    * [x] ``[scheduler] stale_dag_threshold`` → ``[dag_processor] stale_dag_threshold``
+    * [x] ``[scheduler] print_stats_interval`` → ``[dag_processor] print_stats_interval``
+    * [x] ``[scheduler] dag_dir_list_interval`` → ``[dag_processor] refresh_interval``
