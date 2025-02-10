@@ -78,6 +78,18 @@ class EdgeExecutor(BaseExecutor):
         if edge_job_columns and "concurrency_slots" not in edge_job_columns:
             EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
 
+        edge_worker_columns = None
+        try:
+            edge_worker_columns = [column["name"] for column in inspector.get_columns("edge_worker")]
+        except NoSuchTableError:
+            pass
+
+        # version 0.14.0pre0 added new column maintenance_comment
+        if edge_worker_columns and "maintenance_comment" not in edge_worker_columns:
+            connection = engine.connect()
+            query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(1024);"
+            connection.execute(query)
+
     @provide_session
     def start(self, session: Session = NEW_SESSION):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""

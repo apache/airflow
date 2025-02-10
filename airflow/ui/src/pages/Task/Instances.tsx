@@ -16,18 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Link } from "@chakra-ui/react";
+import { Box, Flex, HStack, Link, type SelectValueChangeDetails } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { useCallback } from "react";
+import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances, useTaskServiceGetTask } from "openapi/queries";
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { getDuration } from "src/utils";
+import { Select } from "src/components/ui";
+import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
+import { capitalize, getDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 const columns = (isMapped?: boolean): Array<ColumnDef<TaskInstanceResponse>> => [
@@ -79,14 +82,38 @@ const columns = (isMapped?: boolean): Array<ColumnDef<TaskInstanceResponse>> => 
   },
 ];
 
+const STATE_PARAM = "state";
+
 export const Instances = () => {
   const { dagId = "", taskId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
+  const filteredState = searchParams.getAll(STATE_PARAM);
+  const hasFilteredState = filteredState.length > 0;
 
   const { data: task, error: taskError, isLoading: isTaskLoading } = useTaskServiceGetTask({ dagId, taskId });
+
+  const handleStateChange = useCallback(
+    ({ value }: SelectValueChangeDetails<string>) => {
+      const [val, ...rest] = value;
+
+      if ((val === undefined || val === "all") && rest.length === 0) {
+        searchParams.delete(STATE_PARAM);
+      } else {
+        searchParams.delete(STATE_PARAM);
+        value.filter((state) => state !== "all").map((state) => searchParams.append(STATE_PARAM, state));
+      }
+      setTableURLState({
+        pagination: { ...pagination, pageIndex: 0 },
+        sorting,
+      });
+      setSearchParams(searchParams);
+    },
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+  );
 
   const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances({
     dagId,
@@ -94,11 +121,55 @@ export const Instances = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
+    state: hasFilteredState ? filteredState : undefined,
     taskId,
   });
 
   return (
-    <Box>
+    <Box pt={4}>
+      <Flex>
+        <Select.Root
+          collection={stateOptions}
+          maxW="250px"
+          multiple
+          onValueChange={handleStateChange}
+          value={hasFilteredState ? filteredState : ["all"]}
+        >
+          <Select.Trigger
+            {...(hasFilteredState ? { clearable: true } : {})}
+            colorPalette="blue"
+            isActive={Boolean(filteredState)}
+          >
+            <Select.ValueText>
+              {() =>
+                hasFilteredState ? (
+                  <HStack gap="10px">
+                    {filteredState.map((state) => (
+                      <StateBadge key={state} state={state as TaskInstanceState}>
+                        {state === "none" ? "No Status" : capitalize(state)}
+                      </StateBadge>
+                    ))}
+                  </HStack>
+                ) : (
+                  "All States"
+                )
+              }
+            </Select.ValueText>
+          </Select.Trigger>
+          <Select.Content>
+            {stateOptions.items.map((option) => (
+              <Select.Item item={option} key={option.label}>
+                {option.value === "all" ? (
+                  option.label
+                ) : (
+                  <StateBadge state={option.value as TaskInstanceState}>{option.label}</StateBadge>
+                )}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </Flex>
+
       <DataTable
         columns={columns(Boolean(task?.is_mapped))}
         data={data?.task_instances ?? []}

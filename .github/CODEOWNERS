@@ -10,8 +10,7 @@
 /airflow/dag_processing @jedcunningham @ephraimbuddy
 
 # Kubernetes
-/airflow/kubernetes/ @dstandish @jedcunningham
-/providers/src/airflow/providers/cncf/kubernetes/executors/ @dstandish @jedcunningham
+/providers/cncf/kubernetes/ @dstandish @jedcunningham
 
 # Helm Chart
 /chart/ @dstandish @jedcunningham @hussein-awala
@@ -52,51 +51,39 @@
 /docs/apache-airflow/concepts/dynamic-task-mapping.rst @uranusjr
 
 # Async Operators & Triggerer
-/airflow/cli/commands/triggerer_command.py @dstandish @hussein-awala
+/airflow/cli/commands/local_commands/triggerer_command.py @dstandish @hussein-awala
 /airflow/jobs/triggerer_job.py @dstandish @hussein-awala
-/airflow/models/trigger.py @dstandish @hussein-awala
-/docs/apache-airflow/concepts/deferring.rst @dstandish @hussein-awala
+/airflow/jobs/triggerer_job_runner.py @dstandish @hussein-awala
+/docs/apache-airflow/authoring-and-scheduling/deferring.rst @dstandish @hussein-awala
 
 # Secrets Backends
-/airflow/secrets  @dstandish @potiuk @ashb
+/airflow/secrets @dstandish @potiuk @ashb
 
 # Providers
-/providers/src/airflow/providers/amazon/ @eladkal @o-nikolas
-/providers/src/airflow/providers/celery/ @hussein-awala
-/providers/src/airflow/providers/cncf/kubernetes @jedcunningham @hussein-awala
-/providers/src/airflow/providers/common/sql/ @eladkal
-/providers/src/airflow/providers/dbt/cloud/ @josh-fell
-/providers/src/airflow/providers/edge @jscheffl
-/providers/src/airflow/providers/hashicorp/ @hussein-awala
-/providers/src/airflow/providers/openlineage/ @mobuchowski
-/providers/src/airflow/providers/slack/ @eladkal
-/providers/src/airflow/providers/smtp/ @hussein-awala
-/providers/src/airflow/providers/snowflake/ @potiuk @mik-laj
-/providers/src/airflow/providers/apache/iceberg/ @Fokko
-/providers/tests/apache/iceberg/ @Fokko
-/docs/apache-airflow-providers-amazon/ @eladkal @o-nikolas
-/docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
-/docs/apache-airflow-providers-common-sql/ @eladkal
-/docs/apache-airflow-providers-openlineage/ @mobuchowski
-/docs/apache-airflow-providers-slack/ @eladkal
-/providers/tests/amazon/ @eladkal @o-nikolas
-/providers/tests/common/sql/ @eladkal
-/providers/tests/openlineage/ @mobuchowski
-/providers/tests/slack/ @eladkal
-/tests/system/providers/amazon/ @eladkal @o-nikolas
+/providers/amazon/ @eladkal @o-nikolas
+/providers/celery/ @hussein-awala
+/providers/cncf/kubernetes @jedcunningham @hussein-awala
+/providers/common/sql/ @eladkal
+/providers/dbt/cloud/ @josh-fell
+/providers/edge/ @jscheffl
+/providers/hashicorp/ @hussein-awala
+/providers/openlineage/ @mobuchowski
+/providers/slack/ @eladkal
+/providers/smtp/ @hussein-awala
+/providers/snowflake/ @potiuk @mik-laj
+/providers/apache/iceberg/ @Fokko
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb
 /dev/ @potiuk @ashb @jedcunningham
 /docker_tests/ @potiuk @ashb
-/provider_packages/ @potiuk @ashb
 /scripts/ @potiuk @ashb
 Dockerfile @potiuk @ashb
 Dockerfile.ci @potiuk @ashb
 
 # Releasing Guides & Project Guidelines
-/dev/PROJECT_GUIDELINES.md  @kaxil
-/dev/PROVIDER_PACKAGE_DETAILS.md  @eladkal
+/dev/PROJECT_GUIDELINES.md @kaxil
+/dev/PROVIDER_PACKAGE_DETAILS.md @eladkal
 /dev/README.md  @kaxil
 /dev/README_RELEASE_*.md  @kaxil @pierrejeambrun
 /dev/README_RELEASE_PROVIDER_PACKAGES.md  @eladkal
@@ -109,10 +96,10 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 
 # AIP-58 - Object Storage
 /airflow/io/ @bolkedebruin
-/providers/src/airflow/providers/**/fs/ @bolkedebruin
-/providers/src/airflow/providers/common/io/ @bolkedebruin
+/providers/**/fs/ @bolkedebruin
+/providers/common/io/ @bolkedebruin
 /docs/apache-airflow/core-concepts/objectstorage.rst @bolkedebruin
 
 # Migrations
 /airflow/migrations/ @ephraimbuddy
-/providers/src/airflow/providers/fab/migrations/ @ephraimbuddy
+/providers/fab/src/airflow/providers/fab/migrations/ @ephraimbuddy

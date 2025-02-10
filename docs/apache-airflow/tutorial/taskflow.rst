@@ -338,7 +338,7 @@ Below is an example of using the ``@task.kubernetes`` decorator to run a Python 
 
 .. _taskflow/kubernetes_example:
 
-.. exampleinclude:: /../../providers/tests/system/cncf/kubernetes/example_kubernetes_decorator.py
+.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_kubernetes]

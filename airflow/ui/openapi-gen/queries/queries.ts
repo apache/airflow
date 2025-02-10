@@ -52,6 +52,7 @@ import {
   TriggerDAGRunPostBody,
   VariableBody,
   XComCreateBody,
+  XComUpdateBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -3980,6 +3981,61 @@ export const usePoolServiceBulkPools = <
     TContext
   >({
     mutationFn: ({ requestBody }) => PoolService.bulkPools({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Update Xcom Entry
+ * Update an existing XCom entry.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.dagRunId
+ * @param data.xcomKey
+ * @param data.requestBody
+ * @returns XComResponseNative Successful Response
+ * @throws ApiError
+ */
+export const useXcomServiceUpdateXcomEntry = <
+  TData = Common.XcomServiceUpdateXcomEntryMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        requestBody: XComUpdateBody;
+        taskId: string;
+        xcomKey: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      requestBody: XComUpdateBody;
+      taskId: string;
+      xcomKey: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, requestBody, taskId, xcomKey }) =>
+      XcomService.updateXcomEntry({
+        dagId,
+        dagRunId,
+        requestBody,
+        taskId,
+        xcomKey,
+      }) as unknown as Promise<TData>,
     ...options,
   });
 /**

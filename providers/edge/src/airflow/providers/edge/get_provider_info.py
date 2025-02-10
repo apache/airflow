@@ -28,7 +28,7 @@ def get_provider_info():
         "description": "Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites\n",
         "state": "not-ready",
         "source-date-epoch": 1737371680,
-        "versions": ["0.13.1pre0"],
+        "versions": ["0.14.0pre0"],
         "plugins": [
             {
                 "name": "edge_executor",

@@ -67,8 +67,7 @@ class Param:
             json.dumps(value)
         except Exception:
             raise ParamValidationError(
-                "All provided parameters must be json-serializable. "
-                f"The value '{value}' is not serializable."
+                f"All provided parameters must be json-serializable. The value '{value}' is not serializable."
             )
 
     def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
@@ -294,7 +293,7 @@ class DagParam(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Context) -> Any:
         """Pull DagParam value from DagRun context. This method is run during ``op.execute()``."""
         with contextlib.suppress(KeyError):
             if context["dag_run"].conf:
