@@ -145,10 +145,12 @@ class DagFileProcessorManager(LoggingMixin):
     over again, but no more often than the specified interval.
 
     :param max_runs: The number of times to parse each file. -1 for unlimited.
+    :param bundles_names_to_parse: List of bundle names to parse. If None, all bundles are parsed.
     :param processor_timeout: How long to wait before timing out a DAG file processor
     """
 
     max_runs: int
+    bundle_names_to_parse: list[str] | None = None
     processor_timeout: float = attrs.field(
         factory=_config_int_factory("dag_processor", "dag_file_processor_timeout")
     )
@@ -231,7 +233,12 @@ class DagFileProcessorManager(LoggingMixin):
         # )
 
         DagBundlesManager().sync_bundles_to_db()
-        self._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+
+        dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+        if self.bundle_names_to_parse:
+            dag_bundles = [b for b in dag_bundles if b.name in self.bundle_names_to_parse]
+        self._dag_bundles = dag_bundles
+
         self._symlink_latest_log_directory()
 
         return self._run_parsing_loop()
