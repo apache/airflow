@@ -320,6 +320,7 @@ def get_dag_runs(
         session=session,
     )
     dag_runs = session.scalars(dag_run_select)
+
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
         total_entries=total_entries,
