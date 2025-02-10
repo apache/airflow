@@ -264,7 +264,7 @@ class TestHttpOpSensor:
         dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
-    @mock.patch("requests.Session", FakeSession)
+    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_get(self):
         op = HttpOperator(
             task_id="get_op",
@@ -276,7 +276,7 @@ class TestHttpOpSensor:
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch("requests.Session", FakeSession)
+    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_get_response_check(self):
         op = HttpOperator(
             task_id="get_op",
@@ -289,7 +289,7 @@ class TestHttpOpSensor:
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch("requests.Session", FakeSession)
+    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_sensor(self):
         sensor = HttpSensor(
             task_id="http_sensor_check",
