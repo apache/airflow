@@ -21,15 +21,15 @@
 ## Airflow API Server Deployment
 #################################
 {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
-{{- $nodeSelector := or .Values.apiServer.nodeSelector .Values.nodeSelector }}
-{{- $affinity := or .Values.apiServer.affinity .Values.affinity }}
-{{- $tolerations := or .Values.apiServer.tolerations .Values.tolerations }}
-{{- $topologySpreadConstraints := or .Values.apiServer.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.apiServer.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.apiServer) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.apiServer) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.apiServer.waitForMigrations) }}
-{{- $containerLifecycleHooks := or .Values.apiServer.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $nodeSelector := or .Values._apiServer.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values._apiServer.affinity .Values.affinity }}
+{{- $tolerations := or .Values._apiServer.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values._apiServer.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values._apiServer.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values._apiServer) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values._apiServer) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values._apiServer.waitForMigrations) }}
+{{- $containerLifecycleHooks := or .Values._apiServer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -43,17 +43,17 @@ metadata:
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- if .Values.apiServer.annotations }}
-  annotations: {{- toYaml .Values.apiServer.annotations | nindent 4 }}
+  {{- if .Values._apiServer.annotations }}
+  annotations: {{- toYaml .Values._apiServer.annotations | nindent 4 }}
   {{- end }}
 spec:
-  replicas: {{ .Values.apiServer.replicas }}
+  replicas: {{ .Values._apiServer.replicas }}
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   strategy:
-    {{- if .Values.apiServer.strategy }}
-    {{- toYaml .Values.apiServer.strategy | nindent 4 }}
+    {{- if .Values._apiServer.strategy }}
+    {{- toYaml .Values._apiServer.strategy | nindent 4 }}
     {{- else }}
     # Here we define the rolling update strategy
     # - maxSurge define how many pod we can add at a time
@@ -78,8 +78,8 @@ spec:
         tier: airflow
         component: api-server
         release: {{ .Release.Name }}
-        {{- if or (.Values.labels) (.Values.apiServer.labels) }}
-          {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 8 }}
+        {{- if or (.Values.labels) (.Values._apiServer.labels) }}
+          {{- mustMerge .Values._apiServer.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
@@ -90,16 +90,16 @@ spec:
         {{- if .Values.airflowPodAnnotations }}
           {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
-        {{- if .Values.apiServer.podAnnotations }}
-          {{- toYaml .Values.apiServer.podAnnotations | nindent 8 }}
+        {{- if .Values._apiServer.podAnnotations }}
+          {{- toYaml .Values._apiServer.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
-      {{- if .Values.apiServer.hostAliases }}
-      hostAliases: {{- toYaml .Values.apiServer.hostAliases | nindent 8 }}
+      {{- if .Values._apiServer.hostAliases }}
+      hostAliases: {{- toYaml .Values._apiServer.hostAliases | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "apiServer.serviceAccountName" . }}
-      {{- if .Values.apiServer.priorityClassName }}
-      priorityClassName: {{ .Values.apiServer.priorityClassName }}
+      serviceAccountName: {{ include "_apiServer.serviceAccountName" . }}
+      {{- if .Values._apiServer.priorityClassName }}
+      priorityClassName: {{ .Values._apiServer.priorityClassName }}
       {{- end }}
       {{- if .Values.schedulerName }}
       schedulerName: {{ .Values.schedulerName }}
@@ -127,9 +127,9 @@ spec:
         - name: {{ template "registry_secret" . }}
       {{- end }}
       initContainers:
-        {{- if .Values.apiServer.waitForMigrations.enabled }}
+        {{- if .Values._apiServer.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
-          resources: {{- toYaml .Values.apiServer.resources | nindent 12 }}
+          resources: {{- toYaml .Values._apiServer.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
@@ -138,20 +138,20 @@ spec:
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
-            {{- if .Values.apiServer.extraVolumeMounts }}
-              {{- tpl (toYaml .Values.apiServer.extraVolumeMounts) . | nindent 12 }}
+            {{- if .Values._apiServer.extraVolumeMounts }}
+              {{- tpl (toYaml .Values._apiServer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- if .Values.apiServer.waitForMigrations.env }}
-              {{- tpl (toYaml .Values.apiServer.waitForMigrations.env) $ | nindent 12 }}
+            {{- if .Values._apiServer.waitForMigrations.env }}
+              {{- tpl (toYaml .Values._apiServer.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
         {{- end }}
-        {{- if .Values.apiServer.extraInitContainers }}
-          {{- toYaml .Values.apiServer.extraInitContainers | nindent 8 }}
+        {{- if .Values._apiServer.extraInitContainers }}
+          {{- toYaml .Values._apiServer.extraInitContainers | nindent 8 }}
         {{- end }}
       containers:
         - name: api-server
@@ -161,13 +161,13 @@ spec:
           {{- if $containerLifecycleHooks  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.apiServer.command }}
-          command: {{ tpl (toYaml .Values.apiServer.command) . | nindent 12 }}
+          {{- if .Values._apiServer.command }}
+          command: {{ tpl (toYaml .Values._apiServer.command) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.apiServer.args }}
-          args: {{- tpl (toYaml .Values.apiServer.args) . | nindent 12 }}
+          {{- if .Values._apiServer.args }}
+          args: {{- tpl (toYaml .Values._apiServer.args) . | nindent 12 }}
           {{- end }}
-          resources: {{- toYaml .Values.apiServer.resources | nindent 12 }}
+          resources: {{- toYaml .Values._apiServer.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.logs.persistence.enabled }}
@@ -177,48 +177,48 @@ spec:
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
-            {{- if .Values.apiServer.extraVolumeMounts }}
-              {{- tpl (toYaml .Values.apiServer.extraVolumeMounts) . | nindent 12 }}
+            {{- if .Values._apiServer.extraVolumeMounts }}
+              {{- tpl (toYaml .Values._apiServer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
           ports:
             - name: api-server
-              containerPort: {{ .Values.ports.apiServer }}
+              containerPort: {{ .Values.ports._apiServer }}
           livenessProbe:
             httpGet:
               path: /public/version
-              port: {{ .Values.ports.apiServer }}
-              scheme: {{ .Values.apiServer.livenessProbe.scheme | default "http" }}
-            initialDelaySeconds: {{ .Values.apiServer.livenessProbe.initialDelaySeconds }}
-            timeoutSeconds: {{ .Values.apiServer.livenessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.apiServer.livenessProbe.failureThreshold }}
-            periodSeconds: {{ .Values.apiServer.livenessProbe.periodSeconds }}
+              port: {{ .Values.ports._apiServer }}
+              scheme: {{ .Values._apiServer.livenessProbe.scheme | default "http" }}
+            initialDelaySeconds: {{ .Values._apiServer.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values._apiServer.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values._apiServer.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values._apiServer.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
               path: /public/version
-              port: {{ .Values.ports.apiServer }}
-              scheme: {{ .Values.apiServer.readinessProbe.scheme | default "http" }}
-            initialDelaySeconds: {{ .Values.apiServer.readinessProbe.initialDelaySeconds }}
-            timeoutSeconds: {{ .Values.apiServer.readinessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.apiServer.readinessProbe.failureThreshold }}
-            periodSeconds: {{ .Values.apiServer.readinessProbe.periodSeconds }}
+              port: {{ .Values.ports._apiServer }}
+              scheme: {{ .Values._apiServer.readinessProbe.scheme | default "http" }}
+            initialDelaySeconds: {{ .Values._apiServer.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values._apiServer.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values._apiServer.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values._apiServer.readinessProbe.periodSeconds }}
           startupProbe:
             httpGet:
               path: /public/version
-              port: {{ .Values.ports.apiServer }}
-              scheme: {{ .Values.apiServer.startupProbe.scheme | default "http" }}
-            timeoutSeconds: {{ .Values.apiServer.startupProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.apiServer.startupProbe.failureThreshold }}
-            periodSeconds: {{ .Values.apiServer.startupProbe.periodSeconds }}
+              port: {{ .Values.ports._apiServer }}
+              scheme: {{ .Values._apiServer.startupProbe.scheme | default "http" }}
+            timeoutSeconds: {{ .Values._apiServer.startupProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values._apiServer.startupProbe.failureThreshold }}
+            periodSeconds: {{ .Values._apiServer.startupProbe.periodSeconds }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- include "container_extra_envs" (list . .Values.apiServer.env) | indent 10 }}
+            {{- include "container_extra_envs" (list . .Values._apiServer.env) | indent 10 }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
-        {{- if .Values.apiServer.extraContainers }}
-          {{- tpl (toYaml .Values.apiServer.extraContainers) . | nindent 8 }}
+        {{- if .Values._apiServer.extraContainers }}
+          {{- tpl (toYaml .Values._apiServer.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
@@ -234,7 +234,7 @@ spec:
         {{- if .Values.volumes }}
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
-        {{- if .Values.apiServer.extraVolumes }}
-          {{- tpl (toYaml .Values.apiServer.extraVolumes) . | nindent 8 }}
+        {{- if .Values._apiServer.extraVolumes }}
+          {{- tpl (toYaml .Values._apiServer.extraVolumes) . | nindent 8 }}
         {{- end }}
 {{- end }}

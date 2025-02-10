@@ -84,6 +84,15 @@ You can follow the `installation instructions <https://docs.astral.sh/uv/getting
 ``uv`` on your system. Once you have ``uv`` installed, you can do all the environment preparation tasks using
 ``uv`` commands.
 
+.. note::
+
+  Mac OS has a low ``ulimit`` setting (256) for number of opened file descriptors which does not work well with our
+  workspace when installing it and you can hit ``Too many open files`` error. You should run the
+  ``ulimit -n 2048`` command to increase the limit of file descriptors to 2048 (for example). It's best to add
+  the ``ulimit`` command to your shell profile (``~/.bashrc``, ``~/.zshrc`` or similar) to make sure it's set
+  for all your terminal sessions automatically. Other than small increase in resource usage it has no negative
+  impact on your system.
+
 Installing Python versions
 ..........................
 

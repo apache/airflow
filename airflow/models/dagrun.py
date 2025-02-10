@@ -63,7 +63,6 @@ from airflow.models.abstractoperator import NotMapped
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
-from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -135,7 +134,7 @@ class DagRun(Base, LoggingMixin):
     id = Column(Integer, primary_key=True)
     dag_id = Column(StringID(), nullable=False)
     queued_at = Column(UtcDateTime)
-    logical_date = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    logical_date = Column(UtcDateTime, nullable=True)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     _state = Column("state", String(50), default=DagRunState.QUEUED)
@@ -186,6 +185,7 @@ class DagRun(Base, LoggingMixin):
     __table_args__ = (
         Index("dag_id_state", dag_id, _state),
         UniqueConstraint("dag_id", "run_id", name="dag_run_dag_id_run_id_key"),
+        UniqueConstraint("dag_id", "logical_date", name="dag_run_dag_id_logical_date_key"),
         Index("idx_dag_run_dag_id", dag_id),
         Index("idx_dag_run_run_after", run_after),
         Index(
@@ -792,6 +792,8 @@ class DagRun(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :param state: the dag run state
         """
+        if dag_run.logical_date is None:
+            return None
         filters = [
             DagRun.dag_id == dag_run.dag_id,
             DagRun.logical_date < dag_run.logical_date,
@@ -1321,8 +1323,12 @@ class DagRun(Base, LoggingMixin):
         def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
                 self.run_type == DagRunType.BACKFILL_JOB
-                or (task.start_date is None or task.start_date <= self.logical_date)
-                and (task.end_date is None or self.logical_date <= task.end_date)
+                or (
+                    task.start_date is None
+                    or self.logical_date is None
+                    or task.start_date <= self.logical_date
+                )
+                and (task.end_date is None or self.logical_date is None or self.logical_date <= task.end_date)
             )
 
         created_counts: dict[str, int] = defaultdict(int)
@@ -1347,6 +1353,7 @@ class DagRun(Base, LoggingMixin):
 
         """
         from airflow.models.baseoperator import BaseOperator
+        from airflow.models.expandinput import NotFullyPopulated
 
         tis = self.get_task_instances(session=session)
 
@@ -1484,6 +1491,7 @@ class DagRun(Base, LoggingMixin):
         :param task_creator: Function to create task instances
         """
         from airflow.models.baseoperator import BaseOperator
+        from airflow.models.expandinput import NotFullyPopulated
 
         map_indexes: Iterable[int]
         for task in tasks:
@@ -1555,6 +1563,7 @@ class DagRun(Base, LoggingMixin):
         for more details.
         """
         from airflow.models.baseoperator import BaseOperator
+        from airflow.models.expandinput import NotFullyPopulated
         from airflow.settings import task_instance_mutation_hook
 
         try:
