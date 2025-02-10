@@ -53,7 +53,6 @@ from airflow.providers.openlineage.utils.selective_enable import (
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 from openlineage.client.utils import RedactMixin
@@ -640,6 +639,13 @@ class OpenLineageRedactor(SecretsMasker):
         return instance
 
     def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int) -> Redacted:
+        if AIRFLOW_V_3_0_PLUS:
+            # Keep compatibility for Airflow 2.x, remove when Airflow 3.0 is the minimum version
+            class AirflowContextDeprecationWarning(UserWarning):
+                pass
+        else:
+            from airflow.utils.context import AirflowContextDeprecationWarning
+
         if depth > max_depth:
             return item
         try:

@@ -77,8 +77,14 @@ def create_task_execution_api_app(app: FastAPI) -> FastAPI:
 
 def get_extra_schemas() -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
-    from airflow.api_fastapi.execution_api.datamodels import taskinstance
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
+    from airflow.executors.workloads import BundleInfo
+    from airflow.utils.state import TerminalTIState
 
     return {
-        "TaskInstance": taskinstance.TaskInstance.model_json_schema(),
+        "TaskInstance": TaskInstance.model_json_schema(),
+        "BundleInfo": BundleInfo.model_json_schema(),
+        # Include the combined state enum too. In the datamodels we separate out SUCCESS from the other states
+        # as that has different payload requirements
+        "TerminalTIState": {"type": "string", "enum": list(TerminalTIState)},
     }

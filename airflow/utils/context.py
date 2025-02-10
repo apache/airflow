@@ -66,7 +66,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
 
-    from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:
@@ -291,24 +290,6 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
         context = Context()
 
     context.update(*args, **kwargs)
-
-
-def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
-    """
-    Update context after task unmapping.
-
-    Since ``get_template_context()`` is called before unmapping, the context
-    contains information about the mapped task. We need to do some in-place
-    updates to ensure the template context reflects the unmapped task instead.
-
-    :meta private:
-    """
-    from airflow.sdk.definitions.param import process_params
-
-    context["task"] = context["ti"].task = task
-    context["params"] = process_params(
-        context["dag"], task, context["dag_run"].conf, suppress_exception=False
-    )
 
 
 def context_copy_partial(source: Context, keys: Container[str]) -> Context:
