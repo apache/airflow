@@ -97,12 +97,12 @@ class TriggerDAGRunPostBody(StrictBaseModel):
         return values
 
     ## when logical date is null, the run id should be generated from run_after + random string.
-    # TODO we need to modify this validator after https://github.com/apache/airflow/pull/46398 is merged
+    # TODO: AIP83: we need to modify this validator after https://github.com/apache/airflow/pull/46398 is merged
     @model_validator(mode="after")
     def validate_dag_run_id(self):
         if not self.dag_run_id:
             self.dag_run_id = DagRun.generate_run_id(
-                DagRunType.MANUAL, self.logical_date if self.logical_date is not None else pendulum.now("UTC")
+                DagRunType.MANUAL, self.logical_date or pendulum.now("UTC")
             )
         return self
 

@@ -1781,8 +1781,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         :meta private:
         """
-        if logical_date is not None:
-            logical_date = timezone.coerce_datetime(logical_date)
+        logical_date = timezone.coerce_datetime(logical_date)
 
         if data_interval and not isinstance(data_interval, DataInterval):
             data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))

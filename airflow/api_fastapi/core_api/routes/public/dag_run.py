@@ -356,7 +356,7 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    logical_date = pendulum.instance(body.logical_date) if body.logical_date is not None else None
+    logical_date = timezone.coerce_datetime(body.logical_date)
     coerced_logical_date = timezone.coerce_datetime(logical_date)
 
     try:
