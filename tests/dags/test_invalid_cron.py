@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.timezone import datetime
 
 # This invalid DAG has a schedule specified with an INVALID cron expression.

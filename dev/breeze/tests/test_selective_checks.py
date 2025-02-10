@@ -717,7 +717,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             )
         ),
         pytest.param(
-            ("providers/src/airflow/providers/amazon/__init__.py",),
+            ("providers/amazon/src/airflow/providers/amazon/__init__.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
@@ -769,7 +769,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers tests run without amazon tests if no amazon file changed",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/amazon/file.py",),
+            ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
@@ -1384,7 +1384,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "chart/aaaa.txt",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1411,7 +1411,7 @@ def test_expected_output_full_tests_needed(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1436,7 +1436,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "airflow/file.py",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1614,7 +1614,7 @@ def test_expected_output_push(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "providers/tests/google/file.py",
+                "providers/google/tests/provider_tests/google/file.py",
             ),
             {
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra "
@@ -1890,7 +1890,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
             id="pyproject.toml changed but no dependency change",
         ),
         pytest.param(
-            ("providers/src/airflow/providers/microsoft/azure/provider.yaml",),
+            ("providers/microsoft/azure/src/airflow/providers/microsoft/azure/provider.yaml",),
             {
                 "upgrade-to-newer-dependencies": "false",
             },

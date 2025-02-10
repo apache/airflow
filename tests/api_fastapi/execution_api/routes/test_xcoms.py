@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
+import contextlib
 from unittest import mock
 
+import httpx
 import pytest
 
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models.dagrun import DagRun
+from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCom
 from airflow.utils.session import create_session
 
@@ -67,7 +70,7 @@ class TestXComsGetEndpoint:
         assert response.status_code == 404
         assert response.json() == {
             "detail": {
-                "message": "XCom with key 'xcom_non_existent' not found for task 'task' in DAG 'dag'",
+                "message": "XCom with key='xcom_non_existent' map_index=-1 not found for task 'task' in DAG run 'runid' of 'dag'",
                 "reason": "not_found",
             }
         }
@@ -114,12 +117,45 @@ class TestXComsSetEndpoint:
 
         xcom = session.query(XCom).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
         assert xcom.value == expected_value
+        task_map = session.query(TaskMap).filter_by(task_id=ti.task_id, dag_id=ti.dag_id).one_or_none()
+        assert task_map is None, "Should not be mapped"
 
     @pytest.mark.parametrize(
-        "value",
-        ["value1", {"key2": "value2"}, ["value1"]],
+        ("length", "err_context"),
+        [
+            pytest.param(
+                20,
+                contextlib.nullcontext(),
+                id="20-success",
+            ),
+            pytest.param(
+                2000,
+                pytest.raises(httpx.HTTPStatusError),
+                id="2000-too-long",
+            ),
+        ],
     )
-    def test_xcom_set_invalid_json(self, client, create_task_instance, value):
+    def test_xcom_set_downstream_of_mapped(self, client, create_task_instance, session, length, err_context):
+        """
+        Test that XCom value is set correctly. The value is passed as a JSON string in the request body.
+        XCom.set then uses json.dumps to serialize it and store the value in the database.
+        This is done so that Task SDK in multiple languages can use the same API to set XCom values.
+        """
+        ti = create_task_instance()
+        session.commit()
+
+        with err_context:
+            response = client.post(
+                f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+                json='"valid json"',
+                params={"mapped_length": length},
+            )
+            response.raise_for_status()
+
+            task_map = session.query(TaskMap).filter_by(task_id=ti.task_id, dag_id=ti.dag_id).one_or_none()
+            assert task_map.length == length
+
+    def test_xcom_set_invalid_json(self, client):
         response = client.post(
             "/execution/xcoms/dag/runid/task/xcom_1",
             json="invalid_json",

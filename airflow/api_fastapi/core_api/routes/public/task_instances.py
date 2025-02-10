@@ -35,6 +35,7 @@ from airflow.api_fastapi.common.parameters import (
     OffsetFilter,
     QueryLimit,
     QueryOffset,
+    QueryTIDagVersionFilter,
     QueryTIExecutorFilter,
     QueryTIPoolFilter,
     QueryTIQueueFilter,
@@ -87,6 +88,7 @@ def get_task_instance(
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
+        .options(joinedload(TI.dag_version))
     )
     task_instance = session.scalar(query)
 
@@ -121,6 +123,7 @@ def get_mapped_task_instances(
     pool: QueryTIPoolFilter,
     queue: QueryTIQueueFilter,
     executor: QueryTIExecutorFilter,
+    version_number: QueryTIDagVersionFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -156,6 +159,7 @@ def get_mapped_task_instances(
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
         .join(TI.dag_run)
+        .options(joinedload(TI.dag_version))
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
@@ -185,6 +189,7 @@ def get_mapped_task_instances(
             pool,
             queue,
             executor,
+            version_number,
         ],
         order_by=order_by,
         offset=offset,
@@ -267,11 +272,15 @@ def get_task_instance_tries(
     """Get list of task instances history."""
 
     def _query(orm_object: Base) -> Select:
-        query = select(orm_object).where(
-            orm_object.dag_id == dag_id,
-            orm_object.run_id == dag_run_id,
-            orm_object.task_id == task_id,
-            orm_object.map_index == map_index,
+        query = (
+            select(orm_object)
+            .where(
+                orm_object.dag_id == dag_id,
+                orm_object.run_id == dag_run_id,
+                orm_object.task_id == task_id,
+                orm_object.map_index == map_index,
+            )
+            .options(joinedload(orm_object.dag_version))
         )
         return query
 
@@ -286,7 +295,6 @@ def get_task_instance_tries(
             status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
         )
-
     return TaskInstanceHistoryCollectionResponse(
         task_instances=cast(list[TaskInstanceHistoryResponse], task_instances),
         total_entries=len(task_instances),
@@ -330,6 +338,7 @@ def get_mapped_task_instance(
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index == map_index)
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
+        .options(joinedload(TI.dag_version))
     )
     task_instance = session.scalar(query)
 
@@ -361,6 +370,7 @@ def get_task_instances(
     pool: QueryTIPoolFilter,
     queue: QueryTIQueueFilter,
     executor: QueryTIExecutorFilter,
+    version_number: QueryTIDagVersionFilter,
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -397,7 +407,7 @@ def get_task_instances(
     This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
     and DAG runs.
     """
-    query = select(TI).join(TI.dag_run)
+    query = select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(joinedload(TI.dag_version))
 
     if dag_id != "~":
         dag = request.app.state.dag_bag.get_dag(dag_id)
@@ -428,6 +438,7 @@ def get_task_instances(
             executor,
             task_id,
             task_display_name_pattern,
+            version_number,
         ],
         order_by=order_by,
         offset=offset,
@@ -651,13 +662,7 @@ def post_clear_task_instances(
         )
 
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            TaskInstanceResponse.model_validate(
-                ti,
-                from_attributes=True,
-            )
-            for ti in task_instances
-        ],
+        task_instances=task_instances,
         total_entries=len(task_instances),
     )
 
@@ -767,7 +772,6 @@ def patch_task_instance_dry_run(
         task_instances=[
             TaskInstanceResponse.model_validate(
                 ti,
-                from_attributes=True,
             )
             for ti in tis
         ],
@@ -832,4 +836,4 @@ def patch_task_instance(
                     ti.task_instance_note.user_id = None
                 session.commit()
 
-    return TaskInstanceResponse.model_validate(ti, from_attributes=True)
+    return TaskInstanceResponse.model_validate(ti)

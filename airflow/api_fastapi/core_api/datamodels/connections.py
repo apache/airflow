@@ -23,7 +23,7 @@ from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.utils.log.secrets_masker import redact
+from airflow.sdk.execution_time.secrets_masker import redact
 
 
 # Response Models

@@ -66,6 +66,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.timetables.base import DataInterval
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -98,8 +99,9 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-        ]
+        ],
     ),
+    dependencies=[Depends(action_logging())],
 )
 def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a DAG Run entry."""
@@ -110,7 +112,6 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-
     session.delete(dag_run)
 
 
@@ -120,8 +121,9 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-        ]
+        ],
     ),
+    dependencies=[Depends(action_logging())],
 )
 def patch_dag_run(
     dag_id: str,
@@ -214,7 +216,9 @@ def get_upstream_asset_events(
 
 
 @dag_run_router.post(
-    "/{dag_run_id}/clear", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND])
+    "/{dag_run_id}/clear",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(action_logging())],
 )
 def clear_dag_run(
     dag_id: str,
@@ -317,6 +321,7 @@ def get_dag_runs(
         session=session,
     )
     dag_runs = session.scalars(dag_run_select)
+
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
         total_entries=total_entries,
@@ -342,6 +347,7 @@ def trigger_dag_run(
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
+    now = pendulum.now("UTC")
     if not dm:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
 
@@ -351,7 +357,8 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    logical_date = pendulum.instance(body.logical_date)
+    logical_date = timezone.coerce_datetime(body.logical_date)
+    coerced_logical_date = timezone.coerce_datetime(logical_date)
 
     try:
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
@@ -362,21 +369,13 @@ def trigger_dag_run(
                 end=pendulum.instance(body.data_interval_end),
             )
         else:
-            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-
-        if body.dag_run_id:
-            run_id = body.dag_run_id
-        else:
-            run_id = dag.timetable.generate_run_id(
-                run_type=DagRunType.MANUAL,
-                logical_date=logical_date,
-                data_interval=data_interval,
-            )
+            data_interval = dag.timetable.infer_manual_data_interval(run_after=coerced_logical_date or now)
 
         dag_run = dag.create_dagrun(
-            run_id=run_id,
-            logical_date=logical_date,
+            run_id=cast(str, body.dag_run_id),
+            logical_date=coerced_logical_date,
             data_interval=data_interval,
+            run_after=data_interval.end,
             conf=body.conf,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,

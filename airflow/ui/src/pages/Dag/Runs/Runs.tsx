@@ -16,15 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  createListCollection,
-  Flex,
-  HStack,
-  Link,
-  type SelectValueChangeDetails,
-  Text,
-} from "@chakra-ui/react";
+import { Box, Flex, HStack, Link, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback } from "react";
 import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom";
@@ -40,7 +32,8 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
-import { capitalize, getDuration } from "src/utils";
+import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
+import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
   {
@@ -105,16 +98,6 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
   },
 ];
 
-const stateOptions = createListCollection({
-  items: [
-    { label: "All States", value: "all" },
-    { label: "Queued", value: "queued" },
-    { label: "Running", value: "running" },
-    { label: "Failed", value: "failed" },
-    { label: "Success", value: "success" },
-  ],
-});
-
 const STATE_PARAM = "state";
 
 export const Runs = () => {
@@ -125,11 +108,13 @@ export const Runs = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-logical_date";
 
   const filteredState = searchParams.get(STATE_PARAM);
 
-  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns(
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
       limit: pagination.pageSize,
@@ -138,7 +123,11 @@ export const Runs = () => {
       state: filteredState === null ? undefined : [filteredState],
     },
     undefined,
-    { enabled: !isNaN(pagination.pageSize) },
+    {
+      enabled: !isNaN(pagination.pageSize),
+      refetchInterval: (query) =>
+        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
+    },
   );
 
   const handleStateChange = useCallback(
@@ -197,7 +186,6 @@ export const Runs = () => {
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="Dag Run"
         onStateChange={setTableURLState}

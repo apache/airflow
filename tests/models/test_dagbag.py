@@ -191,13 +191,12 @@ class TestDagBag:
         )
         assert dagbag.dags == dags_in_bag  # Should not change.
 
-    def test_zip_skip_log(self, caplog):
+    def test_zip_skip_log(self, caplog, test_zip_path):
         """
         test the loading of a DAG from within a zip file that skips another file because
         it doesn't have "airflow" and "DAG"
         """
         caplog.set_level(logging.INFO)
-        test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
         dagbag = DagBag(dag_folder=test_zip_path, include_examples=False)
 
         assert dagbag.has_logged
@@ -206,13 +205,13 @@ class TestDagBag:
             "assumed to contain no DAGs. Skipping." in caplog.text
         )
 
-    def test_zip(self, tmp_path):
+    def test_zip(self, tmp_path, test_zip_path):
         """
         test the loading of a DAG within a zip file that includes dependencies
         """
         syspath_before = deepcopy(sys.path)
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
-        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
+        dagbag.process_file(test_zip_path)
         assert dagbag.get_dag("test_zip_dag")
         assert sys.path == syspath_before  # sys.path doesn't change
         assert not dagbag.import_errors
@@ -358,14 +357,6 @@ class TestDagBag:
         ("file_to_load", "expected"),
         (
             pytest.param(
-                TEST_DAGS_FOLDER / "test_zip.zip",
-                {
-                    "test_zip_dag": "dags/test_zip.zip/test_zip.py",
-                    "test_zip_autoregister": "dags/test_zip.zip/test_zip.py",
-                },
-                id="test_zip.zip",
-            ),
-            pytest.param(
                 pathlib.Path(example_dags_folder) / "example_bash_operator.py",
                 {"example_bash_operator": "airflow/example_dags/example_bash_operator.py"},
                 id="example_bash_operator",
@@ -379,6 +370,26 @@ class TestDagBag:
             dag = dagbag.get_dag(dag_id)
             assert dag, f"{dag_id} was bagged"
             assert dag.fileloc.endswith(path)
+
+    @pytest.mark.parametrize(
+        ("expected"),
+        (
+            pytest.param(
+                {
+                    "test_zip_dag": "test_zip.zip/test_zip.py",
+                    "test_zip_autoregister": "test_zip.zip/test_zip.py",
+                },
+                id="test_zip.zip",
+            ),
+        ),
+    )
+    def test_get_zip_dag_registration(self, test_zip_path, expected):
+        dagbag = DagBag(dag_folder=os.devnull, include_examples=False)
+        dagbag.process_file(test_zip_path)
+        for dag_id, path in expected.items():
+            dag = dagbag.get_dag(dag_id)
+            assert dag, f"{dag_id} was bagged"
+            assert dag.fileloc.endswith(f"{pathlib.Path(test_zip_path).parent}/{path}")
 
     def test_dag_registration_with_failure(self):
         dagbag = DagBag(dag_folder=os.devnull, include_examples=False)
@@ -431,12 +442,12 @@ class TestDagBag:
         assert dagbag.process_file_calls == 2
 
     @patch.object(DagModel, "get_current")
-    def test_refresh_packaged_dag(self, mock_dagmodel):
+    def test_refresh_packaged_dag(self, mock_dagmodel, test_zip_path):
         """
         Test that we can refresh a packaged DAG
         """
         dag_id = "test_zip_dag"
-        fileloc = os.path.realpath(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip/test_zip.py"))
+        fileloc = os.path.realpath(os.path.join(test_zip_path, "test_zip.py"))
 
         mock_dagmodel.return_value = DagModel()
         mock_dagmodel.return_value.last_expired = datetime.max.replace(tzinfo=timezone.utc)
@@ -450,7 +461,7 @@ class TestDagBag:
                     _TestDagBag.process_file_calls += 1
                 return super().process_file(filepath, only_if_updated, safe_mode)
 
-        dagbag = _TestDagBag(dag_folder=os.path.realpath(TEST_DAGS_FOLDER), include_examples=False)
+        dagbag = _TestDagBag(dag_folder=os.path.realpath(test_zip_path), include_examples=False)
 
         assert dagbag.process_file_calls == 1
         dag = dagbag.get_dag(dag_id)
@@ -463,7 +474,7 @@ class TestDagBag:
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
         remove dags from the DagBag
         """
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
 
         with dag_maker(
             dag_id="test_dag_removed_if_serialized_dag_is_removed",
@@ -521,7 +532,7 @@ class TestDagBag:
             import datetime
 
             from airflow.models.dag import DAG
-            from airflow.operators.empty import EmptyOperator
+            from airflow.providers.standard.operators.empty import EmptyOperator
 
             dag_name = "cycle_dag"
             default_args = {"owner": "owner1", "start_date": datetime.datetime(2016, 1, 1)}
@@ -877,13 +888,20 @@ with airflow.DAG(
             assert dag_file not in dagbag.captured_warnings
             assert dagbag.dagbag_stats[0].warning_num == 0
 
-    def test_dabgag_captured_warnings_zip(self):
-        dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_warnings.zip")
-        in_zip_dag_file = f"{dag_file}/test_dag_warnings.py"
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+    @pytest.fixture
+    def warning_zipped_dag_path(self, tmp_path: pathlib.Path) -> str:
+        warnings_dag_file = TEST_DAGS_FOLDER / "test_dag_warnings.py"
+        zipped = tmp_path / "test_dag_warnings.zip"
+        with zipfile.ZipFile(zipped, "w") as zf:
+            zf.write(warnings_dag_file, warnings_dag_file.name)
+        return os.fspath(zipped)
+
+    def test_dabgag_captured_warnings_zip(self, warning_zipped_dag_path: str):
+        in_zip_dag_file = f"{warning_zipped_dag_path}/test_dag_warnings.py"
+        dagbag = DagBag(dag_folder=warning_zipped_dag_path, include_examples=False)
         assert len(dagbag.dag_ids) == 1
-        assert dag_file in dagbag.captured_warnings
-        captured_warnings = dagbag.captured_warnings[dag_file]
+        assert warning_zipped_dag_path in dagbag.captured_warnings
+        captured_warnings = dagbag.captured_warnings[warning_zipped_dag_path]
         assert len(captured_warnings) == 2
         assert captured_warnings[0] == (f"{in_zip_dag_file}:47: DeprecationWarning: Deprecated Parameter")
         assert captured_warnings[1] == f"{in_zip_dag_file}:49: UserWarning: Some Warning"

@@ -289,7 +289,9 @@ jobs:
           key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
           if-no-files-found: 'error'
           retention-days: '2'
-        if: steps.restore-docs-inventory-cache != 'true'
+        # If we upload from multiple matrix jobs we could end up with a race condition. so just pick one job
+        # to be responsible for updating it. https://github.com/actions/upload-artifact/issues/506
+        if: steps.restore-docs-inventory-cache != 'true' && matrix.flag == '--docs-only'
       - name: "Upload build docs"
         uses: actions/upload-artifact@v4
         with:

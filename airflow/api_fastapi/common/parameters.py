@@ -48,7 +48,9 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.typing_compat import Self
@@ -78,8 +80,9 @@ class BaseParam(Generic[T], ABC):
         self.value = value
         return self
 
+    @classmethod
     @abstractmethod
-    def depends(self, *args: Any, **kwargs: Any) -> Self:
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
         pass
 
 
@@ -92,8 +95,9 @@ class LimitFilter(BaseParam[NonNegativeInt]):
 
         return select.limit(self.value)
 
-    def depends(self, limit: NonNegativeInt = 100) -> LimitFilter:
-        return self.set_value(limit)
+    @classmethod
+    def depends(cls, limit: NonNegativeInt = 100) -> LimitFilter:
+        return cls().set_value(limit)
 
 
 class OffsetFilter(BaseParam[NonNegativeInt]):
@@ -104,8 +108,9 @@ class OffsetFilter(BaseParam[NonNegativeInt]):
             return select
         return select.offset(self.value)
 
-    def depends(self, offset: NonNegativeInt = 0) -> OffsetFilter:
-        return self.set_value(offset)
+    @classmethod
+    def depends(cls, offset: NonNegativeInt = 0) -> OffsetFilter:
+        return cls().set_value(offset)
 
 
 class _OnlyActiveFilter(BaseParam[bool]):
@@ -116,8 +121,9 @@ class _OnlyActiveFilter(BaseParam[bool]):
             return select.where(DagModel.is_active == self.value)
         return select
 
-    def depends(self, only_active: bool = True) -> _OnlyActiveFilter:
-        return self.set_value(only_active)
+    @classmethod
+    def depends(cls, only_active: bool = True) -> _OnlyActiveFilter:
+        return cls().set_value(only_active)
 
 
 class _SearchParam(BaseParam[str]):
@@ -137,7 +143,8 @@ class _SearchParam(BaseParam[str]):
             value = "%"
         return value
 
-    def depends(self, *args: Any, **kwargs: Any) -> Self:
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use search_param_factory instead , depends is not implemented.")
 
 
@@ -212,7 +219,8 @@ class SortParam(BaseParam[str]):
         """Get the primary key string of the model of SortParam object."""
         return self.get_primary_key_column().name
 
-    def depends(self, *args: Any, **kwargs: Any) -> Self:
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
     def dynamic_depends(self, default: str | None = None) -> Callable:
@@ -295,7 +303,8 @@ class FilterParam(BaseParam[T]):
                 return select.where(self.attribute.is_(None))
         raise ValueError(f"Invalid filter option {self.filter_option} for value {self.value}")
 
-    def depends(self, *args: Any, **kwargs: Any) -> Self:
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use filter_param_factory instead , depends is not implemented.")
 
 
@@ -350,12 +359,13 @@ class _TagsFilter(BaseParam[_TagFilterModel]):
         operator = or_ if not self.value.tags_match_mode or self.value.tags_match_mode == "any" else and_
         return select.where(operator(*conditions))
 
+    @classmethod
     def depends(
-        self,
+        cls,
         tags: list[str] = Query(default_factory=list),
         tags_match_mode: Literal["any", "all"] | None = None,
     ) -> _TagsFilter:
-        return self.set_value(_TagFilterModel(tags=tags, tags_match_mode=tags_match_mode))
+        return cls().set_value(_TagFilterModel(tags=tags, tags_match_mode=tags_match_mode))
 
 
 class _OwnersFilter(BaseParam[list[str]]):
@@ -371,8 +381,9 @@ class _OwnersFilter(BaseParam[list[str]]):
         conditions = [DagModel.owners.ilike(f"%{owner}%") for owner in self.value]
         return select.where(or_(*conditions))
 
-    def depends(self, owners: list[str] = Query(default_factory=list)) -> _OwnersFilter:
-        return self.set_value(owners)
+    @classmethod
+    def depends(cls, owners: list[str] = Query(default_factory=list)) -> _OwnersFilter:
+        return cls().set_value(owners)
 
 
 def _safe_parse_datetime(date_to_check: str) -> datetime:
@@ -418,11 +429,12 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
     def __init__(self, skip_none: bool = True) -> None:
         super().__init__(AssetModel.consuming_dags, skip_none)
 
-    def depends(self, dag_ids: list[str] = Query(None)) -> _DagIdAssetReferenceFilter:
+    @classmethod
+    def depends(cls, dag_ids: list[str] = Query(None)) -> _DagIdAssetReferenceFilter:
         # needed to handle cases where dag_ids=a1,b1
         if dag_ids and len(dag_ids) == 1 and "," in dag_ids[0]:
             dag_ids = dag_ids[0].split(",")
-        return self.set_value(dag_ids)
+        return cls().set_value(dag_ids)
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
@@ -457,7 +469,8 @@ class RangeFilter(BaseParam[Range]):
             select = select.where(self.attribute <= self.value.upper_bound)
         return select
 
-    def depends(self, *args: Any, **kwargs: Any) -> Self:
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use the `range_filter_factory` function to create the dependency")
 
     def is_active(self) -> bool:
@@ -501,13 +514,13 @@ DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 OptionalDateTimeQuery = Annotated[Union[str, None], AfterValidator(_safe_parse_datetime_optional)]
 
 # DAG
-QueryLimit = Annotated[LimitFilter, Depends(LimitFilter().depends)]
-QueryOffset = Annotated[OffsetFilter, Depends(OffsetFilter().depends)]
+QueryLimit = Annotated[LimitFilter, Depends(LimitFilter.depends)]
+QueryOffset = Annotated[OffsetFilter, Depends(OffsetFilter.depends)]
 QueryPausedFilter = Annotated[
     FilterParam[Optional[bool]],
     Depends(filter_param_factory(DagModel.is_paused, Optional[bool], filter_name="paused")),
 ]
-QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter().depends)]
+QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter.depends)]
 QueryDagIdPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern"))
 ]
@@ -517,8 +530,8 @@ QueryDagDisplayNamePatternSearch = Annotated[
 QueryDagIdPatternSearchWithNone = Annotated[
     _SearchParam, Depends(search_param_factory(DagModel.dag_id, "dag_id_pattern", False))
 ]
-QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
-QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
+QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
+QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
 
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
@@ -634,6 +647,17 @@ QueryTIExecutorFilter = Annotated[
 QueryTITaskDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
 ]
+QueryTIDagVersionFilter = Annotated[
+    FilterParam[list[int]],
+    Depends(
+        filter_param_factory(
+            DagVersion.version_number,
+            list[int],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+        )
+    ),
+]
 
 # Assets
 QueryAssetNamePatternSearch = Annotated[
@@ -644,12 +668,17 @@ QueryAssetAliasNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))
 ]
 QueryAssetDagIdPatternSearch = Annotated[
-    _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
+    _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)
 ]
 
 # Variables
 QueryVariableKeyPatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(Variable.key, "variable_key_pattern"))
+]
+
+# Pools
+QueryPoolNamePatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(Pool.pool, "pool_name_pattern"))
 ]
 
 

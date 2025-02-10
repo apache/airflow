@@ -258,14 +258,14 @@ paths:
           type: boolean
           default: false
           title: External Dependencies
-      - name: dag_version
+      - name: version_number
         in: query
         required: false
         schema:
           anyOf:
           - type: integer
           - type: 'null'
-          title: Dag Version
+          title: Version Number
       responses:
         '200':
           description: Successful Response
@@ -3605,6 +3605,13 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
       responses:
         '200':
           description: Successful Response
@@ -4111,6 +4118,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pool Name Pattern
       responses:
         '200':
           description: Successful Response
@@ -4365,6 +4380,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - XCom
+      summary: Update Xcom Entry
+      description: Update an existing XCom entry.
+      operationId: update_xcom_entry
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: xcom_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Xcom Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XComUpdateBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XComResponseNative'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     get:
       tags:
@@ -4435,6 +4524,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/XComCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - XCom
+      summary: Create Xcom Entry
+      description: Create an XCom entry.
+      operationId: create_xcom_entry
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XComCreateBody'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XComResponseNative'
         '401':
           content:
             application/json:
@@ -4759,6 +4916,14 @@ paths:
           items:
             type: string
           title: Executor
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Version Number
       - name: limit
         in: query
         required: false
@@ -5381,6 +5546,14 @@ paths:
           items:
             type: string
           title: Executor
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Version Number
       - name: limit
         in: query
         required: false
@@ -8566,6 +8739,40 @@ components:
       - dag_id
       title: DagTagResponse
       description: DAG Tag serializer for responses.
+    DagVersionResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        version_number:
+          type: integer
+          title: Version Number
+        dag_id:
+          type: string
+          title: Dag Id
+        bundle_name:
+          type: string
+          title: Bundle Name
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - version_number
+      - dag_id
+      - bundle_name
+      - bundle_version
+      - created_at
+      title: DagVersionResponse
+      description: Dag Version serializer for responses.
     DagWarningType:
       type: string
       enum:
@@ -8786,8 +8993,7 @@ components:
           title: Data Interval End
         version_number:
           anyOf:
-          - type: string
-            format: uuid
+          - type: integer
           - type: 'null'
           title: Version Number
         note:
@@ -9662,6 +9868,10 @@ components:
         executor_config:
           type: string
           title: Executor Config
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
       type: object
       required:
       - task_id
@@ -9687,6 +9897,7 @@ components:
       - pid
       - executor
       - executor_config
+      - dag_version
       title: TaskInstanceHistoryResponse
       description: TaskInstanceHistory serializer for responses.
     TaskInstanceResponse:
@@ -9818,6 +10029,10 @@ components:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
           - type: 'null'
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
       type: object
       required:
       - id
@@ -9849,6 +10064,7 @@ components:
       - rendered_map_index
       - trigger
       - triggerer_job
+      - dag_version
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:
@@ -10285,6 +10501,12 @@ components:
           - type: string
           - type: 'null'
           title: Dag Run Id
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
         data_interval_start:
           anyOf:
           - type: string
@@ -10307,6 +10529,8 @@ components:
           title: Note
       additionalProperties: false
       type: object
+      required:
+      - logical_date
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.
     TriggerResponse:
@@ -10470,6 +10694,24 @@ components:
       - total_entries
       title: XComCollectionResponse
       description: XCom Collection serializer for responses.
+    XComCreateBody:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          title: Value
+        map_index:
+          type: integer
+          title: Map Index
+          default: -1
+      additionalProperties: false
+      type: object
+      required:
+      - key
+      - value
+      title: XComCreateBody
+      description: Payload serializer for creating an XCom entry.
     XComResponse:
       properties:
         key:
@@ -10587,3 +10829,17 @@ components:
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.
+    XComUpdateBody:
+      properties:
+        value:
+          title: Value
+        map_index:
+          type: integer
+          title: Map Index
+          default: -1
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      title: XComUpdateBody
+      description: Payload serializer for updating an XCom entry.

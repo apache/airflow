@@ -93,6 +93,7 @@ def test_listener_does_not_change_task_instance(render_mock, xcom_push_mock):
         dagrun_kwargs = {
             "dag_version": None,
             "logical_date": date,
+            "run_after": date,
             "triggered_by": types.DagRunTriggeredByType.TEST,
         }
     else:
@@ -179,6 +180,7 @@ def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> 
         dagrun_kwargs: dict = {
             "dag_version": None,
             "logical_date": date,
+            "run_after": date,
             "triggered_by": types.DagRunTriggeredByType.TEST,
         }
     else:
@@ -710,6 +712,7 @@ class TestOpenLineageSelectiveEnable:
             dagrun_kwargs = {
                 "dag_version": None,
                 "logical_date": date,
+                "run_after": date,
                 "triggered_by": types.DagRunTriggeredByType.TEST,
             }
         else:

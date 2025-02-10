@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
     from airflow.models.taskinstance import TaskInstance
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -544,8 +544,7 @@ def skip_db_test(item):
         # also automatically skip tests marked with `backend` marker as they are implicitly
         # db tests
         pytest.skip(
-            f"The test is skipped as it is DB test "
-            f"and --skip-db-tests is flag is passed to pytest. {item}"
+            f"The test is skipped as it is DB test and --skip-db-tests is flag is passed to pytest. {item}"
         )
 
 
@@ -788,7 +787,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             self.dag.__enter__()
             if self.want_serialized:
-                return lazy_object_proxy.Proxy(self._serialized_dag)
+
+                class DAGProxy(lazy_object_proxy.Proxy):
+                    # Make `@dag.task` decorator work when need_serialized_dag marker is set
+                    task = self.dag.task
+
+                return DAGProxy(self._serialized_dag)
             return self.dag
 
         def _serialized_dag(self):
@@ -868,6 +872,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     if self.want_activate_assets:
                         self._activate_assets()
                 if sdm:
+                    sdm._SerializedDagModel__data_cache = (
+                        self.serialized_model._SerializedDagModel__data_cache
+                    )
+                    sdm._data = self.serialized_model._data
                     self.serialized_model = sdm
                 else:
                     self.session.merge(self.serialized_model)
@@ -931,14 +939,19 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
+                kwargs.setdefault("dag_version", None)
+                kwargs.setdefault("run_after", data_interval[-1])
             else:
                 kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
 
+            if self.want_serialized:
+                dag = self.serialized_model.dag
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
-                ti.refresh_from_task(dag.get_task(ti.task_id))
+                # This need to always operate on the _real_ dag
+                ti.refresh_from_task(self.dag.get_task(ti.task_id))
             if self.want_serialized:
                 self.session.commit()
             return self.dag_run
@@ -1124,7 +1137,7 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
 
     You cannot be able to alter the created DagRun or DagModel, use `dag_maker` fixture instead.
     """
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.utils.types import DagRunType
 
     def create_dag(
@@ -1206,7 +1219,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
 
     Uses ``create_dummy_dag`` to create the dag structure.
     """
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     def maker(
         logical_date=None,
@@ -1541,13 +1554,21 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
     """Disable redacted text in tests, except specific."""
     from airflow import settings
 
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
     if next(request.node.iter_markers("enable_redact"), None):
         with pytest.MonkeyPatch.context() as mp_ctx:
             mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", True)
             yield
         return
 
-    mocked_redact = mocker.patch("airflow.utils.log.secrets_masker.SecretsMasker.redact")
+    target = (
+        "airflow.sdk.execution_time.secrets_masker.SecretsMasker.redact"
+        if AIRFLOW_V_3_0_PLUS
+        else "airflow.utils.log.secrets_masker.SecretsMasker.redact"
+    )
+
+    mocked_redact = mocker.patch(target)
     mocked_redact.side_effect = lambda item, name=None, max_depth=None: item
     with pytest.MonkeyPatch.context() as mp_ctx:
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
@@ -1559,7 +1580,7 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
 def providers_src_folder() -> Path:
     import airflow.providers
 
-    return Path(airflow.providers.__path__[0]).parents[1]
+    return Path(airflow.providers.__path__[0]).parents[2]
 
 
 @pytest.fixture
@@ -1626,3 +1647,25 @@ def url_safe_serializer(secret_key) -> URLSafeSerializer:
     from itsdangerous import URLSafeSerializer
 
     return URLSafeSerializer(secret_key)
+
+
+@pytest.fixture
+def create_db_api_hook(request):
+    from unittest.mock import MagicMock
+
+    from sqlalchemy.engine import Inspector
+
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+    columns, primary_keys, reserved_words, escape_column_names = request.param
+
+    inspector = MagicMock(spec=Inspector)
+    inspector.get_columns.side_effect = lambda table_name, schema: columns
+
+    test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
+    test_db_hook.run.side_effect = lambda *args: primary_keys
+    test_db_hook.reserved_words = reserved_words
+    test_db_hook.escape_word_format = "[{}]"
+    test_db_hook.escape_column_names = escape_column_names or False
+
+    return test_db_hook

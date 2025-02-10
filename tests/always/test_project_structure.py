@@ -86,64 +86,62 @@ class TestProjectStructure:
             "providers/tests/celery/executors/test_celery_executor_utils.py",
             "providers/tests/celery/executors/test_default_celery.py",
             "providers/tests/cloudant/test_cloudant_fake.py",
-            "providers/tests/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
-            "providers/tests/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
-            "providers/tests/cncf/kubernetes/operators/test_kubernetes_pod.py",
-            "providers/tests/cncf/kubernetes/test_k8s_model.py",
-            "providers/tests/cncf/kubernetes/test_kube_client.py",
-            "providers/tests/cncf/kubernetes/test_kube_config.py",
-            "providers/tests/cncf/kubernetes/test_pod_generator_deprecated.py",
-            "providers/tests/cncf/kubernetes/test_pod_launcher_deprecated.py",
-            "providers/tests/cncf/kubernetes/test_python_kubernetes_script.py",
-            "providers/tests/cncf/kubernetes/test_secret.py",
-            "providers/tests/cncf/kubernetes/triggers/test_kubernetes_pod.py",
-            "providers/tests/cncf/kubernetes/utils/test_delete_from.py",
-            "providers/tests/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
-            "providers/tests/cncf/kubernetes/utils/test_xcom_sidecar.py",
-            "providers/tests/google/cloud/fs/test_gcs.py",
-            "providers/tests/google/cloud/links/test_automl.py",
-            "providers/tests/google/cloud/links/test_base.py",
-            "providers/tests/google/cloud/links/test_bigquery.py",
-            "providers/tests/google/cloud/links/test_bigquery_dts.py",
-            "providers/tests/google/cloud/links/test_bigtable.py",
-            "providers/tests/google/cloud/links/test_cloud_build.py",
-            "providers/tests/google/cloud/links/test_cloud_functions.py",
-            "providers/tests/google/cloud/links/test_cloud_memorystore.py",
-            "providers/tests/google/cloud/links/test_cloud_sql.py",
-            "providers/tests/google/cloud/links/test_cloud_storage_transfer.py",
-            "providers/tests/google/cloud/links/test_cloud_tasks.py",
-            "providers/tests/google/cloud/links/test_compute.py",
-            "providers/tests/google/cloud/links/test_data_loss_prevention.py",
-            "providers/tests/google/cloud/links/test_datacatalog.py",
-            "providers/tests/google/cloud/links/test_dataflow.py",
-            "providers/tests/google/cloud/links/test_dataform.py",
-            "providers/tests/google/cloud/links/test_datafusion.py",
-            "providers/tests/google/cloud/links/test_dataprep.py",
-            "providers/tests/google/cloud/links/test_dataproc.py",
-            "providers/tests/google/cloud/links/test_datastore.py",
-            "providers/tests/google/cloud/links/test_kubernetes_engine.py",
-            "providers/tests/google/cloud/links/test_life_sciences.py",
-            "providers/tests/google/cloud/links/test_mlengine.py",
-            "providers/tests/google/cloud/links/test_pubsub.py",
-            "providers/tests/google/cloud/links/test_spanner.py",
-            "providers/tests/google/cloud/links/test_stackdriver.py",
-            "providers/tests/google/cloud/links/test_vertex_ai.py",
-            "providers/tests/google/cloud/links/test_workflows.py",
-            "providers/tests/google/cloud/operators/vertex_ai/test_auto_ml.py",
-            "providers/tests/google/cloud/operators/vertex_ai/test_batch_prediction_job.py",
-            "providers/tests/google/cloud/operators/vertex_ai/test_custom_job.py",
-            "providers/tests/google/cloud/operators/vertex_ai/test_endpoint_service.py",
-            "providers/tests/google/cloud/operators/vertex_ai/test_hyperparameter_tuning_job.py",
-            "providers/tests/google/cloud/operators/vertex_ai/test_model_service.py",
-            "providers/tests/google/cloud/operators/vertex_ai/test_pipeline_job.py",
-            "providers/tests/google/cloud/transfers/test_bigquery_to_sql.py",
-            "providers/tests/google/cloud/transfers/test_presto_to_gcs.py",
-            "providers/tests/google/cloud/utils/test_bigquery.py",
-            "providers/tests/google/cloud/utils/test_bigquery_get_data.py",
-            "providers/tests/google/cloud/utils/test_dataform.py",
-            "providers/tests/google/common/links/test_storage.py",
-            "providers/tests/google/common/test_consts.py",
-            "providers/tests/google/test_go_module_utils.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/operators/test_kubernetes_pod.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_k8s_model.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_kube_client.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_kube_config.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_python_kubernetes_script.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_secret.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/triggers/test_kubernetes_pod.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_delete_from.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_xcom_sidecar.py",
+            "providers/google/tests/provider_tests/google/cloud/fs/test_gcs.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_automl.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_base.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_bigquery.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_bigquery_dts.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_bigtable.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_cloud_build.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_cloud_functions.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_cloud_memorystore.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_cloud_sql.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_cloud_storage_transfer.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_cloud_tasks.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_compute.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_data_loss_prevention.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_datacatalog.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_dataflow.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_dataform.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_datafusion.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_dataprep.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_dataproc.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_datastore.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_kubernetes_engine.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_life_sciences.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_mlengine.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_pubsub.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_spanner.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_stackdriver.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_vertex_ai.py",
+            "providers/google/tests/provider_tests/google/cloud/links/test_workflows.py",
+            "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_auto_ml.py",
+            "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_batch_prediction_job.py",
+            "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_custom_job.py",
+            "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_endpoint_service.py",
+            "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_hyperparameter_tuning_job.py",
+            "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_model_service.py",
+            "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_pipeline_job.py",
+            "providers/google/tests/provider_tests/google/cloud/transfers/test_bigquery_to_sql.py",
+            "providers/google/tests/provider_tests/google/cloud/transfers/test_presto_to_gcs.py",
+            "providers/google/tests/provider_tests/google/cloud/utils/test_bigquery.py",
+            "providers/google/tests/provider_tests/google/cloud/utils/test_bigquery_get_data.py",
+            "providers/google/tests/provider_tests/google/cloud/utils/test_dataform.py",
+            "providers/google/tests/provider_tests/google/common/links/test_storage.py",
+            "providers/google/tests/provider_tests/google/common/test_consts.py",
+            "providers/google/tests/provider_tests/google/test_go_module_utils.py",
             "providers/tests/microsoft/azure/operators/test_adls.py",
             "providers/tests/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
             "providers/tests/slack/notifications/test_slack_notifier.py",
@@ -266,7 +264,8 @@ class ProjectStructureTest:
                     continue
 
                 if is_new:
-                    results[f"{'.'.join(module.split('.')[2:])}.{current_node.name}"] = current_node
+                    module_path = module[module.find("airflow.providers") :]
+                    results[f"{module_path}.{current_node.name}"] = current_node
                 else:
                     results[f"{module}.{current_node.name}"] = current_node
         print(f"{results}")
@@ -299,7 +298,12 @@ class ExampleCoverageTest(ProjectStructureTest):
         # new_design v2:
         # TODO remove #new_design when movement is finished
         yield from glob.glob(
-            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/tests/system/{self.PROVIDER}/example_*.py",
+            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/tests/system/{self.PROVIDER}/**/example_*.py",
+            recursive=True,
+        )
+
+        yield from glob.glob(
+            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/src/airflow/providers/{self.PROVIDER}/**/example_*.py",
             recursive=True,
         )
 
@@ -313,7 +317,6 @@ class ExampleCoverageTest(ProjectStructureTest):
         classes = set(classes.keys())
         for example in self.example_paths():
             classes -= get_imports_from_file(example)
-
         covered_but_omitted = self.MISSING_EXAMPLES_FOR_CLASSES - classes
         classes -= self.MISSING_EXAMPLES_FOR_CLASSES
         classes -= self.DEPRECATED_CLASSES
@@ -381,7 +384,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
-        "airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLTrainModelOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLPredictOperator",
         "airflow.providers.google.cloud.operators.automl.AutoMLCreateDatasetOperator",
@@ -405,10 +407,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineTrainingCancelJobOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptLanguageModelOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360CreateQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
@@ -569,7 +567,7 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
 
 
 class TestCncfProviderProjectStructure(ExampleCoverageTest):
-    PROVIDER = "cncf"
+    PROVIDER = "cncf/kubernetes"
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
     BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
 

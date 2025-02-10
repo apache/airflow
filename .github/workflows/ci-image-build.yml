@@ -186,12 +186,6 @@ jobs:
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
           PLATFORM: ${{ inputs.platform }}
-      - name: Check free space
-        run: df -H
-        shell: bash
-      - name: Make /mnt/ directory writeable
-        run: sudo chown -R ${USER} /mnt
-        shell: bash
       - name: "Export CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}

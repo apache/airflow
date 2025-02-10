@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 import pendulum
 from connexion import NoContent
 from marshmallow import ValidationError
-from sqlalchemy import delete, or_, select
+from sqlalchemy import and_, delete, or_, select
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -333,7 +333,10 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
         select(DagRun)
         .where(
             DagRun.dag_id == dag_id,
-            or_(DagRun.run_id == run_id, DagRun.logical_date == logical_date),
+            or_(
+                DagRun.run_id == run_id,
+                and_(DagRun.logical_date.is_not(None), DagRun.logical_date == logical_date),
+            ),
         )
         .limit(1)
     )
@@ -354,6 +357,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 run_id=run_id,
                 logical_date=logical_date,
                 data_interval=data_interval,
+                run_after=data_interval.end,
                 conf=post_body.get("conf"),
                 run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.REST_API,
@@ -370,7 +374,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
         except (ValueError, ParamValidationError) as ve:
             raise BadRequest(detail=str(ve))
 
-    if dagrun_instance.logical_date == logical_date:
+    if logical_date is not None and dagrun_instance.logical_date == logical_date:
         raise AlreadyExists(
             detail=(
                 f"DAGRun with DAG ID: '{dag_id}' and "
@@ -416,12 +420,8 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
 @provide_session
 def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear a dag run."""
-    dag_run: DagRun | None = session.scalar(
-        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
-    )
-    if dag_run is None:
-        error_message = f"Dag Run id {dag_run_id} not found in dag   {dag_id}"
-        raise NotFound(error_message)
+    if not session.scalar(select(True).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)):
+        raise NotFound(f"Run ID {dag_run_id!r} not found in DAG {dag_id!r}")
     try:
         post_body = clear_dagrun_form_schema.load(get_json_request_dict())
     except ValidationError as err:
@@ -429,28 +429,15 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
 
     dry_run = post_body.get("dry_run", False)
     dag = get_airflow_app().dag_bag.get_dag(dag_id)
-    start_date = dag_run.logical_date
-    end_date = dag_run.logical_date
 
     if dry_run:
-        task_instances = dag.clear(
-            start_date=start_date,
-            end_date=end_date,
-            task_ids=None,
-            only_failed=False,
-            dry_run=True,
-        )
+        task_instances = dag.clear(run_id=dag_run_id, task_ids=None, only_failed=False, dry_run=True)
         return task_instance_reference_collection_schema.dump(
             TaskInstanceReferenceCollection(task_instances=task_instances)
         )
     else:
-        dag.clear(
-            start_date=start_date,
-            end_date=end_date,
-            task_ids=None,
-            only_failed=False,
-        )
-        dag_run = session.execute(select(DagRun).where(DagRun.id == dag_run.id)).scalar_one()
+        dag.clear(run_id=dag_run_id, task_ids=None, only_failed=False)
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
         return dagrun_schema.dump(dag_run)
 
 

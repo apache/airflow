@@ -739,7 +739,7 @@ logging:
       default: ""
     delete_local_logs:
       description: |
-        Whether the local log files for GCS, S3, WASB and OSS remote logging should be deleted after
+        Whether the local log files for GCS, S3, WASB, HDFS and OSS remote logging should be deleted after
         they are uploaded to the remote location.
       version_added: 2.6.0
       type: string
@@ -886,10 +886,10 @@ logging:
     secret_mask_adapter:
       description: |
         An import path to a function to add adaptations of each secret added with
-        ``airflow.utils.log.secrets_masker.mask_secret`` to be masked in log messages. The given function
-        is expected to require a single parameter: the secret to be adapted. It may return a
-        single adaptation of the secret or an iterable of adaptations to each be masked as secrets.
-        The original secret will be masked as well as any adaptations returned.
+        ``airflow.sdk.execution_time.secrets_masker.mask_secret`` to be masked in log messages.
+        The given function is expected to require a single parameter: the secret to be adapted.
+        It may return a single adaptation of the secret or an iterable of adaptations to each be
+        masked as secrets. The original secret will be masked as well as any adaptations returned.
       version_added: 2.6.0
       type: string
       default: ""
@@ -912,28 +912,6 @@ logging:
       default: "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/\
                {%% if ti.map_index >= 0 %%}map_index={{ ti.map_index }}/{%% endif %%}\
                attempt={{ try_number|default(ti.try_number) }}.log"
-    log_processor_filename_template:
-      description: |
-        Formatting for how airflow generates file names for log
-      version_added: 2.0.0
-      type: string
-      example: ~
-      is_template: true
-      default: "{{ filename }}.log"
-    dag_processor_manager_log_location:
-      description: |
-        Full path of dag_processor_manager logfile.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "{AIRFLOW_HOME}/logs/dag_processor_manager/dag_processor_manager.log"
-    dag_processor_manager_log_stdout:
-      description: |
-        Whether DAG processor manager will write logs to stdout
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
     task_log_reader:
       description: |
         Name of handler to read task instance logs.
@@ -1595,9 +1573,9 @@ webserver:
       default: "120"
     worker_refresh_batch_size:
       description: |
-        Number of workers to refresh at a time. When set to 0, worker refresh is
-        disabled. When nonzero, airflow periodically refreshes webserver workers by
-        bringing up new ones and killing old ones.
+        Number of workers to refresh at a time through Gunicorn's built-in worker management.
+        When set to 0, worker refresh is disabled. When nonzero, airflow periodically refreshes
+        webserver workers by bringing up new ones and killing old ones.
       version_added: ~
       type: string
       example: ~
@@ -2698,3 +2676,15 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+fastapi:
+  description: Configuration for the Fastapi webserver.
+  options:
+    base_url:
+      description: |
+        The base url of the Fastapi endpoint. Airflow cannot guess what domain or CNAME you are using.
+        If the Airflow console (the front-end) and the Fastapi apis are on a different domain, this config
+        should contain the Fastapi apis endpoint.
+      version_added: ~
+      type: string
+      example: ~
+      default: "http://localhost:29091"

@@ -181,7 +181,15 @@ if __name__ == "__main__":
     with open(sys.argv[1]) as f:
         text = f.read()
     y = BeautifulSoup(text, "html.parser")
-    res = y.testsuites.testsuite.findAll("testcase")
+    testsuites = y.testsuites
+    if testsuites is None:
+        print("No testsuites found in the XML file")
+        sys.exit(1)
+    testsuite = testsuites.testsuite
+    if testsuite is None:
+        print(f"No testsuite found in the XML file in {testsuites}")
+        sys.exit(1)
+    res = testsuite.findAll("testcase")  # type: ignore[call-arg]
     for test in res:
         print("Parsing: " + test["classname"] + "::" + test["name"])
         if test.contents and test.contents[0].name == "skipped":

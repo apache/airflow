@@ -632,6 +632,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                     run_type=DagRunType.MANUAL,
                     logical_date=info.logical_date,
                     data_interval=info.data_interval,
+                    run_after=info.run_after,
                     triggered_by=DagRunTriggeredByType.TEST,
                     state=DagRunState.RUNNING,
                 )
@@ -847,11 +848,20 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         @get_mapped_ti_count.register(MappedOperator)
         @classmethod
         def _(cls, task: MappedOperator, run_id: str, *, session: Session) -> int:
-            from airflow.serialization.serialized_objects import _ExpandInputRef
+            from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
             exp_input = task._get_specified_expand_input()
             if isinstance(exp_input, _ExpandInputRef):
                 exp_input = exp_input.deref(task.dag)
+            # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over to use the
+            # task sdk runner.
+            if not hasattr(exp_input, "get_total_map_length"):
+                exp_input = _ExpandInputRef(
+                    type(exp_input).EXPAND_INPUT_TYPE,
+                    BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
+                )
+                exp_input = exp_input.deref(task.dag)
+
             current_count = exp_input.get_total_map_length(run_id, session=session)
 
             group = task.get_closest_mapped_task_group()
@@ -877,18 +887,24 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             :raise NotFullyPopulated: If upstream tasks are not all complete yet.
             :return: Total number of mapped TIs this task should have.
             """
+            from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
-            def iter_mapped_task_groups(group) -> Iterator[MappedTaskGroup]:
+            def iter_mapped_task_group_lengths(group) -> Iterator[int]:
                 while group is not None:
                     if isinstance(group, MappedTaskGroup):
-                        yield group
+                        exp_input = group._expand_input
+                        # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over to use the
+                        # task sdk runner.
+                        if not hasattr(exp_input, "get_total_map_length"):
+                            exp_input = _ExpandInputRef(
+                                type(exp_input).EXPAND_INPUT_TYPE,
+                                BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
+                            )
+                            exp_input = exp_input.deref(group.dag)
+                        yield exp_input.get_total_map_length(run_id, session=session)
                     group = group.parent_group
 
-            groups = iter_mapped_task_groups(group)
-            return functools.reduce(
-                operator.mul,
-                (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
-            )
+            return functools.reduce(operator.mul, iter_mapped_task_group_lengths(group))
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

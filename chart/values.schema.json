@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.10.4",
+            "default": "2.10.5",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.10.4",
+            "default": "2.10.5",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -657,7 +657,7 @@
             }
         },
         "airflowLocalSettings": {
-            "description": "`airflow_local_settings` file as a string (can be templated).",
+            "description": "`airflow_local_settings` file as a string (templated).",
             "type": [
                 "string",
                 "null"
@@ -1102,7 +1102,7 @@
             }
         },
         "extraEnv": {
-            "description": "Extra env 'items' that will be added to the definition of Airflow containers; a string is expected (can be templated).",
+            "description": "Extra env 'items' that will be added to the definition of Airflow containers; a string is expected (templated).",
             "type": [
                 "null",
                 "string"
@@ -1114,7 +1114,7 @@
             ]
         },
         "extraEnvFrom": {
-            "description": "Extra envFrom 'items' that will be added to the definition of Airflow containers; a string is expected (can be templated).",
+            "description": "Extra envFrom 'items' that will be added to the definition of Airflow containers; a string is expected (templated).",
             "type": [
                 "null",
                 "string"
@@ -1168,7 +1168,7 @@
             "x-docsSection": "Kubernetes",
             "default": {},
             "additionalProperties": {
-                "description": "Name of the secret (can be templated).",
+                "description": "Name of the secret (templated).",
                 "type": "object",
                 "minProperties": 1,
                 "additionalProperties": false,
@@ -1199,11 +1199,11 @@
                         "default": true
                     },
                     "data": {
-                        "description": "Content **as string** for the 'data' item of the secret (can be templated)",
+                        "description": "Content **as string** for the 'data' item of the secret (templated)",
                         "type": "string"
                     },
                     "stringData": {
-                        "description": "Content **as string** for the 'stringData' item of the secret (can be templated)",
+                        "description": "Content **as string** for the 'stringData' item of the secret (templated)",
                         "type": "string"
                     }
                 }
@@ -1223,7 +1223,7 @@
             "x-docsSection": "Kubernetes",
             "default": {},
             "additionalProperties": {
-                "description": "Name of the configMap (can be templated).",
+                "description": "Name of the configMap (templated).",
                 "type": "object",
                 "minProperties": 1,
                 "additionalProperties": false,
@@ -1250,7 +1250,7 @@
                         "default": true
                     },
                     "data": {
-                        "description": "Content **as string** for the 'data' item of the configmap (can be templated)",
+                        "description": "Content **as string** for the 'data' item of the configmap (templated)",
                         "type": "string"
                     }
                 }
@@ -1790,7 +1790,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -3161,7 +3161,7 @@
                             "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -4676,8 +4676,8 @@
                 }
             }
         },
-        "apiServer": {
-            "description": "Airflow API server settings.",
+        "_apiServer": {
+            "description": "Airflow API server settings. Experimental / for dev purpose only.",
             "type": "object",
             "x-docsSection": "API Server",
             "additionalProperties": false,
@@ -4949,7 +4949,7 @@
                                     },
                                     "default": [
                                         {
-                                            "port": "{{ .Values.ports.apiServer }}"
+                                            "port": "{{ .Values.ports._apiServer }}"
                                         }
                                     ],
                                     "examples": [
@@ -5176,7 +5176,7 @@
                             "default": [
                                 {
                                     "name": "api-server",
-                                    "port": "{{ .Values.ports.apiServer }}"
+                                    "port": "{{ .Values.ports._apiServer }}"
                                 }
                             ],
                             "examples": [
@@ -5884,7 +5884,7 @@
                     }
                 },
                 "webserverConfig": {
-                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
+                    "description": "This string (templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
                     "type": [
                         "string",
                         "null"
@@ -7736,7 +7736,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (can be templated).",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8175,7 +8175,7 @@
                     "type": "integer",
                     "default": 8080
                 },
-                "apiServer": {
+                "_apiServer": {
                     "description": "API server port.",
                     "type": "integer",
                     "default": 9091
@@ -8668,7 +8668,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here (can be templated).",
+                            "description": "If using a custom StorageClass, pass name here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8922,7 +8922,7 @@
                             ]
                         },
                         "envFrom": {
-                            "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (can be templated).",
+                            "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (templated).",
                             "type": [
                                 "null",
                                 "string"
@@ -8977,7 +8977,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here (can be templated).",
+                            "description": "If using a custom StorageClass, pass name here (templated).",
                             "type": [
                                 "string",
                                 "null"

@@ -724,9 +724,11 @@ if __name__ == "__main__":
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
-    provider_files_pattern = pathlib.Path(ROOT_DIR, "providers", "src", "airflow", "providers").rglob(
-        "provider.yaml"
-    )
+    provider_files_pattern = [
+        path
+        for path in pathlib.Path(ROOT_DIR, "providers", "src", "airflow", "providers").rglob("provider.yaml")
+        if "/.venv/" not in path.as_posix()
+    ]
     all_provider_files = sorted(str(path) for path in provider_files_pattern)
     if len(sys.argv) > 1:
         paths = [os.fspath(ROOT_DIR / f) for f in sorted(sys.argv[1:])]

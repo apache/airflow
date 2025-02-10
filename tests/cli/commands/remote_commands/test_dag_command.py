@@ -29,6 +29,7 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 import time_machine
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.api_connexion.schemas.dag_schema import DAGSchema, dag_schema
@@ -39,7 +40,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import _run_inline_trigger
-from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.base import TriggerEvent
@@ -78,66 +78,6 @@ class TestCliDags:
 
     def setup_method(self):
         clear_db_runs()  # clean-up all dag run before start each test
-
-    def test_reserialize(self, session):
-        # Assert that there are serialized Dags
-        serialized_dags_before_command = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_before_command)  # There are serialized DAGs to delete
-        # delete all versioning
-        session.query(DagVersion).delete()
-
-        serialized_dags_before_command = session.query(SerializedDagModel).all()
-        assert not len(serialized_dags_before_command)  # There are no more serialized dag
-        dag_version_before_command = session.query(DagVersion).all()
-        assert not len(dag_version_before_command)
-        # Serialize the dags
-        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
-        # Assert serialized Dags
-        serialized_dags_after_clear = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_clear)
-        dag_version_after_command = session.query(DagVersion).all()
-        assert len(dag_version_after_command)
-
-    def test_reserialize_should_support_bundle_name_argument(self, configure_testing_dag_bundle, session):
-        # Run clear of serialized dags
-        session.query(DagVersion).delete()
-
-        # Assert no serialized Dags
-        serialized_dags_after_clear = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_clear) == 0
-
-        path_to_parse = TEST_DAGS_FOLDER / "test_dag_with_no_tags.py"
-
-        with configure_testing_dag_bundle(path_to_parse):
-            # reserializes only the above path
-            dag_command.dag_reserialize(
-                self.parser.parse_args(["dags", "reserialize", "--bundle-name", "testing"])
-            )
-
-        # Check serialized DAG are back
-        serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_reserialize) == 1
-
-    def test_reserialize_should_support_more_than_one_bundle(self, configure_testing_dag_bundle, session):
-        # Run clear of serialized dags
-        session.query(DagVersion).delete()
-
-        # Assert no serialized Dags
-        serialized_dags_after_clear = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_clear) == 0
-
-        path_to_parse = TEST_DAGS_FOLDER / "test_dag_with_no_tags.py"
-
-        with configure_testing_dag_bundle(path_to_parse):
-            # The command will now serialize the above bundle and the example dag bundle
-            dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
-
-        # Check serialized DAG are back
-        serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_reserialize) > 1
-        serialized_dag_ids = [dag.dag_id for dag in serialized_dags_after_reserialize]
-        assert "test_dag_with_no_tags" in serialized_dag_ids
-        assert "example_bash_operator" in serialized_dag_ids
 
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
@@ -211,7 +151,7 @@ class TestCliDags:
             file_content = os.linesep.join(
                 [
                     "from airflow import DAG",
-                    "from airflow.operators.empty import EmptyOperator",
+                    "from airflow.providers.standard.operators.empty import EmptyOperator",
                     "from datetime import timedelta; from pendulum import today",
                     f"dag = DAG('{f[0]}', start_date=today() + {f[1]}, schedule={f[2]}, catchup={f[3]})",
                     "task = EmptyOperator(task_id='empty_task',dag=dag)",
@@ -693,6 +633,8 @@ class TestCliDags:
     )
     @mock.patch("airflow.cli.commands.remote_commands.dag_command.get_dag")
     def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag):
+        mock_get_dag.return_value.test.return_value.run_id = "__test_dag_test_show_dag_fake_dag_run_run_id__"
+
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat(), "--show-dagrun"]
         )
@@ -809,3 +751,50 @@ class TestCliDags:
         # only second operator was actually executed, first one was marked as success
         assert len(mock__execute_task_with_callbacks.call_args_list) == 1
         assert mock__execute_task_with_callbacks.call_args_list[0].kwargs["self"].task_id == "dummy_operator"
+
+
+class TestCliDagsReserialize:
+    parser = cli_parser.get_parser()
+
+    test_bundles_config = {
+        "bundle1": TEST_DAGS_FOLDER / "test_example_bash_operator.py",
+        "bundle2": TEST_DAGS_FOLDER / "test_sensor.py",
+        "bundle3": TEST_DAGS_FOLDER / "test_dag_with_no_tags.py",
+    }
+
+    @classmethod
+    def setup_class(cls):
+        clear_db_dags()
+
+    def teardown_method(self):
+        clear_db_dags()
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_reserialize(self, configure_dag_bundles, session):
+        with configure_dag_bundles(self.test_bundles_config):
+            dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
+
+        serialized_dag_ids = set(session.execute(select(SerializedDagModel.dag_id)).scalars())
+        assert serialized_dag_ids == {"test_example_bash_operator", "test_dag_with_no_tags", "test_sensor"}
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_reserialize_should_support_bundle_name_argument(self, configure_dag_bundles, session):
+        with configure_dag_bundles(self.test_bundles_config):
+            dag_command.dag_reserialize(
+                self.parser.parse_args(["dags", "reserialize", "--bundle-name", "bundle1"])
+            )
+
+        serialized_dag_ids = set(session.execute(select(SerializedDagModel.dag_id)).scalars())
+        assert serialized_dag_ids == {"test_example_bash_operator"}
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_reserialize_should_support_multiple_bundle_name_arguments(self, configure_dag_bundles, session):
+        with configure_dag_bundles(self.test_bundles_config):
+            dag_command.dag_reserialize(
+                self.parser.parse_args(
+                    ["dags", "reserialize", "--bundle-name", "bundle1", "--bundle-name", "bundle2"]
+                )
+            )
+
+        serialized_dag_ids = set(session.execute(select(SerializedDagModel.dag_id)).scalars())
+        assert serialized_dag_ids == {"test_example_bash_operator", "test_sensor"}

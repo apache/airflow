@@ -70,6 +70,7 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    GetXComCount,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -81,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     TaskState,
     ToSupervisor,
     VariableResult,
+    XComCountResponse,
     XComResult,
 )
 
@@ -166,38 +168,27 @@ def _configure_logs_over_json_channel(log_fd: int):
     from airflow.sdk.log import configure_logging
 
     log_io = os.fdopen(log_fd, "wb", buffering=0)
-    configure_logging(enable_pretty_log=False, output=log_io)
+    configure_logging(enable_pretty_log=False, output=log_io, sending_to_supervisor=True)
 
 
 def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        # When we are running in pytest, it's output capturing messes us up. This works around it
-        sys.stdout = sys.__stdout__
-        sys.stderr = sys.__stderr__
-
     # Ensure that sys.stdout et al (and the underlying filehandles for C libraries etc) are connected to the
     # pipes from the supervisor
 
-    for handle_name, sock, mode in (
-        ("stdin", child_stdin, "r"),
-        ("stdout", child_stdout, "w"),
-        ("stderr", child_stderr, "w"),
+    for handle_name, fd, sock, mode in (
+        ("stdin", 0, child_stdin, "r"),
+        ("stdout", 1, child_stdout, "w"),
+        ("stderr", 2, child_stderr, "w"),
     ):
         handle = getattr(sys, handle_name)
-        try:
-            fd = handle.fileno()
-            os.dup2(sock.fileno(), fd)
-            # dup2 creates another open copy of the fd, we can close the "socket" copy of it.
-            sock.close()
-        except io.UnsupportedOperation:
-            if "PYTEST_CURRENT_TEST" in os.environ:
-                # When we're running under pytest, the stdin is not a real filehandle with an fd, so we need
-                # to handle that differently
-                fd = sock.fileno()
-            else:
-                raise
-        # We can't open text mode fully unbuffered (python throws an exception if we try), but we can make it line buffered with `buffering=1`
-        handle = os.fdopen(fd, mode, buffering=1)
+        handle.close()
+        os.dup2(sock.fileno(), fd)
+        del sock
+
+        # We open the socket/fd as binary, and then pass it to a TextIOWrapper so that it looks more like a
+        # normal sys.stdout etc.
+        binary = os.fdopen(fd, mode + "b")
+        handle = io.TextIOWrapper(binary, line_buffering=True)
         setattr(sys, handle_name, handle)
 
 
@@ -352,8 +343,19 @@ class WatchedSubprocess:
             del constructor_kwargs
             del logger
 
-            # Run the child entrypoint
-            _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
+            try:
+                # Run the child entrypoint
+                _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
+            except BaseException as e:
+                try:
+                    # We can't use log here, as if we except out of _fork_main something _weird_ went on.
+                    print("Exception in _fork_main, exiting with code 124", e, file=sys.stderr)
+                except BaseException as e:
+                    pass
+
+            # It's really super super important we never exit this block. We are in the forked child, and if we
+            # do then _THINGS GET WEIRD_.. (Normally `_fork_main` itself will `_exit()` so we never get here)
+            os._exit(124)
 
         requests_fd = child_comms.fileno()
 
@@ -797,6 +799,9 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result.model_dump_json().encode()
+        elif isinstance(msg, GetXComCount):
+            len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp = XComCountResponse(len=len).model_dump_json().encode()
         elif isinstance(msg, DeferTask):
             self._terminal_state = IntermediateTIState.DEFERRED
             self.client.task_instances.defer(self.id, msg)

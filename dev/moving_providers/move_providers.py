@@ -134,7 +134,11 @@ def _do_stuff(
                 if from_path.exists():
                     shutil.move(from_path, to_path)
                 console.print(f"\n[yellow]Moved {from_path} -> {to_path}\n")
-                if remove_empty_parent_dir and len([path for path in from_path.parent.iterdir()]) == 0:
+                if (
+                    remove_empty_parent_dir
+                    and from_path.exists()
+                    and len([path for path in from_path.parent.iterdir()]) == 0
+                ):
                     console.print(f"\n[yellow]Removed also empty parent dir {from_path.parent}\n")
                     from_path.parent.rmdir()
                 return
@@ -362,14 +366,20 @@ def move_provider_yaml(provider_id: str) -> tuple[list[str], list[str], list[str
     dependencies = []
     optional_dependencies = []
     devel_dependencies = []
+    already_moved_logos = set()
     for line in original_content:
         if line.startswith("    logo: "):
             logo_path = line[len("    logo: ") :]
             logo_name = logo_path.split("/")[-1]
+            if logo_path in already_moved_logos:
+                continue
             new_logo_dir = (
                 PROVIDERS_DIR_PATH / _get_provider_only_path(provider_id) / "docs" / "integration-logos"
             )
             new_logo_path = new_logo_dir / logo_name
+            if logo_name in already_moved_logos:
+                continue
+            already_moved_logos.add(logo_name)
             _do_stuff(
                 syntax="none",
                 from_path=DOCS_DIR_PATH / Path(logo_path[1:]),
@@ -378,6 +388,7 @@ def move_provider_yaml(provider_id: str) -> tuple[list[str], list[str], list[str
                 remove_empty_parent_dir=True,
             )
             line = f"    logo: /docs/integration-logos/{logo_name}"
+            already_moved_logos.add(logo_path)
         if line == "dependencies:" and not in_dependencies:
             in_dependencies = True
             continue
@@ -636,6 +647,11 @@ def replace_system_test_example_includes(provider_id: str):
             rst_file,
             f"../providers/tests/system/{provider_only_path}/",
             f"../providers/{provider_only_path}/tests/system/{provider_only_path}/",
+        )
+        _replace_string(
+            rst_file,
+            f"|version|/providers/tests/system/{provider_only_path}/",
+            f"|version|/providers/{provider_only_path}/tests/system/{provider_only_path}/",
         )
     console.rule(style="bright_blue")
 

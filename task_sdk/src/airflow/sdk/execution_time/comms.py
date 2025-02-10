@@ -119,6 +119,11 @@ class XComResult(XComResponse):
         return cls(**xcom_response.model_dump())
 
 
+class XComCountResponse(BaseModel):
+    len: int
+    type: Literal["XComLengthResponse"] = "XComLengthResponse"
+
+
 class ConnectionResult(ConnectionResponse):
     type: Literal["ConnectionResult"] = "ConnectionResult"
 
@@ -184,6 +189,7 @@ ToTask = Annotated[
         StartupDetails,
         VariableResult,
         XComResult,
+        XComCountResponse,
         OKResponse,
     ],
     Field(discriminator="type"),
@@ -240,6 +246,16 @@ class GetXCom(BaseModel):
     type: Literal["GetXCom"] = "GetXCom"
 
 
+class GetXComCount(BaseModel):
+    """Get the number of (mapped) XCom values available."""
+
+    key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    type: Literal["GetNumberXComs"] = "GetNumberXComs"
+
+
 class SetXCom(BaseModel):
     key: str
     value: Annotated[
@@ -268,6 +284,7 @@ class SetXCom(BaseModel):
     run_id: str
     task_id: str
     map_index: int | None = None
+    mapped_length: int | None = None
     type: Literal["SetXCom"] = "SetXCom"
 
 
@@ -323,6 +340,7 @@ ToSupervisor = Annotated[
         GetPrevSuccessfulDagRun,
         GetVariable,
         GetXCom,
+        GetXComCount,
         PutVariable,
         RescheduleTask,
         SetRenderedFields,

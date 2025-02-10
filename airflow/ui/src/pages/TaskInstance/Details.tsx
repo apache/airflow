@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Table } from "@chakra-ui/react";
+import { Box, Flex, HStack, Table, Heading } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import {
@@ -27,9 +27,10 @@ import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
-import { useConfig } from "src/queries/useConfig";
-import { getDuration } from "src/utils";
-import { isStatePending } from "src/utils/refresh";
+import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
+
+import { ExtraLinks } from "./ExtraLinks";
+import { TriggererInfo } from "./TriggererInfo";
 
 export const Details = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
@@ -38,8 +39,6 @@ export const Details = () => {
   const mapIndexParam = searchParams.get("map_index");
   const tryNumberParam = searchParams.get("try_number");
   const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
-
-  const autoRefreshInterval = useConfig("auto_refresh_interval") as number;
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
@@ -59,6 +58,8 @@ export const Details = () => {
 
   const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
+  const refetchInterval = useAutoRefresh({ dagId });
+
   const { data: tryInstance } = useTaskInstanceServiceGetTaskInstanceTryDetails(
     {
       dagId,
@@ -69,8 +70,7 @@ export const Details = () => {
     },
     undefined,
     {
-      refetchInterval: (query) =>
-        isStatePending(query.state.data?.state) ? autoRefreshInterval * 1000 : false,
+      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
     },
   );
 
@@ -85,6 +85,13 @@ export const Details = () => {
           taskInstance={taskInstance}
         />
       )}
+      <ExtraLinks />
+      {taskInstance !== undefined && (taskInstance.trigger ?? taskInstance.triggerer_job) ? (
+        <TriggererInfo taskInstance={taskInstance} />
+      ) : undefined}
+      <Heading py={2} size="sm">
+        Task Instance Info
+      </Heading>
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
