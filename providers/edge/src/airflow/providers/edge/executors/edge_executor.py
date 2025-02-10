@@ -86,9 +86,10 @@ class EdgeExecutor(BaseExecutor):
 
         # version 0.14.0pre0 added new column maintenance_comment
         if edge_worker_columns and "maintenance_comment" not in edge_worker_columns:
-            connection = engine.connect()
-            query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(1024);"
-            connection.execute(text(query))
+            with engine.connect() as connection
+                with connection.begin():
+                    query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(1024);"
+                    connection.execute(text(query))
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):
@@ -99,7 +100,6 @@ class EdgeExecutor(BaseExecutor):
             EdgeJobModel.metadata.create_all(engine)
             EdgeLogsModel.metadata.create_all(engine)
             EdgeWorkerModel.metadata.create_all(engine)
-            session.commit()
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         """
