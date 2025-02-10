@@ -22,7 +22,6 @@ import logging
 from typing import Any
 
 from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
-from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager, reload_configuration_for_dag_processing
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
@@ -34,13 +33,9 @@ log = logging.getLogger(__name__)
 
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
-    processor_timeout_seconds: int = conf.getint("dag_processor", "dag_file_processor_timeout")
     return DagProcessorJobRunner(
         job=Job(),
-        processor=DagFileProcessorManager(
-            processor_timeout=processor_timeout_seconds,
-            max_runs=args.num_runs,
-        ),
+        processor=DagFileProcessorManager(max_runs=args.num_runs),
     )
 
 

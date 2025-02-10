@@ -160,7 +160,7 @@ ingress:
 
     # The hostnames or hosts configuration for the web Ingress
     hosts: []
-    #   # The hostname for the web Ingress (can be templated)
+    #   # The hostname for the web Ingress (templated)
     # - name: ""
     #   # configs for web Ingress TLS
     #   tls:
@@ -204,7 +204,7 @@ ingress:
 
     # The hostnames or hosts configuration for the flower Ingress
     hosts: []
-    #   # The hostname for the flower Ingress (can be templated)
+    #   # The hostname for the flower Ingress (templated)
     # - name: ""
     #   tls:
     #     # Enable TLS termination for the flower Ingress
@@ -241,7 +241,7 @@ ingress:
 
     # The hostnames or hosts configuration for the statsd Ingress
     hosts: []
-    #   # The hostname for the statsd Ingress (can be templated)
+    #   # The hostname for the statsd Ingress (templated)
     # - name: ""
     #   tls:
     #     # Enable TLS termination for the statsd Ingress
@@ -271,7 +271,7 @@ ingress:
 
     # The hostnames or hosts configuration for the pgbouncer Ingress
     hosts: []
-    #   # The hostname for the statsd Ingress (can be templated)
+    #   # The hostname for the statsd Ingress (templated)
     # - name: ""
     #   tls:
     #     # Enable TLS termination for the pgbouncer Ingress
@@ -295,7 +295,7 @@ airflowPodAnnotations: {}
 # main Airflow configmap
 airflowConfigAnnotations: {}
 
-# `airflow_local_settings` file as a string (can be templated).
+# `airflow_local_settings` file as a string (templated).
 airflowLocalSettings: |-
   {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
   {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
@@ -386,9 +386,9 @@ priorityClasses: []
 # Extra secrets that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
 # The format for secret data is "key/value" where
-#    * key (can be templated) is the name of the secret that will be created
+#    * key (templated) is the name of the secret that will be created
 #    * value: an object with the standard 'data' or 'stringData' key (or both).
-#          The value associated with those keys must be a string (can be templated)
+#          The value associated with those keys must be a string (templated)
 extraSecrets: {}
 # eg:
 # extraSecrets:
@@ -413,9 +413,9 @@ extraSecrets: {}
 # Extra ConfigMaps that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
 # The format for configmap data is "key/value" where
-#    * key (can be templated) is the name of the configmap that will be created
+#    * key (templated) is the name of the configmap that will be created
 #    * value: an object with the standard 'data' key.
-#          The value associated with this keys must be a string (can be templated)
+#          The value associated with this keys must be a string (templated)
 extraConfigMaps: {}
 # eg:
 # extraConfigMaps:
@@ -427,7 +427,7 @@ extraConfigMaps: {}
 #       AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
 
 # Extra env 'items' that will be added to the definition of airflow containers
-# a string is expected (can be templated).
+# a string is expected (templated).
 # TODO: difference from `env`? This is a templated string. Probably should template `env` and remove this.
 extraEnv: ~
 # eg:
@@ -436,7 +436,7 @@ extraEnv: ~
 #     value: 'True'
 
 # Extra envFrom 'items' that will be added to the definition of airflow containers
-# A string is expected (can be templated).
+# A string is expected (templated).
 extraEnvFrom: ~
 # eg:
 # extraEnvFrom: |
@@ -1246,7 +1246,7 @@ migrateDatabaseJob:
   applyCustomEnv: true
   env: []
 
-apiServer:
+_apiServer:
 
   # Labels specific to workers objects and pods
   labels: {}
@@ -1274,7 +1274,7 @@ apiServer:
     annotations: {}
     ports:
       - name: api-server
-        port: "{{ .Values.ports.apiServer }}"
+        port: "{{ .Values.ports._apiServer }}"
 
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
@@ -1313,7 +1313,7 @@ apiServer:
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-        - port: "{{ .Values.ports.apiServer }}"
+        - port: "{{ .Values.ports._apiServer }}"
 
   resources: {}
   #   limits:
@@ -1505,7 +1505,7 @@ webserver:
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This string (can be templated) will be mounted into the Airflow Webserver
+  # This string (templated) will be mounted into the Airflow Webserver
   # as a custom webserver_config.py. You can bake a webserver_config.py in to
   # your image instead or specify a configmap containing the
   # webserver_config.py.
@@ -2529,7 +2529,7 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
-  apiServer: 9091
+  _apiServer: 9091
 
 # Define any ResourceQuotas for namespace
 quotas: {}

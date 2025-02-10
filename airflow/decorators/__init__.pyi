@@ -588,7 +588,7 @@ class TaskDecoratorCollection:
         :param name: Name of the pod to run. This will be used (plus a random
             suffix if *random_name_suffix* is *True*) to generate a pod ID
             (DNS-1123 subdomain, containing only ``[a-z0-9.-]``). Defaults to
-            ``k8s_airflow_pod_{RANDOM_UUID}``.
+            ``k8s-airflow-pod-{python_callable.__name__}``.
         :param random_name_suffix: If *True*, will generate a random suffix.
         :param arguments: arguments of the entrypoint. (templated)
             The docker image's CMD is used if this is not provided.

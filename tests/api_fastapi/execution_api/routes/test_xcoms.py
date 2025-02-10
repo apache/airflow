@@ -70,7 +70,7 @@ class TestXComsGetEndpoint:
         assert response.status_code == 404
         assert response.json() == {
             "detail": {
-                "message": "XCom with key 'xcom_non_existent' not found for task 'task' in DAG 'dag'",
+                "message": "XCom with key='xcom_non_existent' map_index=-1 not found for task 'task' in DAG run 'runid' of 'dag'",
                 "reason": "not_found",
             }
         }

@@ -228,30 +228,22 @@ class TestCliTasks:
         # verify that the file was in different location when run
         assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
 
-    @mock.patch("airflow.cli.commands.remote_commands.task_command.select")
-    @mock.patch("sqlalchemy.orm.session.Session.scalar")
-    def test_task_render_with_custom_timetable(self, mock_scalar, mock_select):
+    @mock.patch(
+        "airflow.cli.commands.remote_commands.task_command.fetch_dag_run_from_run_id_or_logical_date_string"
+    )
+    def test_task_render_with_custom_timetable(self, mock_fetch_dag_run_from_run_id_or_logical_date_string):
         """
         Test that the `tasks render` CLI command queries the database correctly
         for a DAG with a custom timetable. Verifies that a query is executed to
         fetch the appropriate DagRun and that the database interaction occurs as expected.
         """
-        from sqlalchemy import select
-
-        from airflow.models.dagrun import DagRun
-
-        mock_query = (
-            select(DagRun).where(DagRun.dag_id == "example_workday_timetable").order_by(DagRun.id.desc())
-        )
-        mock_select.return_value = mock_query
-
-        mock_scalar.return_value = None
+        mock_fetch_dag_run_from_run_id_or_logical_date_string.return_value = (None, None)
 
         task_command.task_render(
             self.parser.parse_args(["tasks", "render", "example_workday_timetable", "run_this", "2022-01-01"])
         )
 
-        mock_select.assert_called_once()
+        mock_fetch_dag_run_from_run_id_or_logical_date_string.assert_called_once()
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self, caplog):

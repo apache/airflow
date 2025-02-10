@@ -42,7 +42,12 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.commands.production_image_commands import run_build_production_image
-from airflow_breeze.global_constants import ALLOWED_EXECUTORS, ALLOWED_KUBERNETES_VERSIONS
+from airflow_breeze.global_constants import (
+    ALLOWED_EXECUTORS,
+    ALLOWED_KUBERNETES_VERSIONS,
+    CELERY_EXECUTOR,
+    KUBERNETES_EXECUTOR,
+)
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -596,7 +601,7 @@ USER airflow
 
 COPY --chown=airflow:0 airflow/example_dags/ /opt/airflow/dags/
 
-COPY --chown=airflow:0 providers/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+COPY --chown=airflow:0 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
 
 ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
 """
@@ -782,6 +787,12 @@ def upload_k8s_image(
         if return_code == 0:
             get_console().print("\n[warning]NEXT STEP:[/][info] You might now deploy airflow by:\n")
             get_console().print("\nbreeze k8s deploy-airflow\n")
+            get_console().print(
+                "\n[warning]Note:[/]\nIf you want to run tests with [info]--executor KubernetesExecutor[/], you should deploy airflow with [info]--multi-namespace-mode --executor KubernetesExecutor[/] flag.\n"
+            )
+            get_console().print(
+                "\nbreeze k8s deploy-airflow --multi-namespace-mode --executor KubernetesExecutor\n"
+            )
         sys.exit(return_code)
 
 
@@ -1406,6 +1417,31 @@ def _get_parallel_test_args(
     return combo_titles, combos, pytest_args, short_combo_titles
 
 
+def _is_deployed_with_same_executor(python: str, kubernetes_version: str, executor: str) -> bool:
+    """Check if the current cluster is deployed with the same executor that the current tests are using.
+
+    This is especially useful when running tests with executors like KubernetesExecutor, CeleryExecutor, etc.
+    It verifies by checking the label of the airflow-scheduler deployment.
+    """
+    result = run_command_with_k8s_env(
+        [
+            "kubectl",
+            "get",
+            "deployment",
+            "-n",
+            "airflow",
+            "airflow-scheduler",
+            "-o",
+            "jsonpath='{.metadata.labels.executor}'",
+        ],
+        python=python,
+        kubernetes_version=kubernetes_version,
+        capture_output=True,
+        check=False,
+    )
+    return executor == result.stdout.decode().strip().replace("'", "")
+
+
 def _run_tests(
     python: str,
     kubernetes_version: str,
@@ -1422,8 +1458,18 @@ def _run_tests(
         extra_shell_args.append("--no-rcs")
     elif shell_binary.endswith("bash"):
         extra_shell_args.extend(["--norc", "--noprofile"])
-    the_tests: list[str] = ["kubernetes_tests/"]
-    command_to_run = " ".join([quote(arg) for arg in ["uv", "run", "pytest", *the_tests, *test_args]])
+    if (
+        executor == KUBERNETES_EXECUTOR or executor == CELERY_EXECUTOR
+    ) and not _is_deployed_with_same_executor(python, kubernetes_version, executor):
+        get_console(output=output).print(
+            f"[warning]{executor} not deployed. Please deploy airflow with {executor} first."
+        )
+        get_console(output=output).print(
+            f"[info]You can deploy airflow with {executor} by running:[/]\nbreeze k8s configure-cluster\nbreeze k8s deploy-airflow --multi-namespace-mode --executor {executor}"
+        )
+        return 1, f"Tests {kubectl_cluster_name}"
+    the_tests: list[str] = ["kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor"]
+    command_to_run = " ".join([quote(arg) for arg in ["python3", "-m", "pytest", *the_tests, *test_args]])
     get_console(output).print(f"[info] Command to run:[/] {command_to_run}")
     result = run_command(
         [shell_binary, *extra_shell_args, "-c", command_to_run],

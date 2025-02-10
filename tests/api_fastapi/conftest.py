@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import os
 
 import pytest
@@ -56,12 +57,13 @@ def make_dag_with_multiple_versions(dag_maker):
 
     for version_number in range(1, 4):
         with dag_maker(dag_id) as dag:
-            for i in range(version_number):
-                EmptyOperator(task_id=f"task{i+1}")
+            for task_number in range(version_number):
+                EmptyOperator(task_id=f"task{task_number + 1}")
         dag.sync_to_db()
         SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
         dag_maker.create_dagrun(
-            run_id=f"run{i+1}",
+            run_id=f"run{version_number}",
+            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
             dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
         )
 
