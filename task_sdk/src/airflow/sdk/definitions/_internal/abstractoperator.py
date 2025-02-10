@@ -190,9 +190,8 @@ class AbstractOperator(Templater, DAGNode):
             if not link:
                 return None
 
-        print("Type of link is", type(link), link.__class__)
-
         el = link.get_link(ti=ti)
+        # Temporary workaround till https://github.com/apache/airflow/issues/46513 is handled.
         return el.strip('"')
 
     def get_dag(self) -> DAG | None:
