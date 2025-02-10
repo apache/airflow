@@ -27,10 +27,12 @@ login_router = AirflowRouter(tags=["Login"], prefix="/login")
 
 @login_router.get(
     "",
-    responses=create_openapi_http_exception_doc([status.HTTP_308_PERMANENT_REDIRECT]),
+    responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
 )
-def login(
-    request: Request,
-) -> RedirectResponse:
+def login(request: Request, next: None | str = None) -> RedirectResponse:
     """Redirect to the login URL depending on the AuthManager configured."""
-    return RedirectResponse(request.app.state.auth_manager.get_url_login(), status_code=308)
+    login_url = request.app.state.auth_manager.get_url_login()
+
+    if next:
+        login_url += f"?next={next}"
+    return RedirectResponse(login_url)

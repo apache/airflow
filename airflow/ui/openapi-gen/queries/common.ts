@@ -1649,10 +1649,14 @@ export type LoginServiceLoginQueryResult<
   TError = unknown,
 > = UseQueryResult<TData, TError>;
 export const useLoginServiceLoginKey = "LoginServiceLogin";
-export const UseLoginServiceLoginKeyFn = (queryKey?: Array<unknown>) => [
-  useLoginServiceLoginKey,
-  ...(queryKey ?? []),
-];
+export const UseLoginServiceLoginKeyFn = (
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useLoginServiceLoginKey, ...(queryKey ?? [{ next }])];
 export type AssetServiceCreateAssetEventMutationResult = Awaited<
   ReturnType<typeof AssetService.createAssetEvent>
 >;

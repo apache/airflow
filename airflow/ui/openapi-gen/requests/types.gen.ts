@@ -2424,6 +2424,10 @@ export type GetHealthResponse = HealthInfoResponse;
 
 export type GetVersionResponse = VersionInfo;
 
+export type LoginData = {
+  next?: string | null;
+};
+
 export type LoginResponse = unknown;
 
 export type $OpenApiTs = {
@@ -5092,15 +5096,20 @@ export type $OpenApiTs = {
   };
   "/public/login": {
     get: {
+      req: LoginData;
       res: {
         /**
          * Successful Response
          */
         200: unknown;
         /**
-         * Permanent Redirect
+         * Temporary Redirect
          */
-        308: HTTPExceptionResponse;
+        307: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

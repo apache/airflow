@@ -2302,11 +2302,20 @@ export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
 /**
  * Login
  * Redirect to the login URL depending on the AuthManager configured.
+ * @param data The data for the request.
+ * @param data.next
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseLoginServiceLogin = (queryClient: QueryClient) =>
+export const prefetchUseLoginServiceLogin = (
+  queryClient: QueryClient,
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseLoginServiceLoginKeyFn(),
-    queryFn: () => LoginService.login(),
+    queryKey: Common.UseLoginServiceLoginKeyFn({ next }),
+    queryFn: () => LoginService.login({ next }),
   });

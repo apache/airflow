@@ -2708,6 +2708,8 @@ export const useVersionServiceGetVersionSuspense = <
 /**
  * Login
  * Redirect to the login URL depending on the AuthManager configured.
+ * @param data The data for the request.
+ * @param data.next
  * @returns unknown Successful Response
  * @throws ApiError
  */
@@ -2716,11 +2718,16 @@ export const useLoginServiceLoginSuspense = <
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseLoginServiceLoginKeyFn(queryKey),
-    queryFn: () => LoginService.login() as TData,
+    queryKey: Common.UseLoginServiceLoginKeyFn({ next }, queryKey),
+    queryFn: () => LoginService.login({ next }) as TData,
     ...options,
   });
