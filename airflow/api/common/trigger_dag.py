@@ -65,26 +65,30 @@ def _trigger_dag(
     if dag is None or dag_id not in dag_bag.dags:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
-    logical_date = logical_date or timezone.utcnow()
+    if logical_date:
+        if not timezone.is_localized(logical_date):
+            raise ValueError("The logical date should be localized")
 
-    if not timezone.is_localized(logical_date):
-        raise ValueError("The logical date should be localized")
+        if replace_microseconds:
+            logical_date = logical_date.replace(microsecond=0)
 
-    if replace_microseconds:
-        logical_date = logical_date.replace(microsecond=0)
-
-    if dag.default_args and "start_date" in dag.default_args:
-        min_dag_start_date = dag.default_args["start_date"]
-        if min_dag_start_date and logical_date < min_dag_start_date:
-            raise ValueError(
-                f"Logical date [{logical_date.isoformat()}] should be >= start_date "
-                f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
-            )
+        if dag.default_args and "start_date" in dag.default_args:
+            min_dag_start_date = dag.default_args["start_date"]
+            if logical_date:
+                if min_dag_start_date and logical_date < min_dag_start_date:
+                    raise ValueError(
+                        f"Logical date [{logical_date.isoformat()}] should be >= start_date "
+                        f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
+                    )
     coerced_logical_date = timezone.coerce_datetime(logical_date)
 
-    data_interval = dag.timetable.infer_manual_data_interval(run_after=coerced_logical_date)
+    data_interval = dag.timetable.infer_manual_data_interval(
+        run_after=coerced_logical_date or timezone.utcnow()
+    )
     run_id = run_id or dag.timetable.generate_run_id(
-        run_type=DagRunType.MANUAL, logical_date=coerced_logical_date, data_interval=data_interval
+        run_type=DagRunType.MANUAL,
+        logical_date=coerced_logical_date or timezone.utcnow(),
+        data_interval=data_interval,
     )
 
     # This intentionally does not use 'session' in the current scope because it
@@ -100,7 +104,7 @@ def _trigger_dag(
     dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     dag_run = dag.create_dagrun(
         run_id=run_id,
-        logical_date=logical_date,
+        logical_date=coerced_logical_date,
         data_interval=data_interval,
         run_after=data_interval.end,
         conf=run_conf,

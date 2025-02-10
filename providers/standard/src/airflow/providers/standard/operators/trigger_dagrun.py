@@ -177,12 +177,10 @@ class TriggerDagRunOperator(BaseOperator):
         self.logical_date = logical_date
 
     def execute(self, context: Context):
-        if isinstance(self.logical_date, datetime.datetime):
+        if self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
             parsed_logical_date = self.logical_date
-        elif isinstance(self.logical_date, str):
-            parsed_logical_date = timezone.parse(self.logical_date)
         else:
-            parsed_logical_date = timezone.utcnow()
+            parsed_logical_date = timezone.parse(self.logical_date)
 
         try:
             json.dumps(self.conf)
@@ -192,7 +190,7 @@ class TriggerDagRunOperator(BaseOperator):
         if self.trigger_run_id:
             run_id = str(self.trigger_run_id)
         else:
-            run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_logical_date)
+            run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_logical_date or timezone.utcnow())
 
         try:
             dag_run = trigger_dag(
@@ -207,7 +205,7 @@ class TriggerDagRunOperator(BaseOperator):
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
                 dag_run = e.dag_run
-                self.log.info("Clearing %s on %s", self.trigger_dag_id, dag_run.logical_date)
+                self.log.info("Clearing %s on %s", self.trigger_dag_id, dag_run.run_id)
 
                 # Get target dag object and call clear()
                 dag_model = DagModel.get_current(self.trigger_dag_id)
@@ -217,7 +215,7 @@ class TriggerDagRunOperator(BaseOperator):
                 # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
+                dag.clear(run_id=dag_run.run_id)
             else:
                 if self.skip_when_already_exists:
                     raise AirflowSkipException(
@@ -238,7 +236,7 @@ class TriggerDagRunOperator(BaseOperator):
                     trigger=DagStateTrigger(
                         dag_id=self.trigger_dag_id,
                         states=self.allowed_states + self.failed_states,
-                        logical_dates=[dag_run.logical_date],
+                        run_ids=[run_id],
                         poll_interval=self.poke_interval,
                     ),
                     method_name="execute_complete",
@@ -248,7 +246,7 @@ class TriggerDagRunOperator(BaseOperator):
                 self.log.info(
                     "Waiting for %s on %s to become allowed state %s ...",
                     self.trigger_dag_id,
-                    dag_run.logical_date,
+                    run_id,
                     self.allowed_states,
                 )
                 time.sleep(self.poke_interval)
@@ -265,17 +263,15 @@ class TriggerDagRunOperator(BaseOperator):
     @provide_session
     def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
         # This logical_date is parsed from the return trigger event
-        provided_logical_date = event[1]["logical_dates"][0]
+        provided_run_id = event[1]["run_ids"][0]
         try:
             # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
             dag_run = session.execute(
-                select(DagRun).where(
-                    DagRun.dag_id == self.trigger_dag_id, DagRun.logical_date == provided_logical_date
-                )
+                select(DagRun).where(DagRun.dag_id == self.trigger_dag_id, DagRun.run_id == provided_run_id)
             ).scalar_one()
         except NoResultFound:
             raise AirflowException(
-                f"No DAG run found for DAG {self.trigger_dag_id} and logical date {self.logical_date}"
+                f"No DAG run found for DAG {self.trigger_dag_id} and run ID {provided_run_id}"
             )
 
         state = dag_run.state
