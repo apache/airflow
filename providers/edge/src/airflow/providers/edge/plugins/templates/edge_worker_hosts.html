@@ -29,6 +29,22 @@
         <p>No Edge Workers connected or known currently.</p>
       {% else %}
 
+      <script>
+        function showForm(worker_name) {
+          var button = document.getElementById("button_" + worker_name);
+          var form = document.getElementById("form_" + worker_name);
+          form.style.display = "block";
+          button.style.display = "none";
+        }
+        function showEditComment(worker_name) {
+          var display = document.getElementById("display_" + worker_name);
+          var textarea = document.getElementById("textarea_" + worker_name);
+          var button = document.getElementById("update_" + worker_name);
+          display.style.display = "none";
+          textarea.style.display = "block";
+          button.style.display = "inline";
+        }
+      </script>
       <table class="table table-striped table-bordered">
         <tr>
             <th>Hostname</th>
@@ -43,7 +59,7 @@
               <th>Jobs Failed</th>
             -->
             <th>System Information</th>
-            <th>Maintenance mode</th>
+            <th>Operations</th>
         </tr>
         {% for host in hosts %}
           <tr>
@@ -100,30 +116,57 @@
                 {% endfor %}
               </ul>
             </td>
-            <td>
-              {%- if host.state in ["idle", "running"] -%}
-                <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/on" method="POST">
+            {%- if host.state in ["idle", "running"] -%}
+              <td>
+                <button id="button_{{ host.worker_name }}" onclick="showForm('{{ host.worker_name }}')" class="btn btn-sm btn-primary">
+                    Enter Maintenance
+                </button>
+                <form id="form_{{ host.worker_name }}" style="display: none" action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/on" method="POST">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                  <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
-                      Enter
+                  <div>
+                    <label for="maintenance_comment">Maintenance Comment:</label>
+                  </div>
+                  <textarea  name="maintenance_comment" rows="3" maxlength="1024" style="width: 100%; margin-bottom: 5px;" required></textarea>
+                  <br />
+                  <button type="submit" class="btn btn-sm btn-primary">
+                      Confirm Maintenance
                   </button>
-                </form>
-              {%- elif host.state in ["maintenance pending", "maintenance mode", "maintenance request"] -%}
-                <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/off" method="POST">
+                </td>
+              </form>
+            {%- elif host.state in ["maintenance pending", "maintenance mode", "maintenance request"] -%}
+              <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/off" method="POST">
+                <td>
+                  <div id="display_{{ host.worker_name }}">
+                    {{ host.maintenance_comment }}
+                    <a onclick="showEditComment('{{ host.worker_name }}')" class="btn btn-sm btn-default" data-toggle="tooltip" rel="tooltip" title="Edit maintenance comment">
+                      <span class="sr-only">Edit</span>
+                      <i class="fa fa-edit"></i>
+                    </a>
+                  </div>
+                  <textarea id="textarea_{{ host.worker_name }}" name="maintenance_comment" rows="3" maxlength="1024" style="display: none; width:100%;" required>{{ host.maintenance_comment }}</textarea>
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                  <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
-                      Exit
-                  </button>
-                </form>
-              {%- elif host.state in ["offline", "unknown", "offline maintenance"] -%}
-                <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/remove" method="POST">
+                  <div style="margin-top: 10px;">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        Exit Maintenance
+                    </button>
+                    <button id="update_{{ host.worker_name }}" type="submit" class="btn btn-sm btn-primary" style="display: none;" formaction="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/change_comment">
+                      Update comment
+                    </button>
+                  </div>
+                </td>
+              </form>
+            {%- elif host.state in ["offline", "unknown", "offline maintenance"] -%}
+              <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/remove" method="POST">
+                <td>
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                  <button type="submit" style="padding: 10px 20px; background-color: blue; color: white; border: none; border-radius: 5px;">
+                  <button type="submit" class="btn btn-sm btn-primary">
                       Remove
                   </button>
-                </form>
-              {% endif %}
-            </td>
+                </td>
+              </form>
+            {%- else -%}
+              <td></td>
+            {% endif %}
           </tr>
         {% endfor %}
       </table>

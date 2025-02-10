@@ -38,7 +38,6 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.google.cloud.openlineage.utils import (
     BIGQUERY_NAMESPACE,
-    BigQueryJobRunFacet,
     get_facets_from_bq_table,
     get_from_nullable_chain,
     get_identity_column_lineage_facet,
@@ -48,6 +47,7 @@ from airflow.providers.google.cloud.openlineage.utils import (
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import Dataset, RunFacet
+    from airflow.providers.google.cloud.openlineage.facets import BigQueryJobRunFacet
 
 
 class _BigQueryInsertJobOperatorOpenLineageMixin:
@@ -316,6 +316,8 @@ class _BigQueryInsertJobOperatorOpenLineageMixin:
 
     @staticmethod
     def _get_bigquery_job_run_facet(properties: dict) -> BigQueryJobRunFacet:
+        from airflow.providers.google.cloud.openlineage.facets import BigQueryJobRunFacet
+
         job_type = get_from_nullable_chain(properties, ["configuration", "jobType"])
         cache_hit, billed_bytes = None, None
         if job_type == "QUERY":
