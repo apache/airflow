@@ -2,3 +2,4 @@
 -e ./providers/standard
 -e ./providers
 -e ./task_sdk
+-e ./providers/cncf/kubernetes

@@ -154,19 +154,20 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self.log.warning("Could not create GitHook for connection %s : %s", self.git_conn_id, e)
 
     def _initialize(self):
-        with self.hook.configure_hook_env():
-            self._clone_bare_repo_if_required()
-            self._ensure_version_in_bare_repo()
+        with self.lock():
+            with self.hook.configure_hook_env():
+                self._clone_bare_repo_if_required()
+                self._ensure_version_in_bare_repo()
 
-        self._clone_repo_if_required()
-        self.repo.git.checkout(self.tracking_ref)
-        if self.version:
-            if not self._has_version(self.repo, self.version):
-                self.repo.remotes.origin.fetch()
-            self.repo.head.set_reference(self.repo.commit(self.version))
-            self.repo.head.reset(index=True, working_tree=True)
-        else:
-            self.refresh()
+            self._clone_repo_if_required()
+            self.repo.git.checkout(self.tracking_ref)
+            if self.version:
+                if not self._has_version(self.repo, self.version):
+                    self.repo.remotes.origin.fetch()
+                self.repo.head.set_reference(self.repo.commit(self.version))
+                self.repo.head.reset(index=True, working_tree=True)
+            else:
+                self.refresh()
 
     def initialize(self) -> None:
         if not self.repo_url:
@@ -259,9 +260,10 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
 
-        with self.hook.configure_hook_env():
-            self._fetch_bare_repo()
-            self.repo.remotes.origin.pull()
+        with self.lock():
+            with self.hook.configure_hook_env():
+                self._fetch_bare_repo()
+                self.repo.remotes.origin.pull()
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:

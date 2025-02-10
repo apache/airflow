@@ -1573,9 +1573,9 @@ webserver:
       default: "120"
     worker_refresh_batch_size:
       description: |
-        Number of workers to refresh at a time. When set to 0, worker refresh is
-        disabled. When nonzero, airflow periodically refreshes webserver workers by
-        bringing up new ones and killing old ones.
+        Number of workers to refresh at a time through Gunicorn's built-in worker management.
+        When set to 0, worker refresh is disabled. When nonzero, airflow periodically refreshes
+        webserver workers by bringing up new ones and killing old ones.
       version_added: ~
       type: string
       example: ~
@@ -2676,3 +2676,15 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+fastapi:
+  description: Configuration for the Fastapi webserver.
+  options:
+    base_url:
+      description: |
+        The base url of the Fastapi endpoint. Airflow cannot guess what domain or CNAME you are using.
+        If the Airflow console (the front-end) and the Fastapi apis are on a different domain, this config
+        should contain the Fastapi apis endpoint.
+      version_added: ~
+      type: string
+      example: ~
+      default: "http://localhost:29091"
