@@ -300,6 +300,7 @@ class DagRun(BaseModel):
     run_after: Annotated[datetime, Field(title="Run After")]
     start_date: Annotated[datetime, Field(title="Start Date")]
     end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    clear_number: Annotated[int, Field(title="Clear Number")] = 0
     run_type: DagRunType
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     external_trigger: Annotated[bool | None, Field(title="External Trigger")] = False
@@ -315,6 +316,7 @@ class TIRunContext(BaseModel):
     """
 
     dag_run: DagRun
+    task_reschedule_count: Annotated[int, Field(title="Task Reschedule Count")] = 0
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None

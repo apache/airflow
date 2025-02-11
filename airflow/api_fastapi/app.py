@@ -133,6 +133,7 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
 
     if app and (auth_manager_fastapi_app := am.get_fastapi_app()):
         app.mount("/auth", auth_manager_fastapi_app)
+        app.state.auth_manager = am
 
     return am
 
