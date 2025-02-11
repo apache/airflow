@@ -321,7 +321,6 @@ class TestDockerOperator:
             ipc_mode=None,
             port_bindings={},
             ulimits=[],
-            labels=None,
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
@@ -435,7 +434,6 @@ class TestDockerOperator:
                     ipc_mode=None,
                     port_bindings={},
                     ulimits=[],
-                    labels=None,
                 ),
                 call(
                     mounts=[
@@ -456,7 +454,6 @@ class TestDockerOperator:
                     ipc_mode=None,
                     port_bindings={},
                     ulimits=[],
-                    labels=None,
                 ),
             ]
         )
