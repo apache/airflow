@@ -88,11 +88,13 @@ class DAGRunSchema(SQLAlchemySchema):
 
         if "dag_run_id" not in data:
             try:
+                if logical_date_str := data.get("logical_date"):
+                    logical_date = timezone.parse(logical_date_str)
+                else:
+                    logical_date = None
                 data["dag_run_id"] = DagRun.generate_run_id(
                     run_type=DagRunType.MANUAL,
-                    logical_date=timezone.parse(data.get("logical_date"))
-                    if data.get("logical_date")
-                    else None,
+                    logical_date=logical_date,
                     run_after=timezone.parse(data["run_after"]),
                 )
             except (ParserError, TypeError) as err:

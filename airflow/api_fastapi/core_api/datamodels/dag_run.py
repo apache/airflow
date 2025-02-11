@@ -84,7 +84,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     dag_run_id: str | None = None
     data_interval_start: AwareDatetime | None = None
     data_interval_end: AwareDatetime | None = None
-    logical_date: AwareDatetime | None = None
+    logical_date: AwareDatetime | None
     run_after: datetime = Field(default_factory=timezone.utcnow)
 
     conf: dict = Field(default_factory=dict)
