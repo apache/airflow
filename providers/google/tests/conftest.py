@@ -23,6 +23,8 @@ import pytest
 pytest_plugins = "tests_common.pytest_plugin"
 
 
+# Provider specific `deprecations_ignore.yml` file allows us to not depend
+# on the called providers in tests to ignore the deprecations.
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config: pytest.Config) -> None:
     deprecations_ignore_path = pathlib.Path(__file__).parent.joinpath("deprecations_ignore.yml")
