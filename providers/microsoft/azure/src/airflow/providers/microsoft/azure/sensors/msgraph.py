@@ -182,7 +182,7 @@ class MSGraphSensor(BaseSensorOperator):
                         result = self.result_processor(response, **context)  # type: ignore
                     except TypeError:
                         warnings.warn(
-                            "result_processor signature has changed, event parameter should be defined before context",
+                            "result_processor signature has changed, result parameter should be defined before context!",
                             AirflowProviderDeprecationWarning,
                             stacklevel=2,
                         )
