@@ -644,7 +644,9 @@ class OpenLineageRedactor(SecretsMasker):
             class AirflowContextDeprecationWarning(UserWarning):
                 pass
         else:
-            from airflow.utils.context import AirflowContextDeprecationWarning
+            from airflow.utils.context import (  # type: ignore[attr-defined,no-redef]
+                AirflowContextDeprecationWarning,
+            )
 
         if depth > max_depth:
             return item
