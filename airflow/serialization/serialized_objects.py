@@ -40,7 +40,7 @@ from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import BaseOperatorLink, GenericOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink, XComOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
@@ -1326,7 +1326,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                         operator.__name__ == encoded_op["task_type"]
                         and operator.__module__ == encoded_op["_task_module"]
                     ):
-                        generic_ope = GenericOperatorLink(name=ope.name, xcom_key=ope.xcom_key)
+                        generic_ope = XComOperatorLink(name=ope.name, xcom_key=ope.xcom_key)
                         op_extra_links_from_plugin.update({ope.name: generic_ope})
 
             # If OperatorLinks are defined in Plugins but not in the Operator that is being Serialized
@@ -1525,7 +1525,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def _deserialize_operator_extra_links(
         cls, encoded_op_links: dict[str, str]
-    ) -> dict[str, GenericOperatorLink]:
+    ) -> dict[str, XComOperatorLink]:
         """
         Deserialize Operator Links if the Classes are registered in Airflow Plugins.
 
@@ -1543,7 +1543,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         op_predefined_extra_links = {}
 
         for name, xcom_key in encoded_op_links.items():
-            # Get the name and xcom_key of the encoded operator and use it to create a GenericOperatorLink object
+            # Get the name and xcom_key of the encoded operator and use it to create a XComOperatorLink object
             # during deserialization.
             #
             # Example:
@@ -1555,7 +1555,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             #     'raise_error': 'key'
             # }
 
-            op_predefined_extra_link = GenericOperatorLink(name=name, xcom_key=xcom_key)
+            op_predefined_extra_link = XComOperatorLink(name=name, xcom_key=xcom_key)
             op_predefined_extra_links.update({op_predefined_extra_link.name: op_predefined_extra_link})
 
         return op_predefined_extra_links

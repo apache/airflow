@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 @attrs.define()
-class GenericOperatorLink(LoggingMixin):
+class XComOperatorLink(LoggingMixin):
     """A generic operator link class that can retrieve link only using XCOMs. Used while deserializing operators."""
 
     name: str
