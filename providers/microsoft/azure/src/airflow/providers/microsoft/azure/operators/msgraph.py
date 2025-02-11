@@ -251,7 +251,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 return result
         return results
 
-    def pull_xcom(self, context: dict[str, Any]) -> list:
+    def pull_xcom(self, context: Context | dict[str, Any]) -> list:
         map_index = context["ti"].map_index
         value = list(
             context["ti"].xcom_pull(
