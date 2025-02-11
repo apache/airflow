@@ -204,7 +204,7 @@ class BaseK8STest:
         ).decode()
         assert "successfully rolled out" in deployment_rollout_status
 
-    def ensure_dag_expected_state(self, host, run_after, dag_id, expected_final_state, timeout):
+    def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0
         state = ""
         max_tries = max(int(timeout / 5), 1)
@@ -220,7 +220,7 @@ class BaseK8STest:
             print(f"Received: {result}")
             state = None
             for dag_run in result_json["dag_runs"]:
-                if dag_run["run_after"] == run_after:
+                if dag_run["logical_date"] == logical_date:
                     state = dag_run["state"]
             check_call(["echo", f"Attempt {tries}: Current state of dag is {state}"])
             print(f"Attempt {tries}: Current state of dag is {state}")
@@ -238,8 +238,6 @@ class BaseK8STest:
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        from airflow.utils import timezone
-
         patch_string = f"http://{host}/api/v1/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
         max_attempts = 10
@@ -267,10 +265,9 @@ class BaseK8STest:
         post_string = f"http://{host}/api/v1/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#2 {post_string}")
 
+        logical_date = datetime.now(timezone.utc).isoformat()
         # Trigger a new dagrun
-        result = self.session.post(
-            post_string, json={"logical_date": timezone.coerce_datetime(timezone.utcnow())}
-        )
+        result = self.session.post(post_string, json={"logical_date": logical_date})
         try:
             result_json = result.json()
         except ValueError:
@@ -292,12 +289,13 @@ class BaseK8STest:
         result_json = self.start_dag(dag_id=dag_id, host=host)
         dag_runs = result_json["dag_runs"]
         assert len(dag_runs) > 0
-        run_after = None
+        logical_date = None
         dag_run_id = None
         for dag_run in dag_runs:
             if dag_run["dag_id"] == dag_id:
+                logical_date = dag_run["logical_date"]
                 run_after = dag_run["run_after"]
                 dag_run_id = dag_run["dag_run_id"]
                 break
         assert run_after is not None, f"No run_after can be found for the dag with {dag_id}"
-        return dag_run_id, run_after
+        return dag_run_id, logical_date

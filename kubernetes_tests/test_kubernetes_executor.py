@@ -29,8 +29,8 @@ class TestKubernetesExecutor(BaseK8STest):
     @pytest.mark.execution_timeout(300)
     def test_integration_run_dag(self):
         dag_id = "example_kubernetes_executor"
-        dag_run_id, run_after = self.start_job_in_kubernetes(dag_id, self.host)
-        print(f"Found the job with run_after {run_after}")
+        dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
+        print(f"Found the job with logical_date {logical_date}")
 
         # Wait some time for the operator to complete
         self.monitor_task(
@@ -44,7 +44,7 @@ class TestKubernetesExecutor(BaseK8STest):
 
         self.ensure_dag_expected_state(
             host=self.host,
-            run_after=run_after,
+            logical_date=logical_date,
             dag_id=dag_id,
             expected_final_state="success",
             timeout=300,
@@ -54,7 +54,7 @@ class TestKubernetesExecutor(BaseK8STest):
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = "example_kubernetes_executor"
 
-        dag_run_id, run_after = self.start_job_in_kubernetes(dag_id, self.host)
+        dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
 
         self._delete_airflow_pod("scheduler")
         self.ensure_deployment_health("airflow-scheduler")
@@ -80,7 +80,7 @@ class TestKubernetesExecutor(BaseK8STest):
 
         self.ensure_dag_expected_state(
             host=self.host,
-            run_after=run_after,
+            logical_date=logical_date,
             dag_id=dag_id,
             expected_final_state="success",
             timeout=300,
