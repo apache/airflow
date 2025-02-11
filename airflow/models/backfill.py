@@ -58,7 +58,6 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.timetables.base import DagRunInfo
 
-
 log = logging.getLogger(__name__)
 
 
@@ -288,6 +287,8 @@ def _create_backfill_dag_run(
     backfill_sort_ordinal,
     session,
 ):
+    from airflow.models.dagrun import DagRun
+
     # clear dag run if run exits and reprocess behaviour is in completed or failed
     clear_run_if_dagrun_exists(dag, info, reprocess_behavior, backfill_id, session)
     with session.begin_nested():
@@ -300,10 +301,8 @@ def _create_backfill_dag_run(
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         try:
             dr = dag.create_dagrun(
-                run_id=dag.timetable.generate_run_id(
-                    run_type=DagRunType.BACKFILL_JOB,
-                    logical_date=info.logical_date,
-                    data_interval=info.data_interval,
+                run_id=DagRun.generate_run_id(
+                    run_type=DagRunType.BACKFILL_JOB, logical_date=info.logical_date, run_after=info.run_after
                 ),
                 logical_date=info.logical_date,
                 data_interval=info.data_interval,

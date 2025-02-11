@@ -1286,7 +1286,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag.create_dagrun(
                         run_id=dag.timetable.generate_run_id(
                             run_type=DagRunType.SCHEDULED,
-                            logical_date=dag_model.next_dagrun,
+                            run_after=dag_model.next_dagrun,
                             data_interval=data_interval,
                         ),
                         logical_date=dag_model.next_dagrun,
@@ -1394,12 +1394,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 data_interval = dag.timetable.data_interval_for_events(logical_date, asset_events)
                 dag_run = dag.create_dagrun(
-                    run_id=dag.timetable.generate_run_id(
+                    run_id=DagRun.generate_run_id(
                         run_type=DagRunType.ASSET_TRIGGERED,
                         logical_date=logical_date,
-                        data_interval=data_interval,
-                        session=session,
-                        events=asset_events,
+                        run_after=max(logical_dates.values()),
                     ),
                     logical_date=logical_date,
                     data_interval=data_interval,

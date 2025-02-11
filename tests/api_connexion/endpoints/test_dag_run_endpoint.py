@@ -109,6 +109,7 @@ class TestDagRunEndpoint:
                 run_id=f"TEST_DAG_RUN_ID_{i}",
                 run_type=DagRunType.MANUAL,
                 logical_date=timezone.parse(self.default_time) + timedelta(days=i - 1),
+                run_after=timezone.parse(self.default_time) + timedelta(days=i - 1),
                 start_date=timezone.parse(self.default_time),
                 external_trigger=True,
                 state=state,
@@ -126,6 +127,7 @@ class TestDagRunEndpoint:
                         run_id=f"TEST_DAG_RUN_ID_{i}",
                         run_type=DagRunType.MANUAL,
                         logical_date=timezone.parse(self.default_time_2),
+                        run_after=timezone.parse(self.default_time_2),
                         start_date=timezone.parse(self.default_time),
                         external_trigger=True,
                         state=state,
@@ -190,6 +192,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             run_id="TEST_DAG_RUN_ID",
             run_type=DagRunType.MANUAL,
             logical_date=timezone.parse(self.default_time),
+            run_after=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="running",
@@ -201,6 +204,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             "end_date": None,
             "state": "running",
             "logical_date": self.default_time,
+            "run_after": self.default_time,
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
@@ -240,6 +244,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             run_id="TEST_DAG_RUN_ID",
             run_type=DagRunType.MANUAL,
             logical_date=timezone.parse(self.default_time),
+            run_after=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
         )
@@ -263,6 +268,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             run_id="TEST_DAG_RUN_ID",
             run_type=DagRunType.MANUAL,
             logical_date=timezone.parse(self.default_time),
+            run_after=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="running",
@@ -287,6 +293,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             run_id="TEST_DAG_RUN_ID",
             run_type=DagRunType.MANUAL,
             logical_date=timezone.parse(self.default_time),
+            run_after=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="running",
@@ -312,6 +319,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "end_date": None,
             "state": "running",
             "logical_date": self.default_time,
+            "run_after": self.default_time,
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
@@ -328,6 +336,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "end_date": None,
             "state": "running",
             "logical_date": self.default_time_2,
+            "run_after": self.default_time_2,
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
@@ -382,6 +391,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "end_date": None,
             "state": "running",
             "logical_date": self.default_time_2,
+            "run_after": self.default_time_2,
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
@@ -398,6 +408,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
             "end_date": None,
             "state": "running",
             "logical_date": self.default_time,
+            "run_after": self.default_time,
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
@@ -550,6 +561,7 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
                 run_id=f"TEST_DAG_RUN_ID{i}",
                 run_type=DagRunType.MANUAL,
                 logical_date=timezone.parse(self.default_time) + timedelta(minutes=i),
+                run_after=timezone.parse(self.default_time) + timedelta(minutes=i),
                 start_date=timezone.parse(self.default_time),
                 external_trigger=True,
             )
@@ -655,6 +667,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
                 run_id=f"TEST_START_EXEC_DAY_1{i}",
                 run_type=DagRunType.MANUAL,
                 logical_date=timezone.parse(dates[i]),
+                run_after=timezone.parse(dates[i]),
                 start_date=timezone.parse(dates[i]),
                 external_trigger=True,
                 state=DagRunState.SUCCESS,
@@ -699,6 +712,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "end_date": None,
             "state": "running",
             "logical_date": self.default_time,
+            "run_after": self.default_time,
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
@@ -716,6 +730,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "end_date": None,
             "state": "running",
             "logical_date": self.default_time_2,
+            "run_after": self.default_time_2,
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
@@ -777,6 +792,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "end_date": None,
             "state": "running",
             "logical_date": self.default_time_2,
+            "run_after": self.default_time_2,
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
@@ -793,6 +809,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "end_date": None,
             "state": "running",
             "logical_date": self.default_time,
+            "run_after": self.default_time,
             "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
@@ -925,6 +942,7 @@ class TestGetDagRunBatchPagination(TestDagRunEndpoint):
                 state="running",
                 run_type=DagRunType.MANUAL,
                 logical_date=timezone.parse(self.default_time) + timedelta(minutes=i),
+                run_after=timezone.parse(self.default_time) + timedelta(minutes=i),
                 start_date=timezone.parse(self.default_time),
                 external_trigger=True,
             )
@@ -1008,6 +1026,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
                 run_id=f"TEST_START_EXEC_DAY_1{i}",
                 run_type=DagRunType.MANUAL,
                 logical_date=timezone.parse(date),
+                run_after=timezone.parse(date),
                 start_date=timezone.parse(date),
                 external_trigger=True,
                 state="success",
@@ -1084,21 +1103,36 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 class TestPostDagRun(TestDagRunEndpoint):
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
-        "dag_run_id, logical_date, note, data_interval_start, data_interval_end",
+        "dag_run_id, logical_date, run_after, note, data_interval_start, data_interval_end",
         [
             pytest.param(
-                "TEST_DAG_RUN", "2020-06-11T18:00:00+00:00", "test-note", None, None, id="all-present"
+                "TEST_DAG_RUN",
+                "2020-06-11T18:00:00+00:00",
+                "2020-06-11T18:00:00+00:00",
+                "test-note",
+                None,
+                None,
+                id="all-present",
             ),
             pytest.param(
                 "TEST_DAG_RUN",
+                "2024-06-11T18:00:00+00:00",
                 "2024-06-11T18:00:00+00:00",
                 "test-note",
                 "2024-01-03T00:00:00+00:00",
                 "2024-01-04T05:00:00+00:00",
                 id="all-present-with-dates",
             ),
-            pytest.param(None, "2020-06-11T18:00:00+00:00", None, None, None, id="only-date"),
-            pytest.param(None, None, None, None, None, id="all-missing"),
+            pytest.param(
+                None,
+                "2020-06-11T18:00:00+00:00",
+                "2020-06-11T18:00:00+00:00",
+                None,
+                None,
+                None,
+                id="only-date",
+            ),
+            pytest.param(None, None, "2020-06-11T18:00:00+00:00", None, None, None, id="all-missing"),
         ],
     )
     def test_should_respond_200(
@@ -1106,20 +1140,18 @@ class TestPostDagRun(TestDagRunEndpoint):
         session,
         dag_run_id,
         logical_date,
+        run_after,
         note,
         data_interval_start,
         data_interval_end,
     ):
         self._create_dag("TEST_DAG_ID")
-
-        # We freeze time for this test, so we could check it into the returned dates.
-        fixed_now = timezone.utcnow()
-
         # raise NotImplementedError("TODO: Add tests for data_interval_start and data_interval_end")
 
         request_json = {}
         if logical_date is not None:
             request_json["logical_date"] = logical_date
+        request_json["run_after"] = run_after
         if dag_run_id is not None:
             request_json["dag_run_id"] = dag_run_id
         if data_interval_start is not None:
@@ -1136,12 +1168,11 @@ class TestPostDagRun(TestDagRunEndpoint):
 
         assert response.status_code == 200
 
-        if logical_date is None:
-            expected_logical_date = fixed_now.isoformat()
-        else:
-            expected_logical_date = logical_date
+        expected_logical_date = logical_date if logical_date is not None else None
+
+        # when logical_date is null, run_id is run_after + random string.
         if dag_run_id is None:
-            expected_dag_run_id = f"manual__{expected_logical_date}"
+            expected_dag_run_id = f"manual__{run_after}"
         else:
             expected_dag_run_id = dag_run_id
 
@@ -1157,6 +1188,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "dag_run_id": expected_dag_run_id,
             "end_date": None,
             "logical_date": expected_logical_date,
+            "run_after": run_after,
             "external_trigger": True,
             "start_date": None,
             "state": "queued",
@@ -1167,8 +1199,15 @@ class TestPostDagRun(TestDagRunEndpoint):
             "note": note,
         }
         expected_response_json.update({"triggered_by": "rest_api"} if AIRFLOW_V_3_0_PLUS else {})
+        response_json = response.json
+        for key in expected_response_json:
+            if key != "dag_run_id":
+                assert response_json[key] == expected_response_json[key], f"Mismatch on key {key}"
 
-        assert response.json == expected_response_json
+        assert response_json["dag_run_id"].startswith(expected_dag_run_id), (
+            f"dag_run_id '{response_json['dag_run_id']}' does not start with expected prefix "
+            f"'{expected_dag_run_id}'"
+        )
         _check_last_log(session, dag_id="TEST_DAG_ID", event="api.post_dag_run", logical_date=None)
 
     def test_raises_validation_error_for_invalid_request(self):
@@ -1255,6 +1294,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={
                 "logical_date": logical_date,
+                "run_after": logical_date,
             },
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -1266,6 +1306,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "dag_run_id": dag_run_id,
             "end_date": None,
             "logical_date": logical_date,
+            "run_after": logical_date,
             "external_trigger": True,
             "start_date": None,
             "state": "queued",
@@ -1512,6 +1553,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             "dag_run_id": dag_run_id,
             "end_date": dr.end_date.isoformat() if state != State.QUEUED else None,
             "logical_date": dr.logical_date.isoformat(),
+            "run_after": dr.run_after.isoformat(),
             "external_trigger": False,
             "start_date": dr.start_date.isoformat() if state != State.QUEUED else None,
             "state": state,
@@ -1686,6 +1728,7 @@ class TestClearDagRun(TestDagRunEndpoint):
             "end_date": None,
             "external_trigger": False,
             "logical_date": dr.logical_date.isoformat(),
+            "run_after": dr.run_after.isoformat(),
             "start_date": None,
             "state": "queued",
             "data_interval_start": dr.data_interval_start.isoformat(),
@@ -1908,6 +1951,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "end_date": dr.end_date.isoformat(),
             "external_trigger": True,
             "logical_date": self.default_time,
+            "run_after": self.default_time,
             "start_date": self.default_time,
             "state": "success",
             "data_interval_start": None,
@@ -1936,6 +1980,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "dag_run_id": dr.run_id,
             "end_date": dr.end_date.isoformat(),
             "logical_date": self.default_time,
+            "run_after": self.default_time,
             "external_trigger": True,
             "start_date": self.default_time,
             "state": "success",
