@@ -190,7 +190,11 @@ class TriggerDagRunOperator(BaseOperator):
         if self.trigger_run_id:
             run_id = str(self.trigger_run_id)
         else:
-            run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_logical_date or timezone.utcnow())
+            run_id = DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL,
+                logical_date=parsed_logical_date,
+                run_after=timezone.utcnow(),
+            )
 
         try:
             dag_run = trigger_dag(

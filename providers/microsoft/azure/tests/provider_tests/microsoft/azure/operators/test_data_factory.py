@@ -327,7 +327,9 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 logical_date=logical_date,
-                run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+                run_id=DagRun.generate_run_id(
+                    run_type=DagRunType.MANUAL, logical_date=logical_date, run_after=logical_date
+                ),
             )
         else:
             dag_run = DagRun(
