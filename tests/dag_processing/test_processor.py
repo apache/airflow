@@ -83,7 +83,7 @@ class TestDagFileProcessor:
                     rel_path=file_path,
                     bundle=ParseBundleInfo(
                         name="testing",
-                        root_path=TEST_DAG_FOLDER,
+                        path=TEST_DAG_FOLDER,
                     ),
                 ),
                 requests_fd=1,
@@ -200,7 +200,7 @@ def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
     w.makefile("wb").write(
         b'{"parse_file_info": '
         b'{"rel_path":"wait.py",'
-        b'"bundle":{"name":"testing","root_path":"/files/dags","version":null}'
+        b'"bundle":{"name":"testing","path":"/files/dags","version":null}'
         b'},"requests_fd":'
         + str(w2.fileno()).encode("ascii")
         + b',"callback_requests": [{"filepath": "wait.py", "bundle_name": "testing", "bundle_version": null, '
@@ -260,7 +260,7 @@ def test_parse_file_with_dag_callbacks(spy_agency):
         DagFileParseRequest(
             parse_file_info=ParseFileInfo(
                 rel_path="A",
-                bundle=ParseBundleInfo(name="no matter", root_path="no matter"),
+                bundle=ParseBundleInfo(name="no matter", path="no matter"),
             ),
             requests_fd=1,
             callback_requests=requests,

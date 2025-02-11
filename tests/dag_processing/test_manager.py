@@ -81,7 +81,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 def _default_bundle_info() -> ParseBundleInfo:
     return ParseBundleInfo(
         name="testing",
-        root_path=TEST_DAGS_FOLDER,
+        path=TEST_DAGS_FOLDER,
     )
 
 
@@ -430,7 +430,7 @@ class TestDagFileProcessorManager:
             test_dag_path.absolute_path,
             read_dags_from_db=False,
             include_examples=False,
-            bundle_path=test_dag_path.bundle.root_path,
+            bundle_path=test_dag_path.bundle.path,
         )
 
         with create_session() as session:
@@ -530,7 +530,7 @@ class TestDagFileProcessorManager:
                 b'"parse_file_info":'
                 b"{"
                 b'"rel_path":"test_dag.py",'
-                b'"bundle":{"name":"testing","root_path":"/opt/airflow/dags","version":null}'
+                b'"bundle":{"name":"testing","path":"/opt/airflow/dags","version":null}'
                 b"},"
                 b'"requests_fd":123,'
                 b'"callback_requests":[],'
@@ -553,7 +553,7 @@ class TestDagFileProcessorManager:
                 b'"parse_file_info":'
                 b"{"
                 b'"rel_path":"dag_callback_dag.py",'
-                b'"bundle":{"name":"testing","root_path":"/opt/airflow/dags","version":null}'
+                b'"bundle":{"name":"testing","path":"/opt/airflow/dags","version":null}'
                 b"},"
                 b'"requests_fd":123,"callback_requests":'
                 b"["
@@ -575,7 +575,7 @@ class TestDagFileProcessorManager:
     )
     def test_serialize_callback_requests(self, callbacks, path, expected_buffer):
         file_info = ParseFileInfo(
-            bundle=ParseBundleInfo(name="testing", root_path="/opt/airflow/dags"), rel_path=path
+            bundle=ParseBundleInfo(name="testing", path="/opt/airflow/dags"), rel_path=path
         )
         processor = self.mock_processor()
         processor._on_child_started(callbacks=callbacks, parse_file_info=file_info)
@@ -697,7 +697,7 @@ class TestDagFileProcessorManager:
         with dag_maker("test_dag2") as dag2:
             dag2.relative_fileloc = "test_dag2.py"
         dag_maker.sync_dagbag_to_db()
-        maker_bundle = ParseBundleInfo(name="dag_maker", root_path=TEST_DAGS_FOLDER)
+        maker_bundle = ParseBundleInfo(name="dag_maker", path=TEST_DAGS_FOLDER)
 
         active_files = [
             ParseFileInfo(bundle=maker_bundle, rel_path=Path("test_dag1.py")),
@@ -788,7 +788,7 @@ class TestDagFileProcessorManager:
                 processor_timeout=365 * 86_400,
             )
             manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
-            bundle_info = ParseBundleInfo(name="testing", root_path=Path(tmp_path))
+            bundle_info = ParseBundleInfo(name="testing", path=Path(tmp_path))
 
             dag1_path = ParseFileInfo(bundle=bundle_info, rel_path=Path("file1.py"))
             dag1_req1 = DagCallbackRequest(

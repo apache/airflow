@@ -24,13 +24,11 @@ import airflow.dag_processing.parse_info as parse_info
 
 
 def test_parse_bundle_info_hash():
-    same_1 = parse_info.ParseBundleInfo(name="bundle-name", root_path="/root/path")
-    same_2 = parse_info.ParseBundleInfo(name="bundle-name", root_path=Path("/root/path"))
-    different_name = parse_info.ParseBundleInfo(name="different-name", root_path="/root/path")
-    different_path = parse_info.ParseBundleInfo(name="bundle-name", root_path="/different/path")
-    different_version = parse_info.ParseBundleInfo(
-        name="bundle-name", root_path="/root/path", version="1.0.0"
-    )
+    same_1 = parse_info.ParseBundleInfo(name="bundle-name", path="/root/path")
+    same_2 = parse_info.ParseBundleInfo(name="bundle-name", path=Path("/root/path"))
+    different_name = parse_info.ParseBundleInfo(name="different-name", path="/root/path")
+    different_path = parse_info.ParseBundleInfo(name="bundle-name", path="/different/path")
+    different_version = parse_info.ParseBundleInfo(name="bundle-name", path="/root/path", version="1.0.0")
     assert hash(same_1) == hash(same_2)
     assert hash(same_1) == hash(different_path)
     assert hash(same_1) != hash(different_name)
@@ -38,13 +36,11 @@ def test_parse_bundle_info_hash():
 
 
 def test_parse_bundle_info_eq():
-    same_1 = parse_info.ParseBundleInfo(name="bundle-name", root_path="/root/path")
-    same_2 = parse_info.ParseBundleInfo(name="bundle-name", root_path=Path("/root/path"))
-    different_name = parse_info.ParseBundleInfo(name="different-name", root_path="/root/path")
-    different_path = parse_info.ParseBundleInfo(name="bundle-name", root_path="/different/path")
-    different_version = parse_info.ParseBundleInfo(
-        name="bundle-name", root_path="/root/path", version="1.0.0"
-    )
+    same_1 = parse_info.ParseBundleInfo(name="bundle-name", path="/root/path")
+    same_2 = parse_info.ParseBundleInfo(name="bundle-name", path=Path("/root/path"))
+    different_name = parse_info.ParseBundleInfo(name="different-name", path="/root/path")
+    different_path = parse_info.ParseBundleInfo(name="bundle-name", path="/different/path")
+    different_version = parse_info.ParseBundleInfo(name="bundle-name", path="/root/path", version="1.0.0")
     assert same_1 == same_2
     assert same_1 == different_path
     assert same_1 != different_name
@@ -52,8 +48,8 @@ def test_parse_bundle_info_eq():
 
 
 def test_parse_file_info_hash():
-    bundle = parse_info.ParseBundleInfo(name="bundle-name", root_path="/root/path")
-    other_bundle = parse_info.ParseBundleInfo(name="other-bundle-name", root_path="/root/path")
+    bundle = parse_info.ParseBundleInfo(name="bundle-name", path="/root/path")
+    other_bundle = parse_info.ParseBundleInfo(name="other-bundle-name", path="/root/path")
 
     same_1 = parse_info.ParseFileInfo(rel_path="a", bundle=bundle)
     same_2 = parse_info.ParseFileInfo(rel_path=Path("a"), bundle=bundle)
@@ -66,8 +62,8 @@ def test_parse_file_info_hash():
 
 
 def test_parse_file_info_eq():
-    bundle = parse_info.ParseBundleInfo(name="bundle-name", root_path="/root/path")
-    other_bundle = parse_info.ParseBundleInfo(name="other-bundle-name", root_path="/root/path")
+    bundle = parse_info.ParseBundleInfo(name="bundle-name", path="/root/path")
+    other_bundle = parse_info.ParseBundleInfo(name="other-bundle-name", path="/root/path")
 
     same_1 = parse_info.ParseFileInfo(rel_path="a", bundle=bundle)
     same_2 = parse_info.ParseFileInfo(rel_path=Path("a"), bundle=bundle)

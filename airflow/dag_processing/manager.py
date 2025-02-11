@@ -399,7 +399,7 @@ class DagFileProcessorManager(LoggingMixin):
             return
 
         bundle_info = ParseBundleInfo(
-            name=request.bundle_name, root_path=bundle.path, version=request.bundle_version
+            name=request.bundle_name, path=bundle.path, version=request.bundle_version
         )
         file_info = ParseFileInfo(
             rel_path=Path(request.filepath),
@@ -510,7 +510,7 @@ class DagFileProcessorManager(LoggingMixin):
         rel_paths = (Path(x).relative_to(bundle.path) for x in file_paths)
         bundle_info = ParseBundleInfo(
             name=bundle.name,
-            root_path=bundle.path,
+            path=bundle.path,
             version=bundle.version,
         )
         return (ParseFileInfo(rel_path=p, bundle=bundle_info) for p in rel_paths)
@@ -546,7 +546,7 @@ class DagFileProcessorManager(LoggingMixin):
                 rel_filelocs.append(str(info.rel_path))
             else:
                 for abs_sub_path in find_zipped_dags(abs_path=info.absolute_path):
-                    rel_sub_path = Path(abs_sub_path).relative_to(info.bundle.root_path)
+                    rel_sub_path = Path(abs_sub_path).relative_to(info.bundle.path)
                     rel_filelocs.append(str(rel_sub_path))
 
         DagModel.deactivate_deleted_dags(bundle_name=bundle_name, rel_filelocs=rel_filelocs)

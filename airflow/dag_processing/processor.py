@@ -74,7 +74,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
     # TODO: Set known_pool names on DagBag!
     bag = DagBag(
         dag_folder=msg.parse_file_info.absolute_path,
-        bundle_path=Path(msg.parse_file_info.bundle.root_path),
+        bundle_path=Path(msg.parse_file_info.bundle.path),
         include_examples=False,
         safe_mode=True,
         load_op_links=False,

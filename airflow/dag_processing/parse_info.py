@@ -29,12 +29,12 @@ class ParseBundleInfo:
     In-parsing time context about bundle being processed.
 
     :param name: Bundle name.
-    :param root_path: Root path of the bundle version.
+    :param path: Path of the bundle version's root.
     :param version: Bundle version.
     """
 
     name: str
-    root_path: Path | str = field(compare=False)
+    path: Path | str = field(compare=False)
     version: str | None = None
 
 
@@ -55,7 +55,7 @@ class ParseFileInfo(_ParseFileInfo):
 
     @property
     def absolute_path(self) -> Path:
-        return Path(self.bundle.root_path) / Path(self.rel_path)
+        return Path(self.bundle.path) / Path(self.rel_path)
 
     @cached_property
     def entrypoint(self) -> DagEntrypoint:
