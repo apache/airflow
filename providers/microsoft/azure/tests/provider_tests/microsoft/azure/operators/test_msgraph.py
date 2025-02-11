@@ -63,7 +63,7 @@ class TestMSGraphAsyncOperator(Base):
 
             with pytest.warns(
                 AirflowProviderDeprecationWarning,
-                match="result_processor signature has changed, result parameter should be defined before context!"
+                match="result_processor signature has changed, result parameter should be defined before context!",
             ):
                 results, events = execute_operator(operator)
 
@@ -163,7 +163,7 @@ class TestMSGraphAsyncOperator(Base):
 
             with pytest.warns(
                 AirflowProviderDeprecationWarning,
-                match="event_handler signature has changed, event parameter should be defined before context!"
+                match="event_handler signature has changed, event parameter should be defined before context!",
             ):
                 results, events = execute_operator(operator)
 
