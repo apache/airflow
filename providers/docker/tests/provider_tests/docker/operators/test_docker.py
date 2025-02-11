@@ -781,3 +781,11 @@ class TestDockerOperator:
     def test_fetch_logs(self, logger_mock, log_lines, expected_lines):
         fetch_logs(log_lines, logger_mock)
         assert logger_mock.info.call_args_list == [call("%s", line) for line in expected_lines]
+
+    @pytest.mark.parametrize("labels", ({"key": "value"}, ["key=value"]))
+    def test_labels(self, labels: dict[str, str] | list[str]):
+        operator = DockerOperator(task_id="test", image="test", labels=labels)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        assert "labels" in self.client_mock.create_container.call_args.kwargs
+        assert labels == self.client_mock.create_container.call_args.kwargs["labels"]
