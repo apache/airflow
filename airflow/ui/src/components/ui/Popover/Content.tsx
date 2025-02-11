@@ -16,20 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Popover as ChakraPopover, Portal } from "@chakra-ui/react";
+import * as React from "react";
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
-export * from "./Switch";
-export * from "./Tooltip";
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
-export * from "./Button";
-export * from "./Toaster";
-export * from "./Breadcrumb";
-export * from "./Clipboard";
-export * from "./Popover";
+type PopoverContentProps = {
+  portalled?: boolean;
+  portalRef?: React.RefObject<HTMLElement>;
+} & ChakraPopover.ContentProps;
+
+export const Content = React.forwardRef<HTMLDivElement, PopoverContentProps>((props, ref) => {
+  const { portalled = true, portalRef, ...rest } = props;
+
+  return (
+    <Portal container={portalRef} disabled={!portalled}>
+      <ChakraPopover.Positioner>
+        <ChakraPopover.Content ref={ref} {...rest} />
+      </ChakraPopover.Positioner>
+    </Portal>
+  );
+});
