@@ -188,10 +188,10 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     Overridden DagRuns are ignored.
     """
     DR = DagRun
-    query = select(DR).where(DR.dag_id == dag_id, DR.logical_date.is_not(None))
+    query = select(DR).where(DR.dag_id == dag_id, DR.run_after.is_not(None))
     if not include_externally_triggered:
         query = query.where(DR.external_trigger == expression.false())
-    query = query.order_by(DR.logical_date.desc())
+    query = query.order_by(DR.run_after.desc())
     return session.scalar(query.limit(1))
 
 
