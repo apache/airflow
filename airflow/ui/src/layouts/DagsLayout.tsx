@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Center, Flex } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
-import { NavLink } from "react-router-dom";
+
+import { NavTabs } from "./Details/NavTabs";
 
 const tabs = [
   { label: "Dags", value: "/dags" },
@@ -28,33 +29,7 @@ const tabs = [
 
 export const DagsLayout = ({ children }: PropsWithChildren) => (
   <Box>
-    <Flex alignItems="center" borderBottomWidth={1} mb={2}>
-      {tabs.map(({ label, value }) => (
-        <NavLink
-          end
-          key={value}
-          to={{
-            pathname: value,
-          }}
-        >
-          {({ isActive }) => (
-            <Center
-              borderBottomColor="border.info"
-              borderBottomWidth={isActive ? 3 : 0}
-              color={isActive ? "fg" : "fg.muted"}
-              fontWeight="bold"
-              height="40px"
-              mb="-2px" // Show the border on top of its parent's border
-              pb={isActive ? 0 : "3px"}
-              px={4}
-              transition="all 0.2s ease"
-            >
-              {label}
-            </Center>
-          )}
-        </NavLink>
-      ))}
-    </Flex>
+    <NavTabs tabs={tabs} />
     {children}
   </Box>
 );
