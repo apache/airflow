@@ -893,6 +893,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
+            else:
+                DagRunType.ASSET_TRIGGERED = DagRunType.DATASET_TRIGGERED
 
             if "execution_date" in kwargs:
                 raise TypeError("use logical_date instead")
