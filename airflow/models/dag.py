@@ -1602,6 +1602,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def test(
         self,
+        run_after: datetime | None = None,
         logical_date: datetime | None = None,
         run_conf: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
@@ -1613,6 +1614,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         Execute one single DagRun for a given DAG and logical date.
 
+        :param run_after: the datetime before which to Dag won't run.
         :param logical_date: logical date for the DAG run
         :param run_conf: configuration to pass to newly created dagrun
         :param conn_file_path: file path to a connection file in either yaml or json
@@ -1652,7 +1654,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             exit_stack.callback(lambda: secrets_backend_list.pop(0))
 
         with exit_stack:
-            logical_date = logical_date or timezone.utcnow()
             self.validate()
             self.log.debug("Clearing existing task instances for logical date %s", logical_date)
             self.clear(
@@ -1663,16 +1664,23 @@ class DAG(TaskSDKDag, LoggingMixin):
             )
             self.log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
-            data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            run_after = timezone.coerce_datetime(run_after) or timezone.coerce_datetime(timezone.utcnow())
+            data_interval = (
+                self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
+            )
             scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
 
             dr: DagRun = _get_or_create_dagrun(
                 dag=scheduler_dag,
-                start_date=logical_date,
+                start_date=logical_date or run_after,
                 logical_date=logical_date,
                 data_interval=data_interval,
-                run_after=data_interval.end,
-                run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+                run_after=run_after,
+                run_id=DagRun.generate_run_id(
+                    run_type=DagRunType.MANUAL,
+                    logical_date=logical_date,
+                    run_after=run_after,
+                ),
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1756,8 +1764,8 @@ class DAG(TaskSDKDag, LoggingMixin):
         self,
         *,
         run_id: str,
-        logical_date: datetime | None,
-        data_interval: tuple[datetime, datetime],
+        logical_date: datetime | None = None,
+        data_interval: tuple[datetime, datetime] | None = None,
         run_after: datetime,
         conf: dict | None = None,
         run_type: DagRunType,
@@ -2485,8 +2493,8 @@ def _get_or_create_dagrun(
     *,
     dag: DAG,
     run_id: str,
-    logical_date: datetime,
-    data_interval: tuple[datetime, datetime],
+    logical_date: datetime | None,
+    data_interval: tuple[datetime, datetime] | None,
     run_after: datetime,
     conf: dict | None,
     triggered_by: DagRunTriggeredByType,

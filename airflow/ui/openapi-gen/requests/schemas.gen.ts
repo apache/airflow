@@ -5816,18 +5816,6 @@ export const $TriggerDAGRunPostBody = {
       ],
       title: "Dag Run Id",
     },
-    logical_date: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Logical Date",
-    },
     data_interval_start: {
       anyOf: [
         {
@@ -5851,6 +5839,23 @@ export const $TriggerDAGRunPostBody = {
         },
       ],
       title: "Data Interval End",
+    },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
+    },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
     },
     conf: {
       type: "object",
