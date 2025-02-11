@@ -177,14 +177,14 @@ class MSGraphAsyncOperator(BaseOperator):
             self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
             try:
-                response = self.event_handler(event, **context)
+                response = self.event_handler(event, **context)  # type: ignore
             except TypeError:
                 warnings.warn(
                     "event_handler signature has changed, event parameter should be defined before context!",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
-                response = self.event_handler(context, event)
+                response = self.event_handler(context, event)  # type: ignore
 
             self.log.debug("response: %s", response)
 
@@ -196,14 +196,14 @@ class MSGraphAsyncOperator(BaseOperator):
                 self.log.debug("deserialize response: %s", response)
 
                 try:
-                    result = self.result_processor(response, **context)
+                    result = self.result_processor(response, **context)  # type: ignore
                 except TypeError:
                     warnings.warn(
                         "result_processor signature has changed, result parameter should be defined before context!",
                         AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
-                    result = self.result_processor(context, response)
+                    result = self.result_processor(context, response)  # type: ignore
 
                 self.log.debug("processed response: %s", result)
 

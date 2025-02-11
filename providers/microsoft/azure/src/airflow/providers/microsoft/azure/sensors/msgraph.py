@@ -166,27 +166,27 @@ class MSGraphSensor(BaseSensorOperator):
                 self.log.debug("deserialize response: %s", response)
 
                 try:
-                    is_done = self.event_processor(response, **context)
+                    is_done = self.event_processor(response, **context)  # type: ignore
                 except TypeError:
                     warnings.warn(
                         "event_processor signature has changed, event parameter should be defined before context!",
                         AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
-                    is_done = self.event_processor(context, response)
+                    is_done = self.event_processor(context, response)  # type: ignore
 
                 self.log.debug("is_done: %s", is_done)
 
                 if is_done:
                     try:
-                        result = self.result_processor(response, **context)
+                        result = self.result_processor(response, **context)  # type: ignore
                     except TypeError:
                         warnings.warn(
                             "result_processor signature has changed, event parameter should be defined before context",
                             AirflowProviderDeprecationWarning,
                             stacklevel=2,
                         )
-                        result = self.result_processor(context, response)
+                        result = self.result_processor(context, response)  # type: ignore
 
                     self.log.debug("processed response: %s", result)
 
