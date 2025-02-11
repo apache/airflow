@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Link, HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Flex, Link, HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useState } from "react";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
@@ -37,17 +37,57 @@ import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOpt
 import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
-const columns: Array<ColumnDef<TaskInstanceResponse>> = [
-  {
-    accessorKey: "task_display_name",
-    cell: ({ row: { original } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={getTaskInstanceLink(original)}>{original.task_display_name}</RouterLink>
-      </Link>
-    ),
-    enableSorting: false,
-    header: "Task ID",
-  },
+type InstanceRow = { row: { original: TaskInstanceResponse } };
+
+const instanceColumns = (
+  dagId?: string,
+  runId?: string,
+  taskId?: string,
+): Array<ColumnDef<TaskInstanceResponse>> => [
+  ...(Boolean(dagId)
+    ? []
+    : [
+        {
+          accessorKey: "dag_id",
+          cell: ({ row: { original } }: InstanceRow) => (
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
+            </Link>
+          ),
+          enableSorting: false,
+          header: "Dag ID",
+        },
+      ]),
+  ...(Boolean(runId)
+    ? []
+    : [
+        {
+          accessorKey: "run_id",
+          cell: ({ row: { original } }: InstanceRow) => (
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+                {original.dag_run_id}
+              </RouterLink>
+            </Link>
+          ),
+          enableSorting: false,
+          header: "Run ID",
+        },
+      ]),
+  ...(Boolean(taskId)
+    ? []
+    : [
+        {
+          accessorKey: "task_display_name",
+          cell: ({ row: { original } }: InstanceRow) => (
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={getTaskInstanceLink(original)}>{original.task_display_name}</RouterLink>
+            </Link>
+          ),
+          enableSorting: false,
+          header: "Task ID",
+        },
+      ]),
   {
     accessorKey: "state",
     cell: ({
@@ -106,7 +146,7 @@ const columns: Array<ColumnDef<TaskInstanceResponse>> = [
 const STATE_PARAM = "state";
 
 export const TaskInstances = () => {
-  const { dagId = "", runId = "" } = useParams();
+  const { dagId, runId, taskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -153,17 +193,18 @@ export const TaskInstances = () => {
     setSearchParams(searchParams);
   };
 
-  const refetchInterval = useAutoRefresh({ dagId });
+  const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
-      dagId,
-      dagRunId: runId,
+      dagId: dagId ?? "~",
+      dagRunId: runId ?? "~",
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
+      taskId: taskId ?? undefined,
     },
     undefined,
     {
@@ -174,7 +215,7 @@ export const TaskInstances = () => {
   );
 
   return (
-    <Box pt={4}>
+    <>
       <HStack>
         <Select.Root
           collection={stateOptions}
@@ -225,7 +266,7 @@ export const TaskInstances = () => {
         />
       </HStack>
       <DataTable
-        columns={columns}
+        columns={instanceColumns(dagId, runId, taskId)}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
@@ -234,6 +275,6 @@ export const TaskInstances = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
-    </Box>
+    </>
   );
 };
