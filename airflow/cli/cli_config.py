@@ -738,6 +738,11 @@ ARG_FASTAPI_API_APPS = Arg(
     help="Applications to run (comma-separated). Default is all. Options: core, execution, all",
     default="all",
 )
+ARG_FASTAPI_API_ALLOW_PROXY_FORWARDING = Arg(
+    flags=("--proxy-headers",),
+    help="Enable/Disable X-Forwarded-Proto, X-Forwarded-For, X-Forwarded-Port to populate remote address info. Default is False",
+    action="store_false",
+)
 
 
 # scheduler

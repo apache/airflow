@@ -51,6 +51,7 @@ def fastapi_api(args):
     access_logformat = args.access_logformat
     num_workers = args.workers
     worker_timeout = args.worker_timeout
+    proxy_headers = args.proxy_headers
 
     if args.debug:
         print(f"Starting the FastAPI API server on port {args.port} and host {args.hostname} debug.")
@@ -64,6 +65,7 @@ def fastapi_api(args):
             str(args.port),
             "--host",
             str(args.hostname),
+            "--proxy-headers" if proxy_headers else "",
         ]
 
         # There is no way to pass the apps to airflow/api_fastapi/main.py in the debug mode
@@ -106,6 +108,7 @@ def fastapi_api(args):
             ssl_keyfile=ssl_key,
             ssl_certfile=ssl_cert,
             access_log=access_logfile,
+            proxy_headers=proxy_headers,
         )
 
 
