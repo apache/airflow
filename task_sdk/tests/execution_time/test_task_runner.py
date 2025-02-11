@@ -1173,7 +1173,7 @@ class TestRuntimeTaskInstance:
             log=mock.ANY,
         )
 
-        finalize(runtime_ti, log=mock.MagicMock())
+        finalize(runtime_ti, log=mock.MagicMock(), state=TerminalTIState.SUCCESS)
 
         mock_supervisor_comms.send_request.assert_any_call(
             msg=SetXCom(
