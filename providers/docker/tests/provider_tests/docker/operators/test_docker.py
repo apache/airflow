@@ -226,6 +226,7 @@ class TestDockerOperator:
             tty=True,
             hostname=TEST_CONTAINER_HOSTNAME,
             ports=[],
+            labels=None,
         )
         self.client_mock.create_host_config.assert_called_once_with(
             mounts=[
@@ -319,6 +320,7 @@ class TestDockerOperator:
             ipc_mode=None,
             port_bindings={},
             ulimits=[],
+            labels=None,
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
@@ -392,6 +394,7 @@ class TestDockerOperator:
                     tty=True,
                     hostname=None,
                     ports=[],
+                    labels=None,
                 ),
                 call(
                     command="env",
@@ -430,6 +433,7 @@ class TestDockerOperator:
                     ipc_mode=None,
                     port_bindings={},
                     ulimits=[],
+                    labels=None,
                 ),
                 call(
                     mounts=[
@@ -450,6 +454,7 @@ class TestDockerOperator:
                     ipc_mode=None,
                     port_bindings={},
                     ulimits=[],
+                    labels=None,
                 ),
             ]
         )
@@ -508,6 +513,7 @@ class TestDockerOperator:
             tty=True,
             hostname=None,
             ports=[],
+            labels=None,
         )
         stringio_mock.assert_called_once_with("UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
