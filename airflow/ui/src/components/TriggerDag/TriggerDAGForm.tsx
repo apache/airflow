@@ -59,7 +59,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, setConf } = useParamStore();
 
-  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
+  const { control, formState, handleSubmit, reset, setValue, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
@@ -85,6 +85,29 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
   const dataIntervalStart = watch("dataIntervalStart");
   const dataIntervalEnd = watch("dataIntervalEnd");
+  const logicalDate = watch("logicalDate");
+
+  // Help filling dates
+  useEffect(() => {
+    // If logicalDate was not manually set by the user, set it to dataIntervalEnd if defined
+    // or dataIntervalStart if defined.
+    if (!formState.dirtyFields.logicalDate) {
+      if (dataIntervalEnd) {
+        setValue("logicalDate", dataIntervalEnd);
+      } else if (dataIntervalStart) {
+        setValue("logicalDate", dataIntervalStart);
+      }
+    }
+
+    // If dataIntervalStart or dataIntervalEnd was not manually set by the user, set it to logicalDate
+    // if defined.
+    if (!formState.dirtyFields.dataIntervalStart && logicalDate) {
+      setValue("dataIntervalStart", logicalDate);
+    }
+    if (!formState.dirtyFields.dataIntervalEnd && logicalDate) {
+      setValue("dataIntervalEnd", logicalDate);
+    }
+  }, [setValue, formState, dataIntervalEnd, dataIntervalStart, logicalDate]);
 
   const onSubmit = (data: DagRunTriggerParams) => {
     triggerDagRun(data);
