@@ -528,7 +528,6 @@ filterwarnings = [
 # Instead of that, we use a separate parameter and dynamically add it into `filterwarnings` marker.
 forbidden_warnings = [
     "airflow.exceptions.RemovedInAirflow3Warning",
-    "airflow.utils.context.AirflowContextDeprecationWarning",
     "airflow.exceptions.AirflowProviderDeprecationWarning",
 ]
 python_files = [
