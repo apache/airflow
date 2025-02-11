@@ -1901,6 +1901,7 @@ core_commands: list[CLICommand] = [
             ARG_SSL_CERT,
             ARG_SSL_KEY,
             ARG_DEBUG,
+            ARG_FASTAPI_API_ALLOW_PROXY_FORWARDING,
         ),
     ),
     ActionCommand(

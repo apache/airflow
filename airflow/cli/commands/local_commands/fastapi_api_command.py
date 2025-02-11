@@ -65,8 +65,10 @@ def fastapi_api(args):
             str(args.port),
             "--host",
             str(args.hostname),
-            "--proxy-headers" if proxy_headers else "",
         ]
+
+        if args.proxy_headers:
+            run_args.append("--proxy-headers")
 
         # There is no way to pass the apps to airflow/api_fastapi/main.py in the debug mode
         # because fastapi dev command does not accept any additional arguments
