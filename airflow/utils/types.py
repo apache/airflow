@@ -40,13 +40,13 @@ class DagRunType(str, enum.Enum):
     def __str__(self) -> str:
         return self.value
 
-    def generate_run_id(self, *, run_after: str) -> str:
+    def generate_run_id(self, *, suffix_id: str) -> str:
         """
-        Generate a string for DagRun based on run_after.
+        Generate a string for DagRun based on suffix_id.
 
-        :param run_after: Generate run_id from run_after.
+        :param suffix_id: Generate run_id from suffix_id.
         """
-        return f"{self}__{run_after}"
+        return f"{self}__{suffix_id}"
 
     @staticmethod
     def from_run_id(run_id: str) -> DagRunType:

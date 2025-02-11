@@ -285,4 +285,4 @@ class Timetable(Protocol):
         data_interval: DataInterval | None,
         **extra,
     ) -> str:
-        return run_type.generate_run_id(run_after=run_after.isoformat())
+        return run_type.generate_run_id(suffix_id=run_after.isoformat())
