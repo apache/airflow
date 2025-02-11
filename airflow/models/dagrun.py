@@ -634,8 +634,8 @@ class DagRun(Base, LoggingMixin):
         """
         # _Ensure_ run_type is a DagRunType, not just a string from user code
         if logical_date:
-            return DagRunType(run_type).generate_run_id(suffix_id=run_after.isoformat())
-        return DagRunType(run_type).generate_run_id(suffix_id=f"{run_after.isoformat()}{get_random_string()}")
+            return DagRunType(run_type).generate_run_id(suffix=run_after.isoformat())
+        return DagRunType(run_type).generate_run_id(suffix=f"{run_after.isoformat()}_{get_random_string()}")
 
     @staticmethod
     @provide_session
