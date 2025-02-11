@@ -27,12 +27,10 @@ from collections.abc import (
     Iterator,
     Mapping,
 )
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import methodtools
 
-from airflow.exceptions import AirflowException
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.templater import Templater
@@ -137,39 +135,6 @@ class AbstractOperator(Templater, DAGNode):
             "operator_extra_link_dict",
         )
     )
-
-    @cached_property
-    def operator_extra_link_dict(self) -> dict[str, Any]:
-        """Returns dictionary of all extra links for the operator."""
-        op_extra_links_from_plugin: dict[str, Any] = {}
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        for ope in plugins_manager.operator_extra_links:
-            if ope.operators and self.operator_class in ope.operators:
-                op_extra_links_from_plugin.update({ope.name: ope})
-
-        operator_extra_links_all = {link.name: link for link in self.operator_extra_links}
-        # Extra links defined in Plugins overrides operator links defined in operator
-        operator_extra_links_all.update(op_extra_links_from_plugin)
-
-        return operator_extra_links_all
-
-    @cached_property
-    def global_operator_extra_link_dict(self) -> dict[str, Any]:
-        """Returns dictionary of all global extra links."""
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.global_operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        return {link.name: link for link in plugins_manager.global_operator_extra_links}
-
-    @cached_property
-    def extra_links(self) -> list[str]:
-        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
     def get_dag(self) -> DAG | None:
         raise NotImplementedError()
