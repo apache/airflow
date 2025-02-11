@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -38,16 +39,19 @@ class ParseBundleInfo:
 
 
 @dataclass(frozen=True)
-class ParseFileInfo:
+class _ParseFileInfo:
+    rel_path: Path | str
+    bundle: ParseBundleInfo
+
+
+@dataclass(frozen=True)
+class ParseFileInfo(_ParseFileInfo):
     """
     Information about a DAG file at parse time with fixed version.
 
     :param rel_path: Relative path of a file within a bundle.
     :param bundle: Bundle information.
     """
-
-    rel_path: Path | str
-    bundle: ParseBundleInfo
 
     @property
     def absolute_path(self) -> Path:
@@ -57,9 +61,24 @@ class ParseFileInfo:
     def entrypoint(self) -> DagEntrypoint:
         return DagEntrypoint(rel_path=Path(self.rel_path), bundle_name=self.bundle.name)
 
+    def _normalized(self) -> _ParseFileInfo:
+        return _ParseFileInfo(rel_path=str(self.rel_path), bundle=self.bundle)
+
+    def __hash__(self):
+        return hash(self._normalized())
+
+    def __eq__(self, other: Any):
+        return other == self._normalized()
+
 
 @dataclass(frozen=True)
-class DagEntrypoint:
+class _DagEntrypoint:
+    rel_path: Path | str
+    bundle_name: str
+
+
+@dataclass(frozen=True)
+class DagEntrypoint(_DagEntrypoint):
     """
     DAG file entrypoint identifier.
 
@@ -69,5 +88,11 @@ class DagEntrypoint:
     :param bundle_name: Name of the bundle.
     """
 
-    rel_path: Path
-    bundle_name: str
+    def _normalized(self) -> _DagEntrypoint:
+        return _DagEntrypoint(rel_path=str(self.rel_path), bundle_name=self.bundle_name)
+
+    def __hash__(self):
+        return hash(self._normalized())
+
+    def __eq__(self, other: Any):
+        return other == self._normalized()
