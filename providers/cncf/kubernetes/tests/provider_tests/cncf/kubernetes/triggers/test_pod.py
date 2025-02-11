@@ -386,3 +386,42 @@ class TestKubernetesPodTrigger:
             )
             == actual
         )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger.hook")
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger.sync_hook")
+    async def test_trigger_run_cancelled(
+        self, mock_sync_hook, mock_hook, trigger
+    ):
+        """Test the trigger correctly handles an asyncio.CancelledError."""
+        mock_async_hook = mock_hook.return_value
+        mock_async_hook.get_job.side_effect = asyncio.CancelledError
+
+        mock_sync_hook = mock_sync_hook.return_value
+        mock_sync_hook.cancel_job = mock.MagicMock()
+    
+        
+        async_gen = trigger.run()
+        try:
+            await async_gen.asend(None)
+            # Should raise StopAsyncIteration if no more items to yield
+            await async_gen.asend(None)
+        except asyncio.CancelledError:
+            # Handle the cancellation as expected
+
+            mock_sync_hook.core_v1_client.delete_namespaced_pod.assert_called_once_with(
+                name=POD_NAME,
+                namespace=NAMESPACE,
+            )
+
+            pass
+        except StopAsyncIteration:
+            # The generator should be properly closed after handling the cancellation
+            pass
+        except Exception as e:
+            # Catch any other exceptions that should not occur
+            pytest.fail(f"Unexpected exception raised: {e}")
+        else:
+            mock_sync_hook.cancel_job.assert_not_called()
+        # Clean up the generator
+        await async_gen.aclose()

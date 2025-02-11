@@ -24,13 +24,16 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
+from airflow.models.taskinstance import TaskInstance
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     OnFinishAction,
     PodLaunchTimeoutException,
     PodPhase,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod
@@ -134,6 +137,50 @@ class KubernetesPodTrigger(BaseTrigger):
                 "logging_interval": self.logging_interval,
             },
         )
+    
+    @cached_property
+    def sync_hook(self) -> KubernetesHook:
+        return KubernetesHook(
+            conn_id=self.kubernetes_conn_id,
+            in_cluster=self.in_cluster,
+            config_file=self.config_file,
+            cluster_context=self.cluster_context,
+        )
+
+    @provide_session
+    def get_task_instance(self, session: Session) -> TaskInstance:
+        """
+        Get the task instance for the current task.
+
+        :param session: Sqlalchemy session
+        """
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.task_instance.dag_id,
+            TaskInstance.task_id == self.task_instance.task_id,
+            TaskInstance.run_id == self.task_instance.run_id,
+            TaskInstance.map_index == self.task_instance.map_index,
+        )
+        task_instance = query.one_or_none()
+        if task_instance is None:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
+            )
+        return task_instance
+
+    def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the external job which is being executed by this trigger.
+
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
+        Because in those cases, we should NOT cancel the external job.
+        """
+        # Database query is needed to get the latest state of the task instance.
+        task_instance = self.get_task_instance()  # type: ignore[call-arg]
+        return task_instance.state != TaskInstanceState.DEFERRED
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current pod status and yield a TriggerEvent."""
@@ -173,6 +220,17 @@ class KubernetesPodTrigger(BaseTrigger):
                 }
             )
             return
+        except asyncio.CancelledError:
+            try:
+                if self.safe_to_cancel():
+                    self.log.info("Deleting pod from kubernetes cluster")
+                    self.sync_hook.core_v1_client.delete_namespaced_pod(
+                        name=self.pod_name,
+                        namespace=self.pod_namespace,
+                    )
+            except Exception as e:
+                self.log.error("Error during cancellation handling: %s", e)
+                raise AirflowException("Error during cancellation handling: %s", e)
         except Exception as e:
             yield TriggerEvent(
                 {
