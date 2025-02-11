@@ -740,8 +740,8 @@ ARG_FASTAPI_API_APPS = Arg(
 )
 ARG_FASTAPI_API_ALLOW_PROXY_FORWARDING = Arg(
     flags=("--proxy-headers",),
-    help="Enable/Disable X-Forwarded-Proto, X-Forwarded-For, X-Forwarded-Port to populate remote address info. Default is False",
-    action="store_false",
+    help="Enable X-Forwarded-Proto, X-Forwarded-For, X-Forwarded-Port to populate remote address info.",
+    action="store_true",
 )
 
 
