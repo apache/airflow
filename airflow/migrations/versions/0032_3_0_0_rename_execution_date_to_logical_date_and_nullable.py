@@ -17,9 +17,7 @@
 # under the License.
 
 """
-Rename execution_date to logical_date
-
-Rename column execution_date to logical_date in both dag_run and log tables. Make logical_date nullable.
+Rename execution_date to logical_date.
 
 The column has been renamed to logical_date, although the Python model is
 not changed. This allows us to not need to fix all the Python code at once, but
