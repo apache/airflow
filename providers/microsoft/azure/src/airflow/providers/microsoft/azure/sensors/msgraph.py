@@ -17,10 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.standard.triggers import TimeDeltaTrigger
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
@@ -55,7 +56,7 @@ class MSGraphSensor(BaseSensorOperator):
         `default_event_processor` method) and returns a boolean.  When the result is True, the sensor
         will stop poking, otherwise it will continue until it's True or times out.
     :param result_processor: Function to further process the response from MS Graph API
-        (default is lambda: context, response: response).  When the response returned by the
+        (default is lambda: response, context: response).  When the response returned by the
         `KiotaRequestAdapterHook` are bytes, then those will be base64 encoded into a string.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
@@ -86,8 +87,8 @@ class MSGraphSensor(BaseSensorOperator):
         proxies: dict | None = None,
         scopes: str | list[str] | None = None,
         api_version: APIVersion | str | None = None,
-        event_processor: Callable[[Context, Any], bool] = lambda context, e: e.get("status") == "Succeeded",
-        result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
+        event_processor: Callable[[Any, Context], bool] = lambda e, **context: e.get("status") == "Succeeded",
+        result_processor: Callable[[Any, Context], Any] = lambda result, **context: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         retry_delay: timedelta | float = 60,
         **kwargs,
@@ -164,12 +165,28 @@ class MSGraphSensor(BaseSensorOperator):
 
                 self.log.debug("deserialize response: %s", response)
 
-                is_done = self.event_processor(context, response)
+                try:
+                    is_done = self.event_processor(response, **context)
+                except TypeError:
+                    warnings.warn(
+                        "event_processor signature has changed, event parameter should be defined before context!",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                    is_done = self.event_processor(context, response)
 
                 self.log.debug("is_done: %s", is_done)
 
                 if is_done:
-                    result = self.result_processor(context, response)
+                    try:
+                        result = self.result_processor(response, **context)
+                    except TypeError:
+                        warnings.warn(
+                            "result_processor signature has changed, event parameter should be defined before context",
+                            AirflowProviderDeprecationWarning,
+                            stacklevel=2,
+                        )
+                        result = self.result_processor(context, response)
 
                     self.log.debug("processed response: %s", result)
 

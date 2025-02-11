@@ -29,7 +29,7 @@ from providers.microsoft.azure.tests.conftest import (
     mock_response,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 from airflow.triggers.base import TriggerEvent
 from provider_tests.microsoft.azure.base import Base
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
 class TestMSGraphAsyncOperator(Base):
     @pytest.mark.db_test
-    def test_execute(self):
+    def test_execute_with_old_result_processor_signature(self):
         users = load_json("resources", "users.json")
         next_users = load_json("resources", "next_users.json")
         response = mock_json_response(200, users, next_users)
@@ -59,6 +59,38 @@ class TestMSGraphAsyncOperator(Base):
                 conn_id="msgraph_api",
                 url="users",
                 result_processor=lambda context, result: result.get("value"),
+            )
+
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="result_processor signature has changed, result parameter should be defined before context!"
+            ):
+                results, events = execute_operator(operator)
+
+                assert len(results) == 30
+                assert results == users.get("value") + next_users.get("value")
+                assert len(events) == 2
+                assert isinstance(events[0], TriggerEvent)
+                assert events[0].payload["status"] == "success"
+                assert events[0].payload["type"] == "builtins.dict"
+                assert events[0].payload["response"] == json.dumps(users)
+                assert isinstance(events[1], TriggerEvent)
+                assert events[1].payload["status"] == "success"
+                assert events[1].payload["type"] == "builtins.dict"
+                assert events[1].payload["response"] == json.dumps(next_users)
+
+    @pytest.mark.db_test
+    def test_execute_with_new_result_processor_signature(self):
+        users = load_json("resources", "users.json")
+        next_users = load_json("resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with self.patch_hook_and_request_adapter(response):
+            operator = MSGraphAsyncOperator(
+                task_id="users_delta",
+                conn_id="msgraph_api",
+                url="users",
+                result_processor=lambda result, **context: result.get("value"),
             )
 
             results, events = execute_operator(operator)
@@ -112,10 +144,40 @@ class TestMSGraphAsyncOperator(Base):
                 execute_operator(operator)
 
     @pytest.mark.db_test
-    def test_execute_when_an_exception_occurs_on_custom_event_handler(self):
+    def test_execute_when_an_exception_occurs_on_custom_event_handler_with_old_signature(self):
         with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
             def custom_event_handler(context: Context, event: dict[Any, Any] | None = None):
+                if event:
+                    if event.get("status") == "failure":
+                        return None
+
+                    return event.get("response")
+
+            operator = MSGraphAsyncOperator(
+                task_id="users_delta",
+                conn_id="msgraph_api",
+                url="users/delta",
+                event_handler=custom_event_handler,
+            )
+
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="event_handler signature has changed, event parameter should be defined before context!"
+            ):
+                results, events = execute_operator(operator)
+
+                assert not results
+                assert len(events) == 1
+                assert isinstance(events[0], TriggerEvent)
+                assert events[0].payload["status"] == "failure"
+                assert events[0].payload["message"] == "An error occurred"
+
+    @pytest.mark.db_test
+    def test_execute_when_an_exception_occurs_on_custom_event_handler_with_new_signature(self):
+        with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
+
+            def custom_event_handler(event: dict[Any, Any] | None = None, **context):
                 if event:
                     if event.get("status") == "failure":
                         return None
@@ -208,7 +270,7 @@ class TestMSGraphAsyncOperator(Base):
         )
         context = mock_context(task=operator)
         response = load_json("resources", "users.json")
-        next_link, query_parameters = MSGraphAsyncOperator.paginate(operator, response, context)
+        next_link, query_parameters = MSGraphAsyncOperator.paginate(operator, response, **context)
 
         assert next_link == response["@odata.nextLink"]
         assert query_parameters is None
@@ -223,7 +285,7 @@ class TestMSGraphAsyncOperator(Base):
         context = mock_context(task=operator)
         response = load_json("resources", "users.json")
         response["@odata.count"] = 100
-        url, query_parameters = MSGraphAsyncOperator.paginate(operator, response, context)
+        url, query_parameters = MSGraphAsyncOperator.paginate(operator, response, **context)
 
         assert url == "users"
         assert query_parameters == {"$skip": 12, "$top": 12}
