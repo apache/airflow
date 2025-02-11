@@ -300,6 +300,7 @@ class TestDockerOperator:
             tty=True,
             hostname=TEST_CONTAINER_HOSTNAME,
             ports=[],
+            labels=None,
         )
         self.client_mock.create_host_config.assert_called_once_with(
             mounts=[
@@ -408,6 +409,7 @@ class TestDockerOperator:
                     tty=True,
                     hostname=None,
                     ports=[],
+                    labels=None,
                 ),
             ]
         )
