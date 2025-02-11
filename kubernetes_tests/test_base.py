@@ -264,8 +264,10 @@ class BaseK8STest:
         assert result.status_code == 200, f"Could not enable DAG: {result_json}"
         post_string = f"http://{host}/api/v1/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#2 {post_string}")
+
+        logical_date = datetime.now(timezone.utc)
         # Trigger a new dagrun
-        result = self.session.post(post_string, json={})
+        result = self.session.post(post_string, json={"logical_date": logical_date})
         try:
             result_json = result.json()
         except ValueError:

@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import shlex
+from datetime import datetime, timezone
 from pprint import pprint
 from shutil import copyfile
 from time import sleep
@@ -101,7 +102,11 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
         compose.execute(service="airflow-scheduler", command=["airflow", "scheduler", "-n", "50"])
 
         api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
-        api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
+        api_request(
+            "POST",
+            path=f"dags/{DAG_ID}/dagRuns",
+            json={"dag_run_id": DAG_RUN_ID, "logical_date": datetime.now(timezone.utc)},
+        )
 
         wait_for_terminal_dag_state(dag_id=DAG_ID, dag_run_id=DAG_RUN_ID)
         dag_state = api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}").get("state")
