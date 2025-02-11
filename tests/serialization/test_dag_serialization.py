@@ -208,7 +208,7 @@ serialized_simple_dag_ground_truth = {
                     "max_retry_delay": 600.0,
                     "downstream_task_ids": [],
                     "_is_empty": False,
-                    "_operator_extra_links": [{"tests_common.test_utils.mock_operators.CustomOpLink": {}}],
+                    "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
                     "ui_color": "#fff",
                     "ui_fgcolor": "#000",
                     "template_ext": [],
@@ -1101,16 +1101,16 @@ class TestStringifiedDAGs:
         [
             pytest.param(
                 "true",
-                [{"tests_common.test_utils.mock_operators.CustomOpLink": {}}],
+                {"Google Custom": "_link_CustomOpLink"},
                 {"Google Custom": "http://google.com/custom_base_link?search=true"},
                 id="non-indexed-link",
             ),
             pytest.param(
                 ["echo", "true"],
-                [
-                    {"tests_common.test_utils.mock_operators.CustomBaseIndexOpLink": {"index": 0}},
-                    {"tests_common.test_utils.mock_operators.CustomBaseIndexOpLink": {"index": 1}},
-                ],
+                {
+                    "BigQuery Console #1": "_link_CustomBaseIndexOpLink",
+                    "BigQuery Console #2": "_link_CustomBaseIndexOpLink",
+                },
                 {
                     "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=echo",
                     "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=true",
@@ -1147,6 +1147,9 @@ class TestStringifiedDAGs:
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
+
+        print("type of simple task is" * 10, type(simple_task))
+
         assert getattr(simple_task, "bash_command") == bash_command
 
         #########################################################
@@ -2980,7 +2983,7 @@ def test_mapped_task_with_operator_extra_links_property():
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
         "downstream_task_ids": [],
-        "_operator_extra_links": [{"tests_common.test_utils.mock_operators.AirflowLink2": {}}],
+        "_operator_extra_links": {"airflow": "_link_AirflowLink2"},
         "ui_color": "#fff",
         "ui_fgcolor": "#000",
         "template_ext": [],
