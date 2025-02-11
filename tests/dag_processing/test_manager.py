@@ -1034,3 +1034,21 @@ class TestDagFileProcessorManager:
                 manager.run()
                 bundleone.refresh.assert_called_once()
                 bundleone.get_current_version.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "bundle_names, expected",
+        [
+            (None, {"bundle1", "bundle2", "bundle3"}),
+            (["bundle1"], {"bundle1"}),
+            (["bundle1", "bundle2"], {"bundle1", "bundle2"}),
+        ],
+    )
+    def test_bundle_names_to_parse(self, bundle_names, expected, configure_dag_bundles):
+        config = {f"bundle{i}": os.devnull for i in range(1, 4)}
+        with configure_dag_bundles(config):
+            manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=bundle_names)
+            manager._run_parsing_loop = MagicMock()
+            manager.run()
+
+        bundle_names_being_parsed = {b.name for b in manager._dag_bundles}
+        assert bundle_names_being_parsed == expected

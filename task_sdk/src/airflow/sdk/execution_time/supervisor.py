@@ -606,11 +606,12 @@ class ActivitySubprocess(WatchedSubprocess):
 
     def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
         """Send startup message to the subprocess."""
+        start_date = datetime.now(tz=timezone.utc)
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
+            ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
@@ -623,6 +624,7 @@ class ActivitySubprocess(WatchedSubprocess):
             bundle_info=bundle_info,
             requests_fd=self._requests_fd,
             ti_context=ti_context,
+            start_date=start_date,
         )
 
         # Send the message to tell the process what it needs to execute
@@ -696,7 +698,6 @@ class ActivitySubprocess(WatchedSubprocess):
         # If the task has reached a terminal state, we can start monitoring the overtime
         if not self._terminal_state:
             return
-
         if (
             self._task_end_time_monotonic
             and (time.monotonic() - self._task_end_time_monotonic) > self.TASK_OVERTIME_THRESHOLD
@@ -775,6 +776,7 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = runtime_check_resp.model_dump_json().encode()
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
+            self._task_end_time_monotonic = time.monotonic()
             self.client.task_instances.succeed(
                 id=self.id,
                 when=msg.end_date,
@@ -935,6 +937,7 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
+    :param dr: Current DagRun of the task instance.
     :param dag_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.

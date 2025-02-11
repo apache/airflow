@@ -46,6 +46,7 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     DagNoScheduleException,
+    InvalidBackfillDate,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
     _create_backfill,
@@ -220,6 +221,7 @@ def create_backfill(
         InvalidReprocessBehavior,
         InvalidBackfillDirection,
         DagNoScheduleException,
+        InvalidBackfillDate,
     ) as e:
         raise RequestValidationError(str(e))
 
@@ -254,5 +256,10 @@ def create_backfill_dry_run(
             detail=f"Could not find dag {body.dag_id}",
         )
 
-    except (InvalidReprocessBehavior, InvalidBackfillDirection, DagNoScheduleException) as e:
+    except (
+        InvalidReprocessBehavior,
+        InvalidBackfillDirection,
+        DagNoScheduleException,
+        InvalidBackfillDate,
+    ) as e:
         raise RequestValidationError(str(e))
