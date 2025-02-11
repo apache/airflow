@@ -34,7 +34,6 @@ from typing import (
 import attrs
 from sqlalchemy import and_, select
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.asset import (
     AssetAliasModel,
     AssetEvent,
@@ -267,10 +266,6 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Lazy
             order_by=[AssetEvent.timestamp],
             session=self._session,
         )
-
-
-class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
-    """Warn for usage of deprecated context variables in a task."""
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
