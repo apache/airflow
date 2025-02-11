@@ -58,6 +58,7 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperatorlink import XComOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -86,7 +87,6 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
-from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.mock_operators import (
     AirflowLink2,
     CustomOperator,
@@ -1147,9 +1147,6 @@ class TestStringifiedDAGs:
 
         dag = SerializedDAG.from_dict(serialized_dag)
         simple_task = dag.task_dict["simple_task"]
-
-        print("type of simple task is" * 10, type(simple_task))
-
         assert getattr(simple_task, "bash_command") == bash_command
 
         #########################################################
@@ -1171,48 +1168,25 @@ class TestStringifiedDAGs:
             run_id=dr.run_id,
         )
 
+        c = 0
         # Test Deserialized inbuilt link
         for name, expected in links.items():
+            # staging the part where a task at runtime pushes xcom for extra links
+            XCom.set(
+                key=simple_task.operator_extra_links[c].xcom_key,
+                value=expected,
+                task_id=simple_task.task_id,
+                dag_id=simple_task.dag_id,
+                run_id=dr.run_id,
+            )
+
             link = simple_task.get_extra_links(ti, name)
             assert link == expected
+            c += 1
 
         # Test Deserialized link registered via Airflow Plugin
         link = simple_task.get_extra_links(ti, GoogleLink.name)
         assert link == "https://www.google.com"
-
-    @pytest.mark.usefixtures("clear_all_logger_handlers")
-    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self):
-        """
-        Assert OperatorLinks not registered via Plugins and if it is not an inbuilt Operator Link,
-        it can still deserialize the DAG (does not error) but just logs an error.
-
-        We test NOT using caplog as this is flaky, we check that the task after deserialize
-        is missing the extra links.
-        """
-
-        class TaskStateLink(BaseOperatorLink):
-            """OperatorLink not registered via Plugins nor a built-in OperatorLink"""
-
-            name = "My Link"
-
-            def get_link(self, operator, *, ti_key):
-                return "https://www.google.com"
-
-        class MyOperator(BaseOperator):
-            """Just a EmptyOperator using above defined Extra Operator Link"""
-
-            operator_extra_links = [TaskStateLink()]
-
-            def execute(self, context: Context):
-                pass
-
-        with DAG(dag_id="simple_dag", schedule=None, start_date=datetime(2019, 8, 1)) as dag:
-            MyOperator(task_id="blah")
-
-        serialized_dag = SerializedDAG.to_dict(dag)
-
-        sdag = SerializedDAG.from_dict(serialized_dag)
-        assert sdag.task_dict["blah"].operator_extra_links == []
 
     class ClassWithCustomAttributes:
         """
@@ -2997,4 +2971,7 @@ def test_mapped_task_with_operator_extra_links_property():
         "start_from_trigger": False,
     }
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag[Encoding.VAR])
-    assert deserialized_dag.task_dict["task"].operator_extra_links == [AirflowLink2()]
+    # operator defined links have to be instances of XComOperatorLink
+    assert deserialized_dag.task_dict["task"].operator_extra_links == [
+        XComOperatorLink(name="airflow", xcom_key="_link_AirflowLink2")
+    ]
