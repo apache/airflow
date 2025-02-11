@@ -44,6 +44,7 @@ from tests.integration.otel.test_utils import (
     extract_spans_from_output,
     get_parent_child_dict,
 )
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 log = logging.getLogger("integration.otel.test_otel")
 
@@ -626,9 +627,17 @@ class TestOtelIntegration:
                 assert dag is not None, f"DAG with ID {dag_id} not found."
 
                 # Sync the DAG to the database.
-                dag.sync_to_db(session=session)
+                if AIRFLOW_V_3_0_PLUS:
+                    from airflow.models.dagbundle import DagBundleModel
+
+                    if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+                        session.add(DagBundleModel(name="testing"))
+                        session.commit()
+                    dag.bulk_write_to_db("testing", None, [dag], session)
+                else:
+                    dag.sync_to_db(session=session)
                 # Manually serialize the dag and write it to the db to avoid a db error.
-                SerializedDagModel.write_dag(dag, session=session)
+                SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
 
             session.commit()
 

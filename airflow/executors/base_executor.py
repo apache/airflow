@@ -365,35 +365,6 @@ class BaseExecutor(LoggingMixin):
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, item = sorted_queue.pop(0)
-            (command, _, queue, ti) = item
-
-            # If it's None, then the span for the current TaskInstanceKey hasn't been started.
-            if self.active_spans is not None and self.active_spans.get(key) is None:
-                from airflow.models.taskinstance import SimpleTaskInstance
-
-                if isinstance(ti, SimpleTaskInstance):
-                    parent_context = Trace.extract(ti.parent_context_carrier)
-                else:
-                    parent_context = Trace.extract(ti.dag_run.context_carrier)
-                # Start a new span using the context from the parent.
-                # Attributes will be set once the task has finished so that all
-                # values will be available (end_time, duration, etc.).
-                span = Trace.start_child_span(
-                    span_name=f"{ti.task_id}",
-                    parent_context=parent_context,
-                    component="task",
-                    start_time=ti.queued_dttm,
-                    start_as_current=False,
-                )
-                self.active_spans.set(key, span)
-                # Inject the current context into the carrier.
-                carrier = Trace.inject()
-                # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
-                # So set the carrier as an argument to the command.
-                # The command execution will set it on the ti, and it will be propagated to the task itself.
-                command = list(command)
-                command.append("--carrier")
-                command.append(json.dumps(carrier))
 
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed
@@ -437,6 +408,34 @@ class BaseExecutor(LoggingMixin):
                 if hasattr(self, "_process_workloads"):
                     workloads.append(item)
                 else:
+                    (command, _, queue, ti) = item
+                    # If it's None, then the span for the current TaskInstanceKey hasn't been started.
+                    if self.active_spans is not None and self.active_spans.get(key) is None:
+                        from airflow.models.taskinstance import SimpleTaskInstance
+
+                        if isinstance(ti, SimpleTaskInstance):
+                            parent_context = Trace.extract(ti.parent_context_carrier)
+                        else:
+                            parent_context = Trace.extract(ti.dag_run.context_carrier)
+                        # Start a new span using the context from the parent.
+                        # Attributes will be set once the task has finished so that all
+                        # values will be available (end_time, duration, etc.).
+                        span = Trace.start_child_span(
+                            span_name=f"{ti.task_id}",
+                            parent_context=parent_context,
+                            component="task",
+                            start_time=ti.queued_dttm,
+                            start_as_current=False,
+                        )
+                        self.active_spans.set(key, span)
+                        # Inject the current context into the carrier.
+                        carrier = Trace.inject()
+                        # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
+                        # So set the carrier as an argument to the command.
+                        # The command execution will set it on the ti, and it will be propagated to the task itself.
+                        command = list(command)
+                        command.append("--carrier")
+                        command.append(json.dumps(carrier))
                     task_tuples.append((key, command, queue, getattr(ti, "executor_config", None)))
 
         if task_tuples:
