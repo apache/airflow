@@ -22,6 +22,8 @@ import pytest
 
 AUTH_MANAGER_LOGIN_URL = "http://some_login_url"
 
+pytestmark = pytest.mark.db_test
+
 
 class TestLoginEndpoint:
     @pytest.fixture(autouse=True)
