@@ -73,6 +73,7 @@ dependencies = [
     "PyAthena>=3.0.10",
     "jmespath>=0.7.0",
     "python3-saml>=1.16.0",
+    "sagemaker-studio>=1.0.5",
 ]
 
 # The optional dependencies should be modified in place in the generated file

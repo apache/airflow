@@ -32,16 +32,14 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 """
 Prerequisites: The account which runs this test must manually have the following:
-1. An IAM IDC organization set up in the testing region with the following user initialized:
-    Username: airflowTestUser
-    Password: airflowSystemTestP@ssword1!
+1. An IAM IDC organization set up in the testing region with a user initialized
 2. A SageMaker Unified Studio Domain (with default VPC and roles)
 3. A project within the SageMaker Unified Studio Domain
+4. A notebook (test_notebook.ipynb) placed in the project's s3 path
 
-Essentially, this test will emulate a DAG run in the shared MWAA environment inside a SageMaker Unified Studio Project.
+This test will emulate a DAG run in the shared MWAA environment inside a SageMaker Unified Studio Project.
 The setup tasks will set up the project and configure the test runnner to emulate an MWAA instance.
 Then, the SageMakerNotebookOperator will run a test notebook. This should spin up a SageMaker training job, run the notebook, and exit successfully.
-The teardown tasks will finally delete the project and domain that was set up for this test run.
 """
 
 pytestmark = pytest.mark.skipif(
@@ -113,7 +111,7 @@ with DAG(
     notebook_path = "test_notebook.ipynb"  # This should be the path to your .ipynb, .sqlnb, or .vetl file in your project.
 
     run_notebook = SageMakerNotebookOperator(
-        task_id="initial",
+        task_id="run_notebook",
         input_config={"input_path": notebook_path, "input_params": {}},
         output_config={"output_formats": ["NOTEBOOK"]},  # optional
         compute={

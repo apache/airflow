@@ -169,7 +169,7 @@ class SageMakerNotebookHook(BaseHook):
         )
 
     def _handle_state(self, execution_id, status, error_message):
-        finished_states = ["COMPLETED", "FAILED"]
+        finished_states = ["COMPLETED"]
         in_progress_states = ["IN_PROGRESS", "STOPPING"]
 
         if status in in_progress_states:

@@ -233,6 +233,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/sagemaker.rst
     tags: [aws]
+  - integration-name: Amazon SageMaker Unified Studio
+    external-doc-url: https://aws.amazon.com/sagemaker/unified-studio/
+    logo: /docs/integration-logos/Amazon-SageMaker_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/sagemakerunifiedstudio.rst
+    tags: [aws]
   - integration-name: Amazon SecretsManager
     external-doc-url: https://aws.amazon.com/secrets-manager/
     logo: /docs/integration-logos/AWS-Secrets-Manager_light-bg@4x.png
@@ -398,6 +404,9 @@ operators:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.operators.sagemaker_unified_studio
   - integration-name: Amazon Simple Notification Service (SNS)
     python-modules:
       - airflow.providers.amazon.aws.operators.sns
@@ -496,6 +505,9 @@ sensors:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.sensors.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.sagemaker_unified_studio
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.sqs
@@ -617,6 +629,9 @@ hooks:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.sagemaker_unified_studio
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.hooks.ses
@@ -689,6 +704,9 @@ triggers:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.triggers.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.sagemaker_unified_studio
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue
@@ -723,7 +741,6 @@ triggers:
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.triggers.dms
-
 
 transfers:
   - source-integration-name: Amazon DynamoDB
