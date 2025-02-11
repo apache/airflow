@@ -1348,7 +1348,7 @@ class Airflow(AirflowBaseView):
         last_runs_subquery = (
             select(
                 DagRun.dag_id,
-                sqla.func.max(DagRun.logical_date).label("max_logical_date"),
+                sqla.func.max(DagRun.run_after).label("run_after"),
             )
             .group_by(DagRun.dag_id)
             .where(DagRun.dag_id.in_(filter_dag_ids))  # Only include accessible/selected DAGs.
@@ -1361,14 +1361,14 @@ class Airflow(AirflowBaseView):
                 DagRun.start_date,
                 DagRun.end_date,
                 DagRun.state,
-                DagRun.logical_date,
+                DagRun.run_after,
                 DagRun.data_interval_start,
                 DagRun.data_interval_end,
             ).join(
                 last_runs_subquery,
                 and_(
                     last_runs_subquery.c.dag_id == DagRun.dag_id,
-                    last_runs_subquery.c.max_logical_date == DagRun.logical_date,
+                    last_runs_subquery.c.run_after == DagRun.run_after,
                 ),
             )
         )
@@ -1377,7 +1377,7 @@ class Airflow(AirflowBaseView):
             r.dag_id.replace(".", "__dot__"): {
                 "dag_id": r.dag_id,
                 "state": r.state,
-                "logical_date": wwwutils.datetime_to_string(r.logical_date),
+                "logical_date": wwwutils.datetime_to_string(r.run_after),
                 "start_date": wwwutils.datetime_to_string(r.start_date),
                 "end_date": wwwutils.datetime_to_string(r.end_date),
                 "data_interval_start": wwwutils.datetime_to_string(r.data_interval_start),
