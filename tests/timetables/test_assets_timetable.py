@@ -208,7 +208,11 @@ def test_generate_run_id(asset_timetable: AssetOrTimeSchedule) -> None:
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
     run_id = asset_timetable.generate_run_id(
-        run_type=DagRunType.MANUAL, extra_args="test", logical_date=DateTime.now(), data_interval=None
+        run_type=DagRunType.MANUAL,
+        extra_args="test",
+        logical_date=DateTime.now(),
+        run_after=DateTime.now(),
+        data_interval=None,
     )
     assert isinstance(run_id, str)
 
