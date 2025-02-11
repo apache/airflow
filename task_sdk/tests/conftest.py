@@ -156,10 +156,12 @@ class MakeTIContextCallable(Protocol):
         logical_date: str | datetime = ...,
         data_interval_start: str | datetime = ...,
         data_interval_end: str | datetime = ...,
+        clear_number: int = ...,
         start_date: str | datetime = ...,
         run_after: str | datetime = ...,
         run_type: str = ...,
-        conf=None,
+        task_reschedule_count: int = ...,
+        conf: dict[str, Any] | None = ...,
     ) -> TIRunContext: ...
 
 
@@ -171,9 +173,11 @@ class MakeTIContextDictCallable(Protocol):
         logical_date: str = ...,
         data_interval_start: str | datetime = ...,
         data_interval_end: str | datetime = ...,
+        clear_number: int = ...,
         start_date: str | datetime = ...,
         run_after: str | datetime = ...,
         run_type: str = ...,
+        task_reschedule_count: int = ...,
         conf=None,
     ) -> dict[str, Any]: ...
 
@@ -189,9 +193,11 @@ def make_ti_context() -> MakeTIContextCallable:
         logical_date: str | datetime = "2024-12-01T01:00:00Z",
         data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
+        clear_number: int = 0,
         start_date: str | datetime = "2024-12-01T01:00:00Z",
         run_after: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
+        task_reschedule_count: int = 0,
         conf=None,
     ) -> TIRunContext:
         return TIRunContext(
@@ -201,11 +207,13 @@ def make_ti_context() -> MakeTIContextCallable:
                 logical_date=logical_date,  # type: ignore
                 data_interval_start=data_interval_start,  # type: ignore
                 data_interval_end=data_interval_end,  # type: ignore
+                clear_number=clear_number,  # type: ignore
                 start_date=start_date,  # type: ignore
                 run_type=run_type,  # type: ignore
                 run_after=run_after,  # type: ignore
-                conf=conf,
+                conf=conf,  # type: ignore
             ),
+            task_reschedule_count=task_reschedule_count,
             max_tries=0,
         )
 
@@ -222,9 +230,11 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         logical_date: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_start: str | datetime = "2024-12-01T00:00:00Z",
         data_interval_end: str | datetime = "2024-12-01T01:00:00Z",
+        clear_number: int = 0,
         start_date: str | datetime = "2024-12-01T00:00:00Z",
         run_after: str | datetime = "2024-12-01T00:00:00Z",
         run_type: str = "manual",
+        task_reschedule_count: int = 0,
         conf=None,
     ) -> dict[str, Any]:
         context = make_ti_context(
@@ -233,10 +243,12 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
             logical_date=logical_date,
             data_interval_start=data_interval_start,
             data_interval_end=data_interval_end,
+            clear_number=clear_number,
             start_date=start_date,
             run_after=run_after,
             run_type=run_type,
             conf=conf,
+            task_reschedule_count=task_reschedule_count,
         )
         return context.model_dump(exclude_unset=True, mode="json")
 
@@ -293,6 +305,7 @@ def mocked_parse(spy_agency):
             task=task,
             _ti_context_from_server=what.ti_context,
             max_tries=what.ti_context.max_tries,
+            start_date=what.start_date,
         )
         if hasattr(parse, "spy"):
             spy_agency.unspy(parse)
@@ -375,6 +388,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
             bundle_info=BundleInfo(name="anything", version="any"),
             requests_fd=0,
             ti_context=ti_context,
+            start_date=start_date,  # type: ignore
         )
 
         ti = mocked_parse(startup_details, dag_id, task)

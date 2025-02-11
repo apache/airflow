@@ -100,7 +100,9 @@ def create_context(task, persist_to_db=False, map_index=None):
     now = timezone.utcnow()
     if AIRFLOW_V_3_0_PLUS:
         dag_run = DagRun(
-            run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
+            run_id=DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
+            ),
             run_type=DagRunType.MANUAL,
             dag_id=dag.dag_id,
             logical_date=now,

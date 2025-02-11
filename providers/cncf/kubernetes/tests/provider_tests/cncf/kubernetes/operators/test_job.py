@@ -37,6 +37,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 JOB_OPERATORS_PATH = "airflow.providers.cncf.kubernetes.operators.job.{}"
 HOOK_CLASS = JOB_OPERATORS_PATH.format("KubernetesHook")
@@ -57,11 +59,20 @@ def create_context(task, persist_to_db=False, map_index=None):
     else:
         dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
-    dag_run = DagRun(
-        run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
-        run_type=DagRunType.MANUAL,
-        dag_id=dag.dag_id,
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        dag_run = DagRun(
+            run_id=DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
+            ),
+            run_type=DagRunType.MANUAL,
+            dag_id=dag.dag_id,
+        )
+    else:
+        dag_run = DagRun(
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
+            run_type=DagRunType.MANUAL,
+            dag_id=dag.dag_id,
+        )
     task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
     task_instance.dag_run = dag_run
     if map_index is not None:
