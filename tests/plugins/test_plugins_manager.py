@@ -358,19 +358,22 @@ class TestPluginsManager:
     def test_registering_plugin_listeners(self):
         from airflow import plugins_manager
 
-        with mock.patch("airflow.plugins_manager.plugins", []):
-            plugins_manager.load_plugins_from_plugin_directory()
-            plugins_manager.integrate_listener_plugins(get_listener_manager())
+        try:
+            with mock.patch("airflow.plugins_manager.plugins", []):
+                plugins_manager.load_plugins_from_plugin_directory()
+                plugins_manager.integrate_listener_plugins(get_listener_manager())
 
-            assert get_listener_manager().has_listeners
-            listeners = get_listener_manager().pm.get_plugins()
-            listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
-            # sort names as order of listeners is not guaranteed
-            assert sorted(listener_names) == [
-                "airflow.example_dags.plugins.event_listener",
-                "tests.listeners.class_listener.ClassBasedListener",
-                "tests.listeners.empty_listener",
-            ]
+                assert get_listener_manager().has_listeners
+                listeners = get_listener_manager().pm.get_plugins()
+                listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
+                # sort names as order of listeners is not guaranteed
+                assert sorted(listener_names) == [
+                    "airflow.example_dags.plugins.event_listener",
+                    "tests.listeners.class_listener.ClassBasedListener",
+                    "tests.listeners.empty_listener",
+                ]
+        finally:
+            get_listener_manager().clear()
 
     def test_should_import_plugin_from_providers(self):
         from airflow import plugins_manager

@@ -66,6 +66,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.timetables.base import DataInterval
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -320,6 +321,7 @@ def get_dag_runs(
         session=session,
     )
     dag_runs = session.scalars(dag_run_select)
+
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
         total_entries=total_entries,
@@ -354,7 +356,9 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    logical_date = pendulum.instance(body.logical_date)
+    logical_date = timezone.coerce_datetime(body.logical_date)
+    coerced_logical_date = timezone.coerce_datetime(logical_date)
+    run_after = timezone.coerce_datetime(body.run_after)
 
     try:
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
@@ -365,22 +369,26 @@ def trigger_dag_run(
                 end=pendulum.instance(body.data_interval_end),
             )
         else:
-            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+            if body.logical_date:
+                data_interval = dag.timetable.infer_manual_data_interval(
+                    run_after=coerced_logical_date or run_after
+                )
+                run_after = data_interval.end
+            else:
+                data_interval = None
 
         if body.dag_run_id:
             run_id = body.dag_run_id
         else:
-            run_id = dag.timetable.generate_run_id(
-                run_type=DagRunType.MANUAL,
-                logical_date=logical_date,
-                data_interval=data_interval,
+            run_id = DagRun.generate_run_id(
+                run_type=DagRunType.SCHEDULED, logical_date=coerced_logical_date, run_after=run_after
             )
 
         dag_run = dag.create_dagrun(
             run_id=run_id,
-            logical_date=logical_date,
+            logical_date=coerced_logical_date,
             data_interval=data_interval,
-            run_after=data_interval.end,
+            run_after=run_after,
             conf=body.conf,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,

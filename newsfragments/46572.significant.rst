@@ -17,6 +17,6 @@ Instead, users can install ``smtp`` provider and import ``EmailOperator`` from t
 
   * ruff
 
-    * <RULE_ID>
+    * AIR303
 
       * [ ] ``airflow.operators.email`` → ``airflow.providers.smtp.operators.smtp.EmailOperator``
