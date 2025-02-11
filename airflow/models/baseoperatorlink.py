@@ -22,12 +22,12 @@ from typing import TYPE_CHECKING, ClassVar
 
 import attrs
 
+from airflow.models.xcom import BaseXCom
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.sdk.api.datamodels._generated import TaskInstance
 
 
 @attrs.define()
@@ -37,15 +37,27 @@ class GenericOperatorLink(LoggingMixin):
     name: str
     xcom_key: str
 
-    def get_link(self, ti: TaskInstance) -> str:
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Retrieve the link from the XComs.
 
-        :param ti: Task instance from which to retrieve the link
+        :param operator: The Airflow operator object this link is associated to.
+        :param ti_key: TaskInstance ID to return link for.
         :return: link to external system, but by pulling it from XComs
         """
-        self.log.info("Retrieving link from XComs with key: %s for task id: %s", self.xcom_key, ti.task_id)
-        return ti.xcom_pull(key=self.xcom_key, task_ids=ti.task_id)  # type: ignore
+        self.log.info(
+            "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
+        )
+        value = BaseXCom.get_one(key=self.xcom_key, run_id=ti_key.run_id)
+        if not value:
+            self.log.debug(
+                "No link with name: %s present in XCom as key: %s, returning empty link",
+                self.name,
+                self.xcom_key,
+            )
+            return ""
+        # Stripping is a temporary workaround till https://github.com/apache/airflow/issues/46513 is handled.
+        return value.strip('"')
 
 
 @attrs.define()

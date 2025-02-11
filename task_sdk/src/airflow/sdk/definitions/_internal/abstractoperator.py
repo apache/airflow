@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import inspect
 import logging
 from abc import abstractmethod
 from collections.abc import (
@@ -45,7 +44,6 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.models.baseoperatorlink import BaseOperatorLink
-    from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
@@ -140,31 +138,6 @@ class AbstractOperator(Templater, DAGNode):
         )
     )
 
-    def unmap(self, resolve) -> BaseOperator:
-        """
-        Get the "normal" operator from current abstract operator.
-
-        MappedOperator uses this to unmap itself based on the map index. A non-
-        mapped operator (i.e. BaseOperator subclass) simply returns itself.
-
-        :meta private:
-        """
-        raise NotImplementedError()
-
-    @cached_property
-    def global_operator_extra_link_dict(self) -> dict[str, Any]:
-        """Returns dictionary of all global extra links."""
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.global_operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        return {link.name: link for link in plugins_manager.global_operator_extra_links}
-
-    @cached_property
-    def extra_links(self) -> list[str]:
-        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
-
     @cached_property
     def operator_extra_link_dict(self) -> dict[str, Any]:
         """Returns dictionary of all extra links for the operator."""
@@ -184,36 +157,19 @@ class AbstractOperator(Templater, DAGNode):
 
         return operator_extra_links_all
 
-    def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
-        """
-        For an operator, gets the URLs that the ``extra_links`` entry points to.
+    @cached_property
+    def global_operator_extra_link_dict(self) -> dict[str, Any]:
+        """Returns dictionary of all global extra links."""
+        from airflow import plugins_manager
 
-        :meta private:
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.global_operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        return {link.name: link for link in plugins_manager.global_operator_extra_links}
 
-        :raise ValueError: The error message of a ValueError will be passed on through to
-            the fronted to show up as a tooltip on the disabled link.
-        :param ti: The TaskInstance for the URL being searched for.
-        :param link_name: The name of the link we're looking for the URL for. Should be
-            one of the options specified in ``extra_links``.
-        """
-        link = self.operator_extra_link_dict.get(link_name)
-        if not link:
-            link = self.global_operator_extra_link_dict.get(link_name)
-            if not link:
-                return None
-
-        # TODO: replace with isinstance checks when operator links ported to sdk
-        try:
-            el = link.get_link(ti=ti)
-            # Temporary workaround till https://github.com/apache/airflow/issues/46513 is handled.
-            return el.strip('"')
-        except (TypeError, AttributeError):
-            parameters = inspect.signature(link.get_link).parameters
-            old_signature = all(name != "ti_key" for name, p in parameters.items() if p.kind != p.VAR_KEYWORD)
-
-            if old_signature:
-                return link.get_link(self.unmap(None), ti.dag_run.logical_date)  # type: ignore
-            return link.get_link(self.unmap(None), ti_key=ti.id)
+    @cached_property
+    def extra_links(self) -> list[str]:
+        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
     def get_dag(self) -> DAG | None:
         raise NotImplementedError()

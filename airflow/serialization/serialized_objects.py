@@ -47,7 +47,7 @@ from airflow.models.expandinput import (
     EXPAND_INPUT_EMPTY,
     create_expand_input,
 )
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
@@ -1165,6 +1165,25 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         self.template_ext = BaseOperator.template_ext
         self.template_fields = BaseOperator.template_fields
         self.operator_extra_links = BaseOperator.operator_extra_links
+
+    def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
+        """
+        For an operator, gets the URLs that the ``extra_links`` entry points to.
+
+        :meta private:
+
+        :raise ValueError: The error message of a ValueError will be passed on through to
+            the fronted to show up as a tooltip on the disabled link.
+        :param ti: The TaskInstance for the URL being searched for.
+        :param link_name: The name of the link we're looking for the URL for. Should be
+            one of the options specified in ``extra_links``.
+        """
+        link = self.operator_extra_link_dict.get(link_name)
+        if not link:
+            link = self.global_operator_extra_link_dict.get(link_name)
+            if not link:
+                return None
+        return link.get_link(self.unmap(None), ti_key=ti.key)
 
     @property
     def task_type(self) -> str:
