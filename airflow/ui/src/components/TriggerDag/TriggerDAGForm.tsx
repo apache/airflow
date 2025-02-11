@@ -42,8 +42,6 @@ type TriggerDAGFormProps = {
 export type DagRunTriggerParams = {
   conf: string;
   dagRunId: string;
-  dataIntervalEnd: string;
-  dataIntervalStart: string;
   logicalDate: string;
   note: string;
 };
@@ -51,20 +49,13 @@ export type DagRunTriggerParams = {
 const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const initialParamsDict = useDagParams(dagId, open);
-  const {
-    dateValidationError,
-    error: errorTrigger,
-    isPending,
-    triggerDagRun,
-  } = useTrigger({ dagId, onSuccessConfirm: onClose });
+  const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, setConf } = useParamStore();
 
-  const { control, formState, handleSubmit, reset, setValue, watch } = useForm<DagRunTriggerParams>({
+  const { control, handleSubmit, reset } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
-      dataIntervalEnd: "",
-      dataIntervalStart: "",
       logicalDate: "",
       note: "",
     },
@@ -76,38 +67,6 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
       reset({ conf });
     }
   }, [conf, reset]);
-
-  useEffect(() => {
-    if (Boolean(dateValidationError)) {
-      setErrors((prev) => ({ ...prev, date: dateValidationError }));
-    }
-  }, [dateValidationError]);
-
-  const dataIntervalStart = watch("dataIntervalStart");
-  const dataIntervalEnd = watch("dataIntervalEnd");
-  const logicalDate = watch("logicalDate");
-
-  // Help filling dates
-  useEffect(() => {
-    // If logicalDate was not manually set by the user, set it to dataIntervalEnd if defined
-    // or dataIntervalStart if defined.
-    if (!formState.dirtyFields.logicalDate) {
-      if (dataIntervalEnd) {
-        setValue("logicalDate", dataIntervalEnd);
-      } else if (dataIntervalStart) {
-        setValue("logicalDate", dataIntervalStart);
-      }
-    }
-
-    // If dataIntervalStart or dataIntervalEnd was not manually set by the user, set it to logicalDate
-    // if defined.
-    if (!formState.dirtyFields.dataIntervalStart && logicalDate) {
-      setValue("dataIntervalStart", logicalDate);
-    }
-    if (!formState.dirtyFields.dataIntervalEnd && logicalDate) {
-      setValue("dataIntervalEnd", logicalDate);
-    }
-  }, [setValue, formState, dataIntervalEnd, dataIntervalStart, logicalDate]);
 
   const onSubmit = (data: DagRunTriggerParams) => {
     triggerDagRun(data);
@@ -161,45 +120,9 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
             <Box p={5}>
               <Controller
                 control={control}
-                name="dataIntervalStart"
-                render={({ field }) => (
-                  <Field.Root invalid={Boolean(errors.date)}>
-                    <Field.Label fontSize="md">Data Interval Start Date</Field.Label>
-                    <Input
-                      {...field}
-                      max={dataIntervalEnd || undefined}
-                      onBlur={resetDateError}
-                      placeholder="yyyy-mm-ddThh:mm"
-                      size="sm"
-                      type="datetime-local"
-                    />
-                  </Field.Root>
-                )}
-              />
-
-              <Controller
-                control={control}
-                name="dataIntervalEnd"
-                render={({ field }) => (
-                  <Field.Root invalid={Boolean(errors.date)} mt={6}>
-                    <Field.Label fontSize="md">Data Interval End Date</Field.Label>
-                    <Input
-                      {...field}
-                      min={dataIntervalStart || undefined}
-                      onBlur={resetDateError}
-                      placeholder="yyyy-mm-ddThh:mm"
-                      size="sm"
-                      type="datetime-local"
-                    />
-                  </Field.Root>
-                )}
-              />
-
-              <Controller
-                control={control}
                 name="logicalDate"
                 render={({ field }) => (
-                  <Field.Root invalid={Boolean(errors.date)} mt={6}>
+                  <Field.Root invalid={Boolean(errors.date)}>
                     <Field.Label fontSize="md">Logical Date</Field.Label>
                     <Input
                       {...field}
