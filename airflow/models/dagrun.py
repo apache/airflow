@@ -450,7 +450,7 @@ class DagRun(Base, LoggingMixin):
             .order_by(
                 nulls_first(BackfillDagRun.sort_ordinal, session=session),
                 nulls_first(cls.last_scheduling_decision, session=session),
-                cls.logical_date,
+                cls.run_after,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
@@ -535,7 +535,7 @@ class DagRun(Base, LoggingMixin):
                 nulls_first(BackfillDagRun.sort_ordinal, session=session),
                 nulls_first(cls.last_scheduling_decision, session=session),
                 nulls_first(running_drs.c.num_running, session=session),  # many running -> lower priority
-                cls.logical_date,
+                cls.run_after,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
