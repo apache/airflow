@@ -17,24 +17,40 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import subprocess
+import tempfile
 
-cmd = [
+default_config_cmd = [
+    "airflow",
+    "config",
+    "list",
+    "--default",
+]
+check_lint_cmd = [
     "airflow",
     "config",
     "lint",
 ]
-expected_outout = "No issues found in your airflow.cfg."
+expected_output = "No issues found in your airflow.cfg."
 
 if __name__ == "__main__":
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    output = result.stdout
-    if result.returncode != 0 or expected_outout not in output:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        # Write default config cmd output to a temporary file
+        default_config_file = os.path.join(tmp_dir, "airflow.cfg")
+        with open(default_config_file, "w") as f:
+            result = subprocess.run(default_config_cmd, stdout=f)
+        if result.returncode != 0:
+            print("\033[0;31mERROR: when running `airflow config list`\033[0m\n")
+            exit(1)
+        # Run airflow config lint to check the default config
+        env = os.environ.copy()
+        env["AIRFLOW_HOME"] = tmp_dir
+        env["AIRFLOW_CONFIG"] = default_config_file
+        result = subprocess.run(check_lint_cmd, capture_output=True, env=env)
+
+    output: str = result.stdout.decode().strip()
+    if result.returncode != 0 or expected_output not in output:
         print("\033[0;31mERROR: when running `airflow config lint`\033[0m\n")
         print(output)
         exit(1)
