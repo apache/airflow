@@ -251,7 +251,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 return result
         return results
 
-    def pull_xcom(self, context: Context) -> list:
+    def pull_xcom(self, context: dict[str, Any]) -> list:
         map_index = context["ti"].map_index
         value = list(
             context["ti"].xcom_pull(
@@ -283,7 +283,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
         return value
 
-    def push_xcom(self, context: Context, value) -> None:
+    def push_xcom(self, context: Any, value) -> None:
         self.log.debug("do_xcom_push: %s", self.do_xcom_push)
         if self.do_xcom_push:
             self.log.info("Pushing XCom with key '%s': %s", self.key, value)
