@@ -927,21 +927,21 @@ class DAG(TaskSDKDag, LoggingMixin):
         corresponding to any DagRunType. It can have less if there are
         less than ``num`` scheduled DAG runs before ``base_date``.
         """
-        logical_dates: list[Any] = session.execute(
-            select(DagRun.logical_date)
+        run_after_cols: list[Any] = session.execute(
+            select(DagRun.run_after)
             .where(
                 DagRun.dag_id == self.dag_id,
-                DagRun.logical_date <= base_date,
+                DagRun.run_after <= base_date,
             )
-            .order_by(DagRun.logical_date.desc())
+            .order_by(DagRun.run_after.desc())
             .limit(num)
         ).all()
 
-        if not logical_dates:
+        if not run_after_cols:
             return self.get_task_instances(start_date=base_date, end_date=base_date, session=session)
 
-        min_date: datetime | None = logical_dates[-1]._mapping.get(
-            "logical_date"
+        min_date: datetime | None = run_after_cols[-1]._mapping.get(
+            "run_after"
         )  # getting the last value from the list
 
         return self.get_task_instances(start_date=min_date, end_date=base_date, session=session)
@@ -970,7 +970,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             exclude_run_ids=None,
             session=session,
         )
-        return session.scalars(cast(Select, query).order_by(DagRun.logical_date)).all()
+        return session.scalars(cast(Select, query).order_by(DagRun.run_after)).all()
 
     @overload
     def _get_task_instances(
@@ -1050,7 +1050,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         if run_id:
             tis = tis.where(TaskInstance.run_id == run_id)
         if start_date:
-            tis = tis.where(DagRun.logical_date >= start_date)
+            tis = tis.where(DagRun.run_after >= start_date)
         if task_ids is not None:
             tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
         if end_date:
