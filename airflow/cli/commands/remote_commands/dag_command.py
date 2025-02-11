@@ -39,6 +39,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli as cli_utils, timezone
@@ -331,7 +332,6 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     invalid_cols = [c for c in cols if c not in dag_schema.fields]
     valid_cols = [c for c in cols if c in dag_schema.fields]
 
-
     if invalid_cols:
         from rich import print as rich_print
 
@@ -344,7 +344,14 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     dagbag = DagBag(read_dags_from_db=True)
     dagbag.collect_dags_from_db()
 
-    if dagbag.import_errors:
+    # Get import errors from the DB
+    query = select(ParseImportError)
+    if args.bundle_name:
+        query = query.where(ParseImportError.bundle_name.in_(args.bundle_name))
+
+    dagbag_import_errors = session.scalars(query).all()
+
+    if dagbag_import_errors:
         from rich import print as rich_print
 
         rich_print(
@@ -371,7 +378,8 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
 
     AirflowConsole().print_as(
         data=sorted(
-            filter_dags_by_bundle(dagbag.dags.values(), args.bundle_name), key=operator.attrgetter("dag_id")
+            filter_dags_by_bundle(list(dagbag.dags.values()), args.bundle_name),
+            key=operator.attrgetter("dag_id"),
         ),
         output=args.output,
         mapper=get_dag_detail,
