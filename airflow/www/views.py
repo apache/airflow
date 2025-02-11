@@ -3331,7 +3331,7 @@ class Airflow(AirflowBaseView):
             base_date = dag.get_latest_logical_date() or timezone.utcnow()
 
         with create_session() as session:
-            query = select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.logical_date <= base_date)
+            query = select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.run_after <= base_date)
 
         run_types = request.args.getlist("run_type")
         if run_types:
@@ -3463,8 +3463,8 @@ class Airflow(AirflowBaseView):
                         and_(
                             AssetEvent.asset_id == AssetModel.id,
                             (
-                                AssetEvent.timestamp >= latest_run.logical_date
-                                if latest_run and latest_run.logical_date
+                                AssetEvent.timestamp >= latest_run.run_after
+                                if latest_run and latest_run.run_after
                                 else True
                             ),
                         ),
