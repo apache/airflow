@@ -36,14 +36,13 @@ sys_test_context_task = (
     # NOTE: Creating a functional MWAA environment is time-consuming and requires
     # manually creating and configuring an S3 bucket for DAG storage and a VPC with
     # private subnets which is out of scope for this demo. To simplify this demo and
-    # make it run in a reasonable time, follow these steps in the AWS Console to create
-    # a new MWAA environment with default configuration:
-    # 1. Create an S3 bucket and upload your DAGs to a 'dags' directory
-    # 2. Navigate to the MWAA console
-    # 3. Create an environment, making sure to use the S3 bucket from the previous step
-    # 4. Use the default VPC/network settings (or create a new one using this guide:
-    # https://docs.aws.amazon.com/mwaa/latest/userguide/vpc-create.html)
-    # 5. Select Public network for web server access and click through to creation
+    # make it run in a reasonable time, an existing MWAA environment with is required
+    # Here's a quick start guide to create an MWAA environment using AWS CloudFormation:
+    # https://docs.aws.amazon.com/mwaa/latest/userguide/quick-start.html
+    # If creating the environment using the AWS console, make sure to have a VPC with
+    # at least 1 private subnet to be able to select the VPC while going through the
+    # environment creation steps in the console wizard.
+    # Make sure to set the follow environment variables with appropriate values
     .add_variable(EXISTING_ENVIRONMENT_NAME_KEY)
     .add_variable(EXISTING_DAG_ID_KEY)
     .build()
