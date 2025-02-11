@@ -20,10 +20,10 @@ import json
 from datetime import datetime
 
 import pytest
-from airflow.exceptions import AirflowProviderDeprecationWarning
 
 from providers.microsoft.azure.tests.conftest import load_json, mock_json_response
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
 from airflow.triggers.base import TriggerEvent
 from provider_tests.microsoft.azure.base import Base
