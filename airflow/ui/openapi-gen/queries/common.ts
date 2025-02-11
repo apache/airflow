@@ -20,6 +20,7 @@ import {
   GridService,
   ImportErrorService,
   JobService,
+  LoginService,
   MonitorService,
   PluginService,
   PoolService,
@@ -1642,6 +1643,20 @@ export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
   useVersionServiceGetVersionKey,
   ...(queryKey ?? []),
 ];
+export type LoginServiceLoginDefaultResponse = Awaited<ReturnType<typeof LoginService.login>>;
+export type LoginServiceLoginQueryResult<
+  TData = LoginServiceLoginDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useLoginServiceLoginKey = "LoginServiceLogin";
+export const UseLoginServiceLoginKeyFn = (
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useLoginServiceLoginKey, ...(queryKey ?? [{ next }])];
 export type AssetServiceCreateAssetEventMutationResult = Awaited<
   ReturnType<typeof AssetService.createAssetEvent>
 >;
