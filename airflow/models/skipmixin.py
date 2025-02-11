@@ -21,19 +21,14 @@ from collections.abc import Iterable, Sequence
 from types import GeneratorType
 from typing import TYPE_CHECKING
 
-from sqlalchemy import tuple_, update
 
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
+
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.models.operator import Operator
     from airflow.sdk.definitions._internal.node import DAGNode
 
@@ -57,48 +52,10 @@ def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
 class SkipMixin(LoggingMixin):
     """A Mixin to skip Tasks Instances."""
 
-    @staticmethod
-    def _set_state_to_skipped(
-        dag_id: str,
-        run_id: str,
-        tasks: Sequence[str] | Sequence[tuple[str, int]],
-        session: Session,
-    ) -> None:
-        """Set state of task instances to skipped from the same dag run."""
-        if tasks:
-            now = timezone.utcnow()
-
-            if isinstance(tasks[0], tuple):
-                session.execute(
-                    update(TaskInstance)
-                    .where(
-                        TaskInstance.dag_id == dag_id,
-                        TaskInstance.run_id == run_id,
-                        tuple_(TaskInstance.task_id, TaskInstance.map_index).in_(tasks),
-                    )
-                    .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
-                    .execution_options(synchronize_session=False)
-                )
-            else:
-                session.execute(
-                    update(TaskInstance)
-                    .where(
-                        TaskInstance.dag_id == dag_id,
-                        TaskInstance.run_id == run_id,
-                        TaskInstance.task_id.in_(tasks),
-                    )
-                    .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
-                    .execution_options(synchronize_session=False)
-                )
-
-    @provide_session
     def skip(
         self,
-        dag_id: str,
-        run_id: str,
+        ti: TaskInstance,
         tasks: Iterable[DAGNode],
-        map_index: int | None = -1,
-        session: Session = NEW_SESSION,
     ):
         """
         Set tasks instances to skipped from the same dag run.
@@ -107,11 +64,8 @@ class SkipMixin(LoggingMixin):
         so that NotPreviouslySkippedDep knows these tasks should be skipped when they
         are cleared.
 
-        :param dag_id: the dag_id of the dag run for which to set the tasks to skipped
-        :param run_id: the run_id of the dag run for which to set the tasks to skipped
+        :param ti: the task instance for which to set the tasks to skipped
         :param tasks: tasks to skip (not task_ids)
-        :param session: db session to use
-        :param map_index: map_index of the current task instance
         """
         # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
         task_id: str | None = getattr(self, "task_id", None)
@@ -121,27 +75,10 @@ class SkipMixin(LoggingMixin):
 
         task_ids_list = [d.task_id for d in task_list]
 
-        #  The following could be applied only for non-mapped tasks,
-        #  as future mapped tasks have not been expanded yet. Such tasks
-        #  have to be handled by NotPreviouslySkippedDep.
-        if map_index == -1:
-            SkipMixin._set_state_to_skipped(dag_id, run_id, task_ids_list, session)
-            session.commit()
-
         if task_id is not None:
-            from airflow.models.xcom import XCom
-
-            if map_index is None:
-                map_index = -1
-
-            XCom.set(
+            ti.xcom_push(
                 key=XCOM_SKIPMIXIN_KEY,
                 value={XCOM_SKIPMIXIN_SKIPPED: task_ids_list},
-                task_id=task_id,
-                dag_id=dag_id,
-                run_id=run_id,
-                map_index=map_index,
-                session=session,
             )
 
     def skip_all_except(

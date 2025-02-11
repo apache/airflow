@@ -41,8 +41,6 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     TIRunContext,
 )
-from airflow.exceptions import SkipDownstreamTaskInstances
-from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState, TIRunContext
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
@@ -603,11 +601,7 @@ def run(
                 state = TerminalTIState.FAILED
                 return state, msg, error
 
-
-            try:
-                result = _execute_task(context, ti)
-            except SkipDownstreamTaskInstances as skip_downstream:
-                result = _skip_downstream_tis(log, skip_downstream, ti)
+            result = _execute_task(context, ti)
 
         _push_xcom_if_needed(result, ti, log)
 
@@ -696,42 +690,6 @@ def run(
             SUPERVISOR_COMMS.send_request(msg=msg, log=log)
     # Return the message to make unit tests easier too
     return state, msg, error
-
-
-def _skip_downstream_tis(log: Logger, skip_downstream: SkipDownstreamTaskInstances, ti: RuntimeTaskInstance):
-    """Skip downstream tasks."""
-    from airflow.providers.common.compat.standard.short_circuit import get_tasks_to_skip
-    from airflow.models import XCom
-    from airflow.models.skipmixin import XCOM_SKIPMIXIN_KEY, XCOM_SKIPMIXIN_SKIPPED
-    log.info("Skipping downstream tasks")
-    task_list = get_tasks_to_skip(
-        log=log,
-        condition=skip_downstream.condition,
-        task=ti.task,
-        downstream_task_ids=ti.task.downstream_task_ids,
-        ignore_downstream_trigger_rules=skip_downstream.ignore_downstream_trigger_rules,
-    )
-    task_ids_list = [d.task_id for d in task_list]
-    # TODO: Use Supervisors COMMS instead of session
-    #  The following could be applied only for non-mapped tasks,
-    #  as future mapped tasks have not been expanded yet. Such tasks
-    #  have to be handled by NotPreviouslySkippedDep.
-    # if ti.map_index == -1:
-    #     SkipMixin._set_state_to_skipped(ti.dag_id, ti.run_id, task_ids_list, session)
-    #     session.commit()
-    if task_ids_list:
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=SetXCom(
-                key=XCOM_SKIPMIXIN_KEY,
-                value=XCom.serialize_value({XCOM_SKIPMIXIN_SKIPPED: task_ids_list}),
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                map_index=ti.map_index,
-            )
-        )
-    return skip_downstream.condition
 
 
 def _execute_task(context: Context, ti: RuntimeTaskInstance):

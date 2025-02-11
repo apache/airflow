@@ -290,6 +290,7 @@ class MappedOperator(AbstractOperator):
     ui_color: str
     ui_fgcolor: str
     _is_empty: bool = attrs.field(alias="is_empty")
+    _is_skip_mixin: bool = attrs.field(alias="is_skip_mixin")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     _task_module: str
     _task_type: str
@@ -379,8 +380,13 @@ class MappedOperator(AbstractOperator):
 
     @property
     def inherits_from_empty_operator(self) -> bool:
-        """Implementing Operator."""
+        """Implementing an empty Operator."""
         return self._is_empty
+
+    @property
+    def inherits_from_skip_mixin(self) -> bool:
+        """Implementing a Skip Mixin."""
+        return self._is_skip_mixin
 
     @property
     def roots(self) -> Sequence[AbstractOperator]:
