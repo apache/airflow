@@ -20,11 +20,11 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-import pendulum
 from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models import DagRun
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -82,9 +82,11 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     """Trigger DAG Run Serializer for POST body."""
 
     dag_run_id: str | None = None
-    logical_date: AwareDatetime | None
     data_interval_start: AwareDatetime | None = None
     data_interval_end: AwareDatetime | None = None
+    logical_date: AwareDatetime | None
+    run_after: datetime = Field(default_factory=timezone.utcnow)
+
     conf: dict = Field(default_factory=dict)
     note: str | None = None
 
@@ -102,7 +104,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     def validate_dag_run_id(self):
         if not self.dag_run_id:
             self.dag_run_id = DagRun.generate_run_id(
-                DagRunType.MANUAL, self.logical_date or pendulum.now("UTC")
+                run_type=DagRunType.MANUAL, logical_date=self.logical_date, run_after=self.run_after
             )
         return self
 

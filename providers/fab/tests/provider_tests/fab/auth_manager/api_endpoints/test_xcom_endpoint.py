@@ -128,12 +128,22 @@ class TestGetXComEntries(TestXComEndpoint):
         task_id_1 = "test-task-id-1"
         logical_date = "2005-04-02T00:00:00+00:00"
         logical_date_parsed = timezone.parse(logical_date)
-        dag_run_id_1 = DagRun.generate_run_id(DagRunType.MANUAL, logical_date_parsed)
+        run_after = "2005-04-02T00:00:00+00:00"
+        run_after_parsed = timezone.parse(run_after)
+        dag_run_id_1 = DagRun.generate_run_id(
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date_parsed,
+            run_after=run_after_parsed,
+        )
         self._create_xcom_entries(dag_id_1, dag_run_id_1, logical_date_parsed, task_id_1)
 
         dag_id_2 = "test-dag-id-2"
         task_id_2 = "test-task-id-2"
-        run_id_2 = DagRun.generate_run_id(DagRunType.MANUAL, logical_date_parsed)
+        run_id_2 = DagRun.generate_run_id(
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date_parsed,
+            run_after=run_after_parsed,
+        )
         self._create_xcom_entries(dag_id_2, run_id_2, logical_date_parsed, task_id_2)
         self._create_invalid_xcom_entries(logical_date_parsed)
         response = self.client.get(

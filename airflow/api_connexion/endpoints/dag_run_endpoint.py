@@ -327,7 +327,8 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    logical_date = pendulum.instance(post_body["logical_date"])
+    logical_date = pendulum.instance(post_body["logical_date"]) if post_body.get("logical_date") else None
+    run_after = pendulum.instance(post_body["run_after"])
     run_id = post_body["run_id"]
     dagrun_instance = session.scalar(
         select(DagRun)
@@ -352,12 +353,14 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                     end=pendulum.instance(data_interval_end),
                 )
             else:
-                data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                data_interval = (
+                    dag.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
+                )
             dag_run = dag.create_dagrun(
                 run_id=run_id,
                 logical_date=logical_date,
                 data_interval=data_interval,
-                run_after=data_interval.end,
+                run_after=run_after,
                 conf=post_body.get("conf"),
                 run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.REST_API,
