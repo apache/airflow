@@ -146,6 +146,9 @@ class SageMakerNotebookHook(BaseHook):
             if ret:
                 return ret
 
+        # If timeout, handle state FAILED with timeout message
+        return self._handle_state(execution_id, "FAILED", "Execution timed out")
+
     def _set_xcom_files(self, files, context):
         if not context:
             error_message = "context is required"
@@ -166,7 +169,7 @@ class SageMakerNotebookHook(BaseHook):
         )
 
     def _handle_state(self, execution_id, status, error_message):
-        finished_states = ["COMPLETED"]
+        finished_states = ["COMPLETED", "FAILED"]
         in_progress_states = ["IN_PROGRESS", "STOPPING"]
 
         if status in in_progress_states:
