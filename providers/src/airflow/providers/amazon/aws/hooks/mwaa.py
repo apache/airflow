@@ -71,10 +71,14 @@ class MwaaHook(AwsBaseHook):
         }
         try:
             result = self.get_conn().invoke_rest_api(**api_kwargs)
+            # ResponseMetadata is removed because it contains data that is either very unlikely to be useful
+            # in XComs and logs, or redundant given the data already included in the response
             result.pop("ResponseMetadata", None)
             return result
         except ClientError as e:
             to_log = e.response
+            # ResponseMetadata and Error are removed because they contain data that is either very unlikely to
+            # be useful in XComs and logs, or redundant given the data already included in the response
             to_log.pop("ResponseMetadata", None)
             to_log.pop("Error", None)
             self.log.error(to_log)

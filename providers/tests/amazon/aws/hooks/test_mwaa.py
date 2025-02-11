@@ -34,6 +34,48 @@ class TestMwaaHook:
     def setup_method(self):
         self.hook = MwaaHook()
 
+        # these examples responses are included here instead of as a constant because the hook will mutate
+        # responses causing subsequent tests to fail
+        self.example_responses = {
+            "success": {
+                "ResponseMetadata": {
+                    "RequestId": "some ID",
+                    "HTTPStatusCode": 200,
+                    "HTTPHeaders": {"header1": "value1"},
+                    "RetryAttempts": 0,
+                },
+                "RestApiStatusCode": 200,
+                "RestApiResponse": {
+                    "conf": {},
+                    "dag_id": "hello_world",
+                    "dag_run_id": "manual__2025-02-08T00:33:09.457198+00:00",
+                    "data_interval_end": "2025-02-08T00:33:09.457198+00:00",
+                    "data_interval_start": "2025-02-08T00:33:09.457198+00:00",
+                    "execution_date": "2025-02-08T00:33:09.457198+00:00",
+                    "external_trigger": True,
+                    "logical_date": "2025-02-08T00:33:09.457198+00:00",
+                    "run_type": "manual",
+                    "state": "queued",
+                },
+            },
+            "failure": {
+                "Error": {"Message": "", "Code": "RestApiClientException"},
+                "ResponseMetadata": {
+                    "RequestId": "some ID",
+                    "HTTPStatusCode": 400,
+                    "HTTPHeaders": {"header1": "value1"},
+                    "RetryAttempts": 0,
+                },
+                "RestApiStatusCode": 404,
+                "RestApiResponse": {
+                    "detail": "DAG with dag_id: 'hello_world1' not found",
+                    "status": 404,
+                    "title": "DAG not found",
+                    "type": "https://airflow.apache.org/docs/apache-airflow/2.10.3/stable-rest-api-ref.html#section/Errors/NotFound",
+                },
+            },
+        }
+
     def test_init(self):
         assert self.hook.client_type == "mwaa"
 
@@ -86,45 +128,3 @@ class TestMwaaHook:
             if k != "ResponseMetadata" and k != "Error"
         }
         mock_log.assert_called_once_with(expected_log)
-
-    @pytest.fixture(autouse=True)
-    def _setup_test_cases(self):
-        self.example_responses = {
-            "success": {
-                "ResponseMetadata": {
-                    "RequestId": "some ID",
-                    "HTTPStatusCode": 200,
-                    "HTTPHeaders": {"header1": "value1"},
-                    "RetryAttempts": 0,
-                },
-                "RestApiStatusCode": 200,
-                "RestApiResponse": {
-                    "conf": {},
-                    "dag_id": "hello_world",
-                    "dag_run_id": "manual__2025-02-08T00:33:09.457198+00:00",
-                    "data_interval_end": "2025-02-08T00:33:09.457198+00:00",
-                    "data_interval_start": "2025-02-08T00:33:09.457198+00:00",
-                    "execution_date": "2025-02-08T00:33:09.457198+00:00",
-                    "external_trigger": True,
-                    "logical_date": "2025-02-08T00:33:09.457198+00:00",
-                    "run_type": "manual",
-                    "state": "queued",
-                },
-            },
-            "failure": {
-                "Error": {"Message": "", "Code": "RestApiClientException"},
-                "ResponseMetadata": {
-                    "RequestId": "some ID",
-                    "HTTPStatusCode": 400,
-                    "HTTPHeaders": {"header1": "value1"},
-                    "RetryAttempts": 0,
-                },
-                "RestApiStatusCode": 404,
-                "RestApiResponse": {
-                    "detail": "DAG with dag_id: 'hello_world1' not found",
-                    "status": 404,
-                    "title": "DAG not found",
-                    "type": "https://airflow.apache.org/docs/apache-airflow/2.10.3/stable-rest-api-ref.html#section/Errors/NotFound",
-                },
-            },
-        }
