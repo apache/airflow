@@ -194,14 +194,10 @@ class BaseAwsLinksTestCase:
         )
 
         error_msg = f"{self.full_qualname!r} should be preserved after execution"
-        assert ti.task.get_extra_links(ti, self.link_class.name) == expected_url, error_msg
 
-        serialized_dag = self.dag_maker.get_serialized_data()
-        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-        deserialized_task = deserialized_dag.task_dict[self.task_id]
-
-        error_msg = f"{self.full_qualname!r} should be preserved in deserialized tasks after execution"
-        assert deserialized_task.get_extra_links(ti, self.link_class.name) == expected_url, error_msg
+        # This is the right thing to test in the provider as providers shouldn't influence ti.task
+        # This is also the source of the link, if all's fine here, the link will be pushed to xcom and fetched too
+        assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == expected_url, error_msg
 
     def test_link_serialize(self):
         """Test: Operator links should exist for serialized DAG."""
@@ -223,7 +219,7 @@ class BaseAwsLinksTestCase:
         deserialized_task = deserialized_dag.task_dict[self.task_id]
 
         assert (
-            ti.task.get_extra_links(ti, self.link_class.name) == ""
+            ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
         ), "Operator link should only be added if job id is available in XCom"
 
         assert (
