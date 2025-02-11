@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -172,6 +173,7 @@ class TriggerEvent:
 
         # Set the state of the task instance to scheduled
         task_instance.state = TaskInstanceState.SCHEDULED
+        task_instance.scheduled_dttm = timezone.utcnow()
 
 
 class BaseTaskEndEvent(TriggerEvent):
@@ -215,9 +217,11 @@ class BaseTaskEndEvent(TriggerEvent):
         """Submit a callback request if the task state is SUCCESS or FAILED."""
         if self.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
             request = TaskCallbackRequest(
-                full_filepath=task_instance.dag_model.fileloc,
+                filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
                 task_callback_type=self.task_instance_state,
+                bundle_name=task_instance.dag_model.bundle_name,
+                bundle_version=task_instance.dag_run.bundle_version,
             )
             log.info("Sending callback: %s", request)
             try:

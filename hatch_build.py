@@ -189,7 +189,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pdbr>=0.8.9",
     ],
     "devel-devscripts": [
-        "click>=8.0",
+        "click>=8.1.8",
         "gitpython>=3.1.40",
         "incremental>=24.7.2",
         "pipdeptree>=2.13.1",
@@ -391,6 +391,7 @@ DEPENDENCIES = [
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
     "lazy-object-proxy>=1.2.0",
+    "libcst >=1.1.0",
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "markdown-it-py>=2.1.0",
@@ -594,6 +595,8 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         commands = [
             ["rm -rf airflow/www/static/dist"],
             ["rm -rf airflow/www/node_modules"],
+            ["rm -rf airflow/ui/dist"],
+            ["rm -rf airflow/ui/node_modules"],
         ]
         for cmd in commands:
             run(cmd, cwd=work_dir.as_posix(), check=True, shell=True)
@@ -607,10 +610,11 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         work_dir = Path(self.root)
         commands = [
             ["pre-commit run --hook-stage manual compile-www-assets --all-files"],
+            ["pre-commit run --hook-stage manual compile-ui-assets --all-files"],
         ]
         for cmd in commands:
             run(cmd, cwd=work_dir.as_posix(), check=True, shell=True)
-        dist_path = work_dir / "airflow" / "www" / "static" / "dist"
+        dist_path = work_dir / "airflow" / "ui" / "dist"
         return dist_path.resolve().as_posix()
 
     def get_git_version(self) -> str:

@@ -53,7 +53,7 @@ class ConnectionSchema(ConnectionCollectionItemSchema):
     def serialize_extra(obj: Connection):
         if obj.extra is None:
             return
-        from airflow.utils.log.secrets_masker import redact
+        from airflow.sdk.execution_time.secrets_masker import redact
 
         try:
             extra = json.loads(obj.extra)

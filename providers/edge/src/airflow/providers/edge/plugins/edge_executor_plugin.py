@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from flask import Blueprint
+from flask import Blueprint, redirect, request, url_for
 from flask_appbuilder import BaseView, expose
 from sqlalchemy import select
 
@@ -114,6 +114,40 @@ class EdgeWorkerHosts(BaseView):
         hosts = session.scalars(select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)).all()
         five_min_ago = datetime.now() - timedelta(minutes=5)
         return self.render_template("edge_worker_hosts.html", hosts=hosts, five_min_ago=five_min_ago)
+
+    @expose("/status/maintenance/<string:worker_name>/on", methods=["POST"])
+    @has_access_view(AccessView.JOBS)
+    def worker_to_maintenance(self, worker_name: str):
+        from airflow.providers.edge.models.edge_worker import request_maintenance
+
+        maintenance_comment = request.form.get("maintenance_comment")
+        request_maintenance(worker_name, maintenance_comment)
+        return redirect(url_for("EdgeWorkerHosts.status"))
+
+    @expose("/status/maintenance/<string:worker_name>/off", methods=["POST"])
+    @has_access_view(AccessView.JOBS)
+    def remove_worker_from_maintenance(self, worker_name: str):
+        from airflow.providers.edge.models.edge_worker import exit_maintenance
+
+        exit_maintenance(worker_name)
+        return redirect(url_for("EdgeWorkerHosts.status"))
+
+    @expose("/status/maintenance/<string:worker_name>/remove", methods=["POST"])
+    @has_access_view(AccessView.JOBS)
+    def remove_worker(self, worker_name: str):
+        from airflow.providers.edge.models.edge_worker import remove_worker
+
+        remove_worker(worker_name)
+        return redirect(url_for("EdgeWorkerHosts.status"))
+
+    @expose("/status/maintenance/<string:worker_name>/change_comment", methods=["POST"])
+    @has_access_view(AccessView.JOBS)
+    def change_maintenance_comment(self, worker_name: str):
+        from airflow.providers.edge.models.edge_worker import change_maintenance_comment
+
+        maintenance_comment = request.form.get("maintenance_comment")
+        change_maintenance_comment(worker_name, maintenance_comment)
+        return redirect(url_for("EdgeWorkerHosts.status"))
 
 
 # Check if EdgeExecutor is actually loaded

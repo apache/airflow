@@ -31,20 +31,15 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
-    VariableBulkActionResponse,
-    VariableBulkBody,
-    VariableBulkResponse,
     VariableCollectionResponse,
     VariableResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.services.public.variables import (
-    handle_bulk_create,
-    handle_bulk_delete,
-    handle_bulk_update,
-)
+from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
@@ -151,13 +146,13 @@ def patch_variable(
     fields_to_update = patch_body.model_fields_set
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
     else:
         try:
             VariableBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
 
     for key, val in data.items():
         setattr(variable, key, val)
@@ -169,6 +164,7 @@ def patch_variable(
     "",
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+    dependencies=[Depends(action_logging())],
 )
 def post_variable(
     post_body: VariableBody,
@@ -192,21 +188,8 @@ def post_variable(
 
 @variables_router.patch("")
 def bulk_variables(
-    request: VariableBulkBody,
+    request: BulkBody[VariableBody],
     session: SessionDep,
-) -> VariableBulkResponse:
+) -> BulkResponse:
     """Bulk create, update, and delete variables."""
-    results: dict[str, VariableBulkActionResponse] = {}
-
-    for action in request.actions:
-        if action.action not in results:
-            results[action.action] = VariableBulkActionResponse()
-
-        if action.action == "create":
-            handle_bulk_create(session, action, results[action.action])
-        elif action.action == "update":
-            handle_bulk_update(session, action, results[action.action])
-        elif action.action == "delete":
-            handle_bulk_delete(session, action, results[action.action])
-
-    return VariableBulkResponse(**results)
+    return BulkVariableService(session=session, request=request).handle_request()

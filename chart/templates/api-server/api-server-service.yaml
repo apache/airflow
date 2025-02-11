@@ -31,29 +31,29 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.apiServer.labels) }}
-      {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or (.Values.labels) (.Values._apiServer.labels) }}
+      {{- mustMerge .Values._apiServer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
-  {{- with .Values.apiServer.service.annotations }}
+  {{- with .Values._apiServer.service.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  type: {{ .Values.apiServer.service.type }}
+  type: {{ .Values._apiServer.service.type }}
   selector:
     tier: airflow
     component: api-server
     release: {{ .Release.Name }}
   ports:
-  {{ range .Values.apiServer.service.ports }}
+  {{ range .Values._apiServer.service.ports }}
     -
       {{- range $key, $val := . }}
       {{ $key }}: {{ tpl (toString $val) $ }}
       {{- end }}
   {{- end }}
-  {{- if .Values.apiServer.service.loadBalancerIP }}
-  loadBalancerIP: {{ .Values.apiServer.service.loadBalancerIP }}
+  {{- if .Values._apiServer.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values._apiServer.service.loadBalancerIP }}
   {{- end }}
-  {{- if .Values.apiServer.service.loadBalancerSourceRanges }}
-  loadBalancerSourceRanges: {{- toYaml .Values.apiServer.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- if .Values._apiServer.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges: {{- toYaml .Values._apiServer.service.loadBalancerSourceRanges | nindent 4 }}
   {{- end }}
 {{- end }}

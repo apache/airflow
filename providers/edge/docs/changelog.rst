@@ -27,6 +27,61 @@
 Changelog
 ---------
 
+0.14.1pre0
+..........
+
+Fix
+~~~
+
+* ``Wrap the sql query in text() to make it executable.``
+
+
+0.14.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Add maintenance comment field, to make maintenance reason transparent.``
+
+
+0.13.1pre0
+..........
+
+Fix
+~~~
+
+* ``EdgeWorkerVersionException is raised if http 400 is responded on set_state.``
+
+0.13.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Allow removing an Edge worker that is offline.``
+
+Fixes
+~~~~~
+
+* ``Implement proper CSRF protection on plugin form.``
+
+0.12.0pre0
+..........
+
+Misc
+~~~~
+
+* ``An Edge worker can remember maintenance mode in case of shut down. It picks up maintenance state at startup.``
+
+0.11.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Add the option to set edge workers to maintenance mode via UI plugin and API.``
+
 0.10.2pre0
 ..........
 

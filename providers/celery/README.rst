@@ -24,7 +24,7 @@
 
 Package ``apache-airflow-providers-celery``
 
-Release: ``3.9.0``
+Release: ``3.10.0``
 
 
 `Celery <https://docs.celeryq.dev/en/stable/>`__
@@ -37,7 +37,7 @@ This is a provider package for ``celery`` provider. All classes for this provide
 are in ``airflow.providers.celery`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.9.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.10.0/>`_.
 
 Installation
 ------------
@@ -51,14 +51,14 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-==================  ==============================
+==================  ==================
 PIP package         Version required
-==================  ==============================
+==================  ==================
 ``apache-airflow``  ``>=2.9.0``
-``celery[redis]``   ``>=5.3.0,!=5.3.2,!=5.3.3,<6``
+``celery[redis]``   ``>=5.4.0,<6``
 ``flower``          ``>=1.0.0``
 ``google-re2``      ``>=1.0``
-==================  ==============================
+==================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -80,4 +80,4 @@ Dependent package                                                               
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.9.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-celery/3.10.0/changelog.html>`_.

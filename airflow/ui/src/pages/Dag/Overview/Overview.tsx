@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { Box, HStack, Skeleton, SimpleGrid } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
@@ -24,7 +24,8 @@ import { useParams } from "react-router-dom";
 import { useDagRunServiceGetDagRuns, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
-import { stateColor } from "src/utils/stateColor";
+
+import { RunDuration } from "./RunDuration";
 
 const defaultHour = "168";
 
@@ -43,14 +44,19 @@ export const Overview = () => {
     state: ["failed"],
   });
 
-  const { data: failedRuns, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
+  const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     logicalDateGte: startDate,
     logicalDateLte: endDate,
     state: ["failed"],
   });
 
-  // TODO actually link to task instances list
+  const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
+    dagId: dagId ?? "",
+    limit: 14,
+    orderBy: "-start_date",
+  });
+
   return (
     <Box m={4}>
       <Box my={2}>
@@ -64,7 +70,7 @@ export const Overview = () => {
       </Box>
       <HStack>
         <TrendCountButton
-          colorPalette={stateColor.failed}
+          colorPalette="failed"
           count={failedTasks?.total_entries ?? 0}
           endDate={endDate}
           events={(failedTasks?.task_instances ?? []).map((ti) => ({
@@ -79,13 +85,13 @@ export const Overview = () => {
           startDate={startDate}
         />
         <TrendCountButton
-          colorPalette={stateColor.failed}
+          colorPalette="failed"
           count={failedRuns?.total_entries ?? 0}
           endDate={endDate}
           events={(failedRuns?.dag_runs ?? []).map((dr) => ({
             timestamp: dr.start_date ?? dr.logical_date ?? "",
           }))}
-          isLoading={isLoadingRuns}
+          isLoading={isLoadingFailedRuns}
           label="Failed Run"
           route={{
             pathname: "runs",
@@ -94,6 +100,15 @@ export const Overview = () => {
           startDate={startDate}
         />
       </HStack>
+      <SimpleGrid columns={3} gap={5} my={5}>
+        <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2}>
+          {isLoadingRuns ? (
+            <Skeleton height="200px" w="full" />
+          ) : (
+            <RunDuration runs={runs?.dag_runs} totalEntries={runs?.total_entries ?? 0} />
+          )}
+        </Box>
+      </SimpleGrid>
     </Box>
   );
 };

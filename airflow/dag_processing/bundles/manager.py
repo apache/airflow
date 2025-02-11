@@ -54,7 +54,7 @@ class DagBundlesManager(LoggingMixin):
         if self._bundle_config:
             return
 
-        backends = conf.getjson("dag_bundles", "config_list")
+        backends = conf.getjson("dag_processor", "dag_bundle_config_list")
 
         if not backends:
             return
@@ -62,7 +62,7 @@ class DagBundlesManager(LoggingMixin):
         if not isinstance(backends, list):
             raise AirflowConfigException(
                 "Bundle config is not a list. Check config value"
-                " for section `dag_bundles` and key `backends`."
+                " for section `dag_processor` and key `dag_bundle_config_list`."
             )
 
         if any(b["name"] == "example_dags" for b in backends):
@@ -99,6 +99,7 @@ class DagBundlesManager(LoggingMixin):
 
     @provide_session
     def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
+        self.log.debug("Syncing DAG bundles to the database")
         stored = {b.name: b for b in session.query(DagBundleModel).all()}
         for name in self._bundle_config.keys():
             if bundle := stored.pop(name, None):

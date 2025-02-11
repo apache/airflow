@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from io import BytesIO
+from unittest import mock
 
 import pytest
 
@@ -432,6 +433,24 @@ class TestPostVariable(TestVariableEndpoint):
             ]
         }
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {
+                "key": "new variable key",
+                "value": "new variable value",
+                "description": "new variable description",
+            },
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.logging.decorators._mask_variable_fields")
+    def test_mask_variable_fields_called(self, mock_mask_variable_fields, test_client, body):
+        mock_mask_variable_fields.return_value = {**body, "method": "POST"}
+        response = test_client.post("/public/variables", json=body)
+        assert response.status_code == 201
+
+        mock_mask_variable_fields.assert_called_once_with(body)
+
 
 class TestBulkVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact
@@ -444,11 +463,11 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {"key": "new_var1", "value": "new_value1", "description": "New variable 1"},
                                 {"key": "new_var2", "value": "new_value2", "description": "New variable 2"},
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         }
                     ]
                 },
@@ -460,7 +479,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value1",
@@ -468,7 +487,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                 },
                                 {"key": "new_var2", "value": "new_value2", "description": "New variable 2"},
                             ],
-                            "action_if_exists": "skip",
+                            "action_on_existence": "skip",
                         }
                     ]
                 },
@@ -480,7 +499,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value1",
@@ -488,7 +507,7 @@ class TestBulkVariables(TestVariableEndpoint):
                                 },
                                 {"key": "new_var2", "value": "new_value2", "description": "New variable 2"},
                             ],
-                            "action_if_exists": "overwrite",
+                            "action_on_existence": "overwrite",
                         }
                     ]
                 },
@@ -500,14 +519,14 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value",
                                     "description": "Should conflict",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         }
                     ]
                 },
@@ -529,14 +548,14 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "updated_value",
                                     "description": "Updated variable 1",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_non_existence": "fail",
                         }
                     ]
                 },
@@ -548,14 +567,14 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "key_not_present",
                                     "value": "updated_value",
                                     "description": "Updated variable 1",
                                 }
                             ],
-                            "action_if_not_exists": "skip",
+                            "action_on_non_existence": "skip",
                         }
                     ]
                 },
@@ -567,14 +586,14 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "nonexistent_var",
                                     "value": "updated_value",
                                     "description": "Should fail",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_non_existence": "fail",
                         }
                     ]
                 },
@@ -594,7 +613,11 @@ class TestBulkVariables(TestVariableEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "keys": ["test_variable_key"], "action_if_not_exists": "skip"}
+                        {
+                            "action": "delete",
+                            "entities": ["test_variable_key"],
+                            "action_on_non_existence": "skip",
+                        }
                     ]
                 },
                 {"delete": {"success": ["test_variable_key"], "errors": []}},
@@ -603,7 +626,11 @@ class TestBulkVariables(TestVariableEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "keys": ["key_not_present"], "action_if_not_exists": "skip"}
+                        {
+                            "action": "delete",
+                            "entities": ["key_not_present"],
+                            "action_on_non_existence": "skip",
+                        }
                     ]
                 },
                 {"delete": {"success": [], "errors": []}},
@@ -612,7 +639,11 @@ class TestBulkVariables(TestVariableEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "keys": ["nonexistent_var"], "action_if_not_exists": "fail"}
+                        {
+                            "action": "delete",
+                            "entities": ["nonexistent_var"],
+                            "action_on_non_existence": "fail",
+                        }
                     ]
                 },
                 {
@@ -633,21 +664,25 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [{"key": "new_var1", "value": "new_value1"}],
-                            "action_if_exists": "skip",
+                            "entities": [{"key": "new_var1", "value": "new_value1"}],
+                            "action_on_existence": "skip",
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "updated_value",
                                     "description": "Updated variable 1",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "keys": ["dictionary_password"], "action_if_not_exists": "skip"},
+                        {
+                            "action": "delete",
+                            "entities": ["dictionary_password"],
+                            "action_on_non_existence": "skip",
+                        },
                     ]
                 },
                 {
@@ -662,27 +697,31 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value",
                                     "description": "Should conflict",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "dictionary_password",
                                     "value": "updated_value",
                                     "description": "Updated variable 2",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "keys": ["nonexistent_var"], "action_if_not_exists": "skip"},
+                        {
+                            "action": "delete",
+                            "entities": ["nonexistent_var"],
+                            "action_on_non_existence": "skip",
+                        },
                     ]
                 },
                 {
@@ -705,27 +744,31 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value1",
                                     "description": "Should be skipped",
                                 }
                             ],
-                            "action_if_exists": "skip",
+                            "action_on_existence": "skip",
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "nonexistent_var",
                                     "value": "updated_value",
                                     "description": "Should be skipped",
                                 }
                             ],
-                            "action_if_not_exists": "skip",
+                            "action_on_non_existence": "skip",
                         },
-                        {"action": "delete", "keys": ["nonexistent_var"], "action_if_not_exists": "skip"},
+                        {
+                            "action": "delete",
+                            "entities": ["nonexistent_var"],
+                            "action_on_non_existence": "skip",
+                        },
                     ]
                 },
                 {
@@ -740,27 +783,31 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "new_variable_key",
                                     "value": "new_value1",
                                     "description": "test case description",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "new_variable_key",
                                     "value": "updated_value",
                                     "description": "description updated",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "keys": ["new_variable_key"], "action_if_not_exists": "fail"},
+                        {
+                            "action": "delete",
+                            "entities": ["new_variable_key"],
+                            "action_on_non_existence": "fail",
+                        },
                     ]
                 },
                 {
@@ -775,70 +822,74 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value1",
                                     "description": "test case description",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "updated_value",
                                     "description": "description updated",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_non_existence": "fail",
                         },
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "new_key",
                                     "value": "new_value1",
                                     "description": "test case description",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "nonexistent_var",
                                     "value": "updated_value",
                                     "description": "description updated",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "keys": ["dictionary_password"], "action_if_not_exists": "fail"},
+                        {
+                            "action": "delete",
+                            "entities": ["dictionary_password"],
+                            "action_on_non_existence": "fail",
+                        },
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "new_variable_key_1",
                                     "value": "new_value1",
                                     "description": "test case description",
                                 }
                             ],
-                            "action_if_exists": "fail",
+                            "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "new_variable_key",
                                     "value": "updated_value",
                                     "description": "description updated",
                                 }
                             ],
-                            "action_if_not_exists": "fail",
+                            "action_on_non_existence": "fail",
                         },
                     ]
                 },

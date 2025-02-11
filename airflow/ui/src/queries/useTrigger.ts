@@ -20,15 +20,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
-  useDagRunServiceGetDagRunsKey,
+  UseDagRunServiceGetDagRunsKeyFn,
   useDagRunServiceTriggerDagRun,
   useDagServiceGetDagsKey,
   useDagsServiceRecentDagRunsKey,
+  UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
 
-export const useTrigger = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
+export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
@@ -36,12 +37,14 @@ export const useTrigger = ({ onSuccessConfirm }: { onSuccessConfirm: () => void 
 
   const onSuccess = async () => {
     const queryKeys = [
-      useDagServiceGetDagsKey,
-      useDagsServiceRecentDagRunsKey,
-      useDagRunServiceGetDagRunsKey,
+      [useDagServiceGetDagsKey],
+      [useDagsServiceRecentDagRunsKey],
+      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
     ];
 
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+
     toaster.create({
       description: "DAG run has been successfully triggered.",
       title: "DAG Run Request Submitted",
@@ -59,7 +62,7 @@ export const useTrigger = ({ onSuccessConfirm }: { onSuccessConfirm: () => void 
     onSuccess,
   });
 
-  const triggerDagRun = (dagId: string, dagRunRequestBody: DagRunTriggerParams) => {
+  const triggerDagRun = (dagRunRequestBody: DagRunTriggerParams) => {
     const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<string, unknown>;
 
     const DataIntervalStart = dagRunRequestBody.dataIntervalStart
@@ -105,6 +108,7 @@ export const useTrigger = ({ onSuccessConfirm }: { onSuccessConfirm: () => void 
         dag_run_id: checkDagRunId,
         data_interval_end: formattedDataIntervalEnd,
         data_interval_start: formattedDataIntervalStart,
+        logical_date: null,
         note: checkNote,
       },
     });

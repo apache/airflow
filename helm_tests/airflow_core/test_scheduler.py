@@ -838,6 +838,7 @@ class TestScheduler:
             "CeleryExecutor",
             "KubernetesExecutor",
             "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
         ],
     )
     def test_scheduler_deployment_has_executor_label(self, executor):
@@ -1021,6 +1022,7 @@ class TestSchedulerServiceAccount:
             ("CeleryKubernetesExecutor", None),
             ("KubernetesExecutor", None),
             ("LocalKubernetesExecutor", None),
+            ("CeleryExecutor,KubernetesExecutor", None),
         ],
     )
     def test_default_automount_service_account_token(self, executor, default_automount_service_account):
@@ -1043,6 +1045,7 @@ class TestSchedulerServiceAccount:
             ("CeleryKubernetesExecutor", False, None),
             ("KubernetesExecutor", False, None),
             ("LocalKubernetesExecutor", False, None),
+            ("CeleryExecutor,KubernetesExecutor", False, None),
         ],
     )
     def test_overridden_automount_service_account_token(

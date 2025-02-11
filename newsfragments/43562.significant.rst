@@ -22,3 +22,23 @@ After:
     if sys.version_info >= (3, 6):
         # perform some action
         ...
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.PY\d\d``

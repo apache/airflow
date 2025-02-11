@@ -17,4 +17,4 @@ Move filesystem sensor to standard provider
 
     * AIR303
 
-      * [ ] ``airflow.sensors.filesystem.FileSensor`` → ``airflow.providers.standard.sensors.filesystem.FileSensor``
+      * [x] ``airflow.sensors.filesystem.FileSensor`` → ``airflow.providers.standard.sensors.filesystem.FileSensor``

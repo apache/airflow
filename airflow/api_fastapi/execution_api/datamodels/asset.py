@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
 class AssetResponse(BaseModel):
@@ -34,3 +34,18 @@ class AssetAliasResponse(BaseModel):
 
     name: str
     group: str
+
+
+class AssetProfile(StrictBaseModel):
+    """
+    Profile of an Asset.
+
+    Asset will have name, uri and asset_type defined.
+    AssetNameRef will have name and asset_type defined.
+    AssetUriRef will have uri and asset_type defined.
+
+    """
+
+    name: str | None = None
+    uri: str | None = None
+    asset_type: str

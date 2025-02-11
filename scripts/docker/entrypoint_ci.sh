@@ -234,13 +234,6 @@ function determine_airflow_to_use() {
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
-        if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
-            echo
-            echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"
-            echo
-            rm -rf /usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers
-            ln -s "${AIRFLOW_SOURCES}/providers/src/airflow/providers" "/usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers"
-        fi
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -257,24 +250,12 @@ function check_boto_upgrade() {
     echo
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
-    # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs yandexcloud opensearch-py || true
-    # We need to include few dependencies to pass pip check with other dependencies:
-    #   * oss2 as dependency as otherwise jmespath will be bumped (sync with alibaba provider)
-    #   * cryptography is kept for snowflake-connector-python limitation (sync with snowflake provider)
-    #   * requests needs to be limited to be compatible with apache beam (sync with apache-beam provider)
-    #   * yandexcloud requirements for requests does not match those of apache.beam and latest botocore
-    #   Both requests and yandexcloud exclusion above might be removed after
-    #   https://github.com/apache/beam/issues/32080 is addressed
-    #   This is already addressed and planned for 2.59.0 release.
-    #   When you remove yandexcloud and opensearch from the above list, you can also remove the
-    #   optional providers_dependencies exclusions from "test_example_dags.py" in "tests/always".
     set -x
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
-       "oss2>=2.14.0" "cryptography<43.0.0" "requests!=2.32.*,<3.0.0,>=2.24.0"
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore
     set +x
-    pip check
 }
 
 # Download minimum supported version of sqlalchemy to run tests with it

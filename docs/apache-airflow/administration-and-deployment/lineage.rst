@@ -34,10 +34,10 @@ works.
     import pendulum
 
     from airflow.lineage import AUTO
-    from airflow.lineage.entities import File
     from airflow.models import DAG
+    from airflow.providers.common.compat.lineage.entities import File
     from airflow.providers.standard.operators.bash import BashOperator
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     FILE_CATEGORIES = ["CAT1", "CAT2", "CAT3"]
 

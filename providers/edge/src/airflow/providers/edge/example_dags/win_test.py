@@ -37,9 +37,9 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException, Airfl
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG
-from airflow.models.param import Param
 from airflow.models.variable import Variable
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import Param
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import ArgNotSet
@@ -81,7 +81,7 @@ class CmdOperator(BaseOperator):
     :param cwd: Working directory to execute the command in (templated).
         If None (default), the command is run in a temporary directory.
         To use current DAG folder as the working directory,
-        you might set template ``{{ dag_run.dag.folder }}``.
+        you might set template ``{{ task.dag.folder }}``.
     :param output_processor: Function to further process the output of the script / command
         (default is lambda output: output).
 

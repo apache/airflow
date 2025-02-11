@@ -17,7 +17,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Protocol, Union
+
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -25,6 +28,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, BaseAssetUniqueKey
     from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     Operator = Union[BaseOperator, MappedOperator]
@@ -35,13 +39,17 @@ class DagRunProtocol(Protocol):
 
     dag_id: str
     run_id: str
-    logical_date: datetime
+    logical_date: datetime | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
     start_date: datetime
     end_date: datetime | None
     run_type: Any
+    run_after: datetime
     conf: dict[str, Any] | None
+    # This shouldn't be "| None", but there's a bug in the datamodel generator, and None evaluates to Falsey
+    # too, so this is "okay"
+    external_trigger: bool | None = False
 
 
 class RuntimeTaskInstanceProtocol(Protocol):
@@ -52,7 +60,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     dag_id: str
     run_id: str
     try_number: int
-    map_index: int
+    map_index: int | None
     max_tries: int
     hostname: str | None = None
 
@@ -64,12 +72,14 @@ class RuntimeTaskInstanceProtocol(Protocol):
         # TODO: `include_prior_dates` isn't yet supported in the SDK
         # include_prior_dates: bool = False,
         *,
-        map_indexes: int | list[int] | None = None,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
         default: Any = None,
         run_id: str | None = None,
     ) -> Any: ...
 
     def xcom_push(self, key: str, value: Any) -> None: ...
+
+    def get_template_context(self) -> Context: ...
 
 
 class OutletEventAccessorProtocol(Protocol):

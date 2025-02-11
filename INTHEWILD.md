@@ -253,6 +253,7 @@ Currently, **officially** using Airflow:
 1. [GrowthSimple](https://growthsimple.ai/)
 1. [GSN Games](https://www.gsngames.com)
 1. [Gusto](https://gusto.com) [[@frankhsu](https://github.com/frankhsu)]
+1. [Halter](https://www.halterhq.com/) [[@antonysouthworth-halter](https://github.com/antonysouthworth-halter)]
 1. [Handshake](https://joinhandshake.com/) [[@mhickman](https://github.com/mhickman)]
 1. [Handy](http://www.handy.com/careers/73115?gh_jid=73115&gh_src=o5qcxn) [[@marcintustin](https://github.com/marcintustin) / [@mtustin-handy](https://github.com/mtustin-handy)]
 1. [happn](https://www.happn.com) [[@pcorbel](https://github.com/pcorbel)]

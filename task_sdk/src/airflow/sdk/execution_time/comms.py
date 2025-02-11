@@ -60,6 +60,8 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
     TIRunContext,
+    TIRuntimeCheckPayload,
+    TISuccessStatePayload,
     VariableResponse,
     XComResponse,
 )
@@ -117,6 +119,11 @@ class XComResult(XComResponse):
         return cls(**xcom_response.model_dump())
 
 
+class XComCountResponse(BaseModel):
+    len: int
+    type: Literal["XComLengthResponse"] = "XComLengthResponse"
+
+
 class ConnectionResult(ConnectionResponse):
     type: Literal["ConnectionResult"] = "ConnectionResult"
 
@@ -168,6 +175,11 @@ class ErrorResponse(BaseModel):
     type: Literal["ErrorResponse"] = "ErrorResponse"
 
 
+class OKResponse(BaseModel):
+    ok: bool
+    type: Literal["OKResponse"] = "OKResponse"
+
+
 ToTask = Annotated[
     Union[
         AssetResult,
@@ -177,6 +189,8 @@ ToTask = Annotated[
         StartupDetails,
         VariableResult,
         XComResult,
+        XComCountResponse,
+        OKResponse,
     ],
     Field(discriminator="type"),
 ]
@@ -191,9 +205,20 @@ class TaskState(BaseModel):
     - anything else = FAILED
     """
 
-    state: TerminalTIState
+    state: Literal[
+        TerminalTIState.FAILED,
+        TerminalTIState.SKIPPED,
+        TerminalTIState.REMOVED,
+        TerminalTIState.FAIL_WITHOUT_RETRY,
+    ]
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
+
+
+class SucceedTask(TISuccessStatePayload):
+    """Update a task's state to success. Includes task_outlets and outlet_events for registering asset events."""
+
+    type: Literal["SucceedTask"] = "SucceedTask"
 
 
 class DeferTask(TIDeferredStatePayload):
@@ -208,6 +233,10 @@ class RescheduleTask(TIRescheduleStatePayload):
     type: Literal["RescheduleTask"] = "RescheduleTask"
 
 
+class RuntimeCheckOnTask(TIRuntimeCheckPayload):
+    type: Literal["RuntimeCheckOnTask"] = "RuntimeCheckOnTask"
+
+
 class GetXCom(BaseModel):
     key: str
     dag_id: str
@@ -215,6 +244,16 @@ class GetXCom(BaseModel):
     task_id: str
     map_index: int | None = None
     type: Literal["GetXCom"] = "GetXCom"
+
+
+class GetXComCount(BaseModel):
+    """Get the number of (mapped) XCom values available."""
+
+    key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    type: Literal["GetNumberXComs"] = "GetNumberXComs"
 
 
 class SetXCom(BaseModel):
@@ -245,6 +284,7 @@ class SetXCom(BaseModel):
     run_id: str
     task_id: str
     map_index: int | None = None
+    mapped_length: int | None = None
     type: Literal["SetXCom"] = "SetXCom"
 
 
@@ -292,6 +332,7 @@ class GetPrevSuccessfulDagRun(BaseModel):
 
 ToSupervisor = Annotated[
     Union[
+        SucceedTask,
         DeferTask,
         GetAssetByName,
         GetAssetByUri,
@@ -299,11 +340,13 @@ ToSupervisor = Annotated[
         GetPrevSuccessfulDagRun,
         GetVariable,
         GetXCom,
+        GetXComCount,
         PutVariable,
         RescheduleTask,
         SetRenderedFields,
         SetXCom,
         TaskState,
+        RuntimeCheckOnTask,
     ],
     Field(discriminator="type"),
 ]

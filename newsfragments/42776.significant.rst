@@ -1,1 +1,12 @@
 Removed deprecated ``Chainable`` type from ``BaseOperator``.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

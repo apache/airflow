@@ -17,4 +17,4 @@ Move ``TriggerDagRunOperator`` to standard provider
 
     * AIR303
 
-      * [ ] ``airflow.operators.trigger_dagrun import TriggerDagRunOperator`` → ``airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator``
+      * [x] ``airflow.operators.trigger_dagrun import TriggerDagRunOperator`` → ``airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator``

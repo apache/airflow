@@ -80,35 +80,48 @@ def _all_new_providers() -> list[str]:
         (
             GroupOfTests.PROVIDERS,
             "Providers",
-            [*[f"providers/{provider}/tests" for provider in _all_new_providers()], "providers/tests"],
+            [
+                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                "providers/tests",
+            ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon]",
-            ["providers/tests/amazon"],
+            ["providers/amazon/tests"],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[common.io]",
-            ["providers/tests/common/io"],
+            ["providers/common/io/tests"],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon,google,apache.hive]",
-            ["providers/tests/amazon", "providers/tests/google", "providers/tests/apache/hive"],
+            [
+                "providers/amazon/tests",
+                "providers/google/tests",
+                "providers/apache/hive/tests",
+            ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google,microsoft.azure]",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_new_providers()
+                    if provider not in ["amazon", "google", "microsoft/azure"]
+                ],
                 "providers/tests",
-                "--ignore=providers/tests/amazon",
-                "--ignore=providers/amazon",
-                "--ignore=providers/tests/google",
-                "--ignore=providers/google",
-                "--ignore=providers/tests/microsoft/azure",
-                "--ignore=providers/microsoft/tests/azure",
+            ],
+        ),
+        (
+            GroupOfTests.PROVIDERS,
+            "Providers[-edge]",
+            [
+                *[f"providers/{provider}/tests" for provider in _all_new_providers() if provider != "edge"],
+                "providers/tests",
             ],
         ),
         (
@@ -231,22 +244,26 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers[amazon]",
             [
-                "providers/tests/amazon",
+                "providers/amazon/tests",
             ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon] Providers[google]",
             [
-                "providers/tests/amazon",
-                "providers/tests/google",
+                "providers/amazon/tests",
+                "providers/google/tests",
             ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google]",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_new_providers()
+                    if provider not in ["amazon", "google"]
+                ],
                 "providers/tests",
             ],
         ),
@@ -254,8 +271,13 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google] Providers[amazon] Providers[google]",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_new_providers()
+                    if provider not in ["amazon", "google"]
+                ],
                 "providers/tests",
+                *["providers/amazon/tests", "providers/google/tests"],
             ],
         ),
         (

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, SimpleGrid, Link } from "@chakra-ui/react";
+import { Box, Flex, HStack, SimpleGrid, Link, Spinner } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -25,6 +25,7 @@ import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { Tooltip } from "src/components/ui";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { DagTags } from "./DagTags";
 import { RecentRuns } from "./RecentRuns";
@@ -36,6 +37,8 @@ type Props = {
 
 export const DagCard = ({ dag }: Props) => {
   const [latestRun] = dag.latest_dag_runs;
+
+  const refetchInterval = useAutoRefresh({ isPaused: dag.is_paused });
 
   return (
     <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden">
@@ -53,13 +56,13 @@ export const DagCard = ({ dag }: Props) => {
           <TriggerDAGButton dag={dag} withText={false} />
         </HStack>
       </Flex>
-      <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
+      <SimpleGrid columns={4} gap={1} height={20} px={3}>
         <Stat label="Schedule">
           <Schedule dag={dag} />
         </Stat>
         <Stat label="Latest Run">
           {latestRun ? (
-            <Link asChild color="fg.info" fontSize="sm">
+            <Link asChild color="fg.info">
               <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
                 <DagRunInfo
                   dataIntervalEnd={latestRun.data_interval_end}
@@ -68,6 +71,7 @@ export const DagCard = ({ dag }: Props) => {
                   startDate={latestRun.start_date}
                   state={latestRun.state}
                 />
+                {isStatePending(latestRun.state) && Boolean(refetchInterval) ? <Spinner /> : undefined}
               </RouterLink>
             </Link>
           ) : undefined}
