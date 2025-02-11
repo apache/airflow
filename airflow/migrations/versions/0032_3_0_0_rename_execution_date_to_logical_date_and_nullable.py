@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Make logical_date nullable.
+Rename execution_date to logical_date.
 
 The column has been renamed to logical_date, although the Python model is
 not changed. This allows us to not need to fix all the Python code at once, but
@@ -59,6 +59,14 @@ def upgrade():
             columns=["dag_id", "logical_date"],
         )
 
+    with op.batch_alter_table("log", schema=None) as batch_op:
+        batch_op.alter_column(
+            "execution_date",
+            new_column_name="logical_date",
+            existing_type=TIMESTAMP(timezone=True),
+            nullable=True,
+        )
+
 
 def downgrade():
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
@@ -74,4 +82,12 @@ def downgrade():
         batch_op.create_unique_constraint(
             "dag_run_dag_id_execution_date_key",
             columns=["dag_id", "execution_date"],
+        )
+
+    with op.batch_alter_table("log", schema=None) as batch_op:
+        batch_op.alter_column(
+            "logical_date",
+            new_column_name="execution_date",
+            existing_type=TIMESTAMP(timezone=True),
+            nullable=True,
         )
