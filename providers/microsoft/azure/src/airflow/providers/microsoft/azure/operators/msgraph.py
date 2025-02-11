@@ -300,7 +300,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
             if top and odata_count:
                 if len(response.get("value", [])) == top and context:
-                    results = operator.pull_xcom(context=context)
+                    results = operator.pull_xcom(context)
                     skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
                     query_parameters["$skip"] = skip
                     return operator.url, query_parameters
@@ -308,7 +308,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
     def trigger_next_link(self, response, method_name: str, **context) -> None:
         if isinstance(response, dict):
-            url, query_parameters = self.pagination_function(self, response, **context)
+            url, query_parameters = self.pagination_function(self, response, **context)  # type: ignore
 
             self.log.debug("url: %s", url)
             self.log.debug("query_parameters: %s", query_parameters)
