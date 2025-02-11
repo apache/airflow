@@ -85,17 +85,15 @@ elif AIRFLOW_V_2_10_PLUS:
             self.state.append(DagRunState.SUCCESS)
 
         @hookimpl
-        def on_task_instance_running(self, previous_state, task_instance, session):
+        def on_task_instance_running(self, previous_state, task_instance):
             self.state.append(TaskInstanceState.RUNNING)
 
         @hookimpl
-        def on_task_instance_success(self, previous_state, task_instance, session):
+        def on_task_instance_success(self, previous_state, task_instance):
             self.state.append(TaskInstanceState.SUCCESS)
 
         @hookimpl
-        def on_task_instance_failed(
-            self, previous_state, task_instance, error: None | str | BaseException, session
-        ):
+        def on_task_instance_failed(self, previous_state, task_instance, error: None | str | BaseException):
             self.state.append(TaskInstanceState.FAILED)
 else:
 

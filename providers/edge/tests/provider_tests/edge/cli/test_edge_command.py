@@ -51,6 +51,8 @@ MOCK_COMMAND = (
             "pool_slots": 1,
             "queue": "default",
             "priority_weight": 1,
+            "start_date": "2023-01-01T00:00:00+00:00",
+            "map_index": -1,
         },
         "dag_rel_path": "mock.py",
         "log_path": "mock.log",

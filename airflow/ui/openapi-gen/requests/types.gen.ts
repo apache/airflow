@@ -1418,6 +1418,8 @@ export type TriggerDAGRunPostBody = {
   dag_run_id?: string | null;
   data_interval_start?: string | null;
   data_interval_end?: string | null;
+  logical_date: string | null;
+  run_after?: string;
   conf?: {
     [key: string]: unknown;
   };
@@ -2423,6 +2425,12 @@ export type ReparseDagFileResponse = null;
 export type GetHealthResponse = HealthInfoResponse;
 
 export type GetVersionResponse = VersionInfo;
+
+export type LoginData = {
+  next?: string | null;
+};
+
+export type LoginResponse = unknown;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -5085,6 +5093,25 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+      };
+    };
+  };
+  "/public/login": {
+    get: {
+      req: LoginData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Temporary Redirect
+         */
+        307: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };
