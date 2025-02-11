@@ -84,11 +84,12 @@ def _trigger_dag(
         coerced_logical_date = timezone.coerce_datetime(logical_date)
         data_interval = dag.timetable.infer_manual_data_interval(run_after=coerced_logical_date)
     else:
+        coerced_logical_date = None
         data_interval = None
 
     run_id = run_id or DagRun.generate_run_id(
         run_type=DagRunType.MANUAL,
-        logical_date=timezone.coerce_datetime(logical_date),
+        logical_date=coerced_logical_date,
         run_after=timezone.coerce_datetime(run_after),
     )
 
