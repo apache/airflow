@@ -15,17 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-
-- providers/tests/amazon/aws/deferrable/hooks/test_base_aws.py::TestAwsBaseAsyncHook::test_get_client_async
-- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_cluster_status
-- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_get_cluster_status
-- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_get_cluster_status_exception
-- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_pause_cluster
-- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_resume_cluster
-- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_resume_cluster_exception
-- providers/tests/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_exception
-- providers/tests/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_resuming_status
-- providers/tests/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_success
 - providers/google/tests/provider_tests/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_success
 - providers/google/tests/provider_tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs
 - providers/google/tests/provider_tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs_duplication_warning
