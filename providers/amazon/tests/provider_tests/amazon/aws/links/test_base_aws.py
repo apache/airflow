@@ -194,9 +194,6 @@ class BaseAwsLinksTestCase:
         )
 
         error_msg = f"{self.full_qualname!r} should be preserved after execution"
-
-        # This is the right thing to test in the provider as providers shouldn't influence ti.task
-        # This is also the source of the link, if all's fine here, the link will be pushed to xcom and fetched too
         assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == expected_url, error_msg
 
     def test_link_serialize(self):

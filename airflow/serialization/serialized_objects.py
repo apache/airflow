@@ -1167,7 +1167,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         self.operator_extra_links = BaseOperator.operator_extra_links
 
     @cached_property
-    def operator_extra_link_dict(self) -> dict[str, Any]:
+    def operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:
         """Returns dictionary of all extra links for the operator."""
         op_extra_links_from_plugin: dict[str, Any] = {}
         from airflow import plugins_manager
