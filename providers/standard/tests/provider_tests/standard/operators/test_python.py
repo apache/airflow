@@ -64,7 +64,6 @@ from airflow.providers.standard.operators.python import (
 )
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils import timezone
-from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -75,6 +74,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+    from airflow.utils.context import Context
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
@@ -1253,7 +1253,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill/cloudpickle (which is slow apparently).
     @pytest.mark.execution_timeout(120)
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1313,7 +1312,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_operator(f, serializer=serializer, system_site_packages=True, requirements=None)
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1344,7 +1342,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=["pendulum"])
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1769,10 +1766,12 @@ class MyContextAssertOperator(BaseOperator):
 def get_all_the_context(**context):
     current_context = get_current_context()
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", AirflowContextDeprecationWarning)
         if AIRFLOW_V_3_0_PLUS:
             assert context == current_context
         else:
+            from airflow.utils.context import AirflowContextDeprecationWarning
+
+            warnings.simplefilter("ignore", AirflowContextDeprecationWarning)
             assert current_context._context
 
 

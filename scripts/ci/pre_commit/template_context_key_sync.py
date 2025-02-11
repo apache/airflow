@@ -152,6 +152,9 @@ def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str],
     retn_keys.update(("exception", "reason", "try_number"))
     docs_keys.update(("exception", "reason", "try_number"))
 
+    # Airflow 3 added:
+    retn_keys.update(("start_date", "task_reschedule_count"))
+
     check_candidates = [
         ("get_template_context()", retn_keys),
         ("KNOWN_CONTEXT_KEYS", decl_keys),

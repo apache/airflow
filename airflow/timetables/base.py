@@ -281,8 +281,8 @@ class Timetable(Protocol):
         self,
         *,
         run_type: DagRunType,
-        logical_date: DateTime,
+        run_after: DateTime,
         data_interval: DataInterval | None,
         **extra,
     ) -> str:
-        return run_type.generate_run_id(logical_date)
+        return run_type.generate_run_id(suffix=run_after.isoformat())
