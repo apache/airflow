@@ -238,6 +238,8 @@ class BaseK8STest:
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
+        from airflow.utils import timezone
+
         patch_string = f"http://{host}/api/v1/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
         max_attempts = 10
@@ -265,9 +267,10 @@ class BaseK8STest:
         post_string = f"http://{host}/api/v1/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#2 {post_string}")
 
-        logical_date = datetime.now(timezone.utc)
         # Trigger a new dagrun
-        result = self.session.post(post_string, json={"logical_date": logical_date})
+        result = self.session.post(
+            post_string, json={"logical_date": timezone.coerce_datetime(timezone.utcnow())}
+        )
         try:
             result_json = result.json()
         except ValueError:
