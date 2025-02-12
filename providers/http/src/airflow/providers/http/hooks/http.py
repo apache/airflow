@@ -34,7 +34,7 @@ from asgiref.sync import sync_to_async
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowConfigException
 from airflow.hooks.base import BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
 from airflow.utils.module_loading import import_string
@@ -493,20 +493,19 @@ class HttpAsyncHook(BaseHook):
         self.retry_delay = retry_delay
 
     async def get_conn(self, headers: dict[Any, Any] | None = None) -> Connection:
-        if self.http_conn_id:
-            conn = await sync_to_async(self.get_connection)(self.http_conn_id)
+        conn = await sync_to_async(self.get_connection)(self.http_conn_id)
 
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
-            else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
-                self.base_url = schema + "://" + host
+        if conn.host and "://" in conn.host:
+            self.base_url = conn.host
+        else:
+            # schema defaults to HTTP
+            schema = conn.schema if conn.schema else "http"
+            host = conn.host if conn.host else ""
+            self.base_url = schema + "://" + host
 
-            if conn.port:
-                self.base_url += f":{conn.port}"
-            return conn
+        if conn.port:
+            self.base_url += f":{conn.port}"
+        return conn
 
     async def run(
         self,
