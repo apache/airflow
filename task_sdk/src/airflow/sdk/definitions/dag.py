@@ -651,10 +651,6 @@ class DAG:
         """
         return ", ".join({t.owner for t in self.tasks})
 
-    @property
-    def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_LOGICAL_DATES and not self.timetable.can_be_scheduled
-
     def resolve_template_files(self):
         for t in self.tasks:
             # TODO: TaskSDK: move this on to BaseOperator and remove the check?
