@@ -131,7 +131,7 @@ export const DagRuns = () => {
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
-      dagId: "~",
+      dagId: dagId ?? "~",
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
