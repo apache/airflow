@@ -53,7 +53,6 @@ from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
-from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
@@ -456,8 +455,7 @@ class DagRun(Base, LoggingMixin):
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
-        if not settings.ALLOW_FUTURE_LOGICAL_DATES:
-            query = query.where(DagRun.logical_date <= func.now())
+        query = query.where(DagRun.run_after <= func.now())
 
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
@@ -542,8 +540,7 @@ class DagRun(Base, LoggingMixin):
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
-        if not settings.ALLOW_FUTURE_LOGICAL_DATES:
-            query = query.where(DagRun.logical_date <= func.now())
+        query = query.where(DagRun.run_after <= func.now())
 
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 

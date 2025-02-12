@@ -8202,6 +8202,10 @@ components:
             format: date-time
           - type: 'null'
           title: Data Interval End
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         last_scheduling_decision:
           anyOf:
           - type: string
@@ -8235,6 +8239,7 @@ components:
       - end_date
       - data_interval_start
       - data_interval_end
+      - run_after
       - last_scheduling_decision
       - run_type
       - state
@@ -9952,8 +9957,10 @@ components:
           type: integer
           title: Map Index
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         start_date:
           anyOf:
@@ -10760,8 +10767,10 @@ components:
           format: date-time
           title: Timestamp
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         map_index:
           type: integer
@@ -10796,8 +10805,10 @@ components:
           format: date-time
           title: Timestamp
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         map_index:
           type: integer
@@ -10835,8 +10846,10 @@ components:
           format: date-time
           title: Timestamp
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         map_index:
           type: integer

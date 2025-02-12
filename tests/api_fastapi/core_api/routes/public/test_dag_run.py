@@ -216,6 +216,7 @@ class TestGetDagRuns:
             "dag_id": run.dag_id,
             "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
             "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
+            "run_after": from_datetime_to_zulu_without_ms(run.run_after),
             "start_date": from_datetime_to_zulu_without_ms(run.start_date),
             "end_date": from_datetime_to_zulu(run.end_date),
             "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
@@ -504,6 +505,7 @@ class TestListDagRunsBatch:
             "dag_id": run.dag_id,
             "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
             "queued_at": from_datetime_to_zulu_without_ms(run.queued_at) if run.queued_at else None,
+            "run_after": from_datetime_to_zulu_without_ms(run.run_after),
             "start_date": from_datetime_to_zulu_without_ms(run.start_date),
             "end_date": from_datetime_to_zulu(run.end_date),
             "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
@@ -1179,6 +1181,7 @@ class TestTriggerDagRun:
             "dag_run_id": expected_dag_run_id,
             "end_date": None,
             "logical_date": fixed_now.replace("+00:00", "Z"),
+            "run_after": fixed_now.replace("+00:00", "Z"),
             "external_trigger": True,
             "start_date": None,
             "state": "queued",
@@ -1197,33 +1200,19 @@ class TestTriggerDagRun:
     @pytest.mark.parametrize(
         "post_body, expected_detail",
         [
-            # Uncomment these 2 test cases once https://github.com/apache/airflow/pull/44306 is merged
-            # (
-            #     {"executiondate": "2020-11-10T08:25:56Z"},
-            #     {
-            #         "detail": [
-            #             {
-            #                 "input": "2020-11-10T08:25:56Z",
-            #                 "loc": ["body", "executiondate"],
-            #                 "msg": "Extra inputs are not permitted",
-            #                 "type": "extra_forbidden",
-            #             }
-            #         ]
-            #     },
-            # ),
-            # (
-            #     {"logical_date": "2020-11-10T08:25:56"},
-            #     {
-            #         "detail": [
-            #             {
-            #                 "input": "2020-11-10T08:25:56",
-            #                 "loc": ["body", "logical_date"],
-            #                 "msg": "Extra inputs are not permitted",
-            #                 "type": "extra_forbidden",
-            #             }
-            #         ]
-            #     },
-            # ),
+            (
+                {"executiondate": "2020-11-10T08:25:56Z"},
+                {
+                    "detail": [
+                        {
+                            "input": "2020-11-10T08:25:56Z",
+                            "loc": ["body", "executiondate"],
+                            "msg": "Extra inputs are not permitted",
+                            "type": "extra_forbidden",
+                        }
+                    ]
+                },
+            ),
             (
                 {"data_interval_start": "2020-11-10T08:25:56"},
                 {
@@ -1349,6 +1338,7 @@ class TestTriggerDagRun:
             "queued_at": now,
             "start_date": None,
             "end_date": None,
+            "run_after": now,
             "data_interval_start": now,
             "data_interval_end": now,
             "last_scheduling_decision": None,
@@ -1429,6 +1419,7 @@ class TestTriggerDagRun:
             "dag_id": DAG1_ID,
             "logical_date": None,
             "queued_at": mock.ANY,
+            "run_after": mock.ANY,
             "start_date": None,
             "end_date": None,
             "data_interval_start": mock.ANY,
