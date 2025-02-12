@@ -1504,7 +1504,7 @@ class TestTaskRunnerCallsListeners:
         log = mock.MagicMock()
 
         state, _ = run(runtime_ti, log)
-        finalize(ti, state, log)
+        finalize(runtime_ti, state, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
 
@@ -1542,6 +1542,6 @@ class TestTaskRunnerCallsListeners:
         log = mock.MagicMock()
 
         state, _ = run(runtime_ti, log)
-        finalize(ti, state, log)
+        finalize(runtime_ti, state, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
