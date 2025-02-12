@@ -61,7 +61,7 @@ export const DurationChart = ({
   kind,
 }: {
   readonly entries: Array<RunResponse> | undefined;
-  readonly kind: string;
+  readonly kind: "Dag Run" | "Task Instance";
 }) => {
   if (!entries) {
     return undefined;
@@ -110,7 +110,7 @@ export const DurationChart = ({
                       ? Number(getDuration(obj.queued_at, obj.start_date))
                       : 0;
                   }
-                  case "Task Instances": {
+                  case "Task Instance": {
                     const obj = entry as TaskInstanceResponse;
 
                     return obj.queued_when !== null &&
