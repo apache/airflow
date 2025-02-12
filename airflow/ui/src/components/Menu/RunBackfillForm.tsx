@@ -22,7 +22,7 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse, BackfillPostBody } from "openapi/requests/types.gen";
 import { Alert, Button } from "src/components/ui";
-import { ReprocessBehaviors } from "src/constants/reprocessBehaviourParams";
+import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 
@@ -55,7 +55,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     control,
   });
 
-  const { data } = useCreateBackfillDryRun({
+  const { data, isPending: isPendingDryRun } = useCreateBackfillDryRun({
     requestBody: {
       requestBody: {
         dag_id: dag.dag_id,
@@ -156,7 +156,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             >
               <RadioCardLabel fontSize="md">Reprocess Behaviour</RadioCardLabel>
               <HStack>
-                {ReprocessBehaviors.map((item) => (
+                {reprocessBehaviors.map((item) => (
                   <RadioCardItem
                     colorPalette="blue"
                     indicatorPlacement="start"
@@ -174,7 +174,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           control={control}
           name="run_backwards"
           render={({ field }) => (
-            <Checkbox checked={field.value} onChange={field.onChange}>
+            <Checkbox checked={field.value} colorPalette="blue" onChange={field.onChange}>
               Run Backwards
             </Checkbox>
           )}
@@ -202,7 +202,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           <Button onClick={() => void handleSubmit(onCancel)()}>Cancel</Button>
           <Button
             colorPalette="blue"
-            disabled={Boolean(errors.date) || affectedTasks.total_entries === 0}
+            disabled={Boolean(errors.date) || isPendingDryRun || affectedTasks.total_entries === 0}
             loading={isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >

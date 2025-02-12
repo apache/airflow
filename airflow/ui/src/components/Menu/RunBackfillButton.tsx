@@ -18,10 +18,10 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
-import { Link } from "react-router-dom";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
+import { Button } from "../ui";
 import RunBackfillModal from "./RunBackfillModal";
 
 type Props = {
@@ -33,9 +33,9 @@ const RunBackfillButton: React.FC<Props> = ({ dag }) => {
 
   return (
     <Box>
-      <Link aria-label="Run Backfill" onClick={onOpen} to="">
+      <Button aria-label="Run Backfill" border="none" height={5} onClick={onOpen} variant="ghost">
         Run Backfill
-      </Link>
+      </Button>
       <RunBackfillModal dag={dag} onClose={onClose} open={open} />
     </Box>
   );

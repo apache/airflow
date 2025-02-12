@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export const ReprocessBehaviors = [
+export const reprocessBehaviors = [
   { label: "Missing Runs", value: "failed" },
   { label: "Missing and Errored Runs", value: "completed" },
   { label: "All Runs", value: "none" },
