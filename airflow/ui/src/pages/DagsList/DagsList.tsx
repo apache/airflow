@@ -41,6 +41,7 @@ import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
 import { pluralize } from "src/utils";
@@ -214,7 +215,7 @@ export const DagsList = () => {
   );
 
   return (
-    <>
+    <DagsLayout>
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ disabled: true }}
@@ -251,6 +252,6 @@ export const DagsList = () => {
           total={data.total_entries}
         />
       </Box>
-    </>
+    </DagsLayout>
   );
 };
