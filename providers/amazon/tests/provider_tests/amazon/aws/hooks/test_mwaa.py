@@ -86,8 +86,8 @@ class TestMwaaHook:
     @pytest.mark.parametrize(
         "body",
         [
-            None,  # test case: empty body
-            {"conf": {}},  # test case: non-empty body
+            pytest.param(None, id="no_body"),
+            pytest.param({"conf": {}}, id="non_empty_body"),
         ],
     )
     @mock.patch.object(MwaaHook, "conn")
