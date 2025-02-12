@@ -34,7 +34,6 @@ const RunBackfillModal: React.FC<RunBackfillModalProps> = ({ dag, onClose, open 
   <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
     <Dialog.Content backdrop>
       <Dialog.Header bg="blue.muted">
-        {/* <VStack align="start" gap={4}> */}
         <Heading size="xl">Run Backfill</Heading>
       </Dialog.Header>
       <Dialog.CloseTrigger />

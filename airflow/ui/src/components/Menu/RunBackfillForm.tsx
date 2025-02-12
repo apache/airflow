@@ -16,21 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Box, Spacer, HStack, Field, VStack, Flex } from "@chakra-ui/react";
+import { Input, Box, Spacer, HStack, Field, VStack, Flex, Text } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 
-import type {
-  DAGResponse,
-  DAGWithLatestDagRunsResponse,
-  BackfillPostBody,
-  TaskInstanceCollectionResponse,
-} from "openapi/requests/types.gen";
-import { Button } from "src/components/ui";
+import type { DAGResponse, DAGWithLatestDagRunsResponse, BackfillPostBody } from "openapi/requests/types.gen";
+import { Alert, Button } from "src/components/ui";
+import { ReprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 
-import { ActionAccordion } from "../ActionAccordion";
 import { ErrorAlert } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
@@ -39,6 +34,7 @@ type RunBackfillFormProps = {
   readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
   readonly onClose: () => void;
 };
+const today = new Date().toISOString().slice(0, 16);
 
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
@@ -58,16 +54,17 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const values = useWatch<BackfillPostBody>({
     control,
   });
+
   const { data } = useCreateBackfillDryRun({
     requestBody: {
       requestBody: {
         dag_id: dag.dag_id,
         dag_run_conf: undefined,
-        from_date: values.from_date ?? new Date().toDateString(),
-        max_active_runs: undefined,
-        reprocess_behavior: undefined,
-        run_backwards: undefined,
-        to_date: values.to_date ?? new Date().toDateString(),
+        from_date: values.from_date ?? today,
+        max_active_runs: values.max_active_runs ?? 0,
+        reprocess_behavior: values.reprocess_behavior,
+        run_backwards: values.run_backwards ?? false,
+        to_date: values.to_date ?? today,
       },
     },
   });
@@ -101,55 +98,51 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   };
 
   const affectedTasks = data ?? {
-    task_instances: [],
+    backfills: [],
     total_entries: 0,
   };
 
-  const reprocessBehaviors = [
-    { label: "Missing Runs", value: "failed" },
-    { label: "Missing and Errored Runs", value: "completed" },
-    { label: "All Runs", value: "none" },
-  ];
-
   return (
     <>
-      <VStack align="baseline" display="flex" p={10}>
-        <HStack w="full">
-          <Controller
-            control={control}
-            name="from_date"
-            render={({ field }) => (
-              <Field.Root invalid={Boolean(errors.date)}>
-                <Field.Label fontSize="md">Data Interval Start Date</Field.Label>
-                <Input
-                  {...field}
-                  max={dataIntervalStart || undefined}
-                  onBlur={resetDateError}
-                  size="sm"
-                  type="datetime-local"
-                />
-              </Field.Root>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="to_date"
-            render={({ field }) => (
-              <Field.Root invalid={Boolean(errors.date)}>
-                <Field.Label fontSize="md">Data Interval End Date</Field.Label>
-                <Input
-                  {...field}
-                  max={new Date().toDateString()}
-                  min={dataIntervalEnd || undefined}
-                  onBlur={resetDateError}
-                  size="sm"
-                  type="datetime-local"
-                />
-              </Field.Root>
-            )}
-          />
-        </HStack>
+      <VStack alignItems="stretch" gap={2} p={10}>
+        <Box>
+          <Text fontSize="md" fontWeight="medium" mb={1}>
+            Date Range
+          </Text>
+          <HStack w="full">
+            <Controller
+              control={control}
+              name="from_date"
+              render={({ field }) => (
+                <Field.Root invalid={Boolean(errors.date)}>
+                  <Input
+                    {...field}
+                    max={dataIntervalEnd || today}
+                    onBlur={resetDateError}
+                    size="sm"
+                    type="datetime-local"
+                  />
+                </Field.Root>
+              )}
+            />
+            <Controller
+              control={control}
+              name="to_date"
+              render={({ field }) => (
+                <Field.Root invalid={Boolean(errors.date)}>
+                  <Input
+                    {...field}
+                    max={today}
+                    min={dataIntervalStart || undefined}
+                    onBlur={resetDateError}
+                    size="sm"
+                    type="datetime-local"
+                  />
+                </Field.Root>
+              )}
+            />
+          </HStack>
+        </Box>
         <Spacer />
         <Controller
           control={control}
@@ -161,9 +154,9 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                 field.onChange(event);
               }}
             >
-              <RadioCardLabel fontSize="md">Run Types</RadioCardLabel>
-              <VStack align="stretch">
-                {reprocessBehaviors.map((item) => (
+              <RadioCardLabel fontSize="md">Reprocess Behaviour</RadioCardLabel>
+              <HStack>
+                {ReprocessBehaviors.map((item) => (
                   <RadioCardItem
                     colorPalette="blue"
                     indicatorPlacement="start"
@@ -172,7 +165,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
                     value={item.value}
                   />
                 ))}
-              </VStack>
+              </HStack>
             </RadioCardRoot>
           )}
         />
@@ -198,11 +191,9 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           )}
         />
         <Spacer />
-        <ActionAccordion
-          affectedTasks={affectedTasks as TaskInstanceCollectionResponse}
-          note={null}
-          setNote={undefined}
-        />
+        {affectedTasks.total_entries > 0 ? (
+          <Alert>{affectedTasks.total_entries} runs will be triggered</Alert>
+        ) : undefined}
       </VStack>
       <ErrorAlert error={errors.date ?? error} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
