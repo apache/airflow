@@ -753,13 +753,13 @@ class TestDatabricksSubmitRunOperator:
                     "node_type_id": "i3.xlarge",
                     "spark_conf": {
                         "spark.speculation": True,
-                    }
+                    },
                 },
                 "notebook_task": NOTEBOOK_TASK,
                 "timeout_seconds": 86400,
                 "max_retries": 3,
                 "min_retry_interval_millis": 2000,
-                "retry_on_timeout": False
+                "retry_on_timeout": False,
             },
         ]
         json = {
@@ -2484,5 +2484,3 @@ class TestDatabricksTaskOperator:
 
         assert operator.task_config == task_config
         assert task_base_json == task_config
-
-

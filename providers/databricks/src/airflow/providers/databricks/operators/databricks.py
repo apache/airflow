@@ -40,7 +40,11 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRunLink,
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
-from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event, validate_serverless_notebook_settings
+from airflow.providers.databricks.utils.databricks import (
+    normalise_json_content,
+    validate_serverless_notebook_settings,
+    validate_trigger_event,
+)
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey

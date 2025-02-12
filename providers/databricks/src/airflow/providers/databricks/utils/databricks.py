@@ -75,7 +75,8 @@ def validate_serverless_notebook_settings(content) -> bool:
     """
     if "tasks" in content:
         for task in content["tasks"]:
-            if ("notebook_task" in task
+            if (
+                "notebook_task" in task
                 and not {"job_cluster_key", "existing_cluster_id", "new_cluster"}.intersection(task)
                 and "environments" in content
                 and "environment_key" not in task
