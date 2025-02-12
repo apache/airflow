@@ -17,17 +17,17 @@
 # under the License.
 
 import re
-from collections.abc import Sequence
+from collections.abc import Sequence, AsyncIterator
 from functools import cached_property
 from typing import Any, NoReturn
 
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.providers.common.msgq.hooks.msg_queue import MsgQueueHook
-from airflow.providers.common.msgq.operators.msg_queue import BaseMsgQueueOperator
 
-class WaitForMessageTriggerFunction(BaseMsgQueueOperator):
+class MessageQueueTrigger(BaseTrigger):
     """
     Defer until a message for a particular topic is published on the message queue
     
@@ -41,10 +41,9 @@ class WaitForMessageTriggerFunction(BaseMsgQueueOperator):
     def __init__(self, **kwargs: Any) -> None:
         super().__init(**kwargs)
 
-    def execute(self, context, event=None) -> Any:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """
         Need to insert the processing here based on the decision above
         """
         
-        return event
     
