@@ -41,7 +41,7 @@ Misc
 Bug Fixes
 ~~~~~~~~~
 
-* ``The DMS waiter replication_terminal_status has been extended and wait for 2 additional status: "created" and "deprovisioned"``
+* ``The DMS waiter replication_terminal_status has been extended to proceed on 2 additional states: "created" and "deprovisioned"``
 
 9.2.0
 .....
