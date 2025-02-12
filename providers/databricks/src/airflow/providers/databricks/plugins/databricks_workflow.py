@@ -136,10 +136,12 @@ def _repair_task(
         databricks_run_id,
     )
 
+    run_data = hook.get_run(databricks_run_id)
     repair_json = {
         "run_id": databricks_run_id,
         "latest_repair_id": repair_history_id,
         "rerun_tasks": tasks_to_repair,
+        **run_data.get("overriding_parameters", {}),
     }
 
     return hook.repair_run(repair_json)
