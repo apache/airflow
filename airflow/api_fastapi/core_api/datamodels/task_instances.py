@@ -46,7 +46,7 @@ class TaskInstanceResponse(BaseModel):
     dag_id: str
     run_id: str = Field(alias="dag_run_id")
     map_index: int
-    logical_date: datetime
+    logical_date: datetime | None
     start_date: datetime | None
     end_date: datetime | None
     duration: float | None
