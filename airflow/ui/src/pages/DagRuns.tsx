@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Link, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
+import { Flex, HStack, Link, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback } from "react";
-import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse, DagRunState } from "openapi/requests/types.gen";
@@ -32,13 +32,29 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
-import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
+import { dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
 import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
-const columns: Array<ColumnDef<DAGRunResponse>> = [
+type DagRunRow = { row: { original: DAGRunResponse } };
+
+const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
+  ...(Boolean(dagId)
+    ? []
+    : [
+        {
+          accessorKey: "dag_id",
+          cell: ({ row: { original } }: DagRunRow) => (
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
+            </Link>
+          ),
+          enableSorting: false,
+          header: "Dag ID",
+        },
+      ]),
   {
     accessorKey: "run_id",
-    cell: ({ row: { original } }) => (
+    cell: ({ row: { original } }: DagRunRow) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
           {original.dag_run_id}
@@ -100,9 +116,8 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
 
 const STATE_PARAM = "state";
 
-export const Runs = () => {
+export const DagRuns = () => {
   const { dagId } = useParams();
-
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -112,7 +127,7 @@ export const Runs = () => {
 
   const filteredState = searchParams.get(STATE_PARAM);
 
-  const refetchInterval = useAutoRefresh({ dagId });
+  const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
@@ -149,7 +164,7 @@ export const Runs = () => {
   );
 
   return (
-    <Box pt={4}>
+    <>
       <Flex>
         <Select.Root
           collection={stateOptions}
@@ -182,7 +197,7 @@ export const Runs = () => {
         </Select.Root>
       </Flex>
       <DataTable
-        columns={columns}
+        columns={runColumns(dagId)}
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
@@ -191,6 +206,6 @@ export const Runs = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
-    </Box>
+    </>
   );
 };

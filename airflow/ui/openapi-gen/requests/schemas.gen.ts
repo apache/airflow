@@ -2239,6 +2239,11 @@ export const $DAGRunResponse = {
       ],
       title: "Data Interval End",
     },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     last_scheduling_decision: {
       anyOf: [
         {
@@ -2290,6 +2295,7 @@ export const $DAGRunResponse = {
     "end_date",
     "data_interval_start",
     "data_interval_end",
+    "run_after",
     "last_scheduling_decision",
     "run_type",
     "state",
@@ -4811,8 +4817,15 @@ export const $TaskInstanceResponse = {
       title: "Map Index",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     start_date: {
@@ -5840,6 +5853,23 @@ export const $TriggerDAGRunPostBody = {
       ],
       title: "Data Interval End",
     },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
+    },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     conf: {
       type: "object",
       title: "Conf",
@@ -5858,6 +5888,7 @@ export const $TriggerDAGRunPostBody = {
   },
   additionalProperties: false,
   type: "object",
+  required: ["logical_date"],
   title: "TriggerDAGRunPostBody",
   description: "Trigger DAG Run Serializer for POST body.",
 } as const;
@@ -6120,8 +6151,15 @@ export const $XComResponse = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {
@@ -6159,8 +6197,15 @@ export const $XComResponseNative = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {
@@ -6201,8 +6246,15 @@ export const $XComResponseString = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {

@@ -587,6 +587,7 @@ export type DAGRunResponse = {
   end_date: string | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
+  run_after: string;
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
@@ -1251,7 +1252,7 @@ export type TaskInstanceResponse = {
   dag_id: string;
   dag_run_id: string;
   map_index: number;
-  logical_date: string;
+  logical_date: string | null;
   start_date: string | null;
   end_date: string | null;
   duration: number | null;
@@ -1418,6 +1419,8 @@ export type TriggerDAGRunPostBody = {
   dag_run_id?: string | null;
   data_interval_start?: string | null;
   data_interval_end?: string | null;
+  logical_date: string | null;
+  run_after?: string;
   conf?: {
     [key: string]: unknown;
   };
@@ -1507,7 +1510,7 @@ export type XComCreateBody = {
 export type XComResponse = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -1520,7 +1523,7 @@ export type XComResponse = {
 export type XComResponseNative = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -1534,7 +1537,7 @@ export type XComResponseNative = {
 export type XComResponseString = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -2423,6 +2426,12 @@ export type ReparseDagFileResponse = null;
 export type GetHealthResponse = HealthInfoResponse;
 
 export type GetVersionResponse = VersionInfo;
+
+export type LoginData = {
+  next?: string | null;
+};
+
+export type LoginResponse = unknown;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -5085,6 +5094,25 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+      };
+    };
+  };
+  "/public/login": {
+    get: {
+      req: LoginData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Temporary Redirect
+         */
+        307: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

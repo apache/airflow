@@ -24,7 +24,6 @@ from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-    from sqlalchemy import Session
 
     from airflow.models.asset import AssetEvent
     from airflow.sdk.definitions.asset import BaseAsset
@@ -186,15 +185,22 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         self,
         *,
         run_type: DagRunType,
-        logical_date: DateTime,
         data_interval: DataInterval | None,
-        session: Session | None = None,
-        events: Collection[AssetEvent] | None = None,
+        run_after: DateTime,
         **extra,
     ) -> str:
+        """
+        Generate Run ID based on Run Type, run_after and logical Date.
+
+        :param run_type: type of DagRun
+        :param data_interval: the data interval
+        :param run_after: the date before which dag run won't start.
+        """
         from airflow.models.dagrun import DagRun
 
-        return DagRun.generate_run_id(run_type, logical_date)
+        logical_date = data_interval.start if data_interval is not None else run_after
+
+        return DagRun.generate_run_id(run_type=run_type, logical_date=logical_date, run_after=run_after)
 
     def data_interval_for_events(
         self,

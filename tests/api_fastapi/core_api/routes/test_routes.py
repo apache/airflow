@@ -20,6 +20,7 @@ from airflow.api_fastapi.core_api.routes.public import authenticated_router, pub
 
 # Set of paths that are allowed to be accessible without authentication
 NO_AUTH_PATHS = {
+    "/public/login",
     "/public/version",
     "/public/monitor/health",
 }

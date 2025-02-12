@@ -383,7 +383,7 @@ def _run_raw_task(
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
                 get_listener_manager().hook.on_task_instance_success(
-                    previous_state=TaskInstanceState.RUNNING, task_instance=ti, session=session
+                    previous_state=TaskInstanceState.RUNNING, task_instance=ti
                 )
 
         return None
@@ -1873,6 +1873,7 @@ class TaskInstance(Base, LoggingMixin):
             max_tries=self.max_tries,
             hostname=self.hostname,
             _ti_context_from_server=context_from_server,
+            start_date=self.start_date,
         )
 
         return runtime_ti
@@ -2033,10 +2034,9 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
-        base_date = quote(self.logical_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
         map_index = f"&map_index={self.map_index}" if self.map_index >= 0 else ""
-        return (
+        _log_uri = (
             f"{base_url}"
             f"/dags"
             f"/{self.dag_id}"
@@ -2044,9 +2044,12 @@ class TaskInstance(Base, LoggingMixin):
             f"?dag_run_id={run_id}"
             f"&task_id={self.task_id}"
             f"{map_index}"
-            f"&base_date={base_date}"
             "&tab=logs"
         )
+        if self.logical_date:
+            base_date = quote(self.logical_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
+            _log_uri = f"{_log_uri}&base_date={base_date}"
+        return _log_uri
 
     @property
     def mark_success_url(self) -> str:
@@ -2895,7 +2898,7 @@ class TaskInstance(Base, LoggingMixin):
 
             # Run on_task_instance_running event
             get_listener_manager().hook.on_task_instance_running(
-                previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
+                previous_state=TaskInstanceState.QUEUED, task_instance=self
             )
 
             def _render_map_index(context: Context, *, jinja_env: jinja2.Environment | None) -> str | None:
@@ -3137,7 +3140,7 @@ class TaskInstance(Base, LoggingMixin):
             callbacks = task.on_retry_callback if task else None
 
         get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error, session=session
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
         )
 
         return {
