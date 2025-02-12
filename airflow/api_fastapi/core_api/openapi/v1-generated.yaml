@@ -8202,6 +8202,10 @@ components:
             format: date-time
           - type: 'null'
           title: Data Interval End
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         last_scheduling_decision:
           anyOf:
           - type: string
@@ -8235,6 +8239,7 @@ components:
       - end_date
       - data_interval_start
       - data_interval_end
+      - run_after
       - last_scheduling_decision
       - run_type
       - state
