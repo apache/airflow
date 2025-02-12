@@ -32,7 +32,7 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
-import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
+import { dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
 import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 const columns: Array<ColumnDef<DAGRunResponse>> = [
