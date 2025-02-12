@@ -623,17 +623,16 @@ class TestDagFileProcessorManager:
         )
 
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(
-        self, tmp_path, testing_dag_bundle, configure_testing_dag_bundle
+        self, tmp_path, testing_dag_bundle, configure_testing_dag_bundle, test_zip_path
     ):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
         dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
-        zipped_dag_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
-        dagbag.process_file(zipped_dag_path)
+        dagbag.process_file(test_zip_path)
         dag = dagbag.get_dag("test_zip_dag")
         DAG.bulk_write_to_db("testing", None, [dag])
         SerializedDagModel.write_dag(dag, bundle_name="testing")
 
-        with configure_testing_dag_bundle(zipped_dag_path):
+        with configure_testing_dag_bundle(test_zip_path):
             manager = DagFileProcessorManager(max_runs=1)
             manager.run()
 
@@ -646,12 +645,12 @@ class TestDagFileProcessorManager:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_refresh_dags_dir_deactivates_deleted_zipped_dags(
-        self, session, tmp_path, configure_testing_dag_bundle
+        self, session, tmp_path, configure_testing_dag_bundle, test_zip_path
     ):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
         dag_id = "test_zip_dag"
         filename = "test_zip.zip"
-        source_location = os.path.join(TEST_DAGS_FOLDER, filename)
+        source_location = test_zip_path
         bundle_path = Path(tmp_path, "test_refresh_dags_dir_deactivates_deleted_zipped_dags")
         bundle_path.mkdir(exist_ok=True)
         zip_dag_path = bundle_path / filename
@@ -1035,3 +1034,21 @@ class TestDagFileProcessorManager:
                 manager.run()
                 bundleone.refresh.assert_called_once()
                 bundleone.get_current_version.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "bundle_names, expected",
+        [
+            (None, {"bundle1", "bundle2", "bundle3"}),
+            (["bundle1"], {"bundle1"}),
+            (["bundle1", "bundle2"], {"bundle1", "bundle2"}),
+        ],
+    )
+    def test_bundle_names_to_parse(self, bundle_names, expected, configure_dag_bundles):
+        config = {f"bundle{i}": os.devnull for i in range(1, 4)}
+        with configure_dag_bundles(config):
+            manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=bundle_names)
+            manager._run_parsing_loop = MagicMock()
+            manager.run()
+
+        bundle_names_being_parsed = {b.name for b in manager._dag_bundles}
+        assert bundle_names_being_parsed == expected

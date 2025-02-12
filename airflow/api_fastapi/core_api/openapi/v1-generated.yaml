@@ -6676,6 +6676,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
+  /public/login:
+    get:
+      tags:
+      - Login
+      summary: Login
+      description: Redirect to the login URL depending on the AuthManager configured.
+      operationId: login
+      parameters:
+      - name: next
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '307':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Temporary Redirect
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -10513,6 +10547,16 @@ components:
             format: date-time
           - type: 'null'
           title: Data Interval End
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         conf:
           type: object
           title: Conf
@@ -10523,6 +10567,8 @@ components:
           title: Note
       additionalProperties: false
       type: object
+      required:
+      - logical_date
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.
     TriggerResponse:

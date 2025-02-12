@@ -2,6 +2,7 @@
 # Eventually when we swtich to individually build docs for each provider, we should remove this altogether
 apache-airflow-providers-airbyte
 apache-airflow-providers-alibaba
+apache-airflow-providers-amazon
 apache-airflow-providers-apache-beam
 apache-airflow-providers-apache-cassandra
 apache-airflow-providers-apache-drill
@@ -44,6 +45,7 @@ apache-airflow-providers-github
 apache-airflow-providers-google
 apache-airflow-providers-grpc
 apache-airflow-providers-http
+apache-airflow-providers-microsoft-azure
 apache-airflow-providers-jdbc
 apache-airflow-providers-influxdb
 apache-airflow-providers-microsoft-mssql

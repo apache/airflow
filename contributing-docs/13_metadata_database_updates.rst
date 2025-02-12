@@ -49,6 +49,32 @@ After your new migration file is run through pre-commit it will look like this:
 
 This represents that your migration is the 1234th migration and expected for release in Airflow version A.B.C.
 
+How to Resolve Conflicts When Rebasing
+--------------------------------------
+
+When rebasing your branch onto the latest ``main``, you may encounter conflicts in certain files. This often happens when another PR updates the Metadata Database and is merged before yours.
+
+The affected files may include:
+
+- ``docs/apache-airflow/img/airflow_erd.sha256``
+- ``docs/apache-airflow/img/airflow_erd.svg``
+- ``docs/apache-airflow/migrations-ref.rst``
+- ``airflow/migrations/versions/1234_A_B_C_<your_migration_name>.py``
+
+    There should be another file, ``1234_A_B_C_<other_migration_name>.py``, with the same ``1234_A_B_C`` prefix.
+
+To resolve these conflicts:
+
+1. First, resolve all conflicts **except** those in the files listed above. This includes conflicts in other ``.py`` files within the ``airflow/`` or ``tests/`` directories.
+2. Then, run the following commands to automatically update the affected files:
+
+.. code-block:: bash
+
+    pre-commit run update-migration-references --all
+    pre-commit run update-er-diagram --all
+
+3. Add the updated files to the staging area and continue with the rebase.
+
 How to hook your application into Airflow's migration process
 -------------------------------------------------------------
 

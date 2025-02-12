@@ -34,6 +34,7 @@ services:
       # START automatically generated volumes by generate-volumes-for-sources pre-commit
       - ../../../empty:/opt/airflow/providers/airbyte/src
       - ../../../empty:/opt/airflow/providers/alibaba/src
+      - ../../../empty:/opt/airflow/providers/amazon/src
       - ../../../empty:/opt/airflow/providers/apache/beam/src
       - ../../../empty:/opt/airflow/providers/apache/cassandra/src
       - ../../../empty:/opt/airflow/providers/apache/drill/src
@@ -81,6 +82,7 @@ services:
       - ../../../empty:/opt/airflow/providers/influxdb/src
       - ../../../empty:/opt/airflow/providers/jdbc/src
       - ../../../empty:/opt/airflow/providers/jenkins/src
+      - ../../../empty:/opt/airflow/providers/microsoft/azure/src
       - ../../../empty:/opt/airflow/providers/microsoft/mssql/src
       - ../../../empty:/opt/airflow/providers/microsoft/psrp/src
       - ../../../empty:/opt/airflow/providers/microsoft/winrm/src
