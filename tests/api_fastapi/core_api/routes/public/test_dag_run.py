@@ -1197,33 +1197,19 @@ class TestTriggerDagRun:
     @pytest.mark.parametrize(
         "post_body, expected_detail",
         [
-            # Uncomment these 2 test cases once https://github.com/apache/airflow/pull/44306 is merged
-            # (
-            #     {"executiondate": "2020-11-10T08:25:56Z"},
-            #     {
-            #         "detail": [
-            #             {
-            #                 "input": "2020-11-10T08:25:56Z",
-            #                 "loc": ["body", "executiondate"],
-            #                 "msg": "Extra inputs are not permitted",
-            #                 "type": "extra_forbidden",
-            #             }
-            #         ]
-            #     },
-            # ),
-            # (
-            #     {"logical_date": "2020-11-10T08:25:56"},
-            #     {
-            #         "detail": [
-            #             {
-            #                 "input": "2020-11-10T08:25:56",
-            #                 "loc": ["body", "logical_date"],
-            #                 "msg": "Extra inputs are not permitted",
-            #                 "type": "extra_forbidden",
-            #             }
-            #         ]
-            #     },
-            # ),
+            (
+                {"executiondate": "2020-11-10T08:25:56Z"},
+                {
+                    "detail": [
+                        {
+                            "input": "2020-11-10T08:25:56Z",
+                            "loc": ["body", "executiondate"],
+                            "msg": "Extra inputs are not permitted",
+                            "type": "extra_forbidden",
+                        }
+                    ]
+                },
+            ),
             (
                 {"data_interval_start": "2020-11-10T08:25:56"},
                 {
