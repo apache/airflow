@@ -135,11 +135,28 @@ class TestFs:
 
         o.unlink()
 
-    def test_ls(self):
+    def test_ls_file(self):
         dirname = str(uuid.uuid4())
         filename = str(uuid.uuid4())
 
         d = ObjectStoragePath(f"file:///tmp/{dirname}")
+        d.mkdir(parents=True)
+        o = d / filename
+        o.touch()
+
+        data = list(d.iterdir())
+        assert len(data) == 1
+        assert data[0] == o
+
+        d.rmdir(recursive=True)
+
+        assert not o.exists()
+
+    def test_ls_local(self):
+        dirname = str(uuid.uuid4())
+        filename = str(uuid.uuid4())
+
+        d = ObjectStoragePath(f"local:///tmp/{dirname}")
         d.mkdir(parents=True)
         o = d / filename
         o.touch()
