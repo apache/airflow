@@ -1656,7 +1656,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                 return callback_to_execute
 
-            if dag_run.logical_date > timezone.utcnow() and not dag.allow_future_exec_dates:
+            if dag_run.logical_date and dag_run.logical_date > timezone.utcnow():
                 self.log.error("Logical date is in future: %s", dag_run.logical_date)
                 return callback
 
