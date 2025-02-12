@@ -777,6 +777,9 @@ workers:
   extraVolumes: []
   extraVolumeMounts: []
 
+  # Expose additional ports. These can be used for additional metric collection.
+  extraPorts: []
+
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
   runtimeClassName: ~
