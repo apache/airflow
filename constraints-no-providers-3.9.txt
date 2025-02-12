@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-08T19:54:51.407500
+# This constraints file was automatically generated on 2025-02-12T02:23:23.462266
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -67,7 +67,7 @@ colorlog==6.9.0
 connexion==2.14.2
 cron-descriptor==1.4.5
 croniter==6.0.0
-cryptography==44.0.0
+cryptography==44.0.1
 decorator==5.1.1
 dill==0.3.9
 dnspython==2.7.0

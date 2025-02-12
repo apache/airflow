@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-08T20:10:26.772581
+# This constraints file was automatically generated on 2025-02-12T02:38:47.826067
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -207,7 +207,7 @@ azure-common==1.1.28
 azure-core==1.32.0
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
-azure-identity==1.19.0
+azure-identity==1.20.0
 azure-keyvault-secrets==4.9.0
 azure-kusto-data==4.6.3
 azure-mgmt-containerinstance==10.1.0
@@ -262,7 +262,7 @@ colorlog==6.9.0
 comm==0.2.2
 confluent-kafka==2.8.0
 connexion==2.14.2
-coverage==7.6.11
+coverage==7.6.12
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==6.0.0
@@ -321,7 +321,7 @@ google-api-python-client==2.160.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.38.0
-google-cloud-aiplatform==1.79.0
+google-cloud-aiplatform==1.80.0
 google-cloud-alloydb==0.4.1
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
@@ -447,7 +447,7 @@ limits==4.0.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.2.0
-lxml==5.3.0
+lxml==5.3.1
 lz4==4.4.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
@@ -487,7 +487,7 @@ mysql-connector-python==9.2.0
 mysqlclient==2.2.7
 nbclient==0.10.2
 nbformat==5.10.4
-neo4j==5.28.0
+neo4j==5.28.1
 nest-asyncio==1.6.0
 networkx==3.4.2
 nh3==0.2.20
@@ -575,7 +575,7 @@ pyexasol==0.27.0
 pygraphviz==1.14
 pyiceberg==0.8.1
 pykerberos==1.2.4
-pymongo==4.11
+pymongo==4.11.1
 pymssql==2.3.2
 pyodbc==5.2.0
 pyparsing==3.2.1
@@ -661,7 +661,7 @@ sortedcontainers==2.4.0
 soupsieve==2.6
 sphinx-airflow-theme==0.2.1
 sphinx-argparse==0.5.2
-sphinx-autoapi==3.4.0
+sphinx-autoapi==3.5.0
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
 sphinx-rtd-theme==3.0.2
@@ -727,7 +727,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2025.1.0.20250204
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20241016
-types-setuptools==75.8.0.20250110
+types-setuptools==75.8.0.20250210
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
@@ -739,7 +739,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.5.29
+uv==0.5.30
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
