@@ -2239,6 +2239,11 @@ export const $DAGRunResponse = {
       ],
       title: "Data Interval End",
     },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     last_scheduling_decision: {
       anyOf: [
         {
@@ -2290,6 +2295,7 @@ export const $DAGRunResponse = {
     "end_date",
     "data_interval_start",
     "data_interval_end",
+    "run_after",
     "last_scheduling_decision",
     "run_type",
     "state",
