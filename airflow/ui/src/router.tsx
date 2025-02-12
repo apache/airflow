@@ -22,26 +22,28 @@ import { createBrowserRouter } from "react-router-dom";
 import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
+import { DagsLayout } from "src/layouts/DagsLayout";
+import { AssetsList } from "src/pages/AssetsList";
 import { Dag } from "src/pages/Dag";
 import { Code } from "src/pages/Dag/Code";
 import { Overview } from "src/pages/Dag/Overview";
-import { Runs } from "src/pages/Dag/Runs";
 import { Tasks } from "src/pages/Dag/Tasks";
+import { DagRuns } from "src/pages/DagRuns";
 import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
-import { TaskInstances } from "src/pages/Run/TaskInstances";
-import { Task, Instances } from "src/pages/Task";
+import { Task } from "src/pages/Task";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { Details } from "src/pages/TaskInstance/Details";
+import { TaskInstances } from "src/pages/TaskInstances";
+import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
-import { Pools } from "./pages/Pools";
-import { Variables } from "./pages/Variables";
 import { queryClient } from "./queryClient";
 
 export const routerConfig = [
@@ -54,6 +56,26 @@ export const routerConfig = [
       {
         element: <DagsList />,
         path: "dags",
+      },
+      {
+        element: (
+          <DagsLayout>
+            <DagRuns />
+          </DagsLayout>
+        ),
+        path: "dag_runs",
+      },
+      {
+        element: (
+          <DagsLayout>
+            <TaskInstances />
+          </DagsLayout>
+        ),
+        path: "task_instances",
+      },
+      {
+        element: <AssetsList />,
+        path: "assets",
       },
       {
         element: <Events />,
@@ -78,7 +100,7 @@ export const routerConfig = [
       {
         children: [
           { element: <Overview />, index: true },
-          { element: <Runs />, path: "runs" },
+          { element: <DagRuns />, path: "runs" },
           { element: <Tasks />, path: "tasks" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
@@ -109,7 +131,7 @@ export const routerConfig = [
       },
       {
         children: [
-          { element: <Instances />, index: true },
+          { element: <TaskInstances />, index: true },
           { element: <Events />, path: "events" },
         ],
         element: <Task />,
