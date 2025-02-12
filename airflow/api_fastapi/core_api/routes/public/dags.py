@@ -55,10 +55,13 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
+    DagVersionResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
@@ -197,6 +200,49 @@ def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDe
             setattr(dag_model, key, value)
 
     return dag_model
+
+
+@dags_router.get(
+    "/{dag_id}/versions",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def get_dag_versions(dag_id: str, session: SessionDep, request: Request) -> DagVersionResponse:
+    dag_version = request.app.state.DagVersion()
+    if dag_version is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail=f"DagVersion with dag_id {dag_id} was not found"
+        )
+    version_name = dag_version.version
+
+    dag_run = session.scalar(
+        select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.created_at.desc()).limit(1)
+    )
+    if dag_run is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DagRun with id: {dag_id} was not found")
+    bundle_version = dag_run.bundle_version
+
+    dag_version = session.scalar(
+        select(DagVersion).where(DagVersion.dag_id == dag_id).order_by(DagVersion.created_at.desc()).limit(1)
+    )
+    if dag_version is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"DagVesrion with id: {dag_id} was not found")
+    created_at = dag_version.created_at
+
+    bundle_name = dag_version.bundle_name
+    bundle_version = dag_version.bundle_version
+    bundle_link = DagBundlesManager.view_url(bundle_name, bundle_version)
+
+    return DagVersionResponse(
+        version_name=version_name,
+        bundle_version=bundle_version,
+        created_at=created_at,
+        bundle_link=bundle_link,
+    )
 
 
 @dags_router.patch(

@@ -3384,6 +3384,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/versions:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Versions
+      operationId: get_dag_versions
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagVersionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/eventLogs/{event_log_id}:
     get:
       tags:
@@ -8566,6 +8616,32 @@ components:
       - dag_id
       title: DagTagResponse
       description: DAG Tag serializer for responses.
+    DagVersionResponse:
+      properties:
+        version_name:
+          type: string
+          title: Version Name
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+        bundle_link:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Link
+      type: object
+      required:
+      - version_name
+      - created_at
+      - bundle_link
+      title: DagVersionResponse
+      description: DAgVersion list serializer
     DagWarningType:
       type: string
       enum:

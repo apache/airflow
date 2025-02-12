@@ -105,6 +105,15 @@ class DAGCollectionResponse(BaseModel):
     total_entries: int
 
 
+class DagVersionResponse(BaseModel):
+    """DAgVersion list serializer."""
+
+    version_name: str
+    created_at: datetime
+    bundle_version: str | None = None
+    bundle_link: str | None = None
+
+
 class DAGDetailsResponse(DAGResponse):
     """Specific serializer for DAG Details responses."""
 

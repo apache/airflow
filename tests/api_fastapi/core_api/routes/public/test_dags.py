@@ -22,6 +22,7 @@ import pendulum
 import pytest
 
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
@@ -89,9 +90,18 @@ class TestDagEndpoint:
             triggered_by=DagRunTriggeredByType.TEST,
         )
 
+        dag_version = DagVersion(
+            version_number=1,
+            dag_id=DAG3_ID,
+            bundle_name="bundle1",
+            bundle_version="bundlev1",
+            created_at=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
+
         session.add(dag_model)
         session.add(dagrun_failed)
         session.add(dagrun_success)
+        session.add(dag_version)
 
     def _create_dag_tags(self, session=None):
         session.add(DagTag(dag_id=DAG1_ID, name="tag_2"))
@@ -440,6 +450,32 @@ class TestGetDag(TestDagEndpoint):
             "has_import_errors": False,
         }
         assert res_json == expected
+
+
+class TestGetDagVersions(TestDagEndpoint):
+    """Unit test for get dag"""
+
+    @pytest.mark.parametrize(
+        "dag_id, expected_status_code, expected_values",
+        [
+            (
+                DAG3_ID,
+                200,
+                {
+                    "version_name": "DAG3_ID-1",
+                    "bundle_version": "bundlev1",
+                    "created_at": "2019-01-01T12:00:00+00:00",
+                    "bundle_link": "https://example.com/bundles/bundlev1",
+                },
+            ),
+            ("non_existent_dag_id", 404, None),
+        ],
+    )
+    def test_get_dag_versions(self, client, dag_id, expected_status_code, expected_values):
+        response = client.get(f"/public/dags/{dag_id}/versions")
+        assert response.status_code == expected_status_code
+        if response.status_code == 200:
+            assert response.json() == expected_values
 
 
 class TestDeleteDAG(TestDagEndpoint):
