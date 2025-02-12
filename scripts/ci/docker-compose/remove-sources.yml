@@ -17,6 +17,8 @@
 ---
 services:
   airflow:
+    environment:
+      - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
     volumes:
       # Removes airflow sources from container
       - type: bind
