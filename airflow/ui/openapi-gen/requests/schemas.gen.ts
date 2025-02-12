@@ -4817,8 +4817,15 @@ export const $TaskInstanceResponse = {
       title: "Map Index",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     start_date: {
@@ -6144,8 +6151,15 @@ export const $XComResponse = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {
@@ -6183,8 +6197,15 @@ export const $XComResponseNative = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {
@@ -6225,8 +6246,15 @@ export const $XComResponseString = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {
