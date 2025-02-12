@@ -193,7 +193,7 @@ class TriggerDagRunOperator(BaseOperator):
             run_id = DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL,
                 logical_date=parsed_logical_date,
-                run_after=timezone.utcnow(),
+                run_after=parsed_logical_date or timezone.utcnow(),
             )
 
         try:
@@ -266,7 +266,7 @@ class TriggerDagRunOperator(BaseOperator):
 
     @provide_session
     def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
-        # This logical_date is parsed from the return trigger event
+        # This run_ids is parsed from the return trigger event
         provided_run_id = event[1]["run_ids"][0]
         try:
             # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72

@@ -143,11 +143,11 @@ class WorkflowTrigger(BaseTrigger):
 
 class DagStateTrigger(BaseTrigger):
     """
-    Waits asynchronously for a DAG to complete for a specific logical date.
+    Waits asynchronously for a DAG to complete for a specific run_id.
 
     :param dag_id: The dag_id that contains the task you want to wait for
     :param states: allowed states, default is ``['success']``
-    :param logical_dates: The logical date at which DAG run.
+    :param run_ids: The run_id of DAG run.
     :param poll_interval: The time interval in seconds to check the state.
         The default value is 5.0 sec.
     """
@@ -156,23 +156,21 @@ class DagStateTrigger(BaseTrigger):
         self,
         dag_id: str,
         states: list[DagRunState],
-        logical_dates: list[datetime] | None = None,
+        run_ids: list[datetime] | None,
         execution_dates: list[datetime] | None = None,
         poll_interval: float = 5.0,
     ):
         super().__init__()
         self.dag_id = dag_id
         self.states = states
-        self.logical_dates = logical_dates
+        self.run_ids = run_ids
         self.execution_dates = execution_dates
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serialize DagStateTrigger arguments and classpath."""
         _dates = (
-            {"logical_dates": self.logical_dates}
-            if AIRFLOW_V_3_0_PLUS
-            else {"execution_dates": self.execution_dates}
+            {"run_ids": self.run_ids} if AIRFLOW_V_3_0_PLUS else {"execution_dates": self.execution_dates}
         )
         return (
             "airflow.providers.standard.triggers.external_task.DagStateTrigger",
@@ -189,7 +187,7 @@ class DagStateTrigger(BaseTrigger):
         while True:
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]
-            _dates = self.logical_dates if AIRFLOW_V_3_0_PLUS else self.execution_dates
+            _dates = self.run_ids if AIRFLOW_V_3_0_PLUS else self.execution_dates
             if num_dags == len(_dates):  # type: ignore[arg-type]
                 yield TriggerEvent(self.serialize())
                 return
@@ -200,7 +198,7 @@ class DagStateTrigger(BaseTrigger):
     def count_dags(self, *, session: Session = NEW_SESSION) -> int | None:
         """Count how many dag runs in the database match our criteria."""
         _dag_run_date_condition = (
-            DagRun.logical_date.in_(self.logical_dates)
+            DagRun.run_id.in_(self.run_ids)
             if AIRFLOW_V_3_0_PLUS
             else DagRun.execution_date.in_(self.execution_dates)
         )
