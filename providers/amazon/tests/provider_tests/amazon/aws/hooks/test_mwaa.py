@@ -90,10 +90,10 @@ class TestMwaaHook:
             {"conf": {}},  # test case: non-empty body
         ],
     )
-    @mock.patch.object(MwaaHook, "get_conn")
+    @mock.patch.object(MwaaHook, "conn")
     def test_invoke_rest_api_success(self, mock_conn, body) -> None:
         boto_invoke_mock = mock.MagicMock(return_value=self.example_responses["success"])
-        mock_conn.return_value.invoke_rest_api = boto_invoke_mock
+        mock_conn.invoke_rest_api = boto_invoke_mock
 
         retval = self.hook.invoke_rest_api(ENV_NAME, PATH, METHOD, body, QUERY_PARAMS)
         kwargs_to_assert = {
@@ -108,13 +108,13 @@ class TestMwaaHook:
             k: v for k, v in self.example_responses["success"].items() if k != "ResponseMetadata"
         }
 
-    @mock.patch.object(MwaaHook, "get_conn")
+    @mock.patch.object(MwaaHook, "conn")
     def test_invoke_rest_api_failure(self, mock_conn) -> None:
         error = ClientError(
             error_response=self.example_responses["failure"], operation_name="invoke_rest_api"
         )
         boto_invoke_mock = mock.MagicMock(side_effect=error)
-        mock_conn.return_value.invoke_rest_api = boto_invoke_mock
+        mock_conn.invoke_rest_api = boto_invoke_mock
         mock_log = mock.MagicMock()
         self.hook.log.error = mock_log
 

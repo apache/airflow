@@ -70,7 +70,7 @@ class MwaaHook(AwsBaseHook):
             "QueryParameters": query_params if query_params else {},
         }
         try:
-            result = self.get_conn().invoke_rest_api(**api_kwargs)
+            result = self.conn.invoke_rest_api(**api_kwargs)
             # ResponseMetadata is removed because it contains data that is either very unlikely to be useful
             # in XComs and logs, or redundant given the data already included in the response
             result.pop("ResponseMetadata", None)
