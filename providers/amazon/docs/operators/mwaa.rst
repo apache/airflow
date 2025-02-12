@@ -52,7 +52,7 @@ AWS MWAA.
 In the following example, the task ``trigger_dag_run`` triggers a dag run for a DAG with with the ID ``hello_world`` in
 the environment ``MyAirflowEnvironment``.
 
-.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_mwaa.py
+.. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_mwaa.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_mwaa_trigger_dag_run]

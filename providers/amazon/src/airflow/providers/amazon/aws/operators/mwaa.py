@@ -62,7 +62,6 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
         "note",
     )
     template_fields_renderers = {"conf": "json"}
-    ui_color = "#6ad3fa"
 
     def __init__(
         self,
