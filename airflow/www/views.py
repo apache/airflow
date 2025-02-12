@@ -1271,7 +1271,7 @@ class Airflow(AirflowBaseView):
 
         if conf.getboolean("webserver", "SHOW_RECENT_STATS_FOR_COMPLETED_RUNS", fallback=True):
             last_dag_run = (
-                select(DagRun.dag_id, sqla.func.max(DagRun.run_after).label("run_after"))
+                select(DagRun.dag_id, sqla.func.max(DagRun.logical_date).label("logical_date"))
                 .join(DagModel, DagModel.dag_id == DagRun.dag_id)
                 .where(DagRun.state != DagRunState.RUNNING, DagModel.is_active)
                 .group_by(DagRun.dag_id)
@@ -1293,7 +1293,7 @@ class Airflow(AirflowBaseView):
                     last_dag_run,
                     and_(
                         last_dag_run.c.dag_id == TaskInstance.dag_id,
-                        last_dag_run.c.run_after == DagRun.run_after,
+                        last_dag_run.c.logical_date == DagRun.logical_date,
                     ),
                 )
             )
