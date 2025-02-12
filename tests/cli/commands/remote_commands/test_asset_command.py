@@ -23,6 +23,7 @@ import io
 import json
 import os
 import typing
+from unittest import mock
 
 import pytest
 
@@ -142,6 +143,7 @@ def test_cli_assets_materialize(parser: ArgumentParser) -> None:
         "last_scheduling_decision": None,
         "note": None,
         "run_type": "manual",
+        "run_after": mock.ANY,
         "start_date": None,
         "state": "queued",
         "triggered_by": "cli",
