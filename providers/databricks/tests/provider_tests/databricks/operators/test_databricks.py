@@ -748,13 +748,6 @@ class TestDatabricksSubmitRunOperator:
         notebook_tasks = [
             {
                 "task_key": "pythong_task_1",
-                "new_cluster": {
-                    "spark_version": "7.3.x-scala2.12",
-                    "node_type_id": "i3.xlarge",
-                    "spark_conf": {
-                        "spark.speculation": True,
-                    },
-                },
                 "notebook_task": NOTEBOOK_TASK,
                 "timeout_seconds": 86400,
                 "max_retries": 3,
