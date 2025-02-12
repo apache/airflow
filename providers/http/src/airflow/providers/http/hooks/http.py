@@ -42,7 +42,7 @@ from airflow.utils.module_loading import import_string
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
     from requests.adapters import HTTPAdapter
-    from requests.auth import AuthBase
+    from requests.auth import AuthBase, HTTPBasicAuth
 
     from airflow.models import Connection
 
@@ -492,21 +492,6 @@ class HttpAsyncHook(BaseHook):
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
 
-    async def get_conn(self, headers: dict[Any, Any] | None = None) -> Connection:
-        conn = await sync_to_async(self.get_connection)(self.http_conn_id)
-
-        if conn.host and "://" in conn.host:
-            self.base_url = conn.host
-        else:
-            # schema defaults to HTTP
-            schema = conn.schema if conn.schema else "http"
-            host = conn.host if conn.host else ""
-            self.base_url = schema + "://" + host
-
-        if conn.port:
-            self.base_url += f":{conn.port}"
-        return conn
-
     async def run(
         self,
         session: aiohttp.ClientSession,
@@ -521,6 +506,7 @@ class HttpAsyncHook(BaseHook):
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
+        :param json: Payload to be uploaded as JSON.
         :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
@@ -533,17 +519,28 @@ class HttpAsyncHook(BaseHook):
         _headers = {}
         auth = None
 
-        conn = await self.get_conn()
+        if self.http_conn_id:
+            conn = await sync_to_async(self.get_connection)(self.http_conn_id)
 
-        if conn.login:
-            auth = _extract_auth(conn, self.auth_type)
-        if conn.extra:
-            extra = self._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+            if conn.host and "://" in conn.host:
+                self.base_url = conn.host
+            else:
+                # schema defaults to HTTP
+                schema = conn.schema if conn.schema else "http"
+                host = conn.host if conn.host else ""
+                self.base_url = schema + "://" + host
 
-            try:
-                _headers.update(extra)
-            except TypeError:
-                self.log.warning("Connection to %s has invalid extra field.", conn.host)
+            if conn.port:
+                self.base_url += f":{conn.port}"
+            if conn.login:
+                auth = _extract_auth(conn, self.auth_type)
+            if conn.extra:
+                extra = self._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+
+                try:
+                    _headers.update(extra)
+                except TypeError:
+                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:
             _headers.update(headers)
 
@@ -579,7 +576,6 @@ class HttpAsyncHook(BaseHook):
 
             try:
                 response.raise_for_status()
-                return response
             except ClientResponseError as e:
                 self.log.warning(
                     "[Try %d of %d] Request to %s failed.",
@@ -594,6 +590,8 @@ class HttpAsyncHook(BaseHook):
                     raise HttpErrorException(f"{e.status}:{e.message}")
 
                 await asyncio.sleep(self.retry_delay)
+            else:
+                return response
 
         raise NotImplementedError  # should not reach this, but makes mypy happy
 
