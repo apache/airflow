@@ -49,8 +49,10 @@ for filename in files:
         continue
 
     if change_type != "significant":
+        if change_type == "feature":
+            continue
         if num_lines != 1:
-            print(f"Newsfragment {filename} can only have a single line.")
+            print(f"Newsfragment {filename} can only have a single line for {change_type}.")
             failed = True
     else:
         # significant newsfragment
