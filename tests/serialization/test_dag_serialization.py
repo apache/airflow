@@ -1107,10 +1107,7 @@ class TestStringifiedDAGs:
             ),
             pytest.param(
                 ["echo", "true"],
-                {
-                    "BigQuery Console #1": "_link_CustomBaseIndexOpLink",
-                    "BigQuery Console #2": "_link_CustomBaseIndexOpLink",
-                },
+                {"BigQuery Console #1": "bigquery_1", "BigQuery Console #2": "bigquery_2"},
                 {
                     "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=echo",
                     "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=true",
