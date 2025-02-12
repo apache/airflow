@@ -587,8 +587,7 @@ def run(
 
             result = _execute_task(context, ti)
 
-        log.info("Pushing xcom", ti=ti)
-        _push_xcom_if_needed(result, ti)
+        _push_xcom_if_needed(result, ti, log)
 
         task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
         msg = SucceedTask(
@@ -697,7 +696,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
     return result
 
 
-def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
+def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     """Push XCom values when task has ``do_xcom_push`` set to ``True`` and the task returns a result."""
     if ti.task.do_xcom_push:
         xcom_value = result
@@ -722,6 +721,8 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
         if not is_mappable_value(xcom_value):
             raise UnmappableXComTypePushed(xcom_value)
         mapped_length = len(xcom_value)
+
+    log.info("Pushing xcom", ti=ti)
 
     # If the task has multiple outputs, push each output as a separate XCom.
     if ti.task.multiple_outputs:
