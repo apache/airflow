@@ -741,6 +741,48 @@ class TestDatabricksSubmitRunOperator:
 
         assert expected == utils.normalise_json_content(op.json)
 
+    def test_notebook_task_named_parameters_serverless_no_environment_key_raises_error(self):
+        """
+        Test the initializer with the named parameters.
+        """
+        notebook_tasks = [
+            {
+                "task_key": "pythong_task_1",
+                "new_cluster": {
+                    "spark_version": "7.3.x-scala2.12",
+                    "node_type_id": "i3.xlarge",
+                    "spark_conf": {
+                        "spark.speculation": True,
+                    }
+                },
+                "notebook_task": NOTEBOOK_TASK,
+                "timeout_seconds": 86400,
+                "max_retries": 3,
+                "min_retry_interval_millis": 2000,
+                "retry_on_timeout": False
+            },
+        ]
+        json = {
+            "name": JOB_NAME,
+            "tags": TAGS,
+            "tasks": notebook_tasks,
+            "job_clusters": JOB_CLUSTERS,
+            "email_notifications": EMAIL_NOTIFICATIONS,
+            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
+            "timeout_seconds": TIMEOUT_SECONDS,
+            "schedule": SCHEDULE,
+            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
+            "git_source": GIT_SOURCE,
+        }
+        op = DatabricksSubmitRunOperator(
+            task_id=TASK_ID,
+            json=json,
+            environments=ENVIRONMENTS,
+        )
+
+        with pytest.raises(ValueError):
+            assert utils.validate_serverless_notebook_settings(op.json)
+
     def test_init_with_pipeline_name_task_named_parameters(self):
         """
         Test the initializer with the named parameters.
@@ -2189,7 +2231,7 @@ class TestDatabricksNotebookOperator:
             existing_cluster_id="test_cluster_id",
         )
         operator._hook.submit_run.return_value = 12345
-
+        print("test")
         run_id = operator._launch_job()
 
         assert run_id == 12345
@@ -2443,3 +2485,5 @@ class TestDatabricksTaskOperator:
 
         assert operator.task_config == task_config
         assert task_base_json == task_config
+
+

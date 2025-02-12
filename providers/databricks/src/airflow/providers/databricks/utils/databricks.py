@@ -66,17 +66,19 @@ def validate_trigger_event(event: dict):
         raise AirflowException(f'Run state returned by the Trigger is incorrect: {event["run_state"]}')
 
 
-def validate_serverless_job_settings(content) -> bool:
+def validate_serverless_notebook_settings(content) -> bool:
     """
     Validate correctness of the serverless task submitted.
-    If the task is either spark_python_task, python_wheel_task or dbt_task and job_cluster_key or
-    existing_cluster_id is not supplied and environments is supplied, checks if environment_key is
-    also populated else raises a Value exception
+    If the task is notebook_task and job_cluster_key or existing_cluster_id or new_cluster
+    is not supplied and environments is supplied, checks if environment_key is also populated else raises
+    a Value exception
     """
-    valid_tasks = {"spark_python_task", "python_wheel_task", "dbt_task"}
-    for task in content["tasks"]:
-        if valid_tasks.intersection(task):
-            if not {"job_cluster_key", "existing_cluster_id"}.intersection(task):
-                if "environments" in content and "environment_key" not in task:
-                    raise ValueError("environment_key not set for serverless task")
+    if "tasks" in content:
+        for task in content["tasks"]:
+            if ("notebook_task" in task
+                and not {"job_cluster_key", "existing_cluster_id", "new_cluster"}.intersection(task)
+                and "environments" in content
+                and "environment_key" not in task
+            ):
+                raise ValueError("environment_key is required for serverless notebook task")
     return True
