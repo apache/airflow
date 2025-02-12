@@ -47,7 +47,10 @@ class _ParseFileInfo:
 @dataclass(frozen=True)
 class ParseFileInfo(_ParseFileInfo):
     """
-    Information about a DAG file at parse time with fixed version.
+    Information about a DAG file at parse time with a resolved bundle metadata.
+
+    Includes a path supplied by bundle for its version (and version value
+    if bundle supports it).
 
     :param rel_path: Relative path of a file within a bundle.
     :param bundle: Bundle information.
@@ -58,8 +61,8 @@ class ParseFileInfo(_ParseFileInfo):
         return Path(self.bundle.path) / Path(self.rel_path)
 
     @cached_property
-    def entrypoint(self) -> DagEntrypoint:
-        return DagEntrypoint(rel_path=Path(self.rel_path), bundle_name=self.bundle.name)
+    def file(self) -> DagFile:
+        return DagFile(rel_path=Path(self.rel_path), bundle_name=self.bundle.name)
 
     def _normalized(self) -> _ParseFileInfo:
         return _ParseFileInfo(rel_path=str(self.rel_path), bundle=self.bundle)
@@ -68,31 +71,38 @@ class ParseFileInfo(_ParseFileInfo):
         return hash(self._normalized())
 
     def __eq__(self, other: Any):
-        return other == self._normalized()
+        if not isinstance(other, ParseFileInfo):
+            return NotImplemented
+        return other._normalized() == self._normalized()
 
 
 @dataclass(frozen=True)
-class _DagEntrypoint:
+class _DagFile:
     rel_path: Path | str
     bundle_name: str
 
 
 @dataclass(frozen=True)
-class DagEntrypoint(_DagEntrypoint):
+class DagFile(_DagFile):
     """
-    DAG file entrypoint identifier.
+    DAG file identifier in Airflow deployment.
 
-    Fully identifies an entrypoint for potential DAG files within an Airflow deployment and other Airflow entities related to it (import errors, warnings, etc.).
+    Fully identifies a path for DAG module within an Airflow deployment and other Airflow entities related to it (import errors, warnings, etc.).
 
     :param rel_path: Relative path of an entrypoint file within a bundle.
     :param bundle_name: Name of the bundle.
     """
 
-    def _normalized(self) -> _DagEntrypoint:
-        return _DagEntrypoint(rel_path=str(self.rel_path), bundle_name=self.bundle_name)
+    def _normalized(self) -> _DagFile:
+        return _DagFile(rel_path=str(self.rel_path), bundle_name=self.bundle_name)
 
     def __hash__(self):
         return hash(self._normalized())
 
     def __eq__(self, other: Any):
-        return other == self._normalized()
+        if not isinstance(other, DagFile):
+            return NotImplemented
+        return other._normalized() == self._normalized()
+
+    def __repr__(self) -> str:
+        return self._normalized().__repr__()

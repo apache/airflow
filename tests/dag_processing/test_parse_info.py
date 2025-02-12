@@ -79,11 +79,11 @@ def test_parse_file_info_eq():
 
 
 def test_dag_entrypoint_hash():
-    same_1 = parse_info.DagEntrypoint(rel_path="a/b", bundle_name="bundle-name")
-    same_2 = parse_info.DagEntrypoint(rel_path=Path("a/b"), bundle_name="bundle-name")
+    same_1 = parse_info.DagFile(rel_path="a/b", bundle_name="bundle-name")
+    same_2 = parse_info.DagFile(rel_path=Path("a/b"), bundle_name="bundle-name")
 
-    different_rel_path = parse_info.DagEntrypoint(rel_path="c/d", bundle_name="bundle-name")
-    different_bundle_name = parse_info.DagEntrypoint(rel_path="a/b", bundle_name="other-bundle")
+    different_rel_path = parse_info.DagFile(rel_path="c/d", bundle_name="bundle-name")
+    different_bundle_name = parse_info.DagFile(rel_path="a/b", bundle_name="other-bundle")
 
     assert hash(same_1) == hash(same_2)
     assert hash(same_1) != hash(different_rel_path)
@@ -91,11 +91,11 @@ def test_dag_entrypoint_hash():
 
 
 def test_dag_entrypoint_eq():
-    same_1 = parse_info.DagEntrypoint(rel_path="a/b", bundle_name="bundle-name")
-    same_2 = parse_info.DagEntrypoint(rel_path=Path("a/b"), bundle_name="bundle-name")
+    same_1 = parse_info.DagFile(rel_path="a/b", bundle_name="bundle-name")
+    same_2 = parse_info.DagFile(rel_path=Path("a/b"), bundle_name="bundle-name")
 
-    different_rel_path = parse_info.DagEntrypoint(rel_path="c/d", bundle_name="bundle-name")
-    different_bundle_name = parse_info.DagEntrypoint(rel_path="a/b", bundle_name="other-bundle")
+    different_rel_path = parse_info.DagFile(rel_path="c/d", bundle_name="bundle-name")
+    different_bundle_name = parse_info.DagFile(rel_path="a/b", bundle_name="other-bundle")
 
     assert same_1 == same_2
     assert same_1 != different_rel_path
