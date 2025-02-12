@@ -53,13 +53,7 @@ const average = (ctx: PartialEventContext, index: number) => {
   return values === undefined ? 0 : values.reduce((initial, next) => initial + next, 0) / values.length;
 };
 
-export const RunDuration = ({
-  runs,
-  totalEntries,
-}: {
-  readonly runs: Array<DAGRunResponse> | undefined;
-  readonly totalEntries: number;
-}) => {
+export const RunDuration = ({ runs }: { readonly runs: Array<DAGRunResponse> | undefined }) => {
   if (!runs) {
     return undefined;
   }
@@ -91,7 +85,7 @@ export const RunDuration = ({
   return (
     <Box>
       <Heading pb={2} size="sm" textAlign="center">
-        Last {totalEntries} runs
+        Last {runs.length} runs
       </Heading>
       <Bar
         data={{

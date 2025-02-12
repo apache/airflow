@@ -105,7 +105,7 @@ export const Overview = () => {
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <RunDuration runs={runs?.dag_runs.slice().reverse()} totalEntries={runs?.total_entries ?? 0} />
+            <RunDuration runs={runs?.dag_runs.slice().reverse()} />
           )}
         </Box>
       </SimpleGrid>

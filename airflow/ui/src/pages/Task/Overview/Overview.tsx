@@ -88,10 +88,7 @@ export const Overview = () => {
           {isLoadingTaskInstances ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <TaskInstanceDuration
-              taskInstances={taskInstances?.task_instances.slice().reverse()}
-              totalEntries={taskInstances?.total_entries ?? 0}
-            />
+            <TaskInstanceDuration taskInstances={taskInstances?.task_instances.slice().reverse()} />
           )}
         </Box>
       </SimpleGrid>

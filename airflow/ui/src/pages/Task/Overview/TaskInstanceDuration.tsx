@@ -55,10 +55,8 @@ const average = (ctx: PartialEventContext, index: number) => {
 
 export const TaskInstanceDuration = ({
   taskInstances,
-  totalEntries,
 }: {
   readonly taskInstances: Array<TaskInstanceResponse> | undefined;
-  readonly totalEntries: number;
 }) => {
   if (!taskInstances) {
     return undefined;
@@ -91,7 +89,7 @@ export const TaskInstanceDuration = ({
   return (
     <Box>
       <Heading pb={2} size="sm" textAlign="center">
-        Last {totalEntries} task instances
+        Last {taskInstances.length} task instances
       </Heading>
       <Bar
         data={{
