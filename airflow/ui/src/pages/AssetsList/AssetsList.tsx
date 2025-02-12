@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link, VStack } from "@chakra-ui/react";
+import { Box, Heading, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
-import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssets } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
@@ -27,9 +27,10 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import { Button, Popover } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { pluralize } from "src/utils";
+
+import { DependencyPopover } from "./DependencyPopover";
 
 const columns: Array<ColumnDef<AssetResponse>> = [
   {
@@ -45,25 +46,7 @@ const columns: Array<ColumnDef<AssetResponse>> = [
     accessorKey: "consuming_dags",
     cell: ({ row }) =>
       row.original.consuming_dags.length ? (
-        <Popover.Root lazyMount unmountOnExit>
-          <Popover.Trigger asChild>
-            <Button size="sm" variant="outline">
-              {pluralize("Dag", row.original.consuming_dags.length)}
-            </Button>
-          </Popover.Trigger>
-          <Popover.Content>
-            <Popover.Arrow />
-            <Popover.Body>
-              <Box>
-                {row.original.consuming_dags.map((dag) => (
-                  <Link asChild color="fg.info" display="block" key={dag.dag_id} py={2}>
-                    <RouterLink to={`/dags/${dag.dag_id}`}>{dag.dag_id}</RouterLink>
-                  </Link>
-                ))}
-              </Box>
-            </Popover.Body>
-          </Popover.Content>
-        </Popover.Root>
+        <DependencyPopover dependencies={row.original.consuming_dags} type="Dag" />
       ) : undefined,
     enableSorting: false,
     header: () => "Consuming Dags",
@@ -72,25 +55,7 @@ const columns: Array<ColumnDef<AssetResponse>> = [
     accessorKey: "producing_tasks",
     cell: ({ row }) =>
       row.original.producing_tasks.length ? (
-        <Popover.Root lazyMount unmountOnExit>
-          <Popover.Trigger asChild>
-            <Button size="sm" variant="outline">
-              {pluralize("Task", row.original.producing_tasks.length)}
-            </Button>
-          </Popover.Trigger>
-          <Popover.Content>
-            <Popover.Arrow />
-            <Popover.Body>
-              {row.original.producing_tasks.map((task) => (
-                <Link asChild color="fg.info" key={`${task.dag_id}-${task.task_id}`} py={2}>
-                  <RouterLink to={`/dags/${task.dag_id}/tasks/${task.task_id}`}>
-                    {task.dag_id}.{task.task_id}
-                  </RouterLink>
-                </Link>
-              ))}
-            </Popover.Body>
-          </Popover.Content>
-        </Popover.Root>
+        <DependencyPopover dependencies={row.original.producing_tasks} type="Task" />
       ) : undefined,
     enableSorting: false,
     header: () => "Producing Tasks",
