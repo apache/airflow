@@ -16,9 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
+from collections.abc import Sequence
+from functools import cached_property
+from typing import Any, NoReturn
+
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
+from airflow.providers.common.msgq.hooks.msg_queue import MsgQueueHook
 
 _PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*?)\.hooks.*")
 
@@ -58,18 +64,6 @@ class BaseMsgQueueOperator(BaseOperator):
         self.hook_params = hook_params or {}
         self.retry_on_failure = retry_on_failure
 
-    @classmethod
-    # TODO: can be removed once Airflow min version for this provider is 3.0.0 or higher
-    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> BaseHook:
-        """
-        Return default hook for this connection id.
-
-        :param conn_id: connection id
-        :param hook_params: hook parameters
-        :return: default hook for this connection
-        """
-        connection = BaseHook.get_connection(conn_id)
-        return connection.get_hook(hook_params=hook_params)
 
     @cached_property
     def _hook(self):
@@ -77,12 +71,12 @@ class BaseMsgQueueOperator(BaseOperator):
         conn_id = getattr(self, self.conn_id_field)
         self.log.debug("Get connection for %s", conn_id)
         hook = self.get_hook(conn_id=conn_id, hook_params=self.hook_params)
-        if not isinstance(hook, DbApiHook):
+        if not isinstance(hook, MsgQueueHook):
             raise AirflowException(
-                f"You are trying to use `common-msgQ` with {hook.__class__.__name__},"
+                f"You are trying to use `common-msgq` with {hook.__class__.__name__},"
                 " but its provider does not support it. Please upgrade the provider to a version that"
-                " supports `common-msgQ`. The hook class should be a subclass of"
-                " `airflow.providers.common.msgq.hooks.msq_queue.DbApiHook`."
+                " supports `common-msgq`. The hook class should be a subclass of"
+                " `airflow.providers.common.msgq.hooks.msq_queue.MsqQueueHook`."
                 f" Got {hook.__class__.__name__} Hook with class hierarchy: {hook.__class__.mro()}"
             )
 
@@ -94,16 +88,22 @@ class BaseMsgQueueOperator(BaseOperator):
 
         return hook
 
-    def get_db_hook(self) -> DbApiHook:
-        """
-        Get the message_queue hook for the connection.
-
-        :return: the message_queue hook object.
-        """
-        return self._hook
+   
 
     def _raise_exception(self, exception_string: str) -> NoReturn:
         if self.retry_on_failure:
             raise AirflowException(exception_string)
         raise AirflowFailException(exception_string)
+
+class MsqQueuePublishOperator(BaseMsgQueueOperator):
+    """
+    Publish something onto a message queue. 
+
+    :param topic
+    :param message
+    """
+    def publish(self, message, topic) -> None:
+        # Publish the specified message, with the topic on the message queue
+
+        return
 
