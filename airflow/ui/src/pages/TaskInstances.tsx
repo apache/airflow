@@ -16,34 +16,78 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Link, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Flex, Link, HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetTaskInstances, useTaskServiceGetTask } from "openapi/queries";
+import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
+import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
-import { capitalize, getDuration } from "src/utils";
+import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
-const columns = (isMapped?: boolean): Array<ColumnDef<TaskInstanceResponse>> => [
-  {
-    accessorKey: "dag_run_id",
-    cell: ({ row: { original } }) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={getTaskInstanceLink(original)}>{original.dag_run_id}</RouterLink>
-      </Link>
-    ),
-    enableSorting: false,
-    header: "Dag Run ID",
-  },
+type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
+
+const taskInstanceColumns = (
+  dagId?: string,
+  runId?: string,
+  taskId?: string,
+): Array<ColumnDef<TaskInstanceResponse>> => [
+  ...(Boolean(dagId)
+    ? []
+    : [
+        {
+          accessorKey: "dag_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
+            </Link>
+          ),
+          enableSorting: false,
+          header: "Dag ID",
+        },
+      ]),
+  ...(Boolean(runId)
+    ? []
+    : [
+        {
+          accessorKey: "run_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+                {original.dag_run_id}
+              </RouterLink>
+            </Link>
+          ),
+          enableSorting: false,
+          header: "Run ID",
+        },
+      ]),
+  ...(Boolean(taskId)
+    ? []
+    : [
+        {
+          accessorKey: "task_display_name",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={getTaskInstanceLink(original)}>{original.task_display_name}</RouterLink>
+            </Link>
+          ),
+          enableSorting: false,
+          header: "Task ID",
+        },
+      ]),
   {
     accessorKey: "state",
     cell: ({
@@ -63,29 +107,46 @@ const columns = (isMapped?: boolean): Array<ColumnDef<TaskInstanceResponse>> => 
     cell: ({ row: { original } }) => <Time datetime={original.end_date} />,
     header: "End Date",
   },
-  ...(isMapped
-    ? [
-        {
-          accessorFn: (row: TaskInstanceResponse) => row.rendered_map_index ?? row.map_index,
-          header: "Map Index",
-        },
-      ]
-    : []),
+  {
+    accessorFn: (row: TaskInstanceResponse) => row.rendered_map_index ?? row.map_index,
+    header: "Map Index",
+  },
+
   {
     accessorKey: "try_number",
     enableSorting: false,
     header: "Try Number",
   },
   {
+    accessorKey: "operator",
+    enableSorting: false,
+    header: "Operator",
+  },
+
+  {
     cell: ({ row: { original } }) => `${getDuration(original.start_date, original.end_date)}s`,
     header: "Duration",
+  },
+  {
+    accessorKey: "actions",
+    cell: ({ row }) => (
+      <Flex justifyContent="end">
+        <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
+        <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
 ];
 
 const STATE_PARAM = "state";
 
-export const Instances = () => {
-  const { dagId = "", taskId } = useParams();
+export const TaskInstances = () => {
+  const { dagId, runId, taskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -93,8 +154,11 @@ export const Instances = () => {
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
   const filteredState = searchParams.getAll(STATE_PARAM);
   const hasFilteredState = filteredState.length > 0;
+  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
 
-  const { data: task, error: taskError, isLoading: isTaskLoading } = useTaskServiceGetTask({ dagId, taskId });
+  const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
+    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
+  );
 
   const handleStateChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {
@@ -115,19 +179,44 @@ export const Instances = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances({
-    dagId,
-    dagRunId: "~",
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
-    state: hasFilteredState ? filteredState : undefined,
-    taskId,
-  });
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      searchParams.set(NAME_PATTERN_PARAM, value);
+    } else {
+      searchParams.delete(NAME_PATTERN_PARAM);
+    }
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    setTaskDisplayNamePattern(value);
+    setSearchParams(searchParams);
+  };
+
+  const refetchInterval = useAutoRefresh({});
+
+  const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
+    {
+      dagId: dagId ?? "~",
+      dagRunId: runId ?? "~",
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+      state: hasFilteredState ? filteredState : undefined,
+      taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
+      taskId: taskId ?? undefined,
+    },
+    undefined,
+    {
+      enabled: !isNaN(pagination.pageSize),
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
+    },
+  );
 
   return (
-    <Box pt={4}>
-      <Flex>
+    <>
+      <HStack>
         <Select.Root
           collection={stateOptions}
           maxW="250px"
@@ -168,19 +257,24 @@ export const Instances = () => {
             ))}
           </Select.Content>
         </Select.Root>
-      </Flex>
-
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={taskDisplayNamePattern ?? ""}
+          hideAdvanced
+          onChange={handleSearchChange}
+          placeHolder="Search Tasks"
+        />
+      </HStack>
       <DataTable
-        columns={columns(Boolean(task?.is_mapped))}
+        columns={taskInstanceColumns(dagId, runId, taskId)}
         data={data?.task_instances ?? []}
-        errorMessage={<ErrorAlert error={error ?? taskError} />}
+        errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
-        isLoading={isLoading || isTaskLoading}
+        isLoading={isLoading}
         modelName="Task Instance"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
-    </Box>
+    </>
   );
 };
