@@ -40,6 +40,6 @@ with DAG(
 
     @task
     def test_task():
-        pass
+        print("Hello world")
 
     chain(test_task())

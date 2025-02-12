@@ -125,6 +125,7 @@ class FileDeleteTrigger(BaseEventTrigger):
                 mod_time = datetime.datetime.fromtimestamp(mod_time_f).strftime("%Y%m%d%H%M%S")
                 self.log.info("Found file %s last modified: %s", self.filepath, mod_time)
                 os.remove(self.filepath)
+                self.log.info("File %s has been deleted", self.filepath)
                 yield TriggerEvent(True)
                 return
             await asyncio.sleep(self.poke_interval)

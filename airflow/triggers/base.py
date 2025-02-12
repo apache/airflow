@@ -52,7 +52,7 @@ class StartTriggerArgs:
 
 class BaseTrigger(abc.ABC, LoggingMixin):
     """
-    Base class for triggers used to defer tasks.
+    Base class for all triggers.
 
     A trigger has two contexts it can exist in:
 
