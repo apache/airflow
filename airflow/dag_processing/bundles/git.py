@@ -20,20 +20,20 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import tempfile
-from typing import TYPE_CHECKING, Any
+from fcntl import LOCK_EX, LOCK_NB, flock
+from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 from git import Repo
 from git.exc import BadName, GitCommandError, NoSuchPathError
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.base import BaseDagBundle, stale_bundle_tracking_folder
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 class GitHook(BaseHook):
@@ -143,10 +143,15 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         super().__init__(**kwargs)
         self.tracking_ref = tracking_ref
         self.subdir = subdir
-        self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
-        self.repo_path = (
-            self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
-        )
+        base_folder = self._dag_bundle_root_storage_path / "git" / self.name
+        self.bare_repo_path = base_folder / "bare"
+        self.versions_path = base_folder / "versions"
+        print(f"SETTING REPO PATH: {kwargs=}")
+        print(f"SETTING REPO PATH: {self.version=}")
+        if self.version:
+            self.repo_path = base_folder / "versions" / self.version
+        else:
+            self.repo_path = base_folder / "tracking_repo"
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
         try:
@@ -154,6 +159,32 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self.repo_url = self.hook.repo_url
         except AirflowException as e:
             self.log.warning("Could not create GitHook for connection %s : %s", self.git_conn_id, e)
+
+    def remove_stale_bundle_versions(self):
+        import time
+
+        ttl_path = stale_bundle_tracking_folder / self.name
+        files = ttl_path.iterdir()
+        now = time.time()
+        versions = [(x, x.name, x.stat().st_mtime) for x in files]
+        candidates = []
+        ignore = []
+        for lock_file, version, mtime in versions:
+            if now - mtime > 300:
+                candidates.append((lock_file, version))
+            else:
+                ignore.append(version)
+        print(f"REMOVAL CANDIDATES: {candidates}")
+        print(f"RECENTLY USED VERSIONS: {ignore}")
+        for lock_file, version in candidates:
+            try:
+                with open(lock_file) as f:
+                    flock(f, LOCK_EX | LOCK_NB)  # exclusive lock, do not wait
+                    print(f"removing stale bundle version {version}")
+                    shutil.rmtree(self.versions_path / version)
+                    os.remove(lock_file)
+            except BlockingIOError:
+                continue  # file is locked; something else using bundle
 
     def _initialize(self):
         with self.lock():
@@ -164,11 +195,13 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             self._clone_repo_if_required()
             self.repo.git.checkout(self.tracking_ref)
             if self.version:
+                self.log.info("HAS VERSION")
                 if not self._has_version(self.repo, self.version):
                     self.repo.remotes.origin.fetch()
-                self.repo.head.set_reference(self.repo.commit(self.version))
+                self.repo.head.set_reference(str(self.repo.commit(self.version)))
                 self.repo.head.reset(index=True, working_tree=True)
             else:
+                self.log.info("HAS NO VERSION")
                 self.refresh()
 
     def initialize(self) -> None:
@@ -188,7 +221,8 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             except NoSuchPathError as e:
                 # Protection should the bare repo be removed manually
                 raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
-
+        else:
+            print("repo exist")
         self.repo = Repo(self.repo_path)
 
     def _clone_bare_repo_if_required(self) -> None:

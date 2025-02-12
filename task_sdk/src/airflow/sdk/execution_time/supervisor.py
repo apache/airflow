@@ -618,6 +618,7 @@ class ActivitySubprocess(WatchedSubprocess):
             self.kill(signal.SIGKILL)
             raise
 
+        print(f"STARTUPDETAILS: {dag_rel_path=}")
         msg = StartupDetails.model_construct(
             ti=ti,
             dag_rel_path=os.fspath(dag_rel_path),
@@ -946,6 +947,7 @@ def supervise(
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :return: Exit code of the process.
     """
+    print(f"SUPERVISE: {dag_rel_path=}")
     # One or the other
     if not client and ((not server) ^ dry_run):
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")

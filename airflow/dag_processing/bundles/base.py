@@ -21,9 +21,21 @@ import fcntl
 import tempfile
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
+from fcntl import LOCK_SH, LOCK_UN, flock
 from pathlib import Path
 
 from airflow.configuration import conf
+
+stale_bundle_tracking_folder = Path(
+    tempfile.gettempdir(),
+    "airflow",
+    "dag_bundles",
+    "_tracking",
+)
+
+
+def get_bundle_tracking_file(name, version):
+    return Path(stale_bundle_tracking_folder, name, version)
 
 
 class BaseDagBundle(ABC):
@@ -76,6 +88,9 @@ class BaseDagBundle(ABC):
         There is a `lock` context manager on this class available for this purpose.
         """
         self.is_initialized = True
+
+    def remove_stale_bundle_versions(self):
+        """Not implemented."""
 
     @property
     def _dag_bundle_root_storage_path(self) -> Path:
@@ -149,3 +164,36 @@ class BaseDagBundle(ABC):
             finally:
                 fcntl.flock(lock_file, fcntl.LOCK_UN)
                 self._locked = False
+
+
+class BundleVersionLock:
+    """Lock version of bundle when in use to prevent deletion."""
+
+    def __init__(self, name, version, **kwargs):
+        super().__init__(**kwargs)
+        self.name = name
+        self.version = version
+        self.lock_file_path = get_bundle_tracking_file(
+            self.name,
+            self.version,
+        )
+        self.lock_file = None
+
+    def acquire(self):
+        if self.lock_file:
+            return
+        self.lock_file_path.parent.mkdir(parents=True, exist_ok=True)
+        self.lock_file_path.touch()
+        self.lock_file = open(self.lock_file_path)
+        flock(self.lock_file, LOCK_SH)
+
+    def release(self):
+        if self.lock_file:
+            flock(self.lock_file, LOCK_UN)
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release()

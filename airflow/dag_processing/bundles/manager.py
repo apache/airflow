@@ -125,7 +125,10 @@ class DagBundlesManager(LoggingMixin):
         if not cfg_tuple:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
         class_, kwargs = cfg_tuple
-        return class_(name=name, version=version, **kwargs)
+        print(f"REQUESTING BUNDLE: {name=} {version=}")
+        instance = class_(name=name, version=version, **kwargs)
+        print(f"REPO PATH: {instance.repo_path=}")
+        return instance
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
