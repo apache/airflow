@@ -34,7 +34,7 @@ class TestMwaaHook:
     def setup_method(self):
         self.hook = MwaaHook()
 
-        # these examples responses are included here instead of as a constant because the hook will mutate
+        # these example responses are included here instead of as a constant because the hook will mutate
         # responses causing subsequent tests to fail
         self.example_responses = {
             "success": {
@@ -81,7 +81,7 @@ class TestMwaaHook:
 
     @mock_aws
     def test_get_conn(self):
-        assert self.hook.get_conn() is not None
+        assert self.hook.conn is not None
 
     @pytest.mark.parametrize(
         "body",
