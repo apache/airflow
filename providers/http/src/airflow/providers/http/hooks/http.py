@@ -34,7 +34,7 @@ from asgiref.sync import sync_to_async
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowConfigException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
 from airflow.utils.module_loading import import_string
@@ -42,7 +42,7 @@ from airflow.utils.module_loading import import_string
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
     from requests.adapters import HTTPAdapter
-    from requests.auth import AuthBase, HTTPBasicAuth
+    from requests.auth import AuthBase
 
     from airflow.models import Connection
 
