@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,13 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.listeners import hookimpl
+from fastapi import Request, status
+from fastapi.responses import RedirectResponse
+
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+
+login_router = AirflowRouter(tags=["Login"], prefix="/login")
 
 
-@hookimpl
-def on_task_instance_running(previous_state, task_instance):
-    pass
+@login_router.get(
+    "",
+    responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
+)
+def login(request: Request, next: None | str = None) -> RedirectResponse:
+    """Redirect to the login URL depending on the AuthManager configured."""
+    login_url = request.app.state.auth_manager.get_url_login()
 
-
-def clear():
-    pass
+    if next:
+        login_url += f"?next={next}"
+    return RedirectResponse(login_url)

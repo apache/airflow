@@ -929,11 +929,18 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if "run_type" not in kwargs:
                     kwargs["run_id"] = "test"
                 else:
-                    kwargs["run_id"] = dag.timetable.generate_run_id(
-                        run_type=run_type,
-                        logical_date=logical_date,
-                        data_interval=data_interval,
-                    )
+                    if AIRFLOW_V_3_0_PLUS:
+                        kwargs["run_id"] = dag.timetable.generate_run_id(
+                            run_type=run_type,
+                            run_after=logical_date or timezone.coerce_datetime(timezone.utcnow()),
+                            data_interval=data_interval,
+                        )
+                    else:
+                        kwargs["run_id"] = dag.timetable.generate_run_id(
+                            run_type=run_type,
+                            logical_date=logical_date or timezone.coerce_datetime(timezone.utcnow()),
+                            data_interval=data_interval,
+                        )
             kwargs["run_type"] = run_type
 
             if AIRFLOW_V_3_0_PLUS:
