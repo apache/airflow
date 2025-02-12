@@ -2231,7 +2231,6 @@ class TestDatabricksNotebookOperator:
             existing_cluster_id="test_cluster_id",
         )
         operator._hook.submit_run.return_value = 12345
-        print("test")
         run_id = operator._launch_job()
 
         assert run_id == 12345
