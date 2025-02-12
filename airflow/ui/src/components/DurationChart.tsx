@@ -104,19 +104,19 @@ export const DurationChart = ({
               data: entries.map((entry: RunResponse) => {
                 switch (kind) {
                   case "Dag Run": {
-                    const obj = entry as DAGRunResponse;
+                    const run = entry as DAGRunResponse;
 
-                    return obj.queued_at !== null && obj.start_date !== null && obj.queued_at < obj.start_date
-                      ? Number(getDuration(obj.queued_at, obj.start_date))
+                    return run.queued_at !== null && run.start_date !== null && run.queued_at < run.start_date
+                      ? Number(getDuration(run.queued_at, run.start_date))
                       : 0;
                   }
                   case "Task Instance": {
-                    const obj = entry as TaskInstanceResponse;
+                    const taskInstance = entry as TaskInstanceResponse;
 
-                    return obj.queued_when !== null &&
-                      obj.start_date !== null &&
-                      obj.queued_when < obj.start_date
-                      ? Number(getDuration(obj.queued_when, obj.start_date))
+                    return taskInstance.queued_when !== null &&
+                      taskInstance.start_date !== null &&
+                      taskInstance.queued_when < taskInstance.start_date
+                      ? Number(getDuration(taskInstance.queued_when, taskInstance.start_date))
                       : 0;
                   }
                   default:
