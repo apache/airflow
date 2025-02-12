@@ -810,7 +810,10 @@ class TestHttpAsyncHook:
                 reason="OK",
             )
 
-            with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_extra(connection_extra)):
+            with mock.patch(
+                "airflow.hooks.base.BaseHook.get_connection",
+                side_effect=get_airflow_connection_with_extra(connection_extra),
+            ):
                 hook = HttpAsyncHook()
                 with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
                     async with aiohttp.ClientSession() as session:
