@@ -78,7 +78,7 @@ def compile_assets(www_directory: Path, www_hash_file_name: str):
             cwd=os.fspath(www_directory),
             text=True,
             check=False,
-            capture_output=True,
+            # capture_output=True,
         )
         if result.returncode == 0:
             return
