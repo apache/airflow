@@ -286,11 +286,8 @@ def _create_orm_dagrun(
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    if not dag_version:
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-    if not dag_version:
-        raise AirflowException(f"Could not find a version for DAG {dag.dag_id}")
-    run.verify_integrity(dag_version_id=dag_version.id, session=session)
+
+    run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
     return run
 
 

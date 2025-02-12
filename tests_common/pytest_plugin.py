@@ -765,10 +765,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
     # and "baked" in to various constants
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    if AIRFLOW_V_3_0_PLUS:
-        want_serialized = True
-    else:
-        want_serialized = False
+    want_serialized = False
     want_activate_assets = True  # Only has effect if want_serialized=True on Airflow 3.
 
     # Allow changing default serialized behaviour with `@pytest.mark.need_serialized_dag` or

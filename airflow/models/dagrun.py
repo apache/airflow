@@ -1320,7 +1320,9 @@ class DagRun(Base, LoggingMixin):
         Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
 
     @provide_session
-    def verify_integrity(self, *, dag_version_id: UUIDType, session: Session = NEW_SESSION) -> None:
+    def verify_integrity(
+        self, *, session: Session = NEW_SESSION, dag_version_id: UUIDType | None = None
+    ) -> None:
         """
         Verify the DagRun by checking for removed tasks or tasks that are not in the database yet.
 
@@ -1450,7 +1452,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True],
-        dag_version_id: UUIDType,
+        dag_version_id: UUIDType | None,
     ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]: ...
 
     @overload
@@ -1459,7 +1461,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[False],
-        dag_version_id: UUIDType,
+        dag_version_id: UUIDType | None,
     ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]: ...
 
     def _get_task_creator(
@@ -1467,7 +1469,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True, False],
-        dag_version_id: UUIDType,
+        dag_version_id: UUIDType | None,
     ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]] | Iterator[TI]]:
         """
         Get the task creator function.

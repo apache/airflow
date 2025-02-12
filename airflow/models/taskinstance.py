@@ -1799,7 +1799,9 @@ class TaskInstance(Base, LoggingMixin):
         return _stats_tags(task_instance=self)
 
     @staticmethod
-    def insert_mapping(run_id: str, task: Operator, map_index: int, dag_version_id: int) -> dict[str, Any]:
+    def insert_mapping(
+        run_id: str, task: Operator, map_index: int, dag_version_id: UUIDType | None
+    ) -> dict[str, Any]:
         """
         Insert mapping.
 
