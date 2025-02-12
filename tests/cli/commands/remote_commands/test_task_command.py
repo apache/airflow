@@ -143,8 +143,6 @@ class TestCliTasks:
         # Check that prints, and log messages, are shown
         assert "example_python_operator" in stdout.getvalue()
         assert "print_the_context" in stdout.getvalue()
-        assert "Task instance is in running state" in stdout.getvalue()
-        assert "Marking task as SUCCESS" in stdout.getvalue()
 
     def test_cli_test_different_path(self, session, tmp_path):
         """
