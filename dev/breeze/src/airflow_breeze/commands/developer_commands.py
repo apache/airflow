@@ -1149,3 +1149,12 @@ def autogenerate(
     cmd = f"/opt/airflow/scripts/in_container/run_generate_migration.sh '{message}'"
     execute_command_in_shell(shell_params, project_name="db", command=cmd)
     fix_ownership_using_docker()
+
+
+@main.command(name="doctor", help="Troubleshoot breeze")
+def troubleshoot():
+    shell_params = ShellParams()
+    check_docker_resources(shell_params.airflow_image_name)
+    shell_params.print_badge_info()
+
+    perform_environment_checks()
