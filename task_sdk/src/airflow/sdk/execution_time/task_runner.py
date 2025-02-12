@@ -744,6 +744,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
 
 
 def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
+    log.debug("Running finalizers", ti=ti)
     if state in [TerminalTIState.SUCCESS]:
         get_listener_manager().hook.on_task_instance_success(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti
