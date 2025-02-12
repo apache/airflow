@@ -29,7 +29,7 @@ import sys
 from typing import TYPE_CHECKING
 
 import re2
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow.api.client import get_current_api_client
 from airflow.api_connexion.schemas.dag_schema import dag_schema
@@ -345,13 +345,13 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     dagbag.collect_dags_from_db()
 
     # Get import errors from the DB
-    query = select(ParseImportError)
+    query = select(func.count()).select_from(ParseImportError)
     if args.bundle_name:
         query = query.where(ParseImportError.bundle_name.in_(args.bundle_name))
 
-    dagbag_import_errors = session.scalars(query).all()
+    dagbag_import_errors = session.scalar(query)
 
-    if dagbag_import_errors:
+    if dagbag_import_errors > 0:
         from rich import print as rich_print
 
         rich_print(
