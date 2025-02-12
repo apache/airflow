@@ -24,7 +24,7 @@ import { NavTabs } from "./Details/NavTabs";
 const tabs = [
   { label: "Dags", value: "/dags" },
   { label: "Runs", value: "/runs" },
-  { label: "Instances", value: "/instances" },
+  { label: "Task Instances", value: "/task_instances" },
 ];
 
 export const DagsLayout = ({ children }: PropsWithChildren) => (

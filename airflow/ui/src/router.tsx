@@ -63,7 +63,7 @@ export const routerConfig = [
             <DagRuns />
           </DagsLayout>
         ),
-        path: "runs",
+        path: "dag_runs",
       },
       {
         element: (
@@ -71,7 +71,7 @@ export const routerConfig = [
             <TaskInstances />
           </DagsLayout>
         ),
-        path: "instances",
+        path: "task_instances",
       },
       {
         element: <AssetsList />,

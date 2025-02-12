@@ -37,9 +37,9 @@ import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOpt
 import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
-type InstanceRow = { row: { original: TaskInstanceResponse } };
+type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 
-const instanceColumns = (
+const taskInstanceColumns = (
   dagId?: string,
   runId?: string,
   taskId?: string,
@@ -49,7 +49,7 @@ const instanceColumns = (
     : [
         {
           accessorKey: "dag_id",
-          cell: ({ row: { original } }: InstanceRow) => (
+          cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info" fontWeight="bold">
               <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
             </Link>
@@ -63,7 +63,7 @@ const instanceColumns = (
     : [
         {
           accessorKey: "run_id",
-          cell: ({ row: { original } }: InstanceRow) => (
+          cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info" fontWeight="bold">
               <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
                 {original.dag_run_id}
@@ -79,7 +79,7 @@ const instanceColumns = (
     : [
         {
           accessorKey: "task_display_name",
-          cell: ({ row: { original } }: InstanceRow) => (
+          cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info" fontWeight="bold">
               <RouterLink to={getTaskInstanceLink(original)}>{original.task_display_name}</RouterLink>
             </Link>
@@ -266,7 +266,7 @@ export const TaskInstances = () => {
         />
       </HStack>
       <DataTable
-        columns={instanceColumns(dagId, runId, taskId)}
+        columns={taskInstanceColumns(dagId, runId, taskId)}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

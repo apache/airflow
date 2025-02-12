@@ -32,10 +32,10 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
-import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
+import { dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
 import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
-type InstanceRow = { row: { original: DAGRunResponse } };
+type DagRunRow = { row: { original: DAGRunResponse } };
 
 const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
   ...(Boolean(dagId)
@@ -43,7 +43,7 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
     : [
         {
           accessorKey: "dag_id",
-          cell: ({ row: { original } }: InstanceRow) => (
+          cell: ({ row: { original } }: DagRunRow) => (
             <Link asChild color="fg.info" fontWeight="bold">
               <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
             </Link>
@@ -54,7 +54,7 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
       ]),
   {
     accessorKey: "run_id",
-    cell: ({ row: { original } }: InstanceRow) => (
+    cell: ({ row: { original } }: DagRunRow) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
           {original.dag_run_id}
