@@ -39,11 +39,10 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
 
     :param env_name: The MWAA environment name (templated)
     :param trigger_dag_id: The ID of the DAG to be triggered (templated)
-    :param trigger_run_id: The Run ID. The value of this field can be set only when creating the object. This
-        together with trigger_dag_id are a unique key. (templated)
+    :param trigger_run_id: The Run ID. This together with trigger_dag_id are a unique key. (templated)
     :param logical_date: The logical date (previously called execution date). This is the time or interval
-        covered by this DAG run, according to the DAG definition. The value of this field can be set only when
-        creating the object. This together with trigger_dag_id are a unique key. (templated)
+        covered by this DAG run, according to the DAG definition. This together with trigger_dag_id are a
+        unique key. (templated)
     :param data_interval_start: The beginning of the interval the DAG run covers
     :param data_interval_end: The end of the interval the DAG run covers
     :param conf: Additional configuration parameters. The value of this field can be set only when creating
