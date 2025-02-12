@@ -413,6 +413,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
     config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
+    config.addinivalue_line("markers", "mock_plugin_manager: mark a test to use mock_plugin_manager")
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
