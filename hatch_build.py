@@ -407,7 +407,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.10.2",
+    "pydantic @ git+https://github.com/pydantic/pydantic.git@main",
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
