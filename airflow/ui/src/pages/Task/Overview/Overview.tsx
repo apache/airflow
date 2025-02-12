@@ -22,10 +22,9 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import { DurationChart } from "src/components/DurationChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
-
-import { TaskInstanceDuration } from "./TaskInstanceDuration";
 
 const defaultHour = "168";
 
@@ -88,7 +87,7 @@ export const Overview = () => {
           {isLoadingTaskInstances ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <TaskInstanceDuration taskInstances={taskInstances?.task_instances.slice().reverse()} />
+            <DurationChart entries={taskInstances?.task_instances.slice().reverse()} kind="Task Instance" />
           )}
         </Box>
       </SimpleGrid>

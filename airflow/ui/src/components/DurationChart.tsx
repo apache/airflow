@@ -32,8 +32,9 @@ import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
 import { Bar } from "react-chartjs-2";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { system } from "src/theme";
+import { pluralize } from "src/utils";
 import { getDuration } from "src/utils/datetime_utils";
 
 ChartJS.register(
@@ -53,12 +54,16 @@ const average = (ctx: PartialEventContext, index: number) => {
   return values === undefined ? 0 : values.reduce((initial, next) => initial + next, 0) / values.length;
 };
 
-export const TaskInstanceDuration = ({
-  taskInstances,
+type RunResponse = DAGRunResponse | TaskInstanceResponse;
+
+export const DurationChart = ({
+  entries,
+  kind,
 }: {
-  readonly taskInstances: Array<TaskInstanceResponse> | undefined;
+  readonly entries: Array<RunResponse> | undefined;
+  readonly kind: string;
 }) => {
-  if (!taskInstances) {
+  if (!entries) {
     return undefined;
   }
 
@@ -89,30 +94,47 @@ export const TaskInstanceDuration = ({
   return (
     <Box>
       <Heading pb={2} size="sm" textAlign="center">
-        Last {taskInstances.length} task instances
+        Last {pluralize(kind, entries.length)}
       </Heading>
       <Bar
         data={{
           datasets: [
             {
               backgroundColor: system.tokens.categoryMap.get("colors")?.get("queued.600")?.value as string,
-              data: taskInstances.map((ti: TaskInstanceResponse) =>
-                ti.queued_when === null ? 0 : Number(getDuration(ti.queued_when, ti.start_date)),
-              ),
+              data: entries.map((entry: RunResponse) => {
+                switch (kind) {
+                  case "Dag Run": {
+                    const obj = entry as DAGRunResponse;
+
+                    return obj.queued_at === null ? 0 : Number(getDuration(obj.queued_at, obj.start_date));
+                  }
+                  case "Task Instances": {
+                    const obj = entry as TaskInstanceResponse;
+
+                    return obj.queued_when === null
+                      ? 0
+                      : Number(getDuration(obj.queued_when, obj.start_date));
+                  }
+                  default:
+                    return 0;
+                }
+              }),
               label: "Queued duration",
             },
             {
-              backgroundColor: taskInstances.map(
-                (ti: TaskInstanceResponse) =>
-                  system.tokens.categoryMap.get("colors")?.get(`${ti.state}.600`)?.value as string,
+              backgroundColor: entries.map(
+                (entry: RunResponse) =>
+                  system.tokens.categoryMap.get("colors")?.get(`${entry.state}.600`)?.value as string,
               ),
-              data: taskInstances.map((ti: TaskInstanceResponse) =>
-                Number(getDuration(ti.start_date, ti.end_date)),
+              data: entries.map((entry: RunResponse) =>
+                entry.start_date === null ? 0 : Number(getDuration(entry.start_date, entry.end_date)),
               ),
               label: "Run duration",
             },
           ],
-          labels: taskInstances.map((run) => dayjs(run.logical_date).format("YYYY-MM-DD, hh:mm:ss")),
+          labels: entries.map((entry: RunResponse) =>
+            dayjs(entry.logical_date).format("YYYY-MM-DD, hh:mm:ss"),
+          ),
         }}
         datasetIdKey="id"
         options={{
