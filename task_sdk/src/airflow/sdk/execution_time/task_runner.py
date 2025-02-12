@@ -166,9 +166,24 @@ class RuntimeTaskInstance(TaskInstance):
             }
             context.update(context_from_server)
 
-            if dag_run.data_interval_start and dag_run.data_interval_end:
+            if logical_date := dag_run.logical_date:
+                ds = logical_date.strftime("%Y-%m-%d")
+                ds_nodash = ds.replace("-", "")
+                ts = logical_date.isoformat()
+                ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
+                ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
+                # logical_date and data_interval either coexist or be None together
                 context.update(
                     {
+                        # keys that depend on logical_date
+                        "logical_date": logical_date,
+                        "ds": ds,
+                        "ds_nodash": ds_nodash,
+                        "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
+                        "ts": ts,
+                        "ts_nodash": ts_nodash,
+                        "ts_nodash_with_tz": ts_nodash_with_tz,
+                        # keys that depend on data_interval
                         "data_interval_end": dag_run.data_interval_end,
                         "data_interval_start": dag_run.data_interval_start,
                         "prev_data_interval_start_success": lazy_object_proxy.Proxy(
@@ -180,23 +195,6 @@ class RuntimeTaskInstance(TaskInstance):
                     }
                 )
 
-            if logical_date := dag_run.logical_date:
-                ds = logical_date.strftime("%Y-%m-%d")
-                ds_nodash = ds.replace("-", "")
-                ts = logical_date.isoformat()
-                ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
-                ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
-                context.update(
-                    {
-                        "logical_date": logical_date,
-                        "ds": ds,
-                        "ds_nodash": ds_nodash,
-                        "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
-                        "ts": ts,
-                        "ts_nodash": ts_nodash,
-                        "ts_nodash_with_tz": ts_nodash_with_tz,
-                    }
-                )
             if from_server.upstream_map_indexes is not None:
                 # We stash this in here for later use, but we purposefully don't want to document it's
                 # existence. Should this be a private attribute on RuntimeTI instead perhaps?
