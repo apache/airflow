@@ -260,7 +260,7 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=dag.dag_id,
             states=self.STATES,
-            **_DATES,
+            run_ids=[self.RUN_ID],
             poll_interval=0.2,
         )
 
@@ -284,7 +284,7 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=self.DAG_ID,
             states=self.STATES,
-            **_DATES,
+            run_ids=[self.RUN_ID],
             poll_interval=5,
         )
         classpath, kwargs = trigger.serialize()
@@ -292,7 +292,7 @@ class TestDagStateTrigger:
         assert kwargs == {
             "dag_id": self.DAG_ID,
             "states": self.STATES,
-            **_DATES,
+            "run_ids": [self.RUN_ID],
             "poll_interval": 5,
         }
 
