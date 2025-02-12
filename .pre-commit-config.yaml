@@ -249,7 +249,7 @@ repos:
         exclude: ^providers/ssh/docs/connections/ssh.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
-        exclude: ^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
+        exclude: ^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256|.*/dist/.*|LICENSES-ui.txt
       - id: mixed-line-ending
         name: Detect if mixed line ending is used (\r vs. \r\n)
       - id: check-executables-have-shebangs
@@ -381,7 +381,7 @@ repos:
         entry: ./scripts/ci/pre_commit/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^clients/gen/go\.sh$|^\.gitmodules$
+        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|.*/dist/.*
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
@@ -794,7 +794,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_license.py
         language: python
         files: ^.*LICENSE.*$|^.*LICENCE.*$
-        exclude: ^providers/.*/src/.*/LICENSE$
+        exclude: ^providers/.*/src/.*/LICENSE$|.*/dist/.*
         pass_filenames: false
       - id: check-aiobotocore-optional
         name: Check if aiobotocore is an optional dependency only

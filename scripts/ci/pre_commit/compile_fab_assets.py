@@ -78,10 +78,10 @@ def compile_assets(www_directory: Path, www_hash_file_name: str):
             cwd=os.fspath(www_directory),
             text=True,
             check=False,
-            # capture_output=True,
+            capture_output=True,
         )
         if result.returncode == 0:
-            return
+            break
         if try_num == 2 or INTERNAL_SERVER_ERROR not in result.stderr + result.stdout:
             print(result.stdout + "\n" + result.stderr)
             sys.exit(result.returncode)
