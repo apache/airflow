@@ -1423,6 +1423,24 @@ def get_test_dag():
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
 
         dag = dagbag.get_dag(dag_id)
+
+        if dagbag.import_errors:
+            session = settings.Session()
+            from airflow.models.errors import ParseImportError
+            from airflow.utils import timezone
+
+            for _filename, stacktrace in dagbag.import_errors.items():
+                session.add(
+                    ParseImportError(
+                        filename=str(dag_file),
+                        bundle_name="testing",
+                        timestamp=timezone.utcnow(),
+                        stacktrace=stacktrace,
+                    )
+                )
+
+            return
+
         if AIRFLOW_V_3_0_PLUS:
             session = settings.Session()
             from airflow.models.dagbundle import DagBundleModel
