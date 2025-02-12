@@ -345,6 +345,9 @@ def collect_dags(dag_folder=None):
             "airflow/example_dags",
             "providers/src/airflow/providers/*/example_dags",  # TODO: Remove once AIP-47 is completed
             "providers/src/airflow/providers/*/*/example_dags",  # TODO: Remove once AIP-47 is completed
+            # For now include amazon directly because they have many dags and are all serializing without error
+            "providers/amazon/tests/system/*/*/",
+            # TODO: Remove once all providers are migrated
             "providers/tests/system/*/",
             "providers/tests/system/*/*/",
         ]

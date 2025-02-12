@@ -156,7 +156,7 @@ def _create_dagrun(
         data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
     run_id = dag.timetable.generate_run_id(
         run_type=run_type,
-        logical_date=logical_date,  # type: ignore
+        run_after=logical_date or data_interval.end,  # type: ignore
         data_interval=data_interval,
     )
     return dag.create_dagrun(
@@ -1090,7 +1090,10 @@ class TestDag:
 
         assert orm_dag.is_active
 
-        DagModel.deactivate_deleted_dags(list_py_file_paths(settings.DAGS_FOLDER))
+        DagModel.deactivate_deleted_dags(
+            bundle_name=orm_dag.bundle_name,
+            rel_filelocs=list_py_file_paths(settings.DAGS_FOLDER),
+        )
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
         assert not orm_dag.is_active
@@ -2971,7 +2974,7 @@ def test_get_asset_triggered_next_run_info_with_unresolved_asset_alias(dag_maker
 )
 def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagRunType) -> None:
     dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
-    run_id = run_id_type.generate_run_id(DEFAULT_DATE)
+    run_id = DagRun.generate_run_id(run_type=run_id_type, run_after=DEFAULT_DATE, logical_date=DEFAULT_DATE)
 
     with pytest.raises(ValueError) as ctx:
         dag.create_dagrun(

@@ -740,6 +740,14 @@ class AsyncKubernetesHook(KubernetesHook):
             1 for o in [in_cluster, kubeconfig, kubeconfig_path, self.config_dict] if o
         )
 
+        async def api_client_from_kubeconfig_file(_kubeconfig_path: str | None):
+            await async_config.load_kube_config(
+                config_file=_kubeconfig_path,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
+            return async_client.ApiClient()
+
         if num_selected_configuration > 1:
             raise AirflowException(
                 "Invalid connection configuration. Options kube_config_path, "
@@ -762,12 +770,7 @@ class AsyncKubernetesHook(KubernetesHook):
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
             self._is_in_cluster = False
-            await async_config.load_kube_config(
-                config_file=kubeconfig_path,
-                client_configuration=self.client_configuration,
-                context=cluster_context,
-            )
-            return async_client.ApiClient()
+            return await api_client_from_kubeconfig_file(kubeconfig_path)
 
         if kubeconfig is not None:
             async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
@@ -778,12 +781,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 await temp_config.write(kubeconfig.encode())
                 await temp_config.flush()
                 self._is_in_cluster = False
-                await async_config.load_kube_config(
-                    config_file=temp_config.name,
-                    client_configuration=self.client_configuration,
-                    context=cluster_context,
-                )
-            return async_client.ApiClient()
+                return await api_client_from_kubeconfig_file(temp_config.name)
         self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
         await async_config.load_kube_config(
             client_configuration=self.client_configuration,

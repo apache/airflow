@@ -17,12 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 import time_machine
 
-from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime
@@ -40,39 +39,32 @@ def clean_db(session):
 
 @time_machine.travel("2016-11-01")
 @pytest.mark.parametrize(
-    "allow_trigger_in_future,schedule,logical_date,is_met",
+    "logical_date, is_met",
     [
-        (True, "@daily", datetime(2016, 11, 3), False),
-        (False, None, datetime(2016, 11, 3), False),
-        (False, "@daily", datetime(2016, 11, 3), False),
-        (False, "@daily", datetime(2016, 11, 1), True),
-        (False, None, datetime(2016, 11, 1), True),
+        (datetime(2016, 11, 3), False),
+        (datetime(2016, 11, 1), True),
     ],
 )
 def test_logical_date_dep(
     dag_maker,
     session,
     create_dummy_dag,
-    allow_trigger_in_future,
-    schedule,
     logical_date,
     is_met,
 ):
     """
-    If the dag's logical date is in the future but (allow_trigger_in_future=False or not schedule)
-    this dep should fail
+    If the dag's logical date is in the future, this dep should fail
     """
-    with patch.object(settings, "ALLOW_FUTURE_LOGICAL_DATES", allow_trigger_in_future):
-        create_dummy_dag(
-            "test_localtaskjob_heartbeat",
-            start_date=datetime(2015, 1, 1),
-            end_date=datetime(2016, 11, 5),
-            schedule=schedule,
-            with_dagrun_type=DagRunType.MANUAL,
-            session=session,
-        )
-        (ti,) = dag_maker.create_dagrun(run_id="scheduled", logical_date=logical_date).task_instances
-        assert RunnableExecDateDep().is_met(ti=ti) == is_met
+    create_dummy_dag(
+        "test_localtaskjob_heartbeat",
+        start_date=datetime(2015, 1, 1),
+        end_date=datetime(2016, 11, 5),
+        schedule=None,
+        with_dagrun_type=DagRunType.MANUAL,
+        session=session,
+    )
+    (ti,) = dag_maker.create_dagrun(run_id="scheduled", logical_date=logical_date).task_instances
+    assert RunnableExecDateDep().is_met(ti=ti) == is_met
 
 
 @time_machine.travel("2016-01-01")

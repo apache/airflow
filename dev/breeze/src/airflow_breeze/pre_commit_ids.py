@@ -91,6 +91,7 @@ PRE_COMMIT_LIST = [
     "check-urlparse-usage-in-code",
     "check-usage-of-re2-over-re",
     "check-xml",
+    "check-zip-file-is-not-committed",
     "codespell",
     "compile-ui-assets",
     "compile-ui-assets-dev",

@@ -178,7 +178,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_imports_in_providers.py
         language: python
         additional_dependencies: ['rich>=12.4.4', "ruff==0.8.1"]
-        files: ^providers/src/airflow/providers/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*\.py$
         require_serial: true
       - id: update-black-version
         name: Update black versions everywhere (manual)
@@ -221,7 +221,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_deferrable_default.py
         pass_filenames: false
         additional_dependencies: ["libcst>=1.1.0"]
-        files: ^(providers/src/)?airflow/.*/(sensors|operators)/.*\.py$
+        files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.19.1
     hooks:
@@ -312,7 +312,7 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
     rev: v1.0.0
@@ -338,7 +338,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/validate_operators_init.py
         pass_filenames: true
-        files: ^providers/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
       - id: update-providers-build-files
         name: Update providers build files
@@ -429,7 +429,7 @@ repos:
         language: python
         files: ^airflow/.*\.py$
         require_serial: true
-        exclude: ^airflow/kubernetes/|^providers/src/airflow/providers/
+        exclude: ^providers/.*/src/airflow/providers/
         entry: ./scripts/ci/pre_commit/check_cncf_k8s_used_for_k8s_executor_only.py
         additional_dependencies: ['rich>=12.4.4']
       - id: check-airflow-provider-compatibility
@@ -437,7 +437,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_provider_airflow_compatibility.py
         language: python
         pass_filenames: true
-        files: ^providers/src/airflow/providers/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: check-google-re2-as-dependency
         name: Check google-re2 declared as dep
@@ -446,7 +446,7 @@ repos:
         language: python
         pass_filenames: true
         require_serial: true
-        files: ^providers/src/airflow/providers/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
@@ -460,7 +460,7 @@ repos:
         description: Check dependency of SQL Providers with common data structure
         entry: ./scripts/ci/pre_commit/check_common_sql_dependency.py
         language: python
-        files: ^providers/src/airflow/providers/.*/hooks/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*/hooks/.*\.py$
         additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'packaging']
       - id: update-providers-dependencies
         name: Update dependencies for provider packages
@@ -492,7 +492,7 @@ repos:
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/insert_extras.py
         language: python
-        files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^providers/src/airflow/providers/.*/provider\.yaml$|^Dockerfile.*
+        files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'hatchling==1.27.0']
       - id: check-extras-order
@@ -556,13 +556,13 @@ repos:
         language: pygrep
         entry: >
           (?i)
-          .*https://github.*[0-9]/providers/tests/system/|
-          .*https://github.*/main/providers/tests/system/|
-          .*https://github.*/master/providers/tests/system/|
-          .*https://github.*/main/providers/src/airflow/providers/.*/example_dags/|
-          .*https://github.*/master/providers/src/airflow/providers/.*/example_dags/
+          .*https://github.*[0-9]/providers/.*/tests/system/|
+          .*https://github.*/main/providers/.*/tests/system/|
+          .*https://github.*/master/providers/.*/tests/system/|
+          .*https://github.*/main/providers/.*/src/airflow/providers/.*/example_dags/|
+          .*https://github.*/master/providers/.*/src/airflow/providers/.*/example_dags/
         pass_filenames: true
-        files: ^docs/apache-airflow-providers-.*\.rst
+        files: ^providers/.*/docs/.*\.rst
       - id: check-safe-filter-usage-in-html
         language: pygrep
         name: Don't use safe in templates
@@ -583,7 +583,7 @@ repos:
         description: Use AirflowProviderDeprecationWarning in providers
         entry: "^\\s*DeprecationWarning*"
         pass_filenames: true
-        files: ^providers/src/airflow/providers/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*\.py$
       - id: check-urlparse-usage-in-code
         language: pygrep
         name: Don't use urlparse in code
@@ -625,8 +625,8 @@ repos:
           ^airflow/operators/__init__.py$|
           ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute.py$|
           ^providers/fab/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
-          ^providers/src/airflow/providers/amazon/aws/hooks/emr.py$|
-          ^providers/src/airflow/providers/amazon/aws/operators/emr.py$|
+          ^providers/amazon/src/airflow/providers/amazon/aws/hooks/emr.py$|
+          ^providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py$|
           ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats.py$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
@@ -640,7 +640,7 @@ repos:
           ^providers/google/src/airflow/providers/google/cloud/operators/cloud_build.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/dataproc.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/mlengine.py$|
-          ^providers/src/airflow/providers/microsoft/azure/hooks/cosmos.py$|
+          ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos.py$|
           ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
@@ -663,9 +663,9 @@ repos:
           ^providers/apache/hdfs/docs/connections.rst$|
           ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
           ^providers/apache/spark/docs/decorators/pyspark.rst$|
+          ^providers/microsoft/azure/docs/connections/azure_cosmos.rst$|
           ^providers/fab/docs/auth-manager/webserver-authentication.rst$|
           ^providers/google/docs/operators/cloud/kubernetes_engine.rst$|
-          ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^providers/cncf/kubernetes/docs/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
@@ -728,8 +728,6 @@ repos:
           ^airflow/decorators/.*$|
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
-          ^providers/src/airflow/providers/.*$|
-          ^providers/src/airflow/providers/standard/sensors/.*$|
           ^providers/.*/src/airflow/providers/.*$|
           ^providers/.*/src/airflow/providers/standard/sensors/.*$|
           ^dev/provider_packages/.*$
@@ -741,7 +739,6 @@ repos:
         pass_filenames: true
         files: >
           (?x)
-          ^providers/src/airflow/providers/.*\.py$|
           ^providers/.*/src/airflow/providers/.*\.py$
         exclude: providers/standard/.*/.*\.py$
       - id: check-get-lineage-collector-providers
@@ -750,7 +747,7 @@ repos:
         description: Make sure you import from airflow.provider.common.compat.lineage.hook instead of
           airflow.lineage.hook.
         entry: ./scripts/ci/pre_commit/check_get_lineage_collector_providers.py
-        files: ^providers/src/airflow/providers/.*\.py$
+        files: ^providers/.*/src/airflow/providers/.*\.py$
         exclude: ^providers/common/compat/src/airflow/providers/common/compat/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
       - id: check-decorated-operator-implements-custom-name
@@ -764,7 +761,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow/configuration\.py$|^providers/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/)?tests/.*$|^tests_common/
+        exclude: ^airflow/configuration\.py$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/.*/)?tests/.*$|^tests_common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -802,7 +799,7 @@ repos:
         name: Check if aiobotocore is an optional dependency only
         entry: ./scripts/ci/pre_commit/check_aiobotocore_optional.py
         language: python
-        files: ^providers/src/airflow/providers/.*/provider\.yaml$
+        files: ^providers/.*/provider\.yaml$
         pass_filenames: true
         additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
@@ -977,7 +974,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_system_tests.py
         language: python
         files: ^(providers/)?tests/system/.*/example_[^/]*\.py$
-        exclude: ^providers/tests/system/google/cloud/bigquery/example_bigquery_queries\.py$
+        exclude: ^providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme
@@ -1088,6 +1085,14 @@ repos:
         pass_filenames: true
         files: \.py$
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-zip-file-is-not-committed
+        name: Check no zip files are committed
+        description: Zip files are not allowed in the repository
+        language: fail
+        entry: |
+          Zip files are not allowed in the repository as they are hard to
+          track and have security implications. Please remove the zip file from the repository.
+        files: \.zip$
       - id: check-code-deprecations
         name: Check deprecations categories in decorators
         entry: ./scripts/ci/pre_commit/check_deprecations.py
@@ -1112,13 +1117,13 @@ repos:
       - id: check-changelog-has-no-duplicates
         name: Check changelogs for duplicate entries
         language: python
-        files: CHANGELOG\.(rst|txt)$
+        files: changelog\.(rst|txt)$
         entry: ./scripts/ci/pre_commit/changelog_duplicates.py
         pass_filenames: true
       - id: check-changelog-format
         name: Check changelog format
         language: python
-        files: CHANGELOG\.(rst|txt)$
+        files: changelog\.(rst|txt)$
         entry: ./scripts/ci/pre_commit/check_changelog_format.py
         pass_filenames: true
       - id: check-newsfragments-are-valid
@@ -1168,7 +1173,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_system_tests_hidden_in_index.py
         language: python
         pass_filenames: true
-        files: ^docs/apache-airflow-providers-[^/]*/index\.rst$
+        files: ^providers/.*/docs/index\.rst$
         additional_dependencies: ['rich>=12.4.4', 'pyyaml']
       - id: check-lazy-logging
         name: Check that all logging methods are lazy
@@ -1415,13 +1420,14 @@ repos:
         entry: ./scripts/ci/pre_commit/check_provider_yaml_files.py
         language: python
         files: ^providers/.*/provider\.yaml$
+        exclude: ^providers/.*/.venv/.*$
         additional_dependencies: ['rich>=12.4.4']
         require_serial: true
       - id: check-template-fields-valid
         name: Check templated fields mapped in operators/sensors
         language: python
         entry: ./scripts/ci/pre_commit/check_template_fields.py
-        files: ^(providers/src/)?airflow/.*/(sensors|operators)/.*\.py$
+        files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
         require_serial: true
       - id: update-migration-references

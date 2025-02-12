@@ -111,7 +111,7 @@ class TestDagRun:
         dag_run = dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=run_type,
-                logical_date=logical_date,
+                run_after=logical_date,
                 data_interval=data_interval,
             ),
             run_type=run_type,
@@ -356,10 +356,11 @@ class TestDagRun:
             run_type=DagRunType.SCHEDULED,
             start_date=DEFAULT_DATE,
         )
-        dr2 = dag_maker.create_dagrun_after(
-            dr,
+        next_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        dr2 = dag_maker.create_dagrun(
             run_id="test_dagrun_no_deadlock_2",
             start_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            logical_date=next_date,
         )
         ti1_op1 = dr.get_task_instance(task_id="dop")
         dr2.get_task_instance(task_id="dop")
@@ -862,7 +863,7 @@ class TestDagRun:
         dr = dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=DagRunType.SCHEDULED,
-                logical_date=DEFAULT_DATE,
+                run_after=DEFAULT_DATE,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
             ),
             run_type=DagRunType.SCHEDULED,
@@ -940,7 +941,7 @@ class TestDagRun:
             dag_run = dag.create_dagrun(
                 run_id=dag.timetable.generate_run_id(
                     run_type=DagRunType.SCHEDULED,
-                    logical_date=dag.start_date,
+                    run_after=dag.start_date,
                     data_interval=dag.infer_automated_data_interval(dag.start_date),
                 ),
                 run_type=DagRunType.SCHEDULED,
@@ -1050,7 +1051,7 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type,
         dag_id=dag.dag_id,
         run_type=run_type,
         logical_date=DEFAULT_DATE,
-        run_id=DagRun.generate_run_id(run_type, DEFAULT_DATE),
+        run_id=DagRun.generate_run_id(run_type=run_type, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE),
     )
     dag_run.dag = dag
 

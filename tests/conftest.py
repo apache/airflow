@@ -20,15 +20,14 @@ import json
 import logging
 import os
 import sys
+import zipfile
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
 from tests_common.test_utils.log_handlers import non_pytest_handlers
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -97,24 +96,53 @@ def testing_dag_bundle():
             session.add(testing)
 
 
+@contextmanager
+def _config_bundles(bundles: dict[str, Path | str]):
+    from tests_common.test_utils.config import conf_vars
+
+    bundle_config = []
+    for name, path in bundles.items():
+        bundle_config.append(
+            {
+                "name": name,
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(path), "refresh_interval": 0},
+            }
+        )
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+        yield
+
+
+@pytest.fixture
+def configure_dag_bundles():
+    """Configure arbitrary DAG bundles with the provided paths"""
+
+    return _config_bundles
+
+
 @pytest.fixture
 def configure_testing_dag_bundle():
     """Configure a "testing" DAG bundle with the provided path"""
-    from tests_common.test_utils.config import conf_vars
 
     @contextmanager
     def _config_bundle(path_to_parse: Path | str):
-        bundle_config = [
-            {
-                "name": "testing",
-                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                "kwargs": {"path": str(path_to_parse), "refresh_interval": 0},
-            }
-        ]
-        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+        with _config_bundles({"testing": path_to_parse}):
             yield
 
     return _config_bundle
+
+
+@pytest.fixture
+def test_zip_path(tmp_path: Path):
+    TEST_DAGS_FOLDER = Path(__file__).parent / "dags"
+    test_zip_folder = TEST_DAGS_FOLDER / "test_zip"
+    zipped = tmp_path / "test_zip.zip"
+    with zipfile.ZipFile(zipped, "w") as zf:
+        for root, _, files in os.walk(test_zip_folder):
+            for file in files:
+                zf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), test_zip_folder))
+
+    return os.fspath(zipped)
 
 
 if TYPE_CHECKING:

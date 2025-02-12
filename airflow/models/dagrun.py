@@ -53,7 +53,6 @@ from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
-from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
@@ -78,6 +77,7 @@ from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.strings import get_random_string
 from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -455,8 +455,7 @@ class DagRun(Base, LoggingMixin):
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
-        if not settings.ALLOW_FUTURE_LOGICAL_DATES:
-            query = query.where(DagRun.logical_date <= func.now())
+        query = query.where(DagRun.run_after <= func.now())
 
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
@@ -541,8 +540,7 @@ class DagRun(Base, LoggingMixin):
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
-        if not settings.ALLOW_FUTURE_LOGICAL_DATES:
-            query = query.where(DagRun.logical_date <= func.now())
+        query = query.where(DagRun.run_after <= func.now())
 
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
@@ -621,10 +619,20 @@ class DagRun(Base, LoggingMixin):
         return session.scalars(select(cls).where(cls.dag_id == dag_id, cls.run_id == run_id)).one_or_none()
 
     @staticmethod
-    def generate_run_id(run_type: DagRunType, logical_date: datetime) -> str:
-        """Generate Run ID based on Run Type and logical Date."""
+    def generate_run_id(
+        *, run_type: DagRunType, logical_date: datetime | None = None, run_after: datetime
+    ) -> str:
+        """
+        Generate Run ID based on Run Type, run_after and logical Date.
+
+        :param run_type: type of DagRun
+        :param logical_date: the logical date
+        :param run_after: the date before which dag run won't start.
+        """
         # _Ensure_ run_type is a DagRunType, not just a string from user code
-        return DagRunType(run_type).generate_run_id(logical_date)
+        if logical_date:
+            return DagRunType(run_type).generate_run_id(suffix=run_after.isoformat())
+        return DagRunType(run_type).generate_run_id(suffix=f"{run_after.isoformat()}_{get_random_string()}")
 
     @staticmethod
     @provide_session

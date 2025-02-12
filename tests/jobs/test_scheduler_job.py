@@ -138,16 +138,17 @@ def create_dagrun(session):
         state: DagRunState = DagRunState.RUNNING,
         start_date: datetime | None = None,
     ) -> DagRun:
-        run_id = dag.timetable.generate_run_id(
+        run_after = logical_date or timezone.utcnow()
+        run_id = DagRun.generate_run_id(
             run_type=run_type,
             logical_date=logical_date,
-            data_interval=data_interval,
+            run_after=run_after,
         )
         return dag.create_dagrun(
             run_id=run_id,
             logical_date=logical_date,
             data_interval=data_interval,
-            run_after=data_interval.end,
+            run_after=run_after,
             run_type=run_type,
             state=state,
             start_date=start_date,
@@ -5484,6 +5485,7 @@ class TestSchedulerJob:
                 ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_v.id)
 
                 ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
+                ti.start_date = timezone.utcnow() - timedelta(minutes=10)
                 ti.queued_by_job_id = 999
 
                 session.add(ti)
@@ -5600,6 +5602,7 @@ class TestSchedulerJob:
                 task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_run.dag_version_id
             )
             ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
+            ti.start_date = timezone.utcnow() - timedelta(minutes=10)
 
             # TODO: If there was an actual Relationship between TI and Job
             # we wouldn't need this extra commit
