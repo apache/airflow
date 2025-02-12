@@ -23,7 +23,7 @@ import { NavTabs } from "./Details/NavTabs";
 
 const tabs = [
   { label: "Dags", value: "/dags" },
-  { label: "Runs", value: "/runs" },
+  { label: "Runs", value: "/dag_runs" },
   { label: "Task Instances", value: "/task_instances" },
 ];
 
