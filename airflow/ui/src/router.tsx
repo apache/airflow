@@ -37,8 +37,7 @@ import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
-import { TaskInstances } from "src/pages/Run/TaskInstances";
-import { Task, Instances } from "src/pages/Task";
+import { Task } from "src/pages/Task";
 import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { Details } from "src/pages/TaskInstance/Details";
@@ -134,7 +133,7 @@ export const routerConfig = [
       {
         children: [
           { element: <TaskOverview />, index: true },
-          { element: <Instances />, path: "task_instances" },
+          { element: <TaskInstances />, path: "task_instances" },
           { element: <Events />, path: "events" },
         ],
         element: <Task />,
