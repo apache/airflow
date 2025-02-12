@@ -133,6 +133,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         check_options: dict | None = None,
         public_read: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        verbose: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -144,11 +145,12 @@ class WasbPrefixSensor(BaseSensorOperator):
         self.check_options = check_options
         self.public_read = public_read
         self.deferrable = deferrable
+        self.verbose = verbose
 
     def poke(self, context: Context) -> bool:
         self.log.info("Poking for prefix: %s in wasb://%s", self.prefix, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id, public_read=self.public_read)
-        return hook.check_for_prefix(self.container_name, self.prefix, **self.check_options)
+        return hook.check_for_prefix(self.container_name, self.prefix, self.verbose, **self.check_options)
 
     def execute(self, context: Context) -> None:
         """

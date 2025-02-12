@@ -41,6 +41,7 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
     parse_blob_account_url,
 )
+from airflow.utils.log import print_log_group
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from azure.identity.aio import (
@@ -247,7 +248,7 @@ class WasbHook(BaseHook):
             return False
         return True
 
-    def check_for_prefix(self, container_name: str, prefix: str, **kwargs) -> bool:
+    def check_for_prefix(self, container_name: str, prefix: str, verbose: bool = False, **kwargs) -> bool:
         """
         Check if a prefix exists on Azure Blob storage.
 
@@ -257,6 +258,9 @@ class WasbHook(BaseHook):
         :return: True if blobs matching the prefix exist, False otherwise.
         """
         blobs = self.get_blobs_list(container_name=container_name, prefix=prefix, **kwargs)
+        if verbose:
+            title = f"List of files with prefix {prefix}(Total: {len(blobs)})"
+            print_log_group(title, blobs)
         return bool(blobs)
 
     def get_blobs_list(

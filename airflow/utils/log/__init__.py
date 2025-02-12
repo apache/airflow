@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from airflow.utils.deprecation_tools import add_deprecated_classes
+from airflow.utils.log.log_group import print_log_group
 
 __deprecated_classes = {
     "cloudwatch_task_handler": {
@@ -48,3 +49,5 @@ __deprecated_classes = {
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
+
+__all__ = ["print_log_group"]

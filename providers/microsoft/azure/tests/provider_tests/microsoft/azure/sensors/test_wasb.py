@@ -193,6 +193,7 @@ class TestWasbPrefixSensor:
         "prefix": "prefix",
         "wasb_conn_id": "conn_id",
         "timeout": 100,
+        "verbose": True,
     }
 
     def setup_method(self):
@@ -206,6 +207,7 @@ class TestWasbPrefixSensor:
         assert sensor.wasb_conn_id == self._config["wasb_conn_id"]
         assert sensor.check_options == {}
         assert sensor.timeout == self._config["timeout"]
+        assert sensor.verbose == self._config["verbose"]
 
         sensor = WasbPrefixSensor(
             task_id="wasb_sensor_2", dag=self.dag, check_options={"timeout": 2}, **self._config
