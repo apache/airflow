@@ -9952,8 +9952,10 @@ components:
           type: integer
           title: Map Index
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         start_date:
           anyOf:
@@ -10760,8 +10762,10 @@ components:
           format: date-time
           title: Timestamp
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         map_index:
           type: integer
@@ -10796,8 +10800,10 @@ components:
           format: date-time
           title: Timestamp
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         map_index:
           type: integer
@@ -10835,8 +10841,10 @@ components:
           format: date-time
           title: Timestamp
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         map_index:
           type: integer

@@ -1251,7 +1251,7 @@ export type TaskInstanceResponse = {
   dag_id: string;
   dag_run_id: string;
   map_index: number;
-  logical_date: string;
+  logical_date: string | null;
   start_date: string | null;
   end_date: string | null;
   duration: number | null;
@@ -1509,7 +1509,7 @@ export type XComCreateBody = {
 export type XComResponse = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -1522,7 +1522,7 @@ export type XComResponse = {
 export type XComResponseNative = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -1536,7 +1536,7 @@ export type XComResponseNative = {
 export type XComResponseString = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
