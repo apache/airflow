@@ -48,7 +48,13 @@ class XComOperatorLink(LoggingMixin):
         self.log.info(
             "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
         )
-        value = BaseXCom.get_one(key=self.xcom_key, run_id=ti_key.run_id)
+        value = BaseXCom.get_one(
+            key=self.xcom_key,
+            run_id=ti_key.run_id,
+            dag_id=ti_key.dag_id,
+            task_id=ti_key.task_id,
+            map_index=ti_key.map_index,
+        )
         if not value:
             self.log.debug(
                 "No link with name: %s present in XCom as key: %s, returning empty link",

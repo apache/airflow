@@ -1583,6 +1583,18 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
     return
 
 
+@pytest.fixture(autouse=True)
+def _mock_plugins(request: pytest.FixtureRequest):
+    """Disable redacted text in tests, except specific."""
+    if mark := next(request.node.iter_markers("mock_plugin_manager"), None):
+        from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+        with mock_plugin_manager(**mark.kwargs):
+            yield
+            return
+    yield
+
+
 @pytest.fixture
 def providers_src_folder() -> Path:
     import airflow.providers
