@@ -587,6 +587,7 @@ export type DAGRunResponse = {
   end_date: string | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
+  run_after: string;
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
