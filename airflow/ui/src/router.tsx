@@ -40,6 +40,7 @@ import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { Details } from "src/pages/TaskInstance/Details";
 import { XCom } from "src/pages/XCom";
 
+import { AssetsList } from "./pages/AssetsList";
 import { Pools } from "./pages/Pools";
 import { Variables } from "./pages/Variables";
 import { queryClient } from "./queryClient";
@@ -54,6 +55,10 @@ export const routerConfig = [
       {
         element: <DagsList />,
         path: "dags",
+      },
+      {
+        element: <AssetsList />,
+        path: "assets",
       },
       {
         element: <Events />,
