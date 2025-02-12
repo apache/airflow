@@ -44,6 +44,32 @@ over a publish and subscribe mechanism. The underlying technology used for this 
 mechanism varies by environment, but Apache Kafka, Amazon SQS, and Google PubSub are commonly used. 
 
 
+Expected usage would be something on the lines below::
+   
+   trigger = = MsgQueueSensorTrigger(msg_queue="https://sqs.us-east-1.amazonaws.com/722404908466/Test")
+   
+   data_asset = Asset("incoming_asset", watchers=[
+       AssetWatcher(name="asset_watcher", trigger=trigger)
+    )
+
+    with DAG(
+        dag_id="example_message_queue_asset",
+        schedule=[data_asset],
+        catchup=False,
+    ):
+
+        # Transform task which gets the data from sensor above and manipulates it with other data
+        # 
+        transform_task = TransformOperator(task_id="transform_task")
+
+        # Publish task which takes the analyzed data and makes it available
+        publish_task = PublishOperator(task_id="publish") 
+
+        chain(tranform_task, publish_task)
+
+
+
+
 .. You can find package information and changelog for the provider
 .. in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-msgq/0.1.0/>`_.
 
