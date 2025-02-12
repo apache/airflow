@@ -20,7 +20,6 @@ import json
 from datetime import datetime
 
 import pytest
-
 from providers.microsoft.azure.tests.conftest import load_json, mock_json_response
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
