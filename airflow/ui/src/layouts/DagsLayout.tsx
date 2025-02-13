@@ -16,5 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Box } from "@chakra-ui/react";
+import type { PropsWithChildren } from "react";
 
-export * from "./Task";
+import { NavTabs } from "./Details/NavTabs";
+
+const tabs = [
+  { label: "Dags", value: "/dags" },
+  { label: "Runs", value: "/dag_runs" },
+  { label: "Task Instances", value: "/task_instances" },
+];
+
+export const DagsLayout = ({ children }: PropsWithChildren) => (
+  <Box>
+    <NavTabs tabs={tabs} />
+    {children}
+  </Box>
+);

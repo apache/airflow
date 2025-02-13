@@ -647,11 +647,6 @@ class TestDmsDeleteReplicationConfigOperator:
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
                     WaiterConfig={"Delay": 60, "MaxAttempts": 60},
                 ),
-                mock.call("replication_deprovisioned"),
-                mock.call().wait(
-                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
-                ),
             ]
         )
         mock_handle.assert_called_once()
@@ -695,16 +690,8 @@ class TestDmsDeleteReplicationConfigOperator:
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
                     WaiterConfig={"Delay": 60, "MaxAttempts": 60},
                 ),
-                mock.call("replication_deprovisioned"),
-                mock.call().wait(
-                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
-                ),
             ]
         )
-
-        # mock_waiter.assert_called_with("replication_config_deleted")
-        # mock_waiter.assert_called_once()
 
     @mock.patch.object(DmsHook, "conn")
     @mock.patch.object(DmsHook, "describe_replications")
@@ -724,12 +711,7 @@ class TestDmsDeleteReplicationConfigOperator:
 
         mock_waiter.assert_has_calls(
             [
-                mock.call("replication_deprovisioned"),
-                mock.call().wait(
-                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
-                ),
-                mock.call("replication_config_deleted"),
+                mock.call("replication_terminal_status"),
                 mock.call().wait(
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
                     WaiterConfig={"Delay": 60, "MaxAttempts": 60},
@@ -759,11 +741,6 @@ class TestDmsDeleteReplicationConfigOperator:
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
                     WaiterConfig={"Delay": 60, "MaxAttempts": 60},
                 ),
-                mock.call("replication_deprovisioned"),
-                mock.call().wait(
-                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
-                ),
             ]
         )
         mock_handle.assert_called_once()
@@ -786,11 +763,6 @@ class TestDmsDeleteReplicationConfigOperator:
         mock_waiter.assert_has_calls(
             [
                 mock.call("replication_terminal_status"),
-                mock.call().wait(
-                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
-                ),
-                mock.call("replication_deprovisioned"),
                 mock.call().wait(
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
                     WaiterConfig={"Delay": 60, "MaxAttempts": 60},

@@ -62,6 +62,7 @@ class DAGRunResponse(BaseModel):
     end_date: datetime | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
+    run_after: datetime
     last_scheduling_decision: datetime | None
     run_type: DagRunType
     state: DagRunState
