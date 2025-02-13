@@ -31,8 +31,6 @@ from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppres
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
-import pendulum
-
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
@@ -129,9 +127,14 @@ def _get_dag_run(
                 f"of {logical_date_or_run_id!r} not found"
             )
 
-    dag_run_logical_date = pendulum.instance(logical_date or timezone.utcnow())
+    dag_run_logical_date = timezone.coerce_datetime(logical_date)
+    data_interval = (
+        dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
+        if dag_run_logical_date
+        else None
+    )
+    run_after = data_interval.end if data_interval else timezone.utcnow()
     if create_if_necessary == "memory":
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_id=logical_date_or_run_id,
@@ -139,18 +142,17 @@ def _get_dag_run(
             external_trigger=True,
             logical_date=dag_run_logical_date,
             data_interval=data_interval,
-            run_after=data_interval.end,
+            run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
             state=DagRunState.RUNNING,
         )
         return dag_run, True
     elif create_if_necessary == "db":
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         dag_run = dag.create_dagrun(
             run_id=_generate_temporary_run_id(),
             logical_date=dag_run_logical_date,
             data_interval=data_interval,
-            run_after=data_interval.end,
+            run_after=run_after,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
             dag_version=None,
