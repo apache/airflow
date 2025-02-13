@@ -70,7 +70,7 @@ export const DetailsLayout = ({ children, dag, error, isLoading, tabs }: Props) 
         <ErrorAlert error={error} />
         <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
         <NavTabs
-          keepSearch
+          keepSearch={true}
           rightButtons={
             <>
               <Button asChild colorPalette="blue" variant="ghost">
