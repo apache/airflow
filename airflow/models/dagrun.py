@@ -48,7 +48,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import declared_attr, joinedload, object_session, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
 
@@ -300,8 +301,8 @@ class DagRun(Base, LoggingMixin):
             f"The run_id provided '{run_id}' does not match regex pattern '{regex}' or '{RUN_ID_REGEX}'"
         )
 
-    @provide_session
-    def dag_versions(self, session: Session = NEW_SESSION) -> list[DagVersion]:
+    @hybrid_property
+    def dag_versions(self) -> list[DagVersion]:
         """
         Return the DAG versions associated with the TIs of this DagRun.
 
@@ -320,7 +321,7 @@ class DagRun(Base, LoggingMixin):
             )
         )
 
-        return session.execute(select_stmt.order_by(DagVersion.id)).all()
+        return object_session(self).execute(select_stmt.order_by(DagVersion.id)).all()
 
     @provide_session
     def version_number(self, session: Session = NEW_SESSION) -> int | None:
@@ -329,9 +330,8 @@ class DagRun(Base, LoggingMixin):
 
         :param session: database session
         """
-        dag_versions = self.dag_versions(session)
-        if dag_versions:
-            return dag_versions[-1].version_number
+        if self.dag_versions:
+            return self.dag_versions[-1].version_number
         return None
 
     @provide_session

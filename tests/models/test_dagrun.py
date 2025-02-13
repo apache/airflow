@@ -1070,7 +1070,7 @@ class TestDagRun:
         from sqlalchemy.orm import joinedload
 
         dm = session.query(DagModel).options(joinedload(DagModel.dag_versions)).one()
-        assert dag_run.dag_versions()[0].id == dm.dag_versions[0].id
+        assert dag_run.dag_versions[0].id == dm.dag_versions[0].id
         assert dag_run.version_number() == dm.dag_versions[0].version_number
 
 
