@@ -342,10 +342,6 @@ def _create_backfill_dag_run(
             log.info("Doing session rollback.")
             session.rollback()
 
-            should_create_backfill_dag_run(
-                info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
-            )
-
 
 def _get_info_list(
     *,
