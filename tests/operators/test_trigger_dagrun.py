@@ -125,12 +125,13 @@ class TestDagRunOperator:
 
         dagrun = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
         assert dagrun.external_trigger
-        assert (
-            dagrun.run_id.split("__")[1][:19]
-            == DagRun.generate_run_id(run_type=DagRunType.MANUAL, run_after=timezone.utcnow()).split("__")[1][
-                :19
-            ]
-        )
+        actual_timestamp = dagrun.run_id.split("__")[1][:19]
+
+        expected_timestamp = DagRun.generate_run_id(
+            run_type=DagRunType.MANUAL, run_after=timezone.utcnow()
+        ).split("__")[1][:19]
+
+        assert actual_timestamp == expected_timestamp
 
         self.assert_extra_link(dagrun, task, dag_maker.session)
 

@@ -32,7 +32,7 @@ from airflow.utils.state import DagRunState
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 _DATES = (
-    {"logical_dates": [timezone.datetime(2022, 1, 1)]}
+    {"run_ids": ["external_task_run_id"]}
     if AIRFLOW_V_3_0_PLUS
     else {"execution_dates": [timezone.datetime(2022, 1, 1)]}
 )
@@ -68,7 +68,7 @@ class TestWorkflowTrigger:
         result = trigger_task.result()
         assert result.payload == {"status": "success"}
         mock_get_count.assert_called_once_with(
-            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            dttm_filter=[self.RUN_ID],
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -102,7 +102,7 @@ class TestWorkflowTrigger:
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "failed"}
         mock_get_count.assert_called_once_with(
-            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            dttm_filter=[self.RUN_ID],
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -133,7 +133,7 @@ class TestWorkflowTrigger:
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "success"}
         mock_get_count.assert_called_once_with(
-            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            dttm_filter=[self.RUN_ID],
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -167,7 +167,7 @@ class TestWorkflowTrigger:
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "skipped"}
         mock_get_count.assert_called_once_with(
-            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            dttm_filter=[self.RUN_ID],
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -260,7 +260,7 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=dag.dag_id,
             states=self.STATES,
-            run_ids=[self.RUN_ID],
+            **_DATES,
             poll_interval=0.2,
         )
 
@@ -284,7 +284,7 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=self.DAG_ID,
             states=self.STATES,
-            run_ids=[self.RUN_ID],
+            **_DATES,
             poll_interval=5,
         )
         classpath, kwargs = trigger.serialize()
@@ -292,7 +292,7 @@ class TestDagStateTrigger:
         assert kwargs == {
             "dag_id": self.DAG_ID,
             "states": self.STATES,
-            "run_ids": [self.RUN_ID],
+            **_DATES,
             "poll_interval": 5,
         }
 
