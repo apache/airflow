@@ -61,12 +61,12 @@ with DAG(
     publish_to_queue_1 = SqsPublishOperator(
         task_id="publish_to_queue_1",
         sqs_queue=sqs_queue,
-        message_content="{{ task_instance }}-{{ logical_date }}",
+        message_content="{{ task_instance }}",
     )
     publish_to_queue_2 = SqsPublishOperator(
         task_id="publish_to_queue_2",
         sqs_queue=sqs_queue,
-        message_content="{{ task_instance }}-{{ logical_date }}",
+        message_content="{{ task_instance }}",
     )
     # [END howto_operator_sqs]
 

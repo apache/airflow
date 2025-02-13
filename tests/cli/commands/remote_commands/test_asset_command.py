@@ -132,6 +132,7 @@ def test_cli_assets_materialize(parser: ArgumentParser) -> None:
         "data_interval_start": None,
         "logical_date": None,
         "queued_at": None,
+        "run_after": None,
     }
 
     assert run_list[0] | undeterministic == undeterministic | {
