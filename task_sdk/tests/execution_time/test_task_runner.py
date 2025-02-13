@@ -57,6 +57,7 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     RuntimeCheckOnTask,
     SetRenderedFields,
+    SetXCom,
     StartupDetails,
     SucceedTask,
     TaskState,
@@ -81,6 +82,8 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.mock_operators import AirflowLink
 
 FAKE_BUNDLE = BundleInfo(name="anything", version="any")
 
@@ -1145,6 +1148,46 @@ class TestRuntimeTaskInstance:
         )
         _, msg = run(runtime_ti, log=mock.MagicMock())
         assert isinstance(msg, SucceedTask)
+
+    def test_task_run_with_operator_extra_links(self, create_runtime_ti, mock_supervisor_comms, time_machine):
+        """Test that a task can run with operator extra links defined and can set an xcom."""
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        class DummyTestOperator(BaseOperator):
+            operator_extra_links = (AirflowLink(),)
+
+            def execute(self, context):
+                print("Hello from custom operator", self.operator_extra_links)
+
+        task = DummyTestOperator(task_id="task_with_operator_extra_links")
+
+        runtime_ti = create_runtime_ti(task=task)
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=SucceedTask(
+                state=TerminalTIState.SUCCESS, end_date=instant, task_outlets=[], outlet_events=[]
+            ),
+            log=mock.ANY,
+        )
+
+        finalize(runtime_ti, log=mock.MagicMock(), state=TerminalTIState.SUCCESS)
+
+        mock_supervisor_comms.send_request.assert_any_call(
+            msg=SetXCom(
+                key="_link_AirflowLink",
+                value='"https://airflow.apache.org"',
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id="task_with_operator_extra_links",
+                map_index=-1,
+                mapped_length=None,
+                type="SetXCom",
+            ),
+            log=mock.ANY,
+        )
 
 
 class TestXComAfterTaskExecution:
