@@ -11804,6 +11804,11 @@
                     "type": "integer",
                     "default": 15
                 },
+                "frequencyMinutes": {
+                    "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",
+                    "type": "integer",
+                    "default": 15
+                },
                 "resources": {
                     "description": "Resources for Airflow log groomer sidecar.",
                     "type": "object",

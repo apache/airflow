@@ -264,10 +264,15 @@ spec:
           {{- if .Values.scheduler.logGroomerSidecar.args }}
           args: {{- tpl (toYaml .Values.scheduler.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
           env:
+          {{- if .Values.scheduler.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.scheduler.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.scheduler.logGroomerSidecar.frequencyMinutes }}
+            - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
+              value: "{{ .Values.scheduler.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
           {{- end }}
