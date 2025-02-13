@@ -18,6 +18,7 @@
  */
 import { Box, Heading, HStack } from "@chakra-ui/react";
 import type { TaskInstanceState, TaskInstanceStateCount } from "openapi-gen/requests/types.gen";
+import { MdOutlineTask } from "react-icons/md";
 
 import { StateBadge } from "src/components/StateBadge";
 
@@ -47,11 +48,11 @@ export const TaskInstanceMetrics = ({ taskInstanceStates, total }: TaskInstanceM
   <Box borderRadius={5} borderWidth={1} mt={2} p={2}>
     <HStack mb={4}>
       <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+        <MdOutlineTask />
         {total}
       </StateBadge>
       <Heading size="md">Task Instances</Heading>
     </HStack>
-
     {TASK_STATES.sort((stateA, stateB) =>
       taskInstanceStates[stateA] > taskInstanceStates[stateB] ? -1 : 1,
     ).map((state) =>
