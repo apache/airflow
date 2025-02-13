@@ -323,8 +323,8 @@ class DagRun(Base, LoggingMixin):
 
         return object_session(self).execute(select_stmt.order_by(DagVersion.id)).all()
 
-    @provide_session
-    def version_number(self, session: Session = NEW_SESSION) -> int | None:
+    @hybrid_property
+    def version_number(self) -> int | None:
         """
         Return the DAG version number associated with the latest TIs of this DagRun.
 
