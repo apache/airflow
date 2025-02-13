@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Button, Box, Spacer, HStack, Field, Stack, Text, Editable, VStack } from "@chakra-ui/react";
+import { Input, Button, Box, Spacer, HStack, Field, Stack } from "@chakra-ui/react";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
-import { type ChangeEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
@@ -28,9 +28,9 @@ import { useColorMode } from "src/context/colorMode";
 import { useDagParams } from "src/queries/useDagParams";
 import { useTrigger } from "src/queries/useTrigger";
 
+import EditableMarkdown from "../EditableMarkdown";
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
-import ReactMarkdown from "../ReactMarkdown";
 import { Accordion } from "../ui";
 import { useParamStore } from "./useParamStore";
 import { validateAndPrettifyJson } from "./validateAndPrettyfyJSON";
@@ -216,36 +216,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 render={({ field }) => (
                   <Field.Root mt={6}>
                     <Field.Label fontSize="md">Dag Run Notes</Field.Label>
-                    <Editable.Root
-                      onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                        field.value = event.target.value;
-                      }}
-                      value={field.value}
-                    >
-                      <Editable.Preview
-                        _hover={{ backgroundColor: "transparent" }}
-                        alignItems="flex-start"
-                        as={VStack}
-                        gap="0"
-                        height="150px"
-                        overflowY="auto"
-                        width="100%"
-                      >
-                        {Boolean(field.value) ? (
-                          <ReactMarkdown>{field.value}</ReactMarkdown>
-                        ) : (
-                          <Text color="fg.subtle">Add a note...</Text>
-                        )}
-                      </Editable.Preview>
-                      <Editable.Textarea
-                        {...field}
-                        data-testid="notes-input"
-                        height="150px"
-                        overflowY="auto"
-                        placeholder="Add a note..."
-                        resize="none"
-                      />
-                    </Editable.Root>
+                    <EditableMarkdown field={field} placeholder="Click to add note" />
                   </Field.Root>
                 )}
               />
