@@ -2418,6 +2418,30 @@ export const $DAGRunsBatchBody = {
       ],
       title: "States",
     },
+    run_after_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Gte",
+    },
+    run_after_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Lte",
+    },
     logical_date_gte: {
       anyOf: [
         {
