@@ -38,6 +38,11 @@ Misc
 
 * ``The experimental AWS auth manager is no longer compatible with Airflow 2``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``The DMS waiter replication_terminal_status has been extended to proceed on 2 additional states: "created" and "deprovisioned"``
+
 9.2.0
 .....
 

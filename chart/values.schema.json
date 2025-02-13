@@ -2069,11 +2069,19 @@
                 },
                 "extraInitContainers": {
                     "description": "Add additional init containers into workers (templated).",
+                    "type": "array",
+                    "default": [],
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
-                    },
+                    }
+                },
+                "extraPorts": {
+                    "description": "Expose additional ports on the worker container.",
                     "type": "array",
-                    "default": []
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
+                    }
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into workers.",
