@@ -748,6 +748,12 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
 
 
 def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
+    # Pushing xcom for each operator extra links defined on the operator only.
+    for oe in ti.task.operator_extra_links:
+        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
+        log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
+        _xcom_push(ti, key=xcom_key, value=link)
+
     log.debug("Running finalizers", ti=ti)
     if state in [TerminalTIState.SUCCESS]:
         get_listener_manager().hook.on_task_instance_success(
