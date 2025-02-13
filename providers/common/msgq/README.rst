@@ -46,7 +46,7 @@ mechanism varies by environment, but Apache Kafka, Amazon SQS, and Google PubSub
 
 Expected usage would be something on the lines below::
    
-   trigger = = MsgQueueSensorTrigger(msg_queue="https://sqs.us-east-1.amazonaws.com/722404908466/Test")
+   trigger = = MsgQueueTrigger(msg_queue="https://sqs.us-east-1.amazonaws.com/722404908466/Test")
    
    data_asset = Asset("incoming_asset", watchers=[
        AssetWatcher(name="asset_watcher", trigger=trigger)
