@@ -347,15 +347,16 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 
             data_interval_start = post_body.get("data_interval_start")
             data_interval_end = post_body.get("data_interval_end")
-            if data_interval_start and data_interval_end:
-                data_interval = DataInterval(
-                    start=pendulum.instance(data_interval_start),
-                    end=pendulum.instance(data_interval_end),
-                )
-            else:
-                data_interval = (
-                    dag.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
-                )
+            data_interval = None
+            if logical_date:
+                if data_interval_start and data_interval_end:
+                    data_interval = DataInterval(
+                        start=pendulum.instance(data_interval_start),
+                        end=pendulum.instance(data_interval_end),
+                    )
+                else:
+                    data_interval = dag.timetable.infer_manual_data_interval(run_after=run_after)
+
             dag_run = dag.create_dagrun(
                 run_id=run_id,
                 logical_date=logical_date,

@@ -253,12 +253,15 @@ class DagRun(Base, LoggingMixin):
         dag_version: DagVersion | None = None,
         bundle_version: str | None = None,
     ):
+        # For manual runs where logical_date is None, ensure no data_interval is set.
+        if logical_date is None and data_interval is not None:
+            raise ValueError("data_interval must be None if logical_date is None")
+
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
             self.data_interval_start = self.data_interval_end = None
         else:
             self.data_interval_start, self.data_interval_end = data_interval
-
         self.bundle_version = bundle_version
         self.dag_id = dag_id
         self.run_id = run_id

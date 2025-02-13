@@ -180,6 +180,18 @@ def test_trigger_dag_logical_date_data_interval(admin_client):
     assert run.data_interval_end == today_midnight
 
 
+def test_trigger_dag_logical_date_as_none(admin_client):
+    test_dag_id = "example_bash_operator"
+
+    admin_client.post(f"dags/{test_dag_id}/trigger", data={"conf": "{}"})
+
+    with create_session() as session:
+        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+    assert run is not None
+    assert DagRunType.MANUAL in run.run_id
+    assert run.run_type == DagRunType.MANUAL
+
+
 def test_trigger_dag_form(admin_client):
     test_dag_id = "example_bash_operator"
     resp = admin_client.get(f"dags/{test_dag_id}/trigger")
