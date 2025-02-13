@@ -258,7 +258,9 @@ class DagRun(Base, LoggingMixin):
             raise ValueError("data_interval must be None if logical_date is None")
 
         if data_interval is None:
-            self.data_interval_start, self.data_interval_end = None, None
+            # Legacy: Only happen for runs created prior to Airflow 2.2.
+            self.data_interval_start = None
+            self.data_interval_end = None
         else:
             self.data_interval_start, self.data_interval_end = data_interval
         self.bundle_version = bundle_version
