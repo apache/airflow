@@ -113,8 +113,9 @@ class SFTPHook(SSHHook):
     @contextmanager
     def get_conn(self) -> Generator[SFTPClient, None, None]:
         """Context manager that closes the connection after use."""
-        with closing(super().get_conn().open_sftp()) as conn:
-            yield conn
+        with closing(super(SFTPHook, self).get_conn()) as conn:
+            with closing(conn.open_sftp()) as sftp:
+                yield sftp
 
     def describe_directory(self, path: str) -> dict[str, dict[str, str | int | None]]:
         """
