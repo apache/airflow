@@ -21,7 +21,7 @@ import dayjs from "dayjs";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRuns, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import { DurationChart } from "src/components/DurationChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
@@ -29,31 +29,29 @@ import { TrendCountButton } from "src/components/TrendCountButton";
 const defaultHour = "168";
 
 export const Overview = () => {
-  const { dagId } = useParams();
+  const { dagId = "", taskId } = useParams();
 
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
   const [endDate, setEndDate] = useState(now.toISOString());
 
-  const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
-    dagId: dagId ?? "",
+  const { data: failedTaskInstances, isLoading: isFailedTaskInstancesLoading } =
+    useTaskInstanceServiceGetTaskInstances({
+      dagId,
+      dagRunId: "~",
+      limit: 14,
+      logicalDateGte: startDate,
+      logicalDateLte: endDate,
+      state: ["failed"],
+      taskId,
+    });
+
+  const { data: taskInstances, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances({
+    dagId,
     dagRunId: "~",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
-    state: ["failed"],
-  });
-
-  const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
-    dagId: dagId ?? "",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
-    state: ["failed"],
-  });
-
-  const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
-    dagId: dagId ?? "",
     limit: 14,
     orderBy: "-logical_date",
+    taskId,
   });
 
   return (
@@ -70,30 +68,15 @@ export const Overview = () => {
       <HStack>
         <TrendCountButton
           colorPalette="failed"
-          count={failedTasks?.total_entries ?? 0}
+          count={failedTaskInstances?.total_entries ?? 0}
           endDate={endDate}
-          events={(failedTasks?.task_instances ?? []).map((ti) => ({
+          events={(failedTaskInstances?.task_instances ?? []).map((ti) => ({
             timestamp: ti.start_date ?? ti.logical_date,
           }))}
-          isLoading={isLoading}
-          label="Failed Task"
+          isLoading={isFailedTaskInstancesLoading}
+          label="Failed Task Instance"
           route={{
-            pathname: "tasks",
-            search: "state=failed",
-          }}
-          startDate={startDate}
-        />
-        <TrendCountButton
-          colorPalette="failed"
-          count={failedRuns?.total_entries ?? 0}
-          endDate={endDate}
-          events={(failedRuns?.dag_runs ?? []).map((dr) => ({
-            timestamp: dr.start_date ?? dr.logical_date ?? "",
-          }))}
-          isLoading={isLoadingFailedRuns}
-          label="Failed Run"
-          route={{
-            pathname: "runs",
+            pathname: "task_instances",
             search: "state=failed",
           }}
           startDate={startDate}
@@ -101,10 +84,10 @@ export const Overview = () => {
       </HStack>
       <SimpleGrid columns={3} gap={5} my={5}>
         <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2}>
-          {isLoadingRuns ? (
+          {isLoadingTaskInstances ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <DurationChart entries={runs?.dag_runs.slice().reverse()} kind="Dag Run" />
+            <DurationChart entries={taskInstances?.task_instances.slice().reverse()} kind="Task Instance" />
           )}
         </Box>
       </SimpleGrid>

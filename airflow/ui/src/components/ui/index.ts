@@ -23,10 +23,8 @@ export * from "./Select";
 export * from "./Alert";
 export * from "./CloseButton";
 export * from "./InputGroup";
-
 export * from "./Switch";
 export * from "./Tooltip";
-
 export * from "./ProgressBar";
 export * from "./Menu";
 export * from "./Accordion";
@@ -34,3 +32,4 @@ export * from "./Button";
 export * from "./Toaster";
 export * from "./Breadcrumb";
 export * from "./Clipboard";
+export * from "./Popover";

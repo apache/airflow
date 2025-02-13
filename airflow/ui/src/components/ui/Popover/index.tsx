@@ -16,5 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Popover as ChakraPopover } from "@chakra-ui/react";
 
-export * from "./Task";
+import { Arrow } from "./Arrow";
+import { CloseTrigger } from "./CloseTrigger";
+import { Content } from "./Content";
+
+export const Popover = {
+  ...ChakraPopover,
+  Arrow,
+  CloseTrigger,
+  Content,
+};

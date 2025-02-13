@@ -31,3 +31,10 @@ class DagVersionResponse(BaseModel):
     bundle_name: str
     bundle_version: str | None
     created_at: datetime
+
+
+class DAGVersionCollectionResponse(BaseModel):
+    """DAG Version Collection serializer for responses."""
+
+    dag_versions: list[DagVersionResponse]
+    total_entries: int
