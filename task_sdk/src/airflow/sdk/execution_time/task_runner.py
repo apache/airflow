@@ -312,8 +312,21 @@ class RuntimeTaskInstance(TaskInstance):
         log = structlog.get_logger(logger_name="task")
 
         xcoms = []
-        # TODO: now execution API only allows working with a single map_index at a time
-        # this is inefficient and leads to task_id * map_index requests to the API
+        # TODO: Execution API only allows working with a single map_index at a time
+        # this is inefficient and leads to task_id * map_index requests to the API.
+        # And we can't achieve the original behavior of XCom pull with multiple tasks
+        # directly now.
+        # Original behavior may be achieved after `LazyXComSequence` is finished?
+        #
+        # Original description:
+        #
+        # When pulling one single task (``task_id`` is *None* or a str) without
+        # specifying ``map_indexes``, the return value is inferred from whether
+        # the specified task is mapped. If not, value from the one single task
+        # instance is returned. If the task to pull is mapped, an iterator (not a
+        # list) yielding XComs from mapped task instances is returned. In either
+        # case, ``default`` (*None* if not specified) is returned if no matching
+        # XComs are found.
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
             SUPERVISOR_COMMS.send_request(
                 log=log,
