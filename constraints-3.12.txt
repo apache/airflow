@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-13T14:17:25.671010
+# This constraints file was automatically generated on 2025-02-13T20:10:20.658511
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -221,7 +221,7 @@ azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.2.0
 azure-mgmt-storage==22.0.0
 azure-nspkg==3.0.2
-azure-servicebus==7.13.0
+azure-servicebus==7.14.0
 azure-storage-blob==12.24.1
 azure-storage-file-datalake==12.18.1
 azure-storage-file-share==12.20.1
@@ -317,7 +317,7 @@ gitdb==4.0.12
 google-ads==25.1.0
 google-analytics-admin==0.23.4
 google-api-core==2.24.1
-google-api-python-client==2.160.0
+google-api-python-client==2.161.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.38.0
@@ -494,7 +494,7 @@ nh3==0.2.20
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.62.0
+openai==1.63.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.28.0
