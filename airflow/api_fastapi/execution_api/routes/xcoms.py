@@ -147,7 +147,7 @@ def get_xcom(
         )
 
     try:
-        xcom_value = BaseXCom.orm_deserialize_value(result)
+        BaseXCom.orm_deserialize_value(result)
     except json.JSONDecodeError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -157,7 +157,8 @@ def get_xcom(
             },
         )
 
-    return XComResponse(key=key, value=xcom_value)
+    # return the serialized version from the DB -- do not deserialize
+    return XComResponse(key=key, value=result[0])
 
 
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
@@ -215,7 +216,8 @@ def set_xcom(
 
     # TODO: This is in-efficient. We json.loads it here for BaseXCom.set to then json.dump it!
     try:
-        json.loads(value)
+        # Keep this as long as we do BaseXCom.set(), it serialises again
+        value = json.loads(value)
     except json.JSONDecodeError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
