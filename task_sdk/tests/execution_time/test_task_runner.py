@@ -21,6 +21,7 @@ import contextlib
 import json
 import os
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socketpair
@@ -1047,43 +1048,85 @@ class TestRuntimeTaskInstance:
         assert var_from_context == Variable(key="test_key", value=expected_value)
 
     @pytest.mark.parametrize(
-        "task_ids",
+        "map_indexes",
         [
-            "push_task",
-            ["push_task1", "push_task2"],
-            {"push_task1", "push_task2"},
+            pytest.param(-1, id="no_map_index"),
+            pytest.param(1, id="single_map_index"),
+            pytest.param(42, id="not_set_with_index"),
+            pytest.param([0, 1], id="multiple_map_indexes"),
+            pytest.param((0, 1), id="any_iterable"),
+            pytest.param(None, id="map_indexes_none"),
+            pytest.param(-9999, id="not_set_no_index"),
         ],
     )
-    def test_xcom_pull(self, create_runtime_ti, mock_supervisor_comms, spy_agency, task_ids):
-        """Test that a task pulls the expected XCom value if it exists."""
+    @pytest.mark.parametrize(
+        "task_ids",
+        [
+            pytest.param("push_task", id="single_task"),
+            pytest.param(["push_task1", "push_task2"], id="multiple_tasks"),
+            pytest.param(("push_task1", "push_task2"), id="any_iterable"),
+            pytest.param(None, id="task_ids_none"),
+        ],
+    )
+    def test_xcom_pull(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        spy_agency,
+        task_ids,
+        map_indexes,
+    ):
+        """
+        Test that a task makes an expected call to the Supervisor to pull XCom values
+        based on various task_ids and map_indexes configurations.
+        """
+
+        # Not set case, without and with mapped task index, we don't provide the map_indexes
+        if map_indexes == -9999 or map_indexes == 42:
+            map_indexes_kwarg = {}
+        else:
+            map_indexes_kwarg = {"map_indexes": map_indexes}
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
-                value = context["ti"].xcom_pull(task_ids=task_ids, key="key")
+                value = context["ti"].xcom_pull(task_ids=task_ids, key="key", **map_indexes_kwarg)
                 print(f"Pulled XCom Value: {value}")
 
         task = CustomOperator(task_id="pull_task")
 
-        runtime_ti = create_runtime_ti(task=task)
+        # We need to create a runtime task instance with the specific map_index set if
+        # we are testing the map_index passing from pulling task without map_indexes set
+        extra_for_ti = {"map_index": 42} if map_indexes == 42 else {}
+        runtime_ti = create_runtime_ti(task=task, **extra_for_ti)
 
         mock_supervisor_comms.get_message.return_value = XComResult(key="key", value='"value"')
 
         run(runtime_ti, log=mock.MagicMock())
 
-        if isinstance(task_ids, str):
+        if isinstance(task_ids, str) or task_ids is None:
             task_ids = [task_ids]
 
-        for task_id in task_ids:
-            mock_supervisor_comms.send_request.assert_any_call(
-                log=mock.ANY,
-                msg=GetXCom(
-                    key="key",
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id=task_id,
-                    map_index=-1,
-                ),
-            )
+        if not isinstance(map_indexes, Iterable):
+            map_indexes = [map_indexes]
+
+        for task_id_in_call in task_ids:
+            if task_id_in_call is None:
+                task_id_in_call = "pull_task"
+
+            for map_index_in_call in map_indexes:
+                if map_index_in_call == -9999:
+                    map_index_in_call = -1
+
+                mock_supervisor_comms.send_request.assert_any_call(
+                    log=mock.ANY,
+                    msg=GetXCom(
+                        key="key",
+                        dag_id="test_dag",
+                        run_id="test_run",
+                        task_id=task_id_in_call,
+                        map_index=map_index_in_call,
+                    ),
+                )
 
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti

@@ -24,6 +24,7 @@ import sys
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from io import FileIO
+from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
 
@@ -270,13 +271,19 @@ class RuntimeTaskInstance(TaskInstance):
         :param run_id: If provided, only pulls XComs from a DagRun w/a matching run_id.
             If *None* (default), the run_id of the calling task is used.
 
+
         When pulling one single task (``task_id`` is *None* or a str) without
-        specifying ``map_indexes``, the return value is inferred from whether
-        the specified task is mapped. If not, value from the one single task
-        instance is returned. If the task to pull is mapped, an iterator (not a
-        list) yielding XComs from mapped task instances is returned. In either
-        case, ``default`` (*None* if not specified) is returned if no matching
-        XComs are found.
+        specifying ``map_indexes``, the return value is a single XCom entry
+        (map_indexes is set to map_index of the calling task instance).
+
+        When pulling task is mapped the specified ``map_index`` is used, so by default
+        pulling on mapped task will result in no matching XComs if the task instance
+        of the method call is not mapped. Otherwise the map_index of the calling task
+        instance is used. Setting ``map_indexes`` to *None* will pull XCom as from
+        not mapped task.
+
+        In either case, ``default`` (*None* if not specified) is returned if no
+        matching XComs are found.
 
         When pulling multiple tasks (i.e. either ``task_id`` or ``map_index`` is
         a non-str iterable), a list of matching XComs is returned. Elements in
@@ -289,27 +296,33 @@ class RuntimeTaskInstance(TaskInstance):
 
         if task_ids is None:
             # default to the current task if not provided
-            task_ids = self.task_id
+            task_ids = [self.task_id]
         elif isinstance(task_ids, str):
             task_ids = [task_ids]
+
+        map_indexes_iterable: Iterable[int | None] = []
+        # If map_indexes is not provided, default to use the map_index of the calling task
         if isinstance(map_indexes, ArgNotSet):
-            map_indexes = self.map_index
-        elif isinstance(map_indexes, Iterable):
-            # TODO: Handle multiple map_indexes or remove support
-            raise NotImplementedError("Multiple map_indexes are not supported yet")
+            map_indexes_iterable = [self.map_index]
+        elif isinstance(map_indexes, int) or map_indexes is None:
+            map_indexes_iterable = [map_indexes]
+        else:
+            map_indexes_iterable = map_indexes
 
         log = structlog.get_logger(logger_name="task")
 
         xcoms = []
-        for t in task_ids:
+        # TODO: now execution API only allows working with a single map_index at a time
+        # this is inefficient and leads to task_id * map_index requests to the API
+        for t_id, m_idx in product(task_ids, map_indexes_iterable):
             SUPERVISOR_COMMS.send_request(
                 log=log,
                 msg=GetXCom(
                     key=key,
                     dag_id=dag_id,
-                    task_id=t,
+                    task_id=t_id,
                     run_id=run_id,
-                    map_index=map_indexes,
+                    map_index=m_idx,
                 ),
             )
 
