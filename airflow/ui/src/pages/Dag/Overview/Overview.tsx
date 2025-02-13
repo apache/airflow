@@ -45,8 +45,8 @@ export const Overview = () => {
 
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
+    runAfterGte: startDate,
+    runAfterLte: endDate,
     state: ["failed"],
   });
 
