@@ -44,7 +44,7 @@ class TestMSGraphSensor(Base):
                 path_parameters={"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"},
                 result_processor=lambda context, result: result["id"],
                 retry_delay=5,
-                timeout=350.0,
+                timeout=5,
             )
 
             with pytest.warns(
@@ -80,7 +80,7 @@ class TestMSGraphSensor(Base):
                 path_parameters={"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"},
                 result_processor=lambda result, **context: result["id"],
                 retry_delay=5,
-                timeout=350.0,
+                timeout=5,
             )
 
             results, events = execute_operator(sensor)
@@ -113,7 +113,7 @@ class TestMSGraphSensor(Base):
                 path_parameters=lambda context, jinja_env: {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"},
                 result_processor=lambda result, **context: result["id"],
                 retry_delay=5,
-                timeout=350.0,
+                timeout=5,
             )
 
             results, events = execute_operator(sensor)
