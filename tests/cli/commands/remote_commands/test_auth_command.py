@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import base64
 import json
 import os
-from contextlib import redirect_stdout
-from io import StringIO
+from unittest import mock
+from unittest.mock import patch
 
 import pytest
+from platformdirs import user_config_path
 
 from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import auth_command
@@ -33,34 +33,18 @@ from airflow.cli.commands.remote_commands import auth_command
 class TestCliAuthCommands:
     parser = cli_parser.get_parser()
 
-    def test_login(self):
-        with redirect_stdout(StringIO()) as stdout:
-            auth_command.login(
-                self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080"])
-            )
-        stdout = stdout.getvalue()
-        default_config_dir = os.path.expanduser("~/.config/airflow")
-        assert f"Saving credentials to {default_config_dir}" in stdout
-        assert os.path.exists(default_config_dir)
-        with open(os.path.join(default_config_dir, "credentials.json")) as f:
-            assert json.load(f) == {
-                "api_url": "http://localhost:8080",
-                "api_token": base64.b64encode(b"NO_TOKEN").decode(),
-            }
+    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_ENVIRONMENT": "TEST_AUTH_LOGIN"})
+    @patch("airflow.cli.api.client.keyring")
+    def test_login(self, mock_keyring):
+        mock_keyring.set_password = mock.MagicMock()
+        mock_keyring.get_password.return_value = None
+        env = "TEST_AUTH_LOGIN"
 
-    def test_configure(self):
-        with redirect_stdout(StringIO()) as stdout:
-            auth_command.configure(
-                self.parser.parse_args(
-                    ["auth", "configure", "--api-url", "http://localhost:8080", "--api-token", "test_token"]
-                )
-            )
-        stdout = stdout.getvalue()
-        default_config_dir = os.path.expanduser("~/.config/airflow")
-        assert f"Saving credentials to {default_config_dir}" in stdout
+        auth_command.login(self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080"]))
+        default_config_dir = user_config_path("airflow", "Apache Software Foundation")
         assert os.path.exists(default_config_dir)
-        with open(os.path.join(default_config_dir, "credentials.json")) as f:
+        with open(os.path.join(default_config_dir, f"{env}.json")) as f:
             assert json.load(f) == {
                 "api_url": "http://localhost:8080",
-                "api_token": base64.b64encode(b"test_token").decode(),
             }
