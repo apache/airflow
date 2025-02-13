@@ -53,7 +53,7 @@ export const Overview = () => {
   const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     limit: 14,
-    orderBy: "-logical_date",
+    orderBy: "-run_after",
   });
 
   return (
