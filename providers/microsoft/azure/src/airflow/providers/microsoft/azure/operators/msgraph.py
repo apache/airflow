@@ -54,7 +54,7 @@ def default_event_handler(event: dict[Any, Any] | None = None, **context) -> Any
 
 
 def execute_callable(
-    func: Callable[[Any, dict[str, Any]], Any] | Callable[[Context, Any], Any],
+    func: Callable[[Any, dict[Any, Any]], Any] | Callable[[dict[Any, Any], Any], Any],
     value: Any,
     context: Context,
     message: str,
