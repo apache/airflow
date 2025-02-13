@@ -30,7 +30,7 @@ pytestmark = pytest.mark.db_test
 
 class TestDagVersionEndpoint:
     @pytest.fixture(autouse=True)
-    def setup(request, dag_maker):
+    def setup(request, dag_maker, session):
         clear_db_dags()
         clear_db_serialized_dags()
 
@@ -41,7 +41,9 @@ class TestDagVersionEndpoint:
             EmptyOperator(task_id="task_2")
 
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="another_bundle_name")
+        SerializedDagModel.write_dag(
+            dag, bundle_name="another_bundle_name", bundle_version="some_commit_hash"
+        )
 
 
 class TestGetDagVersions(TestDagVersionEndpoint):
@@ -54,7 +56,8 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     "dag_versions": [
                         {
                             "bundle_name": "another_bundle_name",
-                            "bundle_version": None,
+                            "bundle_version": "some_commit_hash",
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash",
                             "created_at": mock.ANY,
                             "dag_id": "ANOTHER_DAG_ID",
                             "id": mock.ANY,
@@ -62,7 +65,8 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                         },
                         {
                             "bundle_name": "dag_maker",
-                            "bundle_version": None,
+                            "bundle_version": "some_commit_hash1",
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash1",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
@@ -70,7 +74,8 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                         },
                         {
                             "bundle_name": "dag_maker",
-                            "bundle_version": None,
+                            "bundle_version": "some_commit_hash2",
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash2",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
@@ -78,7 +83,8 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                         },
                         {
                             "bundle_name": "dag_maker",
-                            "bundle_version": None,
+                            "bundle_version": "some_commit_hash3",
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash3",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
@@ -94,7 +100,8 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     "dag_versions": [
                         {
                             "bundle_name": "dag_maker",
-                            "bundle_version": None,
+                            "bundle_version": "some_commit_hash1",
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash1",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
@@ -102,7 +109,8 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                         },
                         {
                             "bundle_name": "dag_maker",
-                            "bundle_version": None,
+                            "bundle_version": "some_commit_hash2",
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash2",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
@@ -110,7 +118,8 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                         },
                         {
                             "bundle_name": "dag_maker",
-                            "bundle_version": None,
+                            "bundle_version": "some_commit_hash3",
+                            "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash3",
                             "created_at": mock.ANY,
                             "dag_id": "dag_with_multiple_versions",
                             "id": mock.ANY,
