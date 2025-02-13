@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
@@ -310,6 +310,72 @@ class TestCreateBackfill(TestBackfillEndpoint):
                     response.json().get("detail")
                     == "DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
+
+    @pytest.mark.parametrize(
+        "run_backwards",
+        [
+            (False),
+            (True),
+        ],
+    )
+    def test_create_backfill_future_dates(self, session, dag_maker, test_client, run_backwards):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.query(DagModel).all()
+        session.commit()
+        from_date = timezone.utcnow() + timedelta(days=1)
+        to_date = timezone.utcnow() + timedelta(days=1)
+        max_active_runs = 5
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{to_iso(from_date)}",
+            "to_date": f"{to_iso(to_date)}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": run_backwards,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+        }
+
+        response = test_client.post(
+            url="/public/backfills",
+            json=data,
+        )
+        assert response.status_code == 422
+        assert response.json().get("detail") == "Backfill cannot be executed for future dates."
+
+    @pytest.mark.parametrize(
+        "run_backwards",
+        [
+            (False),
+            (True),
+        ],
+    )
+    def test_create_backfill_past_future_dates(self, session, dag_maker, test_client, run_backwards):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily") as dag:
+            EmptyOperator(task_id="mytask")
+        session.query(DagModel).all()
+        session.commit()
+        from_date = timezone.utcnow() - timedelta(days=2)
+        to_date = timezone.utcnow() + timedelta(days=1)
+        max_active_runs = 1
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{to_iso(from_date)}",
+            "to_date": f"{to_iso(to_date)}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": run_backwards,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+        }
+
+        response = test_client.post(
+            url="/public/backfills",
+            json=data,
+        )
+        assert response.status_code == 200
+        backfill_dag_run_count = select(func.count()).where(
+            and_(BackfillDagRun.backfill_id == response.json()["id"], BackfillDagRun.logical_date == to_date)
+        )
+        count = session.execute(backfill_dag_run_count).scalar()
+        assert count == 0
 
 
 class TestCreateBackfillDryRun(TestBackfillEndpoint):

@@ -260,6 +260,9 @@ spec:
                 {{- end }}
           {{- end }}
           ports:
+            {{- if .Values.workers.extraPorts }}
+              {{- toYaml .Values.workers.extraPorts | nindent 12 }}
+            {{- end }}
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
           volumeMounts:
