@@ -32,8 +32,9 @@ import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
 import { Bar } from "react-chartjs-2";
 
-import type { DAGRunResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { system } from "src/theme";
+import { pluralize } from "src/utils";
 import { getDuration } from "src/utils/datetime_utils";
 
 ChartJS.register(
@@ -53,14 +54,16 @@ const average = (ctx: PartialEventContext, index: number) => {
   return values === undefined ? 0 : values.reduce((initial, next) => initial + next, 0) / values.length;
 };
 
-export const RunDuration = ({
-  runs,
-  totalEntries,
+type RunResponse = DAGRunResponse | TaskInstanceResponse;
+
+export const DurationChart = ({
+  entries,
+  kind,
 }: {
-  readonly runs: Array<DAGRunResponse> | undefined;
-  readonly totalEntries: number;
+  readonly entries: Array<RunResponse> | undefined;
+  readonly kind: "Dag Run" | "Task Instance";
 }) => {
-  if (!runs) {
+  if (!entries) {
     return undefined;
   }
 
@@ -91,26 +94,51 @@ export const RunDuration = ({
   return (
     <Box>
       <Heading pb={2} size="sm" textAlign="center">
-        Last {totalEntries} runs
+        Last {pluralize(kind, entries.length)}
       </Heading>
       <Bar
         data={{
           datasets: [
             {
               backgroundColor: system.tokens.categoryMap.get("colors")?.get("queued.600")?.value as string,
-              data: runs.map((run: DAGRunResponse) => Number(getDuration(run.queued_at, run.start_date))),
+              data: entries.map((entry: RunResponse) => {
+                switch (kind) {
+                  case "Dag Run": {
+                    const run = entry as DAGRunResponse;
+
+                    return run.queued_at !== null && run.start_date !== null && run.queued_at < run.start_date
+                      ? Number(getDuration(run.queued_at, run.start_date))
+                      : 0;
+                  }
+                  case "Task Instance": {
+                    const taskInstance = entry as TaskInstanceResponse;
+
+                    return taskInstance.queued_when !== null &&
+                      taskInstance.start_date !== null &&
+                      taskInstance.queued_when < taskInstance.start_date
+                      ? Number(getDuration(taskInstance.queued_when, taskInstance.start_date))
+                      : 0;
+                  }
+                  default:
+                    return 0;
+                }
+              }),
               label: "Queued duration",
             },
             {
-              backgroundColor: runs.map(
-                (run: DAGRunResponse) =>
-                  system.tokens.categoryMap.get("colors")?.get(`${run.state}.600`)?.value as string,
+              backgroundColor: entries.map(
+                (entry: RunResponse) =>
+                  system.tokens.categoryMap.get("colors")?.get(`${entry.state}.600`)?.value as string,
               ),
-              data: runs.map((run: DAGRunResponse) => Number(getDuration(run.start_date, run.end_date))),
+              data: entries.map((entry: RunResponse) =>
+                entry.start_date === null ? 0 : Number(getDuration(entry.start_date, entry.end_date)),
+              ),
               label: "Run duration",
             },
           ],
-          labels: runs.map((run) => dayjs(run.logical_date).format("YYYY-MM-DD, hh:mm:ss")),
+          labels: entries.map((entry: RunResponse) =>
+            dayjs(entry.logical_date).format("YYYY-MM-DD, hh:mm:ss"),
+          ),
         }}
         datasetIdKey="id"
         options={{

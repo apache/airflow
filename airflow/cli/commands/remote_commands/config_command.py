@@ -482,7 +482,9 @@ def lint_config(args) -> None:
         if configuration.config.section in ignore_sections or configuration.config.option in ignore_options:
             continue
 
-        if conf.has_option(configuration.config.section, configuration.config.option):
+        if conf.has_option(
+            configuration.config.section, configuration.config.option, lookup_from_deprecated_options=False
+        ):
             lint_issues.append(configuration.message)
 
     if lint_issues:
