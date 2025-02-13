@@ -133,7 +133,7 @@ def _resolve_path(instance: Any, attribute: attrs.Attribute, val: str | os.PathL
     return val
 
 
-@attrs.define
+@attrs.define(kw_only=True)
 class DagFileProcessorManager(LoggingMixin):
     """
     Manage processes responsible for parsing DAGs.

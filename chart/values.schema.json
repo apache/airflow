@@ -2069,11 +2069,19 @@
                 },
                 "extraInitContainers": {
                     "description": "Add additional init containers into workers (templated).",
+                    "type": "array",
+                    "default": [],
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
-                    },
+                    }
+                },
+                "extraPorts": {
+                    "description": "Expose additional ports on the worker container.",
                     "type": "array",
-                    "default": []
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
+                    }
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into workers.",
@@ -12194,6 +12202,11 @@
                 },
                 "retentionDays": {
                     "description": "Number of days to retain the logs when running the Airflow log groomer sidecar.",
+                    "type": "integer",
+                    "default": 15
+                },
+                "frequencyMinutes": {
+                    "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",
                     "type": "integer",
                     "default": 15
                 },

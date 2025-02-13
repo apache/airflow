@@ -35,7 +35,7 @@ import { useColorMode } from "src/context/colorMode";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
-export type ChartEvent = { timestamp: string };
+export type ChartEvent = { timestamp: string | null };
 
 const aggregateEventsIntoIntervals = (events: Array<ChartEvent>, startDate: string, endDate: string) => {
   const totalMinutes = dayjs(endDate).diff(startDate, "minutes");
@@ -43,6 +43,9 @@ const aggregateEventsIntoIntervals = (events: Array<ChartEvent>, startDate: stri
   const intervals = Array.from({ length: 10 }).fill(0) as Array<number>;
 
   events.forEach((event) => {
+    if (event.timestamp === null) {
+      return;
+    }
     const minutesSinceStart = dayjs(event.timestamp).diff(startDate, "minutes");
     const intervalIndex = Math.min(Math.floor(minutesSinceStart / intervalSize), 9);
 
