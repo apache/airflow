@@ -155,16 +155,8 @@ class RuntimeTaskInstance(TaskInstance):
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
-                "data_interval_end": dag_run.data_interval_end,
-                "data_interval_start": dag_run.data_interval_start,
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
                 "task_reschedule_count": self._ti_context_from_server.task_reschedule_count,
-                "prev_data_interval_start_success": lazy_object_proxy.Proxy(
-                    lambda: get_previous_dagrun_success(self.id).data_interval_start
-                ),
-                "prev_data_interval_end_success": lazy_object_proxy.Proxy(
-                    lambda: get_previous_dagrun_success(self.id).data_interval_end
-                ),
                 "prev_start_date_success": lazy_object_proxy.Proxy(
                     lambda: get_previous_dagrun_success(self.id).start_date
                 ),
@@ -180,8 +172,10 @@ class RuntimeTaskInstance(TaskInstance):
                 ts = logical_date.isoformat()
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
+                # logical_date and data_interval either coexist or be None together
                 context.update(
                     {
+                        # keys that depend on logical_date
                         "logical_date": logical_date,
                         "ds": ds,
                         "ds_nodash": ds_nodash,
@@ -189,8 +183,18 @@ class RuntimeTaskInstance(TaskInstance):
                         "ts": ts,
                         "ts_nodash": ts_nodash,
                         "ts_nodash_with_tz": ts_nodash_with_tz,
+                        # keys that depend on data_interval
+                        "data_interval_end": dag_run.data_interval_end,
+                        "data_interval_start": dag_run.data_interval_start,
+                        "prev_data_interval_start_success": lazy_object_proxy.Proxy(
+                            lambda: get_previous_dagrun_success(self.id).data_interval_start
+                        ),
+                        "prev_data_interval_end_success": lazy_object_proxy.Proxy(
+                            lambda: get_previous_dagrun_success(self.id).data_interval_end
+                        ),
                     }
                 )
+
             if from_server.upstream_map_indexes is not None:
                 # We stash this in here for later use, but we purposefully don't want to document it's
                 # existence. Should this be a private attribute on RuntimeTI instead perhaps?

@@ -313,7 +313,7 @@ def _create_backfill_dag_run(
                     run_type=DagRunType.BACKFILL_JOB, logical_date=info.logical_date, run_after=info.run_after
                 ),
                 logical_date=info.logical_date,
-                data_interval=info.data_interval,
+                data_interval=info.data_interval if info.logical_date else None,
                 run_after=info.run_after,
                 conf=dag_run_conf,
                 run_type=DagRunType.BACKFILL_JOB,
