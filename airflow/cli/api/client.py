@@ -17,15 +17,16 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import os
 import sys
 from typing import TYPE_CHECKING, Any
 
 import httpx
+import keyring
 import rich
 import structlog
+from platformdirs import user_config_path
 from uuid6 import uuid7
 
 from airflow.cli.api.operations import (
@@ -104,35 +105,50 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
 class Credentials:
     """Credentials for the API."""
 
-    api_url: str
-    api_token: str
+    api_url: str | None
+    api_token: str | None
+    api_environment: str
 
-    def __init__(self, api_url: str, api_token: str = "NO_TOKEN"):
+    def __init__(
+        self,
+        api_url: str | None = None,
+        api_token: str | None = None,
+        api_environment: str = "production",
+    ):
         self.api_url = api_url
         self.api_token = api_token
+        self.set_environment(api_environment)
+
+    @lru_cache()
+    def get_input_cli_config_file(self) -> str:
+        """Generate path and always generate that path but let's not world readable."""
+        self.set_environment()
+        return f"{self.api_environment}.json"
+
+    def set_environment(self, api_environment: str = "production"):
+        """Read the environment from the environment variable."""
+        self.api_environment = os.getenv("APACHE_AIRFLOW_CLI_ENVIRONMENT") or api_environment
 
     def save(self):
-        """Save the credentials."""
-        default_config_dir = os.path.expanduser("~/.config/airflow")
-        print(f"Saving credentials to {default_config_dir}")
+        """Save the credentials to keyring and URL to disk as a file."""
+        default_config_dir = user_config_path("airflow", "Apache Software Foundation")
         if not os.path.exists(default_config_dir):
             os.makedirs(default_config_dir)
-        with open(os.path.join(default_config_dir, "credentials.json"), "w") as f:
-            json.dump(
-                {"api_url": self.api_url, "api_token": base64.b64encode(self.api_token.encode()).decode()}, f
-            )
+        with open(os.path.join(default_config_dir, self.get_input_cli_config_file()), "w") as f:
+            json.dump({"api_url": self.api_url}, f)
+        keyring.set_password("airflow-cli", f"api_token-{self.api_environment}", self.api_token)
 
-    @classmethod
-    def load(cls) -> Credentials:
-        """Load the credentials."""
-        default_config_dir = os.path.expanduser("~/.config/airflow")
+    def load(self) -> Credentials:
+        """Load the credentials from keyring and URL from disk file."""
+        default_config_dir = user_config_path("airflow", "Apache Software Foundation")
+        self.set_environment()
         if os.path.exists(default_config_dir):
-            with open(os.path.join(default_config_dir, "credentials.json")) as f:
+            with open(os.path.join(default_config_dir, self.get_input_cli_config_file())) as f:
                 credentials = json.load(f)
-            return cls(
-                api_url=credentials["api_url"],
-                api_token=base64.b64decode(credentials["api_token"]).decode(),
-            )
+                self.api_url = credentials["api_url"]
+                self.api_token = keyring.get_password("airflow-cli", f"api_token-{self.api_environment}")
+                print(f"token: {self.api_token}")
+            return self
         else:
             rich.print("[red]No credentials found.")
             rich.print("[green]Please run: [blue]airflow auth login")

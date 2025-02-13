@@ -17,15 +17,16 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import os
 import shutil
 from contextlib import redirect_stdout
 from io import StringIO
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from platformdirs import user_config_path
 
 from airflow.cli.api.client import Client, Credentials
 from airflow.cli.api.operations import ServerResponseError
@@ -77,38 +78,49 @@ class TestClient:
 
 
 class TestCredentials:
-    default_config_dir = os.path.expanduser("~/.config/airflow")
+    default_config_dir = user_config_path("airflow", "Apache Software Foundation")
 
-    def test_save(self):
-        with redirect_stdout(StringIO()) as stdout:
-            credentials = Credentials(api_url="http://localhost:8080")
-            credentials.save()
-        stdout = stdout.getvalue()
-        assert f"Saving credentials to {self.default_config_dir}" in stdout
-        assert os.path.exists(self.default_config_dir)
-        with open(os.path.join(self.default_config_dir, "credentials.json")) as f:
-            credentials = Credentials.load()
-            assert json.load(f) == {
-                "api_url": credentials.api_url,
-                "api_token": base64.b64encode(b"NO_TOKEN").decode(),
-            }
+    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE"})
+    @patch("airflow.cli.api.client.keyring")
+    def test_save(self, mock_keyring):
+        mock_keyring.set_password.return_value = MagicMock()
+        env = "TEST_SAVE"
 
-    def test_load(self):
-        credentials = Credentials(api_url="http://localhost:8080")
+        credentials = Credentials(api_url="http://localhost:8080", api_token="NO_TOKEN", api_environment=env)
         credentials.save()
 
-        with open(os.path.join(self.default_config_dir, "credentials.json")) as f:
-            credentials = Credentials.load()
+        assert os.path.exists(self.default_config_dir)
+        with open(os.path.join(self.default_config_dir, f"{env}.json")) as f:
+            credentials = Credentials().load()
             assert json.load(f) == {
                 "api_url": credentials.api_url,
-                "api_token": base64.b64encode(b"NO_TOKEN").decode(),
             }
 
-    def test_load_no_credentials(self):
+    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
+    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch("airflow.cli.api.client.keyring")
+    def test_load(self, mock_keyring):
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
+        env = "TEST_LOAD"
+
+        credentials = Credentials(api_url="http://localhost:8080", api_token="NO_TOKEN", api_environment=env)
+        credentials.save()
+        with open(os.path.join(self.default_config_dir, f"{env}.json")) as f:
+            credentials = Credentials().load()
+            assert json.load(f) == {
+                "api_url": credentials.api_url,
+            }
+
+    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_CREDENTIALS"})
+    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch("airflow.cli.api.client.keyring")
+    def test_load_no_credentials(self, mock_keyring):
         if os.path.exists(self.default_config_dir):
             shutil.rmtree(self.default_config_dir)
         with pytest.raises(SystemExit), redirect_stdout(StringIO()) as stdout:
-            Credentials.load()
+            Credentials().load()
 
         stdout = stdout.getvalue()
         assert "No credentials found." in stdout
