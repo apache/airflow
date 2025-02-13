@@ -19,6 +19,9 @@
 # Centralized handling of the connection mechanism for all Message Queues 
 # 
 
+from collections.abc import Sequence
+from typing import Any, NoReturn
+
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -69,10 +72,10 @@ class MsgQueueHook(BaseHook):
 class MsgQueueConsumerHook(MsgQueueHook):
     """
     Abstract base class hook for creating a message queue consumer. 
-    """
 
     :param connection configuration information, default to BaseHook configuration
     :param topics: A list of topics to subscribe to on the message queue
+    """
 
     def __init__(self, topics: Sequence[str], config_id=MsgQueueHook.default_conn_name) -> None:
         super().__init__(config_id=config_id)
