@@ -6649,6 +6649,98 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagVersions:
+    get:
+      tags:
+      - DagVersion
+      summary: Get Dag Versions
+      description: 'Get all DAG Versions.
+
+
+        This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions
+        for all DAGs.'
+      operationId: get_dag_versions
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          type: integer
+          title: Version Number
+      - name: bundle_name
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Bundle Name
+      - name: bundle_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGVersionCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -8404,6 +8496,22 @@ components:
       - total_entries
       title: DAGTagCollectionResponse
       description: DAG Tags Collection serializer for responses.
+    DAGVersionCollectionResponse:
+      properties:
+        dag_versions:
+          items:
+            $ref: '#/components/schemas/DagVersionResponse'
+          type: array
+          title: Dag Versions
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - dag_versions
+      - total_entries
+      title: DAGVersionCollectionResponse
+      description: DAG Version Collection serializer for responses.
     DAGWarningCollectionResponse:
       properties:
         dag_warnings:

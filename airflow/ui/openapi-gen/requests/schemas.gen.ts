@@ -2552,6 +2552,26 @@ export const $DAGTagCollectionResponse = {
   description: "DAG Tags Collection serializer for responses.",
 } as const;
 
+export const $DAGVersionCollectionResponse = {
+  properties: {
+    dag_versions: {
+      items: {
+        $ref: "#/components/schemas/DagVersionResponse",
+      },
+      type: "array",
+      title: "Dag Versions",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dag_versions", "total_entries"],
+  title: "DAGVersionCollectionResponse",
+  description: "DAG Version Collection serializer for responses.",
+} as const;
+
 export const $DAGWarningCollectionResponse = {
   properties: {
     dag_warnings: {
