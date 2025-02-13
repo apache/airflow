@@ -172,16 +172,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     def initialize(self) -> None:
         if not self.repo_url:
             raise AirflowException(f"Connection {self.git_conn_id} doesn't have a host url")
-        if isinstance(self.repo_url, os.PathLike):
-            self._initialize()
-        elif not (
-            self.repo_url.startswith("git@") or self.repo_url.startswith("https")
-        ) or not self.repo_url.endswith(".git"):
-            raise AirflowException(
-                f"Invalid git URL: {self.repo_url}. URL must start with git@ or https and end with .git"
-            )
-        else:
-            self._initialize()
+        self._initialize()
         super().initialize()
 
     def _clone_repo_if_required(self) -> None:

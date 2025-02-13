@@ -437,31 +437,12 @@ class TestGitDagBundle:
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
 
     @pytest.mark.parametrize(
-        "repo_url",
-        [
-            pytest.param("https://github.com/apache/airflow", id="https_url"),
-            pytest.param("airflow@example:apache/airflow.git", id="does_not_start_with_git_at"),
-            pytest.param("git@example:apache/airflow", id="does_not_end_with_dot_git"),
-        ],
-    )
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
-    def test_repo_url_validation_for_ssh(self, mock_hook, repo_url, session):
-        mock_hook.return_value.repo_url = repo_url
-        bundle = GitDagBundle(
-            name="test",
-            git_conn_id="git_default",
-            tracking_ref=GIT_DEFAULT_BRANCH,
-        )
-        with pytest.raises(
-            AirflowException,
-            match=f"Invalid git URL: {repo_url}. URL must start with git@ or https and end with .git",
-        ):
-            bundle.initialize()
-
-    @pytest.mark.parametrize(
         "repo_url, expected_url",
         [
             ("git@github.com:apache/airflow.git", "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("git@github.com:apache/airflow", "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("https://github.com/apache/airflow", "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("https://github.com/apache/airflow.git", "https://github.com/apache/airflow/tree/0f0f0f"),
             ("git@gitlab.com:apache/airflow.git", "https://gitlab.com/apache/airflow/-/tree/0f0f0f"),
             ("git@bitbucket.org:apache/airflow.git", "https://bitbucket.org/apache/airflow/src/0f0f0f"),
             (
@@ -472,6 +453,8 @@ class TestGitDagBundle:
                 "https://myorg.github.com/apache/airflow.git",
                 "https://myorg.github.com/apache/airflow/tree/0f0f0f",
             ),
+            ("/dev/null", None),
+            ("file:///dev/null", None),
         ],
     )
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
@@ -488,8 +471,10 @@ class TestGitDagBundle:
             name="test",
             tracking_ref="main",
         )
+        bundle.initialize = mock.MagicMock()
         view_url = bundle.view_url("0f0f0f")
         assert view_url == expected_url
+        bundle.initialize.assert_not_called()
 
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
     def test_view_url_returns_none_when_no_version_in_view_url(self, mock_gitrepo):

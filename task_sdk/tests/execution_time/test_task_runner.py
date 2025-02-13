@@ -1201,7 +1201,7 @@ class TestXComAfterTaskExecution:
         runtime_ti = create_runtime_ti(task=task)
 
         spy_agency.spy_on(_xcom_push, call_original=False)
-        _push_xcom_if_needed(result=result, ti=runtime_ti)
+        _push_xcom_if_needed(result=result, ti=runtime_ti, log=mock.MagicMock())
 
         expected_calls = [
             ("key1", "value1"),
@@ -1231,7 +1231,7 @@ class TestXComAfterTaskExecution:
             TypeError,
             match=f"Returned output was type {type(result)} expected dictionary for multiple_outputs",
         ):
-            _push_xcom_if_needed(result=result, ti=runtime_ti)
+            _push_xcom_if_needed(result=result, ti=runtime_ti, log=mock.MagicMock())
 
     def test_xcom_with_multiple_outputs_and_key_is_not_string(self, create_runtime_ti, spy_agency):
         """Test that error is raised when multiple outputs are returned and key isn't string."""
@@ -1250,7 +1250,7 @@ class TestXComAfterTaskExecution:
         spy_agency.spy_on(runtime_ti.xcom_push, call_original=False)
 
         with pytest.raises(TypeError) as exc_info:
-            _push_xcom_if_needed(result=result, ti=runtime_ti)
+            _push_xcom_if_needed(result=result, ti=runtime_ti, log=mock.MagicMock())
 
         assert str(exc_info.value) == (
             f"Returned dictionary keys must be strings when using multiple_outputs, found 2 ({int}) instead"
@@ -1504,7 +1504,7 @@ class TestTaskRunnerCallsListeners:
         log = mock.MagicMock()
 
         state, _ = run(runtime_ti, log)
-        finalize(ti, state, log)
+        finalize(runtime_ti, state, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
 
@@ -1542,6 +1542,6 @@ class TestTaskRunnerCallsListeners:
         log = mock.MagicMock()
 
         state, _ = run(runtime_ti, log)
-        finalize(ti, state, log)
+        finalize(runtime_ti, state, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]

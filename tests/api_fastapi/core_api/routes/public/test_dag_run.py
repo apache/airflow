@@ -216,6 +216,7 @@ class TestGetDagRuns:
             "dag_id": run.dag_id,
             "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
             "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
+            "run_after": from_datetime_to_zulu_without_ms(run.run_after),
             "start_date": from_datetime_to_zulu_without_ms(run.start_date),
             "end_date": from_datetime_to_zulu(run.end_date),
             "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
@@ -504,6 +505,7 @@ class TestListDagRunsBatch:
             "dag_id": run.dag_id,
             "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
             "queued_at": from_datetime_to_zulu_without_ms(run.queued_at) if run.queued_at else None,
+            "run_after": from_datetime_to_zulu_without_ms(run.run_after),
             "start_date": from_datetime_to_zulu_without_ms(run.start_date),
             "end_date": from_datetime_to_zulu(run.end_date),
             "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
@@ -1140,7 +1142,12 @@ class TestTriggerDagRun:
         [
             ("dag_run_5", "test-note", None, None),
             ("dag_run_6", "test-note", "2024-01-03T00:00:00+00:00", "2024-01-04T05:00:00+00:00"),
-            (None, None, None, None),
+            (
+                None,
+                None,
+                None,
+                None,
+            ),
         ],
     )
     def test_should_respond_200(
@@ -1155,6 +1162,7 @@ class TestTriggerDagRun:
             request_json["data_interval_start"] = data_interval_start
         if data_interval_end is not None:
             request_json["data_interval_end"] = data_interval_end
+        request_json["logical_date"] = fixed_now
 
         response = test_client.post(
             f"/public/dags/{DAG1_ID}/dagRuns",
@@ -1172,13 +1180,15 @@ class TestTriggerDagRun:
         if data_interval_start is not None and data_interval_end is not None:
             expected_data_interval_start = data_interval_start.replace("+00:00", "Z")
             expected_data_interval_end = data_interval_end.replace("+00:00", "Z")
+        expected_logical_date = fixed_now.replace("+00:00", "Z")
 
         expected_response_json = {
             "conf": {},
             "dag_id": DAG1_ID,
             "dag_run_id": expected_dag_run_id,
             "end_date": None,
-            "logical_date": fixed_now.replace("+00:00", "Z"),
+            "logical_date": expected_logical_date,
+            "run_after": fixed_now.replace("+00:00", "Z"),
             "external_trigger": True,
             "start_date": None,
             "state": "queued",
@@ -1335,6 +1345,7 @@ class TestTriggerDagRun:
             "queued_at": now,
             "start_date": None,
             "end_date": None,
+            "run_after": now,
             "data_interval_start": now,
             "data_interval_end": now,
             "last_scheduling_decision": None,
@@ -1415,6 +1426,7 @@ class TestTriggerDagRun:
             "dag_id": DAG1_ID,
             "logical_date": None,
             "queued_at": mock.ANY,
+            "run_after": mock.ANY,
             "start_date": None,
             "end_date": None,
             "data_interval_start": mock.ANY,

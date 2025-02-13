@@ -22,10 +22,9 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import { DurationChart } from "src/components/DurationChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
-
-import { RunDuration } from "./RunDuration";
 
 const defaultHour = "168";
 
@@ -54,7 +53,7 @@ export const Overview = () => {
   const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     limit: 14,
-    orderBy: "-start_date",
+    orderBy: "-logical_date",
   });
 
   return (
@@ -105,7 +104,7 @@ export const Overview = () => {
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <RunDuration runs={runs?.dag_runs} totalEntries={runs?.total_entries ?? 0} />
+            <DurationChart entries={runs?.dag_runs.slice().reverse()} kind="Dag Run" />
           )}
         </Box>
       </SimpleGrid>
