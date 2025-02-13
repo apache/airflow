@@ -38,6 +38,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli as cli_utils, timezone
@@ -386,38 +387,25 @@ def dag_details(args, session=NEW_SESSION):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_list_import_errors(args, session=NEW_SESSION) -> None:
+def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
     """Display dags with import errors on the command line."""
-    
-    # Initialize bundle manager and sync bundles to the database
-    print("1")
-    manager = DagBundlesManager()
-    manager.sync_bundles_to_db(session=session)
-    session.commit()
-
-    print("2")
-
-    dagbag = None
-    if args.bundle_name:
-        print("3")
-        bundle = manager.get_bundle(name=args.bundle_name, version=None)
-        if not bundle:
-            raise SystemExit(f"Bundle {args.bundle_name} not found")
-        dagbag = DagBag(bundle.path, include_examples=False)
-        dagbag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
-    else:
-        print("4")
-        # Default Case - Read all the configured bundles.
-        bundles = manager.get_all_dag_bundles()
-        for bundle in bundles:
-            dagbag = DagBag(bundle.path, include_examples=False)
-            dagbag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
-
-    # dagbag = DagBag(process_subdir(args.subdir))
-    print("5")
     data = []
-    for filename, errors in dagbag.import_errors.items():
-        data.append({"filepath": filename, "error": errors})
+
+    # Get import errors from the DB
+    query = select(ParseImportError)
+    if args.bundle_name:
+        query = query.where(ParseImportError.bundle_name.in_(args.bundle_name))
+
+    dagbag_import_errors = session.scalars(query).all()
+
+    for import_error in dagbag_import_errors:
+        data.append(
+            {
+                "bundle_name": import_error.bundle_name,
+                "filepath": import_error.filename,
+                "error": import_error.stacktrace,
+            }
+        )
     AirflowConsole().print_as(
         data=data,
         output=args.output,
