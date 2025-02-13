@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import unittest.mock
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -89,7 +90,7 @@ class TestTaskEndpoint:
             mapped_dag.dag_id: mapped_dag,
             unscheduled_dag.dag_id: unscheduled_dag,
         }
-        dag_bag.sync_to_db("dags-folder", None)
+        dag_bag.sync_to_db("dags-folder", Path("/test/bundle"), None)
         configured_app.dag_bag = dag_bag  # type:ignore
 
     @staticmethod
@@ -254,7 +255,7 @@ class TestGetTask(TestTaskEndpoint):
         # Get the dag out of the dagbag before we patch it to an empty one
         dag = self.app.dag_bag.get_dag(self.dag_id)
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
+        SerializedDagModel.write_dag(dag, bundle_name="test_bundle", code_reader=lambda _: "dag source code")
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         patcher = unittest.mock.patch.object(self.app, "dag_bag", dag_bag)

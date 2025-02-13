@@ -36,6 +36,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
+    from typing import Callable
+
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
@@ -48,7 +50,7 @@ class DagCode(Base):
     """
     A table for DAGs code.
 
-    dag_code table contains code of DAG files synchronized by scheduler.
+    dag_code table contains code of DAG files synchronized by DAG processor.
 
     For details on dag serialization see SerializedDagModel
     """
@@ -56,6 +58,7 @@ class DagCode(Base):
     __tablename__ = "dag_code"
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
     dag_id = Column(String(ID_LEN), nullable=False)
+    # Relative fileloc for DAGs in a bundle, absolute for standalone DAGs (in tests).
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
@@ -66,26 +69,41 @@ class DagCode(Base):
     )
     dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False)
 
-    def __init__(self, dag_version, full_filepath: str, source_code: str | None = None):
+    def __init__(self, dag_version, fileloc: str, source_code: str | None = None):
         self.dag_version = dag_version
-        self.fileloc = full_filepath
+        self.fileloc = fileloc
         self.source_code = source_code or DagCode.code(self.dag_version.dag_id)
         self.source_code_hash = self.dag_source_hash(self.source_code)
         self.dag_id = dag_version.dag_id
 
     @classmethod
     @provide_session
-    def write_code(cls, dag_version: DagVersion, fileloc: str, session: Session = NEW_SESSION) -> DagCode:
+    def write_code(
+        cls,
+        dag_version: DagVersion,
+        rel_fileloc: str,
+        code_reader: Callable[[str], str],
+        session: Session = NEW_SESSION,
+    ) -> DagCode:
         """
         Write code into database.
 
-        :param fileloc: file path of DAG to sync
+        :param rel_fileloc: file path of DAG within a bundle
+        :param code_reader: provider of a file content from path within a bundle
         :param session: ORM Session
         """
-        log.debug("Writing DAG file %s into DagCode table", fileloc)
-        dag_code = DagCode(dag_version, fileloc, cls.get_code_from_file(fileloc))
+        log.debug(
+            "Writing DAG file (bundle:%s:%s) into DagCode table",
+            dag_version.bundle_name,
+            rel_fileloc,
+        )
+        dag_code = DagCode(dag_version, fileloc=rel_fileloc, source_code=code_reader(rel_fileloc))
         session.add(dag_code)
-        log.debug("DAG file %s written into DagCode table", fileloc)
+        log.debug(
+            "DAG file (bundle:%s:%s) written into DagCode table",
+            dag_version.bundle_name,
+            rel_fileloc,
+        )
         return dag_code
 
     @classmethod
@@ -113,7 +131,7 @@ class DagCode(Base):
         return cls._get_code_from_db(dag_id, session)
 
     @staticmethod
-    def get_code_from_file(fileloc):
+    def get_code_from_file(fileloc: str) -> str:
         try:
             with open_maybe_zipped(fileloc, "r") as f:
                 code = f.read()
@@ -169,19 +187,22 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def update_source_code(cls, dag_id: str, fileloc: str, session: Session = NEW_SESSION) -> None:
+    def update_source_code(
+        cls, dag_id: str, rel_fileloc: str, code_reader: Callable[[str], str], session: Session = NEW_SESSION
+    ) -> None:
         """
         Check if the source code of the DAG has changed and update it if needed.
 
         :param dag_id: Dag ID
-        :param fileloc: The path of code file to read the code from
+        :param rel_fileloc: Dag path within the bundle.
+        :param code_reader: provider of a file content from path within a bundle
         :param session: The database session.
         :return: None
         """
         latest_dagcode = cls.get_latest_dagcode(dag_id, session)
         if not latest_dagcode:
             return
-        new_source_code = cls.get_code_from_file(fileloc)
+        new_source_code = code_reader(rel_fileloc)
         new_source_code_hash = cls.dag_source_hash(new_source_code)
         if new_source_code_hash != latest_dagcode.source_code_hash:
             latest_dagcode.source_code = new_source_code

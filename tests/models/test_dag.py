@@ -1065,7 +1065,7 @@ class TestDag:
         dag.add_task(op1)
         session = settings.Session()
         dag.sync_to_db(session=session)
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag, bundle_name="testing", code_reader=lambda _: "dag source code")
         assert not dag.get_is_paused()
 
         # dag should be paused after 2 failed dag_runs
@@ -2356,7 +2356,9 @@ class TestDagModel:
         assert dag.fileloc == str(file_path)
         assert dag.relative_fileloc == str(rel_path)
 
-        SerializedDagModel.write_dag(dag, bundle_name="dag_maker", session=session)
+        SerializedDagModel.write_dag(
+            dag, bundle_name="dag_maker", code_reader=lambda _: "dag_maker-generated", session=session
+        )
         session.commit()
         session.expunge_all()
         dm = session.get(DagModel, dag.dag_id)
@@ -2372,7 +2374,7 @@ class TestDagModel:
         dag.fileloc = "/abc/test.py"
         dag.sync_to_db()
         assert dag._processor_dags_folder is None
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag, bundle_name="testing", code_reader=lambda _: "dag source code")
         sdm = SerializedDagModel.get(dag.dag_id, session)
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 

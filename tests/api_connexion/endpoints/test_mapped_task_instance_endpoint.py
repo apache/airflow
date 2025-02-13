@@ -20,6 +20,7 @@ import datetime as dt
 import itertools
 import os
 import urllib
+from pathlib import Path
 
 import pytest
 
@@ -126,7 +127,7 @@ class TestMappedTaskInstanceEndpoint:
             DagBundlesManager().sync_bundles_to_db()
             self.app.dag_bag = DagBag(os.devnull, include_examples=False)
             self.app.dag_bag.dags = {dag_id: dag_maker.dag}
-            self.app.dag_bag.sync_to_db("dags-folder", None)
+            self.app.dag_bag.sync_to_db("dags-folder", Path("/test/bundle"), None)
             session.flush()
 
             TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)

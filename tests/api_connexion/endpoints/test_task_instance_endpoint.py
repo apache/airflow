@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime as dt
 import urllib
+from pathlib import Path
 from unittest import mock
 
 import pendulum
@@ -1229,7 +1230,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.app.dag_bag.sync_to_db("dags-folder", None)
+        self.app.dag_bag.sync_to_db("dags-folder", Path("/test/bundle"), None)
         response = self.client.post(
             f"/api/v1/dags/{request_dag}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1251,7 +1252,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
         dag_id = "example_python_operator"
         payload = {"reset_dag_runs": True, "dry_run": False}
-        self.app.dag_bag.sync_to_db("dags-folder", None)
+        self.app.dag_bag.sync_to_db("dags-folder", Path("/test/bundle"), None)
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1271,7 +1272,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert dagrun.state == "running"
 
         payload = {"dry_run": False, "reset_dag_runs": True, "task_ids": [""]}
-        self.app.dag_bag.sync_to_db("dags-folder", None)
+        self.app.dag_bag.sync_to_db("dags-folder", Path("/test/bundle"), None)
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1698,7 +1699,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             task_instances=task_instances,
             update_extras=False,
         )
-        self.app.dag_bag.sync_to_db("dags-folder", None)
+        self.app.dag_bag.sync_to_db("dags-folder", Path("/test/bundle"), None)
         response = self.client.post(
             "/api/v1/dags/example_python_operator/clearTaskInstances",
             environ_overrides={"REMOTE_USER": "test"},

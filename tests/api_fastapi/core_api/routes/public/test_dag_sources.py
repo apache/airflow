@@ -96,7 +96,7 @@ class TestGetDAGSource:
         dag_content = self._get_dag_file_code(test_dag.fileloc)
         # force reserialization
         test_dag.doc_md = "new doc"
-        SerializedDagModel.write_dag(test_dag, bundle_name="testing")
+        SerializedDagModel.write_dag(test_dag, bundle_name="testing", code_reader=lambda _: "dag source code")
         dagcode = (
             session.query(DagCode)
             .filter(DagCode.fileloc == test_dag.fileloc)

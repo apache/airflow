@@ -25,6 +25,7 @@ import sys
 from collections import Counter, deque
 from collections.abc import Generator
 from datetime import timedelta
+from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
@@ -2836,7 +2837,7 @@ class TestSchedulerJob:
         Noted: the DagRun state could be still in running state during CI.
         """
         dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
-        dagbag.sync_to_db("testing", None)
+        dagbag.sync_to_db("testing", Path("/test/bundle"), None)
         dag_id = "test_dagrun_states_root_future"
         dag = dagbag.get_dag(dag_id)
         DAG.bulk_write_to_db("testing", None, [dag])
@@ -2920,7 +2921,7 @@ class TestSchedulerJob:
         other_dag.is_paused_upon_creation = True
         dagbag.bag_dag(dag=other_dag)
 
-        dagbag.sync_to_db("testing", None)
+        dagbag.sync_to_db("testing", Path("/test/bundle"), None)
 
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=3)
@@ -3267,7 +3268,7 @@ class TestSchedulerJob:
 
         # Now let's say the DAG got updated (new task got added)
         BashOperator(task_id="bash_task_1", dag=dag, bash_command="echo hi")
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", code_reader=lambda _: "dag source code")
 
         dag_version_2 = SerializedDagModel.get_latest_version_hash(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
@@ -5273,7 +5274,7 @@ class TestSchedulerJob:
         assert len(tis) == 1
 
         BashOperator(task_id="dummy2", dag=dag, bash_command="echo test")
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", code_reader=lambda _: "dag source code")
 
         self.job_runner._schedule_dag_run(dr, session)
         assert session.query(TaskInstance).filter_by(state=State.SCHEDULED).count() == 2
@@ -5461,7 +5462,7 @@ class TestSchedulerJob:
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         DAG.bulk_write_to_db("testing", None, [dag])
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", code_reader=lambda _: "dag source code")
         dag_v = DagVersion.get_latest_version(dag.dag_id)
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
         dag_run = create_dagrun(
@@ -5588,7 +5589,9 @@ class TestSchedulerJob:
             session.query(Job).delete()
             dag = dagbag.get_dag("test_example_bash_operator")
             DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+            SerializedDagModel.write_dag(
+                dag=dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+            )
             data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
             dag_run = create_dagrun(
                 dag,
@@ -5733,7 +5736,7 @@ class TestSchedulerJob:
         from airflow.executors.sequential_executor import SequentialExecutor
 
         dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
-        dagbag.sync_to_db("testing", None)
+        dagbag.sync_to_db("testing", Path("/test/bundle"), None)
         dagbag.process_file(str(TEST_DAGS_FOLDER / f"{dag_id}.py"))
         dag = dagbag.get_dag(dag_id)
         assert dag
@@ -5768,7 +5771,7 @@ class TestSchedulerJob:
 
         # Write DAGs to dag and serialized_dag table
         dagbag = DagBag(dag_folder=dag_file, include_examples=False, read_dags_from_db=False)
-        dagbag.sync_to_db("testing", None)
+        dagbag.sync_to_db("testing", Path("/test/bundle"), None)
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -6299,7 +6302,7 @@ class TestSchedulerJobQueriesCount:
         ):
             dagruns = []
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False, read_dags_from_db=False)
-            dagbag.sync_to_db("testing", None)
+            dagbag.sync_to_db("testing", Path("/test/bundle"), None)
 
             dag_ids = dagbag.dag_ids
             dagbag = DagBag(read_dags_from_db=True)
@@ -6390,7 +6393,7 @@ class TestSchedulerJobQueriesCount:
             ),
         ):
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
-            dagbag.sync_to_db("testing", None)
+            dagbag.sync_to_db("testing", Path("/test/bundle"), None)
 
             scheduler_job = Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
             scheduler_job.heartbeat = mock.MagicMock()

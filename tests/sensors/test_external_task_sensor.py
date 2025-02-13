@@ -24,6 +24,7 @@ import re
 import tempfile
 import zipfile
 from datetime import time, timedelta
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -99,7 +100,7 @@ def dag_zip_maker(testing_dag_bundle):
                 for dag_file in self.__dag_files:
                     zf.write(dag_file, os.path.basename(dag_file))
             dagbag = DagBag(dag_folder=self.__tmp_dir, include_examples=False)
-            dagbag.sync_to_db("testing", None)
+            dagbag.sync_to_db("testing", Path("/test/bundle"), None)
             return dagbag
 
         def __exit__(self, exc_type, exc_val, exc_tb):
@@ -127,7 +128,9 @@ class TestExternalTaskSensor:
             with TaskGroup(group_id=TEST_TASK_GROUP_ID) as task_group:
                 _ = [EmptyOperator(task_id=f"task{i}") for i in range(len(target_states))]
             dag.sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
+            SerializedDagModel.write_dag(
+                dag, bundle_name="test_bundle", code_reader=lambda _: "dag source code"
+            )
 
         for idx, task in enumerate(task_group):
             ti = TaskInstance(task=task, run_id=self.dag_run_id)
@@ -150,7 +153,7 @@ class TestExternalTaskSensor:
                 fake_task()
                 fake_mapped_task.expand(x=list(map_indexes))
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
+        SerializedDagModel.write_dag(dag, bundle_name="test_bundle", code_reader=lambda _: "dag source code")
 
         for task in task_group:
             if task.task_id == "fake_mapped_task":

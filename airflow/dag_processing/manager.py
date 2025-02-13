@@ -55,6 +55,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
@@ -752,6 +753,8 @@ class DagFileProcessorManager(LoggingMixin):
                 # This processor hasn't finished yet, or we haven't read all the output from it yet
                 continue
             finished.append(file)
+            if TYPE_CHECKING:
+                assert file.bundle_path
 
             # Collect the DAGS and import errors into the DB, emit metrics etc.
             self._file_stats[file] = process_parse_results(
@@ -760,6 +763,7 @@ class DagFileProcessorManager(LoggingMixin):
                 run_count=self._file_stats[file].run_count,
                 bundle_name=file.bundle_name,
                 bundle_version=self._bundle_versions[file.bundle_name],
+                bundle_path=file.bundle_path,
                 parsing_result=proc.parsing_result,
                 session=session,
             )
@@ -1049,6 +1053,7 @@ def process_parse_results(
     run_count: int,
     bundle_name: str,
     bundle_version: str | None,
+    bundle_path: Path,
     parsing_result: DagFileParsingResult | None,
     session: Session,
 ) -> DagFileStat:
@@ -1071,6 +1076,7 @@ def process_parse_results(
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
+            code_reader=lambda rel_fileloc: DagCode.get_code_from_file(str(bundle_path / Path(rel_fileloc))),
             dags=parsing_result.serialized_dags,
             import_errors=parsing_result.import_errors or {},
             warnings=set(parsing_result.warnings or []),

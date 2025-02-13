@@ -482,11 +482,7 @@ class DagBag(LoggingMixin):
         found_dags = []
 
         for dag, mod in top_level_dags:
-            dag.fileloc = mod.__file__
-            if self.bundle_path:
-                dag.relative_fileloc = str(Path(mod.__file__).relative_to(self.bundle_path))
-            else:
-                dag.relative_fileloc = dag.fileloc
+            dag.update_module_paths(mod.__file__, self.bundle_path)
             try:
                 dag.validate()
                 self.bag_dag(dag=dag)
@@ -642,14 +638,19 @@ class DagBag(LoggingMixin):
         return report
 
     @provide_session
-    def sync_to_db(self, bundle_name: str, bundle_version: str | None, session: Session = NEW_SESSION):
+    def sync_to_db(
+        self, bundle_name: str, bundle_path: Path, bundle_version: str | None, session: Session = NEW_SESSION
+    ):
         """Save attributes about list of DAG to the DB."""
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+        from airflow.models.dagcode import DagCode
 
+        code_reader = lambda rel_fileloc: DagCode.get_code_from_file(str(bundle_path / Path(rel_fileloc)))
         update_dag_parsing_results_in_db(
             bundle_name,
             bundle_version,
             self.dags.values(),  # type: ignore[arg-type]  # We should create a proto for DAG|LazySerializedDAG
+            code_reader,
             self.import_errors,
             self.dag_warnings,
             session=session,

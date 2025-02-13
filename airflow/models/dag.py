@@ -28,6 +28,7 @@ from collections.abc import Collection, Generator, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
+from pathlib import Path
 from re import Pattern
 from typing import (
     TYPE_CHECKING,
@@ -445,6 +446,20 @@ class DAG(TaskSDKDag, LoggingMixin):
     @property
     def safe_dag_id(self):
         return self.dag_id.replace(".", "__dot__")
+
+    def update_module_paths(self, module_file: str, bundle_path: Path | None = None) -> None:
+        """
+        Set the parsing context of the DAG - update its file locations.
+        
+        :param module_file: DAG's module absolute filename (can be within zip file).
+        :param bundle_path: Path of a bundle where DAG is parsed, if not provided the
+            relative path is set to fileloc.
+        """
+        self.fileloc = module_file
+        if bundle_path:
+            self.relative_fileloc = str(Path(module_file).relative_to(bundle_path))
+        else:
+            self.relative_fileloc = self.fileloc
 
     def validate(self):
         super().validate()

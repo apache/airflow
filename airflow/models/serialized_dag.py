@@ -22,7 +22,8 @@ from __future__ import annotations
 import logging
 import zlib
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable
 
 import sqlalchemy_jsonfield
 import uuid6
@@ -166,6 +167,7 @@ class SerializedDagModel(Base):
         cls,
         dag: DAG | LazyDeserializedDAG,
         bundle_name: str,
+        code_reader: Callable[[str], str],
         bundle_version: str | None = None,
         min_update_interval: int | None = None,
         session: Session = NEW_SESSION,
@@ -214,7 +216,10 @@ class SerializedDagModel(Base):
         new_serialized_dag.dag_version = dagv
         session.add(new_serialized_dag)
         log.debug("DAG: %s written to the DB", dag.dag_id)
-        DagCode.write_code(dagv, dag.fileloc, session=session)
+
+        if TYPE_CHECKING:
+            assert dag.relative_fileloc
+        DagCode.write_code(dagv, dag.relative_fileloc, code_reader, session=session)
         return True
 
     @classmethod
@@ -346,6 +351,7 @@ class SerializedDagModel(Base):
     def bulk_sync_to_db(
         dags: list[DAG] | list[LazyDeserializedDAG],
         bundle_name: str,
+        bundle_path: Path,
         bundle_version: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
@@ -355,14 +361,21 @@ class SerializedDagModel(Base):
         Each DAG is saved in a separate database query.
 
         :param dags: the DAG objects to save to the DB
+        :param bundle_name: name of the bundle
+        :param bundle_path: path of the bundle
+        :param bundle_version: version of the bundle
         :param session: ORM Session
         :return: None
         """
         for dag in dags:
+            if TYPE_CHECKING:
+                assert dag.relative_fileloc
+            code_reader = lambda _: DagCode.get_code_from_file(str(bundle_path / Path(dag.relative_fileloc)))
             SerializedDagModel.write_dag(
                 dag=dag,
                 bundle_name=bundle_name,
                 bundle_version=bundle_version,
+                code_reader=code_reader,
                 min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
                 session=session,
             )
