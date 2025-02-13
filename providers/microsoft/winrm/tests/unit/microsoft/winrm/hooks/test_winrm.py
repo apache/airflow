@@ -142,7 +142,7 @@ class TestWinRMHook:
         winrm_hook = WinRMHook(ssh_conn_id="conn_id")
 
         mock_protocol.return_value.run_command = MagicMock(return_value="command_id")
-        mock_protocol.return_value._raw_get_command_output = MagicMock(
+        mock_protocol.return_value.get_command_output_raw = MagicMock(
             return_value=(b"stdout", b"stderr", 0, True)
         )
 
@@ -183,7 +183,7 @@ class TestWinRMHook:
         winrm_hook = WinRMHook(ssh_conn_id="conn_id")
 
         mock_protocol.return_value.run_command = MagicMock(return_value="command_id")
-        mock_protocol.return_value._raw_get_command_output = MagicMock(
+        mock_protocol.return_value.get_command_output_raw = MagicMock(
             return_value=(b"stdout", b"stderr", 0, True)
         )
 
