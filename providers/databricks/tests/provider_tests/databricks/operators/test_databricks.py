@@ -265,15 +265,6 @@ ACCESS_CONTROL_LIST = [
         "permission_level": "CAN_MANAGE",
     }
 ]
-ENVIRONMENTS = [
-    {
-        "environment_key": "default_environment",
-        "spec": {
-            "client": "1",
-            "dependencies": ["library1"],
-        },
-    }
-]
 
 
 def mock_dict(d: dict):
@@ -316,7 +307,6 @@ class TestDatabricksCreateJobsOperator:
             max_concurrent_runs=MAX_CONCURRENT_RUNS,
             git_source=GIT_SOURCE,
             access_control_list=ACCESS_CONTROL_LIST,
-            environments=ENVIRONMENTS,
         )
         expected = utils.normalise_json_content(
             {
@@ -331,7 +321,6 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
-                "environments": ENVIRONMENTS,
             }
         )
 
@@ -353,7 +342,6 @@ class TestDatabricksCreateJobsOperator:
             "max_concurrent_runs": MAX_CONCURRENT_RUNS,
             "git_source": GIT_SOURCE,
             "access_control_list": ACCESS_CONTROL_LIST,
-            "environments": ENVIRONMENTS,
         }
         op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
 
@@ -370,7 +358,6 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
-                "environments": ENVIRONMENTS,
             }
         )
 
@@ -393,7 +380,6 @@ class TestDatabricksCreateJobsOperator:
         override_max_concurrent_runs = 0
         override_git_source = {}
         override_access_control_list = []
-        override_environments = []
         json = {
             "name": JOB_NAME,
             "tags": TAGS,
@@ -406,7 +392,6 @@ class TestDatabricksCreateJobsOperator:
             "max_concurrent_runs": MAX_CONCURRENT_RUNS,
             "git_source": GIT_SOURCE,
             "access_control_list": ACCESS_CONTROL_LIST,
-            "environments": ENVIRONMENTS,
         }
 
         op = DatabricksCreateJobsOperator(
@@ -423,7 +408,6 @@ class TestDatabricksCreateJobsOperator:
             max_concurrent_runs=override_max_concurrent_runs,
             git_source=override_git_source,
             access_control_list=override_access_control_list,
-            environments=override_environments,
         )
 
         expected = utils.normalise_json_content(
@@ -439,7 +423,6 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": override_max_concurrent_runs,
                 "git_source": override_git_source,
                 "access_control_list": override_access_control_list,
-                "environments": override_environments,
             }
         )
 
@@ -483,7 +466,6 @@ class TestDatabricksCreateJobsOperator:
             "max_concurrent_runs": MAX_CONCURRENT_RUNS,
             "git_source": GIT_SOURCE,
             "access_control_list": ACCESS_CONTROL_LIST,
-            "environments": ENVIRONMENTS,
         }
         op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
         db_mock = db_mock_class.return_value
@@ -508,7 +490,6 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
-                "environments": ENVIRONMENTS,
             }
         )
         db_mock_class.assert_called_once_with(
@@ -541,7 +522,6 @@ class TestDatabricksCreateJobsOperator:
             "max_concurrent_runs": MAX_CONCURRENT_RUNS,
             "git_source": GIT_SOURCE,
             "access_control_list": ACCESS_CONTROL_LIST,
-            "environments": ENVIRONMENTS,
         }
         op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
         db_mock = db_mock_class.return_value
@@ -564,7 +544,6 @@ class TestDatabricksCreateJobsOperator:
                 "max_concurrent_runs": MAX_CONCURRENT_RUNS,
                 "git_source": GIT_SOURCE,
                 "access_control_list": ACCESS_CONTROL_LIST,
-                "environments": ENVIRONMENTS,
             }
         )
         db_mock_class.assert_called_once_with(
@@ -671,72 +650,6 @@ class TestDatabricksSubmitRunOperator:
         )
         expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "spark_python_task": SPARK_PYTHON_TASK, "run_name": TASK_ID}
-        )
-
-        assert expected == utils.normalise_json_content(op.json)
-
-    def test_init_with_serverless_spark_python_task_named_parameters(self):
-        """
-        Test the initializer with the named parameters.
-        """
-        python_tasks = [
-            {
-                "task_key": "pythong_task_1",
-                "new_cluster": {
-                    "spark_version": "7.3.x-scala2.12",
-                    "node_type_id": "i3.xlarge",
-                    "spark_conf": {
-                        "spark.speculation": True,
-                    },
-                    "aws_attributes": {
-                        "availability": "SPOT",
-                        "zone_id": "us-west-2a",
-                    },
-                    "autoscale": {
-                        "min_workers": 2,
-                        "max_workers": 16,
-                    },
-                },
-                "spark_python_task": {"python_file": "/Users/jsmith@example.com/example_file.py"},
-                "timeout_seconds": 86400,
-                "max_retries": 3,
-                "min_retry_interval_millis": 2000,
-                "retry_on_timeout": False,
-                "environment_key": "default_environment",
-            },
-        ]
-        json = {
-            "name": JOB_NAME,
-            "tags": TAGS,
-            "tasks": python_tasks,
-            "job_clusters": JOB_CLUSTERS,
-            "email_notifications": EMAIL_NOTIFICATIONS,
-            "webhook_notifications": WEBHOOK_NOTIFICATIONS,
-            "timeout_seconds": TIMEOUT_SECONDS,
-            "schedule": SCHEDULE,
-            "max_concurrent_runs": MAX_CONCURRENT_RUNS,
-            "git_source": GIT_SOURCE,
-        }
-        op = DatabricksSubmitRunOperator(
-            task_id=TASK_ID,
-            json=json,
-            environments=ENVIRONMENTS,
-        )
-        expected = utils.normalise_json_content(
-            {
-                "name": JOB_NAME,
-                "tags": TAGS,
-                "tasks": python_tasks,
-                "job_clusters": JOB_CLUSTERS,
-                "email_notifications": EMAIL_NOTIFICATIONS,
-                "webhook_notifications": WEBHOOK_NOTIFICATIONS,
-                "timeout_seconds": TIMEOUT_SECONDS,
-                "schedule": SCHEDULE,
-                "max_concurrent_runs": MAX_CONCURRENT_RUNS,
-                "git_source": GIT_SOURCE,
-                "environments": ENVIRONMENTS,
-                "run_name": TASK_ID,
-            }
         )
 
         assert expected == utils.normalise_json_content(op.json)
@@ -2217,7 +2130,7 @@ class TestDatabricksNotebookOperator:
         )
         with pytest.raises(ValueError) as exc_info:
             operator._get_run_json()
-        exception_message = "Must specify either existing_cluster_id, new_cluster or environments."
+        exception_message = "Must specify either existing_cluster_id or new_cluster."
         assert str(exc_info.value) == exception_message
 
     def test_job_runs_forever_by_default(self):
@@ -2430,16 +2343,3 @@ class TestDatabricksTaskOperator:
         expected_task_key = "test_task_key"
 
         assert expected_task_key == operator.databricks_task_key
-
-    def test_get_task_base_json_serverless(self):
-        task_config = SPARK_PYTHON_TASK
-        operator = DatabricksTaskOperator(
-            task_id="test_task",
-            databricks_conn_id="test_conn_id",
-            task_config=task_config,
-            environments=ENVIRONMENTS,
-        )
-        task_base_json = operator._get_task_base_json()
-
-        assert operator.task_config == task_config
-        assert task_base_json == task_config
