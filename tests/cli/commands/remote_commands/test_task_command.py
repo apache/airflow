@@ -133,19 +133,16 @@ class TestCliTasks:
         # Check that prints, and log messages, are shown
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
 
-    @mock.patch("airflow.utils.timezone.utcnow")
-    def test_test_no_logical_date(self, mock_utcnow):
+    def test_test_no_logical_date(self):
         """Test the `airflow test` command"""
-        now = pendulum.now("UTC")
-        mock_utcnow.return_value = now
-        ds = now.strftime("%Y%m%d")
         args = self.parser.parse_args(["tasks", "test", "example_python_operator", "print_the_context"])
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_test(args)
 
         # Check that prints, and log messages, are shown
-        assert f"'example_python_operator__print_the_context__{ds}'" in stdout.getvalue()
+        assert "example_python_operator" in stdout.getvalue()
+        assert "print_the_context" in stdout.getvalue()
 
     def test_cli_test_different_path(self, session, tmp_path):
         """

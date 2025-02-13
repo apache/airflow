@@ -2238,7 +2238,12 @@ class Airflow(AirflowBaseView):
                     "warning",
                 )
 
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date or run_after)
+        if logical_date:
+            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date or run_after)
+            run_after = data_interval.end
+        else:
+            data_interval = None
+
         if not run_id:
             run_id = DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL,
@@ -2251,7 +2256,7 @@ class Airflow(AirflowBaseView):
                 run_id=run_id,
                 logical_date=logical_date,
                 data_interval=data_interval,
-                run_after=data_interval.end,
+                run_after=run_after,
                 conf=run_conf,
                 run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.UI,

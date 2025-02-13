@@ -12,6 +12,7 @@ import {
   DagService,
   DagSourceService,
   DagStatsService,
+  DagVersionService,
   DagWarningService,
   DagsService,
   DashboardService,
@@ -1623,6 +1624,37 @@ export const UseVariableServiceGetVariablesKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern }])];
+export type DagVersionServiceGetDagVersionsDefaultResponse = Awaited<
+  ReturnType<typeof DagVersionService.getDagVersions>
+>;
+export type DagVersionServiceGetDagVersionsQueryResult<
+  TData = DagVersionServiceGetDagVersionsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagVersionServiceGetDagVersionsKey = "DagVersionServiceGetDagVersions";
+export const UseDagVersionServiceGetDagVersionsKeyFn = (
+  {
+    bundleName,
+    bundleVersion,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    versionNumber,
+  }: {
+    bundleName?: string;
+    bundleVersion?: string;
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    versionNumber?: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useDagVersionServiceGetDagVersionsKey,
+  ...(queryKey ?? [{ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }]),
+];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<
   TData = MonitorServiceGetHealthDefaultResponse,

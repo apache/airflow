@@ -893,6 +893,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
+            else:
+                DagRunType.ASSET_TRIGGERED = DagRunType.DATASET_TRIGGERED
 
             if "execution_date" in kwargs:
                 raise TypeError("use logical_date instead")
@@ -947,7 +949,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
                 kwargs.setdefault("dag_version", None)
-                kwargs.setdefault("run_after", data_interval[-1])
+                kwargs.setdefault("run_after", data_interval[-1] if data_interval else timezone.utcnow())
             else:
                 kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
