@@ -202,6 +202,7 @@ def _serialize_dag_capturing_errors(
         else:
             # Check and update DagCode
             DagCode.update_source_code(dag.dag_id, dag.fileloc)
+
         return []
     except OperationalError:
         raise
