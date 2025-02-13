@@ -243,16 +243,15 @@ class TestDagStateTrigger:
         reaches an allowed state (i.e. SUCCESS).
         """
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
-        logical_date_or_execution_date = (
-            {"logical_date": timezone.datetime(2022, 1, 1)}
+        run_id_or_execution_date = (
+            {"run_id": "external_task_run_id"}
             if AIRFLOW_V_3_0_PLUS
             else {"execution_date": timezone.datetime(2022, 1, 1)}
         )
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_type="manual",
-            **logical_date_or_execution_date,
-            run_id=self.RUN_ID,
+            **run_id_or_execution_date,
         )
         session.add(dag_run)
         session.commit()
