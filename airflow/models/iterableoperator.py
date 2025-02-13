@@ -27,7 +27,7 @@ from contextlib import contextmanager, suppress
 from datetime import timedelta
 from math import ceil
 from multiprocessing import TimeoutError
-from multiprocessing.pool import ThreadPool
+from multiprocessing.pool import ApplyResult, ThreadPool
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
@@ -226,7 +226,7 @@ class TriggerExecutor(TaskExecutor):
 
 
 class IterableOperator(BaseOperator):
-    """Object representing a streamed operator in a DAG."""
+    """Object representing an iterable operator in a DAG."""
 
     _operator_class: type[BaseOperator]
     expand_input: ExpandInput
@@ -330,62 +330,67 @@ class IterableOperator(BaseOperator):
         tasks: Iterable[TaskInstance],
         results: list[Any] | None = None,
     ) -> list[Any]:
-        now = timezone.utcnow()
         exception: BaseException | None = None
         results = results or []
         reschedule_date = timezone.utcnow()
-        deferred_tasks: list[Future] = []
         failed_tasks: list[TaskInstance] = []
 
         with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
-            futures = [(task, pool.apply_async(self._run_operator, (context, task))) for task in tasks]
+            futures = {pool.apply_async(self._run_operator, (context, task)): task for task in tasks}
 
-            for task, future in futures:
-                try:
-                    result = future.get(timeout=self.timeout)
-                    if isinstance(result, TaskDeferred):
-                        deferred_tasks.append(
-                            ensure_future(
-                                self._run_deferrable(
-                                    context=context,
-                                    task=task,
-                                    task_deferred=result,
+            while futures:
+                self.log.info("Number of remaining futures: %s", len(futures))
+
+                deferred_tasks: list[Future] = []
+
+                for future in filter(ApplyResult.ready, list(futures.keys())):
+                    task = futures.pop(future)
+
+                    try:
+                        result = future.get(timeout=self.timeout)
+                        if isinstance(result, TaskDeferred):
+                            deferred_tasks.append(
+                                ensure_future(
+                                    self._run_deferrable(
+                                        context=context,
+                                        task=task,
+                                        task_deferred=result,
+                                    )
                                 )
                             )
-                        )
-                    elif result:
-                        results.append(result)
-                except TimeoutError as e:
-                    self.log.warning("A timeout occurred for task_id %s", task.task_id)
-                    if task.next_try_number > self.retries:
-                        exception = AirflowTaskTimeout(e)
-                    else:
-                        reschedule_date = task.next_retry_datetime()
-                        failed_tasks.append(task)
-                except AirflowRescheduleTaskInstanceException as e:
-                    reschedule_date = e.reschedule_date
-                    failed_tasks.append(e.task)
-                except AirflowException as e:
-                    self.log.error("An exception occurred for task_id %s", task.task_id)
-                    exception = e
-
-        if deferred_tasks:
-            self.log.info("Running %s deferred tasks", len(deferred_tasks))
-
-            with event_loop() as loop:
-                for result in loop.run_until_complete(gather(*deferred_tasks, return_exceptions=True)):
-                    self.log.debug("result: %s", result)
-
-                    if isinstance(result, Exception):
-                        if isinstance(result, AirflowRescheduleTaskInstanceException):
-                            reschedule_date = result.reschedule_date
-                            failed_tasks.append(result.task)
+                        elif result:
+                            results.append(result)
+                    except TimeoutError as e:
+                        self.log.warning("A timeout occurred for task_id %s", task.task_id)
+                        if task.next_try_number > self.retries:
+                            exception = AirflowTaskTimeout(e)
                         else:
-                            exception = result
-                    elif result:
-                        results.append(result)
+                            reschedule_date = task.next_retry_datetime()
+                            failed_tasks.append(task)
+                    except AirflowRescheduleTaskInstanceException as e:
+                        reschedule_date = e.reschedule_date
+                        failed_tasks.append(e.task)
+                    except AirflowException as e:
+                        self.log.error("An exception occurred for task_id %s", task.task_id)
+                        exception = e
 
-            deferred_tasks.clear()
+                if deferred_tasks:
+                    self.log.info("Running %s deferred tasks", len(deferred_tasks))
+
+                    with event_loop() as loop:
+                        for result in loop.run_until_complete(gather(*deferred_tasks, return_exceptions=True)):
+                            self.log.debug("result: %s", result)
+
+                            if isinstance(result, Exception):
+                                if isinstance(result, AirflowRescheduleTaskInstanceException):
+                                    reschedule_date = result.reschedule_date
+                                    failed_tasks.append(result.task)
+                                else:
+                                    exception = result
+                            elif result:
+                                results.append(result)
+                elif futures:
+                    sleep(min(len(futures), os.cpu_count()))
 
         if not failed_tasks:
             if exception:
@@ -396,7 +401,7 @@ class IterableOperator(BaseOperator):
         # TaskInstance._set_state(context["ti"], TaskInstanceState.UP_FOR_RETRY, session)
 
         # Calculate delay before the next retry
-        delay = reschedule_date - now
+        delay = reschedule_date - timezone.utcnow()
         delay_seconds = ceil(delay.total_seconds())
 
         self.log.debug("delay_seconds: %s", delay_seconds)
