@@ -502,6 +502,12 @@ repos:
         files: ^Dockerfile$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
+      - id: generate-cli-commands-for-auth-managers-executors
+        name: Generate CLI commands for AuthManagers and Executors
+        entry: ./scripts/ci/pre_commit/generate_cli_commands_for_auth_managers_executors.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        always_run: true
       - id: generate-airflow-diagrams
         name: Generate airflow diagrams
         entry: ./scripts/ci/pre_commit/generate_airflow_diagrams.py

@@ -87,6 +87,8 @@ class ExecutorLoader:
         ]
         all_executor_names.extend(cls._get_team_executor_configs())
 
+        print("all_executor_names: ", all_executor_names)
+
         executor_names = []
         for team_id, executor_names_config in all_executor_names:
             executor_names_per_team = []
