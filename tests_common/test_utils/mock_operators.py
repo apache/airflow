@@ -85,6 +85,10 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
     def name(self) -> str:
         return f"BigQuery Console #{self.index + 1}"
 
+    @property
+    def xcom_key(self) -> str:
+        return f"bigquery_{self.index + 1}"
+
     def get_link(self, operator, *, ti_key):
         search_queries = XCom.get_one(
             task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"

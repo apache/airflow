@@ -413,6 +413,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
     config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
+    config.addinivalue_line("markers", "mock_plugin_manager: mark a test to use mock_plugin_manager")
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
@@ -1604,6 +1605,18 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
     return
+
+
+@pytest.fixture(autouse=True)
+def _mock_plugins(request: pytest.FixtureRequest):
+    """Disable redacted text in tests, except specific."""
+    if mark := next(request.node.iter_markers("mock_plugin_manager"), None):
+        from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+        with mock_plugin_manager(**mark.kwargs):
+            yield
+            return
+    yield
 
 
 @pytest.fixture
