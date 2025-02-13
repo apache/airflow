@@ -1921,8 +1921,8 @@ class TestTaskInstance:
             "/dags/my_dag/grid"
             "?dag_run_id=test"
             "&task_id=op"
-            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
             "&tab=logs"
+            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
         )
         assert ti.log_url == expected_url
 
