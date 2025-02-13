@@ -3112,9 +3112,21 @@ export const $DagVersionResponse = {
       format: "date-time",
       title: "Created At",
     },
+    bundle_url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Url",
+      readOnly: true,
+    },
   },
   type: "object",
-  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at"],
+  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at", "bundle_url"],
   title: "DagVersionResponse",
   description: "Dag Version serializer for responses.",
 } as const;
