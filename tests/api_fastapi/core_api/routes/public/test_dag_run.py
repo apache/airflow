@@ -1142,7 +1142,12 @@ class TestTriggerDagRun:
         [
             ("dag_run_5", "test-note", None, None),
             ("dag_run_6", "test-note", "2024-01-03T00:00:00+00:00", "2024-01-04T05:00:00+00:00"),
-            (None, None, None, None),
+            (
+                None,
+                None,
+                None,
+                None,
+            ),
         ],
     )
     def test_should_respond_200(
@@ -1157,6 +1162,7 @@ class TestTriggerDagRun:
             request_json["data_interval_start"] = data_interval_start
         if data_interval_end is not None:
             request_json["data_interval_end"] = data_interval_end
+        request_json["logical_date"] = fixed_now
 
         response = test_client.post(
             f"/public/dags/{DAG1_ID}/dagRuns",
@@ -1174,13 +1180,14 @@ class TestTriggerDagRun:
         if data_interval_start is not None and data_interval_end is not None:
             expected_data_interval_start = data_interval_start.replace("+00:00", "Z")
             expected_data_interval_end = data_interval_end.replace("+00:00", "Z")
+        expected_logical_date = fixed_now.replace("+00:00", "Z")
 
         expected_response_json = {
             "conf": {},
             "dag_id": DAG1_ID,
             "dag_run_id": expected_dag_run_id,
             "end_date": None,
-            "logical_date": fixed_now.replace("+00:00", "Z"),
+            "logical_date": expected_logical_date,
             "run_after": fixed_now.replace("+00:00", "Z"),
             "external_trigger": True,
             "start_date": None,
