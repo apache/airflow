@@ -27,6 +27,7 @@ from unittest.mock import call
 import pendulum
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -1067,11 +1068,26 @@ class TestDagRun:
         ):
             EmptyOperator(task_id="empty")
         dag_run = dag_maker.create_dagrun()
-        from sqlalchemy.orm import joinedload
 
         dm = session.query(DagModel).options(joinedload(DagModel.dag_versions)).one()
         assert dag_run.dag_versions[0].id == dm.dag_versions[0].id
-        assert dag_run.version_number() == dm.dag_versions[0].version_number
+
+    def test_dag_run_version_number(self, dag_maker, session):
+        with dag_maker(
+            "test_dag_run_version_number", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE
+        ):
+            EmptyOperator(task_id="empty") >> EmptyOperator(task_id="empty2")
+        dag_run = dag_maker.create_dagrun()
+        tis = dag_run.task_instances
+        tis[0].set_state(TaskInstanceState.SUCCESS)
+        dag_v = DagVersion.write_dag(dag_id=dag_run.dag_id, bundle_name="testing", version_number=2)
+        tis[1].dag_version = dag_v
+        session.merge(tis[1])
+        session.flush()
+        dag_run = session.query(DagRun).filter(DagRun.run_id == dag_run.run_id).one()
+        # Check that dag_run.version_number returns the version number of
+        # the latest task instance dag_version
+        assert dag_run.version_number == dag_v.version_number
 
 
 @pytest.mark.parametrize(
