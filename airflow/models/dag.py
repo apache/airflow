@@ -2355,13 +2355,13 @@ class DagModel(Base):
                 del dag_statuses[dag_id]
         del dag_statuses
 
-        # TODO: make it more readable (rename it or make it attrs, dataclass or etc.)
-        asset_triggered_dag_info: dict[str, datetime] = {
+        # triggered dates for asset triggered dags
+        triggered_date_by_dag: dict[str, datetime] = {
             dag_id: max(adrq.created_at for adrq in adrqs) for dag_id, adrqs in adrq_by_dag.items()
         }
         del adrq_by_dag
 
-        asset_triggered_dag_ids = set(asset_triggered_dag_info.keys())
+        asset_triggered_dag_ids = set(triggered_date_by_dag.keys())
         if asset_triggered_dag_ids:
             # exclude as max active runs has been reached
             exclusion_list = set(
@@ -2376,8 +2376,8 @@ class DagModel(Base):
             )
             if exclusion_list:
                 asset_triggered_dag_ids -= exclusion_list
-                asset_triggered_dag_info = {
-                    k: v for k, v in asset_triggered_dag_info.items() if k not in exclusion_list
+                triggered_date_by_dag = {
+                    k: v for k, v in triggered_date_by_dag.items() if k not in exclusion_list
                 }
 
         # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
@@ -2398,7 +2398,7 @@ class DagModel(Base):
 
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
-            asset_triggered_dag_info,
+            triggered_date_by_dag,
         )
 
     def calculate_dagrun_date_fields(

@@ -1198,17 +1198,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
-        query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
         asset_triggered_dags = [
-            dag for dag in all_dags_needing_dag_runs if dag.dag_id in asset_triggered_dag_info
+            dag for dag in all_dags_needing_dag_runs if dag.dag_id in triggered_date_by_dag
         ]
         non_asset_dags = all_dags_needing_dag_runs.difference(asset_triggered_dags)
         self._create_dag_runs(non_asset_dags, session)
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
                 dag_models=asset_triggered_dags,
-                asset_triggered_dag_info=asset_triggered_dag_info,
+                triggered_date_by_dag=triggered_date_by_dag,
                 session=session,
             )
 
@@ -1325,13 +1325,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dag_runs_asset_triggered(
         self,
         dag_models: Collection[DagModel],
-        asset_triggered_dag_info: dict[str, datetime],
+        triggered_date_by_dag: dict[str, datetime],
         session: Session,
     ) -> None:
         """For DAGs that are triggered by assets, create dag runs."""
         triggered_dates: dict[str, DateTime] = {
             dag_id: timezone.coerce_datetime(last_asset_event_time)
-            for dag_id, last_asset_event_time in asset_triggered_dag_info.items()
+            for dag_id, last_asset_event_time in triggered_date_by_dag.items()
         }
 
         for dag_model in dag_models:
