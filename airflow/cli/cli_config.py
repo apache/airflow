@@ -863,6 +863,7 @@ ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_PORT,
 ]
 
+# Authentication arguments
 ARG_AUTH_URL = Arg(
     flags=("--api-url",),
     type=str,
@@ -874,8 +875,13 @@ ARG_AUTH_TOKEN = Arg(
     flags=("--api-token",),
     type=str,
     dest="api_token",
-    default="NO_TOKEN",
     help="The token to use for authentication",
+)
+ARG_AUTH_ENVIRONMENT = Arg(
+    flags=("-e", "--env"),
+    type=str,
+    default="production",
+    help="The environment to run the command in",
 )
 
 
@@ -929,14 +935,7 @@ AUTH_COMMANDS = (
         help="Login to the metadata database for personal usage",
         description="Login to the metadata database",
         func=lazy_load_command("airflow.cli.commands.remote_commands.auth_command.login"),
-        args=(ARG_AUTH_URL,),
-    ),
-    ActionCommand(
-        name="configure",
-        help="Configure the metadata database with token for automated usage",
-        description="Configure the metadata database",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.auth_command.configure"),
-        args=(ARG_AUTH_URL, ARG_AUTH_TOKEN),
+        args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT),
     ),
 )
 BACKFILL_COMMANDS = (

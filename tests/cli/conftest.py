@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import sys
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -88,4 +89,5 @@ def cli_api_client_maker(cli_api_client_credentials):
 @pytest.fixture(scope="session")
 def cli_api_client_credentials():
     """Create credentials for CLI API"""
-    Credentials(api_url="http://localhost:9091", api_token="NO_TOKEN").save()
+    with patch("airflow.cli.api.client.keyring"):
+        Credentials(api_url="http://localhost:9091", api_token="NO_TOKEN").save()

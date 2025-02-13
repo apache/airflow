@@ -23,6 +23,7 @@ import warnings
 from contextlib import redirect_stdout
 from io import StringIO
 from unittest import mock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
@@ -190,7 +191,12 @@ class TestCliExportConnections(TestCliConnection):
         with pytest.raises(SystemExit):
             self.parser.parse_args(["connections", "export", "--format", "invalid", "/path/to/file"])
 
-    def test_cli_connections_export_should_return_error_for_invalid_export_format(self, tmp_path):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_export_should_return_error_for_invalid_export_format(
+        self, mock_keyring, tmp_path
+    ):
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         output_filepath = tmp_path / "connections.invalid"
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         with pytest.raises(SystemExit, match=r"Unsupported file format"):
@@ -736,7 +742,10 @@ class TestCliAddConnections(TestCliConnection):
                 cli_api_client=cli_api_client,
             )
 
-    def test_cli_connections_add_delete_with_missing_parameters(self):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_add_delete_with_missing_parameters(self, mock_keyring):
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         # Attempt to add without providing conn_uri
         with pytest.raises(
             SystemExit,
@@ -744,8 +753,11 @@ class TestCliAddConnections(TestCliConnection):
         ):
             connection_command.connections_add(self.parser.parse_args(["connections", "add", "new1"]))
 
-    def test_cli_connections_add_json_invalid_args(self):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_add_json_invalid_args(self, mock_keyring):
         """can't supply extra and json"""
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         with pytest.raises(
             SystemExit,
             match=r"The following args are not compatible with the --conn-json flag: \['--conn-extra'\]",
@@ -756,8 +768,11 @@ class TestCliAddConnections(TestCliConnection):
                 )
             )
 
-    def test_cli_connections_add_json_and_uri(self):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_add_json_and_uri(self, mock_keyring):
         """can't supply both uri and json"""
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         with pytest.raises(
             SystemExit,
             match="Cannot supply both conn-uri and conn-json",
@@ -775,7 +790,10 @@ class TestCliAddConnections(TestCliConnection):
             pytest.param("://password:type@host:42/schema", id="missing-conn-type"),
         ],
     )
-    def test_cli_connections_add_invalid_uri(self, invalid_uri):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_add_invalid_uri(self, mock_keyring, invalid_uri):
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         # Attempt to add with invalid uri
         with pytest.raises(SystemExit, match=r"The URI provided to --conn-uri is invalid: .*"):
             connection_command.connections_add(
@@ -798,7 +816,10 @@ class TestCliAddConnections(TestCliConnection):
                 cli_api_client=cli_api_client,
             )
 
-    def test_cli_connections_add_invalid_conn_id(self):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_add_invalid_conn_id(self, mock_keyring):
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         with pytest.raises(SystemExit) as e:
             connection_command.connections_add(
                 self.parser.parse_args(["connections", "add", "Test$", f"--conn-uri={TEST_URL}"])
@@ -862,11 +883,14 @@ class TestCliImportConnections(TestCliConnection):
             )
 
     @pytest.mark.parametrize("filepath", ["sample.jso", "sample.environ"])
-    @mock.patch("os.path.exists")
+    @patch("os.path.exists")
+    @patch("airflow.cli.api.client.keyring")
     def test_cli_connections_import_should_return_error_if_file_format_is_invalid(
-        self, mock_exists, filepath
+        self, mock_keyring, mock_exists, filepath
     ):
         mock_exists.return_value = True
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         with pytest.raises(
             AirflowException,
             match=(
@@ -876,8 +900,8 @@ class TestCliImportConnections(TestCliConnection):
         ):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
 
-    @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
-    @mock.patch("os.path.exists")
+    @patch("airflow.secrets.local_filesystem._parse_secret_file")
+    @patch("os.path.exists")
     def test_cli_connections_import_should_load_connections(
         self, mock_exists, mock_parse_secret_file, cli_api_client_maker
     ):
@@ -902,8 +926,8 @@ class TestCliImportConnections(TestCliConnection):
         for connection_id, _ in self.expected_connections.items():
             assert f"Imported connection {connection_id}" in stdout
 
-    @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
-    @mock.patch("os.path.exists")
+    @patch("airflow.secrets.local_filesystem._parse_secret_file")
+    @patch("os.path.exists")
     def test_cli_connections_import_should_not_overwrite_existing_connections(
         self, mock_exists, mock_parse_secret_file, cli_api_client_maker
     ):
@@ -927,8 +951,8 @@ class TestCliImportConnections(TestCliConnection):
         stdout = stdout.getvalue()
         assert "Unique constraint violation" in stdout
 
-    @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
-    @mock.patch("os.path.exists")
+    @patch("airflow.secrets.local_filesystem._parse_secret_file")
+    @patch("os.path.exists")
     def test_cli_connections_import_should_overwrite_existing_connections(
         self, mock_exists, mock_parse_secret_file, cli_api_client_maker
     ):
@@ -955,7 +979,7 @@ class TestCliImportConnections(TestCliConnection):
 
 
 class TestCliTestConnections(TestCliConnection):
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_cli_connections_test_success(self, cli_api_client_maker):
         """Check that successful connection test result is displayed properly."""
         cli_api_client = cli_api_client_maker(
@@ -973,7 +997,7 @@ class TestCliTestConnections(TestCliConnection):
 
             assert "Connection success!" in stdout.getvalue()
 
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_cli_connections_test_fail(self, cli_api_client_maker):
         """Check that failed connection test result is displayed properly."""
         cli_api_client = cli_api_client_maker(
@@ -991,7 +1015,7 @@ class TestCliTestConnections(TestCliConnection):
 
             assert "Connection failed!" in stdout.getvalue()
 
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_cli_connections_test_missing_conn(self, cli_api_client_maker):
         """Check a connection test on a non-existent connection raises a "Connection not found" message."""
         cli_api_client = cli_api_client_maker(
