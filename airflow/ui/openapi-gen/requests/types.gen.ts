@@ -909,8 +909,10 @@ export type GridDAGRunwithTIs = {
   queued_at: string | null;
   start_date: string | null;
   end_date: string | null;
+  run_after: string;
   state: DagRunState;
   run_type: DagRunType;
+  logical_date: string | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
   version_number: number | null;
@@ -1786,6 +1788,8 @@ export type GridDataData = {
   offset?: number;
   orderBy?: string;
   root?: string | null;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   runType?: Array<string>;
   state?: Array<string>;
 };
