@@ -20,7 +20,6 @@
 import time
 
 from sagemaker_studio import ClientConfig
-from sagemaker_studio._openapi.models import GetExecutionRequest, StartExecutionRequest
 from sagemaker_studio.sagemaker_studio_api import SageMakerStudioAPI
 
 from airflow import AirflowException
@@ -123,18 +122,14 @@ class SageMakerNotebookHook(BaseHook):
         if self.compute:
             start_execution_params["compute"] = self.compute
 
-        request = StartExecutionRequest(**start_execution_params)
-
-        return self._sagemaker_studio.execution_client.start_execution(request)
+        return self._sagemaker_studio.execution_client.start_execution(**start_execution_params)
 
     def wait_for_execution_completion(self, execution_id, context):
         wait_attempts = 0
         while wait_attempts < self.waiter_max_attempts:
             wait_attempts += 1
             time.sleep(self.waiter_delay)
-            response = self._sagemaker_studio.execution_client.get_execution(
-                GetExecutionRequest(execution_id=execution_id)
-            )
+            response = self._sagemaker_studio.execution_client.get_execution(execution_id=execution_id)
             error_message = response.get("error_details", {}).get("error_message")
             status = response["status"]
             if "files" in response:
