@@ -654,6 +654,14 @@ export type DAGTagCollectionResponse = {
 };
 
 /**
+ * DAG Version Collection serializer for responses.
+ */
+export type DAGVersionCollectionResponse = {
+  dag_versions: Array<DagVersionResponse>;
+  total_entries: number;
+};
+
+/**
  * DAG warning collection serializer for responses.
  */
 export type DAGWarningCollectionResponse = {
@@ -2422,6 +2430,18 @@ export type ReparseDagFileData = {
 };
 
 export type ReparseDagFileResponse = null;
+
+export type GetDagVersionsData = {
+  bundleName?: string;
+  bundleVersion?: string | null;
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  versionNumber?: number;
+};
+
+export type GetDagVersionsResponse = DAGVersionCollectionResponse;
 
 export type GetHealthResponse = HealthInfoResponse;
 
@@ -5058,6 +5078,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         201: null;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagVersions": {
+    get: {
+      req: GetDagVersionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGVersionCollectionResponse;
         /**
          * Unauthorized
          */
