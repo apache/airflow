@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.standard.triggers import TimeDeltaTrigger
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+from airflow.providers.microsoft.azure.operators.msgraph import execute_callable
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
 from airflow.sensors.base import BaseSensorOperator
 
@@ -165,28 +165,22 @@ class MSGraphSensor(BaseSensorOperator):
 
                 self.log.debug("deserialize response: %s", response)
 
-                try:
-                    is_done = self.event_processor(response, **context)  # type: ignore
-                except TypeError:
-                    warnings.warn(
-                        "event_processor signature has changed, event parameter should be defined before context!",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                    is_done = self.event_processor(context, response)  # type: ignore
+                is_done = execute_callable(
+                    self.event_processor,
+                    response,
+                    context,
+                    "event_processor signature has changed, event parameter should be defined before context!",
+                )
 
                 self.log.debug("is_done: %s", is_done)
 
                 if is_done:
-                    try:
-                        result = self.result_processor(response, **context)  # type: ignore
-                    except TypeError:
-                        warnings.warn(
-                            "result_processor signature has changed, result parameter should be defined before context!",
-                            AirflowProviderDeprecationWarning,
-                            stacklevel=2,
-                        )
-                        result = self.result_processor(context, response)  # type: ignore
+                    result = execute_callable(
+                        self.result_processor,
+                        response,
+                        context,
+                        "result_processor signature has changed, result parameter should be defined before context!",
+                    )
 
                     self.log.debug("processed response: %s", result)
 

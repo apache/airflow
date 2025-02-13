@@ -53,6 +53,23 @@ def default_event_handler(event: dict[Any, Any] | None = None, **context) -> Any
         return event.get("response")
 
 
+def execute_callable(
+    func: Callable[[Any, dict[str, Any]], Any] | Callable[[Context, Any], Any],
+    value: Any,
+    context: Context,
+    message: str,
+) -> Any:
+    try:
+        return func(value, **context)
+    except TypeError:
+        warnings.warn(
+            message,
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return func(context, value)
+
+
 class MSGraphAsyncOperator(BaseOperator):
     """
     A Microsoft Graph API operator which allows you to execute REST call to the Microsoft Graph API.
@@ -176,15 +193,12 @@ class MSGraphAsyncOperator(BaseOperator):
         if event:
             self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
-            try:
-                response = self.event_handler(event, **context)  # type: ignore
-            except TypeError:
-                warnings.warn(
-                    "event_handler signature has changed, event parameter should be defined before context!",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-                response = self.event_handler(context, event)  # type: ignore
+            response = execute_callable(
+                self.event_handler,
+                event,
+                context,
+                "event_handler signature has changed, event parameter should be defined before context!",
+            )
 
             self.log.debug("response: %s", response)
 
@@ -195,15 +209,12 @@ class MSGraphAsyncOperator(BaseOperator):
 
                 self.log.debug("deserialize response: %s", response)
 
-                try:
-                    result = self.result_processor(response, **context)  # type: ignore
-                except TypeError:
-                    warnings.warn(
-                        "result_processor signature has changed, result parameter should be defined before context!",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                    result = self.result_processor(context, response)  # type: ignore
+                result = execute_callable(
+                    self.result_processor,
+                    response,
+                    context,
+                    "result_processor signature has changed, result parameter should be defined before context!",
+                )
 
                 self.log.debug("processed response: %s", result)
 
@@ -211,7 +222,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
                 try:
                     self.trigger_next_link(
-                        response=response, method_name=self.execute_complete.__name__, **context
+                        response=response, method_name=self.execute_complete.__name__, context=context
                     )
                 except TaskDeferred as exception:
                     self.append_result(
@@ -306,9 +317,9 @@ class MSGraphAsyncOperator(BaseOperator):
                     return operator.url, query_parameters
         return response.get("@odata.nextLink"), operator.query_parameters
 
-    def trigger_next_link(self, response, method_name: str, **context) -> None:
+    def trigger_next_link(self, response, method_name: str, context: Context) -> None:
         if isinstance(response, dict):
-            url, query_parameters = self.pagination_function(self, response, **context)  # type: ignore
+            url, query_parameters = self.pagination_function(self, response, **dict(context.items()))  # type: ignore
 
             self.log.debug("url: %s", url)
             self.log.debug("query_parameters: %s", query_parameters)
