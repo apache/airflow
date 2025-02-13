@@ -199,6 +199,8 @@ import type {
   BulkVariablesResponse,
   ReparseDagFileData,
   ReparseDagFileResponse,
+  GetDagVersionsData,
+  GetDagVersionsResponse,
   GetHealthResponse,
   GetVersionResponse,
   LoginData,
@@ -3322,6 +3324,48 @@ export class DagParsingService {
       url: "/public/parseDagFile/{file_token}",
       path: {
         file_token: data.fileToken,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DagVersionService {
+  /**
+   * Get Dag Versions
+   * Get all DAG Versions.
+   *
+   * This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.limit
+   * @param data.offset
+   * @param data.versionNumber
+   * @param data.bundleName
+   * @param data.bundleVersion
+   * @param data.orderBy
+   * @returns DAGVersionCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagVersions(data: GetDagVersionsData): CancelablePromise<GetDagVersionsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagVersions",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        version_number: data.versionNumber,
+        bundle_name: data.bundleName,
+        bundle_version: data.bundleVersion,
+        order_by: data.orderBy,
       },
       errors: {
         401: "Unauthorized",

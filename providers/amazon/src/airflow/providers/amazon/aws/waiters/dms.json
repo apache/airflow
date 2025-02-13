@@ -36,6 +36,18 @@
                     "argument": "Replications[0].Status",
                     "expected": "stopped",
                     "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].Status",
+                    "expected": "created",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Replications[0].ProvisionData.ProvisionState",
+                    "expected": "deprovisioned",
+                    "state": "success"
                 }
             ]
         },

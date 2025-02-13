@@ -493,10 +493,6 @@ class DmsDeleteReplicationConfigOperator(AwsBaseOperator[DmsHook]):
             Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
             WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
         )
-        self.hook.get_waiter("replication_deprovisioned").wait(
-            Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
-            WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
-        )
         self.hook.delete_replication_config(self.replication_config_arn)
         self.handle_delete_wait()
 
