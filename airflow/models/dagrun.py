@@ -60,6 +60,7 @@ from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
+from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
@@ -87,7 +88,6 @@ if TYPE_CHECKING:
 
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
-    from airflow.models.dag_version import DagVersion
     from airflow.models.operator import Operator
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
@@ -307,13 +307,45 @@ class DagRun(Base, LoggingMixin):
 
         :param session: database session
         """
-        tis = session.scalars(
-            select(TI.dag_version_id).where(TI.run_id == self.run_id, TI.dag_id == self.dag_id).distinct()
-        ).all()
-        tih = session.scalars(
-            select(TIH.dag_version_id).where(TIH.run_id == self.run_id, TIH.dag_id == self.dag_id).distinct()
-        ).all()
-        return list(tis + tih)
+        select_stmt = (
+            select(DagVersion)
+            .join(TI, DagVersion.id == TI.dag_version_id)
+            .where(TI.dag_id == self.dag_id, TI.run_id == self.run_id)
+            .distinct(DagVersion.id)
+            .union(
+                select(DagVersion)
+                .join(TIH, DagVersion.id == TIH.dag_version_id)
+                .where(TIH.dag_id == self.dag_id, TIH.run_id == self.run_id)
+                .distinct(DagVersion.id)
+            )
+        )
+
+        return session.execute(select_stmt.order_by(DagVersion.id)).all()
+
+    @provide_session
+    def version_number(self, session: Session = NEW_SESSION) -> int | None:
+        """
+        Return the DAG version number associated with the latest TIs of this DagRun.
+
+        :param session: database session
+        """
+        dag_versions = self.dag_versions(session)
+        if dag_versions:
+            return dag_versions[-1].version_number
+        return None
+
+    @provide_session
+    def check_version_id_exists_in_dr(self, dag_version_id: UUIDType, session: Session = NEW_SESSION):
+        select_stmt = (
+            select(func.count("*"))
+            .where(TI.dag_id == self.dag_id, TI.dag_version_id == dag_version_id, TI.run_id == self.run_id)
+            .union(
+                select(func.count("*")).where(
+                    TIH.dag_id == self.dag_id, TIH.dag_version_id == dag_version_id, TIH.run_id == self.run_id
+                )
+            )
+        )
+        return session.scalar(select_stmt)
 
     @property
     def stats_tags(self) -> dict[str, str]:

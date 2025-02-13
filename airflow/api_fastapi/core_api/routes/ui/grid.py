@@ -23,7 +23,6 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
 
 from airflow import DAG
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -82,14 +81,7 @@ def grid_data(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
     # Retrieve, sort the previous DAG Runs
-    base_query = (
-        select(DagRun)
-        .join(DagRun.dag_run_note, isouter=True)
-        .join(DagRun.dag_version, isouter=True)
-        .select_from(DagRun)
-        .options(joinedload(DagRun.dag_version))
-        .where(DagRun.dag_id == dag.dag_id)
-    )
+    base_query = select(DagRun).join(DagRun.dag_run_note, isouter=True).where(DagRun.dag_id == dag.dag_id)
 
     # This comparison is to falls to DAG timetable when no order_by is provided
     if order_by.value == order_by.get_primary_key_string():
@@ -111,7 +103,6 @@ def grid_data(
     )
 
     dag_runs = session.scalars(dag_runs_select_filter)
-
     # Check if there are any DAG Runs with given criteria to eliminate unnecessary queries/errors
     if not dag_runs:
         return GridResponse(dag_runs=[])
@@ -209,7 +200,7 @@ def grid_data(
             run_type=dag_run.run_type,
             data_interval_start=dag_run.data_interval_start,
             data_interval_end=dag_run.data_interval_end,
-            version_number=dag_run.dag_version.version_number if dag_run.dag_version else None,
+            version_number=dag_run.version_number(session=session),
             note=dag_run.note,
             task_instances=(
                 task_instance_summaries[dag_run.run_id] if dag_run.run_id in task_instance_summaries else []

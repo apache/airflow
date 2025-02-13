@@ -1831,7 +1831,8 @@ class DAG(TaskSDKDag, LoggingMixin):
         if conf:
             copied_params.update(conf)
         copied_params.validate()
-
+        if not dag_version:
+            dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
         return _create_orm_dagrun(
             dag=self,
             run_id=run_id,

@@ -1061,6 +1061,18 @@ class TestDagRun:
         dr = session.get(DagRun, dr.id)
         assert dr.state == State.RUNNING
 
+    def test_dag_run_dag_versions_method(self, dag_maker, session):
+        with dag_maker(
+            "test_dag_run_dag_versions", schedule=datetime.timedelta(days=1), start_date=DEFAULT_DATE
+        ):
+            EmptyOperator(task_id="empty")
+        dag_run = dag_maker.create_dagrun()
+        from sqlalchemy.orm import joinedload
+
+        dm = session.query(DagModel).options(joinedload(DagModel.dag_versions)).one()
+        assert dag_run.dag_versions()[0].id == dm.dag_versions[0].id
+        assert dag_run.version_number() == dm.dag_versions[0].version_number
+
 
 @pytest.mark.parametrize(
     ("run_type", "expected_tis"),
