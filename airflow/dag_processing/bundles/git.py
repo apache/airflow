@@ -68,7 +68,9 @@ class GitHook(BaseHook):
             },
         }
 
-    def __init__(self, git_conn_id: str = "git_default", repo_url: str | None = None, *args, **kwargs) -> None:
+    def __init__(
+        self, git_conn_id: str = "git_default", repo_url: str | None = None, *args, **kwargs
+    ) -> None:
         super().__init__()
         connection = self.get_connection(git_conn_id)
         self.repo_url = repo_url or connection.host
