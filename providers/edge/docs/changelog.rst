@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+0.15.0pre0
+..........
+
+Misc
+~~~~
+
+* ``User and time information added to maintenance comment.``
+
+
 0.14.1pre0
 ..........
 
