@@ -1616,6 +1616,12 @@ export type CreateAssetEventData = {
 
 export type CreateAssetEventResponse = AssetEventResponse;
 
+export type MaterializeAssetData = {
+  assetId: number;
+};
+
+export type MaterializeAssetResponse = DAGRunResponse;
+
 export type GetAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
@@ -2597,6 +2603,37 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/{asset_id}/materialize": {
+    post: {
+      req: MaterializeAssetData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */

@@ -1692,6 +1692,9 @@ export const UseLoginServiceLoginKeyFn = (
 export type AssetServiceCreateAssetEventMutationResult = Awaited<
   ReturnType<typeof AssetService.createAssetEvent>
 >;
+export type AssetServiceMaterializeAssetMutationResult = Awaited<
+  ReturnType<typeof AssetService.materializeAsset>
+>;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
 >;
