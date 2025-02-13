@@ -24,6 +24,7 @@ import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/r
 import { DagIcon } from "src/assets/DagIcon";
 import DagRunInfo from "src/components/DagRunInfo";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import MenuButton from "src/components/Menu/MenuButton";
 import ParseDag from "src/components/ParseDag";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
@@ -74,6 +75,7 @@ export const Header = ({
                 )}
                 <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
                 <TriggerDAGButton dag={dag} />
+                <MenuButton dag={dag} />
               </HStack>
             ) : undefined}
           </Flex>
