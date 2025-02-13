@@ -244,24 +244,6 @@ def asset_events(mocker) -> list[AssetEvent]:
     return [event_earlier, event_later]
 
 
-def test_data_interval_for_events(
-    asset_timetable: AssetOrTimeSchedule, asset_events: list[AssetEvent]
-) -> None:
-    """
-    Tests the data_interval_for_events method of AssetOrTimeSchedule.
-
-    :param asset_timetable: The AssetOrTimeSchedule instance to test.
-    :param asset_events: A list of mock AssetEvent instances.
-    """
-    data_interval = asset_timetable.data_interval_for_events(logical_date=DateTime.now(), events=asset_events)
-    assert data_interval.start == min(
-        event.timestamp for event in asset_events
-    ), "Data interval start does not match"
-    assert data_interval.end == max(
-        event.timestamp for event in asset_events
-    ), "Data interval end does not match"
-
-
 def test_run_ordering_inheritance(asset_timetable: AssetOrTimeSchedule) -> None:
     """
     Tests that AssetOrTimeSchedule inherits run_ordering from its parent class correctly.

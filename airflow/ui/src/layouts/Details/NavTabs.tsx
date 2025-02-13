@@ -16,22 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Center, Flex } from "@chakra-ui/react";
-import { FaChartGantt } from "react-icons/fa6";
-import { FiGrid } from "react-icons/fi";
-import { NavLink, Link as RouterLink, useSearchParams } from "react-router-dom";
-
-import { DagIcon } from "src/assets/DagIcon";
+import { Center, Flex } from "@chakra-ui/react";
+import type { ReactNode } from "react";
+import { NavLink, useSearchParams } from "react-router-dom";
 
 type Props = {
+  readonly keepSearch?: boolean;
+  readonly rightButtons?: ReactNode;
   readonly tabs: Array<{ label: string; value: string }>;
 };
 
-export const NavTabs = ({ tabs }: Props) => {
+export const NavTabs = ({ keepSearch, rightButtons, tabs }: Props) => {
   const [searchParams] = useSearchParams();
 
   return (
-    <Flex alignItems="center" borderBottomWidth={1} justifyContent="space-between">
+    <Flex alignItems="center" borderBottomWidth={1} justifyContent="space-between" mb={2}>
       <Flex>
         {tabs.map(({ label, value }) => (
           <NavLink
@@ -40,7 +39,7 @@ export const NavTabs = ({ tabs }: Props) => {
             to={{
               pathname: value,
               // Preserve search params when navigating
-              search: searchParams.toString(),
+              search: keepSearch ? searchParams.toString() : undefined,
             }}
           >
             {({ isActive }) => (
@@ -61,26 +60,7 @@ export const NavTabs = ({ tabs }: Props) => {
           </NavLink>
         ))}
       </Flex>
-      <Flex alignSelf="flex-end">
-        <Button asChild colorPalette="blue" variant="ghost">
-          <RouterLink to={{ search: `${searchParams.toString()}&modal=gantt` }}>
-            <FaChartGantt height={5} width={5} />
-            Gantt
-          </RouterLink>
-        </Button>
-        <Button asChild colorPalette="blue" variant="ghost">
-          <RouterLink to={{ search: `${searchParams.toString()}&modal=grid` }}>
-            <FiGrid height={5} width={5} />
-            Grid
-          </RouterLink>
-        </Button>
-        <Button asChild colorPalette="blue" variant="ghost">
-          <RouterLink to={{ search: `${searchParams.toString()}&modal=graph` }}>
-            <DagIcon height={5} width={5} />
-            Graph
-          </RouterLink>
-        </Button>
-      </Flex>
+      <Flex alignSelf="flex-end">{rightButtons}</Flex>
     </Flex>
   );
 };

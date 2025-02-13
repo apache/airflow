@@ -12,6 +12,7 @@ import {
   DagService,
   DagSourceService,
   DagStatsService,
+  DagVersionService,
   DagWarningService,
   DagsService,
   DashboardService,
@@ -2689,6 +2690,64 @@ export const useVariableServiceGetVariables = <
       queryKey,
     ),
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Versions
+ * Get all DAG Versions.
+ *
+ * This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.limit
+ * @param data.offset
+ * @param data.versionNumber
+ * @param data.bundleName
+ * @param data.bundleVersion
+ * @param data.orderBy
+ * @returns DAGVersionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagVersionServiceGetDagVersions = <
+  TData = Common.DagVersionServiceGetDagVersionsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    bundleName,
+    bundleVersion,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    versionNumber,
+  }: {
+    bundleName?: string;
+    bundleVersion?: string;
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    versionNumber?: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn(
+      { bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagVersionService.getDagVersions({
+        bundleName,
+        bundleVersion,
+        dagId,
+        limit,
+        offset,
+        orderBy,
+        versionNumber,
+      }) as TData,
     ...options,
   });
 /**

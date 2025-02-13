@@ -82,7 +82,7 @@ def _trigger_dag(
                     f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
                 )
         coerced_logical_date = timezone.coerce_datetime(logical_date)
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=coerced_logical_date)
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=run_after)
     else:
         coerced_logical_date = None
         data_interval = None
