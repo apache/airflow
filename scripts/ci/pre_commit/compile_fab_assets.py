@@ -91,6 +91,8 @@ def compile_assets(www_directory: Path, www_hash_file_name: str):
 
 
 if __name__ == "__main__":
-    # Compile assets for main
-    main_www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
-    compile_assets(main_www_directory, "hash.txt")
+    # Compile assets for fab provider
+    fab_provider_www_directory = (
+        AIRFLOW_SOURCES_PATH / "providers" / "fab" / "src" / "airflow" / "providers" / "fab" / "www"
+    )
+    compile_assets(fab_provider_www_directory, "hash_fab.txt")
