@@ -2420,8 +2420,7 @@ class TestDagModel:
         query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
         assert len(asset_triggered_dag_info) == 1
         assert dag.dag_id in asset_triggered_dag_info
-        first_queued_time, last_queued_time = asset_triggered_dag_info[dag.dag_id]
-        assert first_queued_time == DEFAULT_DATE
+        last_queued_time = asset_triggered_dag_info[dag.dag_id]
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
     def test_asset_expression(self, testing_dag_bundle, session: Session) -> None:

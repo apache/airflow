@@ -1325,13 +1325,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dag_runs_asset_triggered(
         self,
         dag_models: Collection[DagModel],
-        asset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
+        asset_triggered_dag_info: dict[str, datetime],
         session: Session,
     ) -> None:
         """For DAGs that are triggered by assets, create dag runs."""
         triggered_dates: dict[str, DateTime] = {
             dag_id: timezone.coerce_datetime(last_asset_event_time)
-            for dag_id, (_, last_asset_event_time) in asset_triggered_dag_info.items()
+            for dag_id, last_asset_event_time in asset_triggered_dag_info.items()
         }
 
         for dag_model in dag_models:
