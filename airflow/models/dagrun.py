@@ -259,8 +259,7 @@ class DagRun(Base, LoggingMixin):
 
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
-            self.data_interval_start = None
-            self.data_interval_end = None
+            self.data_interval_start = self.data_interval_end = None
         else:
             self.data_interval_start, self.data_interval_end = data_interval
         self.bundle_version = bundle_version

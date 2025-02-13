@@ -127,7 +127,7 @@ def _get_dag_run(
                 f"of {logical_date_or_run_id!r} not found"
             )
 
-    dag_run_logical_date = timezone.coerce_datetime(logical_date) if logical_date else None
+    dag_run_logical_date = timezone.coerce_datetime(logical_date)
     data_interval = (
         dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date)
         if dag_run_logical_date
