@@ -27,7 +27,7 @@ import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Collection, Iterable, Iterator
 from contextlib import ExitStack, suppress
-from datetime import timedelta
+from datetime import date, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, Callable
@@ -1350,30 +1350,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             latest_dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
 
             triggered_date = triggered_dates[dag.dag_id]
-            previous_dag_run = session.scalar(
-                select(DagRun)
+            cte = (
+                select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
                 .where(
                     DagRun.dag_id == dag.dag_id,
-                    DagRun.run_after < triggered_date,
                     DagRun.run_type == DagRunType.ASSET_TRIGGERED,
+                    DagRun.run_after < triggered_date,
                 )
-                .order_by(DagRun.run_after.desc())
-                .limit(1)
+                .cte()
             )
-            asset_event_filters = [
-                DagScheduleAssetReference.dag_id == dag.dag_id,
-                AssetEvent.timestamp <= triggered_date,
-            ]
-            if previous_dag_run:
-                asset_event_filters.append(AssetEvent.timestamp > previous_dag_run.run_after)
-
             asset_events = session.scalars(
                 select(AssetEvent)
                 .join(
                     DagScheduleAssetReference,
                     AssetEvent.asset_id == DagScheduleAssetReference.asset_id,
                 )
-                .where(*asset_event_filters)
+                .where(
+                    DagScheduleAssetReference.dag_id == dag.dag_id,
+                    AssetEvent.timestamp <= triggered_date,
+                    AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                )
             ).all()
 
             dag_run = dag.create_dagrun(
