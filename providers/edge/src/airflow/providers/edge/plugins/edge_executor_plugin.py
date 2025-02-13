@@ -118,9 +118,12 @@ class EdgeWorkerHosts(BaseView):
     @expose("/status/maintenance/<string:worker_name>/on", methods=["POST"])
     @has_access_view(AccessView.JOBS)
     def worker_to_maintenance(self, worker_name: str):
+        from flask_login import current_user
+
         from airflow.providers.edge.models.edge_worker import request_maintenance
 
         maintenance_comment = request.form.get("maintenance_comment")
+        maintenance_comment = f'{maintenance_comment}\n\n[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username}'
         request_maintenance(worker_name, maintenance_comment)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
