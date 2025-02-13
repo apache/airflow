@@ -889,10 +889,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         def create_dagrun(self, *, logical_date=None, **kwargs):
             from airflow.utils import timezone
             from airflow.utils.state import DagRunState
-            from airflow.utils.types import DagRunType
+            from airflow.utils.types import NOTSET, DagRunType
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
+            else:
+                DagRunType.ASSET_TRIGGERED = DagRunType.DATASET_TRIGGERED
 
             if "execution_date" in kwargs:
                 raise TypeError("use logical_date instead")
@@ -909,21 +911,26 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if not isinstance(run_type, DagRunType):
                 run_type = DagRunType(run_type)
 
-            if logical_date is None:
+            if logical_date is NOTSET:
+                # Explicit non requested
+                logical_date = None
+            elif logical_date is None:
                 if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
                     logical_date = dag.next_dagrun_info(None).logical_date
             logical_date = timezone.coerce_datetime(logical_date)
 
+            data_interval = None
             try:
                 data_interval = kwargs["data_interval"]
             except KeyError:
-                if run_type == DagRunType.MANUAL:
-                    data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-                else:
-                    data_interval = dag.infer_automated_data_interval(logical_date)
-                kwargs["data_interval"] = data_interval
+                if logical_date is not None:
+                    if run_type == DagRunType.MANUAL:
+                        data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                    else:
+                        data_interval = dag.infer_automated_data_interval(logical_date)
+            kwargs["data_interval"] = data_interval
 
             if "run_id" not in kwargs:
                 if "run_type" not in kwargs:
@@ -947,7 +954,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
                 kwargs.setdefault("dag_version", None)
-                kwargs.setdefault("run_after", data_interval[-1])
+                kwargs.setdefault("run_after", data_interval[-1] if data_interval else timezone.utcnow())
             else:
                 kwargs.pop("dag_version", None)
                 kwargs.pop("triggered_by", None)
@@ -1227,9 +1234,13 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
     Uses ``create_dummy_dag`` to create the dag structure.
     """
     from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.utils.types import NOTSET, ArgNotSet
+
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     def maker(
-        logical_date=None,
+        logical_date: datetime | None | ArgNotSet = NOTSET,
+        run_after=None,
         dagrun_state=None,
         state=None,
         run_id=None,
@@ -1255,7 +1266,12 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         last_heartbeat_at=None,
         **kwargs,
     ) -> TaskInstance:
-        if logical_date is None:
+        if run_after is None:
+            from airflow.utils import timezone
+
+            run_after = timezone.utcnow()
+        if logical_date is NOTSET:
+            # For now: default to having a logical date if None is not explicitly passed.
             from airflow.utils import timezone
 
             logical_date = timezone.utcnow()
@@ -1276,10 +1292,17 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
                 trigger_rule=trigger_rule,
                 **op_kwargs,
             )
-        dagrun_kwargs = {
-            "logical_date": logical_date,
-            "state": dagrun_state,
-        }
+        if AIRFLOW_V_3_0_PLUS:
+            dagrun_kwargs = {
+                "logical_date": logical_date,
+                "run_after": run_after,
+                "state": dagrun_state,
+            }
+        else:
+            dagrun_kwargs = {
+                "logical_date": logical_date if logical_date not in (None, NOTSET) else run_after,
+                "state": dagrun_state,
+            }
         if run_id is not None:
             dagrun_kwargs["run_id"] = run_id
         if run_type is not None:

@@ -362,20 +362,18 @@ def trigger_dag_run(
 
     try:
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-
-        if body.data_interval_start and body.data_interval_end:
-            data_interval = DataInterval(
-                start=pendulum.instance(body.data_interval_start),
-                end=pendulum.instance(body.data_interval_end),
-            )
-        else:
-            if body.logical_date:
+        data_interval = None
+        if body.logical_date:
+            if body.data_interval_start and body.data_interval_end:
+                data_interval = DataInterval(
+                    start=pendulum.instance(body.data_interval_start),
+                    end=pendulum.instance(body.data_interval_end),
+                )
+            else:
                 data_interval = dag.timetable.infer_manual_data_interval(
                     run_after=coerced_logical_date or run_after
                 )
                 run_after = data_interval.end
-            else:
-                data_interval = None
 
         if body.dag_run_id:
             run_id = body.dag_run_id
