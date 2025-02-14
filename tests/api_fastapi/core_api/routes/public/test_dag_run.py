@@ -66,6 +66,8 @@ DAG2_RUN2_TRIGGERED_BY = DagRunTriggeredByType.REST_API
 START_DATE1 = datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE1 = datetime(2024, 2, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE2 = datetime(2024, 2, 20, 0, 0, tzinfo=timezone.utc)
+RUN_AFTER1 = datetime(2024, 2, 16, 0, 0, tzinfo=timezone.utc)
+RUN_AFTER2 = datetime(2024, 2, 20, 0, 0, tzinfo=timezone.utc)
 START_DATE2 = datetime(2024, 4, 15, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE3 = datetime(2024, 5, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE4 = datetime(2024, 5, 25, 0, 0, tzinfo=timezone.utc)
@@ -398,6 +400,14 @@ class TestGetDagRuns:
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),
             (
+                DAG1_ID,
+                {
+                    "run_after_gte": RUN_AFTER1.isoformat(),
+                    "run_after_lte": RUN_AFTER2.isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
                 DAG2_ID,
                 {
                     "start_date_gte": START_DATE2.isoformat(),
@@ -436,11 +446,27 @@ class TestGetDagRuns:
             "logical_date_gte": "invalid",
             "start_date_gte": "invalid",
             "end_date_gte": "invalid",
+            "run_after_gte": "invalid",
             "logical_date_lte": "invalid",
             "start_date_lte": "invalid",
             "end_date_lte": "invalid",
+            "run_after_lte": "invalid",
         }
         expected_detail = [
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "run_after_gte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "run_after_lte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
             {
                 "type": "datetime_from_date_parsing",
                 "loc": ["query", "logical_date_gte"],
@@ -577,6 +603,7 @@ class TestListDagRunsBatch:
                 "state", [DAG1_RUN2_ID, DAG1_RUN1_ID, DAG2_RUN1_ID, DAG2_RUN2_ID], id="order_by_state"
             ),
             pytest.param("dag_id", DAG_RUNS_LIST, id="order_by_dag_id"),
+            pytest.param("run_after", DAG_RUNS_LIST, id="order_by_run_after"),
             pytest.param("logical_date", DAG_RUNS_LIST, id="order_by_logical_date"),
             pytest.param("dag_run_id", DAG_RUNS_LIST, id="order_by_dag_run_id"),
             pytest.param("start_date", DAG_RUNS_LIST, id="order_by_start_date"),
