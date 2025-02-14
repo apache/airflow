@@ -458,6 +458,8 @@ export const UseGridServiceGridDataKeyFn = (
     offset,
     orderBy,
     root,
+    runAfterGte,
+    runAfterLte,
     runType,
     state,
   }: {
@@ -470,6 +472,8 @@ export const UseGridServiceGridDataKeyFn = (
     offset?: number;
     orderBy?: string;
     root?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     runType?: string[];
     state?: string[];
   },
@@ -487,6 +491,8 @@ export const UseGridServiceGridDataKeyFn = (
       offset,
       orderBy,
       root,
+      runAfterGte,
+      runAfterLte,
       runType,
       state,
     },
