@@ -148,6 +148,10 @@ class SignificantNewsFragmentVisitor(docutils.nodes.NodeVisitor):
             raise ValueError(f"Incorrect format {node.astext()}")
 
         text = node.astext()
+        if text[0] != "[" or text[2] != "]":
+            raise ValueError(
+                f"{text} should be a checklist (e.g., * [ ] ``logging.dag_processor_manager_log_location``)"
+            )
         return text[:3] == "[x]", text[4:]
 
     @property
