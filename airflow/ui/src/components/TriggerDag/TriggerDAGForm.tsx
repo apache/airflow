@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Button, Box, Spacer, HStack, Field } from "@chakra-ui/react";
+import { Input, Button, Box, Spacer, HStack, Field, Stack } from "@chakra-ui/react";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
@@ -28,6 +28,7 @@ import { useColorMode } from "src/context/colorMode";
 import { useDagParams } from "src/queries/useDagParams";
 import { useTrigger } from "src/queries/useTrigger";
 
+import EditableMarkdown from "../EditableMarkdown";
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { Accordion } from "../ui";
@@ -122,15 +123,21 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 control={control}
                 name="logicalDate"
                 render={({ field }) => (
-                  <Field.Root invalid={Boolean(errors.date)}>
-                    <Field.Label fontSize="md">Logical Date</Field.Label>
-                    <Input
-                      {...field}
-                      onBlur={resetDateError}
-                      placeholder="yyyy-mm-ddThh:mm"
-                      size="sm"
-                      type="datetime-local"
-                    />
+                  <Field.Root invalid={Boolean(errors.date)} orientation="horizontal">
+                    <Stack>
+                      <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                        Logical Date
+                      </Field.Label>
+                    </Stack>
+                    <Stack css={{ flexBasis: "70%" }}>
+                      <Input
+                        {...field}
+                        onBlur={resetDateError}
+                        placeholder="yyyy-mm-ddThh:mm"
+                        size="sm"
+                        type="datetime-local"
+                      />
+                    </Stack>
                   </Field.Root>
                 )}
               />
@@ -139,13 +146,16 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 control={control}
                 name="dagRunId"
                 render={({ field }) => (
-                  <Field.Root mt={6}>
-                    <Field.Label fontSize="md">Run ID</Field.Label>
-                    <Input
-                      {...field}
-                      placeholder="Run Id, optional - will be generated if not provided"
-                      size="sm"
-                    />
+                  <Field.Root mt={6} orientation="horizontal">
+                    <Stack>
+                      <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                        Run ID
+                      </Field.Label>
+                    </Stack>
+                    <Stack css={{ flexBasis: "70%" }}>
+                      <Input {...field} size="sm" />
+                      <Field.HelperText>Optional - will be generated if not provided</Field.HelperText>
+                    </Stack>
                   </Field.Root>
                 )}
               />
@@ -189,7 +199,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 render={({ field }) => (
                   <Field.Root mt={6}>
                     <Field.Label fontSize="md">Dag Run Notes</Field.Label>
-                    <Input {...field} placeholder="Optional" size="sm" />
+                    <EditableMarkdown field={field} placeholder="Click to add note" />
                   </Field.Root>
                 )}
               />
