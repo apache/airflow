@@ -67,24 +67,24 @@ else:
     BUNDLE_STORAGE_PATH_ROOT = Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
-def get_bundle_tracking_dir(bundle_name: str):
+def get_bundle_tracking_dir(bundle_name: str) -> Path:
     return STALE_BUNDLE_TRACKING_FOLDER / bundle_name
 
 
-def get_bundle_tracking_file(bundle_name: str, version: str):
+def get_bundle_tracking_file(bundle_name: str, version: str) -> Path:
     tracking_dir = get_bundle_tracking_dir(bundle_name=bundle_name)
     return Path(tracking_dir, version)
 
 
-def get_bundle_base_folder(bundle_type: str, bundle_name: str):
+def get_bundle_base_folder(bundle_type: str, bundle_name: str) -> Path:
     return BUNDLE_STORAGE_PATH_ROOT / bundle_type / bundle_name
 
 
-def get_bundle_versions_base_folder(bundle_type: str, bundle_name: str):
+def get_bundle_versions_base_folder(bundle_type: str, bundle_name: str) -> Path:
     return get_bundle_base_folder(bundle_type=bundle_type, bundle_name=bundle_name)
 
 
-def get_bundle_version_path(bundle_type: str, bundle_name: str, version: str):
+def get_bundle_version_path(bundle_type: str, bundle_name: str, version: str) -> Path:
     base_folder = get_bundle_versions_base_folder(bundle_type=bundle_type, bundle_name=bundle_name)
     return base_folder / version
 
@@ -129,12 +129,12 @@ class BundleUsageTrackingManager:
                 ret.append(item)
         return ret
 
-    def _find_all_tracking_files(self, bundle_name):
+    def _find_all_tracking_files(self, bundle_name) -> list[TrackedBundleVersionInfo] | None:
         tracking_dir = get_bundle_tracking_dir(bundle_name=bundle_name)
         found: list[TrackedBundleVersionInfo] = []
         if not tracking_dir.exists():
             log.info("bundle usage tracking directory does not exist", tracking_dir=tracking_dir)
-            return
+            return None
         for file in tracking_dir.iterdir():
             log.debug("found bundle tracking file", path=file)
             version = file.name
@@ -152,7 +152,7 @@ class BundleUsageTrackingManager:
         return found
 
     @staticmethod
-    def _remove_stale_bundle(bundle_type: str, bundle_name: str, info: TrackedBundleVersionInfo):
+    def _remove_stale_bundle(bundle_type: str, bundle_name: str, info: TrackedBundleVersionInfo) -> None:
         try:
             bundle_version_path = get_bundle_version_path(
                 bundle_type=bundle_type,
