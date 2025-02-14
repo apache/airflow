@@ -5,6 +5,7 @@ import { request as __request } from "./core/request";
 import type {
   NextRunAssetsData,
   NextRunAssetsResponse,
+  AssetDependenciesResponse,
   GetAssetsData,
   GetAssetsResponse,
   GetAssetAliasesData,
@@ -225,6 +226,19 @@ export class AssetService {
       errors: {
         422: "Validation Error",
       },
+    });
+  }
+
+  /**
+   * Asset Dependencies
+   * Asset dependencies graph.
+   * @returns BaseGraphResponse Successful Response
+   * @throws ApiError
+   */
+  public static assetDependencies(): CancelablePromise<AssetDependenciesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/asset_dependencies",
     });
   }
 

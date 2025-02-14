@@ -23,18 +23,15 @@ import pytest
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 
-from tests_common.test_utils.db import initial_db_init
+from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
 def cleanup():
-    """
-    Before each test re-init the database dropping and recreating the tables.
-    This will allow to reset indexes to be able to assert auto-incremented primary keys.
-    """
-    initial_db_init()
+    clear_db_dags()
+    clear_db_serialized_dags()
 
 
 def test_next_run_assets(test_client, dag_maker):
@@ -64,4 +61,52 @@ def test_next_run_assets(test_client, dag_maker):
             ]
         },
         "events": [{"id": mock.ANY, "uri": "s3://bucket/next-run-asset/1", "lastUpdate": None}],
+    }
+
+
+def test_asset_dependencies(test_client, dag_maker):
+    asset = Asset(uri="s3://bucket/next-run-asset/1", name="asset1")
+    with dag_maker(dag_id="upstream", serialized=True):
+        EmptyOperator(task_id="task2", outlets=[asset])
+
+    with dag_maker(
+        dag_id="downstream",
+        schedule=[asset],
+        serialized=True,
+    ):
+        EmptyOperator(task_id="task1")
+
+    dag_maker.sync_dagbag_to_db()
+
+    response = test_client.get("/ui/asset_dependencies")
+    assert response.status_code == 200
+
+    assert response.json() == {
+        "edges": [
+            {
+                "source_id": "asset:asset1",
+                "target_id": "dag:downstream",
+            },
+            {
+                "source_id": "dag:upstream",
+                "target_id": "asset:asset1",
+            },
+        ],
+        "nodes": [
+            {
+                "id": "dag:downstream",
+                "label": "downstream",
+                "type": "dag",
+            },
+            {
+                "id": "asset:asset1",
+                "label": "asset1",
+                "type": "asset",
+            },
+            {
+                "id": "dag:upstream",
+                "label": "upstream",
+                "type": "dag",
+            },
+        ],
     }

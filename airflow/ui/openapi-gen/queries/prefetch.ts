@@ -55,6 +55,17 @@ export const prefetchUseAssetServiceNextRunAssets = (
     queryFn: () => AssetService.nextRunAssets({ dagId }),
   });
 /**
+ * Asset Dependencies
+ * Asset dependencies graph.
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceAssetDependencies = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceAssetDependenciesKeyFn(),
+    queryFn: () => AssetService.assetDependencies(),
+  });
+/**
  * Get Assets
  * Get assets.
  * @param data The data for the request.

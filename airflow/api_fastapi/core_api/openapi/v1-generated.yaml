@@ -34,6 +34,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/asset_dependencies:
+    get:
+      tags:
+      - Asset
+      summary: Asset Dependencies
+      description: Asset dependencies graph.
+      operationId: asset_dependencies
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseGraphResponse'
   /ui/config:
     get:
       tags:
@@ -7144,6 +7158,38 @@ components:
       - updated_at
       title: BackfillResponse
       description: Base serializer for Backfill.
+    BaseEdgeResponse:
+      properties:
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
+      type: object
+      required:
+      - source_id
+      - target_id
+      title: BaseEdgeResponse
+      description: Base Edge serializer for responses.
+    BaseGraphResponse:
+      properties:
+        edges:
+          items:
+            $ref: '#/components/schemas/BaseEdgeResponse'
+          type: array
+          title: Edges
+        nodes:
+          items:
+            $ref: '#/components/schemas/BaseNodeResponse'
+          type: array
+          title: Nodes
+      type: object
+      required:
+      - edges
+      - nodes
+      title: BaseGraphResponse
+      description: Base Graph serializer for responses.
     BaseInfoResponse:
       properties:
         status:
@@ -7156,6 +7202,33 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
+    BaseNodeResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        type:
+          type: string
+          enum:
+          - join
+          - task
+          - asset-condition
+          - asset
+          - asset-alias
+          - dag
+          - sensor
+          - trigger
+          title: Type
+      type: object
+      required:
+      - id
+      - label
+      - type
+      title: BaseNodeResponse
+      description: Base Node serializer for responses.
     BulkAction:
       type: string
       enum:
@@ -8968,6 +9041,12 @@ components:
       description: Backfill serializer for responses in dry-run mode.
     EdgeResponse:
       properties:
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
         is_setup_teardown:
           anyOf:
           - type: boolean
@@ -8978,12 +9057,6 @@ components:
           - type: string
           - type: 'null'
           title: Label
-        source_id:
-          type: string
-          title: Source Id
-        target_id:
-          type: string
-          title: Target Id
         is_source_asset:
           anyOf:
           - type: boolean
@@ -9429,6 +9502,24 @@ components:
       description: Job serializer for responses.
     NodeResponse:
       properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        type:
+          type: string
+          enum:
+          - join
+          - task
+          - asset-condition
+          - asset
+          - asset-alias
+          - dag
+          - sensor
+          - trigger
+          title: Type
         children:
           anyOf:
           - items:
@@ -9436,17 +9527,11 @@ components:
             type: array
           - type: 'null'
           title: Children
-        id:
-          type: string
-          title: Id
         is_mapped:
           anyOf:
           - type: boolean
           - type: 'null'
           title: Is Mapped
-        label:
-          type: string
-          title: Label
         tooltip:
           anyOf:
           - type: string
@@ -9460,18 +9545,6 @@ components:
             - teardown
           - type: 'null'
           title: Setup Teardown Type
-        type:
-          type: string
-          enum:
-          - join
-          - task
-          - asset-condition
-          - asset
-          - asset-alias
-          - dag
-          - sensor
-          - trigger
-          title: Type
         operator:
           anyOf:
           - type: string

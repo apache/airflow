@@ -84,6 +84,25 @@ export const useAssetServiceNextRunAssets = <
     ...options,
   });
 /**
+ * Asset Dependencies
+ * Asset dependencies graph.
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceAssetDependencies = <
+  TData = Common.AssetServiceAssetDependenciesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceAssetDependenciesKeyFn(queryKey),
+    queryFn: () => AssetService.assetDependencies() as TData,
+    ...options,
+  });
+/**
  * Get Assets
  * Get assets.
  * @param data The data for the request.
