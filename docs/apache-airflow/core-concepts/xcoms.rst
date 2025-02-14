@@ -54,26 +54,24 @@ XComs are a relative of :doc:`variables`, with the main difference being that XC
 
 If you want to push multiple XComs at once you can set ``do_xcom_push`` and ``multiple_outputs`` arguments to ``True``, and then return a dictionary of values.
 
-To push multiple XComs at once:
+An example of pushing multiple XComs and pulling them individually:
 
 .. code-block:: python
 
-    value = {"key1": "value1", "key2": "value2"}
-    # A Python operator task returning a dictionary
-    task = PythonOperator(
-        task_id="xcom_push_with_multiple_outputs",
-        python_callable=lambda: value,
-        do_xcom_push=True,
-        multiple_outputs=True,
-    )
+    # A task returning a dictionary
+    @task(do_xcom_push=True, multiple_outputs=True)
+    def push_multiple(**context):
+        return {"key1": "value1", "key2": "value2"}
 
-To pull a specific key from the XCom:
 
-.. code-block:: python
+    @task
+    def xcom_pull_with_multiple_outputs(**context):
+        # Pulling a specific key from the multiple outputs
+        key1 = context["ti"].xcom_pull(task_ids="push_multiple", key="key1")  # to pull key1
+        key2 = context["ti"].xcom_pull(task_ids="push_multiple", key="key2")  # to pull key2
 
-    # Pulling a specific key from the multiple outputs
-    task_instance.xcom_pull(key="key1", task_ids="xcom_push_with_multiple_outputs")  # will return "value1"
-    task_instance.xcom_pull(key="key2", task_ids="xcom_push_with_multiple_outputs")  # will return "value2"
+        # Pulling entire xcom data from push_multiple task
+        data = context["ti"].xcom_pull(task_ids="push_multiple", key="return_value")
 
 
 
