@@ -75,7 +75,7 @@ def _get_api_endpoint() -> dict[str, Any]:
     }
 
 
-def modify_maintenance_comment_on_update(maintenance_comment, username):
+def modify_maintenance_comment_on_update(maintenance_comment: str | None, username: str) -> str:
     if maintenance_comment:
         if re.search(
             r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:.*", maintenance_comment
@@ -92,6 +92,7 @@ def modify_maintenance_comment_on_update(maintenance_comment, username):
                 maintenance_comment,
             )
         return f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment: {maintenance_comment}'
+    return f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:'
 
 
 # registers airflow/providers/edge/plugins/templates as a Jinja template folder

@@ -87,6 +87,11 @@ def test_plugin_is_airflow_plugin(plugin):
             "[2030] - user updated maintenance mode\nComment:new comment",
             id="second update",
         ),
+        pytest.param(
+            None,
+            "[2030] - user updated maintenance mode\nComment:",
+            id="None as input",
+        ),
     ],
 )
 def test_modify_maintenance_comment_on_update(monkeypatch, initial_comment, expected_comment):
