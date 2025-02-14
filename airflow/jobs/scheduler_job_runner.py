@@ -1673,23 +1673,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         latest_dag_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
         if TYPE_CHECKING:
             assert latest_dag_version
-        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session):
+
+        if latest_dag_version in dag_run.dag_versions:
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
-
         # Refresh the DAG
         dag_run.dag = self.dagbag.get_dag(dag_id=dag_run.dag_id, session=session)
         if not dag_run.dag:
             return False
-
+        # Select all TIs in State.unfinished and update the dag_version_id
+        for ti in dag_run.task_instances:
+            if ti.state in State.unfinished:
+                ti.dag_version = latest_dag_version
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(dag_version_id=latest_dag_version.id, session=session)
-        # Select all TIs in State.unfinished and update the dag_version_id
-        session.execute(
-            update(TI)
-            .where(TI.run_id == dag_run.run_id, TI.dag_id == dag_run.dag_id, TI.state.in_(State.unfinished))
-            .values(dag_version_id=latest_dag_version.id)
-        )
         return True
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: DagCallbackRequest | None = None) -> None:

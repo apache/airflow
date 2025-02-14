@@ -207,12 +207,16 @@ class DagRun(Base, LoggingMixin):
     )
 
     task_instances = relationship(
-        TI, back_populates="dag_run", cascade="save-update, merge, delete, delete-orphan"
+        TI,
+        back_populates="dag_run",
+        cascade="save-update, merge, delete, delete-orphan",
+        order_by=TI.dag_version_id,
     )
     task_instances_histories = relationship(
         TIH,
         primaryjoin="and_(DagRun.dag_id == TaskInstanceHistory.dag_id, DagRun.run_id == TaskInstanceHistory.run_id)",
         foreign_keys="TaskInstanceHistory.dag_id, TaskInstanceHistory.run_id",
+        order_by=TIH.dag_version_id,
     )
     dag_model = relationship(
         "DagModel",

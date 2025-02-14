@@ -3277,7 +3277,7 @@ class TestSchedulerJob:
         assert dag_version_2 != dag_version_1
 
         self.job_runner._schedule_dag_run(dr, session)
-        session.flush()
+        session.commit()
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
         assert len(drs) == 1
