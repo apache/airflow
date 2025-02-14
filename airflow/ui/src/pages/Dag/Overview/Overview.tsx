@@ -88,7 +88,7 @@ export const Overview = () => {
           count={failedRuns?.total_entries ?? 0}
           endDate={endDate}
           events={(failedRuns?.dag_runs ?? []).map((dr) => ({
-            timestamp: dr.start_date ?? dr.logical_date ?? "",
+            timestamp: dr.run_after,
           }))}
           isLoading={isLoadingFailedRuns}
           label="Failed Run"

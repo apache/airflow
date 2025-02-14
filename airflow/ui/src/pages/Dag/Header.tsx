@@ -24,6 +24,7 @@ import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/r
 import { DagIcon } from "src/assets/DagIcon";
 import DagRunInfo from "src/components/DagRunInfo";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import MenuButton from "src/components/Menu/MenuButton";
 import ParseDag from "src/components/ParseDag";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
@@ -74,6 +75,7 @@ export const Header = ({
                 )}
                 <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
                 <TriggerDAGButton dag={dag} />
+                <MenuButton dag={dag} />
               </HStack>
             ) : undefined}
           </Flex>
@@ -91,20 +93,19 @@ export const Header = ({
           <Stat label="Latest Run">
             {Boolean(latestRun) && latestRun !== undefined ? (
               <DagRunInfo
-                dataIntervalEnd={latestRun.data_interval_end}
-                dataIntervalStart={latestRun.data_interval_start}
                 endDate={latestRun.end_date}
+                logicalDate={latestRun.logical_date}
+                runAfter={latestRun.run_after}
                 startDate={latestRun.start_date}
                 state={latestRun.state}
               />
             ) : undefined}
           </Stat>
           <Stat label="Next Run">
-            {Boolean(dagWithRuns?.next_dagrun) ? (
+            {Boolean(dagWithRuns?.next_dagrun_create_after) ? (
               <DagRunInfo
-                dataIntervalEnd={dagWithRuns?.next_dagrun_data_interval_end}
-                dataIntervalStart={dagWithRuns?.next_dagrun_data_interval_start}
-                nextDagrunCreateAfter={dagWithRuns?.next_dagrun_create_after}
+                logicalDate={dagWithRuns?.next_dagrun}
+                runAfter={dagWithRuns?.next_dagrun_create_after as string}
               />
             ) : undefined}
           </Stat>

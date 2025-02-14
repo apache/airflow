@@ -479,6 +479,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.operators.kinesis_analytics"],
             },
             {
+                "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
+                "python-modules": ["airflow.providers.amazon.aws.operators.mwaa"],
+            },
+            {
                 "integration-name": "Amazon Simple Storage Service (S3)",
                 "python-modules": ["airflow.providers.amazon.aws.operators.s3"],
             },
@@ -746,6 +750,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon CloudWatch Logs",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.logs"],
+            },
+            {
+                "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.mwaa"],
             },
             {
                 "integration-name": "Amazon OpenSearch Serverless",

@@ -288,7 +288,7 @@ class TestAzureSynapseRunPipelineOperator:
 
         ti.xcom_push(key="run_id", value=PIPELINE_RUN_RESPONSE["run_id"])
 
-        url = ti.task.get_extra_links(ti, "Monitor Pipeline Run")
+        url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
 
         EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK = (
             "https://ms.web.azuresynapse.net/en/monitoring/pipelineruns/{run_id}"
