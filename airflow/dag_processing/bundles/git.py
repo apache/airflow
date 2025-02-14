@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import structlog
 from git import Repo
 from git.exc import BadName, GitCommandError, NoSuchPathError
 
@@ -34,6 +35,8 @@ from airflow.dag_processing.bundles.base import (
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = structlog.get_logger()
 
 
 class GitHook(BaseHook):
@@ -145,17 +148,27 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         self.tracking_ref = tracking_ref
         self.subdir = subdir
         self.bare_repo_path = self.base_folder / "bare"
-        print(f"SETTING REPO PATH: {kwargs=}")
-        print(f"SETTING REPO PATH: {self.version=}")
         if self.version:
             self.repo_path = self.versions_path / self.version
         else:
             self.repo_path = self.base_folder / "tracking_repo"
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
+        log_ = log.bind(
+            bundle_name=self.name,
+            bundle_type=self.bundle_type,
+            version=self.version,
+            bare_repo_path=self.bare_repo_path,
+            repo_path=self.repo_path,
+            versions_path=self.versions_path,
+            git_conn_id=self.git_conn_id,
+            repo_url=self.repo_url,
+        )
+        log_.debug("bundle configured")
         try:
             self.hook = GitHook(git_conn_id=self.git_conn_id, repo_url=self.repo_url)
             self.repo_url = self.hook.repo_url
+            log_.debug("repo_url updated from hook", repo_url=self.repo_url)
         except AirflowException as e:
             self.log.warning("Could not create GitHook for connection %s : %s", self.git_conn_id, e)
 
