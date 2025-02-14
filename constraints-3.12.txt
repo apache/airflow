@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-13T20:10:20.658511
+# This constraints file was automatically generated on 2025-02-14T08:12:52.647327
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -244,7 +244,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
-cfn-lint==1.24.0
+cfn-lint==1.25.1
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -296,7 +296,7 @@ et_xmlfile==2.0.0
 eventlet==0.39.0
 execnet==2.1.1
 executing==2.2.0
-facebook_business==21.0.5
+facebook_business==22.0.2
 fastapi-cli==0.0.7
 fastapi==0.115.8
 fastavro==1.10.0
@@ -550,7 +550,7 @@ prompt_toolkit==3.0.50
 propcache==0.2.1
 proto-plus==1.26.0
 protobuf==4.25.6
-psutil==6.1.1
+psutil==7.0.0
 psycopg2-binary==2.9.10
 ptyprocess==0.7.0
 pure-sasl==0.6.2
