@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -123,7 +124,7 @@ class EdgeWorkerHosts(BaseView):
         from airflow.providers.edge.models.edge_worker import request_maintenance
 
         maintenance_comment = request.form.get("maintenance_comment")
-        maintenance_comment = f'{maintenance_comment}\n\n[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username}'
+        maintenance_comment = f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username} put node into maintenance mode\nComment: {maintenance_comment}'
         request_maintenance(worker_name, maintenance_comment)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
@@ -146,9 +147,31 @@ class EdgeWorkerHosts(BaseView):
     @expose("/status/maintenance/<string:worker_name>/change_comment", methods=["POST"])
     @has_access_view(AccessView.JOBS)
     def change_maintenance_comment(self, worker_name: str):
+        from flask_login import current_user
+
         from airflow.providers.edge.models.edge_worker import change_maintenance_comment
 
         maintenance_comment = request.form.get("maintenance_comment")
+        if maintenance_comment:
+            if re.search(
+                r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:.*", maintenance_comment
+            ):
+                maintenance_comment = re.sub(
+                    r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:",
+                    f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username} updated maintenance mode\nComment:',
+                    maintenance_comment,
+                )
+            elif re.search(
+                r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:.*", maintenance_comment
+            ):
+                maintenance_comment = re.sub(
+                    r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:",
+                    f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username} updated maintenance mode\nComment:',
+                    maintenance_comment,
+                )
+            else:
+                maintenance_comment = f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username} updated maintenance mode\nComment: {maintenance_comment}'
+
         change_maintenance_comment(worker_name, maintenance_comment)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
