@@ -48,7 +48,6 @@ export default function useMappedInstances({
       }),
     {
       keepPreviousData: true,
-      initialData: { taskInstances: [], totalEntries: 0 },
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
       // staleTime should be similar to the refresh interval
       staleTime: (autoRefreshInterval || 1) * 1000,
