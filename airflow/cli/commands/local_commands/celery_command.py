@@ -32,6 +32,7 @@ from multiprocessing import Process
 
 import psutil
 import sqlalchemy.exc
+import structlog
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
 from celery.app.defaults import DEFAULT_TASK_LOG_FMT
 from celery.signals import after_setup_logger
@@ -53,6 +54,12 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2,
 )
+
+structlog.configure(
+    wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
+)
+
+log = structlog.get_logger()
 
 
 @cli_utils.action_cli
@@ -103,6 +110,7 @@ def _serve_logs(skip_serve_logs: bool = False):
 @contextmanager
 def _run_stale_bundle_cleanup():
     """Start stale bundle cleanup sub-process."""
+    log.info("starting stale bundle cleanup process")
     sub_proc = None
     mgr = BundleUsageTrackingManager()
 

@@ -42,9 +42,10 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
 log = structlog.get_logger(logger_name=__name__)
-
 # todo: remove
-log.set_level(logging.DEBUG)
+structlog.configure(
+    wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
+)
 
 STALE_BUNDLE_TRACKING_FOLDER = Path(
     tempfile.gettempdir(),
@@ -53,11 +54,11 @@ STALE_BUNDLE_TRACKING_FOLDER = Path(
     "_tracking",
 )
 
-# todo: increase or make_configurable
-STALE_BUNDLE_CHECK_INTERVAL: int = 1
+# todo: AIP-66 increase or make_configurable
+STALE_BUNDLE_CHECK_INTERVAL: int = 30
 
-MIN_VERSIONS_TO_KEEP: int = 10
-STALE_VERSION_THRESHOLD: timedelta = timedelta(seconds=5 * 60)
+MIN_VERSIONS_TO_KEEP: int = 0
+STALE_VERSION_THRESHOLD: timedelta = timedelta(seconds=2 * 60)
 
 BUNDLE_STORAGE_PATH_ROOT: Path
 if configured_location := conf.get("dag_processor", "dag_bundle_storage_path", fallback=None):
@@ -131,6 +132,9 @@ class BundleUsageTrackingManager:
     def _find_all_tracking_files(self, bundle_name):
         tracking_dir = get_bundle_tracking_dir(bundle_name=bundle_name)
         found: list[TrackedBundleVersionInfo] = []
+        if not tracking_dir.exists():
+            log.info("bundle usage tracking directory does not exist", tracking_dir=tracking_dir)
+            return
         for file in tracking_dir.iterdir():
             log.debug("found bundle tracking file", path=file)
             version = file.name
@@ -150,14 +154,19 @@ class BundleUsageTrackingManager:
     @staticmethod
     def _remove_stale_bundle(bundle_type: str, bundle_name: str, info: TrackedBundleVersionInfo):
         try:
-            log.info("removing stale bundle", bundle_name=bundle_name, bundle_version=info.version)
+            bundle_version_path = get_bundle_version_path(
+                bundle_type=bundle_type,
+                bundle_name=bundle_name,
+                version=info.version,
+            )
+            log.info(
+                "removing stale bundle",
+                bundle_name=bundle_name,
+                bundle_version=info.version,
+                bundle_path=bundle_version_path,
+            )
             with open(info.lock_file_path, "a") as f:
                 flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)  # exclusive lock, do not wait
-                bundle_version_path = get_bundle_version_path(
-                    bundle_type=bundle_type,
-                    bundle_name=bundle_name,
-                    version=info.version,
-                )
                 # remove the actual bundle copy
                 shutil.rmtree(bundle_version_path)
                 # remove the lock file
@@ -183,11 +192,16 @@ class BundleUsageTrackingManager:
     @staticmethod
     def _debug_candidates(candidates, found):
         recently_used = list(set(found).difference(candidates))
-        log.debug("found removal candidates", candidates=candidates, recently_used=recently_used)
+        if candidates:
+            log.debug("found removal candidates", candidates=candidates, recently_used=recently_used)
+        else:
+            log.debug("no removal candidates found", candidates=candidates, recently_used=recently_used)
 
     def _remove_stale_bundle_versions_for_bundle(self, bundle: BaseDagBundle):
         log.info("checking bundle for stale versions", bundle_name=bundle.name)
         found = self._find_all_tracking_files(bundle_name=bundle.name)
+        if not found:
+            return
         candidates = self._find_candidates(found)
         for info in candidates:
             self._remove_stale_bundle(bundle_type=bundle.bundle_type, bundle_name=bundle.name, info=info)
