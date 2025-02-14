@@ -20,6 +20,7 @@ import logging
 import os
 from typing import TYPE_CHECKING, Callable
 
+import pytest
 from tabulate import tabulate
 
 from airflow.utils.state import DagRunState
@@ -58,6 +59,7 @@ def get_test_run(dag, **test_kwargs):
         else:
             return [current, new]
 
+    @pytest.mark.system
     def test_run():
         dag.on_failure_callback = add_callback(dag.on_failure_callback, callback)
         dag.on_success_callback = add_callback(dag.on_success_callback, callback)

@@ -587,6 +587,7 @@ export type DAGRunResponse = {
   end_date: string | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
+  run_after: string;
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
@@ -649,6 +650,14 @@ export type DAGSourceResponse = {
  */
 export type DAGTagCollectionResponse = {
   tags: Array<string>;
+  total_entries: number;
+};
+
+/**
+ * DAG Version Collection serializer for responses.
+ */
+export type DAGVersionCollectionResponse = {
+  dag_versions: Array<DagVersionResponse>;
   total_entries: number;
 };
 
@@ -811,6 +820,7 @@ export type DagVersionResponse = {
   bundle_name: string;
   bundle_version: string | null;
   created_at: string;
+  readonly bundle_url: string | null;
 };
 
 /**
@@ -1251,7 +1261,7 @@ export type TaskInstanceResponse = {
   dag_id: string;
   dag_run_id: string;
   map_index: number;
-  logical_date: string;
+  logical_date: string | null;
   start_date: string | null;
   end_date: string | null;
   duration: number | null;
@@ -1418,6 +1428,8 @@ export type TriggerDAGRunPostBody = {
   dag_run_id?: string | null;
   data_interval_start?: string | null;
   data_interval_end?: string | null;
+  logical_date: string | null;
+  run_after?: string;
   conf?: {
     [key: string]: unknown;
   };
@@ -1507,7 +1519,7 @@ export type XComCreateBody = {
 export type XComResponse = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -1520,7 +1532,7 @@ export type XComResponse = {
 export type XComResponseNative = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -1534,7 +1546,7 @@ export type XComResponseNative = {
 export type XComResponseString = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -2420,9 +2432,27 @@ export type ReparseDagFileData = {
 
 export type ReparseDagFileResponse = null;
 
+export type GetDagVersionsData = {
+  bundleName?: string;
+  bundleVersion?: string | null;
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  versionNumber?: number;
+};
+
+export type GetDagVersionsResponse = DAGVersionCollectionResponse;
+
 export type GetHealthResponse = HealthInfoResponse;
 
 export type GetVersionResponse = VersionInfo;
+
+export type LoginData = {
+  next?: string | null;
+};
+
+export type LoginResponse = unknown;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -5068,6 +5098,33 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}/dagVersions": {
+    get: {
+      req: GetDagVersionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGVersionCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/monitor/health": {
     get: {
       res: {
@@ -5085,6 +5142,25 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+      };
+    };
+  };
+  "/public/login": {
+    get: {
+      req: LoginData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Temporary Redirect
+         */
+        307: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

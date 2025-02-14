@@ -2239,6 +2239,11 @@ export const $DAGRunResponse = {
       ],
       title: "Data Interval End",
     },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     last_scheduling_decision: {
       anyOf: [
         {
@@ -2290,6 +2295,7 @@ export const $DAGRunResponse = {
     "end_date",
     "data_interval_start",
     "data_interval_end",
+    "run_after",
     "last_scheduling_decision",
     "run_type",
     "state",
@@ -2544,6 +2550,26 @@ export const $DAGTagCollectionResponse = {
   required: ["tags", "total_entries"],
   title: "DAGTagCollectionResponse",
   description: "DAG Tags Collection serializer for responses.",
+} as const;
+
+export const $DAGVersionCollectionResponse = {
+  properties: {
+    dag_versions: {
+      items: {
+        $ref: "#/components/schemas/DagVersionResponse",
+      },
+      type: "array",
+      title: "Dag Versions",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dag_versions", "total_entries"],
+  title: "DAGVersionCollectionResponse",
+  description: "DAG Version Collection serializer for responses.",
 } as const;
 
 export const $DAGWarningCollectionResponse = {
@@ -3086,9 +3112,21 @@ export const $DagVersionResponse = {
       format: "date-time",
       title: "Created At",
     },
+    bundle_url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Url",
+      readOnly: true,
+    },
   },
   type: "object",
-  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at"],
+  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at", "bundle_url"],
   title: "DagVersionResponse",
   description: "Dag Version serializer for responses.",
 } as const;
@@ -4811,8 +4849,15 @@ export const $TaskInstanceResponse = {
       title: "Map Index",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     start_date: {
@@ -5840,6 +5885,23 @@ export const $TriggerDAGRunPostBody = {
       ],
       title: "Data Interval End",
     },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
+    },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     conf: {
       type: "object",
       title: "Conf",
@@ -5858,6 +5920,7 @@ export const $TriggerDAGRunPostBody = {
   },
   additionalProperties: false,
   type: "object",
+  required: ["logical_date"],
   title: "TriggerDAGRunPostBody",
   description: "Trigger DAG Run Serializer for POST body.",
 } as const;
@@ -6120,8 +6183,15 @@ export const $XComResponse = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {
@@ -6159,8 +6229,15 @@ export const $XComResponseNative = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {
@@ -6201,8 +6278,15 @@ export const $XComResponseString = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {

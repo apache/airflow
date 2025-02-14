@@ -1854,15 +1854,6 @@ webserver:
       type: string
       example: ~
       default: "False"
-    cookie_samesite:
-      description: |
-        Set samesite policy on session cookies.
-        As `recommended <https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE>`_
-        by Flask, the default is set to ``Lax`` and not a empty string.
-      version_added: 1.10.3
-      type: string
-      example: ~
-      default: "Lax"
     default_wrap:
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
@@ -2398,14 +2389,6 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
-    allow_trigger_in_future:
-      description: |
-        Allow externally triggered DagRuns for Execution Dates in the future
-        Only has effect if schedule is set to None in DAG
-      version_added: 1.10.8
-      type: boolean
-      example: ~
-      default: "False"
     trigger_timeout_check_interval:
       description: |
         How often to check for expired trigger requests that have not run yet.

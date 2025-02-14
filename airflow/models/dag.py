@@ -304,8 +304,7 @@ def _convert_max_consecutive_failed_dag_runs(val: int) -> int:
         val = airflow_conf.getint("core", "max_consecutive_failed_dag_runs_per_dag")
     if val < 0:
         raise ValueError(
-            f"Invalid max_consecutive_failed_dag_runs: {val}."
-            f"Requires max_consecutive_failed_dag_runs >= 0"
+            f"Invalid max_consecutive_failed_dag_runs: {val}. Requires max_consecutive_failed_dag_runs >= 0"
         )
     return val
 
@@ -1054,10 +1053,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             tis = tis.where(DagRun.logical_date >= start_date)
         if task_ids is not None:
             tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
-
-        # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
-        if end_date or not self.allow_future_exec_dates:
-            end_date = end_date or timezone.utcnow()
+        if end_date:
             tis = tis.where(DagRun.logical_date <= end_date)
 
         if state:
@@ -1602,6 +1598,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def test(
         self,
+        run_after: datetime | None = None,
         logical_date: datetime | None = None,
         run_conf: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
@@ -1613,6 +1610,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         Execute one single DagRun for a given DAG and logical date.
 
+        :param run_after: the datetime before which to Dag cannot run.
         :param logical_date: logical date for the DAG run
         :param run_conf: configuration to pass to newly created dagrun
         :param conn_file_path: file path to a connection file in either yaml or json
@@ -1652,7 +1650,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             exit_stack.callback(lambda: secrets_backend_list.pop(0))
 
         with exit_stack:
-            logical_date = logical_date or timezone.utcnow()
             self.validate()
             self.log.debug("Clearing existing task instances for logical date %s", logical_date)
             self.clear(
@@ -1663,16 +1660,23 @@ class DAG(TaskSDKDag, LoggingMixin):
             )
             self.log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
-            data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            run_after = timezone.coerce_datetime(run_after) or timezone.coerce_datetime(timezone.utcnow())
+            data_interval = (
+                self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
+            )
             scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
 
             dr: DagRun = _get_or_create_dagrun(
                 dag=scheduler_dag,
-                start_date=logical_date,
+                start_date=logical_date or run_after,
                 logical_date=logical_date,
                 data_interval=data_interval,
-                run_after=data_interval.end,
-                run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+                run_after=run_after,
+                run_id=DagRun.generate_run_id(
+                    run_type=DagRunType.MANUAL,
+                    logical_date=logical_date,
+                    run_after=run_after,
+                ),
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1756,8 +1760,8 @@ class DAG(TaskSDKDag, LoggingMixin):
         self,
         *,
         run_id: str,
-        logical_date: datetime | None,
-        data_interval: tuple[datetime, datetime],
+        logical_date: datetime | None = None,
+        data_interval: tuple[datetime, datetime] | None = None,
         run_after: datetime,
         conf: dict | None = None,
         run_type: DagRunType,
@@ -1782,6 +1786,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         :meta private:
         """
         logical_date = timezone.coerce_datetime(logical_date)
+        # For manual runs where logical_date is None, ensure no data_interval is set.
+        if logical_date is None and data_interval is not None:
+            raise ValueError("data_interval must be None when logical_date is None")
 
         if data_interval and not isinstance(data_interval, DataInterval):
             data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
@@ -2331,11 +2338,11 @@ class DagModel(Base):
                 return None
 
         # this loads all the ADRQ records.... may need to limit num dags
-        by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
+        adrq_by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
         for r in session.scalars(select(AssetDagRunQueue)):
-            by_dag[r.target_dag_id].append(r)
+            adrq_by_dag[r.target_dag_id].append(r)
         dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {}
-        for dag_id, records in by_dag.items():
+        for dag_id, records in adrq_by_dag.items():
             dag_statuses[dag_id] = {AssetUniqueKey.from_asset(x.asset): True for x in records}
         ser_dags = SerializedDagModel.get_latest_serialized_dags(dag_ids=list(dag_statuses), session=session)
 
@@ -2343,14 +2350,15 @@ class DagModel(Base):
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
             if not dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses):
-                del by_dag[dag_id]
+                del adrq_by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
-        asset_triggered_dag_info = {}
-        for dag_id, records in by_dag.items():
+        # TODO: make it more readable (rename it or make it attrs, dataclass or etc.)
+        asset_triggered_dag_info: dict[str, tuple[datetime, datetime]] = {}
+        for dag_id, records in adrq_by_dag.items():
             times = sorted(x.created_at for x in records)
             asset_triggered_dag_info[dag_id] = (times[0], times[-1])
-        del by_dag
+        del adrq_by_dag
         asset_triggered_dag_ids = set(asset_triggered_dag_info.keys())
         if asset_triggered_dag_ids:
             exclusion_list = set(
@@ -2485,8 +2493,8 @@ def _get_or_create_dagrun(
     *,
     dag: DAG,
     run_id: str,
-    logical_date: datetime,
-    data_interval: tuple[datetime, datetime],
+    logical_date: datetime | None,
+    data_interval: tuple[datetime, datetime] | None,
     run_after: datetime,
     conf: dict | None,
     triggered_by: DagRunTriggeredByType,
