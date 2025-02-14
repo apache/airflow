@@ -2528,6 +2528,8 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
             self._inject_openlineage_properties_into_dataproc_batch(context)
 
+        self.__update_batch_labels()
+
         try:
             self.operation = self.hook.create_batch(
                 region=self.region,
@@ -2707,6 +2709,25 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 "Dataproc batch has not been modified by OpenLineage.",
                 exc_info=e,
             )
+
+    def __update_batch_labels(self):
+        dag_id = re.sub(r"[.\s]", "_", self.dag_id.lower())
+        task_id = re.sub(r"[.\s]", "_", self.task_id.lower())
+
+        labels_regex = re.compile(r"^[a-z][\w-]{0,63}$")
+        if not labels_regex.match(dag_id) or not labels_regex.match(task_id):
+            return
+
+        labels_limit = 32
+        automatic_labels = {"airflow-dag": dag_id, "airflow-task": task_id}
+        if isinstance(self.batch, Batch):
+            if len(self.batch.labels) + 2 <= labels_limit:
+                self.batch.labels.update(automatic_labels)
+        elif "labels" not in self.batch:
+            self.batch["labels"] = automatic_labels
+        elif isinstance(self.batch.get("labels"), dict):
+            if len(self.batch["labels"]) + 2 <= labels_limit:
+                self.batch["labels"].update(automatic_labels)
 
 
 class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
