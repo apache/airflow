@@ -319,7 +319,7 @@ class DagRun(Base, LoggingMixin):
 
         :param session: database session
         """
-        return list(self._tih_dag_versions) + list(self._ti_dag_versions)
+        return list(dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions)))
 
     @hybrid_property
     def version_number(self) -> int | None:
