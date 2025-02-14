@@ -75,7 +75,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         )}
         rules={{
           required: "Name is required",
-          validate: (_value) => _value.length <= 256 || "Name can contain a maximum of 250 characters",
+          validate: (_value) => _value.length <= 256 || "Name can contain a maximum of 256 characters",
         }}
       />
 
