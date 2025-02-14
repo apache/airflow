@@ -50,6 +50,7 @@ from airflow.api_fastapi.core_api.services.ui.grid import (
     get_task_group_map,
 )
 from airflow.models import DagRun, TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 
@@ -85,6 +86,8 @@ def grid_data(
     base_query = (
         select(DagRun)
         .join(DagRun.dag_run_note, isouter=True)
+        .options(joinedload(DagRun.task_instances).joinedload(TaskInstance.dag_version))
+        .options(joinedload(DagRun.task_instances_histories).joinedload(TaskInstanceHistory.dag_version))
         .where(DagRun.dag_id == dag.dag_id)
     )
 
@@ -107,7 +110,7 @@ def grid_data(
         limit=limit,
     )
 
-    dag_runs = session.scalars(dag_runs_select_filter)
+    dag_runs = session.scalars(dag_runs_select_filter).unique()
 
     # Check if there are any DAG Runs with given criteria to eliminate unnecessary queries/errors
     if not dag_runs:

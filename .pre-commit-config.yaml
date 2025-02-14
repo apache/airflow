@@ -17,7 +17,7 @@
 ---
 default_stages: [pre-commit, pre-push]
 default_language_version:
-  python: python3
+  python: python3.12
   node: 22.2.0
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/

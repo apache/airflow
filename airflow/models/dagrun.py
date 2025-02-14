@@ -49,7 +49,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import declared_attr, joinedload, object_session, relationship, synonym, validates
+from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
 
@@ -61,7 +61,6 @@ from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
-from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
@@ -89,6 +88,7 @@ if TYPE_CHECKING:
 
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
+    from airflow.models.dag_version import DagVersion
     from airflow.models.operator import Operator
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
@@ -209,6 +209,11 @@ class DagRun(Base, LoggingMixin):
     task_instances = relationship(
         TI, back_populates="dag_run", cascade="save-update, merge, delete, delete-orphan"
     )
+    task_instances_histories = relationship(
+        TIH,
+        primaryjoin="and_(DagRun.dag_id == TaskInstanceHistory.dag_id, DagRun.run_id == TaskInstanceHistory.run_id)",
+        foreign_keys="TaskInstanceHistory.dag_id, TaskInstanceHistory.run_id",
+    )
     dag_model = relationship(
         "DagModel",
         primaryjoin="foreign(DagRun.dag_id) == DagModel.dag_id",
@@ -232,6 +237,8 @@ class DagRun(Base, LoggingMixin):
         "max_dagruns_per_loop_to_schedule",
         fallback=20,
     )
+    _ti_dag_versions = association_proxy("task_instances", "dag_version")
+    _tih_dag_versions = association_proxy("task_instances_histories", "dag_version")
 
     def __init__(
         self,
@@ -301,32 +308,19 @@ class DagRun(Base, LoggingMixin):
             f"The run_id provided '{run_id}' does not match regex pattern '{regex}' or '{RUN_ID_REGEX}'"
         )
 
-    @hybrid_property
+    @property
     def dag_versions(self) -> list[DagVersion]:
         """
         Return the DAG versions associated with the TIs of this DagRun.
 
         :param session: database session
         """
-        select_stmt = (
-            select(DagVersion)
-            .join(TI, DagVersion.id == TI.dag_version_id)
-            .where(TI.dag_id == self.dag_id, TI.run_id == self.run_id)
-            .distinct(DagVersion.id)
-            .union(
-                select(DagVersion)
-                .join(TIH, DagVersion.id == TIH.dag_version_id)
-                .where(TIH.dag_id == self.dag_id, TIH.run_id == self.run_id)
-                .distinct(DagVersion.id)
-            )
-        )
-
-        return object_session(self).execute(select_stmt.order_by(DagVersion.id)).all()
+        return list(self._tih_dag_versions) + list(self._ti_dag_versions)
 
     @hybrid_property
     def version_number(self) -> int | None:
         """
-        Return the DAG version number associated with the latest TIs of this DagRun.
+        Return the DAG version number associated with the latest TI of this DagRun.
 
         :param session: database session
         """
