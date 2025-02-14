@@ -1488,9 +1488,11 @@ class TestBigQueryInsertJobOperator:
             deferrable=True,
         )
 
-        op.execute(MagicMock())
+        result = op.execute(context=MagicMock())
+
         assert not mock_defer.called
         assert "Current state of job" in caplog.text
+        assert result == real_job_id
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator.defer")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
