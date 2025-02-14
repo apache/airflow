@@ -820,6 +820,7 @@ export type DagVersionResponse = {
   bundle_name: string;
   bundle_version: string | null;
   created_at: string;
+  readonly bundle_url: string | null;
 };
 
 /**

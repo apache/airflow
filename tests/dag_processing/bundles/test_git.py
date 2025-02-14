@@ -63,7 +63,6 @@ AIRFLOW_GIT = "git@github.com:apache/airflow.git"
 ACCESS_TOKEN = "my_access_token"
 CONN_DEFAULT = "git_default"
 CONN_HTTPS = "my_git_conn"
-CONN_HTTPS_PASSWORD = "my_git_conn_https_password"
 CONN_ONLY_PATH = "my_git_conn_only_path"
 CONN_ONLY_INLINE_KEY = "my_git_conn_only_inline_key"
 CONN_BOTH_PATH_INLINE = "my_git_conn_both_path_inline"
@@ -95,11 +94,6 @@ class TestGitHook:
         )
         db.merge_conn(
             Connection(
-                conn_id=CONN_HTTPS_PASSWORD, host=AIRFLOW_HTTPS_URL, conn_type="git", password=ACCESS_TOKEN
-            )
-        )
-        db.merge_conn(
-            Connection(
                 conn_id=CONN_ONLY_PATH,
                 host="path/to/repo",
                 conn_type="git",
@@ -117,16 +111,20 @@ class TestGitHook:
         )
 
     @pytest.mark.parametrize(
-        "conn_id, expected_repo_url",
+        "conn_id, hook_kwargs, expected_repo_url",
         [
-            (CONN_DEFAULT, AIRFLOW_GIT),
-            (CONN_HTTPS, f"https://{ACCESS_TOKEN}@github.com/apache/airflow.git"),
-            (CONN_HTTPS_PASSWORD, f"https://{ACCESS_TOKEN}@github.com/apache/airflow.git"),
-            (CONN_ONLY_PATH, "path/to/repo"),
+            (CONN_DEFAULT, {}, AIRFLOW_GIT),
+            (CONN_HTTPS, {}, f"https://{ACCESS_TOKEN}@github.com/apache/airflow.git"),
+            (
+                CONN_HTTPS,
+                {"repo_url": "https://github.com/apache/zzzairflow"},
+                f"https://{ACCESS_TOKEN}@github.com/apache/zzzairflow",
+            ),
+            (CONN_ONLY_PATH, {}, "path/to/repo"),
         ],
     )
-    def test_correct_repo_urls(self, conn_id, expected_repo_url):
-        hook = GitHook(git_conn_id=conn_id)
+    def test_correct_repo_urls(self, conn_id, hook_kwargs, expected_repo_url):
+        hook = GitHook(git_conn_id=conn_id, **hook_kwargs)
         assert hook.repo_url == expected_repo_url
 
     def test_env_var_with_configure_hook_env(self, session):
@@ -216,6 +214,14 @@ class TestGitDagBundle:
         )
         db.merge_conn(
             Connection(
+                conn_id=CONN_HTTPS,
+                host=AIRFLOW_HTTPS_URL,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+            )
+        )
+        db.merge_conn(
+            Connection(
                 conn_id=CONN_NO_REPO_URL,
                 conn_type="git",
             )
@@ -229,19 +235,21 @@ class TestGitDagBundle:
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
         assert str(bundle._dag_bundle_root_storage_path) in str(bundle.path)
 
-    def test_repo_url_overrides_connection_host_when_provided(self, git_repo):
-        repo_path, repo = git_repo
+    def test_repo_url_overrides_connection_host_when_provided(self):
+        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH, repo_url="/some/other/repo")
+        assert bundle.repo_url == "/some/other/repo"
+
+    def test_https_access_token_repo_url_overrides_connection_host_when_provided(self):
         bundle = GitDagBundle(
-            name="test", tracking_ref=GIT_DEFAULT_BRANCH, repo_url="git@myorg.github.com:apache/airflow.git"
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            repo_url="https://github.com/apache/zzzairflow",
         )
-        assert bundle.repo_url != bundle.hook.repo_url
-        assert bundle.repo_url == "git@myorg.github.com:apache/airflow.git"
+        assert bundle.repo_url == f"https://{ACCESS_TOKEN}@github.com/apache/zzzairflow"
 
-    def test_falls_back_to_connection_host_when_no_repo_url_provided(self, git_repo):
-        repo_path, repo = git_repo
+    def test_falls_back_to_connection_host_when_no_repo_url_provided(self):
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
-
-        assert bundle.repo_url
         assert bundle.repo_url == bundle.hook.repo_url
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
