@@ -482,7 +482,7 @@ class TestVaultHook:
             "auth_type": "gcp",
             "gcp_key_path": "path.json",
             "gcp_scopes": "scope1,scope2",
-            "role_id":, "role",
+            "role_id": "role",
         }
 
         mock_connection.extra_dejson.get.side_effect = connection_dict.get
@@ -521,7 +521,7 @@ class TestVaultHook:
             "auth_type": "gcp",
             "gcp_keyfile_dict": '{"key": "value"}',
             "gcp_scopes": "scope1,scope2",
-            "role_id":, "role",
+            "role_id": "role",
         }
 
         mock_connection.extra_dejson.get.side_effect = connection_dict.get
