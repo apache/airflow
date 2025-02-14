@@ -60,14 +60,14 @@ def execute_callable(
     message: str,
 ) -> Any:
     try:
-        return func(value, **context)
+        return func(value, **context)  # type: ignore
     except TypeError:
         warnings.warn(
             message,
             AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
-        return func(context, value)
+        return func(context, value)  # type: ignore
 
 
 class MSGraphAsyncOperator(BaseOperator):
