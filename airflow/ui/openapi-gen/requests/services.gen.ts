@@ -982,14 +982,16 @@ export class GridService {
    * @param data.dagId
    * @param data.includeUpstream
    * @param data.includeDownstream
-   * @param data.logicalDateGte
-   * @param data.logicalDateLte
    * @param data.root
    * @param data.offset
    * @param data.runType
    * @param data.state
    * @param data.limit
    * @param data.orderBy
+   * @param data.runAfterGte
+   * @param data.runAfterLte
+   * @param data.logicalDateGte
+   * @param data.logicalDateLte
    * @returns GridResponse Successful Response
    * @throws ApiError
    */
@@ -1003,14 +1005,16 @@ export class GridService {
       query: {
         include_upstream: data.includeUpstream,
         include_downstream: data.includeDownstream,
-        logical_date_gte: data.logicalDateGte,
-        logical_date_lte: data.logicalDateLte,
         root: data.root,
         offset: data.offset,
         run_type: data.runType,
         state: data.state,
         limit: data.limit,
         order_by: data.orderBy,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
+        logical_date_gte: data.logicalDateGte,
+        logical_date_lte: data.logicalDateLte,
       },
       errors: {
         400: "Bad Request",
@@ -1371,6 +1375,8 @@ export class DagRunService {
    * @param data.dagId
    * @param data.limit
    * @param data.offset
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.startDateGte
@@ -1394,6 +1400,8 @@ export class DagRunService {
       query: {
         limit: data.limit,
         offset: data.offset,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,

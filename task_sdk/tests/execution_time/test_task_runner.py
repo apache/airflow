@@ -73,6 +73,7 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.task_runner import (
     CommsDecoder,
     RuntimeTaskInstance,
+    TaskRunnerMarker,
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
@@ -1500,6 +1501,11 @@ class TestTaskRunnerCallsListeners:
     class CustomListener:
         def __init__(self):
             self.state = []
+            self.component = None
+
+        @hookimpl
+        def on_starting(self, component):
+            self.component = component
 
         @hookimpl
         def on_task_instance_running(self, previous_state, task_instance):
@@ -1513,6 +1519,10 @@ class TestTaskRunnerCallsListeners:
         def on_task_instance_failed(self, previous_state, task_instance):
             self.state.append(TaskInstanceState.FAILED)
 
+        @hookimpl
+        def before_stopping(self, component):
+            self.component = component
+
     @pytest.fixture(autouse=True)
     def clean_listener_manager(self):
         lm = get_listener_manager()
@@ -1520,6 +1530,45 @@ class TestTaskRunnerCallsListeners:
         yield
         lm = get_listener_manager()
         lm.clear()
+
+    def test_task_runner_calls_on_startup_before_stopping(
+        self, make_ti_context, mocked_parse, mock_supervisor_comms
+    ):
+        listener = self.CustomListener()
+        get_listener_manager().add_listener(listener)
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                self.value = "something"
+
+        task = CustomOperator(
+            task_id="test_task_runner_calls_listeners", do_xcom_push=True, multiple_outputs=True
+        )
+        what = StartupDetails(
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="templated_task",
+                dag_id="basic_dag",
+                run_id="c",
+                try_number=1,
+            ),
+            dag_rel_path="",
+            bundle_info=FAKE_BUNDLE,
+            requests_fd=0,
+            ti_context=make_ti_context(),
+            start_date=timezone.utcnow(),
+        )
+
+        mock_supervisor_comms.get_message.return_value = what
+        mocked_parse(what, "basic_dag", task)
+
+        runtime_ti, log = startup()
+        assert isinstance(listener.component, TaskRunnerMarker)
+        del listener.component
+
+        state, _ = run(runtime_ti, log)
+        finalize(runtime_ti, state, log)
+        assert isinstance(listener.component, TaskRunnerMarker)
 
     def test_task_runner_calls_listeners_success(self, mocked_parse, mock_supervisor_comms):
         listener = self.CustomListener()

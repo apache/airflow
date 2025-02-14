@@ -19,6 +19,7 @@ from __future__ import annotations
 import importlib
 
 import pytest
+import time_machine
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.edge.plugins import edge_executor_plugin
@@ -70,3 +71,33 @@ def plugin():
 
 def test_plugin_is_airflow_plugin(plugin):
     assert isinstance(plugin, AirflowPlugin)
+
+
+@pytest.mark.parametrize(
+    "initial_comment, expected_comment",
+    [
+        pytest.param(
+            "comment", "[2020-01-01 00:00] - user updated maintenance mode\nComment: comment", id="no user"
+        ),
+        pytest.param(
+            "[2019-01-01] - another user put node into maintenance mode\nComment:new comment",
+            "[2020-01-01 00:00] - user updated maintenance mode\nComment:new comment",
+            id="first update",
+        ),
+        pytest.param(
+            "[2019-01-01] - another user updated maintenance mode\nComment:new comment",
+            "[2020-01-01 00:00] - user updated maintenance mode\nComment:new comment",
+            id="second update",
+        ),
+        pytest.param(
+            None,
+            "[2020-01-01 00:00] - user updated maintenance mode\nComment:",
+            id="None as input",
+        ),
+    ],
+)
+@time_machine.travel("2020-01-01", tick=False)
+def test_modify_maintenance_comment_on_update(monkeypatch, initial_comment, expected_comment):
+    assert (
+        edge_executor_plugin.modify_maintenance_comment_on_update(initial_comment, "user") == expected_comment
+    )

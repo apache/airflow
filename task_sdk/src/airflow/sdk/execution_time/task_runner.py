@@ -81,6 +81,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
 
+class TaskRunnerMarker:
+    """Marker for listener hooks, to properly detect from which component they are called."""
+
+
 # TODO: Move this entire class into a separate file:
 #  `airflow/sdk/execution_time/task_instance.py`
 #   or `airflow/sdk/execution_time/runtime_ti.py`
@@ -474,6 +478,8 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 def startup() -> tuple[RuntimeTaskInstance, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
 
+    get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+
     if isinstance(msg, StartupDetails):
         from setproctitle import setproctitle
 
@@ -765,6 +771,8 @@ def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
             previous_state=TaskInstanceState.RUNNING, task_instance=ti
         )
         # TODO: Run task failure callbacks here
+
+    get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
 
 
 def main():

@@ -2418,6 +2418,30 @@ export const $DAGRunsBatchBody = {
       ],
       title: "States",
     },
+    run_after_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Gte",
+    },
+    run_after_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Lte",
+    },
     logical_date_gte: {
       anyOf: [
         {
@@ -3448,11 +3472,28 @@ export const $GridDAGRunwithTIs = {
       ],
       title: "End Date",
     },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     state: {
       $ref: "#/components/schemas/DagRunState",
     },
     run_type: {
       $ref: "#/components/schemas/DagRunType",
+    },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
     },
     data_interval_start: {
       anyOf: [
@@ -3514,8 +3555,10 @@ export const $GridDAGRunwithTIs = {
     "queued_at",
     "start_date",
     "end_date",
+    "run_after",
     "state",
     "run_type",
+    "logical_date",
     "data_interval_start",
     "data_interval_end",
     "version_number",

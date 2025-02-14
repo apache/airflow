@@ -2377,7 +2377,7 @@ class TestDagModel:
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag
-    def test_dags_needing_dagruns_asset_triggered_dag_info_queued_times(self, session, dag_maker):
+    def test_dags_needing_dagruns_triggered_date_by_dag_queued_times(self, session, dag_maker):
         asset1 = Asset(uri="test://asset1", group="test-group")
         asset2 = Asset(uri="test://asset2", name="test_asset_2", group="test-group")
 
@@ -2417,11 +2417,10 @@ class TestDagModel:
         )
         session.flush()
 
-        query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
-        assert len(asset_triggered_dag_info) == 1
-        assert dag.dag_id in asset_triggered_dag_info
-        first_queued_time, last_queued_time = asset_triggered_dag_info[dag.dag_id]
-        assert first_queued_time == DEFAULT_DATE
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert len(triggered_date_by_dag) == 1
+        assert dag.dag_id in triggered_date_by_dag
+        last_queued_time = triggered_date_by_dag[dag.dag_id]
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
     def test_asset_expression(self, testing_dag_bundle, session: Session) -> None:
