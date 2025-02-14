@@ -280,8 +280,8 @@ class TestKiotaRequestAdapterHook:
         )
 
         with patch(
-                "airflow.hooks.base.BaseHook.get_connection",
-                side_effect=connection,
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=connection,
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             request_info = hook.request_information(url="myorg/admin/apps", query_parameters={"$top": 5000})
