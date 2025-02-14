@@ -53,6 +53,7 @@ from airflow.utils import timezone
 from airflow.utils.context import context_get_outlet_events
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_helpers import ExecutionCallableRunner
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_instance_session import get_current_task_instance_session
 
 if TYPE_CHECKING:
@@ -127,6 +128,7 @@ class TaskExecutor(LoggingMixin):
         if self.task_instance.try_number == 0:
             self.operator.render_template_fields(context=self.context)
             self.operator.pre_execute(context=self.context)
+            self.task_instance.set_state(TaskInstanceState.RUNNING)
             self.task_instance._run_execute_callback(context=self.context, task=self.operator)
         return self
 
@@ -148,10 +150,12 @@ class TaskExecutor(LoggingMixin):
 
                 self.task_instance.try_number += 1
                 self.task_instance.end_date = timezone.utcnow()
+                self.task_instance.set_state(TaskInstanceState.FAILED)
 
                 raise AirflowRescheduleTaskInstanceException(task=self.task_instance)
             raise exc_value
         self.operator.post_execute(context=self.context)
+        self.task_instance.set_state(TaskInstanceState.SUCCESS)
         if self.log.isEnabledFor(logging.INFO):
             self.log.info(
                 "Task instance %s for %s finished successfully in %s attempts in %s mode.",
