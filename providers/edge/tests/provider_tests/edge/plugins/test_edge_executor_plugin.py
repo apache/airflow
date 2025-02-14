@@ -23,6 +23,8 @@ import pytest
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.edge.plugins import edge_executor_plugin
 
+from datetime import datetime
+
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -70,3 +72,30 @@ def plugin():
 
 def test_plugin_is_airflow_plugin(plugin):
     assert isinstance(plugin, AirflowPlugin)
+
+@pytest.mark.parametrize(
+        "initial_comment, expected_comment",
+        [
+            pytest.param("comment", "[2030] - user updated maintenance mode\nComment: comment", id="no user"),
+            pytest.param("[2010] - another user put node into maintenance mode\nComment:new comment", "[2030] - user updated maintenance mode\nComment:new comment", id="first update"),
+            pytest.param("[2010] - another user updated maintenance mode\nComment:new comment", "[2030] - user updated maintenance mode\nComment:new comment", id="second update"),
+        ],
+    )
+def test_modify_maintenance_comment_on_update(monkeypatch, initial_comment, expected_comment):
+    
+    class CurrentTime:
+        def __init__(self):
+            pass
+        def strftime(self, *args, **kwargs):
+            return 2030
+
+
+    class MockDateTime(datetime):
+        """Mock for datetime.datetime.now()."""
+
+        @classmethod
+        def now(cls, *_):
+            return CurrentTime()
+
+    monkeypatch.setattr("airflow.providers.edge.plugins.edge_executor_plugin.datetime", MockDateTime)
+    assert edge_executor_plugin.modify_maintenance_comment_on_update(initial_comment, "user") == expected_comment

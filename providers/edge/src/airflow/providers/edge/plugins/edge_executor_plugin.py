@@ -74,6 +74,26 @@ def _get_api_endpoint() -> dict[str, Any]:
         "name": "Airflow Edge Worker API",
     }
 
+def modify_maintenance_comment_on_update(maintenance_comment, username):
+    if maintenance_comment:
+        if re.search(
+            r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:.*", maintenance_comment
+        ):
+            return re.sub(
+                r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:",
+                f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:',
+                maintenance_comment,
+            )
+        elif re.search(
+            r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:.*", maintenance_comment
+        ):
+            return re.sub(
+                r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:",
+                f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:',
+                maintenance_comment,
+            )
+        return f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment: {maintenance_comment}'
+
 
 # registers airflow/providers/edge/plugins/templates as a Jinja template folder
 template_bp = Blueprint(
@@ -152,26 +172,7 @@ class EdgeWorkerHosts(BaseView):
         from airflow.providers.edge.models.edge_worker import change_maintenance_comment
 
         maintenance_comment = request.form.get("maintenance_comment")
-        if maintenance_comment:
-            if re.search(
-                r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:.*", maintenance_comment
-            ):
-                maintenance_comment = re.sub(
-                    r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:",
-                    f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username} updated maintenance mode\nComment:',
-                    maintenance_comment,
-                )
-            elif re.search(
-                r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:.*", maintenance_comment
-            ):
-                maintenance_comment = re.sub(
-                    r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:",
-                    f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username} updated maintenance mode\nComment:',
-                    maintenance_comment,
-                )
-            else:
-                maintenance_comment = f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username} updated maintenance mode\nComment: {maintenance_comment}'
-
+        maintenance_comment = modify_maintenance_comment_on_update(maintenance_comment, current_user.username)
         change_maintenance_comment(worker_name, maintenance_comment)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
