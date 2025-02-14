@@ -33,7 +33,6 @@ import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { Accordion } from "../ui";
 import { useParamStore } from "./useParamStore";
-import { validateAndPrettifyJson } from "./validateAndPrettyfyJSON";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
@@ -72,6 +71,31 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
 
   const onSubmit = (data: DagRunTriggerParams) => {
     triggerDagRun(data);
+  };
+
+  const validateAndPrettifyJson = (value: string) => {
+    try {
+      const parsedJson = JSON.parse(value) as JSON;
+
+      setErrors((prev) => ({ ...prev, conf: undefined }));
+
+      const formattedJson = JSON.stringify(parsedJson, undefined, 2);
+
+      if (formattedJson !== conf) {
+        setConf(formattedJson); // Update only if the value is different
+      }
+
+      return formattedJson;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
+
+      setErrors((prev) => ({
+        ...prev,
+        conf: `Invalid JSON format: ${errorMessage}`,
+      }));
+
+      return value;
+    }
   };
 
   const resetDateError = () => {
@@ -147,7 +171,7 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                       extensions={[json()]}
                       height="200px"
                       onBlur={() => {
-                        field.onChange(validateAndPrettifyJson(field.value, conf, setConf, setErrors));
+                        field.onChange(validateAndPrettifyJson(field.value));
                       }}
                       style={{
                         border: "1px solid var(--chakra-colors-border)",
