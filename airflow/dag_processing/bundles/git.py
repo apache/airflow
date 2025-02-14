@@ -68,10 +68,12 @@ class GitHook(BaseHook):
             },
         }
 
-    def __init__(self, git_conn_id="git_default", *args, **kwargs):
+    def __init__(
+        self, git_conn_id: str = "git_default", repo_url: str | None = None, *args, **kwargs
+    ) -> None:
         super().__init__()
         connection = self.get_connection(git_conn_id)
-        self.repo_url = connection.host
+        self.repo_url = repo_url or connection.host
         self.auth_token = connection.password
         self.private_key = connection.extra_dejson.get("private_key")
         self.key_file = connection.extra_dejson.get("key_file")
@@ -148,8 +150,8 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
         try:
-            self.hook = GitHook(git_conn_id=self.git_conn_id)
-            self.repo_url = self.repo_url or self.hook.repo_url
+            self.hook = GitHook(git_conn_id=self.git_conn_id, repo_url=self.repo_url)
+            self.repo_url = self.hook.repo_url
         except AirflowException as e:
             self.log.warning("Could not create GitHook for connection %s : %s", self.git_conn_id, e)
 
