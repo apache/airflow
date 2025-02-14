@@ -987,7 +987,7 @@ class GCSHook(GoogleBaseHook):
                 break
         return ids
 
-    def _get_blob(self, bucket_name: str, object_name: str, user_project: str | None = None) -> Blob:
+    def _get_blob(self, bucket_name: str, object_name: str) -> Blob:
         """
         Get a blob object in Google Cloud Storage.
 
@@ -997,7 +997,7 @@ class GCSHook(GoogleBaseHook):
 
         """
         client = self.get_conn()
-        bucket = client.bucket(bucket_name, user_project=user_project)
+        bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)
 
         if blob is None:
