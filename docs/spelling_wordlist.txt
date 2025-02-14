@@ -1102,6 +1102,7 @@ muldelete
 Multinamespace
 mutex
 mv
+mwaa
 mypy
 Mysql
 mysql

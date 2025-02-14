@@ -40,9 +40,6 @@ from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_CLUSTER_LINK_DEPRECATED,
     DATAPROC_JOB_LINK_DEPRECATED,
-    DataprocClusterLink,
-    DataprocJobLink,
-    DataprocWorkflowLink,
 )
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
@@ -55,7 +52,6 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocGetBatchOperator,
     DataprocInstantiateInlineWorkflowTemplateOperator,
     DataprocInstantiateWorkflowTemplateOperator,
-    DataprocLink,
     DataprocListBatchesOperator,
     DataprocScaleClusterOperator,
     DataprocStartClusterOperator,
@@ -1126,29 +1122,21 @@ def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     )
 
     serialized_dag = dag_maker.get_serialized_data()
-    deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-    deserialized_task = deserialized_dag.task_dict[TASK_ID]
     # Assert operator links for serialized DAG
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Cluster"
 
-    # Assert operator link types are preserved during deserialization
-    assert isinstance(deserialized_task.operator_extra_links[0], DataprocClusterLink)
-
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.get_extra_links(ti, DataprocClusterLink.name) == ""
-
-    # Assert operator link is empty for deserialized task when no XCom push occurred
-    assert deserialized_task.get_extra_links(ti, DataprocClusterLink.name) == ""
+    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
-    # Assert operator links are preserved in deserialized tasks after execution
-    assert deserialized_task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
-
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+    assert (
+        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+        == DATAPROC_CLUSTER_LINK_EXPECTED
+    )
 
 
 class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
@@ -1237,33 +1225,25 @@ def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_o
     )
 
     serialized_dag = dag_maker.get_serialized_data()
-    deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-    deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized DAG
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc resource"
 
-    # Assert operator link types are preserved during deserialization
-    assert isinstance(deserialized_task.operator_extra_links[0], DataprocLink)
-
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.get_extra_links(ti, DataprocLink.name) == ""
-
-    # Assert operator link is empty for deserialized task when no XCom push occurred
-    assert deserialized_task.get_extra_links(ti, DataprocLink.name) == ""
+    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(
         key="conf",
         value=DATAPROC_CLUSTER_CONF_EXPECTED,
     )
 
-    # Assert operator links are preserved in deserialized tasks after execution
-    assert deserialized_task.get_extra_links(ti, DataprocLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
-
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+    assert (
+        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+        == DATAPROC_CLUSTER_LINK_EXPECTED
+    )
 
 
 class TestDataprocClusterDeleteOperator:
@@ -2108,30 +2088,22 @@ def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_insta
     )
 
     serialized_dag = dag_maker.get_serialized_data()
-    deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-    deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized DAG
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Job"
 
-    # Assert operator link types are preserved during deserialization
-    assert isinstance(deserialized_task.operator_extra_links[0], DataprocJobLink)
-
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.get_extra_links(ti, DataprocJobLink.name) == ""
-
-    # Assert operator link is empty for deserialized task when no XCom push occurred
-    assert deserialized_task.get_extra_links(ti, DataprocJobLink.name) == ""
+    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
-    # Assert operator links are preserved in deserialized tasks
-    assert deserialized_task.get_extra_links(ti, DataprocJobLink.name) == DATAPROC_JOB_LINK_EXPECTED
-
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocJobLink.name) == DATAPROC_JOB_LINK_EXPECTED
+    assert (
+        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+        == DATAPROC_JOB_LINK_EXPECTED
+    )
 
 
 class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
@@ -2318,30 +2290,22 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     )
 
     serialized_dag = dag_maker.get_serialized_data()
-    deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-    deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized DAG
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Cluster"
 
-    # Assert operator link types are preserved during deserialization
-    assert isinstance(deserialized_task.operator_extra_links[0], DataprocClusterLink)
-
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.get_extra_links(ti, DataprocClusterLink.name) == ""
-
-    # Assert operator link is empty for deserialized task when no XCom push occurred
-    assert deserialized_task.get_extra_links(ti, DataprocClusterLink.name) == ""
+    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
-    # Assert operator links are preserved in deserialized tasks
-    assert deserialized_task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
-
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
+    assert (
+        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+        == DATAPROC_CLUSTER_LINK_EXPECTED
+    )
 
 
 class TestDataprocStartClusterOperator(DataprocClusterTestBase):
@@ -2539,30 +2503,22 @@ def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_
         gcp_conn_id=GCP_CONN_ID,
     )
     serialized_dag = dag_maker.get_serialized_data()
-    deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-    deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized DAG
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
 
-    # Assert operator link types are preserved during deserialization
-    assert isinstance(deserialized_task.operator_extra_links[0], DataprocWorkflowLink)
-
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.get_extra_links(ti, DataprocWorkflowLink.name) == ""
-
-    # Assert operator link is empty for deserialized task when no XCom push occurred
-    assert deserialized_task.get_extra_links(ti, DataprocWorkflowLink.name) == ""
+    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
 
-    # Assert operator links are preserved in deserialized tasks
-    assert deserialized_task.get_extra_links(ti, DataprocWorkflowLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
-
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocWorkflowLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
+    assert (
+        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+        == DATAPROC_WORKFLOW_LINK_EXPECTED
+    )
 
 
 class TestDataprocWorkflowTemplateInstantiateInlineOperator:
@@ -3211,30 +3167,22 @@ def test_instantiate_inline_workflow_operator_extra_links(
         gcp_conn_id=GCP_CONN_ID,
     )
     serialized_dag = dag_maker.get_serialized_data()
-    deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-    deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized DAG
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
 
-    # Assert operator link types are preserved during deserialization
-    assert isinstance(deserialized_task.operator_extra_links[0], DataprocWorkflowLink)
-
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.get_extra_links(ti, DataprocWorkflowLink.name) == ""
-
-    # Assert operator link is empty for deserialized task when no XCom push occurred
-    assert deserialized_task.get_extra_links(ti, DataprocWorkflowLink.name) == ""
+    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
 
-    # Assert operator links are preserved in deserialized tasks
-    assert deserialized_task.get_extra_links(ti, DataprocWorkflowLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
-
     # Assert operator links after execution
-    assert ti.task.get_extra_links(ti, DataprocWorkflowLink.name) == DATAPROC_WORKFLOW_LINK_EXPECTED
+    assert (
+        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+        == DATAPROC_WORKFLOW_LINK_EXPECTED
+    )
 
 
 class TestDataprocCreateWorkflowTemplateOperator:

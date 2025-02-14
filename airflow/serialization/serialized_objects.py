@@ -40,13 +40,14 @@ from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperatorlink import BaseOperatorLink, XComOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
     EXPAND_INPUT_EMPTY,
     create_expand_input,
 )
-from airflow.models.taskinstance import SimpleTaskInstance
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
@@ -96,12 +97,12 @@ if TYPE_CHECKING:
     from inspect import Parameter
 
     from airflow.models import DagRun
-    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.sdk.types import Operator
     from airflow.serialization.json_schema import Validator
     from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+    from airflow.triggers.base import BaseEventTrigger
 
     HAS_KUBERNETES: bool
     try:
@@ -259,7 +260,7 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
                 "trigger": _encode_trigger(watcher.trigger),
             }
 
-        def _encode_trigger(trigger: BaseTrigger | dict):
+        def _encode_trigger(trigger: BaseEventTrigger | dict):
             if isinstance(trigger, dict):
                 return trigger
             classpath, kwargs = trigger.serialize()
@@ -1166,6 +1167,58 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         self.template_fields = BaseOperator.template_fields
         self.operator_extra_links = BaseOperator.operator_extra_links
 
+    @cached_property
+    def operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:
+        """Returns dictionary of all extra links for the operator."""
+        op_extra_links_from_plugin: dict[str, Any] = {}
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        for ope in plugins_manager.operator_extra_links:
+            if ope.operators and self.operator_class in ope.operators:
+                op_extra_links_from_plugin.update({ope.name: ope})
+
+        operator_extra_links_all = {link.name: link for link in self.operator_extra_links}
+        # Extra links defined in Plugins overrides operator links defined in operator
+        operator_extra_links_all.update(op_extra_links_from_plugin)
+
+        return operator_extra_links_all
+
+    @cached_property
+    def global_operator_extra_link_dict(self) -> dict[str, Any]:
+        """Returns dictionary of all global extra links."""
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_extra_operators_links_plugins()
+        if plugins_manager.global_operator_extra_links is None:
+            raise AirflowException("Can't load operators")
+        return {link.name: link for link in plugins_manager.global_operator_extra_links}
+
+    @cached_property
+    def extra_links(self) -> list[str]:
+        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
+
+    def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
+        """
+        For an operator, gets the URLs that the ``extra_links`` entry points to.
+
+        :meta private:
+
+        :raise ValueError: The error message of a ValueError will be passed on through to
+            the fronted to show up as a tooltip on the disabled link.
+        :param ti: The TaskInstance for the URL being searched for.
+        :param link_name: The name of the link we're looking for the URL for. Should be
+            one of the options specified in ``extra_links``.
+        """
+        link = self.operator_extra_link_dict.get(link_name)
+        if not link:
+            link = self.global_operator_extra_link_dict.get(link_name)
+            if not link:
+                return None
+        return link.get_link(self.unmap(None), ti_key=ti.key)
+
     @property
     def task_type(self) -> str:
         # Overwrites task_type of BaseOperator to use _task_type instead of
@@ -1503,7 +1556,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return super()._is_excluded(var, attrname, op)
 
     @classmethod
-    def _deserialize_operator_extra_links(cls, encoded_op_links: list) -> dict[str, BaseOperatorLink]:
+    def _deserialize_operator_extra_links(
+        cls, encoded_op_links: dict[str, str]
+    ) -> dict[str, XComOperatorLink]:
         """
         Deserialize Operator Links if the Classes are registered in Airflow Plugins.
 
@@ -1520,77 +1575,40 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             raise AirflowException("Can't load plugins")
         op_predefined_extra_links = {}
 
-        for _operator_links_source in encoded_op_links:
-            # Get the key, value pair as Tuple where key is OperatorLink ClassName
-            # and value is the dictionary containing the arguments passed to the OperatorLink
+        for name, xcom_key in encoded_op_links.items():
+            # Get the name and xcom_key of the encoded operator and use it to create a XComOperatorLink object
+            # during deserialization.
             #
-            # Example of a single iteration:
-            #
-            #   _operator_links_source =
-            #   {
-            #       'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink': {
-            #           'index': 0
-            #       }
-            #   },
-            #
-            #   list(_operator_links_source.items()) =
-            #   [
-            #       (
-            #           'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
-            #           {'index': 0}
-            #       )
-            #   ]
-            #
-            #   list(_operator_links_source.items())[0] =
-            #   (
-            #       'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink',
-            #       {
-            #           'index': 0
-            #       }
-            #   )
+            # Example:
+            # enc_operator['_operator_extra_links'] =
+            # {
+            #     'airflow': 'airflow_link_key',
+            #     'foo-bar': 'link-key',
+            #     'no_response': 'key',
+            #     'raise_error': 'key'
+            # }
 
-            _operator_link_class_path, data = next(iter(_operator_links_source.items()))
-            if _operator_link_class_path in get_operator_extra_links():
-                single_op_link_class = import_string(_operator_link_class_path)
-            elif _operator_link_class_path in plugins_manager.registered_operator_link_classes:
-                single_op_link_class = plugins_manager.registered_operator_link_classes[
-                    _operator_link_class_path
-                ]
-            else:
-                log.error("Operator Link class %r not registered", _operator_link_class_path)
-                return {}
-
-            op_link_parameters = {param: cls.deserialize(value) for param, value in data.items()}
-            op_predefined_extra_link: BaseOperatorLink = single_op_link_class(**op_link_parameters)
-
+            op_predefined_extra_link = XComOperatorLink(name=name, xcom_key=xcom_key)
             op_predefined_extra_links.update({op_predefined_extra_link.name: op_predefined_extra_link})
 
         return op_predefined_extra_links
 
     @classmethod
-    def _serialize_operator_extra_links(cls, operator_extra_links: Iterable[BaseOperatorLink]):
+    def _serialize_operator_extra_links(
+        cls, operator_extra_links: Iterable[BaseOperatorLink]
+    ) -> dict[str, str]:
         """
         Serialize Operator Links.
 
-        Store the import path of the OperatorLink and the arguments passed to it.
+        Store the "name" of the link mapped with the xcom_key which can be later used to retrieve this
+        operator extra link from XComs.
         For example:
-        ``[{'airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink': {}}]``
+        ``{'link-name-1': 'xcom-key-1'}``
 
         :param operator_extra_links: Operator Link
         :return: Serialized Operator Link
         """
-        serialize_operator_extra_links = []
-        for operator_extra_link in operator_extra_links:
-            op_link_arguments = {
-                param: cls.serialize(value) for param, value in attrs.asdict(operator_extra_link).items()
-            }
-
-            module_path = (
-                f"{operator_extra_link.__class__.__module__}.{operator_extra_link.__class__.__name__}"
-            )
-            serialize_operator_extra_links.append({module_path: op_link_arguments})
-
-        return serialize_operator_extra_links
+        return {link.name: link.xcom_key for link in operator_extra_links}
 
     @classmethod
     def serialize(cls, var: Any, *, strict: bool = False) -> Any:
