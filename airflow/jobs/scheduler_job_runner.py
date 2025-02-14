@@ -283,7 +283,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         executable_tis: list[TI] = []
 
-        if session.get_bind().dialect.bundle_name == "postgresql":
+        if session.get_bind().dialect.name == "postgresql":
             # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
             # timeout", try to take out a transactional advisory lock (unlocks automatically on
             # COMMIT/ROLLBACK)
@@ -391,8 +391,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if TYPE_CHECKING:
                     # All executors should have a name if they are initted from the executor_loader.
                     # But we need to check for None to make mypy happy.
-                    assert executor.bundle_name
-                executor_slots_available[executor.bundle_name] = executor.slots_available
+                    assert executor.name
+                executor_slots_available[executor.name] = executor.slots_available
 
             for task_instance in task_instances_to_examine:
                 pool_name = task_instance.pool
@@ -2216,7 +2216,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return self.job.executor
 
         for e in self.job.executors:
-            if e.bundle_name.alias == executor_name or e.bundle_name.module_path == executor_name:
+            if e.name.alias == executor_name or e.name.module_path == executor_name:
                 return e
 
         # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
