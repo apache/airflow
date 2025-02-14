@@ -123,15 +123,21 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 control={control}
                 name="logicalDate"
                 render={({ field }) => (
-                  <Field.Root invalid={Boolean(errors.date)}>
-                    <Field.Label fontSize="md">Logical Date</Field.Label>
-                    <Input
-                      {...field}
-                      onBlur={resetDateError}
-                      placeholder="yyyy-mm-ddThh:mm"
-                      size="sm"
-                      type="datetime-local"
-                    />
+                  <Field.Root invalid={Boolean(errors.date)} orientation="horizontal">
+                    <Stack>
+                      <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                        Logical Date
+                      </Field.Label>
+                    </Stack>
+                    <Stack css={{ flexBasis: "70%" }}>
+                      <Input
+                        {...field}
+                        onBlur={resetDateError}
+                        placeholder="yyyy-mm-ddThh:mm"
+                        size="sm"
+                        type="datetime-local"
+                      />
+                    </Stack>
                   </Field.Root>
                 )}
               />
