@@ -492,6 +492,18 @@ class HttpAsyncHook(BaseHook):
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
 
+    def _generate_base_url(self, conn: Connection) -> str:
+        if conn.host and "://" in conn.host:
+            base_url: str = conn.host
+        else:
+            # schema defaults to HTTP
+            schema = conn.schema if conn.schema else "http"
+            host = conn.host if conn.host else ""
+            base_url = f"{schema}://{host}"
+        if conn.port:
+            base_url = f"{base_url}:{conn.port}"
+        return base_url
+
     async def run(
         self,
         session: aiohttp.ClientSession,
@@ -521,17 +533,7 @@ class HttpAsyncHook(BaseHook):
 
         if self.http_conn_id:
             conn = await sync_to_async(self.get_connection)(self.http_conn_id)
-
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
-            else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
-                self.base_url = schema + "://" + host
-
-            if conn.port:
-                self.base_url += f":{conn.port}"
+            self.base_url = self._generate_base_url(conn=conn)
             if conn.login:
                 auth = _extract_auth(conn, self.auth_type)
             if conn.extra:
