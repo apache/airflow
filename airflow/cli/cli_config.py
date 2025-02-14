@@ -1943,7 +1943,7 @@ core_commands: list[CLICommand] = [
         args=(
             ARG_PID,
             ARG_DAEMON,
-            ARG_SUBDIR,
+            ARG_BUNDLE_NAME,
             ARG_NUM_RUNS,
             ARG_STDOUT,
             ARG_STDERR,

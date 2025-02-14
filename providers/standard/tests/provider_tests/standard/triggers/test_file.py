@@ -20,7 +20,8 @@ import asyncio
 
 import pytest
 
-from airflow.providers.standard.triggers.file import FileTrigger
+from airflow.providers.standard.triggers.file import FileDeleteTrigger, FileTrigger
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 class TestFileTrigger:
@@ -59,6 +60,47 @@ class TestFileTrigger:
 
         await asyncio.sleep(0.5)
         assert task.done() is True
+
+        # Prevents error when task is destroyed while in "pending" state
+        asyncio.get_event_loop().stop()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Skip on Airflow < 3.0")
+class TestFileDeleteTrigger:
+    FILE_PATH = "/files/dags/example_async_file.py"
+
+    def test_serialization(self):
+        """Asserts that the trigger correctly serializes its arguments and classpath."""
+        trigger = FileDeleteTrigger(filepath=self.FILE_PATH, poll_interval=5)
+        classpath, kwargs = trigger.serialize()
+        assert classpath == "airflow.providers.standard.triggers.file.FileDeleteTrigger"
+        assert kwargs == {
+            "filepath": self.FILE_PATH,
+            "poke_interval": 5,
+        }
+
+    @pytest.mark.asyncio
+    async def test_file_delete_trigger(self, tmp_path):
+        """Asserts that the trigger goes off on or after file is found and that the files gets deleted."""
+        tmp_dir = tmp_path / "test_dir"
+        tmp_dir.mkdir()
+        p = tmp_dir / "hello.txt"
+
+        trigger = FileDeleteTrigger(
+            filepath=str(p.resolve()),
+            poke_interval=0.2,
+        )
+
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        # It should not have produced a result
+        assert task.done() is False
+
+        p.touch()
+
+        await asyncio.sleep(0.5)
+        assert p.exists() is False
 
         # Prevents error when task is destroyed while in "pending" state
         asyncio.get_event_loop().stop()

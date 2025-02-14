@@ -21,7 +21,7 @@ import datetime
 import json
 import time
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
@@ -73,29 +73,20 @@ class TriggerDagRunLink(BaseOperatorLink):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
-        from airflow.models.taskinstance import TaskInstance
 
-        ti = TaskInstance.get_task_instance(
-            dag_id=ti_key.dag_id, run_id=ti_key.run_id, task_id=ti_key.task_id, map_index=ti_key.map_index
-        )
         if TYPE_CHECKING:
-            assert ti is not None
+            assert isinstance(operator, TriggerDagRunOperator)
 
-        template_fields = RenderedTaskInstanceFields.get_templated_fields(ti)
-        untemplated_trigger_dag_id = cast(TriggerDagRunOperator, operator).trigger_dag_id
-        if template_fields:
-            trigger_dag_id = template_fields.get("trigger_dag_id", untemplated_trigger_dag_id)
+        if template_fields := RenderedTaskInstanceFields.get_templated_fields(ti_key):
+            trigger_dag_id: str = template_fields.get("trigger_dag_id", operator.trigger_dag_id)
         else:
-            trigger_dag_id = untemplated_trigger_dag_id
+            trigger_dag_id = operator.trigger_dag_id
 
         # Fetch the correct dag_run_id for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
 
-        query = {
-            "dag_id": trigger_dag_id,
-            "dag_run_id": triggered_dag_run_id,
-        }
+        query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
         return build_airflow_url_with_query(query)
 
 
@@ -201,7 +192,11 @@ class TriggerDagRunOperator(BaseOperator):
         if self.trigger_run_id:
             run_id = str(self.trigger_run_id)
         else:
-            run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_logical_date)
+            run_id = DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL,
+                logical_date=parsed_logical_date,
+                run_after=parsed_logical_date,
+            )
 
         try:
             dag_run = trigger_dag(

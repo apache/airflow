@@ -100,10 +100,14 @@ class TestDagRunOperator:
             )
             .one()
         )
+
         with mock.patch(
             "airflow.providers.standard.operators.trigger_dagrun.build_airflow_url_with_query"
         ) as mock_build_url:
-            triggering_task.get_extra_links(triggering_ti, "Triggered DAG")
+            # This is equivalent of a task run calling this and pushing to xcom
+            triggering_task.operator_extra_links[0].get_link(
+                operator=triggering_task, ti_key=triggering_ti.key
+            )
         assert mock_build_url.called
         args, _ = mock_build_url.call_args
         expected_args = {
@@ -125,7 +129,9 @@ class TestDagRunOperator:
 
         dagrun = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
         assert dagrun.external_trigger
-        assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.logical_date)
+        assert dagrun.run_id == DagRun.generate_run_id(
+            run_type=DagRunType.MANUAL, logical_date=dagrun.logical_date, run_after=dagrun.logical_date
+        )
         self.assert_extra_link(dagrun, task, dag_maker.session)
 
     def test_trigger_dagrun_custom_run_id(self, dag_maker):
@@ -167,7 +173,9 @@ class TestDagRunOperator:
             dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
             assert dagrun.external_trigger
             assert dagrun.logical_date == custom_logical_date
-            assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, custom_logical_date)
+            assert dagrun.run_id == DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, logical_date=custom_logical_date, run_after=custom_logical_date
+            )
             self.assert_extra_link(dagrun, task, session)
 
     def test_trigger_dagrun_twice(self, dag_maker):

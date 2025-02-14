@@ -890,7 +890,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "dnspython>=1.13.0",
-      "pymongo>=4.0.0,!=4.11"
+      "pymongo>=4.0.0,!=4.11,!=4.11.1"
     ],
     "devel-deps": [
       "mongomock>=4.0.0"
@@ -974,7 +974,8 @@
       "apache-airflow>=2.9.0",
       "attrs>=22.2",
       "openlineage-integration-common>=1.24.2",
-      "openlineage-python>=1.24.2"
+      "openlineage-python>=1.24.2",
+      "uuid6>=2024.7.10"
     ],
     "devel-deps": [],
     "plugins": [

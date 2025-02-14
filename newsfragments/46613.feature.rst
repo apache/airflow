@@ -1,0 +1,1 @@
+Operator Links interface changed to not run user code in Airflow Webserver The Operator Extra links, which can be defined either via plugins or custom operators now do not execute any user code in the Airflow Webserver, but instead push the "full" links to XCom backend and the value is again fetched from the XCom backend when viewing task details in grid view.
