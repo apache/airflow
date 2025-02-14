@@ -33,6 +33,7 @@ const tabs = [
   { icon: <LuChartColumn />, label: "Overview", value: "" },
   { icon: <FiBarChart />, label: "Runs", value: "runs" },
   { icon: <TaskIcon />, label: "Tasks", value: "tasks" },
+  { label: "Backfills", value: "backfills" },
   { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
   { icon: <FiCode />, label: "Code", value: "code" },
 ];
