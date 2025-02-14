@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+0.16.0pre0
+..........
+
+Misc
+~~~~
+
+* ``User who entered the maintenance mode is moved to the start of the comment.``
+
+
 0.15.0pre0
 ..........
 
