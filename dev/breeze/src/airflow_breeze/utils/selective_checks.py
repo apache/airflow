@@ -264,6 +264,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.UNIT_TEST_FILES: [
             r"^tests/",
             r"^task_sdk/tests/",
+            r"^providers/.*/tests/",
         ],
     }
 )
