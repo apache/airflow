@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
 def create_app(apps: str = "all") -> FastAPI:
     apps_list = apps.split(",") if apps else ["all"]
 
-    fastapi_base_url = conf.get("fastapi", "BASE_URL")
+    fastapi_base_url = conf.get("fastapi", "base_url")
     if fastapi_base_url.endswith("/"):
         raise AirflowConfigException("fastapi.base_url conf cannot have a trailing slash.")
 
