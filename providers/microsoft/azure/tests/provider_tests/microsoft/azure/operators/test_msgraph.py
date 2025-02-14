@@ -293,19 +293,24 @@ class TestMSGraphAsyncOperator(Base):
 
     def test_execute_callable(self):
         with pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="result_processor signature has changed, result parameter should be defined before context!",
+            AirflowProviderDeprecationWarning,
+            match="result_processor signature has changed, result parameter should be defined before context!",
         ):
-            assert execute_callable(
-                lambda context, response: response,
+            assert (
+                execute_callable(
+                    lambda context, response: response,
+                    "response",
+                    Context({"execution_date": timezone.utcnow()}),
+                    "result_processor signature has changed, result parameter should be defined before context!",
+                )
+                == "response"
+            )
+        assert (
+            execute_callable(
+                lambda response, **context: response,
                 "response",
                 Context({"execution_date": timezone.utcnow()}),
                 "result_processor signature has changed, result parameter should be defined before context!",
-            ) == "response"
-
-        assert execute_callable(
-            lambda response, **context: response,
-            "response",
-            Context({"execution_date": timezone.utcnow()}),
-            "result_processor signature has changed, result parameter should be defined before context!",
-        ) == "response"
+            )
+            == "response"
+        )
