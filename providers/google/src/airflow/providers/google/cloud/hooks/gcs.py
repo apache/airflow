@@ -599,7 +599,11 @@ class GCSHook(GoogleBaseHook):
         )
 
     def exists(
-        self, bucket_name: str, object_name: str, retry: Retry = DEFAULT_RETRY, user_project: str = None
+        self,
+        bucket_name: str,
+        object_name: str,
+        retry: Retry = DEFAULT_RETRY,
+        user_project: str | None = None,
     ) -> bool:
         """
         Check for the existence of a file in Google Cloud Storage.
