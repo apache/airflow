@@ -225,7 +225,8 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory to delete
         """
-        files, dirs = [], []
+        files: list[str] = []
+        dirs: list[str] = []
 
         if include_files is True:
             files, dirs, _ = self.get_tree_map(path)
