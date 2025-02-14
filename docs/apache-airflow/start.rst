@@ -44,27 +44,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 The installation of Airflow is straightforward if you follow the instructions below. Airflow uses
 constraint files to enable reproducible installation, so using ``pip`` and constraint files is recommended.
 
-1. **(Recommended) Create and Activate a Virtual Environment**:
-
-   To avoid issues such as the ``externally-managed-environment`` error, particularly on modern Linux distributions like Ubuntu 22.04+ and Debian 12+, it is highly recommended to install Airflow inside a Python virtual environment. This approach prevents conflicts with system-level Python packages and ensures smooth installation.
-
-   For more details on this error, see the Python Packaging Authority's explanation in the `PEP 668 documentation <https://peps.python.org/pep-0668/>`_.
-
-   .. code-block:: bash
-
-      # Create a virtual environment in your desired directory
-      python3 -m venv airflow_venv
-
-      # Activate the virtual environment
-      source airflow_venv/bin/activate
-
-      # Upgrade pip within the virtual environment
-      pip install --upgrade pip
-
-      # Optional: Deactivate the virtual environment when done
-      deactivate
-
-2. **Set Airflow Home (optional)**:
+1. **Set Airflow Home (optional)**:
 
    Airflow requires a home directory, and uses ``~/airflow`` by default, but you can set a different location if you prefer. The ``AIRFLOW_HOME`` environment variable is used to inform Airflow of the desired location. This step of setting the environment variable should be done before installing Airflow so that the installation process knows where to store the necessary files.
 
@@ -73,7 +53,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
       export AIRFLOW_HOME=~/airflow
 
 
-3. Install Airflow using the constraints file, which is determined based on the URL we pass:
+2. Install Airflow using the constraints file, which is determined based on the URL we pass:
 
    .. code-block:: bash
       :substitutions:
@@ -90,7 +70,28 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
       pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
-4. Run Airflow Standalone:
+.. note::
+   Here you will face an error, *error: externally-managed-environment*. This error usually occurs when you try to install python package globally using ``pip``. More details are on `PEP 668 <https://peps.python.org/pep-0668/>`_.
+   We would recommend creating a virtual environment before running the ``pip install`` command. This will prevent affecting the system python installation.
+
+   .. code-block:: bash
+
+      # Create a virtual environment
+      python3 -m venv .venv
+      # Activate the Virtual Environment
+      source .venv/bin/activate
+
+   Now you should run the ``pip install command``.
+
+   If you understand the risk and still want to install python package globally, you can overwrite the externally-managed-environment by adding **--break-system-packages** flag.
+
+   .. code-block:: bash
+
+      pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}" --break-system-packages
+
+   However this is not recommended as it can break your system python installation.
+   
+3. Run Airflow Standalone:
 
    The ``airflow standalone`` command initializes the database, creates a user, and starts all components.
 
@@ -98,7 +99,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
       airflow standalone
 
-5. Access the Airflow UI:
+4. Access the Airflow UI:
 
    Visit ``localhost:8080`` in your browser and log in with the admin account details shown in the terminal. Enable the ``example_bash_operator`` DAG in the home page.
 
