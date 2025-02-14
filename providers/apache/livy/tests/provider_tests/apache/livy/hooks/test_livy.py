@@ -630,9 +630,8 @@ class TestLivyAsyncHook:
         db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
         db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
 
-    @pytest.mark.asyncio
     @pytest.mark.db_test
-    async def test_build_get_hook(self):
+    def test_build_get_hook(self):
         self.set_conn()
         connection_url_mapping = {
             # id, expected
@@ -645,9 +644,9 @@ class TestLivyAsyncHook:
 
         for conn_id, expected in connection_url_mapping.items():
             hook = LivyAsyncHook(livy_conn_id=conn_id)
-            response_conn: Connection = await hook.get_conn()
+            response_conn: Connection = hook.get_connection(conn_id=conn_id)
             assert isinstance(response_conn, Connection)
-            assert hook.base_url == expected
+            assert hook._generate_base_url(response_conn) == expected
 
     def test_build_body(self):
         # minimal request
