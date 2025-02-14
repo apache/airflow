@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import datetime as dt
 import inspect
+from copy import deepcopy
 from unittest import mock
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import ANY, MagicMock, Mock, call
 
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -3774,6 +3775,108 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+
+    @staticmethod
+    def __assert_batch_create(mock_hook, expected_batch):
+        mock_hook.return_value.create_batch.assert_called_once_with(
+            region=ANY,
+            project_id=ANY,
+            batch=expected_batch,
+            batch_id=ANY,
+            request_id=ANY,
+            retry=ANY,
+            timeout=ANY,
+            metadata=ANY,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_create_batch_asdict_labels_updated(self, mock_hook, to_dict_mock):
+        expected_labels = {
+            "airflow-dag": "test_dag",
+            "airflow-task": "test-task",
+        }
+
+        expected_batch = {
+            **BATCH,
+            "labels": expected_labels,
+        }
+
+        DataprocCreateBatchOperator(
+            task_id="test-task",
+            dag=DAG(dag_id="test_dag"),
+            batch=BATCH,
+            region=GCP_REGION,
+        ).execute(context=EXAMPLE_CONTEXT)
+
+        TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
+
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_create_batch_asdict_labels_uppercase_transformed(self, mock_hook, to_dict_mock):
+        expected_labels = {
+            "airflow-dag": "test_dag",
+            "airflow-task": "test-task",
+        }
+
+        expected_batch = {
+            **BATCH,
+            "labels": expected_labels,
+        }
+
+        DataprocCreateBatchOperator(
+            task_id="test-TASK",
+            dag=DAG(dag_id="Test_dag"),
+            batch=BATCH,
+            region=GCP_REGION,
+        ).execute(context=EXAMPLE_CONTEXT)
+
+        TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
+
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_create_batch_invalid_taskid_labels_ignored(self, mock_hook, to_dict_mock):
+        DataprocCreateBatchOperator(
+            task_id=".task-id",
+            dag=DAG(dag_id="test-dag"),
+            batch=BATCH,
+            region=GCP_REGION,
+        ).execute(context=EXAMPLE_CONTEXT)
+
+        TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, BATCH)
+
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_create_batch_long_taskid_labels_ignored(self, mock_hook, to_dict_mock):
+        DataprocCreateBatchOperator(
+            task_id="a" * 65,
+            dag=DAG(dag_id="test-dag"),
+            batch=BATCH,
+            region=GCP_REGION,
+        ).execute(context=EXAMPLE_CONTEXT)
+
+        TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, BATCH)
+
+    @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_create_batch_asobj_labels_updated(self, mock_hook, to_dict_mock):
+        batch = Batch(name="test")
+        batch.labels["foo"] = "bar"
+        dag = DAG(dag_id="test_dag")
+
+        expected_labels = {
+            "airflow-dag": "test_dag",
+            "airflow-task": "test-task",
+        }
+
+        expected_batch = deepcopy(batch)
+        expected_batch.labels.update(expected_labels)
+
+        DataprocCreateBatchOperator(task_id="test-task", batch=batch, region=GCP_REGION, dag=dag).execute(
+            context=EXAMPLE_CONTEXT
+        )
+
+        TestDataprocCreateBatchOperator.__assert_batch_create(mock_hook, expected_batch)
 
 
 class TestDataprocDeleteBatchOperator:
