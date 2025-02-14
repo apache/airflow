@@ -332,19 +332,6 @@ class DagRun(Base, LoggingMixin):
             return self.dag_versions[-1].version_number
         return None
 
-    @provide_session
-    def check_version_id_exists_in_dr(self, dag_version_id: UUIDType, session: Session = NEW_SESSION):
-        select_stmt = (
-            select(TI.dag_version_id)
-            .where(TI.dag_id == self.dag_id, TI.dag_version_id == dag_version_id, TI.run_id == self.run_id)
-            .union(
-                select(TIH.dag_version_id).where(
-                    TIH.dag_id == self.dag_id, TIH.dag_version_id == dag_version_id, TIH.run_id == self.run_id
-                )
-            )
-        )
-        return session.scalar(select_stmt)
-
     @property
     def stats_tags(self) -> dict[str, str]:
         return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
