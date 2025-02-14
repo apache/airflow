@@ -35,6 +35,7 @@ import pytest
 import time_machine
 from pytest import param
 from sqlalchemy import func, select, update
+from sqlalchemy.orm import joinedload
 
 import airflow.example_dags
 from airflow import settings
@@ -5269,7 +5270,11 @@ class TestSchedulerJob:
         dag = self.job_runner.dagbag.get_dag("test_scheduler_add_new_task", session=session)
         self.job_runner._create_dag_runs([orm_dag], session)
 
-        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        drs = (
+            session.query(DagRun)
+            .options(joinedload(DagRun.task_instances).joinedload(TaskInstance.dag_version))
+            .all()
+        )
         assert len(drs) == 1
         dr = drs[0]
 

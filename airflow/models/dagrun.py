@@ -210,13 +210,13 @@ class DagRun(Base, LoggingMixin):
         TI,
         back_populates="dag_run",
         cascade="save-update, merge, delete, delete-orphan",
-        order_by=TI.dag_version_id,
     )
     task_instances_histories = relationship(
         TIH,
         primaryjoin="and_(DagRun.dag_id == TaskInstanceHistory.dag_id, DagRun.run_id == TaskInstanceHistory.run_id)",
         foreign_keys="TaskInstanceHistory.dag_id, TaskInstanceHistory.run_id",
         order_by=TIH.dag_version_id,
+        viewonly=True,
     )
     dag_model = relationship(
         "DagModel",
@@ -328,9 +328,23 @@ class DagRun(Base, LoggingMixin):
 
         :param session: database session
         """
-        if self.dag_versions:
-            return self.dag_versions[-1].version_number
+        dag_versions = self.dag_versions
+        if dag_versions:
+            return dag_versions[-1].version_number
         return None
+
+    @provide_session
+    def check_version_id_exists_in_dr(self, dag_version_id: UUIDType, session: Session = NEW_SESSION):
+        select_stmt = (
+            select(TI.dag_version_id)
+            .where(TI.dag_id == self.dag_id, TI.dag_version_id == dag_version_id, TI.run_id == self.run_id)
+            .union(
+                select(TIH.dag_version_id).where(
+                    TIH.dag_id == self.dag_id, TIH.dag_version_id == dag_version_id, TIH.run_id == self.run_id
+                )
+            )
+        )
+        return session.scalar(select_stmt)
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -489,7 +503,7 @@ class DagRun(Base, LoggingMixin):
 
         query = query.where(DagRun.run_after <= func.now())
 
-        return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
+        return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique()
 
     @classmethod
     @retry_db_transaction
