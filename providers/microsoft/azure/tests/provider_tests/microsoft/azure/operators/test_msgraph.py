@@ -30,8 +30,9 @@ from providers.microsoft.azure.tests.conftest import (
 )
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
+from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
+from airflow.utils import timezone
 from provider_tests.microsoft.azure.base import Base
 
 from tests_common.test_utils.mock_context import mock_context
@@ -289,3 +290,22 @@ class TestMSGraphAsyncOperator(Base):
 
         assert url == "users"
         assert query_parameters == {"$skip": 12, "$top": 12}
+
+    def test_execute_callable(self):
+        with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="result_processor signature has changed, result parameter should be defined before context!",
+        ):
+            assert execute_callable(
+                lambda context, response: response,
+                "response",
+                Context({"execution_date": timezone.utcnow()}),
+                "result_processor signature has changed, result parameter should be defined before context!",
+            ) == "response"
+
+        assert execute_callable(
+            lambda response, **context: response,
+            "response",
+            Context({"execution_date": timezone.utcnow()}),
+            "result_processor signature has changed, result parameter should be defined before context!",
+        ) == "response"
