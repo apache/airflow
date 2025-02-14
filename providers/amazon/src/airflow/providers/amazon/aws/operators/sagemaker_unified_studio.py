@@ -29,6 +29,9 @@ from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
     SageMakerNotebookJobTrigger,
 )
 from airflow.utils.context import Context
+from providers.amazon.src.airflow.providers.amazon.aws.links.sagemaker_unified_studio import (
+    SageMakerUnifiedStudioLink,
+)
 
 
 class SageMakerNotebookOperator(BaseOperator):
@@ -75,6 +78,7 @@ class SageMakerNotebookOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SageMakerNotebookOperator`
     """
+    operator_extra_links = (SageMakerUnifiedStudioLink(),)
 
     def __init__(
         self,
