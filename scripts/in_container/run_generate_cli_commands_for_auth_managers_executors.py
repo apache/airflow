@@ -20,8 +20,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Callable
-import inspect
+from typing import TYPE_CHECKING, Any, Callable, Literal, TextIO
 
 from airflow.cli.cli_config import ActionCommand, Arg, GroupCommand
 from airflow.executors.executor_constants import CORE_EXECUTOR_NAMES as AVAILABLE_EXECUTORS, MOCK_EXECUTOR
@@ -96,16 +95,18 @@ def override_env():
     os.environ["AIRFLOW__AWS_AUTH_MANAGER__REGION_NAME"] = "us-west-2"
     os.environ["AIRFLOW__AWS_AUTH_MANAGER__AVP_POLICY_STORE_ID"] = "avp_policy_store_id"
 
+
 def monkey_patch_auth_managers():
     aws_auth_manager = import_string(AWS_AUTH_MANAGER)
     # skip _check_avp_schema_version when construct, since we just need to call `get_cli_commands`
     aws_auth_manager._check_avp_schema_version = lambda self: None
 
-def monkey_patch_conf_get():
-    """Monkey patch `conf.get` to trace the source of the default value of an argument."""
+
+def monkey_patch_conf():
+    """Monkey patch `conf.get*` to trace the source of the default value of an argument."""
     from airflow.configuration import conf
 
-    class TraceStr(str):
+    class StrWrapper(str):
         """A subclass of `str` that has a `__conf_source__` attribute."""
 
         def __new__(cls, value, conf_source=None):
@@ -120,27 +121,77 @@ def monkey_patch_conf_get():
                 else super().__repr__()
             )
 
-    def _trace_conf_get_decorator(func):
+    class IntWrapper(int):
+        """A subclass of `int` that has a `__conf_source__` attribute."""
+
+        def __new__(cls, value, conf_source=None):
+            obj = super().__new__(cls, value)
+            obj.__conf_source__ = conf_source
+            return obj
+
+        def __repr__(self):
+            return (
+                f"{super().__repr__()} (from {self.__conf_source__})"
+                if self.__conf_source__
+                else super().__repr__()
+            )
+
+    class BoolWrapper:
+        """A wrapper of `bool` that has a `__conf_source__` attribute."""
+
+        def __init__(self, value, conf_source=None):
+            self.value = value
+            self.__conf_source__ = conf_source
+
+        def __bool__(self):
+            return self.value  # Ensures it behaves like a bool
+
+        def __repr__(self):
+            return (
+                f"{super().__repr__()} (from {self.__conf_source__})"
+                if self.__conf_source__
+                else super().__repr__()
+            )
+
+    class ListWrapper(list):
+        """A wrapper of `list` that has a `__conf_source__` attribute."""
+
+        def __init__(self, value, conf_source=None):
+            super().__init__(value)
+            self.__conf_source__ = conf_source
+
+        def __repr__(self):
+            return (
+                f"{super().__repr__()} (from {self.__conf_source__})"
+                if self.__conf_source__
+                else super().__repr__()
+            )
+
+    def _trace_conf_get_decorator(
+        func: Callable, trace_cls: type, method_name: Literal["get", "getint", "getboolean", "getlist"]
+    ):
         """Decorator to trace the source of the default value of an argument.
 
         Set `__conf_source__` attribute to the return value of `conf.get(...)`.
         """
 
         def wrapper(*args, **kwargs):
-            default_value: str | None = func(*args, **kwargs)
+            default_value: Any = func(*args, **kwargs)
             section = args[0] if len(args) > 0 else kwargs.get("section")
             key = args[1] if len(args) > 1 else kwargs.get("key")
-            print(f"calling conf.get({section!r}, {key!r})")
+            print(f"calling conf.{method_name}({section!r}, {key!r})")
             if default_value is not None:
-                print(f"conf.get({section!r}, {key!r}) -> {default_value}")
-                default_value = TraceStr(default_value, f"conf.get({section!r}, {key!r})")
+                print(f"conf.{method_name}({section!r}, {key!r}) -> {default_value}")
+                default_value = trace_cls(default_value, f"conf.{method_name}({section!r}, {key!r})")
+                print(f"modified default value: {default_value}")
             return default_value
 
         return wrapper
 
-    conf.get = _trace_conf_get_decorator(conf.get)
-
-    
+    conf.get = _trace_conf_get_decorator(conf.get, StrWrapper, "get")
+    conf.getint = _trace_conf_get_decorator(conf.getint, IntWrapper, "getint")
+    conf.getboolean = _trace_conf_get_decorator(conf.getboolean, BoolWrapper, "getboolean")
+    conf.getlist = _trace_conf_get_decorator(conf.getlist, ListWrapper, "getlist")
 
 
 def get_auth_managers_cli_commands() -> dict[str, list[CLICommand]]:
@@ -168,9 +219,7 @@ def get_executors_cli_commands() -> dict[str, list[CLICommand]]:
 
 
 def serialize_action_func(func: Callable) -> str:
-    freevars = dict(
-        zip(func.__code__.co_freevars, (c.cell_contents for c in (func.__closure__ or ())))
-    )
+    freevars = dict(zip(func.__code__.co_freevars, (c.cell_contents for c in (func.__closure__ or ()))))
     func_path = freevars["import_path"]
     return f"lazy_load_command('{func_path}')"
 
@@ -183,7 +232,7 @@ def serialize_arg_type(arg_type: type | Callable) -> str:
         return "timeparse"
     elif hasattr(arg_type, "__module__") and arg_type.__module__ == "airflow.cli.cli_config":
         # The arg_type will be one of positive_int, string_list_type, string_lower_type
-
+        print("type(arg_type): ", type(arg_type))
         # If the arg_type is generated by positive_int, its __name__ is '_check', so check its closure for 'allow_zero'
         if arg_type.__name__ == "_check" and arg_type.__code__.co_freevars:
             freevars = dict(
@@ -203,19 +252,6 @@ def trace_default_value(default_value: Any) -> str:
     return repr(default_value)
 
 
-def serialize_arg(arg: Arg) -> str:
-    arg_attrs = [f"Arg(flags={arg.flags}"]
-    for key, value in arg.kwargs.items():
-        if key == "type":
-            arg_attrs.append(f"{key}={serialize_arg_type(value)}")
-        elif key == "default":
-            arg_attrs.append(f"{key}={trace_default_value(value)}")
-        else:
-            arg_attrs.append(f'{key}="{value}"')
-    arg_attrs.append(")")
-    return ", ".join(arg_attrs)
-
-
 def serialize_optional_str_field(value: str | None = None) -> str:
     if not value:
         return "None"
@@ -223,6 +259,22 @@ def serialize_optional_str_field(value: str | None = None) -> str:
     if "\n" in value:
         return f'"""{value}"""'
     return f'"{value}"'
+
+
+def serialize_arg(arg: Arg) -> str:
+    arg_attrs = [f"Arg(flags={arg.flags}"]
+    for key, value in arg.kwargs.items():
+        if key == "type":
+            arg_attrs.append(f"{key}={serialize_arg_type(value)}")
+        elif key == "default":
+            arg_attrs.append(f"{key}={trace_default_value(value)}")
+        elif key == "choices":
+            arg_attrs.append(f"{key}={value!r}")
+        elif isinstance(value, str):
+            arg_attrs.append(f"{key}={serialize_optional_str_field(value)}")
+        else:
+            arg_attrs.append(f'{key}="{value}"')
+    return ", ".join(arg_attrs) + ")"
 
 
 def serialize_action_command(action_command: ActionCommand) -> str:
@@ -257,7 +309,7 @@ def serialize_group_command(group_command: GroupCommand) -> str:
     )"""
 
 
-def write_cli_commands(cli_commands: dict[str, list[CLICommand]], target_var: str, target_file):
+def write_cli_commands(cli_commands: dict[str, list[CLICommand]], target_var: str, target_file: TextIO):
     target_file.write(target_var + " = {\n")
     for name, commands in cli_commands.items():
         target_file.write(f"    '{name}': [\n")
@@ -273,7 +325,7 @@ def write_cli_commands(cli_commands: dict[str, list[CLICommand]], target_var: st
 if __name__ == "__main__":
     override_env()
     monkey_patch_auth_managers()
-    monkey_patch_conf_get()
+    monkey_patch_conf()
 
     executors_cli_commands = get_executors_cli_commands()
     auth_managers_cli_commands = get_auth_managers_cli_commands()
