@@ -1558,6 +1558,28 @@ export const $DAGDetailsResponse = {
       ],
       title: "Description",
     },
+    bundle_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Name",
+    },
+    latest_bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Latest Bundle Version",
+    },
     timetable_summary: {
       anyOf: [
         {
@@ -1818,6 +1840,8 @@ export const $DAGDetailsResponse = {
     "default_view",
     "fileloc",
     "description",
+    "bundle_name",
+    "latest_bundle_version",
     "timetable_summary",
     "timetable_description",
     "tags",
@@ -1931,6 +1955,28 @@ export const $DAGResponse = {
         },
       ],
       title: "Description",
+    },
+    bundle_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Name",
+    },
+    latest_bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Latest Bundle Version",
     },
     timetable_summary: {
       anyOf: [
@@ -2061,6 +2107,8 @@ export const $DAGResponse = {
     "default_view",
     "fileloc",
     "description",
+    "bundle_name",
+    "latest_bundle_version",
     "timetable_summary",
     "timetable_description",
     "tags",
@@ -2705,6 +2753,28 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Description",
     },
+    bundle_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Name",
+    },
+    latest_bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Latest Bundle Version",
+    },
     timetable_summary: {
       anyOf: [
         {
@@ -2841,6 +2911,8 @@ export const $DAGWithLatestDagRunsResponse = {
     "default_view",
     "fileloc",
     "description",
+    "bundle_name",
+    "latest_bundle_version",
     "timetable_summary",
     "timetable_description",
     "tags",
