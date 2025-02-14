@@ -24,20 +24,18 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_precommit_utils import (
     initialize_breeze_precommit,
     run_command_via_breeze_shell,
-    validate_cmd_result,
+    ruff_format_file_until_no_change,
 )
+
+TARGET_GENERATE_FILE = "airflow/cli/commands/_generated_commands.py"
 
 initialize_breeze_precommit(__name__, __file__)
 
-cmd_result = run_command_via_breeze_shell(
+run_command_via_breeze_shell(
     ["/opt/airflow/scripts/in_container/run_generate_cli_commands_for_auth_managers_executors.py"],
     backend="sqlite",
-    extra_env={
-        "AIRFLOW__CORE__EXECUTOR": "SequentialExecutor,LocalExecutor,DebugExecutor,LocalKubernetesExecutor,KubernetesExecutor,CeleryExecutor,CeleryKubernetesExecutor",
-        "AIRFLOW__AWS_AUTH_MANAGER__CONN_ID": "aws_default",
-        "AIRFLOW__AWS_AUTH_MANAGER__REGION_NAME": "us-west-2",
-        "AIRFLOW__AWS_AUTH_MANAGER__AVP_POLICY_STORE_ID": "avp_policy_store_id",
-    },
 )
 
-validate_cmd_result(cmd_result)
+ruff_format_file_until_no_change(TARGET_GENERATE_FILE)
+
+sys.exit(0)
