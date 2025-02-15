@@ -270,7 +270,7 @@ def serialize_arg(arg: Arg) -> str:
             arg_attrs.append(f"{key}={trace_default_value(value)}")
         elif key == "choices":
             arg_attrs.append(f"{key}={value!r}")
-        elif isinstance(value, str):
+        elif isinstance(value, str) or value is None:
             arg_attrs.append(f"{key}={serialize_optional_str_field(value)}")
         else:
             arg_attrs.append(f'{key}="{value}"')

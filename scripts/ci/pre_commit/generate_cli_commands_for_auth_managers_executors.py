@@ -23,8 +23,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_precommit_utils import (
     initialize_breeze_precommit,
-    run_command_via_breeze_shell,
     ruff_format_file_until_no_change,
+    run_command_via_breeze_shell,
 )
 
 TARGET_GENERATE_FILE = "airflow/cli/commands/_generated_commands.py"

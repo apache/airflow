@@ -33,6 +33,8 @@ from airflow.configuration import conf
 from airflow.utils.timezone import parse as timeparse
 
 EXECUTORS_CLI_COMMANDS = {
+    "LocalExecutor": [],
+    "DebugExecutor": [],
     "CeleryExecutor": [
         GroupCommand(
             name="celery",
@@ -168,6 +170,7 @@ EXECUTORS_CLI_COMMANDS = {
             epilog=None,
         ),
     ],
+    "SequentialExecutor": [],
     "KubernetesExecutor": [
         GroupCommand(
             name="kubernetes",
@@ -236,7 +239,74 @@ EXECUTORS_CLI_COMMANDS = {
             epilog=None,
         ),
     ],
-    "SequentialExecutor": [],
+    "LocalKubernetesExecutor": [
+        GroupCommand(
+            name="kubernetes",
+            help="Tools to help run the KubernetesExecutor",
+            subcommands=[
+                ActionCommand(
+                    name="cleanup-pods",
+                    help="Clean up Kubernetes pods (created by KubernetesExecutor/KubernetesPodOperator) in evicted/failed/succeeded/pending states",
+                    func=lazy_load_command(
+                        "airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"
+                    ),
+                    args=[
+                        Arg(
+                            flags=("--namespace",),
+                            help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
+                            default=conf.get("kubernetes_executor", "namespace"),
+                        ),
+                        Arg(
+                            flags=("--min-pending-minutes",),
+                            help="Pending pods created before the time interval are to be cleaned up, measured in minutes. Default value is 30(m). The minimum value is 5(m).",
+                            default=30,
+                            type=positive_int(allow_zero=False),
+                        ),
+                        Arg(
+                            flags=("-v", "--verbose"),
+                            help="Make logging output more verbose",
+                            action="store_true",
+                        ),
+                    ],
+                    description=None,
+                    epilog=None,
+                    hide=False,
+                ),
+                ActionCommand(
+                    name="generate-dag-yaml",
+                    help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without launching into a cluster",
+                    func=lazy_load_command(
+                        "airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"
+                    ),
+                    args=[
+                        Arg(flags=("dag_id",), help="The id of the dag"),
+                        Arg(flags=("logical_date",), help="The logical date of the DAG", type=timeparse),
+                        Arg(
+                            flags=("-S", "--subdir"),
+                            help="File location or directory from which to look for the dag. Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' ",
+                            default="/root/airflow/dags",
+                        ),
+                        Arg(
+                            flags=("-o", "--output-path"),
+                            help="The output for generated yaml files",
+                            default="/opt/airflow",
+                            type=str,
+                        ),
+                        Arg(
+                            flags=("-v", "--verbose"),
+                            help="Make logging output more verbose",
+                            action="store_true",
+                        ),
+                    ],
+                    description=None,
+                    epilog=None,
+                    hide=False,
+                ),
+            ],
+            description=None,
+            epilog=None,
+        ),
+    ],
     "CeleryKubernetesExecutor": [
         GroupCommand(
             name="celery",
@@ -438,76 +508,6 @@ EXECUTORS_CLI_COMMANDS = {
             epilog=None,
         ),
     ],
-    "LocalExecutor": [],
-    "LocalKubernetesExecutor": [
-        GroupCommand(
-            name="kubernetes",
-            help="Tools to help run the KubernetesExecutor",
-            subcommands=[
-                ActionCommand(
-                    name="cleanup-pods",
-                    help="Clean up Kubernetes pods (created by KubernetesExecutor/KubernetesPodOperator) in evicted/failed/succeeded/pending states",
-                    func=lazy_load_command(
-                        "airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"
-                    ),
-                    args=[
-                        Arg(
-                            flags=("--namespace",),
-                            help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
-                            default=conf.get("kubernetes_executor", "namespace"),
-                        ),
-                        Arg(
-                            flags=("--min-pending-minutes",),
-                            help="Pending pods created before the time interval are to be cleaned up, measured in minutes. Default value is 30(m). The minimum value is 5(m).",
-                            default=30,
-                            type=positive_int(allow_zero=False),
-                        ),
-                        Arg(
-                            flags=("-v", "--verbose"),
-                            help="Make logging output more verbose",
-                            action="store_true",
-                        ),
-                    ],
-                    description=None,
-                    epilog=None,
-                    hide=False,
-                ),
-                ActionCommand(
-                    name="generate-dag-yaml",
-                    help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without launching into a cluster",
-                    func=lazy_load_command(
-                        "airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"
-                    ),
-                    args=[
-                        Arg(flags=("dag_id",), help="The id of the dag"),
-                        Arg(flags=("logical_date",), help="The logical date of the DAG", type=timeparse),
-                        Arg(
-                            flags=("-S", "--subdir"),
-                            help="File location or directory from which to look for the dag. Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' ",
-                            default="/root/airflow/dags",
-                        ),
-                        Arg(
-                            flags=("-o", "--output-path"),
-                            help="The output for generated yaml files",
-                            default="/opt/airflow",
-                            type=str,
-                        ),
-                        Arg(
-                            flags=("-v", "--verbose"),
-                            help="Make logging output more verbose",
-                            action="store_true",
-                        ),
-                    ],
-                    description=None,
-                    epilog=None,
-                    hide=False,
-                ),
-            ],
-            description=None,
-            epilog=None,
-        ),
-    ],
-    "DebugExecutor": [],
 }
 AUTH_MANAGERS_CLI_COMMANDS = {
     "SimpleAuthManager": [],
@@ -882,7 +882,7 @@ To reset an user with username equals to "admin", run:
                         "airflow.providers.fab.auth_manager.cli_commands.role_command.roles_export"
                     ),
                     args=[
-                        Arg(flags=("file",), help="Export all roles to JSON file", nargs="None"),
+                        Arg(flags=("file",), help="Export all roles to JSON file", nargs=None),
                         Arg(
                             flags=("-p", "--pretty"),
                             help="Format output JSON file by sorting role names and indenting by 4 spaces",
@@ -905,7 +905,7 @@ To reset an user with username equals to "admin", run:
                         "airflow.providers.fab.auth_manager.cli_commands.role_command.roles_import"
                     ),
                     args=[
-                        Arg(flags=("file",), help="Import roles from JSON file", nargs="None"),
+                        Arg(flags=("file",), help="Import roles from JSON file", nargs=None),
                         Arg(
                             flags=("-v", "--verbose"),
                             help="Make logging output more verbose",
