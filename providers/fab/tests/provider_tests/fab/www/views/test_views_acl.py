@@ -23,18 +23,27 @@ import urllib.parse
 
 import pytest
 
-from airflow.models import DagModel
+from airflow import DAG, settings
+from airflow.models import DagBag, DagModel, DagRun, TaskInstance, Variable
+from airflow.models.errors import ParseImportError
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
-from airflow.www.views import FILTER_STATUS_COOKIE
-from provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user_scope
+from airflow.www.views import FILTER_STATUS_COOKIE, DagRunModelView
+from provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_test_client,
+    create_user,
+    create_user_scope,
+    delete_roles,
+    delete_user,
+)
 
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.permissions import _resource_name
 from tests_common.test_utils.www import (
+    capture_templates,  # noqa: F401
     check_content_in_response,
     check_content_not_in_response,
     client_with_login,
@@ -83,6 +92,25 @@ USER_DATA = {
         },
     ),
 }
+
+
+def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
+    """Utility to get Flask-Appbuilder's string format "pk" for an object.
+
+    Used to generate requests to FAB action views without *too* much difficulty.
+    The implementation relies on FAB internals, but unfortunately I don't see
+    a better way around it.
+
+    Example usage::
+
+        from airflow.www.views import TaskInstanceModelView
+
+        ti = session.Query(TaskInstance).filter(...).one()
+        pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
+        client.post("...", data={"action": "...", "rowid": pk})
+    """
+    pk_value = model_view_cls.datamodel.get_pk_value(instance)
+    return model_view_cls._serialize_pk_if_composite(model_view_cls, pk_value)
 
 
 @pytest.fixture(scope="module")
@@ -242,6 +270,93 @@ def client_all_dags(acl_app, user_all_dags):
         acl_app,
         username="user_all_dags",
         password="user_all_dags",
+    )
+
+
+@pytest.fixture
+def client_single_dag(app, user_single_dag):
+    """Client for User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
+    return client_with_login(
+        app,
+        username="user_single_dag",
+        password="user_single_dag",
+    )
+
+
+@pytest.fixture(scope="module")
+def client_dr_without_dag_run_create(app):
+    create_user(
+        app,
+        username="all_dr_permissions_except_dag_run_create",
+        role_name="all_dr_permissions_except_dag_run_create",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+        ],
+    )
+
+    yield client_with_login(
+        app,
+        username="all_dr_permissions_except_dag_run_create",
+        password="all_dr_permissions_except_dag_run_create",
+    )
+
+    delete_user(app, username="all_dr_permissions_except_dag_run_create")  # type: ignore
+    delete_roles(app)
+
+
+@pytest.fixture(scope="module")
+def client_dr_without_dag_edit(app):
+    create_user(
+        app,
+        username="all_dr_permissions_except_dag_edit",
+        role_name="all_dr_permissions_except_dag_edit",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+        ],
+    )
+
+    yield client_with_login(
+        app,
+        username="all_dr_permissions_except_dag_edit",
+        password="all_dr_permissions_except_dag_edit",
+    )
+
+    delete_user(app, username="all_dr_permissions_except_dag_edit")  # type: ignore
+    delete_roles(app)
+
+
+@pytest.fixture(scope="module")
+def user_no_importerror(app):
+    """Create User that cannot access Import Errors"""
+    return create_user(
+        app,
+        username="user_no_importerrors",
+        role_name="role_no_importerrors",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        ],
+    )
+
+
+@pytest.fixture
+def client_no_importerror(app, user_no_importerror):
+    """Client for User that cannot access Import Errors"""
+    return client_with_login(
+        app,
+        username="user_no_importerrors",
+        password="user_no_importerrors",
     )
 
 
@@ -588,6 +703,34 @@ def client_dags_tis_logs(acl_app, user_dags_tis_logs):
     )
 
 
+@pytest.fixture(scope="module")
+def user_single_dag_edit(app):
+    """Create User that can edit DAG resource only a single DAG"""
+    return create_user(
+        app,
+        username="user_single_dag_edit",
+        role_name="role_single_dag",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (
+                permissions.ACTION_CAN_EDIT,
+                _resource_name("filter_test_1", permissions.RESOURCE_DAG),
+            ),
+        ],
+    )
+
+
+@pytest.fixture
+def client_single_dag_edit(app, user_single_dag_edit):
+    """Client for User that can only edit the first DAG from TEST_FILTER_DAG_IDS"""
+    return client_with_login(
+        app,
+        username="user_single_dag_edit",
+        password="user_single_dag_edit",
+    )
+
+
 RENDERED_TEMPLATES_URL = (
     f"rendered-templates?task_id=runme_0&dag_id=example_bash_operator&"
     f"logical_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}"
@@ -867,6 +1010,90 @@ def client_anonymous(acl_app):
     return acl_app.test_client()
 
 
+@pytest.fixture
+def running_dag_run(session):
+    dag = DagBag().get_dag("example_bash_operator")
+    logical_date = timezone.datetime(2016, 1, 9)
+    dr = dag.create_dagrun(
+        state="running",
+        logical_date=logical_date,
+        data_interval=(logical_date, logical_date),
+        run_id="test_dag_runs_action",
+        run_type=DagRunType.MANUAL,
+        session=session,
+        run_after=logical_date,
+        triggered_by=DagRunTriggeredByType.TEST,
+    )
+    session.add(dr)
+    tis = [
+        TaskInstance(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="failed"),
+    ]
+    session.bulk_save_objects(tis)
+    session.commit()
+    return dr
+
+
+@pytest.fixture
+def _working_dags(dag_maker):
+    for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+        with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}.py", tags=[tag]):
+            # We need to enter+exit the dag maker context for it to create the dag
+            pass
+
+
+@pytest.fixture
+def _working_dags_with_read_perm(dag_maker):
+    for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+        if dag_id == "filter_test_1":
+            access_control = {"role_single_dag": {"can_read"}}
+        else:
+            access_control = None
+
+        with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}.py", tags=[tag], access_control=access_control):
+            pass
+
+
+@pytest.fixture
+def _working_dags_with_edit_perm(dag_maker):
+    for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+        if dag_id == "filter_test_1":
+            access_control = {"role_single_dag": {"can_edit"}}
+        else:
+            access_control = None
+
+        with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}.py", tags=[tag], access_control=access_control):
+            pass
+
+
+@pytest.fixture
+def _broken_dags(session):
+    from airflow.models.errors import ParseImportError
+
+    for dag_id in TEST_FILTER_DAG_IDS:
+        session.add(
+            ParseImportError(
+                filename=f"/{dag_id}.py", bundle_name="dag_maker", stacktrace="Some Error\nTraceback:\n"
+            )
+        )
+    session.commit()
+
+
+@pytest.fixture
+def _broken_dags_after_working(dag_maker, session):
+    # First create and process a DAG file that works
+    path = "/all_in_one.py"
+    for dag_id in TEST_FILTER_DAG_IDS:
+        with dag_maker(dag_id=dag_id, fileloc=path, session=session):
+            pass
+
+    # Then create an import error against that file
+    session.add(
+        ParseImportError(filename=path, bundle_name="dag_maker", stacktrace="Some Error\nTraceback:\n")
+    )
+    session.commit()
+
+
 @pytest.mark.parametrize(
     "client, url, status_code, expected_content",
     [
@@ -951,6 +1178,127 @@ def client_ti_edit_without_dag_level_access(acl_app, user_ti_edit_without_dag_le
     )
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _init_blank_dagrun():
+    """Make sure there are no runs before we test anything.
+
+    This really shouldn't be needed, but tests elsewhere leave the db dirty.
+    """
+    with create_session() as session:
+        session.query(DagRun).delete()
+        session.query(TaskInstance).delete()
+
+
+@pytest.fixture(autouse=True)
+def _reset_dagrun():
+    yield
+    with create_session() as session:
+        session.query(DagRun).delete()
+        session.query(TaskInstance).delete()
+
+
+@pytest.fixture
+def one_dag_perm_user_client(app):
+    username = "test_user_one_dag_perm"
+    dag_id = "example_bash_operator"
+    sm = app.appbuilder.sm
+    perm = f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}"
+
+    sm.create_permission(permissions.ACTION_CAN_READ, perm)
+
+    create_user(
+        app,
+        username=username,
+        role_name="User with permission to access only one dag",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, perm),
+        ],
+    )
+
+    sm.find_user(username=username)
+
+    yield client_with_login(
+        app,
+        username=username,
+        password=username,
+    )
+
+    delete_user(app, username=username)  # type: ignore
+    delete_roles(app)
+
+
+@pytest.fixture
+def new_dag_to_delete(testing_dag_bundle):
+    dag = DAG(
+        "new_dag_to_delete", is_paused_upon_creation=True, schedule="0 * * * *", start_date=DEFAULT_DATE
+    )
+    session = settings.Session()
+    DAG.bulk_write_to_db("testing", None, [dag], session=session)
+    return dag
+
+
+@pytest.fixture
+def per_dag_perm_user_client(app, new_dag_to_delete):
+    sm = app.appbuilder.sm
+    perm = f"{permissions.RESOURCE_DAG_PREFIX}{new_dag_to_delete.dag_id}"
+
+    sm.create_permission(permissions.ACTION_CAN_DELETE, perm)
+
+    create_user(
+        app,
+        username="test_user_per_dag_perms",
+        role_name="User with some perms",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_DELETE, perm),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ],
+    )
+
+    sm.find_user(username="test_user_per_dag_perms")
+
+    yield client_with_login(
+        app,
+        username="test_user_per_dag_perms",
+        password="test_user_per_dag_perms",
+    )
+
+    delete_user(app, username="test_user_per_dag_perms")  # type: ignore
+    delete_roles(app)
+
+
+@pytest.fixture(scope="module")
+def client_ti_without_dag_edit(app):
+    create_user(
+        app,
+        username="all_ti_permissions_except_dag_edit",
+        role_name="all_ti_permissions_except_dag_edit",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+        ],
+    )
+
+    yield client_with_login(
+        app,
+        username="all_ti_permissions_except_dag_edit",
+        password="all_ti_permissions_except_dag_edit",
+    )
+
+    delete_user(app, username="all_ti_permissions_except_dag_edit")  # type: ignore
+    delete_roles(app)
+
+
 def test_failure_edit_ti_without_dag_level_access(client_ti_edit_without_dag_level_access):
     form = dict(
         task_id="run_this_last",
@@ -963,3 +1311,266 @@ def test_failure_edit_ti_without_dag_level_access(client_ti_edit_without_dag_lev
     )
     resp = client_ti_edit_without_dag_level_access.post("/success", data=form, follow_redirects=True)
     check_content_not_in_response("Marked success on 1 task instances", resp)
+
+
+def test_viewer_cant_trigger_dag(app):
+    """
+    Test that the test_viewer user can't trigger DAGs.
+    """
+    with create_test_client(
+        app,
+        user_name="test_user",
+        role_name="test_role",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+        ],
+    ) as client:
+        url = "dags/example_bash_operator/trigger"
+        resp = client.get(url, follow_redirects=True)
+        response_data = resp.data.decode()
+        assert "Access is Denied" in response_data
+
+
+def test_get_dagrun_can_view_dags_without_edit_perms(session, running_dag_run, client_dr_without_dag_edit):
+    """Test that a user without dag_edit but with dag_read permission can view the records"""
+    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 2
+    resp = client_dr_without_dag_edit.get("/dagrun/list/", follow_redirects=True)
+    check_content_in_response(running_dag_run.dag_id, resp)
+
+
+def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_create):
+    data = {
+        "state": "running",
+        "dag_id": "example_bash_operator",
+        "logical_date": "2018-07-06 05:06:03",
+        "run_id": "test_list_dagrun_includes_conf",
+        "conf": '{"include": "me"}',
+    }
+
+    resp = client_dr_without_dag_run_create.post("/dagrun/add", data=data, follow_redirects=True)
+    check_content_in_response("Access is Denied", resp)
+
+
+def test_delete_dagrun_permission_denied(session, running_dag_run, client_dr_without_dag_edit):
+    composite_key = _get_appbuilder_pk_string(DagRunModelView, running_dag_run)
+
+    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 2
+    resp = client_dr_without_dag_edit.post(f"/dagrun/delete/{composite_key}", follow_redirects=True)
+    check_content_in_response("Access is Denied", resp)
+    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 2
+
+
+@pytest.mark.parametrize(
+    "action",
+    ["clear", "set_success", "set_failed", "set_running"],
+    ids=["clear", "success", "failed", "running"],
+)
+def test_set_dag_runs_action_permission_denied(client_dr_without_dag_edit, running_dag_run, action):
+    running_dag_id = running_dag_run.id
+    resp = client_dr_without_dag_edit.post(
+        "/dagrun/action_post",
+        data={"action": action, "rowid": [str(running_dag_id)]},
+        follow_redirects=True,
+    )
+    check_content_in_response("Access is Denied", resp)
+
+
+def test_delete_dagrun(session, admin_client, running_dag_run):
+    composite_key = _get_appbuilder_pk_string(DagRunModelView, running_dag_run)
+    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 2
+    admin_client.post(f"/dagrun/delete/{composite_key}", follow_redirects=True)
+    assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
+
+
+@pytest.mark.usefixtures("_broken_dags", "_working_dags")
+def test_home_no_importerrors_perm(_broken_dags, client_no_importerror):
+    # Users without "can read on import errors" don't see any import errors
+    resp = client_no_importerror.get("home", follow_redirects=True)
+    check_content_not_in_response("Import Errors", resp)
+
+
+TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "filter.test"]
+TEST_TAGS = ["example", "test", "team", "group"]
+
+
+@pytest.fixture(scope="module")
+def user_single_dag(app):
+    """Create User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
+    return create_user(
+        app,
+        username="user_single_dag",
+        role_name="role_single_dag",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
+            (
+                permissions.ACTION_CAN_READ,
+                _resource_name(TEST_FILTER_DAG_IDS[0], permissions.RESOURCE_DAG),
+            ),
+        ],
+    )
+
+
+@pytest.fixture
+def testing_dag_bundle():
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            testing = DagBundleModel(name="testing")
+            session.add(testing)
+
+
+@pytest.fixture
+def client_variable_reader(app, user_variable_reader):
+    """Client for User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
+    return client_with_login(
+        app,
+        username="user_variable_reader",
+        password="user_variable_reader",
+    )
+
+
+VARIABLE = {
+    "key": "test_key",
+    "val": "text_val",
+    "description": "test_description",
+    "is_encrypted": True,
+}
+
+
+@pytest.fixture(autouse=True)
+def _clear_variables():
+    with create_session() as session:
+        session.query(Variable).delete()
+
+
+@pytest.fixture(scope="module")
+def user_variable_reader(app):
+    """Create User that can only read variables"""
+    return create_user(
+        app,
+        username="user_variable_reader",
+        role_name="role_variable_reader",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ],
+    )
+
+
+@pytest.fixture
+def variable(session):
+    variable = Variable(
+        key=VARIABLE["key"],
+        val=VARIABLE["val"],
+        description=VARIABLE["description"],
+    )
+    session.add(variable)
+    session.commit()
+    yield variable
+    session.query(Variable).filter(Variable.key == VARIABLE["key"]).delete()
+    session.commit()
+
+
+@pytest.mark.parametrize(
+    "page",
+    [
+        "home",
+        "home?status=all",
+        "home?status=active",
+        "home?status=paused",
+        "home?lastrun=running",
+        "home?lastrun=failed",
+        "home?lastrun=all_states",
+    ],
+)
+@pytest.mark.usefixtures("_working_dags_with_read_perm", "_broken_dags")
+def test_home_importerrors_filtered_singledag_user(client_single_dag, page):
+    # Users that can only see certain DAGs get a filtered list of import errors
+    resp = client_single_dag.get(page, follow_redirects=True)
+    check_content_in_response("Import Errors", resp)
+    # They can see the first DAGs import error
+    check_content_in_response(f"/{TEST_FILTER_DAG_IDS[0]}.py", resp)
+    check_content_in_response("Traceback", resp)
+    # But not the rest
+    for dag_id in TEST_FILTER_DAG_IDS[1:]:
+        check_content_not_in_response(f"/{dag_id}.py", resp)
+
+
+def test_home_importerrors_missing_read_on_all_dags_in_file(_broken_dags_after_working, client_single_dag):
+    # If a user doesn't have READ on all DAGs in a file, that files traceback is redacted
+    resp = client_single_dag.get("home", follow_redirects=True)
+    check_content_in_response("Import Errors", resp)
+    # They can see the DAG file has an import error
+    check_content_in_response("all_in_one.py", resp)
+    # And the traceback is redacted
+    check_content_not_in_response("Traceback", resp)
+    check_content_in_response("REDACTED", resp)
+
+
+def test_home_dag_list_filtered_singledag_user(_working_dags_with_read_perm, client_single_dag):
+    # Users that can only see certain DAGs get a filtered list
+    resp = client_single_dag.get("home", follow_redirects=True)
+    # They can see the first DAG
+    check_content_in_response(f"dag_id={TEST_FILTER_DAG_IDS[0]}", resp)
+    # But not the rest
+    for dag_id in TEST_FILTER_DAG_IDS[1:]:
+        check_content_not_in_response(f"dag_id={dag_id}", resp)
+
+
+def test_home_dag_edit_permissions(
+    capture_templates,  # noqa: F811
+    _working_dags_with_edit_perm,
+    client_single_dag_edit,
+):
+    with capture_templates() as templates:
+        client_single_dag_edit.get("home", follow_redirects=True)
+
+    dags = templates[0].local_context["dags"]
+    assert len(dags) > 0
+    dag_edit_perm_tuple = [(dag.dag_id, dag.can_edit) for dag in dags]
+    assert ("filter_test_1", True) in dag_edit_perm_tuple
+    assert ("filter_test_2", False) in dag_edit_perm_tuple
+
+
+def test_graph_view_without_dag_permission(app, one_dag_perm_user_client):
+    url = "/dags/example_bash_operator/graph"
+    resp = one_dag_perm_user_client.get(url, follow_redirects=True)
+    assert resp.status_code == 200
+    assert (
+        resp.request.url
+        == "http://localhost/dags/example_bash_operator/grid?tab=graph&dag_run_id=TEST_RUN_ID"
+    )
+    check_content_in_response("example_bash_operator", resp)
+
+    url = "/dags/example_xcom/graph"
+    resp = one_dag_perm_user_client.get(url, follow_redirects=True)
+    assert resp.status_code == 200
+    assert resp.request.url == "http://localhost/home"
+    check_content_in_response("Access is Denied", resp)
+
+
+def test_delete_just_dag_per_dag_permissions(new_dag_to_delete, per_dag_perm_user_client):
+    resp = per_dag_perm_user_client.post(
+        f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True
+    )
+    check_content_in_response(f"Deleting DAG with id {new_dag_to_delete.dag_id}.", resp)
+
+
+def test_import_variables_form_hidden(app, client_variable_reader):
+    resp = client_variable_reader.get("/variable/list/")
+    check_content_not_in_response("Import Variables", resp)
+
+
+def test_action_muldelete_access_denied(session, client_variable_reader, variable):
+    var_id = variable.id
+    resp = client_variable_reader.post(
+        "/variable/action_post",
+        data={"action": "muldelete", "rowid": [var_id]},
+        follow_redirects=True,
+    )
+    check_content_in_response("Access is Denied", resp)

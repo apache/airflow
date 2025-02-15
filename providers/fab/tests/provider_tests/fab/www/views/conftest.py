@@ -21,11 +21,11 @@ import os
 
 import jinja2
 import pytest
-from providers.fab.tests.provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import delete_user
 
 from airflow import settings
 from airflow.models import DagBag
 from airflow.www.app import create_app
+from provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import delete_user
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import parse_and_sync_to_db

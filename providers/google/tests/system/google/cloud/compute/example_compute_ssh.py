@@ -26,8 +26,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
 from airflow.providers.google.cloud.operators.compute import (
@@ -36,6 +34,7 @@ from airflow.providers.google.cloud.operators.compute import (
 )
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [START howto_operator_gce_args_common]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

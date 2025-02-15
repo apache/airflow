@@ -19,12 +19,12 @@ from __future__ import annotations
 import re
 from unittest import mock
 
-import providers.fab.src.airflow.providers.fab as provider_fab
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
 
+import providers.fab.src.airflow.providers.fab as provider_fab
 from airflow.settings import engine
 from airflow.utils.db import (
     compare_server_default,

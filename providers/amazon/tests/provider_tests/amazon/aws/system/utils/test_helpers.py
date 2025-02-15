@@ -16,7 +16,7 @@
 # under the License.
 """
 This module contains the unit tests for the helper methods included in the Amazon System Tests found at
-providers/tests/system/amazon/aws/utils/__init__.py
+providers/amazon/tests/system/amazon/aws/utils/__init__.py
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ from unittest.mock import patch
 
 import pytest
 from moto import mock_aws
-from providers.amazon.tests.system.amazon.aws import utils
-from providers.amazon.tests.system.amazon.aws.utils import (
+from system.amazon.aws import utils
+from system.amazon.aws.utils import (
     DEFAULT_ENV_ID_LEN,
     DEFAULT_ENV_ID_PREFIX,
     ENV_ID_ENVIRON_KEY,
