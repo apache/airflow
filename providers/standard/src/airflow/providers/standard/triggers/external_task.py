@@ -55,7 +55,7 @@ class WorkflowTrigger(BaseTrigger):
     def __init__(
         self,
         external_dag_id: str,
-        run_ids: list[datetime] | None,
+        run_ids: list[str] | None = None,
         execution_dates: list[datetime] | None = None,
         external_task_ids: typing.Collection[str] | None = None,
         external_task_group_id: str | None = None,
@@ -80,23 +80,23 @@ class WorkflowTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the trigger param and module path."""
-        _dates = (
-            {"run_ids": self.run_ids} if AIRFLOW_V_3_0_PLUS else {"execution_dates": self.execution_dates}
-        )
-        return (
-            "airflow.providers.standard.triggers.external_task.WorkflowTrigger",
-            {
-                "external_dag_id": self.external_dag_id,
-                "external_task_ids": self.external_task_ids,
-                "external_task_group_id": self.external_task_group_id,
-                "failed_states": self.failed_states,
-                "skipped_states": self.skipped_states,
-                "allowed_states": self.allowed_states,
-                **_dates,
-                "poke_interval": self.poke_interval,
-                "soft_fail": self.soft_fail,
-            },
-        )
+
+        data: dict[str, typing.Any] = {
+            "external_dag_id": self.external_dag_id,
+            "external_task_ids": self.external_task_ids,
+            "external_task_group_id": self.external_task_group_id,
+            "failed_states": self.failed_states,
+            "skipped_states": self.skipped_states,
+            "allowed_states": self.allowed_states,
+            "poke_interval": self.poke_interval,
+            "soft_fail": self.soft_fail,
+        }
+        if AIRFLOW_V_3_0_PLUS:
+            data["run_ids"] = self.run_ids
+        else:
+            data["execution_dates"] = self.execution_dates
+
+        return "airflow.providers.standard.triggers.external_task.WorkflowTrigger", data
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically tasks, task group or dag status."""
@@ -141,11 +141,11 @@ class WorkflowTrigger(BaseTrigger):
 
 class DagStateTrigger(BaseTrigger):
     """
-    Waits asynchronously for a DAG to complete for a specific run_id.
+    Waits asynchronously for a dag to complete for a specific run_id.
 
     :param dag_id: The dag_id that contains the task you want to wait for
     :param states: allowed states, default is ``['success']``
-    :param run_ids: The run_id of DAG run.
+    :param run_ids: The run_id of dag run.
     :param poll_interval: The time interval in seconds to check the state.
         The default value is 5.0 sec.
     """
@@ -154,7 +154,7 @@ class DagStateTrigger(BaseTrigger):
         self,
         dag_id: str,
         states: list[DagRunState],
-        run_ids: list[datetime] | None,
+        run_ids: list[str] | None = None,
         execution_dates: list[datetime] | None = None,
         poll_interval: float = 5.0,
     ):
@@ -167,18 +167,19 @@ class DagStateTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serialize DagStateTrigger arguments and classpath."""
-        _dates = (
-            {"run_ids": self.run_ids} if AIRFLOW_V_3_0_PLUS else {"execution_dates": self.execution_dates}
-        )
-        return (
-            "airflow.providers.standard.triggers.external_task.DagStateTrigger",
-            {
-                "dag_id": self.dag_id,
-                "states": self.states,
-                **_dates,
-                "poll_interval": self.poll_interval,
-            },
-        )
+
+        data = {
+            "dag_id": self.dag_id,
+            "states": self.states,
+            "poll_interval": self.poll_interval,
+        }
+
+        if AIRFLOW_V_3_0_PLUS:
+            data["run_ids"] = self.run_ids
+        else:
+            data["execution_dates"] = self.execution_dates
+
+        return "airflow.providers.standard.triggers.external_task.DagStateTrigger", data
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically if the dag run exists, and has hit one of the states yet, or not."""
