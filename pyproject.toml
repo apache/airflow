@@ -374,8 +374,6 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "kubernetes_tests/*" = ["D", "TID253", "S101", "TRY002"]
 "helm_tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
-# exclude assert in edge provider
-"providers/edge/src/airflow/providers/edge/example_dags/integration_test.py" = ["S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
