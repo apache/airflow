@@ -628,6 +628,8 @@ export type DAGRunsBatchBody = {
   page_limit?: number;
   dag_ids?: Array<string> | null;
   states?: Array<DagRunState | null> | null;
+  run_after_gte?: string | null;
+  run_after_lte?: string | null;
   logical_date_gte?: string | null;
   logical_date_lte?: string | null;
   start_date_gte?: string | null;
@@ -820,6 +822,7 @@ export type DagVersionResponse = {
   bundle_name: string;
   bundle_version: string | null;
   created_at: string;
+  readonly bundle_url: string | null;
 };
 
 /**
@@ -1884,6 +1887,8 @@ export type GetDagRunsData = {
   logicalDateLte?: string | null;
   offset?: number;
   orderBy?: string;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;

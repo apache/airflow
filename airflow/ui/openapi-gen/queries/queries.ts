@@ -939,6 +939,8 @@ export const useDagRunServiceGetUpstreamAssetEvents = <
  * @param data.dagId
  * @param data.limit
  * @param data.offset
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -966,6 +968,8 @@ export const useDagRunServiceGetDagRuns = <
     logicalDateLte,
     offset,
     orderBy,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -980,6 +984,8 @@ export const useDagRunServiceGetDagRuns = <
     logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1000,6 +1006,8 @@ export const useDagRunServiceGetDagRuns = <
         logicalDateLte,
         offset,
         orderBy,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1018,6 +1026,8 @@ export const useDagRunServiceGetDagRuns = <
         logicalDateLte,
         offset,
         orderBy,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,

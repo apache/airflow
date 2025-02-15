@@ -2418,6 +2418,30 @@ export const $DAGRunsBatchBody = {
       ],
       title: "States",
     },
+    run_after_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Gte",
+    },
+    run_after_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Lte",
+    },
     logical_date_gte: {
       anyOf: [
         {
@@ -3112,9 +3136,21 @@ export const $DagVersionResponse = {
       format: "date-time",
       title: "Created At",
     },
+    bundle_url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Url",
+      readOnly: true,
+    },
   },
   type: "object",
-  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at"],
+  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at", "bundle_url"],
   title: "DagVersionResponse",
   description: "Dag Version serializer for responses.",
 } as const;

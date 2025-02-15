@@ -413,6 +413,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "external_python_operator: external python operator tests are 'long', we should run them separately",
     )
     config.addinivalue_line("markers", "enable_redact: do not mock redact secret masker")
+    config.addinivalue_line("markers", "mock_plugin_manager: mark a test to use mock_plugin_manager")
 
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
@@ -889,7 +890,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         def create_dagrun(self, *, logical_date=None, **kwargs):
             from airflow.utils import timezone
             from airflow.utils.state import DagRunState
-            from airflow.utils.types import DagRunType
+            from airflow.utils.types import NOTSET, DagRunType
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
@@ -911,21 +912,26 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if not isinstance(run_type, DagRunType):
                 run_type = DagRunType(run_type)
 
-            if logical_date is None:
+            if logical_date is NOTSET:
+                # Explicit non requested
+                logical_date = None
+            elif logical_date is None:
                 if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
                     logical_date = dag.next_dagrun_info(None).logical_date
             logical_date = timezone.coerce_datetime(logical_date)
 
+            data_interval = None
             try:
                 data_interval = kwargs["data_interval"]
             except KeyError:
-                if run_type == DagRunType.MANUAL:
-                    data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-                else:
-                    data_interval = dag.infer_automated_data_interval(logical_date)
-                kwargs["data_interval"] = data_interval
+                if logical_date is not None:
+                    if run_type == DagRunType.MANUAL:
+                        data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+                    else:
+                        data_interval = dag.infer_automated_data_interval(logical_date)
+            kwargs["data_interval"] = data_interval
 
             if "run_id" not in kwargs:
                 if "run_type" not in kwargs:
@@ -1229,9 +1235,13 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
     Uses ``create_dummy_dag`` to create the dag structure.
     """
     from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.utils.types import NOTSET, ArgNotSet
+
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     def maker(
-        logical_date=None,
+        logical_date: datetime | None | ArgNotSet = NOTSET,
+        run_after=None,
         dagrun_state=None,
         state=None,
         run_id=None,
@@ -1257,7 +1267,12 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         last_heartbeat_at=None,
         **kwargs,
     ) -> TaskInstance:
-        if logical_date is None:
+        if run_after is None:
+            from airflow.utils import timezone
+
+            run_after = timezone.utcnow()
+        if logical_date is NOTSET:
+            # For now: default to having a logical date if None is not explicitly passed.
             from airflow.utils import timezone
 
             logical_date = timezone.utcnow()
@@ -1278,10 +1293,17 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
                 trigger_rule=trigger_rule,
                 **op_kwargs,
             )
-        dagrun_kwargs = {
-            "logical_date": logical_date,
-            "state": dagrun_state,
-        }
+        if AIRFLOW_V_3_0_PLUS:
+            dagrun_kwargs = {
+                "logical_date": logical_date,
+                "run_after": run_after,
+                "state": dagrun_state,
+            }
+        else:
+            dagrun_kwargs = {
+                "logical_date": logical_date if logical_date not in (None, NOTSET) else run_after,
+                "state": dagrun_state,
+            }
         if run_id is not None:
             dagrun_kwargs["run_id"] = run_id
         if run_type is not None:
@@ -1583,6 +1605,18 @@ def _disable_redact(request: pytest.FixtureRequest, mocker):
         mp_ctx.setattr(settings, "MASK_SECRETS_IN_LOGS", False)
         yield
     return
+
+
+@pytest.fixture(autouse=True)
+def _mock_plugins(request: pytest.FixtureRequest):
+    """Disable redacted text in tests, except specific."""
+    if mark := next(request.node.iter_markers("mock_plugin_manager"), None):
+        from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+        with mock_plugin_manager(**mark.kwargs):
+            yield
+            return
+    yield
 
 
 @pytest.fixture
