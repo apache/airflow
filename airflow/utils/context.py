@@ -34,7 +34,6 @@ from typing import (
 import attrs
 from sqlalchemy import and_, select
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.asset import (
     AssetAliasModel,
     AssetEvent,
@@ -66,7 +65,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
 
-    from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:
@@ -96,7 +94,9 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "prev_end_date_success",
     "reason",
     "run_id",
+    "start_date",
     "task",
+    "task_reschedule_count",
     "task_instance",
     "task_instance_key_str",
     "test_mode",
@@ -270,10 +270,6 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Lazy
         )
 
 
-class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
-    """Warn for usage of deprecated context variables in a task."""
-
-
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     """
     Merge parameters into an existing context.
@@ -291,24 +287,6 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
         context = Context()
 
     context.update(*args, **kwargs)
-
-
-def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
-    """
-    Update context after task unmapping.
-
-    Since ``get_template_context()`` is called before unmapping, the context
-    contains information about the mapped task. We need to do some in-place
-    updates to ensure the template context reflects the unmapped task instead.
-
-    :meta private:
-    """
-    from airflow.sdk.definitions.param import process_params
-
-    context["task"] = context["ti"].task = task
-    context["params"] = process_params(
-        context["dag"], task, context["dag_run"].conf, suppress_exception=False
-    )
 
 
 def context_copy_partial(source: Context, keys: Container[str]) -> Context:

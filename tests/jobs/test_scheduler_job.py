@@ -138,16 +138,17 @@ def create_dagrun(session):
         state: DagRunState = DagRunState.RUNNING,
         start_date: datetime | None = None,
     ) -> DagRun:
-        run_id = dag.timetable.generate_run_id(
+        run_after = logical_date or timezone.utcnow()
+        run_id = DagRun.generate_run_id(
             run_type=run_type,
             logical_date=logical_date,
-            data_interval=data_interval,
+            run_after=run_after,
         )
         return dag.create_dagrun(
             run_id=run_id,
             logical_date=logical_date,
             data_interval=data_interval,
-            run_after=data_interval.end,
+            run_after=run_after,
             run_type=run_type,
             state=state,
             start_date=start_date,
@@ -3879,8 +3880,8 @@ class TestSchedulerJob:
         assert list(map(dict_from_obj, created_run.consumed_asset_events)) == list(
             map(dict_from_obj, [event1, event2])
         )
-        assert created_run.data_interval_start == DEFAULT_DATE + timedelta(days=5)
-        assert created_run.data_interval_end == DEFAULT_DATE + timedelta(days=11)
+        assert created_run.data_interval_start is None
+        assert created_run.data_interval_end is None
         # dag2 ADRQ record should still be there since the dag run was *not* triggered
         assert session.query(AssetDagRunQueue).filter_by(target_dag_id=dag2.dag_id).one() is not None
         # dag2 should not be triggered since it depends on both asset 1  and 2
@@ -3888,7 +3889,7 @@ class TestSchedulerJob:
         # dag3 ADRQ record should be deleted since the dag run was triggered
         assert session.query(AssetDagRunQueue).filter_by(target_dag_id=dag3.dag_id).one_or_none() is None
 
-        assert dag3.get_last_dagrun().creating_job_id == scheduler_job.id
+        assert created_run.creating_job_id == scheduler_job.id
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
@@ -4996,7 +4997,7 @@ class TestSchedulerJob:
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         for i in range(16):
             dr = dag_maker.create_dagrun(
-                run_id=f"dr2_run_{i+1}",
+                run_id=f"dr2_run_{i + 1}",
                 state=State.RUNNING,
                 logical_date=date,
                 dag_version=dag_version,
@@ -5006,7 +5007,7 @@ class TestSchedulerJob:
         date = dr16[0].logical_date + timedelta(hours=1)
         for i in range(16, 32):
             dr = dag_maker.create_dagrun(
-                run_id=f"dr2_run_{i+1}",
+                run_id=f"dr2_run_{i + 1}",
                 state=State.QUEUED,
                 logical_date=date,
                 dag_version=dag_version,
@@ -5020,7 +5021,7 @@ class TestSchedulerJob:
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         for i in range(16):
             dr = dag_maker.create_dagrun(
-                run_id=f"dr3_run_{i+1}",
+                run_id=f"dr3_run_{i + 1}",
                 state=State.RUNNING,
                 logical_date=date,
                 dag_version=dag_version,
@@ -5030,7 +5031,7 @@ class TestSchedulerJob:
         date = dr16[0].logical_date + timedelta(hours=1)
         for i in range(16, 32):
             dr = dag_maker.create_dagrun(
-                run_id=f"dr2_run_{i+1}",
+                run_id=f"dr2_run_{i + 1}",
                 state=State.QUEUED,
                 logical_date=date,
                 dag_version=dag_version,
@@ -5484,6 +5485,7 @@ class TestSchedulerJob:
                 ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_v.id)
 
                 ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
+                ti.start_date = timezone.utcnow() - timedelta(minutes=10)
                 ti.queued_by_job_id = 999
 
                 session.add(ti)
@@ -5600,6 +5602,7 @@ class TestSchedulerJob:
                 task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_run.dag_version_id
             )
             ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
+            ti.start_date = timezone.utcnow() - timedelta(minutes=10)
 
             # TODO: If there was an actual Relationship between TI and Job
             # we wouldn't need this extra commit

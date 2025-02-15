@@ -42,7 +42,6 @@ import pytest
 from slugify import slugify
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.decorators import task_group
 from airflow.exceptions import (
     AirflowException,
     DeserializingResultError,
@@ -65,7 +64,6 @@ from airflow.providers.standard.operators.python import (
 )
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils import timezone
-from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
@@ -76,6 +74,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+    from airflow.utils.context import Context
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
@@ -110,8 +109,12 @@ class BasePythonTest:
         self.run_id = f"run_{slugify(request.node.name, max_length=40)}"
         self.ds_templated = self.default_date.date().isoformat()
         self.ti_maker = create_serialized_task_instance_of_operator
+
         self.dag_maker = dag_maker
         self.dag_non_serialized = self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH).dag
+        # We need to entre the context in order to the factory to create things
+        with self.dag_maker:
+            ...
         clear_db_runs()
         yield
         clear_db_runs()
@@ -138,6 +141,10 @@ class BasePythonTest:
         return kwargs
 
     def create_dag_run(self) -> DagRun:
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        # Update the serialized DAG with any tasks added after initial dag was created
+        self.dag_maker.serialized_model = SerializedDagModel(self.dag_non_serialized)
         return self.dag_maker.create_dagrun(
             state=DagRunState.RUNNING,
             start_date=self.dag_maker.start_date,
@@ -753,39 +760,6 @@ class TestShortCircuitOperator(BasePythonTest):
             "skipped": ["empty_task"]
         }
 
-    def test_mapped_xcom_push_skipped_tasks(self, session):
-        with self.dag_non_serialized:
-
-            @task_group
-            def group(x):
-                short_op_push_xcom = ShortCircuitOperator(
-                    task_id="push_xcom_from_shortcircuit",
-                    python_callable=lambda arg: arg % 2 == 0,
-                    op_kwargs={"arg": x},
-                )
-                empty_task = EmptyOperator(task_id="empty_task")
-                short_op_push_xcom >> empty_task
-
-            group.expand(x=[0, 1])
-        dr = self.create_dag_run()
-        decision = dr.task_instance_scheduling_decisions(session=session)
-        for ti in decision.schedulable_tis:
-            ti.run()
-        # dr.run(start_date=self.default_date, end_date=self.default_date)
-        tis = dr.get_task_instances()
-
-        assert (
-            tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="return_value", map_indexes=0)
-            is True
-        )
-        assert (
-            tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=0)
-            is None
-        )
-        assert tis[0].xcom_pull(
-            task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=1
-        ) == {"skipped": ["group.empty_task"]}
-
 
 virtualenv_string_args: list[str] = []
 
@@ -1279,7 +1253,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill/cloudpickle (which is slow apparently).
     @pytest.mark.execution_timeout(120)
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1339,7 +1312,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_operator(f, serializer=serializer, system_site_packages=True, requirements=None)
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1370,7 +1342,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=["pendulum"])
 
-    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.parametrize(
         "serializer",
         [
@@ -1795,10 +1766,12 @@ class MyContextAssertOperator(BaseOperator):
 def get_all_the_context(**context):
     current_context = get_current_context()
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", AirflowContextDeprecationWarning)
         if AIRFLOW_V_3_0_PLUS:
             assert context == current_context
         else:
+            from airflow.utils.context import AirflowContextDeprecationWarning
+
+            warnings.simplefilter("ignore", AirflowContextDeprecationWarning)
             assert current_context._context
 
 

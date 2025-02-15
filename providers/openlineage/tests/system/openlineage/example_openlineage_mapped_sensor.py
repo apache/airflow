@@ -18,13 +18,13 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
-
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
+from pathlib import Path
 
 from airflow import DAG
 from airflow.models import Variable
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
+from system.openlineage.operator import OpenLineageTestOperator
 
 
 def my_task(task_number):
@@ -68,7 +68,7 @@ with DAG(
 
     check_events = OpenLineageTestOperator(
         task_id="check_events",
-        file_path=f"{os.getenv('AIRFLOW_HOME')}/dags/providers/tests/system/openlineage/example_openlineage_mapped_sensor.json",
+        file_path=str(Path(__file__).parent / "example_openlineage_mapped_sensor.json"),
         allow_duplicate_events=True,
     )
 

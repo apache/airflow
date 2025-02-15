@@ -11,6 +11,7 @@ import {
   DagService,
   DagSourceService,
   DagStatsService,
+  DagVersionService,
   DagWarningService,
   DagsService,
   DashboardService,
@@ -19,6 +20,7 @@ import {
   GridService,
   ImportErrorService,
   JobService,
+  LoginService,
   MonitorService,
   PluginService,
   PoolService,
@@ -601,14 +603,16 @@ export const prefetchUseBackfillServiceGetBackfill = (
  * @param data.dagId
  * @param data.includeUpstream
  * @param data.includeDownstream
- * @param data.logicalDateGte
- * @param data.logicalDateLte
  * @param data.root
  * @param data.offset
  * @param data.runType
  * @param data.state
  * @param data.limit
  * @param data.orderBy
+ * @param data.runAfterGte
+ * @param data.runAfterLte
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
  * @returns GridResponse Successful Response
  * @throws ApiError
  */
@@ -624,6 +628,8 @@ export const prefetchUseGridServiceGridData = (
     offset,
     orderBy,
     root,
+    runAfterGte,
+    runAfterLte,
     runType,
     state,
   }: {
@@ -636,6 +642,8 @@ export const prefetchUseGridServiceGridData = (
     offset?: number;
     orderBy?: string;
     root?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     runType?: string[];
     state?: string[];
   },
@@ -651,6 +659,8 @@ export const prefetchUseGridServiceGridData = (
       offset,
       orderBy,
       root,
+      runAfterGte,
+      runAfterLte,
       runType,
       state,
     }),
@@ -665,6 +675,8 @@ export const prefetchUseGridServiceGridData = (
         offset,
         orderBy,
         root,
+        runAfterGte,
+        runAfterLte,
         runType,
         state,
       }),
@@ -769,6 +781,8 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
  * @param data.dagId
  * @param data.limit
  * @param data.offset
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -793,6 +807,8 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     logicalDateLte,
     offset,
     orderBy,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -807,6 +823,8 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -824,6 +842,8 @@ export const prefetchUseDagRunServiceGetDagRuns = (
       logicalDateLte,
       offset,
       orderBy,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,
@@ -840,6 +860,8 @@ export const prefetchUseDagRunServiceGetDagRuns = (
         logicalDateLte,
         offset,
         orderBy,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -2278,6 +2300,63 @@ export const prefetchUseVariableServiceGetVariables = (
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }),
   });
 /**
+ * Get Dag Versions
+ * Get all DAG Versions.
+ *
+ * This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.limit
+ * @param data.offset
+ * @param data.versionNumber
+ * @param data.bundleName
+ * @param data.bundleVersion
+ * @param data.orderBy
+ * @returns DAGVersionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagVersionServiceGetDagVersions = (
+  queryClient: QueryClient,
+  {
+    bundleName,
+    bundleVersion,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    versionNumber,
+  }: {
+    bundleName?: string;
+    bundleVersion?: string;
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    versionNumber?: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({
+      bundleName,
+      bundleVersion,
+      dagId,
+      limit,
+      offset,
+      orderBy,
+      versionNumber,
+    }),
+    queryFn: () =>
+      DagVersionService.getDagVersions({
+        bundleName,
+        bundleVersion,
+        dagId,
+        limit,
+        offset,
+        orderBy,
+        versionNumber,
+      }),
+  });
+/**
  * Get Health
  * @returns HealthInfoResponse Successful Response
  * @throws ApiError
@@ -2297,4 +2376,24 @@ export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(),
     queryFn: () => VersionService.getVersion(),
+  });
+/**
+ * Login
+ * Redirect to the login URL depending on the AuthManager configured.
+ * @param data The data for the request.
+ * @param data.next
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseLoginServiceLogin = (
+  queryClient: QueryClient,
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseLoginServiceLoginKeyFn({ next }),
+    queryFn: () => LoginService.login({ next }),
   });

@@ -56,7 +56,6 @@ def create_user(app, username, role_name=None, email=None, permissions=None):
 
     # Removes user and role so each test has isolated test data.
     delete_user(app, username)
-    role = None
     if role_name:
         delete_role(app, role_name)
         role = create_role(app, role_name, permissions)

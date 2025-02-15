@@ -26,12 +26,11 @@ from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import attrs
-from sqlalchemy import exists
 
 from airflow import __version__ as AIRFLOW_VERSION
 
 # TODO: move this maybe to Airflow's logic?
-from airflow.models import DagRun, TaskReschedule
+from airflow.models import BaseOperator, DagRun, TaskReschedule
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
     conf,
@@ -53,29 +52,33 @@ from airflow.providers.openlineage.utils.selective_enable import (
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.utils.context import AirflowContextDeprecationWarning
-from airflow.utils.log.secrets_masker import (
-    Redactable,
-    Redacted,
-    SecretsMasker,
-    should_hide_value_for_key,
-)
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 from openlineage.client.utils import RedactMixin
 
+try:
+    from airflow.sdk import BaseOperator as SdkBaseOperator
+except ImportError:
+    SdkBaseOperator = BaseOperator  # type: ignore[misc]
+
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG, BaseOperator, MappedOperator
+    from airflow.sdk import DAG, MappedOperator
+    from airflow.sdk.execution_time.secrets_masker import (
+        Redactable,
+        Redacted,
+        SecretsMasker,
+        should_hide_value_for_key,
+    )
     from airflow.utils.state import DagRunState, TaskInstanceState
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import RunFacet, processing_engine_run
 else:
     try:
-        from airflow.sdk import DAG, BaseOperator, MappedOperator
+        from airflow.sdk import DAG, MappedOperator
     except ImportError:
-        from airflow.models import DAG, BaseOperator, MappedOperator
+        from airflow.models import DAG, MappedOperator
 
     try:
         from airflow.providers.common.compat.assets import Asset
@@ -86,6 +89,21 @@ else:
             # dataset is renamed to asset since Airflow 3.0
             from airflow.datasets import Dataset as Asset
 
+    try:
+        from airflow.sdk.execution_time.secrets_masker import (
+            Redactable,
+            Redacted,
+            SecretsMasker,
+            should_hide_value_for_key,
+        )
+    except ImportError:
+        from airflow.utils.log.secrets_masker import (
+            Redactable,
+            Redacted,
+            SecretsMasker,
+            should_hide_value_for_key,
+        )
+
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
@@ -95,7 +113,7 @@ def try_import_from_string(string: str) -> Any:
         return import_string(string)
 
 
-def get_operator_class(task: BaseOperator) -> type:
+def get_operator_class(task: BaseOperator | SdkBaseOperator) -> type:
     if task.__class__.__name__ in ("DecoratedMappedOperator", "MappedOperator"):
         return task.operator_class
     return task.__class__
@@ -158,7 +176,7 @@ def get_user_provided_run_facets(ti: TaskInstance, ti_state: TaskInstanceState) 
     return custom_facets
 
 
-def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> str:
+def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator | SdkBaseOperator) -> str:
     if isinstance(operator, (MappedOperator, SerializedBaseOperator)):
         # as in airflow.api_connexion.schemas.common_schema.ClassReferenceSchema
         return operator._task_module + "." + operator._task_type  # type: ignore
@@ -166,17 +184,17 @@ def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> s
     return op_class.__module__ + "." + op_class.__name__
 
 
-def is_operator_disabled(operator: BaseOperator | MappedOperator) -> bool:
+def is_operator_disabled(operator: BaseOperator | MappedOperator | SdkBaseOperator) -> bool:
     return get_fully_qualified_class_name(operator) in conf.disabled_operators()
 
 
-def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bool:
+def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator | SdkBaseOperator) -> bool:
     """If selective enable is active check if DAG or Task is enabled to emit events."""
     if not conf.selective_enable():
         return True
     if isinstance(obj, DAG):
         return is_dag_lineage_enabled(obj)
-    elif isinstance(obj, (BaseOperator, MappedOperator)):
+    elif isinstance(obj, (BaseOperator, MappedOperator, SdkBaseOperator)):
         return is_task_lineage_enabled(obj)
     else:
         raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
@@ -184,6 +202,8 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bo
 
 @provide_session
 def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
+    from sqlalchemy import exists
+
     if not isinstance(ti.task, BaseSensorOperator):
         return False
 
@@ -625,6 +645,15 @@ class OpenLineageRedactor(SecretsMasker):
         return instance
 
     def _redact(self, item: Redactable, name: str | None, depth: int, max_depth: int) -> Redacted:
+        if AIRFLOW_V_3_0_PLUS:
+            # Keep compatibility for Airflow 2.x, remove when Airflow 3.0 is the minimum version
+            class AirflowContextDeprecationWarning(UserWarning):
+                pass
+        else:
+            from airflow.utils.context import (  # type: ignore[attr-defined,no-redef]
+                AirflowContextDeprecationWarning,
+            )
+
         if depth > max_depth:
             return item
         try:

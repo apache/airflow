@@ -43,7 +43,11 @@ from airflow.www.views import (
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
-from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests_common.test_utils.www import (
+    capture_templates,  # noqa: F401
+    check_content_in_response,
+    check_content_not_in_response,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -85,7 +89,10 @@ def test_webserver_configuration_config_file(mock_webserver_config_global, admin
     assert os.path.isfile(config_file)
 
 
-def test_redoc_should_render_template(capture_templates, admin_client):
+def test_redoc_should_render_template(
+    capture_templates,  # noqa: F811
+    admin_client,
+):
     from airflow.utils.docs import get_docs_url
 
     with capture_templates() as templates:

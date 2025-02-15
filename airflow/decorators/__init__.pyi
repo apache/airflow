@@ -404,6 +404,7 @@ class TaskDecoratorCollection:
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[dict] | None = None,
+        labels: dict[str, str] | list[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a Docker task.
@@ -508,6 +509,8 @@ class TaskDecoratorCollection:
             Incompatible with ``"host"`` in ``network_mode``.
         :param ulimits: List of ulimit options to set for the container. Each item should
             be a :py:class:`docker.types.Ulimit` instance.
+        :param labels: A dictionary of name-value labels (e.g. ``{"label1": "value1", "label2": "value2"}``)
+            or a list of names of labels to set with empty values (e.g. ``["label1", "label2"]``)
         """
         # [END decorator_signature]
     def kubernetes(
@@ -588,7 +591,7 @@ class TaskDecoratorCollection:
         :param name: Name of the pod to run. This will be used (plus a random
             suffix if *random_name_suffix* is *True*) to generate a pod ID
             (DNS-1123 subdomain, containing only ``[a-z0-9.-]``). Defaults to
-            ``k8s_airflow_pod_{RANDOM_UUID}``.
+            ``k8s-airflow-pod-{python_callable.__name__}``.
         :param random_name_suffix: If *True*, will generate a random suffix.
         :param arguments: arguments of the entrypoint. (templated)
             The docker image's CMD is used if this is not provided.

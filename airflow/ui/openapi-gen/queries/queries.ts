@@ -12,6 +12,7 @@ import {
   DagService,
   DagSourceService,
   DagStatsService,
+  DagVersionService,
   DagWarningService,
   DagsService,
   DashboardService,
@@ -20,6 +21,7 @@ import {
   GridService,
   ImportErrorService,
   JobService,
+  LoginService,
   MonitorService,
   PluginService,
   PoolService,
@@ -52,6 +54,7 @@ import {
   TriggerDAGRunPostBody,
   VariableBody,
   XComCreateBody,
+  XComUpdateBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -735,14 +738,16 @@ export const useBackfillServiceGetBackfill = <
  * @param data.dagId
  * @param data.includeUpstream
  * @param data.includeDownstream
- * @param data.logicalDateGte
- * @param data.logicalDateLte
  * @param data.root
  * @param data.offset
  * @param data.runType
  * @param data.state
  * @param data.limit
  * @param data.orderBy
+ * @param data.runAfterGte
+ * @param data.runAfterLte
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
  * @returns GridResponse Successful Response
  * @throws ApiError
  */
@@ -761,6 +766,8 @@ export const useGridServiceGridData = <
     offset,
     orderBy,
     root,
+    runAfterGte,
+    runAfterLte,
     runType,
     state,
   }: {
@@ -773,6 +780,8 @@ export const useGridServiceGridData = <
     offset?: number;
     orderBy?: string;
     root?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     runType?: string[];
     state?: string[];
   },
@@ -791,6 +800,8 @@ export const useGridServiceGridData = <
         offset,
         orderBy,
         root,
+        runAfterGte,
+        runAfterLte,
         runType,
         state,
       },
@@ -807,6 +818,8 @@ export const useGridServiceGridData = <
         offset,
         orderBy,
         root,
+        runAfterGte,
+        runAfterLte,
         runType,
         state,
       }) as TData,
@@ -936,6 +949,8 @@ export const useDagRunServiceGetUpstreamAssetEvents = <
  * @param data.dagId
  * @param data.limit
  * @param data.offset
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -963,6 +978,8 @@ export const useDagRunServiceGetDagRuns = <
     logicalDateLte,
     offset,
     orderBy,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -977,6 +994,8 @@ export const useDagRunServiceGetDagRuns = <
     logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -997,6 +1016,8 @@ export const useDagRunServiceGetDagRuns = <
         logicalDateLte,
         offset,
         orderBy,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1015,6 +1036,8 @@ export const useDagRunServiceGetDagRuns = <
         logicalDateLte,
         offset,
         orderBy,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -2690,6 +2713,64 @@ export const useVariableServiceGetVariables = <
     ...options,
   });
 /**
+ * Get Dag Versions
+ * Get all DAG Versions.
+ *
+ * This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.limit
+ * @param data.offset
+ * @param data.versionNumber
+ * @param data.bundleName
+ * @param data.bundleVersion
+ * @param data.orderBy
+ * @returns DAGVersionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagVersionServiceGetDagVersions = <
+  TData = Common.DagVersionServiceGetDagVersionsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    bundleName,
+    bundleVersion,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    versionNumber,
+  }: {
+    bundleName?: string;
+    bundleVersion?: string;
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    versionNumber?: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn(
+      { bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagVersionService.getDagVersions({
+        bundleName,
+        bundleVersion,
+        dagId,
+        limit,
+        offset,
+        orderBy,
+        versionNumber,
+      }) as TData,
+    ...options,
+  });
+/**
  * Get Health
  * @returns HealthInfoResponse Successful Response
  * @throws ApiError
@@ -2724,6 +2805,32 @@ export const useVersionServiceGetVersion = <
   useQuery<TData, TError>({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
     queryFn: () => VersionService.getVersion() as TData,
+    ...options,
+  });
+/**
+ * Login
+ * Redirect to the login URL depending on the AuthManager configured.
+ * @param data The data for the request.
+ * @param data.next
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useLoginServiceLogin = <
+  TData = Common.LoginServiceLoginDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseLoginServiceLoginKeyFn({ next }, queryKey),
+    queryFn: () => LoginService.login({ next }) as TData,
     ...options,
   });
 /**
@@ -3980,6 +4087,61 @@ export const usePoolServiceBulkPools = <
     TContext
   >({
     mutationFn: ({ requestBody }) => PoolService.bulkPools({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Update Xcom Entry
+ * Update an existing XCom entry.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.dagRunId
+ * @param data.xcomKey
+ * @param data.requestBody
+ * @returns XComResponseNative Successful Response
+ * @throws ApiError
+ */
+export const useXcomServiceUpdateXcomEntry = <
+  TData = Common.XcomServiceUpdateXcomEntryMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        requestBody: XComUpdateBody;
+        taskId: string;
+        xcomKey: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      requestBody: XComUpdateBody;
+      taskId: string;
+      xcomKey: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, requestBody, taskId, xcomKey }) =>
+      XcomService.updateXcomEntry({
+        dagId,
+        dagRunId,
+        requestBody,
+        taskId,
+        xcomKey,
+      }) as unknown as Promise<TData>,
     ...options,
   });
 /**

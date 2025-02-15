@@ -12,6 +12,7 @@ import {
   DagService,
   DagSourceService,
   DagStatsService,
+  DagVersionService,
   DagWarningService,
   DagsService,
   DashboardService,
@@ -20,6 +21,7 @@ import {
   GridService,
   ImportErrorService,
   JobService,
+  LoginService,
   MonitorService,
   PluginService,
   PoolService,
@@ -456,6 +458,8 @@ export const UseGridServiceGridDataKeyFn = (
     offset,
     orderBy,
     root,
+    runAfterGte,
+    runAfterLte,
     runType,
     state,
   }: {
@@ -468,6 +472,8 @@ export const UseGridServiceGridDataKeyFn = (
     offset?: number;
     orderBy?: string;
     root?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     runType?: string[];
     state?: string[];
   },
@@ -485,6 +491,8 @@ export const UseGridServiceGridDataKeyFn = (
       offset,
       orderBy,
       root,
+      runAfterGte,
+      runAfterLte,
       runType,
       state,
     },
@@ -576,6 +584,8 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     logicalDateLte,
     offset,
     orderBy,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -590,6 +600,8 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -609,6 +621,8 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
       logicalDateLte,
       offset,
       orderBy,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,
@@ -1622,6 +1636,37 @@ export const UseVariableServiceGetVariablesKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern }])];
+export type DagVersionServiceGetDagVersionsDefaultResponse = Awaited<
+  ReturnType<typeof DagVersionService.getDagVersions>
+>;
+export type DagVersionServiceGetDagVersionsQueryResult<
+  TData = DagVersionServiceGetDagVersionsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagVersionServiceGetDagVersionsKey = "DagVersionServiceGetDagVersions";
+export const UseDagVersionServiceGetDagVersionsKeyFn = (
+  {
+    bundleName,
+    bundleVersion,
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    versionNumber,
+  }: {
+    bundleName?: string;
+    bundleVersion?: string;
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    versionNumber?: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useDagVersionServiceGetDagVersionsKey,
+  ...(queryKey ?? [{ bundleName, bundleVersion, dagId, limit, offset, orderBy, versionNumber }]),
+];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<ReturnType<typeof MonitorService.getHealth>>;
 export type MonitorServiceGetHealthQueryResult<
   TData = MonitorServiceGetHealthDefaultResponse,
@@ -1642,6 +1687,20 @@ export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
   useVersionServiceGetVersionKey,
   ...(queryKey ?? []),
 ];
+export type LoginServiceLoginDefaultResponse = Awaited<ReturnType<typeof LoginService.login>>;
+export type LoginServiceLoginQueryResult<
+  TData = LoginServiceLoginDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useLoginServiceLoginKey = "LoginServiceLogin";
+export const UseLoginServiceLoginKeyFn = (
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useLoginServiceLoginKey, ...(queryKey ?? [{ next }])];
 export type AssetServiceCreateAssetEventMutationResult = Awaited<
   ReturnType<typeof AssetService.createAssetEvent>
 >;
@@ -1715,6 +1774,9 @@ export type TaskInstanceServicePatchTaskInstanceDryRun1MutationResult = Awaited<
 >;
 export type PoolServicePatchPoolMutationResult = Awaited<ReturnType<typeof PoolService.patchPool>>;
 export type PoolServiceBulkPoolsMutationResult = Awaited<ReturnType<typeof PoolService.bulkPools>>;
+export type XcomServiceUpdateXcomEntryMutationResult = Awaited<
+  ReturnType<typeof XcomService.updateXcomEntry>
+>;
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
 >;

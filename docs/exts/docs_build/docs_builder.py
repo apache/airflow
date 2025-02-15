@@ -215,7 +215,7 @@ class AirflowDocsBuilder:
         )
         shutil.rmtree(self._src_dir, ignore_errors=True)
         console.print(
-            f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Coping docs "
+            f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Copying docs "
             f"from {self.provider_path}/docs to {self._src_dir}."
         )
         shutil.copytree(

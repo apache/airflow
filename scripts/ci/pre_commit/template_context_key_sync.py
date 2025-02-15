@@ -32,6 +32,20 @@ CONTEXT_PY = ROOT_DIR.joinpath("airflow", "utils", "context.py")
 CONTEXT_HINT = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "definitions", "context.py")
 TEMPLATES_REF_RST = ROOT_DIR.joinpath("docs", "apache-airflow", "templates-ref.rst")
 
+# These are only conditionally set
+IGNORE = {
+    "ds",
+    "ds_nodash",
+    "ts",
+    "ts_nodash",
+    "ts_nodash_with_tz",
+    "logical_date",
+    "data_interval_end",
+    "data_interval_start",
+    "prev_data_interval_start_success",
+    "prev_data_interval_end_success",
+}
+
 
 def _iter_template_context_keys_from_original_return() -> typing.Iterator[str]:
     ti_mod = ast.parse(TASKRUNNER_PY.read_text("utf-8"), str(TASKRUNNER_PY))
@@ -70,12 +84,13 @@ def _iter_template_context_keys_from_original_return() -> typing.Iterator[str]:
         raise ValueError("'context' is not assigned a dictionary literal")
     yield from extract_keys_from_dict(context_assignment.value)
 
-    # Handle keys added conditionally in `if self._ti_context_from_server`
+    # Handle keys added conditionally in `if x := self._ti_context_from_server`
     for stmt in fn_get_template_context.body:
         if (
             isinstance(stmt, ast.If)
-            and isinstance(stmt.test, ast.Attribute)
-            and stmt.test.attr == "_ti_context_from_server"
+            and isinstance(stmt.test, ast.NamedExpr)
+            and isinstance(stmt.test.value, ast.Attribute)
+            and stmt.test.value.attr == "_ti_context_from_server"
         ):
             for sub_stmt in stmt.body:
                 # Get keys from `context_from_server` assignment
@@ -148,13 +163,16 @@ def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str],
     retn_keys.update(("exception", "reason", "try_number"))
     docs_keys.update(("exception", "reason", "try_number"))
 
+    # Airflow 3 added:
+    retn_keys.update(("start_date", "task_reschedule_count"))
+
     check_candidates = [
         ("get_template_context()", retn_keys),
         ("KNOWN_CONTEXT_KEYS", decl_keys),
         ("Context type hint", hint_keys),
         ("templates-ref", docs_keys),
     ]
-    canonical_keys = set.union(*(s for _, s in check_candidates))
+    canonical_keys = set.union(*(s for _, s in check_candidates)) - IGNORE
 
     def _check_one(identifier: str, keys: set[str]) -> int:
         if missing := canonical_keys.difference(keys):

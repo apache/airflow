@@ -328,12 +328,8 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Those are needed so that __init__.py chaining of packages properly works for IDEs
 # the first non-comment line of such empty __init__.py files should be:
 # __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
-"providers/src/airflow/providers/__init__.py" = ["I002"]
-"providers/src/airflow/__init__.py" = ["I002"]
 "providers/*/tests/*/__init__.py" = ["I002"]
 "providers/*/*/tests/*/*/__init__.py" = ["I002"]
-"providers/tests/__init__.py" = ["I002"]
-"providers/__init__.py" = ["I002"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -377,6 +373,7 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "docker_tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes_tests/*" = ["D", "TID253", "S101", "TRY002"]
 "helm_tests/*" = ["D", "TID253", "S101", "TRY002"]
+"providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -384,8 +381,6 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
-"providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
-"providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
 "providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
 "providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
 "providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
@@ -401,6 +396,13 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "providers/google/tests/provider_tests/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
 "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
 "providers/google/tests/provider_tests/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
+"providers/microsoft/azure/tests/conftest.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+
+# Remove some docstring rules from files that do not need docstrings
+"providers/apache/hdfs/src/airflow/providers/apache/hdfs/sensors/hdfs.py" = ["D101"]
+
 
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
@@ -409,6 +411,10 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Test compat imports banned imports to allow testing against older airflow versions
 "tests_common/test_utils/compat.py" = ["TID251", "F401"]
 "tests_common/pytest_plugin.py" = ["F811"]
+
+# While pandas import is banned, sql.pyi should be excluded from it as it does not have a TYPE_CHECKING
+# mechanism and whole .pyi is really "type-checking" only
+"providers/common/sql/src/airflow/providers/common/sql/hooks/sql.pyi" = ["TID253"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
@@ -527,7 +533,6 @@ filterwarnings = [
 # Instead of that, we use a separate parameter and dynamically add it into `filterwarnings` marker.
 forbidden_warnings = [
     "airflow.exceptions.RemovedInAirflow3Warning",
-    "airflow.utils.context.AirflowContextDeprecationWarning",
     "airflow.exceptions.AirflowProviderDeprecationWarning",
 ]
 python_files = [
@@ -589,14 +594,12 @@ disable_error_code = [
     "annotation-unchecked",
 ]
 # Since there are no __init__.py files in
-# providers/src/apache/airflow/providers we need to tell MyPy where the "base"
+# providers/<provided>src/apache/airflow/providers we need to tell MyPy where the "base"
 # is, otherwise when it sees
-# providers/src/apache/airflow/providers/redis/__init__.py, it thinks this is
-# the toplevel `redis` folder.
+# TODO(potiuk): check if those providers/*/src are still needed
 explicit_package_bases = true
 mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
-  "$MYPY_CONFIG_FILE_DIR/providers/src",
   "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
   "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
   "$MYPY_CONFIG_FILE_DIR/providers/celery/src",
@@ -636,16 +639,19 @@ ignore_errors = true
 
 [dependency-groups]
 dev = [
-  # TODO(potiuk): remove me when all providers are moved to new structure
-  "local-providers",
+  "apache-airflow",
   "apache-airflow-providers-airbyte",
   "apache-airflow-providers-alibaba",
+  "apache-airflow-providers-amazon",
   "apache-airflow-providers-apache-beam",
   "apache-airflow-providers-apache-cassandra",
   "apache-airflow-providers-apache-drill",
   "apache-airflow-providers-apache-druid",
+  "apache-airflow-providers-apache-flink",
+  "apache-airflow-providers-apache-hdfs",
   "apache-airflow-providers-apache-hive",
   "apache-airflow-providers-apache-iceberg",
+  "apache-airflow-providers-apache-impala",
   "apache-airflow-providers-apache-kafka",
   "apache-airflow-providers-apache-kylin",
   "apache-airflow-providers-apache-livy",
@@ -653,14 +659,18 @@ dev = [
   "apache-airflow-providers-apache-pinot",
   "apache-airflow-providers-apache-spark",
   "apache-airflow-providers-apprise",
+  "apache-airflow-providers-arangodb",
   "apache-airflow-providers-asana",
   "apache-airflow-providers-atlassian-jira",
   "apache-airflow-providers-celery",
+  "apache-airflow-providers-cloudant",
+  "apache-airflow-providers-cncf-kubernetes",
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-compat",
   "apache-airflow-providers-common-io",
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-docker",
+  "apache-airflow-providers-databricks",
   "apache-airflow-providers-datadog",
   "apache-airflow-providers-dbt-cloud",
   "apache-airflow-providers-dingding",
@@ -675,10 +685,12 @@ dev = [
   "apache-airflow-providers-google",
   "apache-airflow-providers-grpc",
   "apache-airflow-providers-http",
+  "apache-airflow-providers-microsoft-azure",
   "apache-airflow-providers-influxdb",
   "apache-airflow-providers-microsoft-mssql",
   "apache-airflow-providers-microsoft-psrp",
   "apache-airflow-providers-jdbc",
+  "apache-airflow-providers-microsoft-winrm",
   "apache-airflow-providers-mongo",
   "apache-airflow-providers-openlineage",
   "apache-airflow-providers-hashicorp",
@@ -700,6 +712,7 @@ dev = [
   "apache-airflow-providers-sendgrid",
   "apache-airflow-providers-sftp",
   "apache-airflow-providers-slack",
+  "apache-airflow-providers-smtp",
   "apache-airflow-providers-snowflake",
   "apache-airflow-providers-pinecone",
   "apache-airflow-providers-postgres",
@@ -717,6 +730,7 @@ dev = [
   "apache-airflow-providers-trino",
   "apache-airflow-providers-vertica",
   "apache-airflow-providers-weaviate",
+  "apache-airflow-providers-yandex",
   "apache-airflow-providers-ydb",
   "apache-airflow-providers-zendesk",
   "apache-airflow-task-sdk",
@@ -725,15 +739,19 @@ dev = [
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
-local-providers = { workspace = true }
+apache-airflow = {workspace = true}
 apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
+apache-airflow-providers-amazon = { workspace = true }
 apache-airflow-providers-apache-beam = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
 apache-airflow-providers-apache-druid = { workspace = true }
+apache-airflow-providers-apache-flink = { workspace = true }
+apache-airflow-providers-apache-hdfs = { workspace = true }
 apache-airflow-providers-apache-hive = { workspace = true }
 apache-airflow-providers-apache-iceberg = {workspace = true}
+apache-airflow-providers-apache-impala = { workspace = true }
 apache-airflow-providers-apache-kafka = { workspace = true }
 apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-livy = { workspace = true }
@@ -741,13 +759,17 @@ apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
 apache-airflow-providers-apprise = { workspace = true }
+apache-airflow-providers-arangodb = { workspace = true }
 apache-airflow-providers-asana = { workspace = true }
 apache-airflow-providers-atlassian-jira = { workspace = true }
 apache-airflow-providers-celery = {workspace = true}
+apache-airflow-providers-cloudant = { workspace = true }
+apache-airflow-providers-cncf-kubernetes = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
+apache-airflow-providers-databricks = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
 apache-airflow-providers-dbt-cloud = { workspace = true }
 apache-airflow-providers-dingding = { workspace = true }
@@ -763,10 +785,12 @@ apache-airflow-providers-github = { workspace = true }
 apache-airflow-providers-google = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
+apache-airflow-providers-microsoft-azure = { workspace = true }
 apache-airflow-providers-influxdb = { workspace = true }
 apache-airflow-providers-microsoft-mssql = { workspace = true }
 apache-airflow-providers-microsoft-psrp = { workspace = true }
 apache-airflow-providers-jdbc = { workspace = true }
+apache-airflow-providers-microsoft-winrm = { workspace = true }
 apache-airflow-providers-mongo = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
@@ -795,6 +819,7 @@ apache-airflow-providers-sendgrid = { workspace = true }
 apache-airflow-providers-sftp = { workspace = true }
 apache-airflow-providers-singularity = { workspace = true }
 apache-airflow-providers-slack = { workspace = true }
+apache-airflow-providers-smtp = { workspace = true }
 apache-airflow-providers-sqlite = { workspace = true }
 apache-airflow-providers-ssh = { workspace = true }
 apache-airflow-providers-snowflake = { workspace = true }
@@ -805,21 +830,25 @@ apache-airflow-providers-teradata = { workspace = true }
 apache-airflow-providers-trino = { workspace = true }
 apache-airflow-providers-vertica = { workspace = true }
 apache-airflow-providers-weaviate = { workspace = true }
+apache-airflow-providers-yandex = { workspace = true }
 apache-airflow-providers-ydb = { workspace = true }
 apache-airflow-providers-zendesk = { workspace = true }
 apache-airflow-task-sdk = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "providers",
     "providers/airbyte",
     "providers/alibaba",
+    "providers/amazon",
     "providers/apache/beam",
     "providers/apache/cassandra",
     "providers/apache/drill",
     "providers/apache/druid",
+    "providers/apache/flink",
+    "providers/apache/hdfs",
     "providers/apache/hive",
     "providers/apache/iceberg",
+    "providers/apache/impala",
     "providers/apache/kafka",
     "providers/apache/kylin",
     "providers/apache/livy",
@@ -827,13 +856,17 @@ members = [
     "providers/apache/pinot",
     "providers/apache/spark",
     "providers/apprise",
+    "providers/arangodb",
     "providers/asana",
     "providers/atlassian/jira",
     "providers/celery",
+    "providers/cloudant",
+    "providers/cncf/kubernetes",
     "providers/cohere",
     "providers/common/compat",
     "providers/common/io",
     "providers/common/sql",
+    "providers/databricks",
     "providers/datadog",
     "providers/dbt/cloud",
     "providers/dingding",
@@ -854,8 +887,10 @@ members = [
     "providers/influxdb",
     "providers/jdbc",
     "providers/jenkins",
+    "providers/microsoft/azure",
     "providers/microsoft/mssql",
     "providers/microsoft/psrp",
+    "providers/microsoft/winrm",
     "providers/mongo",
     "providers/mysql",
     "providers/neo4j",
@@ -881,6 +916,7 @@ members = [
     "providers/sftp",
     "providers/singularity",
     "providers/slack",
+    "providers/smtp",
     "providers/sqlite",
     "providers/ssh",
     "providers/snowflake",
@@ -891,7 +927,9 @@ members = [
     "providers/trino",
     "providers/vertica",
     "providers/weaviate",
+    "providers/yandex",
     "providers/ydb",
     "providers/zendesk",
+    ".",
     "task_sdk",
 ]

@@ -18,10 +18,40 @@
 from __future__ import annotations
 
 import sys
-from collections import deque
 from typing import Callable, TypeVar
 
+import libcst as cst
+
 T = TypeVar("T", bound=Callable)
+
+
+class _TaskDecoratorRemover(cst.CSTTransformer):
+    def __init__(self, task_decorator_name: str) -> None:
+        self.decorators_to_remove: set[str] = {
+            "setup",
+            "teardown",
+            "task.skip_if",
+            "task.run_if",
+            task_decorator_name.strip("@"),
+        }
+
+    def _is_task_decorator(self, decorator_node: cst.Decorator) -> bool:
+        decorator_expr = decorator_node.decorator
+        if isinstance(decorator_expr, cst.Name):
+            return decorator_expr.value in self.decorators_to_remove
+        elif isinstance(decorator_expr, cst.Attribute) and isinstance(decorator_expr.value, cst.Name):
+            return f"{decorator_expr.value.value}.{decorator_expr.attr.value}" in self.decorators_to_remove
+        elif isinstance(decorator_expr, cst.Call):
+            return self._is_task_decorator(cst.Decorator(decorator=decorator_expr.func))
+        return False
+
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
+        new_decorators = [dec for dec in updated_node.decorators if not self._is_task_decorator(dec)]
+        if len(new_decorators) == len(updated_node.decorators):
+            return updated_node
+        return updated_node.with_changes(decorators=new_decorators)
 
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
@@ -30,42 +60,10 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
 
     :param python_source: The python source code
     :param task_decorator_name: the decorator name
-
-    TODO: Python 3.9+: Rewrite this to use ast.parse and ast.unparse
     """
-
-    def _remove_task_decorator(py_source, decorator_name):
-        # if no line starts with @decorator_name, we can early exit
-        for line in py_source.split("\n"):
-            if line.startswith(decorator_name):
-                break
-        else:
-            return python_source
-        split = python_source.split(decorator_name, 1)
-        before_decorator, after_decorator = split[0], split[1]
-        if after_decorator[0] == "(":
-            after_decorator = _balance_parens(after_decorator)
-        if after_decorator[0] == "\n":
-            after_decorator = after_decorator[1:]
-        return before_decorator + after_decorator
-
-    decorators = ["@setup", "@teardown", "@task.skip_if", "@task.run_if", task_decorator_name]
-    for decorator in decorators:
-        python_source = _remove_task_decorator(python_source, decorator)
-    return python_source
-
-
-def _balance_parens(after_decorator):
-    num_paren = 1
-    after_decorator = deque(after_decorator)
-    after_decorator.popleft()
-    while num_paren:
-        current = after_decorator.popleft()
-        if current == "(":
-            num_paren = num_paren + 1
-        elif current == ")":
-            num_paren = num_paren - 1
-    return "".join(after_decorator)
+    source_tree = cst.parse_module(python_source)
+    modified_tree = source_tree.visit(_TaskDecoratorRemover(task_decorator_name))
+    return modified_tree.code
 
 
 class _autostacklevel_warn:
