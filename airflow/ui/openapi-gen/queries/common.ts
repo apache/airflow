@@ -984,12 +984,12 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     endDateLte,
     executor,
     limit,
-    logicalDateGte,
-    logicalDateLte,
     offset,
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1006,12 +1006,12 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     endDateLte?: string;
     executor?: string[];
     limit?: number;
-    logicalDateGte?: string;
-    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1033,12 +1033,12 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
       endDateLte,
       executor,
       limit,
-      logicalDateGte,
-      logicalDateLte,
       offset,
       orderBy,
       pool,
       queue,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,
@@ -1195,12 +1195,12 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     endDateLte,
     executor,
     limit,
-    logicalDateGte,
-    logicalDateLte,
     offset,
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1218,12 +1218,12 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     endDateLte?: string;
     executor?: string[];
     limit?: number;
-    logicalDateGte?: string;
-    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1246,12 +1246,12 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
       endDateLte,
       executor,
       limit,
-      logicalDateGte,
-      logicalDateLte,
       offset,
       orderBy,
       pool,
       queue,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,

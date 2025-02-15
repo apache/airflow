@@ -40,8 +40,8 @@ export const Overview = () => {
       dagId,
       dagRunId: "~",
       limit: 14,
-      logicalDateGte: startDate,
-      logicalDateLte: endDate,
+      runAfterGte: startDate,
+      runAfterLte: endDate,
       state: ["failed"],
       taskId,
     });
@@ -71,7 +71,7 @@ export const Overview = () => {
           count={failedTaskInstances?.total_entries ?? 0}
           endDate={endDate}
           events={(failedTaskInstances?.task_instances ?? []).map((ti) => ({
-            timestamp: ti.start_date ?? ti.logical_date,
+            timestamp: ti.start_date ?? ti.run_after,
           }))}
           isLoading={isFailedTaskInstancesLoading}
           label="Failed Task Instance"

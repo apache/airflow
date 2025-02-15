@@ -38,8 +38,8 @@ export const Overview = () => {
   const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
     dagId: dagId ?? "",
     dagRunId: "~",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
+    runAfterGte: startDate,
+    runAfterLte: endDate,
     state: ["failed"],
   });
 
@@ -73,7 +73,7 @@ export const Overview = () => {
           count={failedTasks?.total_entries ?? 0}
           endDate={endDate}
           events={(failedTasks?.task_instances ?? []).map((ti) => ({
-            timestamp: ti.start_date ?? ti.logical_date,
+            timestamp: ti.start_date ?? ti.run_after,
           }))}
           isLoading={isLoading}
           label="Failed Task"

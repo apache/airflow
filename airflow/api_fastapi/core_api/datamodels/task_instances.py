@@ -20,9 +20,11 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from pydantic import (
+    AliasGenerator,
     AliasPath,
     AwareDatetime,
     BeforeValidator,
+    ConfigDict,
     Field,
     NonNegativeInt,
     StringConstraints,
@@ -37,16 +39,29 @@ from airflow.api_fastapi.core_api.datamodels.job import JobResponse
 from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
 
+TASK_INSTANCE_ALIAS_MAPPING = {
+    # The keys are the names in the response, the values are the original names in the model
+    # This is used to map the names in the response to the names in the model
+    # See: https://github.com/apache/airflow/issues/46735
+    "run_after": "logical_date",
+}
+
 
 class TaskInstanceResponse(BaseModel):
     """TaskInstance serializer for responses."""
+
+    model_config = ConfigDict(
+        alias_generator=AliasGenerator(
+            validation_alias=lambda field_name: TASK_INSTANCE_ALIAS_MAPPING.get(field_name, field_name),
+        ),
+    )
 
     id: str
     task_id: str
     dag_id: str
     run_id: str = Field(alias="dag_run_id")
     map_index: int
-    logical_date: datetime | None
+    run_after: datetime | None
     start_date: datetime | None
     end_date: datetime | None
     duration: float | None
@@ -104,8 +119,8 @@ class TaskInstancesBatchBody(StrictBaseModel):
     dag_run_ids: list[str] | None = None
     task_ids: list[str] | None = None
     state: list[TaskInstanceState | None] | None = None
-    logical_date_gte: AwareDatetime | None = None
-    logical_date_lte: AwareDatetime | None = None
+    run_after_gte: AwareDatetime | None = None
+    run_after_lte: AwareDatetime | None = None
     start_date_gte: AwareDatetime | None = None
     start_date_lte: AwareDatetime | None = None
     end_date_gte: AwareDatetime | None = None

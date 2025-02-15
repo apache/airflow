@@ -2055,8 +2055,8 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
-   * @param data.logicalDateGte
-   * @param data.logicalDateLte
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.startDateGte
    * @param data.startDateLte
    * @param data.endDateGte
@@ -2088,8 +2088,8 @@ export class TaskInstanceService {
         task_id: data.taskId,
       },
       query: {
-        logical_date_gte: data.logicalDateGte,
-        logical_date_lte: data.logicalDateLte,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         start_date_gte: data.startDateGte,
         start_date_lte: data.startDateLte,
         end_date_gte: data.endDateGte,
@@ -2330,8 +2330,8 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
-   * @param data.logicalDateGte
-   * @param data.logicalDateLte
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.startDateGte
    * @param data.startDateLte
    * @param data.endDateGte
@@ -2362,8 +2362,8 @@ export class TaskInstanceService {
       },
       query: {
         task_id: data.taskId,
-        logical_date_gte: data.logicalDateGte,
-        logical_date_lte: data.logicalDateLte,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         start_date_gte: data.startDateGte,
         start_date_lte: data.startDateLte,
         end_date_gte: data.endDateGte,

@@ -1603,8 +1603,8 @@ export const useTaskInstanceServiceGetTaskInstance = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
- * @param data.logicalDateGte
- * @param data.logicalDateLte
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.startDateGte
  * @param data.startDateLte
  * @param data.endDateGte
@@ -1638,12 +1638,12 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
     endDateLte,
     executor,
     limit,
-    logicalDateGte,
-    logicalDateLte,
     offset,
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1660,12 +1660,12 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
     endDateLte?: string;
     executor?: string[];
     limit?: number;
-    logicalDateGte?: string;
-    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1688,12 +1688,12 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
         endDateLte,
         executor,
         limit,
-        logicalDateGte,
-        logicalDateLte,
         offset,
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1714,12 +1714,12 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
         endDateLte,
         executor,
         limit,
-        logicalDateGte,
-        logicalDateLte,
         offset,
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1932,8 +1932,8 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
- * @param data.logicalDateGte
- * @param data.logicalDateLte
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.startDateGte
  * @param data.startDateLte
  * @param data.endDateGte
@@ -1968,12 +1968,12 @@ export const useTaskInstanceServiceGetTaskInstances = <
     endDateLte,
     executor,
     limit,
-    logicalDateGte,
-    logicalDateLte,
     offset,
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1991,12 +1991,12 @@ export const useTaskInstanceServiceGetTaskInstances = <
     endDateLte?: string;
     executor?: string[];
     limit?: number;
-    logicalDateGte?: string;
-    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -2020,12 +2020,12 @@ export const useTaskInstanceServiceGetTaskInstances = <
         endDateLte,
         executor,
         limit,
-        logicalDateGte,
-        logicalDateLte,
         offset,
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -2047,12 +2047,12 @@ export const useTaskInstanceServiceGetTaskInstances = <
         endDateLte,
         executor,
         limit,
-        logicalDateGte,
-        logicalDateLte,
         offset,
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,

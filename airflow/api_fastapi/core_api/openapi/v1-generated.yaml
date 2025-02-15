@@ -4834,7 +4834,7 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: logical_date_gte
+      - name: run_after_gte
         in: query
         required: false
         schema:
@@ -4842,8 +4842,8 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          title: Logical Date Gte
-      - name: logical_date_lte
+          title: Run After Gte
+      - name: run_after_lte
         in: query
         required: false
         schema:
@@ -4851,7 +4851,7 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          title: Logical Date Lte
+          title: Run After Lte
       - name: start_date_gte
         in: query
         required: false
@@ -5456,7 +5456,7 @@ paths:
           - type: string
           - type: 'null'
           title: Task Id
-      - name: logical_date_gte
+      - name: run_after_gte
         in: query
         required: false
         schema:
@@ -5464,8 +5464,8 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          title: Logical Date Gte
-      - name: logical_date_lte
+          title: Run After Gte
+      - name: run_after_lte
         in: query
         required: false
         schema:
@@ -5473,7 +5473,7 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          title: Logical Date Lte
+          title: Run After Lte
       - name: start_date_gte
         in: query
         required: false
@@ -10133,12 +10133,12 @@ components:
         map_index:
           type: integer
           title: Map Index
-        logical_date:
+        run_after:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Logical Date
+          title: Run After
         start_date:
           anyOf:
           - type: string
@@ -10258,7 +10258,7 @@ components:
       - dag_id
       - dag_run_id
       - map_index
-      - logical_date
+      - run_after
       - start_date
       - end_date
       - duration
@@ -10395,18 +10395,18 @@ components:
             type: array
           - type: 'null'
           title: State
-        logical_date_gte:
+        run_after_gte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Logical Date Gte
-        logical_date_lte:
+          title: Run After Gte
+        run_after_lte:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Logical Date Lte
+          title: Run After Lte
         start_date_gte:
           anyOf:
           - type: string

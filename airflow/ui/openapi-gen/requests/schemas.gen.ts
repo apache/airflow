@@ -4891,7 +4891,7 @@ export const $TaskInstanceResponse = {
       type: "integer",
       title: "Map Index",
     },
-    logical_date: {
+    run_after: {
       anyOf: [
         {
           type: "string",
@@ -4901,7 +4901,7 @@ export const $TaskInstanceResponse = {
           type: "null",
         },
       ],
-      title: "Logical Date",
+      title: "Run After",
     },
     start_date: {
       anyOf: [
@@ -5138,7 +5138,7 @@ export const $TaskInstanceResponse = {
     "dag_id",
     "dag_run_id",
     "map_index",
-    "logical_date",
+    "run_after",
     "start_date",
     "end_date",
     "duration",
@@ -5330,7 +5330,7 @@ export const $TaskInstancesBatchBody = {
       ],
       title: "State",
     },
-    logical_date_gte: {
+    run_after_gte: {
       anyOf: [
         {
           type: "string",
@@ -5340,9 +5340,9 @@ export const $TaskInstancesBatchBody = {
           type: "null",
         },
       ],
-      title: "Logical Date Gte",
+      title: "Run After Gte",
     },
-    logical_date_lte: {
+    run_after_lte: {
       anyOf: [
         {
           type: "string",
@@ -5352,7 +5352,7 @@ export const $TaskInstancesBatchBody = {
           type: "null",
         },
       ],
-      title: "Logical Date Lte",
+      title: "Run After Lte",
     },
     start_date_gte: {
       anyOf: [

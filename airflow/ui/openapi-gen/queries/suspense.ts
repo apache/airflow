@@ -1580,8 +1580,8 @@ export const useTaskInstanceServiceGetTaskInstanceSuspense = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
- * @param data.logicalDateGte
- * @param data.logicalDateLte
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.startDateGte
  * @param data.startDateLte
  * @param data.endDateGte
@@ -1615,12 +1615,12 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
     endDateLte,
     executor,
     limit,
-    logicalDateGte,
-    logicalDateLte,
     offset,
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1637,12 +1637,12 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
     endDateLte?: string;
     executor?: string[];
     limit?: number;
-    logicalDateGte?: string;
-    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1665,12 +1665,12 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
         endDateLte,
         executor,
         limit,
-        logicalDateGte,
-        logicalDateLte,
         offset,
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1691,12 +1691,12 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
         endDateLte,
         executor,
         limit,
-        logicalDateGte,
-        logicalDateLte,
         offset,
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1909,8 +1909,8 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
- * @param data.logicalDateGte
- * @param data.logicalDateLte
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.startDateGte
  * @param data.startDateLte
  * @param data.endDateGte
@@ -1945,12 +1945,12 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     endDateLte,
     executor,
     limit,
-    logicalDateGte,
-    logicalDateLte,
     offset,
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1968,12 +1968,12 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     endDateLte?: string;
     executor?: string[];
     limit?: number;
-    logicalDateGte?: string;
-    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1997,12 +1997,12 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         endDateLte,
         executor,
         limit,
-        logicalDateGte,
-        logicalDateLte,
         offset,
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -2024,12 +2024,12 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         endDateLte,
         executor,
         limit,
-        logicalDateGte,
-        logicalDateLte,
         offset,
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,

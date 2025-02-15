@@ -114,7 +114,9 @@ def get_mapped_task_instances(
     dag_run_id: str,
     task_id: str,
     request: Request,
-    logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
+    run_after_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("run_after", TI, "logical_date"))
+    ],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
@@ -180,7 +182,7 @@ def get_mapped_task_instances(
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
-            logical_date_range,
+            run_after_range,
             start_date_range,
             end_date_range,
             update_at_range,
@@ -360,7 +362,9 @@ def get_task_instances(
     dag_run_id: str,
     request: Request,
     task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(TI.task_id, str | None))],
-    logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
+    run_after: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("run_after", TI, attribute_name="logical_date"))
+    ],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
@@ -427,7 +431,7 @@ def get_task_instances(
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
-            logical_date,
+            run_after,
             start_date_range,
             end_date_range,
             update_at_range,
@@ -468,7 +472,7 @@ def get_task_instances_batch(
     dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
     task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
     logical_date = RangeFilter(
-        Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
+        Range(lower_bound=body.run_after_gte, upper_bound=body.run_after_lte),
         attribute=TI.logical_date,
     )
     start_date = RangeFilter(
