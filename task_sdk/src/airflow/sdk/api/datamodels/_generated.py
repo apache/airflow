@@ -247,7 +247,7 @@ class XComResponse(BaseModel):
     """
 
     key: Annotated[str, Field(title="Key")]
-    value: Annotated[Any, Field(title="Value")]
+    value: JsonValue
 
 
 class TaskInstance(BaseModel):
