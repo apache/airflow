@@ -209,7 +209,7 @@ def grid_data(
             run_type=dag_run.run_type,
             data_interval_start=dag_run.data_interval_start,
             data_interval_end=dag_run.data_interval_end,
-            version_number=dag_run.version_number if dag_run.dag_versions else None,
+            version_number=dag_run.version_number,
             note=dag_run.note,
             task_instances=(
                 task_instance_summaries[dag_run.run_id] if dag_run.run_id in task_instance_summaries else []
