@@ -28,7 +28,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
    Officially supported installation methods include ``pip`` and ``uv``. Both tools provide a streamlined workflow for installing Airflow and managing dependencies.
 
-   
+
 
    While there have been successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
@@ -43,7 +43,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
    If you wish to install Airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
-   This guide will help you quickly set up Apache Airflow using ``uv``, a fast and modern tool for managing Python environments and dependencies. ``uv`` makes the installation process easy and provides a 
+   This guide will help you quickly set up Apache Airflow using ``uv``, a fast and modern tool for managing Python environments and dependencies. ``uv`` makes the installation process easy and provides a
    smooth setup experience.
 
 1. **Set Airflow Home (optional)**:
@@ -61,10 +61,10 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
         Install uv: `uv Installation Guide <https://docs.astral.sh/uv/getting-started/installation/>`_
 
 
-    For creating Virtualenv with uv, refer to the documentation here: 
+    For creating Virtualenv with uv, refer to the documentation here:
     `Creating and Maintaining Local Virtualenv with uv <https://github.com/apache/airflow/blob/main/contributing-docs/07_local_virtualenv.rst#creating-and-maintaining-local-virtualenv-with-uv>`_
-    
-    
+
+
 3. Install Airflow using the constraints file, which is determined based on the URL we pass:
 
    .. code-block:: bash
