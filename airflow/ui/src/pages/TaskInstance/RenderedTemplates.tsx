@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Table } from "@chakra-ui/react";
+import { Box, HStack, Table, Code } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -49,7 +49,7 @@ export const RenderedTemplates = () => {
                   <Table.Cell>{key}</Table.Cell>
                   <Table.Cell>
                     <HStack>
-                      {renderedValue}
+                      <Code>{renderedValue}</Code>
                       <ClipboardRoot value={renderedValue}>
                         <ClipboardIconButton />
                       </ClipboardRoot>
