@@ -17,10 +17,17 @@
 
 from __future__ import annotations
 
+import json
+import re
+from json import JSONDecodeError
+from os.path import dirname, join
 from typing import Any
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
+from httpx import Headers, Response
+from msgraph_core import APIVersion
 
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
@@ -159,3 +166,98 @@ class TestAzureIdentityCredentialAdapter:
 )
 def test_parse_blob_account_url(host, login, expected_url):
     assert parse_blob_account_url(host, login) == expected_url
+
+
+def get_airflow_connection(
+    conn_id: str,
+    host: str = "graph.microsoft.com",
+    login: str = "client_id",
+    password: str = "client_secret",
+    tenant_id: str = "tenant-id",
+    azure_tenant_id: str | None = None,
+    proxies: dict | None = None,
+    scopes: list[str] | None = None,
+    api_version: APIVersion | str | None = APIVersion.v1.value,
+    authority: str | None = None,
+    disable_instance_discovery: bool = False,
+):
+    from airflow.models import Connection
+
+    extra = {
+        "api_version": api_version,
+        "proxies": proxies or {},
+        "verify": False,
+        "scopes": scopes or [],
+        "authority": authority,
+        "disable_instance_discovery": disable_instance_discovery,
+    }
+
+    if azure_tenant_id:
+        extra["tenantId"] = azure_tenant_id
+    else:
+        extra["tenant_id"] = tenant_id
+
+    return Connection(
+        schema="https",
+        conn_id=conn_id,
+        conn_type="http",
+        host=host,
+        port=80,
+        login=login,
+        password=password,
+        extra=extra,
+    )
+
+
+def mock_connection(schema: str | None = None, host: str | None = None):
+    from airflow.models import Connection
+
+    connection = MagicMock(spec=Connection)
+    connection.schema = schema
+    connection.host = host
+    return connection
+
+
+def mock_json_response(status_code, *contents) -> Response:
+    response = MagicMock(spec=Response)
+    response.status_code = status_code
+    response.headers = Headers({})
+    response.content = b""
+    if contents:
+        response.json.side_effect = list(contents)
+    else:
+        response.json.return_value = None
+    return response
+
+
+def mock_response(status_code, content: Any = None, headers: dict | None = None) -> Response:
+    response = MagicMock(spec=Response)
+    response.status_code = status_code
+    response.headers = Headers(headers or {})
+    response.content = content
+    response.json.side_effect = JSONDecodeError("", "", 0)
+    return response
+
+
+def remove_license_header(content: str) -> str:
+    """Remove license header from the given content."""
+    # Define the pattern to match both block and single-line comments
+    pattern = r"(/\*.*?\*/)|(--.*?(\r?\n|\r))|(#.*?(\r?\n|\r))"
+
+    # Check if there is a license header at the beginning of the file
+    if re.match(pattern, content, flags=re.DOTALL):
+        # Use re.DOTALL to allow .* to match newline characters in block comments
+        return re.sub(pattern, "", content, flags=re.DOTALL).strip()
+    return content.strip()
+
+
+def load_json(*args: str):
+    with open(join(dirname(__file__), *args), encoding="utf-8") as file:
+        return json.load(file)
+
+
+def load_file(*args: str, mode="r", encoding="utf-8"):
+    with open(join(dirname(__file__), *args), mode=mode, encoding=encoding) as file:
+        if mode == "r":
+            return remove_license_header(file.read())
+        return file.read()

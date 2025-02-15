@@ -20,9 +20,9 @@ from contextlib import contextmanager
 from unittest.mock import patch
 
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
-from providers.microsoft.azure.tests.conftest import get_airflow_connection
 
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+from provider_tests.microsoft.azure.test_utils import get_airflow_connection
 
 
 class Base:

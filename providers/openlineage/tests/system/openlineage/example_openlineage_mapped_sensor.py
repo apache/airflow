@@ -20,12 +20,11 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
-
 from airflow import DAG
 from airflow.models import Variable
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
+from system.openlineage.operator import OpenLineageTestOperator
 
 
 def my_task(task_number):

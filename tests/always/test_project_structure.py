@@ -20,25 +20,22 @@ import ast
 import glob
 import itertools
 import mmap
-import os
 import pathlib
 
 import pytest
 
-ROOT_FOLDER = pathlib.Path(__file__).parents[2]
-PROVIDERS_SRC = ROOT_FOLDER.joinpath("providers", "src")
-PROVIDERS_TESTS = ROOT_FOLDER.joinpath("providers", "tests")
+AIRFLOW_SOURCES_ROOT = pathlib.Path(__file__).parents[2]
 
-NEW_PROVIDER_SRC = ROOT_FOLDER.joinpath("providers")
+NEW_PROVIDER_SRC = AIRFLOW_SOURCES_ROOT.joinpath("providers")
 
 
 class TestProjectStructure:
     def test_reference_to_providers_from_core(self):
-        for filename in ROOT_FOLDER.glob("example_dags/**/*.py"):
+        for filename in AIRFLOW_SOURCES_ROOT.glob("example_dags/**/*.py"):
             self.assert_file_not_contains(filename, "providers")
 
     def test_deprecated_packages(self):
-        for filename in ROOT_FOLDER.glob("airflow/contrib/**/*.py"):
+        for filename in AIRFLOW_SOURCES_ROOT.glob("airflow/contrib/**/*.py"):
             if filename.name == "__init__.py":
                 self.assert_file_contains(filename, "This package is deprecated.")
             else:
@@ -56,48 +53,86 @@ class TestProjectStructure:
 
     def test_providers_modules_should_have_tests(self):
         """
-        Assert every module in /providers/src/airflow/providers has a corresponding test_ file in providers/providers.
+        Assert every module in /providers/ has a corresponding test_ file in providers/providers.
         """
         # The test below had a but for quite a while and we missed a lot of modules to have tess
         # We should make sure that one goes to 0
+        # TODO(potiuk) - check if that test actually tests something
         OVERLOOKED_TESTS = [
-            "providers/tests/amazon/aws/executors/batch/test_boto_schema.py",
-            "providers/tests/amazon/aws/executors/batch/test_batch_executor_config.py",
-            "providers/tests/amazon/aws/executors/batch/test_utils.py",
-            "providers/tests/amazon/aws/executors/ecs/test_boto_schema.py",
-            "providers/tests/amazon/aws/executors/ecs/test_ecs_executor_config.py",
-            "providers/tests/amazon/aws/executors/ecs/test_utils.py",
-            "providers/tests/amazon/aws/executors/utils/test_base_config_keys.py",
-            "providers/tests/amazon/aws/operators/test_emr.py",
-            "providers/tests/amazon/aws/operators/test_sagemaker.py",
-            "providers/tests/amazon/aws/sensors/test_emr.py",
-            "providers/tests/amazon/aws/sensors/test_sagemaker.py",
-            "providers/tests/amazon/aws/test_exceptions.py",
-            "providers/tests/amazon/aws/triggers/test_step_function.py",
-            "providers/tests/amazon/aws/utils/test_rds.py",
-            "providers/tests/amazon/aws/utils/test_sagemaker.py",
-            "providers/tests/amazon/aws/waiters/test_base_waiter.py",
-            "providers/tests/apache/drill/operators/test_drill.py",
-            "providers/tests/apache/druid/operators/test_druid_check.py",
-            "providers/tests/apache/hdfs/hooks/test_hdfs.py",
-            "providers/tests/apache/hdfs/log/test_hdfs_task_handler.py",
-            "providers/tests/apache/hdfs/sensors/test_hdfs.py",
-            "providers/tests/apache/hive/plugins/test_hive.py",
-            "providers/tests/celery/executors/test_celery_executor_utils.py",
-            "providers/tests/celery/executors/test_default_celery.py",
-            "providers/tests/cloudant/test_cloudant_fake.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/executors/batch/test_batch_executor_config.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/executors/batch/test_boto_schema.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/executors/batch/test_utils.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/executors/ecs/test_boto_schema.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/executors/ecs/test_ecs_executor_config.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/executors/ecs/test_utils.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/executors/utils/test_base_config_keys.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/operators/test_emr.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/operators/test_sagemaker.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/sensors/test_emr.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/sensors/test_sagemaker.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/test_exceptions.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/triggers/test_step_function.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/utils/test_rds.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/utils/test_sagemaker.py",
+            "providers/amazon/tests/provider_tests/amazon/aws/waiters/test_base_waiter.py",
+            "providers/amazon/tests/provider_tests/amazon/test_version_compat.py",
+            "providers/apache/hdfs/tests/provider_tests/apache/hdfs/hooks/test_hdfs.py",
+            "providers/apache/hdfs/tests/provider_tests/apache/hdfs/log/test_hdfs_task_handler.py",
+            "providers/apache/hdfs/tests/provider_tests/apache/hdfs/sensors/test_hdfs.py",
+            "providers/apache/hive/tests/provider_tests/apache/hive/plugins/test_hive.py",
+            "providers/celery/tests/provider_tests/celery/executors/test_celery_executor_utils.py",
+            "providers/celery/tests/provider_tests/celery/executors/test_default_celery.py",
+            "providers/celery/tests/provider_tests/celery/test_version_compat.py",
+            "providers/cloudant/tests/provider_tests/cloudant/test_cloudant_fake.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/operators/test_kubernetes_pod.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_exceptions.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_k8s_model.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_kube_client.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_kube_config.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_python_kubernetes_script.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_secret.py",
+            "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/test_version_compat.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/triggers/test_kubernetes_pod.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_delete_from.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
             "providers/cncf/kubernetes/tests/provider_tests/cncf/kubernetes/utils/test_xcom_sidecar.py",
+            "providers/common/compat/tests/provider_tests/common/compat/lineage/test_entities.py",
+            "providers/common/compat/tests/provider_tests/common/compat/standard/test_operators.py",
+            "providers/common/compat/tests/provider_tests/common/compat/standard/test_triggers.py",
+            "providers/common/compat/tests/provider_tests/common/compat/standard/test_utils.py",
+            "providers/common/compat/tests/provider_tests/common/compat/test_version_compat.py",
+            "providers/common/io/tests/provider_tests/common/io/test_version_compat.py",
+            "providers/edge/tests/provider_tests/edge/models/test_edge_job.py",
+            "providers/edge/tests/provider_tests/edge/models/test_edge_logs.py",
+            "providers/edge/tests/provider_tests/edge/models/test_edge_worker.py",
+            "providers/edge/tests/provider_tests/edge/test_version_compat.py",
+            "providers/edge/tests/provider_tests/edge/worker_api/routes/test__v2_compat.py",
+            "providers/edge/tests/provider_tests/edge/worker_api/routes/test__v2_routes.py",
+            "providers/edge/tests/provider_tests/edge/worker_api/routes/test_jobs.py",
+            "providers/edge/tests/provider_tests/edge/worker_api/test_app.py",
+            "providers/edge/tests/provider_tests/edge/worker_api/test_auth.py",
+            "providers/edge/tests/provider_tests/edge/worker_api/test_datamodels.py",
+            "providers/elasticsearch/tests/provider_tests/elasticsearch/test_version_compat.py",
+            "providers/fab/tests/provider_tests/fab/migrations/test_env.py",
+            "providers/fab/tests/provider_tests/fab/www/api_connexion/test_exceptions.py",
+            "providers/fab/tests/provider_tests/fab/www/api_connexion/test_parameters.py",
+            "providers/fab/tests/provider_tests/fab/www/api_connexion/test_security.py",
+            "providers/fab/tests/provider_tests/fab/www/api_connexion/test_types.py",
+            "providers/fab/tests/provider_tests/fab/www/extensions/test_init_appbuilder.py",
+            "providers/fab/tests/provider_tests/fab/www/extensions/test_init_jinja_globals.py",
+            "providers/fab/tests/provider_tests/fab/www/extensions/test_init_manifest_files.py",
+            "providers/fab/tests/provider_tests/fab/www/extensions/test_init_security.py",
+            "providers/fab/tests/provider_tests/fab/www/extensions/test_init_session.py",
+            "providers/fab/tests/provider_tests/fab/www/extensions/test_init_views.py",
+            "providers/fab/tests/provider_tests/fab/www/security/test_permissions.py",
+            "providers/fab/tests/provider_tests/fab/www/test_app.py",
+            "providers/fab/tests/provider_tests/fab/www/test_constants.py",
+            "providers/fab/tests/provider_tests/fab/www/test_security_manager.py",
+            "providers/fab/tests/provider_tests/fab/www/test_session.py",
+            "providers/fab/tests/provider_tests/fab/www/test_utils.py",
+            "providers/fab/tests/provider_tests/fab/www/test_views.py",
             "providers/google/tests/provider_tests/google/cloud/fs/test_gcs.py",
             "providers/google/tests/provider_tests/google/cloud/links/test_automl.py",
             "providers/google/tests/provider_tests/google/cloud/links/test_base.py",
@@ -130,10 +165,12 @@ class TestProjectStructure:
             "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_auto_ml.py",
             "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_batch_prediction_job.py",
             "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_custom_job.py",
+            "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_dataset.py",
             "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_endpoint_service.py",
             "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_hyperparameter_tuning_job.py",
             "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_model_service.py",
             "providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_pipeline_job.py",
+            "providers/google/tests/provider_tests/google/cloud/sensors/vertex_ai/test_feature_store.py",
             "providers/google/tests/provider_tests/google/cloud/transfers/test_bigquery_to_sql.py",
             "providers/google/tests/provider_tests/google/cloud/transfers/test_presto_to_gcs.py",
             "providers/google/tests/provider_tests/google/cloud/utils/test_bigquery.py",
@@ -142,46 +179,70 @@ class TestProjectStructure:
             "providers/google/tests/provider_tests/google/common/links/test_storage.py",
             "providers/google/tests/provider_tests/google/common/test_consts.py",
             "providers/google/tests/provider_tests/google/test_go_module_utils.py",
-            "providers/tests/microsoft/azure/operators/test_adls.py",
-            "providers/tests/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
-            "providers/tests/slack/notifications/test_slack_notifier.py",
-            "providers/tests/snowflake/triggers/test_snowflake_trigger.py",
-            "providers/tests/yandex/hooks/test_yandexcloud_dataproc.py",
-            "providers/tests/yandex/operators/test_yandexcloud_dataproc.py",
-            "providers/tests/fab/migrations/test_env.py",
+            "providers/google/tests/provider_tests/google/test_version_compat.py",
+            "providers/http/tests/provider_tests/http/test_exceptions.py",
+            "providers/microsoft/azure/tests/provider_tests/microsoft/azure/operators/test_adls.py",
+            "providers/openlineage/tests/provider_tests/openlineage/test_version_compat.py",
+            "providers/opensearch/tests/provider_tests/opensearch/test_version_compat.py",
+            "providers/presto/tests/provider_tests/presto/test_version_compat.py",
+            "providers/snowflake/tests/provider_tests/snowflake/triggers/test_snowflake_trigger.py",
+            "providers/standard/tests/provider_tests/standard/operators/test_empty.py",
+            "providers/standard/tests/provider_tests/standard/operators/test_latest_only.py",
+            "providers/standard/tests/provider_tests/standard/operators/test_trigger_dagrun.py",
+            "providers/standard/tests/provider_tests/standard/sensors/test_external_task.py",
+            "providers/standard/tests/provider_tests/standard/sensors/test_filesystem.py",
+            "providers/standard/tests/provider_tests/standard/test_version_compat.py",
+            "providers/standard/tests/provider_tests/standard/utils/test_sensor_helper.py",
+            "providers/trino/tests/provider_tests/trino/test_version_compat.py",
         ]
-
-        # TODO: Should we extend this test to cover other directories?
-        modules_files = PROVIDERS_SRC.joinpath("airflow", "providers").glob("**/*.py")
-
+        modules_files: list[pathlib.Path] = list(
+            AIRFLOW_SOURCES_ROOT.glob("providers/**/src/airflow/providers/**/*.py")
+        )
+        # Exclude .build files
+        modules_files = (f for f in modules_files if ".build" not in f.parts)
+        # Exclude .git files
+        modules_files = (f for f in modules_files if ".git" not in f.parts)
+        # Exclude .venv files
+        modules_files = (f for f in modules_files if ".venv" not in f.parts)
         # Exclude __init__.py
         modules_files = filter(lambda f: f.name != "__init__.py", modules_files)
-        # Make path relative
-        modules_files = map(lambda f: f.relative_to(PROVIDERS_SRC / "airflow" / "providers"), modules_files)
         # Exclude example_dags
         modules_files = (f for f in modules_files if "example_dags" not in f.parts)
         # Exclude _vendor
         modules_files = (f for f in modules_files if "_vendor" not in f.parts)
         # Exclude versions file
         modules_files = (f for f in modules_files if "versions" not in f.parts)
-        # Change src/airflow/providers/ to tests/
-        test_folder = pathlib.Path("providers/tests")
-        # Add test_ prefix to filename
-        expected_test_files = (test_folder.joinpath(f.with_name("test_" + f.name)) for f in modules_files)
-
-        current_test_files = PROVIDERS_TESTS.glob("**/*.py")
+        # Exclude get_provider_info files
+        modules_files = (f for f in modules_files if "get_provider_info.py" not in f.parts)
         # Make path relative
-        current_test_files = (os.path.relpath(f, ROOT_FOLDER) for f in current_test_files)
+        modules_files = list(f.relative_to(AIRFLOW_SOURCES_ROOT) for f in modules_files)
+        current_test_files = list(NEW_PROVIDER_SRC.rglob("**/tests/**/*.py"))
+        # Make path relative
+        current_test_files = list(f.relative_to(AIRFLOW_SOURCES_ROOT) for f in current_test_files)
         # Exclude __init__.py
-        current_test_files = (f for f in current_test_files if not f.endswith("__init__.py"))
+        current_test_files = set(f for f in current_test_files if not f.name == "__init__.py")
 
-        modules_files = set(modules_files)
-        expected_test_files = set(expected_test_files) - set(OVERLOOKED_TESTS)
-        current_test_files = set(current_test_files)
+        modules_files_set = set(modules_files)
+        expected_test_files = set(
+            [
+                pathlib.Path(
+                    f.with_name("test_" + f.name)
+                    .as_posix()
+                    .replace("/src/airflow/providers/", "/tests/provider_tests/")
+                )
+                for f in modules_files_set
+            ]
+        )
+        expected_test_files = set(expected_test_files) - set(
+            [pathlib.Path(test_file) for test_file in OVERLOOKED_TESTS]
+        )
 
-        missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
+        missing_tests_files = [
+            file.as_posix()
+            for file in sorted(expected_test_files - expected_test_files.intersection(current_test_files))
+        ]
 
-        assert set() == missing_tests_files, "Detect missing tests in providers module - please add tests"
+        assert missing_tests_files == [], "Detect missing tests in providers module - please add tests"
 
         added_test_files = current_test_files.intersection(OVERLOOKED_TESTS)
         assert set() == added_test_files, (
@@ -205,7 +266,7 @@ def get_imports_from_file(filepath: str):
     return import_names
 
 
-def filepath_to_module(path: pathlib.Path, src_folder: pathlib.Path = PROVIDERS_SRC):
+def filepath_to_module(path: pathlib.Path, src_folder: pathlib.Path):
     path = path.relative_to(src_folder)
     return path.as_posix().replace("/", ".")[: -(len(".py"))]
 
@@ -222,7 +283,7 @@ class ProjectStructureTest:
 
     def class_paths(self):
         for resource_type in self.CLASS_DIRS:
-            python_files = PROVIDERS_SRC.glob(
+            python_files = AIRFLOW_SOURCES_ROOT.glob(
                 f"airflow/providers/{self.PROVIDER}/**/{resource_type}/**/*.py",
             )
             # Make path relative
@@ -240,17 +301,12 @@ class ProjectStructureTest:
 
     def list_of_classes(self):
         classes = {}
-        for operator_file in self.class_paths():
-            operators_paths = self.get_classes_from_file(operator_file, PROVIDERS_SRC)
-            classes.update(operators_paths)
-        for operator_file in self.new_class_paths():
-            operators_paths = self.get_classes_from_file(operator_file, NEW_PROVIDER_SRC, is_new=True)
+        for file in self.new_class_paths():
+            operators_paths = self.get_classes_from_file(file, NEW_PROVIDER_SRC)
             classes.update(operators_paths)
         return classes
 
-    def get_classes_from_file(
-        self, filepath: pathlib.Path, src_folder: pathlib.Path = PROVIDERS_SRC, is_new: bool = False
-    ):
+    def get_classes_from_file(self, filepath: pathlib.Path, src_folder: pathlib.Path):
         with open(filepath) as py_file:
             content = py_file.read()
         doc_node = ast.parse(content, filepath)
@@ -262,12 +318,12 @@ class ProjectStructureTest:
             ):
                 if "provider_tests" in module:
                     continue
-
-                if is_new:
-                    module_path = module[module.find("airflow.providers") :]
-                    results[f"{module_path}.{current_node.name}"] = current_node
-                else:
-                    results[f"{module}.{current_node.name}"] = current_node
+                if "integration" in module:
+                    continue
+                if "system" in module:
+                    continue
+                module_path = module[module.find("airflow.providers") :]
+                results[f"{module_path}.{current_node.name}"] = current_node
         print(f"{results}")
         return results
 
@@ -286,24 +342,13 @@ class ExampleCoverageTest(ProjectStructureTest):
 
     def example_paths(self):
         """Override this method if your example dags are located elsewhere"""
-        # old_design:
         yield from glob.glob(
-            f"{ROOT_FOLDER}/providers/src/airflow/providers/{self.PROVIDER}/**/example_dags/example_*.py",
-            recursive=True,
-        )
-        # new_design:
-        yield from glob.glob(
-            f"{ROOT_FOLDER}/providers/tests/system/{self.PROVIDER}/**/example_*.py", recursive=True
-        )
-        # new_design v2:
-        # TODO remove #new_design when movement is finished
-        yield from glob.glob(
-            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/tests/system/{self.PROVIDER}/**/example_*.py",
+            f"{AIRFLOW_SOURCES_ROOT}/providers/{self.PROVIDER}/tests/system/{self.PROVIDER}/**/example_*.py",
             recursive=True,
         )
 
         yield from glob.glob(
-            f"{ROOT_FOLDER}/providers/{self.PROVIDER}/src/airflow/providers/{self.PROVIDER}/**/example_*.py",
+            f"{AIRFLOW_SOURCES_ROOT}/providers/{self.PROVIDER}/src/airflow/providers/{self.PROVIDER}/**/example_*.py",
             recursive=True,
         )
 
@@ -321,6 +366,7 @@ class ExampleCoverageTest(ProjectStructureTest):
         classes -= self.MISSING_EXAMPLES_FOR_CLASSES
         classes -= self.DEPRECATED_CLASSES
         classes -= self.BASE_CLASSES
+        classes = set(class_name for class_name in classes if not class_name.startswith("Test"))
         if set() != classes:
             print("Classes with missing examples:")
             print_sorted(classes)
@@ -597,7 +643,7 @@ class TestOperatorsHooks:
     def test_no_illegal_suffixes(self):
         illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
         files = itertools.chain.from_iterable(
-            glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
+            glob.glob(f"{AIRFLOW_SOURCES_ROOT}/{part}/providers/**/{resource_type}/*.py", recursive=True)
             for resource_type in ["operators", "hooks", "sensors", "example_dags"]
             for part in ["airflow", "tests"]
         )

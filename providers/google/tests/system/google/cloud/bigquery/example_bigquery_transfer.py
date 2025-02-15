@@ -25,9 +25,6 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
@@ -38,6 +35,8 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
 from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

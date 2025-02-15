@@ -189,7 +189,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^\.github/SECURITY\.rst$",
             r"^airflow/.*\.py$",
             r"^chart",
-            r"^providers/src/",
             r"^providers/.*/src/",
             r"^task_sdk/src/",
             r"^tests/system",
@@ -209,9 +208,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
-            r"^providers/src/airflow/providers/cncf/kubernetes/",
-            r"^providers/tests/cncf/kubernetes/",
-            r"^providers/tests/system/cncf/kubernetes/",
             r"^providers/cncf/kubernetes/",
         ],
         FileGroupForCi.ALL_PYTHON_FILES: [
@@ -273,11 +269,9 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
         FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
             r"^.*/.*_vendor/.*",
             r"^airflow/migrations/.*",
-            r"^providers/src/airflow/providers/.*",
             r"^providers/.*/src/airflow/providers/.*",
             r"^dev/.*",
             r"^docs/.*",
-            r"^providers/tests/.*",
             r"^providers/.*/tests/.*",
             r"^tests/dags/test_imports.py",
             r"^task_sdk/src/airflow/sdk/.*\.py$",
@@ -287,7 +281,6 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
 )
 
 PYTHON_OPERATOR_FILES = [
-    r"^providers/src/providers/standard/operators/python.py",
     r"^providers/tests/standard/operators/test_python.py",
 ]
 
@@ -310,8 +303,6 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/operators/",
         ],
         SelectiveProvidersTestType.PROVIDERS: [
-            r"^providers/src/airflow/providers/",
-            r"^providers/tests/",
             r"^providers/.*/src/airflow/providers/",
             r"^providers/.*/tests/",
         ],

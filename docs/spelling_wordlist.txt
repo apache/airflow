@@ -589,6 +589,7 @@ Env
 env
 envFrom
 EnvFromSource
+envs
 EnvVar
 envvar
 eof
