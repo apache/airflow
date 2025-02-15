@@ -17,24 +17,20 @@
 from __future__ import annotations
 
 import os
-from urllib.parse import quote_plus
 
 import pytest
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.mock_operators import CustomOperator
-from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -43,7 +39,33 @@ if AIRFLOW_V_3_0_PLUS:
 pytestmark = pytest.mark.db_test
 
 
-class TestExtraLinks:
+class GoogleLink(BaseOperatorLink):
+    name = "Google"
+
+    def get_link(self, operator, ti_key):
+        return "https://www.google.com"
+
+
+class S3LogLink(BaseOperatorLink):
+    name = "S3"
+    operators = [CustomOperator]
+
+    def get_link(self, operator, ti_key):
+        return f"https://s3.amazonaws.com/airflow-logs/{operator.dag_id}/{operator.task_id}/"
+
+
+class AirflowPluginWithOperatorLinks(AirflowPlugin):
+    name = "test_plugin"
+    global_operator_extra_links = [
+        GoogleLink(),
+    ]
+    operator_extra_links = [
+        S3LogLink(),
+    ]
+
+
+@pytest.mark.mock_plugin_manager(plugins=[])
+class TestGetExtraLinks:
     dag_id = "TEST_DAG_ID"
     dag_run_id = "TEST_DAG_RUN_ID"
     task_single_link = "TEST_SINGLE_LINK"
@@ -58,16 +80,15 @@ class TestExtraLinks:
         clear_db_runs()
         clear_db_xcom()
 
-    @provide_session
     @pytest.fixture(autouse=True)
-    def setup(self, test_client, session=None) -> None:
+    def setup(self, test_client, dag_maker, request, session) -> None:
         """
         Setup extra links for testing.
         :return: Dictionary with event extra link names with their corresponding link as the links.
         """
         self._clear_db()
 
-        self.dag = self._create_dag()
+        self.dag = self._create_dag(dag_maker)
 
         DagBundlesManager().sync_bundles_to_db()
         dag_bag = DagBag(os.devnull, include_examples=False)
@@ -88,20 +109,16 @@ class TestExtraLinks:
     def teardown_method(self) -> None:
         self._clear_db()
 
-    def _create_dag(self):
-        with DAG(dag_id=self.dag_id, schedule=None, default_args={"start_date": self.default_time}) as dag:
+    def _create_dag(self, dag_maker):
+        with dag_maker(
+            dag_id=self.dag_id, schedule=None, default_args={"start_date": self.default_time}, serialized=True
+        ) as dag:
             CustomOperator(task_id=self.task_single_link, bash_command="TEST_LINK_VALUE")
             CustomOperator(
                 task_id=self.task_multiple_links, bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
             )
-            # Mapped task expanded over a list of bash_commands
-            CustomOperator.partial(task_id=self.task_mapped).expand(
-                bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
-            )
         return dag
 
-
-class TestGetExtraLinks(TestExtraLinks):
     @pytest.mark.parametrize(
         "url, expected_status_code, expected_response",
         [
@@ -131,8 +148,7 @@ class TestGetExtraLinks(TestExtraLinks):
         assert response.status_code == expected_status_code
         assert response.json() == expected_response
 
-    @mock_plugin_manager(plugins=[])
-    def test_should_respond_200(self, test_client):
+    def test_should_respond_200(self, dag_maker, test_client):
         XCom.set(
             key="search_query",
             value="TEST_LINK_VALUE",
@@ -140,6 +156,14 @@ class TestGetExtraLinks(TestExtraLinks):
             dag_id=self.dag_id,
             run_id=self.dag_run_id,
         )
+        XCom.set(
+            key="_link_CustomOpLink",
+            value="http://google.com/custom_base_link?search=TEST_LINK_VALUE",
+            task_id=self.task_single_link,
+            dag_id=self.dag_id,
+            run_id=self.dag_run_id,
+        )
+
         response = test_client.get(
             f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
         )
@@ -149,7 +173,6 @@ class TestGetExtraLinks(TestExtraLinks):
             "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"
         }
 
-    @mock_plugin_manager(plugins=[])
     def test_should_respond_200_missing_xcom(self, test_client):
         response = test_client.get(
             f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
@@ -158,15 +181,33 @@ class TestGetExtraLinks(TestExtraLinks):
         assert response.status_code == 200
         assert response.json() == {"Google Custom": None}
 
-    @mock_plugin_manager(plugins=[])
-    def test_should_respond_200_multiple_links(self, test_client):
+    def test_should_respond_200_multiple_links(self, test_client, session):
         XCom.set(
             key="search_query",
             value=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"],
             task_id=self.task_multiple_links,
             dag_id=self.dag.dag_id,
             run_id=self.dag_run_id,
+            session=session,
         )
+        XCom.set(
+            key="bigquery_1",
+            value="https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_1",
+            task_id=self.task_multiple_links,
+            dag_id=self.dag_id,
+            run_id=self.dag_run_id,
+            session=session,
+        )
+        XCom.set(
+            key="bigquery_2",
+            value="https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_2",
+            task_id=self.task_multiple_links,
+            dag_id=self.dag_id,
+            run_id=self.dag_run_id,
+            session=session,
+        )
+        session.commit()
+
         response = test_client.get(
             f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_multiple_links}/links",
         )
@@ -177,7 +218,6 @@ class TestGetExtraLinks(TestExtraLinks):
             "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_2",
         }
 
-    @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links_missing_xcom(self, test_client):
         response = test_client.get(
             f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_multiple_links}/links",
@@ -186,48 +226,19 @@ class TestGetExtraLinks(TestExtraLinks):
         assert response.status_code == 200
         assert response.json() == {"BigQuery Console #1": None, "BigQuery Console #2": None}
 
+    @pytest.mark.mock_plugin_manager(plugins=[AirflowPluginWithOperatorLinks])
     def test_should_respond_200_support_plugins(self, test_client):
-        class GoogleLink(BaseOperatorLink):
-            name = "Google"
+        response = test_client.get(
+            f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+        )
 
-            def get_link(self, operator, dttm):
-                return "https://www.google.com"
+        assert response, response.status_code == 200
+        assert response.json() == {
+            "Google Custom": None,
+            "Google": "https://www.google.com",
+            "S3": ("https://s3.amazonaws.com/airflow-logs/TEST_DAG_ID/TEST_SINGLE_LINK/"),
+        }
 
-        class S3LogLink(BaseOperatorLink):
-            name = "S3"
-            operators = [CustomOperator]
-
-            def get_link(self, operator, dttm):
-                return (
-                    f"https://s3.amazonaws.com/airflow-logs/{operator.dag_id}/"
-                    f"{operator.task_id}/{quote_plus(dttm.isoformat())}"
-                )
-
-        class AirflowTestPlugin(AirflowPlugin):
-            name = "test_plugin"
-            global_operator_extra_links = [
-                GoogleLink(),
-            ]
-            operator_extra_links = [
-                S3LogLink(),
-            ]
-
-        with mock_plugin_manager(plugins=[AirflowTestPlugin]):
-            response = test_client.get(
-                f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
-            )
-
-            assert response, response.status_code == 200
-            assert response.json() == {
-                "Google Custom": None,
-                "Google": "https://www.google.com",
-                "S3": (
-                    "https://s3.amazonaws.com/airflow-logs/"
-                    "TEST_DAG_ID/TEST_SINGLE_LINK/2020-01-01T00%3A00%3A00%2B00%3A00"
-                ),
-            }
-
-    @mock_plugin_manager(plugins=[])
     @pytest.mark.xfail(reason="TODO: TaskSDK need to fix this, Extra links should work for mapped operator")
     def test_should_respond_200_mapped_task_instance(self, test_client):
         map_index = 0
@@ -248,11 +259,10 @@ class TestGetExtraLinks(TestExtraLinks):
             "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_1"
         }
 
-    @mock_plugin_manager(plugins=[])
     def test_should_respond_404_invalid_map_index(self, test_client):
         response = test_client.get(
             f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
             params={"map_index": 4},
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "DAG Run with ID = TEST_DAG_RUN_ID not found"}
+        assert response.json() == {"detail": "Task with ID = TEST_MAPPED_TASK not found"}

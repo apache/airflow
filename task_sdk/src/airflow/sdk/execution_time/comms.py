@@ -75,6 +75,7 @@ class StartupDetails(BaseModel):
     dag_rel_path: str
     bundle_info: BundleInfo
     requests_fd: int
+    start_date: datetime
     """
     The channel for the task to send requests over.
 
@@ -117,6 +118,11 @@ class XComResult(XComResponse):
         for communication between the Supervisor and the task process.
         """
         return cls(**xcom_response.model_dump())
+
+
+class XComCountResponse(BaseModel):
+    len: int
+    type: Literal["XComLengthResponse"] = "XComLengthResponse"
 
 
 class ConnectionResult(ConnectionResponse):
@@ -184,6 +190,7 @@ ToTask = Annotated[
         StartupDetails,
         VariableResult,
         XComResult,
+        XComCountResponse,
         OKResponse,
     ],
     Field(discriminator="type"),
@@ -238,6 +245,16 @@ class GetXCom(BaseModel):
     task_id: str
     map_index: int | None = None
     type: Literal["GetXCom"] = "GetXCom"
+
+
+class GetXComCount(BaseModel):
+    """Get the number of (mapped) XCom values available."""
+
+    key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    type: Literal["GetNumberXComs"] = "GetNumberXComs"
 
 
 class SetXCom(BaseModel):
@@ -324,6 +341,7 @@ ToSupervisor = Annotated[
         GetPrevSuccessfulDagRun,
         GetVariable,
         GetXCom,
+        GetXComCount,
         PutVariable,
         RescheduleTask,
         SetRenderedFields,

@@ -23,8 +23,11 @@ from functools import cached_property
 from typing import Any
 
 from airflow.hooks.base import BaseHook
-from asana import Client  # type: ignore[attr-defined]
-from asana.error import NotFoundError  # type: ignore[attr-defined]
+from asana.api.projects_api import ProjectsApi
+from asana.api.tasks_api import TasksApi
+from asana.api_client import ApiClient
+from asana.configuration import Configuration
+from asana.rest import ApiException
 
 
 class AsanaHook(BaseHook):
@@ -55,7 +58,7 @@ class AsanaHook(BaseHook):
         prefixed_name = f"{backcompat_prefix}{field_name}"
         return extras.get(prefixed_name) or None
 
-    def get_conn(self) -> Client:
+    def get_conn(self) -> ApiClient:
         return self.client
 
     @classmethod
@@ -84,7 +87,7 @@ class AsanaHook(BaseHook):
         }
 
     @cached_property
-    def client(self) -> Client:
+    def client(self) -> ApiClient:
         """Instantiate python-asana Client."""
         if not self.connection.password:
             raise ValueError(
@@ -92,7 +95,9 @@ class AsanaHook(BaseHook):
                 "https://developers.asana.com/docs/personal-access-token"
             )
 
-        return Client.access_token(self.connection.password)
+        configuration = Configuration()
+        configuration.access_token = self.connection.password
+        return ApiClient(configuration)
 
     def create_task(self, task_name: str, params: dict | None) -> dict:
         """
@@ -105,8 +110,15 @@ class AsanaHook(BaseHook):
         """
         merged_params = self._merge_create_task_parameters(task_name, params)
         self._validate_create_task_parameters(merged_params)
-        response = self.client.tasks.create(params=merged_params)
-        return response
+
+        tasks_api_instance = TasksApi(self.client)
+        try:
+            body = {"data": merged_params}
+            response = tasks_api_instance.create_task(body, opts={})
+            return response
+        except ApiException as e:
+            self.log.exception("Exception when calling create task with task name: %s", task_name)
+            raise e
 
     def _merge_create_task_parameters(self, task_name: str, task_params: dict | None) -> dict:
         """
@@ -147,12 +159,13 @@ class AsanaHook(BaseHook):
         :param task_id: Asana GID of the task to delete
         :return: A dict containing the response from Asana
         """
+        tasks_api_instance = TasksApi(self.client)
         try:
-            response = self.client.tasks.delete_task(task_id)
+            response = tasks_api_instance.delete_task(task_id)
             return response
-        except NotFoundError:
-            self.log.info("Asana task %s not found for deletion.", task_id)
-            return {}
+        except ApiException as e:
+            self.log.exception("Exception when calling delete task with task id: %s", task_id)
+            raise e
 
     def find_task(self, params: dict | None) -> list:
         """
@@ -164,8 +177,14 @@ class AsanaHook(BaseHook):
         """
         merged_params = self._merge_find_task_parameters(params)
         self._validate_find_task_parameters(merged_params)
-        response = self.client.tasks.find_all(params=merged_params)
-        return list(response)
+
+        tasks_api_instance = TasksApi(self.client)
+        try:
+            response = tasks_api_instance.get_tasks(merged_params)
+            return list(response)
+        except ApiException as e:
+            self.log.exception("Exception when calling find task with parameters: %s", params)
+            raise e
 
     def _merge_find_task_parameters(self, search_parameters: dict | None) -> dict:
         """
@@ -212,8 +231,14 @@ class AsanaHook(BaseHook):
             https://developers.asana.com/docs/update-a-task
         :return: A dict containing the updated task's attributes
         """
-        response = self.client.tasks.update(task_id, params)
-        return response
+        tasks_api_instance = TasksApi(self.client)
+        try:
+            body = {"data": params}
+            response = tasks_api_instance.update_task(body, task_id, opts={})
+            return response
+        except ApiException as e:
+            self.log.exception("Exception when calling update task with task id: %s", task_id)
+            raise e
 
     def create_project(self, params: dict) -> dict:
         """
@@ -226,8 +251,15 @@ class AsanaHook(BaseHook):
         """
         merged_params = self._merge_project_parameters(params)
         self._validate_create_project_parameters(merged_params)
-        response = self.client.projects.create(merged_params)
-        return response
+
+        projects_api_instance = ProjectsApi(self.client)
+        try:
+            body = {"data": merged_params}
+            response = projects_api_instance.create_project(body)
+            return response
+        except ApiException as e:
+            self.log.exception("Exception when calling create project with parameters: %s", merged_params)
+            raise e
 
     @staticmethod
     def _validate_create_project_parameters(params: dict) -> None:
@@ -265,8 +297,14 @@ class AsanaHook(BaseHook):
         :return: A list of dicts containing attributes of matching Asana projects
         """
         merged_params = self._merge_project_parameters(params)
-        response = self.client.projects.find_all(merged_params)
-        return list(response)
+
+        projects_api_instance = ProjectsApi(self.client)
+        try:
+            response = projects_api_instance.get_projects(merged_params)
+            return list(response)
+        except ApiException as e:
+            self.log.exception("Exception when calling find projects with parameters: %s", params)
+            raise e
 
     def update_project(self, project_id: str, params: dict) -> dict:
         """
@@ -278,8 +316,15 @@ class AsanaHook(BaseHook):
             for a list of possible parameters
         :return: A dict containing the updated project's attributes
         """
-        response = self.client.projects.update(project_id, params)
-        return response
+
+        body = {"data": params}
+        projects_api_instance = ProjectsApi(self.client)
+        try:
+            response = projects_api_instance.update_project(body, project_id)
+            return response
+        except ApiException as e:
+            self.log.exception("Exception when calling project update with parameter: %s", params)
+            raise e
 
     def delete_project(self, project_id: str) -> dict:
         """
@@ -288,9 +333,10 @@ class AsanaHook(BaseHook):
         :param project_id: Asana GID of the project to delete
         :return: A dict containing the response from Asana
         """
+        projects_api_instance = ProjectsApi(self.client)
         try:
-            response = self.client.projects.delete(project_id)
+            response = projects_api_instance.delete_project(project_id)
             return response
-        except NotFoundError:
-            self.log.info("Asana project %s not found for deletion.", project_id)
-            return {}
+        except ApiException as e:
+            self.log.exception("Exception when calling project delete with project id: %s", project_id)
+            raise e

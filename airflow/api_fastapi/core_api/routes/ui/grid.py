@@ -28,16 +28,15 @@ from sqlalchemy.orm import joinedload
 from airflow import DAG
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
-    OptionalDateTimeQuery,
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
     QueryIncludeDownstream,
     QueryIncludeUpstream,
     QueryLimit,
     QueryOffset,
-    Range,
     RangeFilter,
     SortParam,
+    datetime_range_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
@@ -69,16 +68,12 @@ def grid_data(
     limit: QueryLimit,
     order_by: Annotated[
         SortParam,
-        Depends(
-            SortParam(
-                ["logical_date", "data_interval_start", "data_interval_end", "start_date", "end_date"], DagRun
-            ).dynamic_depends()
-        ),
+        Depends(SortParam(["run_after", "logical_date", "start_date", "end_date"], DagRun).dynamic_depends()),
     ],
+    run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
+    logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
-    logical_date_gte: OptionalDateTimeQuery = None,
-    logical_date_lte: OptionalDateTimeQuery = None,
     root: str | None = None,
 ) -> GridResponse:
     """Return grid data."""
@@ -86,10 +81,6 @@ def grid_data(
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
-    date_filter = RangeFilter(
-        Range(lower_bound=logical_date_gte, upper_bound=logical_date_lte),
-        attribute=DagRun.logical_date,
-    )
     # Retrieve, sort the previous DAG Runs
     base_query = (
         select(DagRun)
@@ -111,7 +102,8 @@ def grid_data(
         filters=[
             run_type,
             state,
-            date_filter,
+            run_after,
+            logical_date,
         ],
         order_by=order_by,
         offset=offset,
@@ -211,6 +203,8 @@ def grid_data(
             queued_at=dag_run.queued_at,
             start_date=dag_run.start_date,
             end_date=dag_run.end_date,
+            run_after=dag_run.run_after,
+            logical_date=dag_run.logical_date,
             state=dag_run.state,
             run_type=dag_run.run_type,
             data_interval_start=dag_run.data_interval_start,

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from textwrap import dedent
 from unittest import mock
 
 import pytest
@@ -191,26 +192,29 @@ class TestPrepareVirtualenv:
             ["uv", "pip", "install", "--python", "/VENV/bin/python", "apache-beam[gcp]"]
         )
 
-    def test_remove_task_decorator(self):
-        py_source = '@task.virtualenv(serializer="dill")\ndef f():\nimport funcsigs'
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "def f():\nimport funcsigs"
+    @pytest.mark.parametrize(
+        "decorators, expected_decorators",
+        [
+            (["@task.virtualenv"], []),
+            (["@task.virtualenv()"], []),
+            (['@task.virtualenv(serializer="dill")'], []),
+            (["@foo", "@task.virtualenv", "@bar"], ["@foo", "@bar"]),
+            (["@foo", "@task.virtualenv()", "@bar"], ["@foo", "@bar"]),
+        ],
+        ids=["without_parens", "parens", "with_args", "nested_without_parens", "nested_with_parens"],
+    )
+    def test_remove_task_decorator(self, decorators: list[str], expected_decorators: list[str]):
+        concated_decorators = "\n".join(decorators)
+        expected_decorator = "\n".join(expected_decorators)
+        SCRIPT = dedent(
+            """
+        def f():
+            # @task.virtualenv
+            import funcsigs
+        """
+        )
+        py_source = concated_decorators + SCRIPT
+        expected_source = expected_decorator + SCRIPT if expected_decorator else SCRIPT.lstrip()
 
-    def test_remove_decorator_no_parens(self):
-        py_source = "@task.virtualenv\ndef f():\nimport funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "def f():\nimport funcsigs"
-
-    def test_remove_decorator_including_comment(self):
-        py_source = "@task.virtualenv\ndef f():\n# @task.virtualenv\nimport funcsigs"
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "def f():\n# @task.virtualenv\nimport funcsigs"
-
-    def test_remove_decorator_nested(self):
-        py_source = "@foo\n@task.virtualenv\n@bar\ndef f():\nimport funcsigs"
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "@foo\n@bar\ndef f():\nimport funcsigs"
-
-        py_source = "@foo\n@task.virtualenv()\n@bar\ndef f():\nimport funcsigs"
-        res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "@foo\n@bar\ndef f():\nimport funcsigs"
+        assert res == expected_source

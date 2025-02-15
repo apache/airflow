@@ -67,7 +67,7 @@ class SerializedDagModel(Base):
     * ``[core] min_serialized_dag_update_interval = 30`` (s):
       serialized DAGs are updated in DB when a file gets processed by scheduler,
       to reduce DB write rate, there is a minimal interval of updating serialized DAGs.
-    * ``[scheduler] dag_dir_list_interval = 300`` (s):
+    * ``[dag_processor] refresh_interval = 300`` (s):
       interval of deleting serialized DAGs in DB when the files are deleted, suggest
       to use a smaller interval such as 60
     * ``[core] compress_serialized_dags``:
@@ -291,7 +291,7 @@ class SerializedDagModel(Base):
     @property
     def data(self) -> dict | None:
         # use __data_cache to avoid decompress and loads
-        if not hasattr(self, "__data_cache") or self.__data_cache is None:
+        if not hasattr(self, "_SerializedDagModel__data_cache") or self.__data_cache is None:
             if self._data_compressed:
                 self.__data_cache = json.loads(zlib.decompress(self._data_compressed))
             else:

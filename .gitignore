@@ -34,6 +34,7 @@ env/
 build/
 develop-eggs/
 dist/
+!providers/fab/**/www/static/dist
 downloads/
 eggs/
 .eggs/
@@ -257,3 +258,6 @@ airflow-build-dockerfile*
 
 # Temporary ignore uv.lock until we integrate it fully in our constraint preparation mechanism
 /uv.lock
+
+# Ignore zip files https://github.com/apache/airflow/issues/46449
+*.zip

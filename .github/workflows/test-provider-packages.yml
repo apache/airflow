@@ -177,7 +177,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       VERBOSE: "true"
-      CLEAN_AIRFLOW_INSTALLATION: "${{ inputs.canary-run }}"
+      CLEAN_AIRFLOW_INSTALLATION: "true"
     if: inputs.skip-providers-tests != 'true'
     steps:
       - name: "Cleanup repo"

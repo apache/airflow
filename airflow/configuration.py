@@ -891,58 +891,60 @@ class AirflowConfigParser(ConfigParser):
         section: str,
         key: str,
         suppress_warnings: bool = False,
+        lookup_from_deprecated_options: bool = True,
         _extra_stacklevel: int = 0,
         **kwargs,
     ) -> str | None:
         section = section.lower()
         key = key.lower()
         warning_emitted = False
-        deprecated_section: str | None
-        deprecated_key: str | None
+        deprecated_section: str | None = None
+        deprecated_key: str | None = None
 
-        option_description = self.configuration_description.get(section, {}).get(key, {})
-        if option_description.get("deprecated"):
-            deprecation_reason = option_description.get("deprecation_reason", "")
-            warnings.warn(
-                f"The '{key}' option in section {section} is deprecated. {deprecation_reason}",
-                DeprecationWarning,
-                stacklevel=2 + _extra_stacklevel,
-            )
-        # For when we rename whole sections
-        if section in self.inversed_deprecated_sections:
-            deprecated_section, deprecated_key = (section, key)
-            section = self.inversed_deprecated_sections[section]
-            if not self._suppress_future_warnings:
+        if lookup_from_deprecated_options:
+            option_description = self.configuration_description.get(section, {}).get(key, {})
+            if option_description.get("deprecated"):
+                deprecation_reason = option_description.get("deprecation_reason", "")
                 warnings.warn(
-                    f"The config section [{deprecated_section}] has been renamed to "
-                    f"[{section}]. Please update your `conf.get*` call to use the new name",
-                    FutureWarning,
+                    f"The '{key}' option in section {section} is deprecated. {deprecation_reason}",
+                    DeprecationWarning,
                     stacklevel=2 + _extra_stacklevel,
                 )
-            # Don't warn about individual rename if the whole section is renamed
-            warning_emitted = True
-        elif (section, key) in self.inversed_deprecated_options:
-            # Handle using deprecated section/key instead of the new section/key
-            new_section, new_key = self.inversed_deprecated_options[(section, key)]
-            if not self._suppress_future_warnings and not warning_emitted:
-                warnings.warn(
-                    f"section/key [{section}/{key}] has been deprecated, you should use"
-                    f"[{new_section}/{new_key}] instead. Please update your `conf.get*` call to use the "
-                    "new name",
-                    FutureWarning,
-                    stacklevel=2 + _extra_stacklevel,
-                )
+            # For the cases in which we rename whole sections
+            if section in self.inversed_deprecated_sections:
+                deprecated_section, deprecated_key = (section, key)
+                section = self.inversed_deprecated_sections[section]
+                if not self._suppress_future_warnings:
+                    warnings.warn(
+                        f"The config section [{deprecated_section}] has been renamed to "
+                        f"[{section}]. Please update your `conf.get*` call to use the new name",
+                        FutureWarning,
+                        stacklevel=2 + _extra_stacklevel,
+                    )
+                # Don't warn about individual rename if the whole section is renamed
                 warning_emitted = True
-            deprecated_section, deprecated_key = section, key
-            section, key = (new_section, new_key)
-        elif section in self.deprecated_sections:
-            # When accessing the new section name, make sure we check under the old config name
-            deprecated_key = key
-            deprecated_section = self.deprecated_sections[section][0]
-        else:
-            deprecated_section, deprecated_key, _ = self.deprecated_options.get(
-                (section, key), (None, None, None)
-            )
+            elif (section, key) in self.inversed_deprecated_options:
+                # Handle using deprecated section/key instead of the new section/key
+                new_section, new_key = self.inversed_deprecated_options[(section, key)]
+                if not self._suppress_future_warnings and not warning_emitted:
+                    warnings.warn(
+                        f"section/key [{section}/{key}] has been deprecated, you should use"
+                        f"[{new_section}/{new_key}] instead. Please update your `conf.get*` call to use the "
+                        "new name",
+                        FutureWarning,
+                        stacklevel=2 + _extra_stacklevel,
+                    )
+                    warning_emitted = True
+                deprecated_section, deprecated_key = section, key
+                section, key = (new_section, new_key)
+            elif section in self.deprecated_sections:
+                # When accessing the new section name, make sure we check under the old config name
+                deprecated_key = key
+                deprecated_section = self.deprecated_sections[section][0]
+            else:
+                deprecated_section, deprecated_key, _ = self.deprecated_options.get(
+                    (section, key), (None, None, None)
+                )
         # first check environment variables
         option = self._get_environment_variables(
             deprecated_key,
@@ -1247,7 +1249,7 @@ class AirflowConfigParser(ConfigParser):
         """
         super().read_dict(dictionary=dictionary, source=source)
 
-    def has_option(self, section: str, option: str) -> bool:
+    def has_option(self, section: str, option: str, lookup_from_deprecated_options: bool = True) -> bool:
         """
         Check if option is defined.
 
@@ -1259,7 +1261,14 @@ class AirflowConfigParser(ConfigParser):
         :return:
         """
         try:
-            value = self.get(section, option, fallback=None, _extra_stacklevel=1, suppress_warnings=True)
+            value = self.get(
+                section,
+                option,
+                fallback=None,
+                _extra_stacklevel=1,
+                suppress_warnings=True,
+                lookup_from_deprecated_options=lookup_from_deprecated_options,
+            )
             if value is None:
                 return False
             return True

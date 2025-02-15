@@ -359,6 +359,13 @@ class DAG:
     # argument "description" in call to "DAG"`` etc), so for init=True args we use the `default=Factory()`
     # style
 
+    def __rich_repr__(self):
+        yield "dag_id", self.dag_id
+        yield "schedule", self.schedule
+        yield "#tasks", len(self.tasks)
+
+    __rich_repr__.angular = True  # type: ignore[attr-defined]
+
     # NOTE: When updating arguments here, please also keep arguments in @dag()
     # below in sync. (Search for 'def dag(' in this file.)
     dag_id: str = attrs.field(kw_only=False, validator=attrs.validators.instance_of(str))
@@ -643,10 +650,6 @@ class DAG:
         :return: Comma separated list of owners in DAG tasks
         """
         return ", ".join({t.owner for t in self.tasks})
-
-    @property
-    def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_LOGICAL_DATES and not self.timetable.can_be_scheduled
 
     def resolve_template_files(self):
         for t in self.tasks:

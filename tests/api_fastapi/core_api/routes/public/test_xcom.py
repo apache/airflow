@@ -49,7 +49,10 @@ TEST_TASK_ID_2 = "test-task-id-2"
 
 logical_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
 logical_date_formatted = logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
-run_id = DagRun.generate_run_id(DagRunType.MANUAL, logical_date_parsed)
+run_after_parsed = timezone.parse(TEST_EXECUTION_DATE)
+run_id = DagRun.generate_run_id(
+    run_type=DagRunType.MANUAL, logical_date=logical_date_parsed, run_after=run_after_parsed
+)
 
 
 @provide_session

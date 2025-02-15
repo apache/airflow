@@ -30,13 +30,13 @@ class XComListener:
             f.write(line + "\n")
 
     @hookimpl
-    def on_task_instance_running(self, previous_state, task_instance, session):
+    def on_task_instance_running(self, previous_state, task_instance):
         task_instance.xcom_push(key="listener", value="listener")
         task_instance.xcom_pull(task_ids=task_instance.task_id, key="listener")
         self.write("on_task_instance_running")
 
     @hookimpl
-    def on_task_instance_success(self, previous_state, task_instance, session):
+    def on_task_instance_success(self, previous_state, task_instance):
         read = task_instance.xcom_pull(task_ids=self.task_id, key="listener")
         self.write("on_task_instance_success")
         self.write(read)

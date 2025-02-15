@@ -53,7 +53,6 @@ from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
-from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
@@ -63,7 +62,6 @@ from airflow.models.abstractoperator import NotMapped
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
-from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -79,6 +77,7 @@ from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.strings import get_random_string
 from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -254,12 +253,15 @@ class DagRun(Base, LoggingMixin):
         dag_version: DagVersion | None = None,
         bundle_version: str | None = None,
     ):
+        # For manual runs where logical_date is None, ensure no data_interval is set.
+        if logical_date is None and data_interval is not None:
+            raise ValueError("data_interval must be None if logical_date is None")
+
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
             self.data_interval_start = self.data_interval_end = None
         else:
             self.data_interval_start, self.data_interval_end = data_interval
-
         self.bundle_version = bundle_version
         self.dag_id = dag_id
         self.run_id = run_id
@@ -451,13 +453,12 @@ class DagRun(Base, LoggingMixin):
             .order_by(
                 nulls_first(BackfillDagRun.sort_ordinal, session=session),
                 nulls_first(cls.last_scheduling_decision, session=session),
-                cls.logical_date,
+                cls.run_after,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
-        if not settings.ALLOW_FUTURE_LOGICAL_DATES:
-            query = query.where(DagRun.logical_date <= func.now())
+        query = query.where(DagRun.run_after <= func.now())
 
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
@@ -537,13 +538,12 @@ class DagRun(Base, LoggingMixin):
                 nulls_first(BackfillDagRun.sort_ordinal, session=session),
                 nulls_first(cls.last_scheduling_decision, session=session),
                 nulls_first(running_drs.c.num_running, session=session),  # many running -> lower priority
-                cls.logical_date,
+                cls.run_after,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
-        if not settings.ALLOW_FUTURE_LOGICAL_DATES:
-            query = query.where(DagRun.logical_date <= func.now())
+        query = query.where(DagRun.run_after <= func.now())
 
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
@@ -622,10 +622,20 @@ class DagRun(Base, LoggingMixin):
         return session.scalars(select(cls).where(cls.dag_id == dag_id, cls.run_id == run_id)).one_or_none()
 
     @staticmethod
-    def generate_run_id(run_type: DagRunType, logical_date: datetime) -> str:
-        """Generate Run ID based on Run Type and logical Date."""
+    def generate_run_id(
+        *, run_type: DagRunType, logical_date: datetime | None = None, run_after: datetime
+    ) -> str:
+        """
+        Generate Run ID based on Run Type, run_after and logical Date.
+
+        :param run_type: type of DagRun
+        :param logical_date: the logical date
+        :param run_after: the date before which dag run won't start.
+        """
         # _Ensure_ run_type is a DagRunType, not just a string from user code
-        return DagRunType(run_type).generate_run_id(logical_date)
+        if logical_date:
+            return DagRunType(run_type).generate_run_id(suffix=run_after.isoformat())
+        return DagRunType(run_type).generate_run_id(suffix=f"{run_after.isoformat()}_{get_random_string()}")
 
     @staticmethod
     @provide_session
@@ -793,6 +803,8 @@ class DagRun(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :param state: the dag run state
         """
+        if dag_run.logical_date is None:
+            return None
         filters = [
             DagRun.dag_id == dag_run.dag_id,
             DagRun.logical_date < dag_run.logical_date,
@@ -1352,6 +1364,7 @@ class DagRun(Base, LoggingMixin):
 
         """
         from airflow.models.baseoperator import BaseOperator
+        from airflow.models.expandinput import NotFullyPopulated
 
         tis = self.get_task_instances(session=session)
 
@@ -1489,6 +1502,7 @@ class DagRun(Base, LoggingMixin):
         :param task_creator: Function to create task instances
         """
         from airflow.models.baseoperator import BaseOperator
+        from airflow.models.expandinput import NotFullyPopulated
 
         map_indexes: Iterable[int]
         for task in tasks:
@@ -1560,6 +1574,7 @@ class DagRun(Base, LoggingMixin):
         for more details.
         """
         from airflow.models.baseoperator import BaseOperator
+        from airflow.models.expandinput import NotFullyPopulated
         from airflow.settings import task_instance_mutation_hook
 
         try:
