@@ -117,6 +117,7 @@ class TestSFTPHook:
             assert conn == mock_sftp_client
 
         mock_sftp_client.close.assert_called_once()
+        mock_ssh_client.close.assert_called_once()
 
     def test_describe_directory(self):
         output = self.hook.describe_directory(self.temp_dir)
