@@ -1311,7 +1311,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         ),
         (
             pytest.param(
-                ("INTHEWILD.md", "providers/tests/asana.py"),
+                ("INTHEWILD.md", "providers/asana/tests/asana.py"),
                 ("full tests needed",),
                 "v2-7-stable",
                 {
@@ -2461,16 +2461,6 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             "main",
             (),
             id="Airflow mypy checks on airflow files with model changes.",
-        ),
-        pytest.param(
-            ("providers/src/airflow/providers/a_file.py",),
-            {
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-providers']",
-            },
-            "main",
-            (),
-            id="Airflow mypy checks on provider files",
         ),
         pytest.param(
             ("task_sdk/src/airflow/sdk/a_file.py",),

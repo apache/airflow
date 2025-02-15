@@ -21,7 +21,6 @@ import asyncio
 from unittest import mock
 
 import pytest
-from providers.microsoft.azure.tests.conftest import get_airflow_connection
 
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
@@ -29,6 +28,7 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
 )
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.triggers.base import TriggerEvent
+from provider_tests.microsoft.azure.test_utils import get_airflow_connection
 
 POWERBI_CONN_ID = "powerbi_default"
 DATASET_ID = "dataset_id"

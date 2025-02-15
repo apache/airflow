@@ -328,12 +328,8 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Those are needed so that __init__.py chaining of packages properly works for IDEs
 # the first non-comment line of such empty __init__.py files should be:
 # __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
-"providers/src/airflow/providers/__init__.py" = ["I002"]
-"providers/src/airflow/__init__.py" = ["I002"]
 "providers/*/tests/*/__init__.py" = ["I002"]
 "providers/*/*/tests/*/*/__init__.py" = ["I002"]
-"providers/tests/__init__.py" = ["I002"]
-"providers/__init__.py" = ["I002"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -377,6 +373,9 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "docker_tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes_tests/*" = ["D", "TID253", "S101", "TRY002"]
 "helm_tests/*" = ["D", "TID253", "S101", "TRY002"]
+"providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
+# exclude assert in edge provider
+"providers/edge/src/airflow/providers/edge/example_dags/integration_test.py" = ["S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -403,6 +402,10 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
 "providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
 
+# Remove some docstring rules from files that do not need docstrings
+"providers/apache/hdfs/src/airflow/providers/apache/hdfs/sensors/hdfs.py" = ["D101"]
+
+
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
@@ -410,6 +413,10 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Test compat imports banned imports to allow testing against older airflow versions
 "tests_common/test_utils/compat.py" = ["TID251", "F401"]
 "tests_common/pytest_plugin.py" = ["F811"]
+
+# While pandas import is banned, sql.pyi should be excluded from it as it does not have a TYPE_CHECKING
+# mechanism and whole .pyi is really "type-checking" only
+"providers/common/sql/src/airflow/providers/common/sql/hooks/sql.pyi" = ["TID253"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
@@ -589,14 +596,12 @@ disable_error_code = [
     "annotation-unchecked",
 ]
 # Since there are no __init__.py files in
-# providers/src/apache/airflow/providers we need to tell MyPy where the "base"
+# providers/<provided>src/apache/airflow/providers we need to tell MyPy where the "base"
 # is, otherwise when it sees
-# providers/src/apache/airflow/providers/redis/__init__.py, it thinks this is
-# the toplevel `redis` folder.
+# TODO(potiuk): check if those providers/*/src are still needed
 explicit_package_bases = true
 mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
-  "$MYPY_CONFIG_FILE_DIR/providers/src",
   "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
   "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
   "$MYPY_CONFIG_FILE_DIR/providers/celery/src",
@@ -636,8 +641,7 @@ ignore_errors = true
 
 [dependency-groups]
 dev = [
-  # TODO(potiuk): remove me when all providers are moved to new structure
-  "local-providers",
+  "apache-airflow",
   "apache-airflow-providers-airbyte",
   "apache-airflow-providers-alibaba",
   "apache-airflow-providers-amazon",
@@ -737,7 +741,7 @@ dev = [
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
-local-providers = { workspace = true }
+apache-airflow = {workspace = true}
 apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
@@ -835,7 +839,6 @@ apache-airflow-task-sdk = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "providers",
     "providers/airbyte",
     "providers/alibaba",
     "providers/amazon",
@@ -929,5 +932,6 @@ members = [
     "providers/yandex",
     "providers/ydb",
     "providers/zendesk",
+    ".",
     "task_sdk",
 ]

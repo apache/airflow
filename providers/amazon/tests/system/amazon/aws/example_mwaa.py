@@ -18,11 +18,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
-
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
+from system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_mwaa"
 

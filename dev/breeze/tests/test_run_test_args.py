@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from unittest.mock import patch
 
 import pytest
@@ -76,7 +75,7 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
 
     _run_test(
         shell_params=ShellParams(test_group=GroupOfTests.PROVIDERS, test_type="Providers"),
-        extra_pytest_args=(f"--ignore=providers/tests/{fake_provider_name}",),
+        extra_pytest_args=(),
         python_version="3.9",
         output=None,
         test_timeout=60,
@@ -87,19 +86,7 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
     # positional arg of the command call
     run_cmd_call = mock_run_command.call_args_list[1]
     arg_str = " ".join(run_cmd_call.args[0])
-
-    # The command pattern we look for is "<container id> <tests directory arg> \
-    # <*other args we don't care about*> --ignore providers/tests/<provider name> \
-    # --ignore providers/tests/system/<provider name> --ignore providers/tests/integration/<provider name>"
-    # (the container id is simply to anchor the pattern so we know where we are starting; _run_tests should
-    # be refactored to make arg testing easier but until then we have to regex-test the entire command string
-    match_pattern = re.compile(
-        f".* airflow providers/.*/tests.*providers/tests .* --ignore=providers/tests/{fake_provider_name} "
-        f"--ignore=providers/tests/system/{fake_provider_name} "
-        f"--ignore=providers/tests/integration/{fake_provider_name}"
-    )
-
-    assert match_pattern.search(arg_str), arg_str
+    assert f"--ignore=providers/{fake_provider_name}/tests/ " in arg_str
 
 
 def test_test_is_skipped_if_all_are_ignored(mock_run_command):
