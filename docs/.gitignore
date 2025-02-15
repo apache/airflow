@@ -36,6 +36,7 @@ apache-airflow-providers-facebook
 apache-airflow-providers-ftp
 apache-airflow-providers-github
 apache-airflow-providers-google
+apache-airflow-providers-gremlin
 apache-airflow-providers-grpc
 apache-airflow-providers-http
 apache-airflow-providers-jdbc

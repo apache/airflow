@@ -171,6 +171,9 @@ labelPRBasedOnFilePath:
   provider:google:
     - providers/google/**
 
+  provider:gremlin:
+    - providers/gremlin/**
+
   provider:grpc:
     - providers/grpc/**
 

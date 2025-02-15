@@ -66,6 +66,7 @@ body:
         - ftp
         - github
         - google
+        - gremlin
         - grpc
         - hashicorp
         - http
