@@ -321,7 +321,7 @@ class DagRun(Base, LoggingMixin):
         """
         return list(dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions)))
 
-    @hybrid_property
+    @property
     def version_number(self) -> int | None:
         """
         Return the DAG version number associated with the latest TI of this DagRun.
