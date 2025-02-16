@@ -833,12 +833,12 @@ class TestScheduler:
     @pytest.mark.parametrize(
         "executor, label",
         [
-            {"LocalExecutor","LocalExecutor"},
-            {"LocalKubernetesExecutor","LocalKubernetesExecutor"},
-            {"CeleryExecutor","CeleryExecutor"},
-            {"KubernetesExecutor","KubernetesExecutor"},
-            {"CeleryKubernetesExecutor","CeleryKubernetesExecutor"},
-            {"CeleryExecutor,KubernetesExecutor","CeleryExecutor"},
+            ("LocalExecutor", "LocalExecutor"),
+            ("LocalKubernetesExecutor", "LocalKubernetesExecutor"),
+            ("CeleryExecutor", "CeleryExecutor"),
+            ("KubernetesExecutor", "KubernetesExecutor"),
+            ("CeleryKubernetesExecutor", "CeleryKubernetesExecutor"),
+            ("CeleryExecutor,KubernetesExecutor", "CeleryExecutor"),
         ],
     )
     def test_scheduler_deployment_has_default_executor_label(self, executor, label):
