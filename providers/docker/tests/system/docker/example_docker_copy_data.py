@@ -46,7 +46,7 @@ with models.DAG(
     catchup=False,
     tags=["example", "docker"],
 ) as dag:
-    locate_file_cmd = f"""
+    locate_file_cmd = """
         sleep 10
         find $LOCATION -type f -printf "%f\\n" | head -1
     """
