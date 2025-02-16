@@ -1721,10 +1721,10 @@ def create_db_api_hook(request):
 @pytest.fixture(autouse=True, scope="session")
 def add_providers_test_folders_to_pythonpath():
     old_path = sys.path.copy()
-    all_provider_tests_folders: list[Path] = list(Path(__file__).parents[1].glob("providers/*/tests"))
-    all_provider_tests_folders.extend(list(Path(__file__).parents[1].glob("providers/*/*/tests")))
-    for provider in all_provider_tests_folders:
-        sys.path.append(str(provider))
+    all_provider_test_folders: list[Path] = list(Path(__file__).parents[1].glob("providers/*/tests"))
+    all_provider_test_folders.extend(list(Path(__file__).parents[1].glob("providers/*/*/tests")))
+    for provider_test_folder in all_provider_test_folders:
+        sys.path.append(str(provider_test_folder))
     yield
     sys.path.clear()
     sys.path.extend(old_path)
