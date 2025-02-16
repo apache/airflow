@@ -22,17 +22,12 @@ from base64 import b64encode
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from providers.microsoft.azure.tests.conftest import (
-    load_file,
-    load_json,
-    mock_json_response,
-    mock_response,
-)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 from airflow.triggers.base import TriggerEvent
 from provider_tests.microsoft.azure.base import Base
+from provider_tests.microsoft.azure.test_utils import load_file, load_json, mock_json_response, mock_response
 
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator

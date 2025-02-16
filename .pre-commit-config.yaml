@@ -556,9 +556,6 @@ repos:
         language: pygrep
         entry: >
           (?i)
-          .*https://github.*[0-9]/providers/.*/tests/system/|
-          .*https://github.*/main/providers/.*/tests/system/|
-          .*https://github.*/master/providers/.*/tests/system/|
           .*https://github.*/main/providers/.*/src/airflow/providers/.*/example_dags/|
           .*https://github.*/master/providers/.*/src/airflow/providers/.*/example_dags/
         pass_filenames: true
@@ -674,7 +671,6 @@ repos:
           ^scripts/ci/docker-compose/integration-keycloak.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint.sh$|
           ^tests/|
-          ^providers/tests/|
           ^providers/.*/tests/|
           ^.pre-commit-config\.yaml$|
           ^.*CHANGELOG\.(rst|txt)$|
@@ -920,6 +916,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_providers_subpackages_all_have_init.py
         language: python
         require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-pre-commit-information-consistent
         name: Validate hook IDs & names and sync with docs
         entry: ./scripts/ci/pre_commit/check_pre_commit_hooks.py
@@ -983,7 +980,6 @@ repos:
         entry: ./scripts/ci/pre_commit/check_system_tests.py
         language: python
         files: ^(providers/)?tests/system/.*/example_[^/]*\.py$
-        exclude: ^providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme
@@ -1386,7 +1382,7 @@ repos:
         stages: ['manual']
         name: Run mypy for providers (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py providers/src/airflow/providers all_new_providers
+        entry: ./scripts/ci/pre_commit/mypy_folder.py all_new_providers
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

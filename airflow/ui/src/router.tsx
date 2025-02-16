@@ -41,6 +41,7 @@ import { Task } from "src/pages/Task";
 import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { Details } from "src/pages/TaskInstance/Details";
+import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
@@ -126,6 +127,7 @@ export const routerConfig = [
           { element: <XCom />, path: "xcom" },
           { element: <Code />, path: "code" },
           { element: <Details />, path: "details" },
+          { element: <RenderedTemplates />, path: "rendered_templates" },
         ],
         element: <TaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/:taskId",

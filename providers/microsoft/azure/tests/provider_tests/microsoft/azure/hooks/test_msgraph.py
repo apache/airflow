@@ -30,14 +30,6 @@ from kiota_serialization_json.json_parse_node import JsonParseNode
 from kiota_serialization_text.text_parse_node import TextParseNode
 from msgraph_core import APIVersion, NationalClouds
 from opentelemetry.trace import Span
-from providers.microsoft.azure.tests.conftest import (
-    get_airflow_connection,
-    load_file,
-    load_json,
-    mock_connection,
-    mock_json_response,
-    mock_response,
-)
 
 from airflow.exceptions import (
     AirflowBadRequest,
@@ -49,6 +41,14 @@ from airflow.exceptions import (
 from airflow.providers.microsoft.azure.hooks.msgraph import (
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
+)
+from provider_tests.microsoft.azure.test_utils import (
+    get_airflow_connection,
+    load_file,
+    load_json,
+    mock_connection,
+    mock_json_response,
+    mock_response,
 )
 
 from tests_common.test_utils.providers import get_provider_min_airflow_version

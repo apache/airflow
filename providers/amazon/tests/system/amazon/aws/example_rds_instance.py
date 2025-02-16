@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.rds import (
@@ -30,6 +28,7 @@ from airflow.providers.amazon.aws.operators.rds import (
 )
 from airflow.providers.amazon.aws.sensors.rds import RdsDbSensor
 from airflow.utils.trigger_rule import TriggerRule
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
 

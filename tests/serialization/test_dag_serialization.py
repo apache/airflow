@@ -328,9 +328,7 @@ def get_excluded_patterns() -> Generator[str, None, None]:
     for provider, provider_info in all_providers.items():
         if python_version in provider_info.get("excluded-python-versions"):
             provider_path = provider.replace(".", "/")
-            yield f"airflow/providers/{provider_path}/"
-            yield f"providers/tests/{provider_path}/"
-            yield f"providers/tests/system/{provider_path}/"
+            yield f"providers/{provider_path}"
 
 
 def collect_dags(dag_folder=None):
@@ -343,13 +341,10 @@ def collect_dags(dag_folder=None):
     if dag_folder is None:
         patterns = [
             "airflow/example_dags",
-            "providers/src/airflow/providers/*/example_dags",  # TODO: Remove once AIP-47 is completed
-            "providers/src/airflow/providers/*/*/example_dags",  # TODO: Remove once AIP-47 is completed
             # For now include amazon directly because they have many dags and are all serializing without error
             "providers/amazon/tests/system/*/*/",
-            # TODO: Remove once all providers are migrated
-            "providers/tests/system/*/",
-            "providers/tests/system/*/*/",
+            "providers/*/tests/system/*/",
+            "providers/*/*/tests/system/*/*/",
         ]
     else:
         if isinstance(dag_folder, (list, tuple)):
@@ -587,8 +582,6 @@ class TestStringifiedDAGs:
     def test_roundtrip_provider_example_dags(self):
         dags, _ = collect_dags(
             [
-                "providers/src/airflow/providers/*/example_dags",
-                "providers/src/airflow/providers/*/*/example_dags",
                 "providers/*/src/airflow/providers/*/example_dags",
                 "providers/*/src/airflow/providers/*/*/example_dags",
             ]

@@ -21,14 +21,13 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesRunPipelineOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

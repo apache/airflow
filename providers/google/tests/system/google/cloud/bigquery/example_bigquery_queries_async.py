@@ -25,8 +25,6 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
@@ -40,6 +38,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

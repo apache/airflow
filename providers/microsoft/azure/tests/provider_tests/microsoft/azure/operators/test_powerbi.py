@@ -21,7 +21,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from providers.microsoft.azure.tests.conftest import get_airflow_connection
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.powerbi import (
@@ -32,6 +31,7 @@ from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRe
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.utils import timezone
 from provider_tests.microsoft.azure.base import Base
+from provider_tests.microsoft.azure.test_utils import get_airflow_connection
 
 from tests_common.test_utils.mock_context import mock_context
 
