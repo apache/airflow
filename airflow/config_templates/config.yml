@@ -2307,7 +2307,7 @@ scheduler:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/scheduler"
-    scheduler_zombie_task_threshold:
+    task_instance_heartbeat_threshold:
       description: |
         Local task jobs periodically heartbeat to the DB. If the job has
         not heartbeat in this many seconds, the scheduler will mark the
@@ -2316,9 +2316,9 @@ scheduler:
       type: integer
       example: ~
       default: "300"
-    zombie_detection_interval:
+    task_instance_heartbeat_detection_interval:
       description: |
-        How often (in seconds) should the scheduler check for zombie tasks.
+        How often (in seconds) should the scheduler check for task instances whose heartbeats have timed out.
       version_added: 2.3.0
       type: float
       example: ~
