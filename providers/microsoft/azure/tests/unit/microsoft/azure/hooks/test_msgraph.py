@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 from json import JSONDecodeError
+from os.path import dirname
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
@@ -44,13 +45,12 @@ from airflow.providers.microsoft.azure.hooks.msgraph import (
 )
 from unit.microsoft.azure.test_utils import (
     get_airflow_connection,
-    load_file,
-    load_json,
     mock_connection,
     mock_json_response,
     mock_response,
 )
 
+from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 if TYPE_CHECKING:
@@ -313,7 +313,7 @@ class TestKiotaRequestAdapterHook:
 
 class TestResponseHandler:
     def test_default_response_handler_when_json(self):
-        users = load_json("resources", "users.json")
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         response = mock_json_response(200, users)
 
         actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
@@ -329,7 +329,7 @@ class TestResponseHandler:
         assert actual == {}
 
     def test_default_response_handler_when_content(self):
-        users = load_file("resources", "users.json").encode()
+        users = load_file_from_resources(dirname(__file__), "..", "resources", "users.json").encode()
         response = mock_response(200, users)
 
         actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
