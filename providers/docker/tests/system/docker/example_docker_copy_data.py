@@ -27,7 +27,6 @@ your environment & enable the code.
 from __future__ import annotations
 
 import os
-import shlex
 from datetime import datetime
 
 from docker.types import Mount
@@ -49,7 +48,7 @@ with models.DAG(
 ) as dag:
     locate_file_cmd = f"""
         sleep 10
-        find {shlex.quote("{{ params.source_location }}")} -type f -printf "%f\\n" | head -1
+        find $LOCATION -type f -printf "%f\\n" | head -1
     """
 
     t_view = BashOperator(
@@ -57,6 +56,7 @@ with models.DAG(
         bash_command=locate_file_cmd,
         do_xcom_push=True,
         params={"source_location": "/your/input_dir/path"},
+        env={"LOCATION": "{{ params.source_location }}"},
         dag=dag,
     )
 
