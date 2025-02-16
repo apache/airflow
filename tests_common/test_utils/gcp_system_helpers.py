@@ -27,7 +27,7 @@ from unittest import mock
 
 import pytest
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
-from provider_tests.google.cloud.utils.gcp_authenticator import (
+from unit.google.cloud.utils.gcp_authenticator import (
     GCP_GCS_KEY,
     GCP_SECRET_MANAGER_KEY,
 )

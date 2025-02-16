@@ -311,7 +311,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "airflow/api/file.py",
-                    "providers/postgres/tests/provider_tests/postgres/file.py",
+                    "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
@@ -343,7 +343,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/apache/beam/tests/provider_tests/apache/beam/file.py",),
+                ("providers/apache/beam/tests/unit/apache/beam/file.py",),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
@@ -373,7 +373,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/apache/beam/tests/provider_tests/apache/beam/file.py",),
+                ("providers/apache/beam/tests/unit/apache/beam/file.py",),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
@@ -406,7 +406,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "providers/apache/beam/tests/system/apache/beam/file.py",
-                    "providers/apache/beam/tests/provider_tests/apache/beam/file.py",
+                    "providers/apache/beam/tests/unit/apache/beam/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
@@ -440,7 +440,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "providers/apache/beam/tests/system/apache/beam/file.py",
-                    "providers/apache/beam/tests/provider_tests/apache/beam/file.py",
+                    "providers/apache/beam/tests/unit/apache/beam/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
@@ -535,7 +535,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "chart/aaaa.txt",
-                    "providers/postgres/tests/provider_tests/postgres/file.py",
+                    "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "amazon common.sql google openlineage pgvector postgres",
@@ -1384,7 +1384,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "chart/aaaa.txt",
-                "providers/google/tests/provider_tests/google/file.py",
+                "providers/google/tests/unit/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1411,7 +1411,7 @@ def test_expected_output_full_tests_needed(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "providers/google/tests/provider_tests/google/file.py",
+                "providers/google/tests/unit/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1436,7 +1436,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "airflow/file.py",
-                "providers/google/tests/provider_tests/google/file.py",
+                "providers/google/tests/unit/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1614,7 +1614,7 @@ def test_expected_output_push(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "providers/google/tests/provider_tests/google/file.py",
+                "providers/google/tests/unit/google/file.py",
             ),
             {
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra "

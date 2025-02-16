@@ -37,7 +37,7 @@ PATH_EXTENSION_STRING = '__path__ = __import__("pkgutil").extend_path(__path__, 
 # Here we should add the second level paths that we want to have sub-packages in
 KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
 
-ALLOWED_SUB_FOLDERS_OF_TESTS = ["provider_tests", "system", "integration"]
+ALLOWED_SUB_FOLDERS_OF_TESTS = ["unit", "system", "integration"]
 
 fail_pre_commit = False
 fatal_error = False
@@ -57,7 +57,7 @@ def _what_kind_of_test_init_py_needed(base_path: Path, folder: Path) -> tuple[bo
         # this is the "tests" folder itself
         return False, False
     if depth == 1:
-        # this is one of "provider_tests", "system", "integration" folder
+        # this is one of "unit", "system", "integration" folder
         if folder.name not in ALLOWED_SUB_FOLDERS_OF_TESTS:
             console.print(f"[red]Unexpected folder {folder} in {base_path}[/]")
             console.print(f"[yellow]Only {ALLOWED_SUB_FOLDERS_OF_TESTS} should be sub-folders of tests.[/]")
