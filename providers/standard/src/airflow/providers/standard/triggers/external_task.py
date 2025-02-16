@@ -80,7 +80,6 @@ class WorkflowTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the trigger param and module path."""
-
         data: dict[str, typing.Any] = {
             "external_dag_id": self.external_dag_id,
             "external_task_ids": self.external_task_ids,
@@ -167,7 +166,6 @@ class DagStateTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serialize DagStateTrigger arguments and classpath."""
-
         data = {
             "dag_id": self.dag_id,
             "states": self.states,
