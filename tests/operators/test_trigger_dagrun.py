@@ -525,6 +525,7 @@ class TestDagRunOperator:
             task = TriggerDagRunOperator(
                 task_id="test_task",
                 trigger_dag_id=TEST_DAG_ID,
+                logical_date=timezone.utcnow(),
             )
         dag_maker.sync_dagbag_to_db()
         parse_and_sync_to_db(self.f_name)
