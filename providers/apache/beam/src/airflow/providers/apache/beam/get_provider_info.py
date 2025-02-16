@@ -101,7 +101,10 @@ def get_provider_info():
             "numpy>=1.26.0",
         ],
         "optional-dependencies": {
-            "google": ["apache-beam[gcp]"],
+            "google": [
+                'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
+                'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
+            ],
             "common.compat": ["apache-airflow-providers-common-compat"],
         },
     }
