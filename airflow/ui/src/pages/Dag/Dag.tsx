@@ -36,6 +36,7 @@ const tabs = [
   { icon: <FiRotateCcw />, label: "Backfills", value: "backfills" },
   { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
   { icon: <FiCode />, label: "Code", value: "code" },
+  // { label: "Details", value: "details" },
 ];
 
 export const Dag = () => {
