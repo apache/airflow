@@ -333,7 +333,7 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
-"providers/standard/tests/provider_tests/standard/decorators/test_python.py" = ["I002"]
+"providers/standard/tests/unit/standard/decorators/test_python.py" = ["I002"]
 
 # The Pydantic representations of SqlAlchemy Models are not parsed well with Pydantic
 # when __future__.annotations is used so we need to skip them from upgrading
@@ -374,8 +374,6 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "kubernetes_tests/*" = ["D", "TID253", "S101", "TRY002"]
 "helm_tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
-# exclude assert in edge provider
-"providers/edge/src/airflow/providers/edge/example_dags/integration_test.py" = ["S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -383,24 +381,24 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_dataset.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_endpoint_service.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_generative_model.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_hyperparameter_tuning_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/links/test_translate.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/operators/test_automl.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_dataset.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_endpoint_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_generative_model.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_hyperparameter_tuning_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/links/test_translate.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/operators/test_automl.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
 "providers/microsoft/azure/tests/conftest.py" = ["E402"]
-"providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
-"providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/unit/qdrant/hooks/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/unit/qdrant/operators/test_qdrant.py" = ["E402"]
 
 # Remove some docstring rules from files that do not need docstrings
 "providers/apache/hdfs/src/airflow/providers/apache/hdfs/sensors/hdfs.py" = ["D101"]
