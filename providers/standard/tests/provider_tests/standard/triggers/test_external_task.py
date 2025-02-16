@@ -36,6 +36,7 @@ _DATES = (
     if AIRFLOW_V_3_0_PLUS
     else {"execution_dates": [timezone.datetime(2022, 1, 1)]}
 )
+key, value = next(iter(_DATES.items()))
 
 
 class TestWorkflowTrigger:
@@ -67,8 +68,9 @@ class TestWorkflowTrigger:
         assert trigger_task.done()
         result = trigger_task.result()
         assert result.payload == {"status": "success"}
+
         mock_get_count.assert_called_once_with(
-            dttm_filter=[self.RUN_ID],
+            dttm_filter=value,
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -102,7 +104,7 @@ class TestWorkflowTrigger:
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "failed"}
         mock_get_count.assert_called_once_with(
-            dttm_filter=[self.RUN_ID],
+            dttm_filter=value,
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -133,7 +135,7 @@ class TestWorkflowTrigger:
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "success"}
         mock_get_count.assert_called_once_with(
-            dttm_filter=[self.RUN_ID],
+            dttm_filter=value,
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -167,7 +169,7 @@ class TestWorkflowTrigger:
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "skipped"}
         mock_get_count.assert_called_once_with(
-            dttm_filter=[self.RUN_ID],
+            dttm_filter=value,
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -246,13 +248,9 @@ class TestDagStateTrigger:
         run_id_or_execution_date = (
             {"run_id": "external_task_run_id"}
             if AIRFLOW_V_3_0_PLUS
-            else {"execution_date": timezone.datetime(2022, 1, 1)}
+            else {"execution_date": timezone.datetime(2022, 1, 1), "run_id": "external_task_run_id"}
         )
-        dag_run = DagRun(
-            dag_id=dag.dag_id,
-            run_type="manual",
-            **run_id_or_execution_date,
-        )
+        dag_run = DagRun(dag_id=dag.dag_id, run_type="manual", **run_id_or_execution_date)
         session.add(dag_run)
         session.commit()
 
