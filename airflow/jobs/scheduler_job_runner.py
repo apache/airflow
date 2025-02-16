@@ -27,7 +27,7 @@ import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Collection, Iterable, Iterator
 from contextlib import ExitStack, suppress
-from datetime import timedelta
+from datetime import date, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, Callable
@@ -1059,10 +1059,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 for executor in self.job.executors:
                     try:
-                        # this is backcompat check if executor does not inherit from BaseExecutor
-                        # todo: remove in airflow 3.0
-                        if not hasattr(executor, "_task_event_logs"):
-                            continue
                         with create_session() as session:
                             self._process_task_event_logs(executor._task_event_logs, session)
                     except Exception:
@@ -1198,17 +1194,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
-        query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
         asset_triggered_dags = [
-            dag for dag in all_dags_needing_dag_runs if dag.dag_id in asset_triggered_dag_info
+            dag for dag in all_dags_needing_dag_runs if dag.dag_id in triggered_date_by_dag
         ]
         non_asset_dags = all_dags_needing_dag_runs.difference(asset_triggered_dags)
         self._create_dag_runs(non_asset_dags, session)
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
                 dag_models=asset_triggered_dags,
-                asset_triggered_dag_info=asset_triggered_dag_info,
+                triggered_date_by_dag=triggered_date_by_dag,
                 session=session,
             )
 
@@ -1325,13 +1321,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dag_runs_asset_triggered(
         self,
         dag_models: Collection[DagModel],
-        asset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
+        triggered_date_by_dag: dict[str, datetime],
         session: Session,
     ) -> None:
         """For DAGs that are triggered by assets, create dag runs."""
         triggered_dates: dict[str, DateTime] = {
             dag_id: timezone.coerce_datetime(last_asset_event_time)
-            for dag_id, (_, last_asset_event_time) in asset_triggered_dag_info.items()
+            for dag_id, last_asset_event_time in triggered_date_by_dag.items()
         }
 
         for dag_model in dag_models:
@@ -1350,30 +1346,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             latest_dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
 
             triggered_date = triggered_dates[dag.dag_id]
-            previous_dag_run = session.scalar(
-                select(DagRun)
+            cte = (
+                select(func.max(DagRun.run_after).label("previous_dag_run_run_after"))
                 .where(
                     DagRun.dag_id == dag.dag_id,
-                    DagRun.run_after < triggered_date,
                     DagRun.run_type == DagRunType.ASSET_TRIGGERED,
+                    DagRun.run_after < triggered_date,
                 )
-                .order_by(DagRun.run_after.desc())
-                .limit(1)
+                .cte()
             )
-            asset_event_filters = [
-                DagScheduleAssetReference.dag_id == dag.dag_id,
-                AssetEvent.timestamp <= triggered_date,
-            ]
-            if previous_dag_run:
-                asset_event_filters.append(AssetEvent.timestamp > previous_dag_run.run_after)
-
             asset_events = session.scalars(
                 select(AssetEvent)
                 .join(
                     DagScheduleAssetReference,
                     AssetEvent.asset_id == DagScheduleAssetReference.asset_id,
                 )
-                .where(*asset_event_filters)
+                .where(
+                    DagScheduleAssetReference.dag_id == dag.dag_id,
+                    AssetEvent.timestamp <= triggered_date,
+                    AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                )
             ).all()
 
             dag_run = dag.create_dagrun(

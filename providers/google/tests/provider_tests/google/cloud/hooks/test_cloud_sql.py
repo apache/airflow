@@ -1596,6 +1596,8 @@ def get_processor():
     processor = os.uname().machine
     if processor == "x86_64":
         processor = "amd64"
+    if processor == "aarch64":
+        processor = "arm64"
     return processor
 
 
@@ -1706,7 +1708,6 @@ class TestCloudSQLAsyncHook:
         self, mocked_get_conn, hook_async
     ):
         """Assets that the logging is done correctly when CloudSQLAsyncHook raises HttpError"""
-
         mocked_get_conn.side_effect = HttpError(
             resp=mock.MagicMock(status=409), content=b"Operation already exists"
         )

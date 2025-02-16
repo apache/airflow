@@ -378,22 +378,6 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
-      - name: logical_date_gte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Logical Date Gte
-      - name: logical_date_lte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Logical Date Lte
       - name: root
         in: query
         required: false
@@ -441,6 +425,42 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
       responses:
         '200':
           description: Successful Response
@@ -2230,6 +2250,24 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
       - name: logical_date_gte
         in: query
         required: false
@@ -8418,6 +8456,18 @@ components:
             type: array
           - type: 'null'
           title: States
+        run_after_gte:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+        run_after_lte:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
         logical_date_gte:
           anyOf:
           - type: string
@@ -8910,6 +8960,12 @@ components:
           type: string
           format: date-time
           title: Created At
+        bundle_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Url
+          readOnly: true
       type: object
       required:
       - id
@@ -8918,6 +8974,7 @@ components:
       - bundle_name
       - bundle_version
       - created_at
+      - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.
     DagWarningType:
@@ -9122,10 +9179,20 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         state:
           $ref: '#/components/schemas/DagRunState'
         run_type:
           $ref: '#/components/schemas/DagRunType'
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
         data_interval_start:
           anyOf:
           - type: string
@@ -9159,8 +9226,10 @@ components:
       - queued_at
       - start_date
       - end_date
+      - run_after
       - state
       - run_type
+      - logical_date
       - data_interval_start
       - data_interval_end
       - version_number

@@ -19,7 +19,10 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
+from pydantic import computed_field
+
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 
 
 class DagVersionResponse(BaseModel):
@@ -31,6 +34,12 @@ class DagVersionResponse(BaseModel):
     bundle_name: str
     bundle_version: str | None
     created_at: datetime
+
+    # Mypy issue https://github.com/python/mypy/issues/1362
+    @computed_field  # type: ignore[misc]
+    @property
+    def bundle_url(self) -> str | None:
+        return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
 
 
 class DAGVersionCollectionResponse(BaseModel):

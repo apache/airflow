@@ -21,11 +21,11 @@ from unittest import mock
 
 import pytest
 import sqlalchemy
-from providers.microsoft.mssql.tests.conftest import load_file
 
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
+from provider_tests.microsoft.mssql.test_utils import load_file
 
 try:
     from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
@@ -286,7 +286,7 @@ class TestMsSqlHook:
             ],
             replace=True,
         )
-        assert sql == load_file("..", "resources", "replace.sql")
+        assert sql == load_file("resources", "replace.sql")
 
     def test_dialect_name(self):
         hook = MsSqlHook()

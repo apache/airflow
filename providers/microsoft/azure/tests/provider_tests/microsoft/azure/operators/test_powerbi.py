@@ -21,7 +21,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from providers.microsoft.azure.tests.conftest import get_airflow_connection
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.powerbi import (
@@ -32,6 +31,7 @@ from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRe
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.utils import timezone
 from provider_tests.microsoft.azure.base import Base
+from provider_tests.microsoft.azure.test_utils import get_airflow_connection
 
 from tests_common.test_utils.mock_context import mock_context
 
@@ -194,7 +194,7 @@ class TestPowerBIDatasetRefreshOperator(Base):
         )
 
         ti.xcom_push(key="powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID)
-        url = ti.task.get_extra_links(ti, "Monitor PowerBI Dataset")
+        url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
         EXPECTED_ITEM_RUN_OP_EXTRA_LINK = (
             "https://app.powerbi.com"  # type: ignore[attr-defined]
             f"/groups/{GROUP_ID}/datasets/{DATASET_ID}"  # type: ignore[attr-defined]

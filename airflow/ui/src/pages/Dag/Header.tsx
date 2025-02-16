@@ -93,20 +93,19 @@ export const Header = ({
           <Stat label="Latest Run">
             {Boolean(latestRun) && latestRun !== undefined ? (
               <DagRunInfo
-                dataIntervalEnd={latestRun.data_interval_end}
-                dataIntervalStart={latestRun.data_interval_start}
                 endDate={latestRun.end_date}
+                logicalDate={latestRun.logical_date}
+                runAfter={latestRun.run_after}
                 startDate={latestRun.start_date}
                 state={latestRun.state}
               />
             ) : undefined}
           </Stat>
           <Stat label="Next Run">
-            {Boolean(dagWithRuns?.next_dagrun) ? (
+            {Boolean(dagWithRuns?.next_dagrun_create_after) ? (
               <DagRunInfo
-                dataIntervalEnd={dagWithRuns?.next_dagrun_data_interval_end}
-                dataIntervalStart={dagWithRuns?.next_dagrun_data_interval_start}
-                nextDagrunCreateAfter={dagWithRuns?.next_dagrun_create_after}
+                logicalDate={dagWithRuns?.next_dagrun}
+                runAfter={dagWithRuns?.next_dagrun_create_after as string}
               />
             ) : undefined}
           </Stat>

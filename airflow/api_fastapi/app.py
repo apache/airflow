@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from starlette.routing import Mount
@@ -60,12 +61,21 @@ async def lifespan(app: FastAPI):
 def create_app(apps: str = "all") -> FastAPI:
     apps_list = apps.split(",") if apps else ["all"]
 
+    fastapi_base_url = conf.get("fastapi", "base_url")
+    if fastapi_base_url.endswith("/"):
+        raise AirflowConfigException("fastapi.base_url conf cannot have a trailing slash.")
+
+    root_path = urlsplit(fastapi_base_url).path
+    if not root_path or root_path == "/":
+        root_path = ""
+
     app = FastAPI(
         title="Airflow API",
         description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
         "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
         lifespan=lifespan,
+        root_path=root_path,
     )
 
     if "core" in apps_list or "all" in apps_list:

@@ -43,7 +43,7 @@ export const Nav = () => {
       py={3}
       top={0}
       width={20}
-      zIndex={1}
+      zIndex={2}
     >
       <Flex alignItems="center" flexDir="column" width="100%">
         <Box mb={3}>

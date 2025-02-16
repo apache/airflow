@@ -49,7 +49,7 @@ TEST_FILE_IDENTIFIERS: list[str] = ["example_", "test_"]
 
 INVALID_ENV_ID_MSG: str = (
     "To maximize compatibility, the SYSTEM_TESTS_ENV_ID must be an alphanumeric string "
-    "which starts with a letter. Please see `providers/tests/system/amazon/README.md`."
+    "which starts with a letter. Please see `providers/amazon/tests/system/amazon/README.md`."
 )
 LOWERCASE_ENV_ID_MSG: str = (
     "The provided Environment ID contains uppercase letters and "
