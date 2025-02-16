@@ -74,6 +74,9 @@ PROVIDER is the name of the provider package. It might be single directory (goog
 cases we have a nested structure one level down (``apache/cassandra``, ``apache/druid``, ``microsoft/winrm``,
 ``common.io`` for example).
 
+What are the pyproject.toml and provider.yaml files
+---------------------------------------------------
+
 On top of the standard ``pyproject.toml`` file where we keep project information,
 we have ``provider.yaml`` file in the provider's module of the ``providers``.
 
@@ -91,6 +94,9 @@ not modify it - except updating dependencies, as your changes will be lost.
 
 Eventually we might migrate ``provider.yaml`` fully to ``pyproject.toml`` file but it would require custom
 ``tool.airflow`` toml section to be added to the ``pyproject.toml`` file.
+
+How to manage provider's dependencies
+-------------------------------------
 
 If you want to add dependencies to the provider, you should add them to the corresponding ``pyproject.toml``
 file.
@@ -114,6 +120,14 @@ and pre-commit will generate new entry in ``generated/provider_dependencies.json
 package might be installed when breeze is restarted or by your IDE or by running ``uv sync --extra PROVIDER``
 or when you run ``pip install -e "./providers"`` or ``pip install -e "./providers/<PROVIDER>"`` for the new
 provider structure.
+
+How to reuse code between tests in different providers
+------------------------------------------------------
+
+When you develop providers, you might want to reuse some of the code between tests in different providers.
+This is possible by placing the code in ``test_utils`` in the ``tests_common`` directory. The ``tests_common``
+module is automatically available in the ``sys.path`` when running tests for the providers and you can
+import common code from there.
 
 Chicken-egg providers
 ---------------------

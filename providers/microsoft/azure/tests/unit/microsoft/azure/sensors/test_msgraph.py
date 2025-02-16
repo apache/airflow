@@ -18,21 +18,23 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from os.path import dirname
 
 import pytest
 
 from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
 from airflow.triggers.base import TriggerEvent
 from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import load_json, mock_json_response
+from unit.microsoft.azure.test_utils import mock_json_response
 
+from tests_common.test_utils.file_loading import load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 
 class TestMSGraphSensor(Base):
     def test_execute(self):
-        status = load_json("resources", "status.json")
+        status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
         with self.patch_hook_and_request_adapter(response):
@@ -65,7 +67,7 @@ class TestMSGraphSensor(Base):
 
     @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Lambda parameters works in Airflow >= 2.10.0")
     def test_execute_with_lambda_parameter(self):
-        status = load_json("resources", "status.json")
+        status = load_json_from_resources(dirname(__file__), "..", "resources", "status.json")
         response = mock_json_response(200, *status)
 
         with self.patch_hook_and_request_adapter(response):

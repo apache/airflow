@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import locale
 from base64 import b64encode
+from os.path import dirname
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -27,8 +28,9 @@ from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 from airflow.triggers.base import TriggerEvent
 from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import load_file, load_json, mock_json_response, mock_response
+from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
+from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
@@ -44,8 +46,8 @@ if TYPE_CHECKING:
 class TestMSGraphAsyncOperator(Base):
     @pytest.mark.db_test
     def test_execute(self):
-        users = load_json("resources", "users.json")
-        next_users = load_json("resources", "next_users.json")
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
         response = mock_json_response(200, users, next_users)
 
         with self.patch_hook_and_request_adapter(response):
@@ -72,7 +74,7 @@ class TestMSGraphAsyncOperator(Base):
 
     @pytest.mark.db_test
     def test_execute_when_do_xcom_push_is_false(self):
-        users = load_json("resources", "users.json")
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         users.pop("@odata.nextLink")
         response = mock_json_response(200, users)
 
@@ -134,7 +136,9 @@ class TestMSGraphAsyncOperator(Base):
 
     @pytest.mark.db_test
     def test_execute_when_response_is_bytes(self):
-        content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
+        content = load_file_from_resources(
+            dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
+        )
         base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
         drive_id = "82f9d24d-6891-4790-8b6d-f1b2a1d0ca22"
         response = mock_response(200, content)
@@ -161,7 +165,9 @@ class TestMSGraphAsyncOperator(Base):
     @pytest.mark.db_test
     @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Lambda parameters works in Airflow >= 2.10.0")
     def test_execute_with_lambda_parameter_when_response_is_bytes(self):
-        content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
+        content = load_file_from_resources(
+            dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
+        )
         base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
         drive_id = "82f9d24d-6891-4790-8b6d-f1b2a1d0ca22"
         response = mock_response(200, content)
@@ -202,7 +208,7 @@ class TestMSGraphAsyncOperator(Base):
             url="users",
         )
         context = mock_context(task=operator)
-        response = load_json("resources", "users.json")
+        response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_link, query_parameters = MSGraphAsyncOperator.paginate(operator, response, context)
 
         assert next_link == response["@odata.nextLink"]
@@ -216,7 +222,7 @@ class TestMSGraphAsyncOperator(Base):
             query_parameters={"$top": 12},
         )
         context = mock_context(task=operator)
-        response = load_json("resources", "users.json")
+        response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         response["@odata.count"] = 100
         url, query_parameters = MSGraphAsyncOperator.paginate(operator, response, context)
 
