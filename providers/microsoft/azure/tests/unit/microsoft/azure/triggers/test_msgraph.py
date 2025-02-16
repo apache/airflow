@@ -20,6 +20,7 @@ import json
 import locale
 from base64 import b64decode, b64encode
 from datetime import datetime
+from os.path import dirname
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -36,18 +37,17 @@ from airflow.triggers.base import TriggerEvent
 from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import (
     get_airflow_connection,
-    load_file,
-    load_json,
     mock_json_response,
     mock_response,
 )
 
+from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
 class TestMSGraphTrigger(Base):
     def test_run_when_valid_response(self):
-        users = load_json("resources", "users.json")
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         response = mock_json_response(200, users)
 
         with self.patch_hook_and_request_adapter(response):
@@ -83,7 +83,9 @@ class TestMSGraphTrigger(Base):
             assert actual.payload["message"] == ""
 
     def test_run_when_response_is_bytes(self):
-        content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
+        content = load_file_from_resources(
+            dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
+        )
         base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
         response = mock_response(200, content)
 
@@ -138,7 +140,9 @@ class TestMSGraphTrigger(Base):
 
 class TestResponseSerializer:
     def test_serialize_when_bytes_then_base64_encoded(self):
-        response = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
+        response = load_file_from_resources(
+            dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
+        )
         content = b64encode(response).decode(locale.getpreferredencoding())
 
         actual = ResponseSerializer().serialize(response)
@@ -163,15 +167,17 @@ class TestResponseSerializer:
         )
 
     def test_deserialize_when_json(self):
-        response = load_file("resources", "users.json")
+        response = load_file_from_resources(dirname(__file__), "..", "resources", "users.json")
 
         actual = ResponseSerializer().deserialize(response)
 
         assert isinstance(actual, dict)
-        assert actual == load_json("resources", "users.json")
+        assert actual == load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
 
     def test_deserialize_when_base64_encoded_string(self):
-        content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
+        content = load_file_from_resources(
+            dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
+        )
         response = b64encode(content).decode(locale.getpreferredencoding())
 
         actual = ResponseSerializer().deserialize(response)
