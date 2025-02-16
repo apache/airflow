@@ -2665,7 +2665,7 @@ def test_task_resources_serde():
     }
 
 
-@pytest.fixture(scope="function", params=[None, timedelta(hours=1)])
+@pytest.fixture(params=[None, timedelta(hours=1)])
 def default_task_execution_timeout(request):
     """
     Mock setting core.default_task_execution_timeout in airflow.cfg.
