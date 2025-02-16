@@ -521,6 +521,62 @@ It's important to note, that without ``watcher`` task, the whole DAG Run will ge
 If we want the ``watcher`` to monitor the state of all tasks, we need to make it dependent on all of them separately. Thanks to this, we can fail the DAG Run if any of the tasks fail. Note that the watcher task has a trigger rule set to ``"one_failed"``.
 On the other hand, without the ``teardown`` task, the ``watcher`` task will not be needed, because ``failing_task`` will propagate its ``failed`` state to downstream task ``passed_task`` and the whole DAG Run will also get the ``failed`` status.
 
+Code Quality and Linting
+========================
+
+Maintaining high code quality is essential for the reliability and maintainability of your Airflow workflows. Utilizing linting tools can help identify potential issues and enforce coding standards. One such tool is ``ruff``, a fast Python linter that now includes specific rules for Airflow.
+
+ruff assists in detecting deprecated features and patterns that may affect your migration to Airflow 3.0. For instance, it includes rules prefixed with ``AIR`` to flag potential issues:
+
+- **AIR301**: Flags DAGs without an explicit ``schedule`` argument.
+- **AIR302**: Identifies usage of deprecated ``schedule_interval`` parameter.
+- **AIR303**: Detects imports from modules that have been relocated or removed in Airflow 3.0.
+
+Installing and Using ruff
+------------------------
+
+1. **Installation**: Install ``ruff`` using pip:
+
+   .. code-block:: bash
+
+      pip install "ruff>=0.9.5"
+
+2. **Running ruff**: Execute ``ruff`` to check your DAGs for potential issues:
+
+   .. code-block:: bash
+
+      ruff check dags/ --select AIR301,AIR302,AIR303
+
+   This command will analyze your DAGs located in the ``dags/`` directory and report any issues related to the specified rules.
+
+Example
+-------
+
+Given a legacy DAG defined as:
+
+.. code-block:: python
+
+   from airflow import dag
+   from airflow.datasets import Dataset
+   from airflow.sensors.filesystem import FileSensor
+
+
+   @dag()
+   def legacy_dag():
+       FileSensor(task_id="wait_for_file", filepath="/tmp/test_file")
+
+Running ``ruff`` will produce:
+
+.. code-block:: none
+
+   dags/legacy_dag.py:7:2: AIR301 DAG should have an explicit schedule argument
+   dags/legacy_dag.py:12:6: AIR302 schedule_interval is removed in Airflow 3.0
+   dags/legacy_dag.py:17:15: AIR302 airflow.datasets.Dataset is removed in Airflow 3.0
+   dags/legacy_dag.py:19:5: AIR303 airflow.sensors.filesystem.FileSensor is moved into ``standard`` provider in Airflow 3.0
+
+By integrating ``ruff`` into your development workflow, you can proactively address deprecations and maintain code quality, facilitating smoother transitions between Airflow versions.
+
+For more information on ``ruff`` and its integration with Airflow, refer to the `official Airflow documentation <https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html>`_.
 
 Using AirflowClusterPolicySkipDag exception in cluster policies to skip specific DAGs
 -------------------------------------------------------------------------------------
