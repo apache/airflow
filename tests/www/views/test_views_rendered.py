@@ -277,14 +277,14 @@ if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
             id="env-plain-key-val",
         ),
         pytest.param(
-            {"plain_key": Variable.setdefault("plain_var", "banana")},
+            {"plain_key": "banana"},
             "{'plain_key': 'banana'}",
-            id="env-plain-key-plain-var",
+            id="env-plain-key-plain-var-default",
         ),
         pytest.param(
-            {"plain_key": Variable.setdefault("secret_var", "monkey")},
+            {"plain_key": "monkey"},
             "{'plain_key': '***'}",
-            id="env-plain-key-sensitive-var",
+            id="env-plain-key-sensitive-var-default",
         ),
         pytest.param(
             {"plain_key": "{{ var.value.plain_var }}"},
@@ -302,14 +302,14 @@ if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
             id="env-sensitive-key-plain-val",
         ),
         pytest.param(
-            {"secret_key": Variable.setdefault("plain_var", "monkey")},
+            {"secret_key": "monkey"},
             "{'secret_key': '***'}",
-            id="env-sensitive-key-plain-var",
+            id="env-sensitive-key-plain-var-default",
         ),
         pytest.param(
-            {"secret_key": Variable.setdefault("secret_var", "monkey")},
+            {"secret_key": "monkey"},
             "{'secret_key': '***'}",
-            id="env-sensitive-key-sensitive-var",
+            id="env-sensitive-key-sensitive-var-default",
         ),
         pytest.param(
             {"secret_key": "{{ var.value.plain_var }}"},
@@ -327,6 +327,14 @@ def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, 
     if request.node.callspec.id.endswith("-tpld-var"):
         Variable.set("plain_var", "banana")
         Variable.set("secret_var", "monkey")
+    elif request.node.callspec.id.endswith("-plain-var-default"):
+        val = env.get("plain_key") or env["secret_key"]
+        Variable.delete("plain_var")
+        Variable.setdefault("plain_var", val)
+    elif request.node.callspec.id.endswith("-sensitive-var-default"):
+        Variable.delete("secret_var")
+        val = env.get("plain_key") or env["secret_key"]
+        Variable.setdefault("secret_var", val)
 
     dag: DAG = patch_app.dag_bag.get_dag("testdag")
     task_secret: BashOperator = dag.get_task(task_id="task1")
@@ -351,6 +359,10 @@ def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, 
 
     if request.node.callspec.id.endswith("-tpld-var"):
         Variable.delete("plain_var")
+        Variable.delete("secret_var")
+    elif request.node.callspec.id.endswith("-plain-var-default"):
+        Variable.delete("plain_var")
+    elif request.node.callspec.id.endswith("-sensitive-var-default"):
         Variable.delete("secret_var")
 
 
