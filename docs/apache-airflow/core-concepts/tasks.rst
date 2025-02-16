@@ -167,7 +167,7 @@ These can be useful if your code has extra knowledge about its environment and w
 
 .. _concepts:zombies:
 
-Task Heartbeat Timeout
+Task Instance Heartbeat Timeout
 ----------------------
 
 No system runs perfectly, and task instances are expected to die once in a while.
@@ -182,10 +182,10 @@ many reasons, including:
 * The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
 
 
-Reproducing task heartbeat timeouts locally
+Reproducing task instance heartbeat timeouts locally
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you'd like to reproduce local task job heartbeat timeouts for development/testing processes, follow the steps below:
+If you'd like to reproduce task instance heartbeat timeouts for development/testing processes, follow the steps below:
 
 1. Set the below environment variables for your local Airflow setup (alternatively you could tweak the corresponding config values in airflow.cfg)
 
