@@ -73,8 +73,7 @@ def transform_dates(**kwargs):
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime.datetime(2020, 2, 2),
-    schedule=None,
-    params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
+    schedule="@once",
     catchup=False,
 ) as dag:
     # [START ydb_operator_howto_guide_create_pet_table]
@@ -119,9 +118,7 @@ with DAG(
     get_birth_date = YDBExecuteQueryOperator(
         task_id="get_birth_date",
         sql="""
-        SELECT * FROM pet
-        WHERE birth_date BETWEEN '{{ ti.xcom_pull(task_ids="transform_dates")["begin_date"] }}'
-              AND '{{ ti.xcom_pull(task_ids="transform_dates")["end_date"] }}'
+        SELECT * FROM pet WHERE birth_date BETWEEN '{{ ti.xcom_pull(task_ids="transform_dates")["begin_date"] }}' AND '{{ ti.xcom_pull(task_ids="transform_dates")["end_date"] }}'
         """,
     )
     # [END ydb_operator_howto_guide_get_birth_date]
