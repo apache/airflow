@@ -35,7 +35,6 @@ initialize_breeze_precommit(__name__, __file__)
 
 ALLOWED_FOLDERS = [
     "airflow",
-    "providers/src/airflow/providers",
     *[f"providers/{provider_id.replace('.', '/')}/src" for provider_id in get_all_new_provider_ids()],
     "dev",
     "docs",
@@ -67,9 +66,6 @@ for mypy_folder in mypy_folders:
         for provider_id in get_all_new_provider_ids():
             arguments.append(f"providers/{provider_id.replace('.', '/')}/src")
             arguments.append(f"providers/{provider_id.replace('.', '/')}/tests")
-        namespace_packages = True
-    if mypy_folder == "providers/src/airflow/providers":
-        arguments.append("providers/tests")
         namespace_packages = True
     elif mypy_folder.startswith("providers/"):
         arguments.append(f"{Path(mypy_folder).parent.as_posix()}/tests")

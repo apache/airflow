@@ -131,7 +131,7 @@ def _load_new_schema() -> dict[str, Any]:
 
 
 def _load_package_data(package_paths: Iterable[str]):
-    schema = _load_schema()
+    # TODO(potiuk): rename me
     new_schema = _load_new_schema()
     result = {}
     for provider_yaml_path in package_paths:
@@ -139,10 +139,7 @@ def _load_package_data(package_paths: Iterable[str]):
             provider = yaml.load(yaml_file, SafeLoader)
         rel_path = pathlib.Path(provider_yaml_path).relative_to(ROOT_DIR).as_posix()
         try:
-            if "providers/src" in provider_yaml_path:
-                jsonschema.validate(provider, schema=schema)
-            else:
-                jsonschema.validate(provider, schema=new_schema)
+            jsonschema.validate(provider, schema=new_schema)
         except jsonschema.ValidationError as ex:
             msg = f"Unable to parse: {provider_yaml_path}. Original error {type(ex).__name__}: {ex}"
             raise RuntimeError(msg)

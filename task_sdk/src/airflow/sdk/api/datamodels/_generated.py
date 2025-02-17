@@ -25,7 +25,7 @@ from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 
 class AssetProfile(BaseModel):
@@ -94,10 +94,6 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
-
-
-class JsonValue(RootModel[Any]):
-    root: Any
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
@@ -247,7 +243,7 @@ class XComResponse(BaseModel):
     """
 
     key: Annotated[str, Field(title="Key")]
-    value: Annotated[Any, Field(title="Value")]
+    value: JsonValue
 
 
 class TaskInstance(BaseModel):

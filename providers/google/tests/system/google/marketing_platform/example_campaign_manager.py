@@ -34,7 +34,7 @@ import uuid
 from datetime import datetime
 from typing import cast
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from google.api_core.exceptions import NotFound
 
 from airflow.decorators import task
 from airflow.models import Connection
@@ -55,7 +55,7 @@ from airflow.providers.google.marketing_platform.sensors.campaign_manager import
 )
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
-from google.api_core.exceptions import NotFound
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

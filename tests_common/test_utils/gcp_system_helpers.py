@@ -27,13 +27,13 @@ from unittest import mock
 
 import pytest
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
-
-import airflow.providers.google
-from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
-from providers.google.tests.provider_tests.google.cloud.utils.gcp_authenticator import (
+from unit.google.cloud.utils.gcp_authenticator import (
     GCP_GCS_KEY,
     GCP_SECRET_MANAGER_KEY,
 )
+
+import airflow.providers.google
+from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
 
 from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
 from tests_common.test_utils.logging_command_executor import CommandExecutor

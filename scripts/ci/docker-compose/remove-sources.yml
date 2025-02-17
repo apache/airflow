@@ -28,10 +28,6 @@ services:
       - type: bind
         source: ./empty
         target: /opt/airflow/task_sdk
-      # Removes providers sources from container (but not tests)
-      - type: bind
-        source: ./empty
-        target: /opt/airflow/providers/src
       # Remove all provider sources from container
       # START automatically generated volumes by generate-volumes-for-sources pre-commit
       - ../../../empty:/opt/airflow/providers/airbyte/src
