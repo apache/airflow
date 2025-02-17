@@ -1580,6 +1580,8 @@ export const useTaskInstanceServiceGetTaskInstanceSuspense = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -1621,6 +1623,8 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1643,6 +1647,8 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1671,6 +1677,8 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1697,6 +1705,8 @@ export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1909,6 +1919,8 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -1951,6 +1963,8 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1974,6 +1988,8 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -2003,6 +2019,8 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -2030,6 +2048,8 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,

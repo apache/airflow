@@ -1266,6 +1266,7 @@ export type TaskInstanceResponse = {
   dag_run_id: string;
   map_index: number;
   logical_date: string | null;
+  run_after: string;
   start_date: string | null;
   end_date: string | null;
   duration: number | null;
@@ -1341,6 +1342,8 @@ export type TaskInstancesBatchBody = {
   dag_run_ids?: Array<string> | null;
   task_ids?: Array<string> | null;
   state?: Array<TaskInstanceState | null> | null;
+  run_after_gte?: string | null;
+  run_after_lte?: string | null;
   logical_date_gte?: string | null;
   logical_date_lte?: string | null;
   start_date_gte?: string | null;
@@ -2092,6 +2095,8 @@ export type GetMappedTaskInstancesData = {
   orderBy?: string;
   pool?: Array<string>;
   queue?: Array<string>;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
@@ -2174,6 +2179,8 @@ export type GetTaskInstancesData = {
   orderBy?: string;
   pool?: Array<string>;
   queue?: Array<string>;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
