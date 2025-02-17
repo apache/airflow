@@ -496,6 +496,46 @@ export const $BackfillResponse = {
   description: "Base serializer for Backfill.",
 } as const;
 
+export const $BaseEdgeResponse = {
+  properties: {
+    source_id: {
+      type: "string",
+      title: "Source Id",
+    },
+    target_id: {
+      type: "string",
+      title: "Target Id",
+    },
+  },
+  type: "object",
+  required: ["source_id", "target_id"],
+  title: "BaseEdgeResponse",
+  description: "Base Edge serializer for responses.",
+} as const;
+
+export const $BaseGraphResponse = {
+  properties: {
+    edges: {
+      items: {
+        $ref: "#/components/schemas/BaseEdgeResponse",
+      },
+      type: "array",
+      title: "Edges",
+    },
+    nodes: {
+      items: {
+        $ref: "#/components/schemas/BaseNodeResponse",
+      },
+      type: "array",
+      title: "Nodes",
+    },
+  },
+  type: "object",
+  required: ["edges", "nodes"],
+  title: "BaseGraphResponse",
+  description: "Base Graph serializer for responses.",
+} as const;
+
 export const $BaseInfoResponse = {
   properties: {
     status: {
@@ -514,6 +554,28 @@ export const $BaseInfoResponse = {
   required: ["status"],
   title: "BaseInfoResponse",
   description: "Base info serializer for responses.",
+} as const;
+
+export const $BaseNodeResponse = {
+  properties: {
+    id: {
+      type: "string",
+      title: "Id",
+    },
+    label: {
+      type: "string",
+      title: "Label",
+    },
+    type: {
+      type: "string",
+      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
+      title: "Type",
+    },
+  },
+  type: "object",
+  required: ["id", "label", "type"],
+  title: "BaseNodeResponse",
+  description: "Base Node serializer for responses.",
 } as const;
 
 export const $BulkAction = {
@@ -3201,6 +3263,14 @@ export const $DryRunBackfillResponse = {
 
 export const $EdgeResponse = {
   properties: {
+    source_id: {
+      type: "string",
+      title: "Source Id",
+    },
+    target_id: {
+      type: "string",
+      title: "Target Id",
+    },
     is_setup_teardown: {
       anyOf: [
         {
@@ -3222,14 +3292,6 @@ export const $EdgeResponse = {
         },
       ],
       title: "Label",
-    },
-    source_id: {
-      type: "string",
-      title: "Source Id",
-    },
-    target_id: {
-      type: "string",
-      title: "Target Id",
     },
     is_source_asset: {
       anyOf: [
@@ -3966,6 +4028,19 @@ export const $JobResponse = {
 
 export const $NodeResponse = {
   properties: {
+    id: {
+      type: "string",
+      title: "Id",
+    },
+    label: {
+      type: "string",
+      title: "Label",
+    },
+    type: {
+      type: "string",
+      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
+      title: "Type",
+    },
     children: {
       anyOf: [
         {
@@ -3980,10 +4055,6 @@ export const $NodeResponse = {
       ],
       title: "Children",
     },
-    id: {
-      type: "string",
-      title: "Id",
-    },
     is_mapped: {
       anyOf: [
         {
@@ -3994,10 +4065,6 @@ export const $NodeResponse = {
         },
       ],
       title: "Is Mapped",
-    },
-    label: {
-      type: "string",
-      title: "Label",
     },
     tooltip: {
       anyOf: [
@@ -4021,11 +4088,6 @@ export const $NodeResponse = {
         },
       ],
       title: "Setup Teardown Type",
-    },
-    type: {
-      type: "string",
-      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
-      title: "Type",
     },
     operator: {
       anyOf: [

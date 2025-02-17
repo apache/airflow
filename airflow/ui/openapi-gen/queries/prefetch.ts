@@ -15,6 +15,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DependenciesService,
   EventLogService,
   ExtraLinksService,
   GridService,
@@ -444,6 +445,17 @@ export const prefetchUseDagsServiceRecentDagRuns = (
         tags,
         tagsMatchMode,
       }),
+  });
+/**
+ * Get Dependencies
+ * Dependencies graph.
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDependenciesServiceGetDependencies = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn(),
+    queryFn: () => DependenciesService.getDependencies(),
   });
 /**
  * Historical Metrics
