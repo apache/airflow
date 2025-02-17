@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-
 import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -34,31 +32,49 @@ def cleanup():
     clear_db_serialized_dags()
 
 
-def test_next_run_assets(test_client, dag_maker):
+def test_get_dependencies(test_client, dag_maker):
+    asset = Asset(uri="s3://bucket/next-run-asset/1", name="asset1")
+    with dag_maker(dag_id="upstream", serialized=True):
+        EmptyOperator(task_id="task2", outlets=[asset])
+
     with dag_maker(
-        dag_id="upstream",
-        schedule=[Asset(uri="s3://bucket/next-run-asset/1", name="asset1")],
+        dag_id="downstream",
+        schedule=[asset],
         serialized=True,
     ):
         EmptyOperator(task_id="task1")
 
-    dag_maker.create_dagrun()
     dag_maker.sync_dagbag_to_db()
 
-    response = test_client.get("/ui/next_run_assets/upstream")
-
+    response = test_client.get("/ui/dependencies")
     assert response.status_code == 200
+
     assert response.json() == {
-        "asset_expression": {
-            "all": [
-                {
-                    "asset": {
-                        "uri": "s3://bucket/next-run-asset/1",
-                        "name": "asset1",
-                        "group": "asset",
-                    }
-                }
-            ]
-        },
-        "events": [{"id": mock.ANY, "uri": "s3://bucket/next-run-asset/1", "lastUpdate": None}],
+        "edges": [
+            {
+                "source_id": "asset:asset1",
+                "target_id": "dag:downstream",
+            },
+            {
+                "source_id": "dag:upstream",
+                "target_id": "asset:asset1",
+            },
+        ],
+        "nodes": [
+            {
+                "id": "dag:downstream",
+                "label": "downstream",
+                "type": "dag",
+            },
+            {
+                "id": "asset:asset1",
+                "label": "asset1",
+                "type": "asset",
+            },
+            {
+                "id": "dag:upstream",
+                "label": "upstream",
+                "type": "dag",
+            },
+        ],
     }

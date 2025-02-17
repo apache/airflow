@@ -5,7 +5,6 @@ import { request as __request } from "./core/request";
 import type {
   NextRunAssetsData,
   NextRunAssetsResponse,
-  AssetDependenciesResponse,
   GetAssetsData,
   GetAssetsResponse,
   GetAssetAliasesData,
@@ -37,6 +36,7 @@ import type {
   GetConfigValueResponse,
   RecentDagRunsData,
   RecentDagRunsResponse,
+  GetDependenciesResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   StructureDataData,
@@ -226,19 +226,6 @@ export class AssetService {
       errors: {
         422: "Validation Error",
       },
-    });
-  }
-
-  /**
-   * Asset Dependencies
-   * Asset dependencies graph.
-   * @returns BaseGraphResponse Successful Response
-   * @throws ApiError
-   */
-  public static assetDependencies(): CancelablePromise<AssetDependenciesResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/ui/asset_dependencies",
     });
   }
 
@@ -722,6 +709,21 @@ export class DagsService {
       errors: {
         422: "Validation Error",
       },
+    });
+  }
+}
+
+export class DependenciesService {
+  /**
+   * Get Dependencies
+   * Dependencies graph.
+   * @returns BaseGraphResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDependencies(): CancelablePromise<GetDependenciesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dependencies",
     });
   }
 }

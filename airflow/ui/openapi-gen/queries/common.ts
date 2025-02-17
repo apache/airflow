@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DependenciesService,
   EventLogService,
   ExtraLinksService,
   GridService,
@@ -49,18 +50,6 @@ export const UseAssetServiceNextRunAssetsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useAssetServiceNextRunAssetsKey, ...(queryKey ?? [{ dagId }])];
-export type AssetServiceAssetDependenciesDefaultResponse = Awaited<
-  ReturnType<typeof AssetService.assetDependencies>
->;
-export type AssetServiceAssetDependenciesQueryResult<
-  TData = AssetServiceAssetDependenciesDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useAssetServiceAssetDependenciesKey = "AssetServiceAssetDependencies";
-export const UseAssetServiceAssetDependenciesKeyFn = (queryKey?: Array<unknown>) => [
-  useAssetServiceAssetDependenciesKey,
-  ...(queryKey ?? []),
-];
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<
   TData = AssetServiceGetAssetsDefaultResponse,
@@ -343,6 +332,18 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
       tagsMatchMode,
     },
   ]),
+];
+export type DependenciesServiceGetDependenciesDefaultResponse = Awaited<
+  ReturnType<typeof DependenciesService.getDependencies>
+>;
+export type DependenciesServiceGetDependenciesQueryResult<
+  TData = DependenciesServiceGetDependenciesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetDependencies";
+export const UseDependenciesServiceGetDependenciesKeyFn = (queryKey?: Array<unknown>) => [
+  useDependenciesServiceGetDependenciesKey,
+  ...(queryKey ?? []),
 ];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>

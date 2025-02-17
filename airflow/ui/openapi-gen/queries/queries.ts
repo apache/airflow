@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DependenciesService,
   EventLogService,
   ExtraLinksService,
   GridService,
@@ -81,25 +82,6 @@ export const useAssetServiceNextRunAssets = <
   useQuery<TData, TError>({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
     queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
-    ...options,
-  });
-/**
- * Asset Dependencies
- * Asset dependencies graph.
- * @returns BaseGraphResponse Successful Response
- * @throws ApiError
- */
-export const useAssetServiceAssetDependencies = <
-  TData = Common.AssetServiceAssetDependenciesDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceAssetDependenciesKeyFn(queryKey),
-    queryFn: () => AssetService.assetDependencies() as TData,
     ...options,
   });
 /**
@@ -568,6 +550,25 @@ export const useDagsServiceRecentDagRuns = <
         tags,
         tagsMatchMode,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Dependencies
+ * Dependencies graph.
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const useDependenciesServiceGetDependencies = <
+  TData = Common.DependenciesServiceGetDependenciesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn(queryKey),
+    queryFn: () => DependenciesService.getDependencies() as TData,
     ...options,
   });
 /**

@@ -15,6 +15,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DependenciesService,
   EventLogService,
   ExtraLinksService,
   GridService,
@@ -58,25 +59,6 @@ export const useAssetServiceNextRunAssetsSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
     queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
-    ...options,
-  });
-/**
- * Asset Dependencies
- * Asset dependencies graph.
- * @returns BaseGraphResponse Successful Response
- * @throws ApiError
- */
-export const useAssetServiceAssetDependenciesSuspense = <
-  TData = Common.AssetServiceAssetDependenciesDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceAssetDependenciesKeyFn(queryKey),
-    queryFn: () => AssetService.assetDependencies() as TData,
     ...options,
   });
 /**
@@ -545,6 +527,25 @@ export const useDagsServiceRecentDagRunsSuspense = <
         tags,
         tagsMatchMode,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Dependencies
+ * Dependencies graph.
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const useDependenciesServiceGetDependenciesSuspense = <
+  TData = Common.DependenciesServiceGetDependenciesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn(queryKey),
+    queryFn: () => DependenciesService.getDependencies() as TData,
     ...options,
   });
 /**

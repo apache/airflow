@@ -1595,8 +1595,6 @@ export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
 
-export type AssetDependenciesResponse = BaseGraphResponse;
-
 export type GetAssetsData = {
   dagIds?: Array<string>;
   limit?: number;
@@ -1727,6 +1725,8 @@ export type RecentDagRunsData = {
 };
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetDependenciesResponse = BaseGraphResponse;
 
 export type HistoricalMetricsData = {
   endDate?: string | null;
@@ -2499,16 +2499,6 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/ui/asset_dependencies": {
-    get: {
-      res: {
-        /**
-         * Successful Response
-         */
-        200: BaseGraphResponse;
-      };
-    };
-  };
   "/public/assets": {
     get: {
       req: GetAssetsData;
@@ -2921,6 +2911,16 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dependencies": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BaseGraphResponse;
       };
     };
   };

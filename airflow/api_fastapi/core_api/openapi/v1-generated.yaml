@@ -34,20 +34,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/asset_dependencies:
-    get:
-      tags:
-      - Asset
-      summary: Asset Dependencies
-      description: Asset dependencies graph.
-      operationId: asset_dependencies
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BaseGraphResponse'
   /ui/config:
     get:
       tags:
@@ -188,6 +174,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dependencies:
+    get:
+      tags:
+      - Dependencies
+      summary: Get Dependencies
+      description: Dependencies graph.
+      operationId: get_dependencies
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseGraphResponse'
   /ui/dashboard/historical_metrics_data:
     get:
       tags:
