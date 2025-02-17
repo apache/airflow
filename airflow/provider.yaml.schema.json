@@ -31,20 +31,6 @@
                 "removed"
             ]
         },
-        "dependencies": {
-            "description": "Dependencies that should be added to the provider",
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
-        },
-        "devel-dependencies": {
-            "description": "Dependencies that should be added to development requirements of the provider",
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
-        },
         "excluded-python-versions": {
             "description": "List of python versions excluded for that provider",
             "type": "array",
@@ -355,30 +341,6 @@
                 "type": "string"
             }
         },
-        "additional-extras": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "description": "Name of the extra",
-                        "type": "string"
-                    },
-                    "dependencies": {
-                        "description": "Dependencies that should be added for the extra",
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "required": [
-                    "name",
-                    "dependencies"
-                ]
-            },
-            "description": "Additional extras that the provider should have. Replaces auto-generated cross-provider extras, if matching the same prefix, so that you can specify boundaries for existing dependencies."
-        },
         "task-decorators": {
             "type": "array",
             "description": "Decorators to use with the TaskFlow API. Can be accessed by users via '@task.<name>'",
@@ -552,7 +514,6 @@
         "description",
         "state",
         "source-date-epoch",
-        "dependencies",
         "versions"
     ]
 }
