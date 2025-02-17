@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+0.17.0pre0
+..........
+
+Misc
+~~~~
+
+* ``CLI allows to wait until edge worker is completed when stopping.``
+
+
 0.16.0pre0
 ..........
 
