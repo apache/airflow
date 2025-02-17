@@ -17,11 +17,11 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Query, Response, status
+from pydantic import JsonValue
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -70,7 +70,7 @@ async def xcom_query(
         map_indexes=map_index,
         session=session,
     )
-    return query.with_entities(BaseXCom.value)
+    return query
 
 
 @router.head(
@@ -126,17 +126,13 @@ def get_xcom(
     """Get an Airflow XCom from database - not other XCom Backends."""
     # The xcom_query allows no map_index to be passed. This endpoint should always return just a single item,
     # so we override that query value
-
-    xcom_query = xcom_query.filter_by(map_index=map_index)
-
+    xcom_query = xcom_query.filter(BaseXCom.map_index == map_index)
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
     # (which automatically deserializes using the backend), we avoid potential
     # performance hits from retrieving large data files into the API server.
-
     result = xcom_query.limit(1).first()
-
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -146,18 +142,7 @@ def get_xcom(
             },
         )
 
-    try:
-        xcom_value = BaseXCom.orm_deserialize_value(result)
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "reason": "invalid_format",
-                "message": "XCom value is not a valid JSON",
-            },
-        )
-
-    return XComResponse(key=key, value=xcom_value)
+    return XComResponse(key=key, value=result.value)
 
 
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
@@ -175,7 +160,7 @@ def set_xcom(
     task_id: str,
     key: str,
     value: Annotated[
-        str,
+        JsonValue,
         Body(
             description="A JSON-formatted string representing the value to set for the XCom.",
             openapi_examples={
@@ -210,18 +195,6 @@ def set_xcom(
             detail={
                 "reason": "access_denied",
                 "message": f"Task does not have access to set XCom key '{key}'",
-            },
-        )
-
-    # TODO: This is in-efficient. We json.loads it here for BaseXCom.set to then json.dump it!
-    try:
-        json.loads(value)
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "invalid_format",
-                "message": "XCom value is not a valid JSON-formatted string",
             },
         )
 

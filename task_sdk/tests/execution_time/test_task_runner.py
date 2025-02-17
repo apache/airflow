@@ -1179,7 +1179,7 @@ class TestRuntimeTaskInstance:
         mock_supervisor_comms.send_request.assert_any_call(
             msg=SetXCom(
                 key="_link_AirflowLink",
-                value='"https://airflow.apache.org"',
+                value="https://airflow.apache.org",
                 dag_id="test_dag",
                 run_id="test_run",
                 task_id="task_with_operator_extra_links",
