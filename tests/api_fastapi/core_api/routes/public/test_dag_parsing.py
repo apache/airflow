@@ -26,6 +26,7 @@ from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_dag_parsing_requests, parse_and_sync_to_db
+from tests_common.test_utils.www import _check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -59,6 +60,7 @@ class TestDagParsingEndpoint:
         assert response.status_code == 201
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
+        _check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
 
         # Duplicate file parsing request
         response = test_client.put(url, headers={"Accept": "application/json"})

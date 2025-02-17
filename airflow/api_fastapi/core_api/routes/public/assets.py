@@ -52,6 +52,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     QueuedEventResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
@@ -220,6 +221,7 @@ def get_asset_events(
 @assets_router.post(
     "/assets/events",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(action_logging())],
 )
 def create_asset_event(
     body: CreateAssetEventsBody,
@@ -353,6 +355,7 @@ def get_dag_asset_queued_event(
     "/assets/{asset_id}/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(action_logging())],
 )
 def delete_asset_queued_events(
     asset_id: int,
@@ -379,6 +382,7 @@ def delete_asset_queued_events(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def delete_dag_asset_queued_events(
     dag_id: str,
@@ -403,6 +407,7 @@ def delete_dag_asset_queued_events(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def delete_dag_asset_queued_event(
     dag_id: str,
