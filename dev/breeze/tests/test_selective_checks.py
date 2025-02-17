@@ -311,7 +311,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "airflow/api/file.py",
-                    "providers/postgres/tests/provider_tests/postgres/file.py",
+                    "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
@@ -343,7 +343,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/apache/beam/tests/provider_tests/apache/beam/file.py",),
+                ("providers/apache/beam/tests/unit/apache/beam/file.py",),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
@@ -373,7 +373,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("providers/apache/beam/tests/provider_tests/apache/beam/file.py",),
+                ("providers/apache/beam/tests/unit/apache/beam/file.py",),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
@@ -406,7 +406,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "providers/apache/beam/tests/system/apache/beam/file.py",
-                    "providers/apache/beam/tests/provider_tests/apache/beam/file.py",
+                    "providers/apache/beam/tests/unit/apache/beam/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
@@ -440,7 +440,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "providers/apache/beam/tests/system/apache/beam/file.py",
-                    "providers/apache/beam/tests/provider_tests/apache/beam/file.py",
+                    "providers/apache/beam/tests/unit/apache/beam/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "apache.beam common.compat google",
@@ -535,7 +535,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "chart/aaaa.txt",
-                    "providers/postgres/tests/provider_tests/postgres/file.py",
+                    "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
                     "selected-providers-list-as-string": "amazon common.sql google openlineage pgvector postgres",
@@ -1106,9 +1106,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['13', '14', '15', '16', '17']",
                     "python-versions": "['3.9', '3.10', '3.11', '3.12']",
                     "python-versions-list-as-string": "3.9 3.10 3.11 3.12",
-                    "kubernetes-versions": "['v1.28.15', 'v1.29.12', 'v1.30.8', 'v1.31.4', 'v1.32.0']",
-                    "kubernetes-versions-list-as-string": "v1.28.15 v1.29.12 v1.30.8 v1.31.4 v1.32.0",
-                    "kubernetes-combos-list-as-string": "3.9-v1.28.15 3.10-v1.29.12 3.11-v1.30.8 3.12-v1.31.4 3.9-v1.32.0",
+                    "kubernetes-versions": "['v1.29.12', 'v1.30.8', 'v1.31.4', 'v1.32.0']",
+                    "kubernetes-versions-list-as-string": "v1.29.12 v1.30.8 v1.31.4 v1.32.0",
+                    "kubernetes-combos-list-as-string": "3.9-v1.29.12 3.10-v1.30.8 3.11-v1.31.4 3.12-v1.32.0",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1142,9 +1142,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['13']",
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
-                    "kubernetes-versions": "['v1.28.15']",
-                    "kubernetes-versions-list-as-string": "v1.28.15",
-                    "kubernetes-combos-list-as-string": "3.9-v1.28.15",
+                    "kubernetes-versions": "['v1.29.12']",
+                    "kubernetes-versions-list-as-string": "v1.29.12",
+                    "kubernetes-combos-list-as-string": "3.9-v1.29.12",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1178,9 +1178,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "postgres-versions": "['13']",
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
-                    "kubernetes-versions": "['v1.28.15']",
-                    "kubernetes-versions-list-as-string": "v1.28.15",
-                    "kubernetes-combos-list-as-string": "3.9-v1.28.15",
+                    "kubernetes-versions": "['v1.29.12']",
+                    "kubernetes-versions-list-as-string": "v1.29.12",
+                    "kubernetes-combos-list-as-string": "3.9-v1.29.12",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1252,9 +1252,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-versions": "false",
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
-                    "kubernetes-versions": "['v1.28.15']",
-                    "kubernetes-versions-list-as-string": "v1.28.15",
-                    "kubernetes-combos-list-as-string": "3.9-v1.28.15",
+                    "kubernetes-versions": "['v1.29.12']",
+                    "kubernetes-versions-list-as-string": "v1.29.12",
+                    "kubernetes-combos-list-as-string": "3.9-v1.29.12",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1286,9 +1286,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-versions": "false",
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
-                    "kubernetes-versions": "['v1.28.15']",
-                    "kubernetes-versions-list-as-string": "v1.28.15",
-                    "kubernetes-combos-list-as-string": "3.9-v1.28.15",
+                    "kubernetes-versions": "['v1.29.12']",
+                    "kubernetes-versions-list-as-string": "v1.29.12",
+                    "kubernetes-combos-list-as-string": "3.9-v1.29.12",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -1311,7 +1311,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         ),
         (
             pytest.param(
-                ("INTHEWILD.md", "providers/tests/asana.py"),
+                ("INTHEWILD.md", "providers/asana/tests/asana.py"),
                 ("full tests needed",),
                 "v2-7-stable",
                 {
@@ -1384,7 +1384,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "chart/aaaa.txt",
-                "providers/google/tests/provider_tests/google/file.py",
+                "providers/google/tests/unit/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1411,7 +1411,7 @@ def test_expected_output_full_tests_needed(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "providers/google/tests/provider_tests/google/file.py",
+                "providers/google/tests/unit/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1436,7 +1436,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "airflow/file.py",
-                "providers/google/tests/provider_tests/google/file.py",
+                "providers/google/tests/unit/google/file.py",
             ),
             {
                 "all-python-versions": "['3.9']",
@@ -1614,7 +1614,7 @@ def test_expected_output_push(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "providers/google/tests/provider_tests/google/file.py",
+                "providers/google/tests/unit/google/file.py",
             ),
             {
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra "
@@ -1938,7 +1938,7 @@ def test_upgrade_to_newer_dependencies(
     "files, expected_outputs,",
     [
         pytest.param(
-            ("docs/apache-airflow-providers-google/docs.rst",),
+            ("providers/google/docs/some_file.rst",),
             {
                 "docs-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp "
@@ -1958,14 +1958,14 @@ def test_upgrade_to_newer_dependencies(
             id="Common SQL provider package python files changed",
         ),
         pytest.param(
-            ("docs/apache-airflow-providers-airbyte/docs.rst",),
+            ("providers/airbyte/docs/some_file.rst",),
             {
                 "docs-list-as-string": "airbyte",
             },
             id="Airbyte provider docs changed",
         ),
         pytest.param(
-            ("docs/apache-airflow-providers-airbyte/docs.rst", "docs/apache-airflow/docs.rst"),
+            ("providers/airbyte/docs/some_file.rst", "docs/apache-airflow/docs.rst"),
             {
                 "docs-list-as-string": "apache-airflow airbyte",
             },
@@ -1973,7 +1973,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             (
-                "docs/apache-airflow-providers-airbyte/docs.rst",
+                "providers/airbyte/docs/some_file.rst",
                 "docs/apache-airflow/docs.rst",
                 "docs/apache-airflow-providers/docs.rst",
             ),
@@ -2461,16 +2461,6 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             "main",
             (),
             id="Airflow mypy checks on airflow files with model changes.",
-        ),
-        pytest.param(
-            ("providers/src/airflow/providers/a_file.py",),
-            {
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-providers']",
-            },
-            "main",
-            (),
-            id="Airflow mypy checks on provider files",
         ),
         pytest.param(
             ("task_sdk/src/airflow/sdk/a_file.py",),

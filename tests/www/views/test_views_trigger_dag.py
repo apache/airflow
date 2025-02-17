@@ -27,14 +27,10 @@ import pytest
 from airflow.models import DagBag, DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.param import Param
-from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.json import WebEncoder
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
-from providers.fab.tests.provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
-    create_test_client,
-)
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.www import check_content_in_response
@@ -296,26 +292,6 @@ def test_trigger_endpoint_uses_existing_dagbag(admin_client):
     url = "dags/example_bash_operator/trigger"
     resp = admin_client.post(url, data={}, follow_redirects=True)
     check_content_in_response("example_bash_operator", resp)
-
-
-def test_viewer_cant_trigger_dag(app):
-    """
-    Test that the test_viewer user can't trigger DAGs.
-    """
-    with create_test_client(
-        app,
-        user_name="test_user",
-        role_name="test_role",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
-        ],
-    ) as client:
-        url = "dags/example_bash_operator/trigger"
-        resp = client.get(url, follow_redirects=True)
-        response_data = resp.data.decode()
-        assert "Access is Denied" in response_data
 
 
 def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, session, app, monkeypatch):

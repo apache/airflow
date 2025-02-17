@@ -843,7 +843,51 @@ def enter_shell(shell_params: ShellParams, output: Output | None = None) -> RunC
         get_console().print(f"[red]Error {command_result.returncode} returned[/]")
         if get_verbose():
             get_console().print(command_result.stderr)
+        notify_on_unhealthy_backend_container(shell_params.project_name, shell_params.backend, output)
         return command_result
+
+
+def notify_on_unhealthy_backend_container(project_name: str, backend: str, output: Output | None = None):
+    """Put emphasis on unhealthy backend container and `breeze down` command for user."""
+    if backend not in ["postgres", "mysql"] or os.environ.get("CI") == "true":
+        return
+
+    if _is_backend_container_unhealthy(project_name, backend):
+        get_console(output=output).print(
+            "[warning]The backend container is unhealthy. You might need to run `down` "
+            "command to clean up:\n\n"
+            "\tbreeze down[/]\n"
+        )
+
+
+def _is_backend_container_unhealthy(project_name: str, backend: str) -> bool:
+    try:
+        filter = f"name={project_name}-{backend}"
+        search_response = run_command(
+            ["docker", "ps", "--filter", filter, "--format={{.Names}}"],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        container_name = search_response.stdout.strip()
+
+        # Skip the check if not found or multiple containers found
+        if len(container_name.strip().splitlines()) != 1:
+            return False
+
+        inspect_response = run_command(
+            ["docker", "inspect", "--format={{.State.Health.Status}}", container_name],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        if inspect_response.returncode == 0:
+            return inspect_response.stdout.strip() == "unhealthy"
+    # We don't want to misguide the user, so in case of any error we skip the check
+    except Exception:
+        pass
+
+    return False
 
 
 def is_docker_rootless() -> bool:

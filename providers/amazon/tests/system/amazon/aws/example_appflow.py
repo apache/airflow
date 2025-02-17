@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
-
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.appflow import (
@@ -30,6 +28,7 @@ from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRunFullOperator,
 )
 from airflow.providers.standard.operators.bash import BashOperator
+from system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
 

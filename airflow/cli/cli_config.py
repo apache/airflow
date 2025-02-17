@@ -738,6 +738,11 @@ ARG_FASTAPI_API_APPS = Arg(
     help="Applications to run (comma-separated). Default is all. Options: core, execution, all",
     default="all",
 )
+ARG_FASTAPI_API_ALLOW_PROXY_FORWARDING = Arg(
+    flags=("--proxy-headers",),
+    help="Enable X-Forwarded-Proto, X-Forwarded-For, X-Forwarded-Port to populate remote address info.",
+    action="store_true",
+)
 
 
 # scheduler
@@ -1896,6 +1901,7 @@ core_commands: list[CLICommand] = [
             ARG_SSL_CERT,
             ARG_SSL_KEY,
             ARG_DEBUG,
+            ARG_FASTAPI_API_ALLOW_PROXY_FORWARDING,
         ),
     ),
     ActionCommand(
