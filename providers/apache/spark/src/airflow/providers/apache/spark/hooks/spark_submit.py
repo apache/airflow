@@ -556,7 +556,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         returncode = self._submit_sp.wait()
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
-        # of exit code in the log, as it may differ.
+        # Regardless of cluster or client mode, you only need to monitor the final status of the subprocess. The final status of the subprocess is the final status of the spark program.
         if returncode:
             if self._is_kubernetes:
                 raise AirflowException(
