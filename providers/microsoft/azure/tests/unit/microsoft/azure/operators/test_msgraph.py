@@ -272,7 +272,7 @@ class TestMSGraphAsyncOperator(Base):
         )
         context = mock_context(task=operator)
         response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
-        next_link, query_parameters = MSGraphAsyncOperator.paginate(operator, response, context)
+        next_link, query_parameters = MSGraphAsyncOperator.paginate(operator, response, **context)
 
         assert next_link == response["@odata.nextLink"]
         assert query_parameters is None
@@ -301,7 +301,7 @@ class TestMSGraphAsyncOperator(Base):
                 execute_callable(
                     lambda context, response: response,
                     "response",
-                    Context({"execution_date": timezone.utcnow()}),
+                    {"execution_date": timezone.utcnow()},
                     "result_processor signature has changed, result parameter should be defined before context!",
                 )
                 == "response"
@@ -310,7 +310,7 @@ class TestMSGraphAsyncOperator(Base):
             execute_callable(
                 lambda response, **context: response,
                 "response",
-                Context({"execution_date": timezone.utcnow()}),
+                {"execution_date": timezone.utcnow()},
                 "result_processor signature has changed, result parameter should be defined before context!",
             )
             == "response"
