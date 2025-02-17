@@ -480,7 +480,7 @@ ARG_EDGE_HOSTNAME = Arg(
 ARG_WAIT = Arg(
     ("-w", "--wait"),
     default=False,
-    help="Wait until edge worker is shot down.",
+    help="Wait until edge worker is shut down.",
     action="store_true",
 )
 EDGE_COMMANDS: list[ActionCommand] = [
