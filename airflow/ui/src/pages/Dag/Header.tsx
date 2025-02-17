@@ -102,10 +102,10 @@ export const Header = ({
             ) : undefined}
           </Stat>
           <Stat label="Next Run">
-            {Boolean(dagWithRuns?.next_dagrun_create_after) ? (
+            {Boolean(dagWithRuns?.next_dagrun_run_after) ? (
               <DagRunInfo
-                logicalDate={dagWithRuns?.next_dagrun}
-                runAfter={dagWithRuns?.next_dagrun_create_after as string}
+                logicalDate={dagWithRuns?.next_dagrun_logical_date}
+                runAfter={dagWithRuns?.next_dagrun_run_after as string}
               />
             ) : undefined}
           </Stat>

@@ -77,8 +77,11 @@ export const DagCard = ({ dag }: Props) => {
           ) : undefined}
         </Stat>
         <Stat label="Next Run">
-          {Boolean(dag.next_dagrun_create_after) ? (
-            <DagRunInfo logicalDate={dag.next_dagrun} runAfter={dag.next_dagrun_create_after as string} />
+          {Boolean(dag.next_dagrun_run_after) ? (
+            <DagRunInfo
+              logicalDate={dag.next_dagrun_logical_date}
+              runAfter={dag.next_dagrun_run_after as string}
+            />
           ) : undefined}
         </Stat>
         <RecentRuns latestRuns={dag.latest_dag_runs} />
