@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from typing import Any, ClassVar, List
 
 from airflow.providers.common.sql.hooks.sql import return_single_query_results
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator, default_output_processor
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 
 
@@ -47,10 +47,7 @@ class TrinoOperator(SQLExecuteQueryOperator):
 
     """
 
-    template_fields: Sequence[str] = tuple(
-        {"trino_conn_id"}
-        | set(SQLExecuteQueryOperator.template_fields)
-    )
+    template_fields: Sequence[str] = tuple({"trino_conn_id"} | set(SQLExecuteQueryOperator.template_fields))
     template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     conn_id_field = "trino_conn_id"
 
