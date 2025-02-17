@@ -8001,12 +8001,12 @@ components:
         has_import_errors:
           type: boolean
           title: Has Import Errors
-        next_dagrun:
+        next_dagrun_logical_date:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun
+          title: Next Dagrun Logical Date
         next_dagrun_data_interval_start:
           anyOf:
           - type: string
@@ -8019,12 +8019,12 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Data Interval End
-        next_dagrun_create_after:
+        next_dagrun_run_after:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun Create After
+          title: Next Dagrun Run After
         owners:
           items:
             type: string
@@ -8121,10 +8121,10 @@ components:
       - max_consecutive_failed_dag_runs
       - has_task_concurrency_limits
       - has_import_errors
-      - next_dagrun
+      - next_dagrun_logical_date
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
-      - next_dagrun_create_after
+      - next_dagrun_run_after
       - owners
       - catchup
       - dag_run_timeout
@@ -8224,12 +8224,12 @@ components:
         has_import_errors:
           type: boolean
           title: Has Import Errors
-        next_dagrun:
+        next_dagrun_logical_date:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun
+          title: Next Dagrun Logical Date
         next_dagrun_data_interval_start:
           anyOf:
           - type: string
@@ -8242,12 +8242,12 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Data Interval End
-        next_dagrun_create_after:
+        next_dagrun_run_after:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun Create After
+          title: Next Dagrun Run After
         owners:
           items:
             type: string
@@ -8277,10 +8277,10 @@ components:
       - max_consecutive_failed_dag_runs
       - has_task_concurrency_limits
       - has_import_errors
-      - next_dagrun
+      - next_dagrun_logical_date
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
-      - next_dagrun_create_after
+      - next_dagrun_run_after
       - owners
       - file_token
       title: DAGResponse
@@ -8738,12 +8738,12 @@ components:
         has_import_errors:
           type: boolean
           title: Has Import Errors
-        next_dagrun:
+        next_dagrun_logical_date:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun
+          title: Next Dagrun Logical Date
         next_dagrun_data_interval_start:
           anyOf:
           - type: string
@@ -8756,12 +8756,12 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Data Interval End
-        next_dagrun_create_after:
+        next_dagrun_run_after:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun Create After
+          title: Next Dagrun Run After
         owners:
           items:
             type: string
@@ -8796,10 +8796,10 @@ components:
       - max_consecutive_failed_dag_runs
       - has_task_concurrency_limits
       - has_import_errors
-      - next_dagrun
+      - next_dagrun_logical_date
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
-      - next_dagrun_create_after
+      - next_dagrun_run_after
       - owners
       - latest_dag_runs
       - file_token
