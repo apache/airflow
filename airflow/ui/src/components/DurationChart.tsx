@@ -136,9 +136,7 @@ export const DurationChart = ({
               label: "Run duration",
             },
           ],
-          labels: entries.map((entry: RunResponse) =>
-            dayjs(entry.logical_date).format("YYYY-MM-DD, hh:mm:ss"),
-          ),
+          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format("YYYY-MM-DD, hh:mm:ss")),
         }}
         datasetIdKey="id"
         options={{
@@ -157,7 +155,7 @@ export const DurationChart = ({
               ticks: {
                 maxTicksLimit: 3,
               },
-              title: { align: "end", display: true, text: "Logical Date" },
+              title: { align: "end", display: true, text: "Run After" },
             },
 
             y: {

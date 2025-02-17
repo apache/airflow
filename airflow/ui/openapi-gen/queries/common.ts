@@ -990,6 +990,8 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1012,6 +1014,8 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1039,6 +1043,8 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
       orderBy,
       pool,
       queue,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,
@@ -1201,6 +1207,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1224,6 +1232,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1252,6 +1262,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
       orderBy,
       pool,
       queue,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,

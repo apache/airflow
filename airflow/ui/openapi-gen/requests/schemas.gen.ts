@@ -4903,6 +4903,11 @@ export const $TaskInstanceResponse = {
       ],
       title: "Logical Date",
     },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     start_date: {
       anyOf: [
         {
@@ -5139,6 +5144,7 @@ export const $TaskInstanceResponse = {
     "dag_run_id",
     "map_index",
     "logical_date",
+    "run_after",
     "start_date",
     "end_date",
     "duration",
@@ -5329,6 +5335,30 @@ export const $TaskInstancesBatchBody = {
         },
       ],
       title: "State",
+    },
+    run_after_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Gte",
+    },
+    run_after_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Lte",
     },
     logical_date_gte: {
       anyOf: [
