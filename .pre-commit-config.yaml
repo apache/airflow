@@ -215,6 +215,12 @@ repos:
         files: ^airflow/models/taskinstance.py$|^airflow/models/taskinstancehistory.py$
         pass_filenames: false
         require_serial: true
+      - id: check-default-configuration
+        name: Check the default configuration
+        entry: ./scripts/ci/pre_commit/check_default_configuration.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        always_run: true
       - id: check-deferrable-default
         name: Check and fix default value of default_deferrable
         language: python
