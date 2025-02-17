@@ -687,14 +687,9 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
     for package_info in yaml_files.values():
         num_providers += 1
         package_name = package_info["package-name"]
-        # TODO(potiuk) - remove this when we move all providers to the new structure
-        if (DOCS_DIR_PATH / package_name).exists():
-            provider_dir = DOCS_DIR_PATH / package_name
-        else:
-            provider_dir = (
-                PROVIDERS_DIR_PATH.joinpath(*package_name[len("apache-airflow-providers-") :].split("-"))
-                / "docs"
-            )
+        provider_dir = (
+            PROVIDERS_DIR_PATH.joinpath(*package_name[len("apache-airflow-providers-") :].split("-")) / "docs"
+        )
         for file in expected_files:
             if not (provider_dir / file).is_file():
                 errors.append(
