@@ -476,10 +476,10 @@ export type DAGDetailsResponse = {
   max_consecutive_failed_dag_runs: number;
   has_task_concurrency_limits: boolean;
   has_import_errors: boolean;
-  next_dagrun: string | null;
+  next_dagrun_logical_date: string | null;
   next_dagrun_data_interval_start: string | null;
   next_dagrun_data_interval_end: string | null;
-  next_dagrun_create_after: string | null;
+  next_dagrun_run_after: string | null;
   owners: Array<string>;
   catchup: boolean;
   dag_run_timeout: string | null;
@@ -535,10 +535,10 @@ export type DAGResponse = {
   max_consecutive_failed_dag_runs: number;
   has_task_concurrency_limits: boolean;
   has_import_errors: boolean;
-  next_dagrun: string | null;
+  next_dagrun_logical_date: string | null;
   next_dagrun_data_interval_start: string | null;
   next_dagrun_data_interval_end: string | null;
-  next_dagrun_create_after: string | null;
+  next_dagrun_run_after: string | null;
   owners: Array<string>;
   /**
    * Return file token.
@@ -710,10 +710,10 @@ export type DAGWithLatestDagRunsResponse = {
   max_consecutive_failed_dag_runs: number;
   has_task_concurrency_limits: boolean;
   has_import_errors: boolean;
-  next_dagrun: string | null;
+  next_dagrun_logical_date: string | null;
   next_dagrun_data_interval_start: string | null;
   next_dagrun_data_interval_end: string | null;
-  next_dagrun_create_after: string | null;
+  next_dagrun_run_after: string | null;
   owners: Array<string>;
   latest_dag_runs: Array<DAGRunResponse>;
   /**
