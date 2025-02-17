@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,24 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "3.8"
-services:
-  ydb:
-    image: cr.yandex/yc/yandex-docker-local-ydb:latest
-    labels:
-      breeze.description: "Integration required for YDB tests."
-    hostname: ydb
-    environment:
-      YDB_USE_IN_MEMORY_PDISKS: true
-      GRPC_PORT: 2136
-    restart: "on-failure"
-    ports:
-      - "8765:8765"
+from __future__ import annotations
 
-  airflow:
-    environment:
-      - INTEGRATION_YDB=true
-    depends_on:
-      ydb:
-        condition: service_started
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from common_precommit_utils import (
+    initialize_breeze_precommit,
+    run_command_via_breeze_shell,
+    validate_cmd_result,
+)
+
+initialize_breeze_precommit(__name__, __file__)
+
+cmd_result = run_command_via_breeze_shell(
+    ["/opt/airflow/scripts/in_container/run_check_default_configuration.py"],
+    backend="sqlite",
+)
+
+validate_cmd_result(cmd_result)
