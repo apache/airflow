@@ -21,13 +21,13 @@ import os
 import subprocess
 import tempfile
 
-default_config_cmd = [
+list_default_config_cmd = [
     "airflow",
     "config",
     "list",
     "--default",
 ]
-check_lint_cmd = [
+lint_config_cmd = [
     "airflow",
     "config",
     "lint",
@@ -39,19 +39,19 @@ if __name__ == "__main__":
         # Write default config cmd output to a temporary file
         default_config_file = os.path.join(tmp_dir, "airflow.cfg")
         with open(default_config_file, "w") as f:
-            result = subprocess.run(default_config_cmd, stdout=f)
+            result = subprocess.run(list_default_config_cmd, stdout=f)
         if result.returncode != 0:
-            print(f"\033[0;31mERROR: when running `{' '.join(default_config_cmd)}`\033[0m\n")
+            print(f"\033[0;31mERROR: when running `{' '.join(list_default_config_cmd)}`\033[0m\n")
             exit(1)
         # Run airflow config lint to check the default config
         env = os.environ.copy()
         env["AIRFLOW_HOME"] = tmp_dir
         env["AIRFLOW_CONFIG"] = default_config_file
-        result = subprocess.run(check_lint_cmd, capture_output=True, env=env)
+        result = subprocess.run(lint_config_cmd, capture_output=True, env=env)
 
     output: str = result.stdout.decode().strip()
     if result.returncode != 0 or expected_output not in output:
-        print(f"\033[0;31mERROR: when running `{' '.join(check_lint_cmd)}`\033[0m\n")
+        print(f"\033[0;31mERROR: when running `{' '.join(lint_config_cmd)}`\033[0m\n")
         print(output)
         exit(1)
     print(output)
