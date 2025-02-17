@@ -156,7 +156,7 @@ class TestCliTasks:
         with conf_vars({("core", "dags_folder"): orig_dags_folder.as_posix()}):
             dagbag = DagBag(include_examples=False)
             dag = dagbag.get_dag("test_dags_folder")
-            dagbag.sync_to_db("dags-folder", Path("/test/bundle"), None, session=session)
+            dagbag.sync_to_db("dags-folder", None, session=session)
 
         logical_date = pendulum.now("UTC")
         data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)

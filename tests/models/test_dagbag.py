@@ -778,7 +778,9 @@ with airflow.DAG(
         example_dags = dagbag.dags
         for dag in example_dags.values():
             dag.sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="dag_maker", code_reader=lambda _: "dag source code")
+            SerializedDagModel.write_dag(
+                dag, bundle_name="dag_maker", code_reader=lambda _: "dag source code"
+            )
 
         new_dagbag = DagBag(read_dags_from_db=True)
         assert len(new_dagbag.dags) == 0

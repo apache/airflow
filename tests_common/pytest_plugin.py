@@ -992,7 +992,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             self.dagbag.sync_to_db(
                 self.bundle_name,
-                self.bundle_path,
                 None,
             )
 

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import pytest
 
@@ -95,7 +94,7 @@ class TestGetExtraLinks:
         dag_bag = DagBag(os.devnull, include_examples=False)
         dag_bag.dags = {self.dag.dag_id: self.dag}
         test_client.app.state.dag_bag = dag_bag
-        dag_bag.sync_to_db("dags-folder", Path("/test/bundle"), None)
+        dag_bag.sync_to_db("dags-folder", None)
 
         self.dag.create_dagrun(
             run_id=self.dag_run_id,

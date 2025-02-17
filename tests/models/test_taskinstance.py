@@ -25,7 +25,6 @@ import pathlib
 import signal
 import sys
 import urllib
-from pathlib import Path
 from traceback import format_exception
 from typing import cast
 from unittest import mock
@@ -2120,7 +2119,7 @@ class TestTaskInstance:
         session = settings.Session()
         dagbag = DagBag(dag_folder=example_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-        dagbag.sync_to_db("testing", Path("/test/bundle"), None, session=session)
+        dagbag.sync_to_db("testing", None, session=session)
 
         asset_models = session.scalars(select(AssetModel)).all()
         SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
@@ -2190,7 +2189,7 @@ class TestTaskInstance:
         session = settings.Session()
         dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-        dagbag.sync_to_db("testing", Path("/test/bundle"), None, session=session)
+        dagbag.sync_to_db("testing", None, session=session)
         run_id = str(uuid4())
         dr = DagRun(
             dag_with_fail_task.dag_id,
@@ -2250,7 +2249,7 @@ class TestTaskInstance:
         session = settings.Session()
         dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-        dagbag.sync_to_db("testing", Path("/test/bundle"), None, session=session)
+        dagbag.sync_to_db("testing", None, session=session)
 
         asset_models = session.scalars(select(AssetModel)).all()
         SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)

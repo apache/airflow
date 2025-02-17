@@ -450,7 +450,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     def update_module_paths(self, module_file: str, bundle_path: Path | None = None) -> None:
         """
         Set the parsing context of the DAG - update its file locations.
-        
+
         :param module_file: DAG's module absolute filename (can be within zip file).
         :param bundle_path: Path of a bundle where DAG is parsed, if not provided the
             relative path is set to fileloc.

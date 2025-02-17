@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from urllib.parse import quote_plus
 
 import pytest
@@ -74,7 +73,7 @@ class TestGetExtraLinks:
         DagBundlesManager().sync_bundles_to_db()
         self.app.dag_bag = DagBag(os.devnull, include_examples=False)
         self.app.dag_bag.dags = {self.dag.dag_id: self.dag}
-        self.app.dag_bag.sync_to_db("dags-folder", Path("/test/bundle"), None)
+        self.app.dag_bag.sync_to_db("dags-folder", None)
 
         data_interval = DataInterval(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2))
         self.dag.create_dagrun(

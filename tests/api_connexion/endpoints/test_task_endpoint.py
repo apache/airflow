@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 import unittest.mock
 from datetime import datetime
-from pathlib import Path
 
 import pytest
 
@@ -90,7 +89,7 @@ class TestTaskEndpoint:
             mapped_dag.dag_id: mapped_dag,
             unscheduled_dag.dag_id: unscheduled_dag,
         }
-        dag_bag.sync_to_db("dags-folder", Path("/test/bundle"), None)
+        dag_bag.sync_to_db("dags-folder", None)
         configured_app.dag_bag = dag_bag  # type:ignore
 
     @staticmethod

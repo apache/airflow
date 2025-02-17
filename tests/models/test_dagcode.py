@@ -69,13 +69,21 @@ class TestDagCode:
     def _write_two_example_dags(self, session):
         example_dags = make_example_dags(example_dags_module)
         bash_dag = example_dags["example_bash_operator"]
-        SDM.write_dag(bash_dag, bundle_name="testing", code_reader=lambda _: DagCode.get_code_from_file(bash_dag.fileloc))
+        SDM.write_dag(
+            bash_dag,
+            bundle_name="testing",
+            code_reader=lambda _: DagCode.get_code_from_file(bash_dag.fileloc),
+        )
         dag_version = DagVersion.get_latest_version("example_bash_operator")
         x = DagCode(dag_version, bash_dag.relative_fileloc)
         session.add(x)
         session.commit()
         xcom_dag = example_dags["example_xcom"]
-        SDM.write_dag(xcom_dag, bundle_name="testing", code_reader=lambda _: DagCode.get_code_from_file(xcom_dag.fileloc))
+        SDM.write_dag(
+            xcom_dag,
+            bundle_name="testing",
+            code_reader=lambda _: DagCode.get_code_from_file(xcom_dag.fileloc),
+        )
         dag_version = DagVersion.get_latest_version("example_xcom")
         x = DagCode(dag_version, xcom_dag.relative_fileloc)
         session.add(x)
@@ -85,7 +93,9 @@ class TestDagCode:
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
-            SDM.write_dag(dag, bundle_name="testing", code_reader=lambda _: DagCode.get_code_from_file(dag.fileloc))
+            SDM.write_dag(
+                dag, bundle_name="testing", code_reader=lambda _: DagCode.get_code_from_file(dag.fileloc)
+            )
         return example_dags
 
     def test_write_to_db(self, testing_dag_bundle):
@@ -125,7 +135,11 @@ class TestDagCode:
         Source Code should at least exist in one of DB or File.
         """
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        SDM.write_dag(example_dag, bundle_name="testing", code_reader=lambda _: DagCode.get_code_from_file(example_dag.fileloc))
+        SDM.write_dag(
+            example_dag,
+            bundle_name="testing",
+            code_reader=lambda _: DagCode.get_code_from_file(example_dag.fileloc),
+        )
 
         # Mock that there is no access to the Dag File
         with patch("airflow.models.dagcode.open_maybe_zipped") as mock_open:
@@ -138,7 +152,11 @@ class TestDagCode:
     def test_db_code_created_on_serdag_change(self, session, testing_dag_bundle):
         """Test new DagCode is created in DB when ser dag is changed"""
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        SDM.write_dag(example_dag, bundle_name="testing", code_reader=lambda rel_fileloc: DagCode.get_code_from_file(rel_fileloc))
+        SDM.write_dag(
+            example_dag,
+            bundle_name="testing",
+            code_reader=lambda rel_fileloc: DagCode.get_code_from_file(rel_fileloc),
+        )
 
         result = (
             session.query(DagCode)
@@ -153,7 +171,11 @@ class TestDagCode:
         example_dag.doc_md = "new doc"
         with patch("airflow.models.dagcode.DagCode.get_code_from_file") as mock_code:
             mock_code.return_value = "# dummy code"
-            SDM.write_dag(example_dag, bundle_name="testing", code_reader=lambda rel_fileloc: DagCode.get_code_from_file(rel_fileloc))
+            SDM.write_dag(
+                example_dag,
+                bundle_name="testing",
+                code_reader=lambda rel_fileloc: DagCode.get_code_from_file(rel_fileloc),
+            )
 
         new_result = (
             session.query(DagCode)

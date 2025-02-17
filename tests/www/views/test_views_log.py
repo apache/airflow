@@ -27,7 +27,6 @@ import sys
 import tempfile
 import unittest.mock
 import urllib.parse
-from pathlib import Path
 
 import pytest
 
@@ -144,7 +143,7 @@ def dags(log_app, create_dummy_dag, testing_dag_bundle, session):
     bag = DagBag(os.devnull, include_examples=False)
     bag.bag_dag(dag=dag)
     bag.bag_dag(dag=dag_removed)
-    bag.sync_to_db("testing", Path("/test/bundle"), None, session=session)
+    bag.sync_to_db("testing", None, session=session)
     log_app.dag_bag = bag
 
     yield dag, dag_removed

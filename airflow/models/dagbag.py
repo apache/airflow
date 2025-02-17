@@ -638,13 +638,13 @@ class DagBag(LoggingMixin):
         return report
 
     @provide_session
-    def sync_to_db(
-        self, bundle_name: str, bundle_path: Path, bundle_version: str | None, session: Session = NEW_SESSION
-    ):
+    def sync_to_db(self, bundle_name: str, bundle_version: str | None, session: Session = NEW_SESSION):
         """Save attributes about list of DAG to the DB."""
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
         from airflow.models.dagcode import DagCode
 
+        # Fallback to empty path - DAGs are parsed outside of bundle, relative filelocs are absolute.
+        bundle_path = self.bundle_path or Path("")
         code_reader = lambda rel_fileloc: DagCode.get_code_from_file(str(bundle_path / Path(rel_fileloc)))
         update_dag_parsing_results_in_db(
             bundle_name,

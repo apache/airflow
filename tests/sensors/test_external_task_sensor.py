@@ -24,7 +24,6 @@ import re
 import tempfile
 import zipfile
 from datetime import time, timedelta
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -100,7 +99,7 @@ def dag_zip_maker(testing_dag_bundle):
                 for dag_file in self.__dag_files:
                     zf.write(dag_file, os.path.basename(dag_file))
             dagbag = DagBag(dag_folder=self.__tmp_dir, include_examples=False)
-            dagbag.sync_to_db("testing", Path("/test/bundle"), None)
+            dagbag.sync_to_db("testing", None)
             return dagbag
 
         def __exit__(self, exc_type, exc_val, exc_tb):

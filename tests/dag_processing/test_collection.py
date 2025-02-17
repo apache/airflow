@@ -259,7 +259,7 @@ class TestUpdateDagParsingResults:
         mock_bulk_write_to_db.side_effect = side_effect
 
         mock_session = mock.MagicMock()
-        code_reader=lambda _: "source-code"
+        code_reader = lambda _: "source-code"
         update_dag_parsing_results_in_db(
             "testing",
             None,
