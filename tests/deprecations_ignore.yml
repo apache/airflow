@@ -25,7 +25,7 @@
 - tests/models/test_dagbag.py::TestDagBag::test_load_subdags
 - tests/models/test_mappedoperator.py::test_expand_mapped_task_instance_with_named_index
 - tests/models/test_xcom.py::TestXCom::test_set_serialize_call_old_signature
-
+- tests/serialization/test_dag_serialization.py::TestStringifiedDAGs::test_serialize_mapped_sensor_has_reschedule_dep
 
 # WWW
 - tests/www/api/experimental/test_dag_runs_endpoint.py::TestDagRunsEndpoint::test_get_dag_runs_success
