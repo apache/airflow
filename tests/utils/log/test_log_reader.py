@@ -125,10 +125,9 @@ class TestLogView:
         task_log_reader = TaskLogReader()
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
-        logs, metadatas = task_log_reader.read_log_chunks(ti=ti, try_number=1, metadata={})
-        assert logs[0] == [
+        logs, metadata = task_log_reader.read_log_chunks(ti=ti, try_number=1, metadata={})
+        assert logs == [
             (
-                "localhost",
                 " INFO - ::group::Log message source details\n"
                 "*** Found local files:\n"
                 f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
@@ -136,7 +135,7 @@ class TestLogView:
                 "try_number=1.",
             )
         ]
-        assert metadatas == {"end_of_log": True, "log_pos": 13}
+        assert metadata == {"end_of_log": True, "log_pos": 13}
 
     def test_test_read_log_chunks_should_read_all_files(self):
         task_log_reader = TaskLogReader()

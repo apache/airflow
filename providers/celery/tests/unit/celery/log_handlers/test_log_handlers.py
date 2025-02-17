@@ -37,6 +37,7 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -78,8 +79,14 @@ class TestFileTaskLogHandler:
 
             fth._read_from_logs_server = mock.Mock()
             fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
-            actual = fth._read(ti=ti, try_number=1)
+            logs, metadata = fth._read(ti=ti, try_number=1)
             fth._read_from_logs_server.assert_called_once()
-        assert "*** this message\n" in actual[0]
-        assert actual[0].endswith("this\nlog\ncontent")
-        assert actual[1] == {"end_of_log": False, "log_pos": 16}
+
+        if AIRFLOW_V_3_0_PLUS:
+            assert metadata == {"end_of_log": False, "log_pos": 3}
+            assert logs[0].sources == ["this message"]
+            assert [x.event for x in logs[-3:]] == ["this", "log", "content"]
+        else:
+            assert "*** this message\n" in logs
+            assert logs.endswith("this\nlog\ncontent")
+            assert metadata == {"end_of_log": False, "log_pos": 16}
