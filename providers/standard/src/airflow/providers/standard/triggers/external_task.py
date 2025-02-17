@@ -41,15 +41,15 @@ class WorkflowTrigger(BaseTrigger):
     """
     A trigger to monitor tasks, task group and dag execution in Apache Airflow.
 
-    :param external_dag_id: The ID of the external DAG.
-    :param run_ids: A list of run ids for the external DAG.
+    :param external_dag_id: The ID of the external dag.
+    :param run_ids: A list of run ids for the external dag.
     :param external_task_ids: A collection of external task IDs to wait for.
     :param external_task_group_id: The ID of the external task group to wait for.
     :param failed_states: States considered as failed for external tasks.
     :param skipped_states: States considered as skipped for external tasks.
     :param allowed_states: States considered as successful for external tasks.
     :param poke_interval: The interval (in seconds) for poking the external tasks.
-    :param soft_fail: If True, the trigger will not fail the entire DAG on external task failure.
+    :param soft_fail: If True, the trigger will not fail the entire dag on external task failure.
     """
 
     def __init__(

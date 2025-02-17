@@ -40,7 +40,7 @@ from tests_common.test_utils.db import parse_and_sync_to_db
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
-DEFAULT_RUN_ID = f"{DagRunType.MANUAL}__{DEFAULT_DATE.isoformat()}"
+DEFAULT_RUN_ID = "testing_run_id"
 TEST_DAG_ID = "testdag"
 TRIGGERED_DAG_ID = "triggerdag"
 DAG_SCRIPT = f"""\
@@ -580,6 +580,7 @@ class TestDagRunOperator:
                 poke_interval=10,
                 allowed_states=[State.QUEUED],
                 deferrable=True,
+                trigger_run_id=DEFAULT_RUN_ID,
             )
         dag_maker.sync_dagbag_to_db()
         parse_and_sync_to_db(self.f_name)
@@ -613,6 +614,7 @@ class TestDagRunOperator:
                 poke_interval=10,
                 allowed_states=[State.SUCCESS],
                 deferrable=True,
+                trigger_run_id=DEFAULT_RUN_ID,
             )
         dag_maker.sync_dagbag_to_db()
         parse_and_sync_to_db(self.f_name)
@@ -651,6 +653,7 @@ class TestDagRunOperator:
                 allowed_states=[State.SUCCESS],
                 failed_states=[State.QUEUED],
                 deferrable=True,
+                trigger_run_id=DEFAULT_RUN_ID,
             )
         dag_maker.sync_dagbag_to_db()
         parse_and_sync_to_db(self.f_name)
