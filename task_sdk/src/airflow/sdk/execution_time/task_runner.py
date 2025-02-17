@@ -321,7 +321,7 @@ class RuntimeTaskInstance(TaskInstance):
 
                 # The execution API server deals in json compliant types now.
                 # serde's deserialize can handle deserializing primitive, collections, and complex objects too
-                xcoms.append(deserialize(msg.value))
+                xcoms.append(deserialize(msg.value))  # type: ignore[type-var]
             else:
                 xcoms.append(default)
 
