@@ -40,7 +40,7 @@ from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.operators.compute import (
@@ -81,6 +81,10 @@ DB_NAME = "testdb"
 DB_PORT = 5432
 DB_USER_NAME = "root"
 DB_USER_PASSWORD = "demo_password"
+SCHEMA = [
+    {"name": "emp_name", "type": "STRING", "mode": "NULLABLE"},
+    {"name": "salary", "type": "FLOAT", "mode": "NULLABLE"},
+]
 SETUP_POSTGRES_COMMAND = f"""
 sudo apt update &&
 sudo apt install -y docker.io &&
@@ -173,15 +177,13 @@ with DAG(
         location=REGION,
     )
 
-    create_bigquery_table = BigQueryCreateEmptyTableOperator(
+    create_bigquery_table = BigQueryCreateTableOperator(
         task_id="create_bigquery_table",
         dataset_id=BIGQUERY_DATASET_NAME,
-        location=REGION,
         table_id=BIGQUERY_TABLE,
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "salary", "type": "FLOAT", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     insert_bigquery_data = BashOperator(
