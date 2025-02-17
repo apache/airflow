@@ -382,7 +382,7 @@ at the same version.
 
 When you introduce a breaking change in the provider, you have to make sure that you communicate it
 properly. You have to update ``changelog.rst`` file in the ``docs`` folder of the provider package.
-Ideally you should providea migration path for the users to follow in the``changelog.rst``.
+Ideally you should provide a migration path for the users to follow in the``changelog.rst``.
 
 If in doubt, you can always look at ``changelog.rst``  in other providers to see how we communicate
 breaking changes in the providers.
