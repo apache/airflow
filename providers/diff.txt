@@ -1,0 +1,168 @@
+diff --git a/providers/edge/README.rst b/providers/edge/README.rst
+index 11509999df..444662ebdd 100644
+--- a/providers/edge/README.rst
++++ b/providers/edge/README.rst
+@@ -24,7 +24,7 @@
+ 
+ Package ``apache-airflow-providers-edge``
+ 
+-Release: ``0.16.0pre0``
++Release: ``0.17.0pre0``
+ 
+ 
+ Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
+@@ -37,7 +37,7 @@ This is a provider package for ``edge`` provider. All classes for this provider
+ are in ``airflow.providers.edge`` python package.
+ 
+ You can find package information and changelog for the provider
+-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge/0.16.0pre0/>`_.
++in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge/0.17.0pre0/>`_.
+ 
+ Installation
+ ------------
+@@ -60,4 +60,4 @@ PIP package         Version required
+ ==================  ===================
+ 
+ The changelog for the provider package can be found in the
+-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge/0.16.0pre0/changelog.html>`_.
++`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge/0.17.0pre0/changelog.html>`_.
+diff --git a/providers/edge/docs/changelog.rst b/providers/edge/docs/changelog.rst
+index 25742a6bc4..ed1ea63b64 100644
+--- a/providers/edge/docs/changelog.rst
++++ b/providers/edge/docs/changelog.rst
+@@ -27,6 +27,15 @@
+ Changelog
+ ---------
+ 
++0.17.0pre0
++..........
++
++Misc
++~~~~
++
++* ``CLI allows to wait until edge worker is completed when stopping.``
++
++
+ 0.16.0pre0
+ ..........
+ 
+diff --git a/providers/edge/docs/edge_executor.rst b/providers/edge/docs/edge_executor.rst
+index a970c95d54..766f48a37b 100644
+--- a/providers/edge/docs/edge_executor.rst
++++ b/providers/edge/docs/edge_executor.rst
+@@ -281,7 +281,6 @@ The following features are known missing and will be implemented in increments:
+   - Use WebSockets instead of HTTP calls for communication
+   - Send logs also to TaskFileHandler if external logging services are used
+   - Integration into telemetry to send metrics from remote site
+-  - Allow ``airflow edge stop`` to wait until completed to terminated
+   - Publish system metrics with heartbeats (CPU, Disk space, RAM, Load)
+   - Be more liberal e.g. on patch version. MVP requires exact version match
+     (In current state if versions do not match, the worker will gracefully shut
+diff --git a/providers/edge/provider.yaml b/providers/edge/provider.yaml
+index 2d3cc5c174..27a889e2f7 100644
+--- a/providers/edge/provider.yaml
++++ b/providers/edge/provider.yaml
+@@ -25,7 +25,7 @@ source-date-epoch: 1737371680
+ 
+ # note that those versions are maintained by release manager - do not update them manually
+ versions:
+-  - 0.16.0pre0
++  - 0.17.0pre0
+ 
+ plugins:
+   - name: edge_executor
+diff --git a/providers/edge/pyproject.toml b/providers/edge/pyproject.toml
+index 017d53ceca..4333cd9e02 100644
+--- a/providers/edge/pyproject.toml
++++ b/providers/edge/pyproject.toml
+@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
+ 
+ [project]
+ name = "apache-airflow-providers-edge"
+-version = "0.16.0pre0"
++version = "0.17.0pre0"
+ description = "Provider package apache-airflow-providers-edge for Apache Airflow"
+ readme = "README.rst"
+ authors = [
+@@ -61,8 +61,8 @@ dependencies = [
+ ]
+ 
+ [project.urls]
+-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.16.0pre0"
+-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.16.0pre0/changelog.html"
++"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.17.0pre0"
++"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.17.0pre0/changelog.html"
+ "Bug Tracker" = "https://github.com/apache/airflow/issues"
+ "Source Code" = "https://github.com/apache/airflow"
+ "Slack Chat" = "https://s.apache.org/airflow-slack"
+diff --git a/providers/edge/src/airflow/providers/edge/__init__.py b/providers/edge/src/airflow/providers/edge/__init__.py
+index 05df31d0ba..8e03eafcfb 100644
+--- a/providers/edge/src/airflow/providers/edge/__init__.py
++++ b/providers/edge/src/airflow/providers/edge/__init__.py
+@@ -29,7 +29,7 @@ from airflow import __version__ as airflow_version
+ 
+ __all__ = ["__version__"]
+ 
+-__version__ = "0.16.0pre0"
++__version__ = "0.17.0pre0"
+ 
+ if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
+     "2.10.0"
+diff --git a/providers/edge/src/airflow/providers/edge/cli/edge_command.py b/providers/edge/src/airflow/providers/edge/cli/edge_command.py
+index 7a0e1ed143..5c6a872006 100644
+--- a/providers/edge/src/airflow/providers/edge/cli/edge_command.py
++++ b/providers/edge/src/airflow/providers/edge/cli/edge_command.py
+@@ -449,11 +449,18 @@ def stop(args):
+     pid = read_pid_from_pidfile(_pid_file_path(args.pid))
+     # Send SIGINT
+     if pid:
+-        logger.warning("Sending SIGINT to worker pid %i.", pid)
++        logger.info("Sending SIGINT to worker pid %i.", pid)
+         worker_process = psutil.Process(pid)
+         worker_process.send_signal(signal.SIGINT)
+     else:
+         logger.warning("Could not find PID of worker.")
++        sys.exit(1)
++
++    if args.wait:
++        logger.info("Waiting for worker to stop...")
++        while psutil.pid_exists(pid):
++            sleep(0.1)
++        logger.info("Worker has been shut down.")
+ 
+ 
+ ARG_CONCURRENCY = Arg(
+@@ -470,6 +477,12 @@ ARG_EDGE_HOSTNAME = Arg(
+     ("-H", "--edge-hostname"),
+     help="Set the hostname of worker if you have multiple workers on a single machine",
+ )
++ARG_WAIT = Arg(
++    ("-w", "--wait"),
++    default=False,
++    help="Wait until edge worker is shot down.",
++    action="store_true",
++)
+ EDGE_COMMANDS: list[ActionCommand] = [
+     ActionCommand(
+         name=worker.__name__,
+@@ -488,6 +501,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
+         help=stop.__doc__,
+         func=stop,
+         args=(
++            ARG_WAIT,
+             ARG_PID,
+             ARG_VERBOSE,
+         ),
+diff --git a/providers/edge/src/airflow/providers/edge/get_provider_info.py b/providers/edge/src/airflow/providers/edge/get_provider_info.py
+index ffcbe2de6a..54b446b677 100644
+--- a/providers/edge/src/airflow/providers/edge/get_provider_info.py
++++ b/providers/edge/src/airflow/providers/edge/get_provider_info.py
+@@ -28,7 +28,7 @@ def get_provider_info():
+         "description": "Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites\n",
+         "state": "not-ready",
+         "source-date-epoch": 1737371680,
+-        "versions": ["0.16.0pre0"],
++        "versions": ["0.17.0pre0"],
+         "plugins": [
+             {
+                 "name": "edge_executor",
