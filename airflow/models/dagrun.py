@@ -313,20 +313,14 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def dag_versions(self) -> list[DagVersion]:
-        """
-        Return the DAG versions associated with the TIs of this DagRun.
-
-        :param session: database session
-        """
-        return list(dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions)))
+        """Return the DAG versions associated with the TIs of this DagRun."""
+        dag_versions = list(dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions)))
+        sorted_ = sorted(dag_versions, key=lambda dv: dv.id)
+        return sorted_
 
     @property
     def version_number(self) -> int | None:
-        """
-        Return the DAG version number associated with the latest TI of this DagRun.
-
-        :param session: database session
-        """
+        """Return the DAG version number associated with the latest TI of this DagRun."""
         dag_versions = self.dag_versions
         if dag_versions:
             return dag_versions[-1].version_number
