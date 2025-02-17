@@ -302,6 +302,9 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("scheduler", "dependency_detector"),
     ),
     ConfigChange(
+        config=ConfigParameter("scheduler", "allow_trigger_in_future"),
+    ),
+    ConfigChange(
         config=ConfigParameter("scheduler", "processor_poll_interval"),
         renamed_to=ConfigParameter("scheduler", "scheduler_idle_sleep_time"),
     ),

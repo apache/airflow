@@ -116,6 +116,8 @@ class DAGRunsBatchBody(StrictBaseModel):
     page_limit: NonNegativeInt = 100
     dag_ids: list[str] | None = None
     states: list[DagRunState | None] | None = None
+    run_after_gte: AwareDatetime | None = None
+    run_after_lte: AwareDatetime | None = None
     logical_date_gte: AwareDatetime | None = None
     logical_date_lte: AwareDatetime | None = None
     start_date_gte: AwareDatetime | None = None

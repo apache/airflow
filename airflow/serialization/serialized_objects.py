@@ -1392,7 +1392,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             elif k == "downstream_task_ids":
                 v = set(v)
             elif k in {"retry_delay", "execution_timeout", "max_retry_delay"}:
-                v = cls._deserialize_timedelta(v)
+                # If operator's execution_timeout is None and core.default_task_execution_timeout is not None,
+                # v will be None so do not deserialize into timedelta
+                if v is not None:
+                    v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
                 pass
             elif k == "resources":

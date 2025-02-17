@@ -46,8 +46,7 @@ PYPROJECT_TOML_FILE_PATH = AIRFLOW_SOURCES_ROOT / "pyproject.toml"
 MY_FILE = Path(__file__).resolve()
 MY_MD5SUM_FILE = MY_FILE.parent / MY_FILE.name.replace(".py", ".py.md5sum")
 
-# TODO(potiuk) - remove this when we move all providers to the new structure
-NEW_STRUCTURE_PROVIDERS: set[str] = set()
+PROVIDERS: set[str] = set()
 
 PYPROJECT_TOML_CONTENT: dict[str, dict[str, Any]] = {}
 
@@ -121,7 +120,7 @@ def find_all_providers_and_provider_files():
                     provider_name = str(provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)).replace(
                         os.sep, "."
                     )
-                    NEW_STRUCTURE_PROVIDERS.add(provider_name)
+                    PROVIDERS.add(provider_name)
                     PYPROJECT_TOML_CONTENT[provider_name] = load_pyproject_toml(
                         provider_yaml_file.parent / "pyproject.toml"
                     )
@@ -234,7 +233,7 @@ if __name__ == "__main__":
     for provider in sorted(ALL_PROVIDERS.keys()):
         provider_yaml_content = ALL_PROVIDERS[provider]
         console.print(f"Reading dependencies for provider: {provider}")
-        if provider in NEW_STRUCTURE_PROVIDERS:
+        if provider in PROVIDERS:
             ALL_DEPENDENCIES[provider]["deps"].extend(
                 PYPROJECT_TOML_CONTENT[provider]["project"]["dependencies"]
             )

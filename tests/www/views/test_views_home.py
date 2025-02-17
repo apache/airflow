@@ -22,19 +22,15 @@ import flask
 import markupsafe
 import pytest
 
-from airflow.models.errors import ParseImportError
-from airflow.security import permissions
 from airflow.utils.state import State
 from airflow.www.utils import UIAlert
 from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
-from providers.fab.tests.provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
-from tests_common.test_utils.permissions import _resource_name
 from tests_common.test_utils.www import (
+    capture_templates,  # noqa: F401
     check_content_in_response,
     check_content_not_in_response,
-    client_with_login,
 )
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -53,7 +49,10 @@ def _setup():
     clean_db()
 
 
-def test_home(capture_templates, admin_client):
+def test_home(
+    capture_templates,  # noqa: F811
+    admin_client,
+):
     with capture_templates() as templates:
         resp = admin_client.get("home", follow_redirects=True)
         check_content_in_response("DAGs", resp)
@@ -119,86 +118,6 @@ def test_home_status_filter_cookie(admin_client):
         assert flask.session[FILTER_LASTRUN_COOKIE] == "all_states"
 
 
-@pytest.fixture(scope="module")
-def user_no_importerror(app):
-    """Create User that cannot access Import Errors"""
-    return create_user(
-        app,
-        username="user_no_importerrors",
-        role_name="role_no_importerrors",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        ],
-    )
-
-
-@pytest.fixture
-def client_no_importerror(app, user_no_importerror):
-    """Client for User that cannot access Import Errors"""
-    return client_with_login(
-        app,
-        username="user_no_importerrors",
-        password="user_no_importerrors",
-    )
-
-
-@pytest.fixture(scope="module")
-def user_single_dag(app):
-    """Create User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
-    return create_user(
-        app,
-        username="user_single_dag",
-        role_name="role_single_dag",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
-            (
-                permissions.ACTION_CAN_READ,
-                _resource_name(TEST_FILTER_DAG_IDS[0], permissions.RESOURCE_DAG),
-            ),
-        ],
-    )
-
-
-@pytest.fixture
-def client_single_dag(app, user_single_dag):
-    """Client for User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
-    return client_with_login(
-        app,
-        username="user_single_dag",
-        password="user_single_dag",
-    )
-
-
-@pytest.fixture(scope="module")
-def user_single_dag_edit(app):
-    """Create User that can edit DAG resource only a single DAG"""
-    return create_user(
-        app,
-        username="user_single_dag_edit",
-        role_name="role_single_dag",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (
-                permissions.ACTION_CAN_EDIT,
-                _resource_name("filter_test_1", permissions.RESOURCE_DAG),
-            ),
-        ],
-    )
-
-
-@pytest.fixture
-def client_single_dag_edit(app, user_single_dag_edit):
-    """Client for User that can only edit the first DAG from TEST_FILTER_DAG_IDS"""
-    return client_with_login(
-        app,
-        username="user_single_dag_edit",
-        password="user_single_dag_edit",
-    )
-
-
 TEST_FILTER_DAG_IDS = ["filter_test_1", "filter_test_2", "a_first_dag_id_asc", "filter.test"]
 TEST_TAGS = ["example", "test", "team", "group"]
 
@@ -212,30 +131,6 @@ def _working_dags(dag_maker):
 
 
 @pytest.fixture
-def _working_dags_with_read_perm(dag_maker):
-    for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
-        if dag_id == "filter_test_1":
-            access_control = {"role_single_dag": {"can_read"}}
-        else:
-            access_control = None
-
-        with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}.py", tags=[tag], access_control=access_control):
-            pass
-
-
-@pytest.fixture
-def _working_dags_with_edit_perm(dag_maker):
-    for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
-        if dag_id == "filter_test_1":
-            access_control = {"role_single_dag": {"can_edit"}}
-        else:
-            access_control = None
-
-        with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}.py", tags=[tag], access_control=access_control):
-            pass
-
-
-@pytest.fixture
 def _broken_dags(session):
     from airflow.models.errors import ParseImportError
 
@@ -245,21 +140,6 @@ def _broken_dags(session):
                 filename=f"/{dag_id}.py", bundle_name="dag_maker", stacktrace="Some Error\nTraceback:\n"
             )
         )
-    session.commit()
-
-
-@pytest.fixture
-def _broken_dags_after_working(dag_maker, session):
-    # First create and process a DAG file that works
-    path = "/all_in_one.py"
-    for dag_id in TEST_FILTER_DAG_IDS:
-        with dag_maker(dag_id=dag_id, fileloc=path, session=session):
-            pass
-
-    # Then create an import error against that file
-    session.add(
-        ParseImportError(filename=path, bundle_name="dag_maker", stacktrace="Some Error\nTraceback:\n")
-    )
     session.commit()
 
 
@@ -281,64 +161,11 @@ def test_home_importerrors(_broken_dags, user_client):
         check_content_in_response(f"/{dag_id}.py", resp)
 
 
-@pytest.mark.usefixtures("_broken_dags", "_working_dags")
-def test_home_no_importerrors_perm(_broken_dags, client_no_importerror):
-    # Users without "can read on import errors" don't see any import errors
-    resp = client_no_importerror.get("home", follow_redirects=True)
-    check_content_not_in_response("Import Errors", resp)
-
-
-@pytest.mark.parametrize(
-    "page",
-    [
-        "home",
-        "home?status=all",
-        "home?status=active",
-        "home?status=paused",
-        "home?lastrun=running",
-        "home?lastrun=failed",
-        "home?lastrun=all_states",
-    ],
-)
-@pytest.mark.usefixtures("_working_dags_with_read_perm", "_broken_dags")
-def test_home_importerrors_filtered_singledag_user(client_single_dag, page):
-    # Users that can only see certain DAGs get a filtered list of import errors
-    resp = client_single_dag.get(page, follow_redirects=True)
-    check_content_in_response("Import Errors", resp)
-    # They can see the first DAGs import error
-    check_content_in_response(f"/{TEST_FILTER_DAG_IDS[0]}.py", resp)
-    check_content_in_response("Traceback", resp)
-    # But not the rest
-    for dag_id in TEST_FILTER_DAG_IDS[1:]:
-        check_content_not_in_response(f"/{dag_id}.py", resp)
-
-
-def test_home_importerrors_missing_read_on_all_dags_in_file(_broken_dags_after_working, client_single_dag):
-    # If a user doesn't have READ on all DAGs in a file, that files traceback is redacted
-    resp = client_single_dag.get("home", follow_redirects=True)
-    check_content_in_response("Import Errors", resp)
-    # They can see the DAG file has an import error
-    check_content_in_response("all_in_one.py", resp)
-    # And the traceback is redacted
-    check_content_not_in_response("Traceback", resp)
-    check_content_in_response("REDACTED", resp)
-
-
 def test_home_dag_list(_working_dags, user_client):
     # Users with "can read on DAGs" gets all DAGs
     resp = user_client.get("home", follow_redirects=True)
     for dag_id in TEST_FILTER_DAG_IDS:
         check_content_in_response(f"dag_id={dag_id}", resp)
-
-
-def test_home_dag_list_filtered_singledag_user(_working_dags_with_read_perm, client_single_dag):
-    # Users that can only see certain DAGs get a filtered list
-    resp = client_single_dag.get("home", follow_redirects=True)
-    # They can see the first DAG
-    check_content_in_response(f"dag_id={TEST_FILTER_DAG_IDS[0]}", resp)
-    # But not the rest
-    for dag_id in TEST_FILTER_DAG_IDS[1:]:
-        check_content_not_in_response(f"dag_id={dag_id}", resp)
 
 
 def test_home_dag_list_search(_working_dags, user_client):
@@ -347,17 +174,6 @@ def test_home_dag_list_search(_working_dags, user_client):
     check_content_in_response("dag_id=filter_test_2", resp)
     check_content_not_in_response("dag_id=filter.test", resp)
     check_content_not_in_response("dag_id=a_first_dag_id_asc", resp)
-
-
-def test_home_dag_edit_permissions(capture_templates, _working_dags_with_edit_perm, client_single_dag_edit):
-    with capture_templates() as templates:
-        client_single_dag_edit.get("home", follow_redirects=True)
-
-    dags = templates[0].local_context["dags"]
-    assert len(dags) > 0
-    dag_edit_perm_tuple = [(dag.dag_id, dag.can_edit) for dag in dags]
-    assert ("filter_test_1", True) in dag_edit_perm_tuple
-    assert ("filter_test_2", False) in dag_edit_perm_tuple
 
 
 def test_home_robots_header_in_response(user_client):

@@ -72,6 +72,7 @@ dependencies = [
     "pytest>=8.2,<9",
     "pyyaml>=6.0.1",
     "requests>=2.31.0",
+    "restructuredtext-lint>=1.4.0",
     "rich-click>=1.7.1",
     "rich>=13.6.0",
     "semver>=3.0.2",

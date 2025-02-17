@@ -269,6 +269,7 @@ def get_dag_runs(
     dag_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
+    run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))],
@@ -284,6 +285,7 @@ def get_dag_runs(
                     "dag_id",
                     "run_id",
                     "logical_date",
+                    "run_after",
                     "start_date",
                     "end_date",
                     "updated_at",
@@ -314,7 +316,7 @@ def get_dag_runs(
 
     dag_run_select, total_entries = paginated_select(
         statement=query,
-        filters=[logical_date, start_date_range, end_date_range, update_at_range, state],
+        filters=[run_after, logical_date, start_date_range, end_date_range, update_at_range, state],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -416,6 +418,10 @@ def get_list_dag_runs_batch(
         Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
         attribute=DagRun.logical_date,
     )
+    run_after = RangeFilter(
+        Range(lower_bound=body.run_after_gte, upper_bound=body.run_after_lte),
+        attribute=DagRun.run_after,
+    )
     start_date = RangeFilter(
         Range(lower_bound=body.start_date_gte, upper_bound=body.start_date_lte),
         attribute=DagRun.start_date,
@@ -434,6 +440,7 @@ def get_list_dag_runs_batch(
             "id",
             "state",
             "dag_id",
+            "run_after",
             "logical_date",
             "run_id",
             "start_date",
@@ -449,7 +456,7 @@ def get_list_dag_runs_batch(
     base_query = select(DagRun)
     dag_runs_select, total_entries = paginated_select(
         statement=base_query,
-        filters=[dag_ids, logical_date, start_date, end_date, state],
+        filters=[dag_ids, logical_date, run_after, start_date, end_date, state],
         order_by=order_by,
         offset=offset,
         limit=limit,

@@ -21,7 +21,7 @@
 
 ## Tests structure
 
-All AWS-related system tests are located inside `providers/tests/system/amazon/aws/`.
+All AWS-related system tests are located inside `providers/amazon/tests/system/amazon/aws/`.
 In this directory you will find test files in the form of Example DAGs, one DAG per file.
 Each test should be self-contained but in the case where additional resources are required,
 they can be found in the `resources` directory on the same level as tests or noted in the
@@ -30,12 +30,12 @@ test's docstring.  Each test file should start with prefix `example_*`.
 Example directory structure:
 
 ```
-providers/tests/system/amazon/aws/tests
-                                      ├── example_athena.py
-                                      ├── example_batch.py
-                                      .
-                                      ├── example_step_functions.py
-                                      └── *
+providers/amazon/tests/system/amazon/aws/tests
+                                             ├── example_athena.py
+                                             ├── example_batch.py
+                                             .
+                                             ├── example_step_functions.py
+                                             └── *
 ```
 
 ## Initial configuration
