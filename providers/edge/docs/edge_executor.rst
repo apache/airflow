@@ -281,7 +281,6 @@ The following features are known missing and will be implemented in increments:
   - Use WebSockets instead of HTTP calls for communication
   - Send logs also to TaskFileHandler if external logging services are used
   - Integration into telemetry to send metrics from remote site
-  - Allow ``airflow edge stop`` to wait until completed to terminated
   - Publish system metrics with heartbeats (CPU, Disk space, RAM, Load)
   - Be more liberal e.g. on patch version. MVP requires exact version match
     (In current state if versions do not match, the worker will gracefully shut
