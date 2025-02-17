@@ -49,6 +49,7 @@ ZONE_ID = "test_zone_id"
 JOB_ID = "job_id"
 
 LOCATION = "us-central1"
+ENTRY_ID = "entry-id"
 ENTRY_GROUP_ID = "entry-group-id"
 ENTRY_GROUP_BODY = {"description": "Some descr"}
 ENTRY_GROUP_UPDATED_BODY = {"description": "Some new descr"}
@@ -59,6 +60,15 @@ ASPECT_TYPE_ID = "aspect-type-id"
 ASPECT_TYPE_BODY = {"description": "Some descr"}
 ASPECT_TYPE_UPDATED_BODY = {"description": "Some new descr"}
 UPDATE_MASK = ["description"]
+UPDATE_MASK_FOR_ENTRY = ["fully_qualified_name"]
+ENTRY_ID_BODY = {
+    "name": f"projects/{PROJECT_ID}/locations/{LOCATION}/entryGroups/{ENTRY_TYPE_ID}/entries/{ENTRY_ID}",
+    "entry_type": f"projects/{PROJECT_ID}/locations/{LOCATION}/entryTypes/{ENTRY_TYPE_ID}",
+}
+ENTRY_ID_UPDATED_BODY = {
+    "fully_qualified_name": f"dataplex:{PROJECT_ID}.{LOCATION}.{ENTRY_GROUP_ID}.some-entry"
+}
+
 
 COMMON_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}"
 DATA_SCAN_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/dataScans/{DATA_SCAN_ID}"
@@ -70,6 +80,7 @@ DATASCAN_PARENT = f"projects/{PROJECT_ID}/locations/{REGION}"
 ENTRY_GROUP_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}/entryGroup/{ENTRY_GROUP_ID}"
 ENTRY_TYPE_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}/entryType/{ENTRY_TYPE_ID}"
 ASPECT_TYPE_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}/aspectType/{ASPECT_TYPE_ID}"
+ENTRY_PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}/entryGroups/{ENTRY_GROUP_ID}/entries/{ENTRY_ID}"
 
 
 class TestDataplexHook:
@@ -629,6 +640,169 @@ class TestDataplexHook:
                 entry_type={**ENTRY_TYPE_UPDATED_BODY, "name": ENTRY_TYPE_PARENT},
                 update_mask=FieldMask(paths=UPDATE_MASK),
                 validate_only=False,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_create_entry(self, mock_client):
+        mock_common_location_path = mock_client.return_value.entry_group_path
+        mock_common_location_path.return_value = ENTRY_GROUP_PARENT
+        self.hook.create_entry(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            entry_id=ENTRY_ID,
+            entry_group_id=ENTRY_GROUP_ID,
+            entry_configuration=ENTRY_ID_BODY,
+        )
+        mock_client.return_value.create_entry.assert_called_once_with(
+            request=dict(
+                parent=ENTRY_GROUP_PARENT,
+                entry_id=ENTRY_ID,
+                entry=ENTRY_ID_BODY,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_delete_entry(self, mock_client):
+        mock_common_location_path = mock_client.return_value.entry_path
+        mock_common_location_path.return_value = ENTRY_PARENT
+        self.hook.delete_entry(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            entry_id=ENTRY_ID,
+            entry_group_id=ENTRY_GROUP_ID,
+        )
+
+        mock_client.return_value.delete_entry.assert_called_once_with(
+            request=dict(
+                name=ENTRY_PARENT,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_list_entries(self, mock_client):
+        mock_common_location_path = mock_client.return_value.entry_group_path
+        mock_common_location_path.return_value = ENTRY_GROUP_PARENT
+        self.hook.list_entries(
+            project_id=PROJECT_ID,
+            entry_group_id=ENTRY_GROUP_ID,
+            location=LOCATION,
+            page_size=2,
+            filter_by="'description' = 'Some descr'",
+        )
+        mock_client.return_value.list_entries.assert_called_once_with(
+            request=dict(
+                parent=ENTRY_GROUP_PARENT,
+                page_size=2,
+                page_token=None,
+                filter="'description' = 'Some descr'",
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_search_entries(self, mock_client):
+        mock_common_location_path = mock_client.return_value.common_location_path
+        mock_common_location_path.return_value = COMMON_PARENT
+        self.hook.search_entries(
+            project_id=PROJECT_ID,
+            location="global",
+            query="displayname:Display Name",
+        )
+        mock_client.return_value.search_entries.assert_called_once_with(
+            request=dict(
+                name=COMMON_PARENT,
+                query="displayname:Display Name",
+                order_by=None,
+                page_size=None,
+                page_token=None,
+                scope=None,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_get_entry(self, mock_client):
+        mock_common_location_path = mock_client.return_value.entry_path
+        mock_common_location_path.return_value = ENTRY_PARENT
+        self.hook.get_entry(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            entry_id=ENTRY_ID,
+            entry_group_id=ENTRY_GROUP_ID,
+        )
+
+        mock_client.return_value.get_entry.assert_called_once_with(
+            request=dict(
+                name=ENTRY_PARENT,
+                view=None,
+                aspect_types=None,
+                paths=None,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_lookup_entry(self, mock_client):
+        mock_common_location_path = mock_client.return_value.common_location_path
+        mock_entry_location_path = mock_client.return_value.entry_path
+        mock_common_location_path.return_value = COMMON_PARENT
+        mock_entry_location_path.return_value = ENTRY_PARENT
+        self.hook.lookup_entry(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            entry_id=ENTRY_ID,
+            entry_group_id=ENTRY_GROUP_ID,
+        )
+
+        mock_client.return_value.lookup_entry.assert_called_once_with(
+            request=dict(
+                name=COMMON_PARENT,
+                entry=ENTRY_PARENT,
+                view=None,
+                aspect_types=None,
+                paths=None,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_CATALOG_HOOK_CLIENT)
+    def test_update_entry(self, mock_client):
+        mock_common_location_path = mock_client.return_value.entry_path
+        mock_common_location_path.return_value = ENTRY_PARENT
+        self.hook.update_entry(
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            entry_id=ENTRY_ID,
+            entry_group_id=ENTRY_GROUP_ID,
+            entry_configuration=ENTRY_ID_UPDATED_BODY,
+            update_mask=UPDATE_MASK_FOR_ENTRY,
+        )
+
+        mock_client.return_value.update_entry.assert_called_once_with(
+            request=dict(
+                entry={**ENTRY_ID_UPDATED_BODY, "name": ENTRY_PARENT},
+                update_mask=FieldMask(paths=UPDATE_MASK_FOR_ENTRY),
+                allow_missing=False,
+                delete_missing_aspects=False,
+                aspect_keys=None,
             ),
             retry=DEFAULT,
             timeout=None,

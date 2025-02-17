@@ -22,32 +22,44 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataplex_v1.services.catalog_service.pagers import (
     ListAspectTypesPager,
+    ListEntriesPager,
     ListEntryGroupsPager,
     ListEntryTypesPager,
+    SearchEntriesPager,
 )
 from google.cloud.dataplex_v1.types import (
     ListAspectTypesRequest,
     ListAspectTypesResponse,
+    ListEntriesRequest,
+    ListEntriesResponse,
     ListEntryGroupsRequest,
     ListEntryGroupsResponse,
     ListEntryTypesRequest,
     ListEntryTypesResponse,
+    SearchEntriesRequest,
+    SearchEntriesResponse,
 )
 
 from airflow.exceptions import TaskDeferred
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCatalogCreateAspectTypeOperator,
     DataplexCatalogCreateEntryGroupOperator,
+    DataplexCatalogCreateEntryOperator,
     DataplexCatalogCreateEntryTypeOperator,
     DataplexCatalogDeleteAspectTypeOperator,
     DataplexCatalogDeleteEntryGroupOperator,
+    DataplexCatalogDeleteEntryOperator,
     DataplexCatalogDeleteEntryTypeOperator,
     DataplexCatalogGetAspectTypeOperator,
     DataplexCatalogGetEntryGroupOperator,
+    DataplexCatalogGetEntryOperator,
     DataplexCatalogGetEntryTypeOperator,
     DataplexCatalogListAspectTypesOperator,
+    DataplexCatalogListEntriesOperator,
     DataplexCatalogListEntryGroupsOperator,
     DataplexCatalogListEntryTypesOperator,
+    DataplexCatalogLookupEntryOperator,
+    DataplexCatalogSearchEntriesOperator,
     DataplexCreateAssetOperator,
     DataplexCreateLakeOperator,
     DataplexCreateOrUpdateDataProfileScanOperator,
@@ -76,6 +88,7 @@ LAKE_STR = "airflow.providers.google.cloud.operators.dataplex.Lake"
 DATASCANJOB_STR = "airflow.providers.google.cloud.operators.dataplex.DataScanJob"
 ZONE_STR = "airflow.providers.google.cloud.operators.dataplex.Zone"
 ASSET_STR = "airflow.providers.google.cloud.operators.dataplex.Asset"
+ENTRY_STR = "airflow.providers.google.cloud.operators.dataplex.Entry"
 ENTRY_GROUP_STR = "airflow.providers.google.cloud.operators.dataplex.EntryGroup"
 ENTRY_TYPE_STR = "airflow.providers.google.cloud.operators.dataplex.EntryType"
 ASPECT_TYPE_STR = "airflow.providers.google.cloud.operators.dataplex.AspectType"
@@ -84,6 +97,7 @@ PROJECT_ID = "project-id"
 REGION = "region"
 LAKE_ID = "lake-id"
 BODY = {"body": "test"}
+
 BODY_LAKE = {
     "display_name": "test_display_name",
     "labels": [],
@@ -100,9 +114,14 @@ TASK_ID = "test_task_id"
 ASSET_ID = "test_asset_id"
 ZONE_ID = "test_zone_id"
 JOB_ID = "test_job_id"
+ENTRY_NAME = "test_entry"
 ENTRY_GROUP_NAME = "test_entry_group"
 ENTRY_TYPE_NAME = "test_entry_type"
 ASPECT_TYPE_NAME = "test_aspect_type"
+ENTRY_BODY = {
+    "name": f"projects/{PROJECT_ID}/locations/{REGION}/entryGroups/{ENTRY_GROUP_NAME}/entries/{ENTRY_NAME}",
+    "entry_type": f"projects/{PROJECT_ID}/locations/{REGION}/entryTypes/{ENTRY_TYPE_NAME}",
+}
 
 
 class TestDataplexCreateTaskOperator:
@@ -1165,6 +1184,230 @@ class TestDataplexCatalogListAspectTypesOperator:
             page_size=None,
             page_token=None,
             filter_by=None,
+            order_by=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCatalogCreateEntryOperator:
+    @mock.patch(ENTRY_STR)
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock, entry_mock):
+        op = DataplexCatalogCreateEntryOperator(
+            task_id="create_task",
+            project_id=PROJECT_ID,
+            location=REGION,
+            entry_id=ENTRY_NAME,
+            entry_group_id=ENTRY_GROUP_NAME,
+            entry_configuration=ENTRY_BODY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        entry_mock.return_value.to_dict.return_value = None
+        op.execute(context=mock.MagicMock())
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.create_entry.assert_called_once_with(
+            entry_id=ENTRY_NAME,
+            entry_group_id=ENTRY_GROUP_NAME,
+            entry_configuration=ENTRY_BODY,
+            location=REGION,
+            project_id=PROJECT_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCatalogGetEntryOperator:
+    @mock.patch(ENTRY_STR)
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock, entry_mock):
+        op = DataplexCatalogGetEntryOperator(
+            project_id=PROJECT_ID,
+            location=REGION,
+            entry_id=ENTRY_NAME,
+            entry_group_id=ENTRY_GROUP_NAME,
+            task_id="get_task",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=mock.MagicMock())
+        entry_mock.return_value.to_dict.return_value = None
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.get_entry.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location=REGION,
+            entry_id=ENTRY_NAME,
+            entry_group_id=ENTRY_GROUP_NAME,
+            view=None,
+            aspect_types=None,
+            paths=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCatalogLookupEntryOperator:
+    @mock.patch(ENTRY_STR)
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock, entry_mock):
+        op = DataplexCatalogLookupEntryOperator(
+            project_id=PROJECT_ID,
+            location=REGION,
+            entry_id=ENTRY_NAME,
+            entry_group_id=ENTRY_GROUP_NAME,
+            task_id="lookup_task",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=mock.MagicMock())
+        entry_mock.return_value.to_dict.return_value = None
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.lookup_entry.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location=REGION,
+            entry_id=ENTRY_NAME,
+            entry_group_id=ENTRY_GROUP_NAME,
+            view=None,
+            aspect_types=None,
+            paths=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCatalogDeleteEntryOperator:
+    @mock.patch(ENTRY_STR)
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock, entry_mock):
+        op = DataplexCatalogDeleteEntryOperator(
+            project_id=PROJECT_ID,
+            location=REGION,
+            entry_id=ENTRY_NAME,
+            entry_group_id=ENTRY_GROUP_NAME,
+            task_id="delete_task",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=mock.MagicMock())
+        entry_mock.return_value.to_dict.return_value = None
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.delete_entry.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location=REGION,
+            entry_id=ENTRY_NAME,
+            entry_group_id=ENTRY_GROUP_NAME,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCatalogListEntriesOperator:
+    @mock.patch(ENTRY_STR)
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock, entry_mock):
+        op = DataplexCatalogListEntriesOperator(
+            project_id=PROJECT_ID,
+            location=REGION,
+            task_id="list_task",
+            entry_group_id=ENTRY_GROUP_NAME,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.list_entries.return_value = ListEntriesPager(
+            response=(
+                ListEntriesResponse(
+                    entries=[
+                        {
+                            "name": f"projects/{PROJECT_ID}/locations/{REGION}/entryGroups/{ENTRY_GROUP_NAME}/entries/{ENTRY_NAME}",
+                            "entry_type": f"projects/{PROJECT_ID}/locations/{REGION}/entryTypes/{ENTRY_TYPE_NAME}",
+                        }
+                    ]
+                )
+            ),
+            method=mock.MagicMock(),
+            request=ListEntriesRequest(parent=""),
+        )
+
+        entry_mock.return_value.to_dict.return_value = None
+        op.execute(context=mock.MagicMock())
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        hook_mock.return_value.list_entries.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location=REGION,
+            entry_group_id=ENTRY_GROUP_NAME,
+            page_size=None,
+            page_token=None,
+            filter_by=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataplexCatalogSearchEntriesOperator:
+    @mock.patch(ENTRY_STR)
+    @mock.patch(HOOK_STR)
+    def test_execute(self, hook_mock, entry_mock):
+        op = DataplexCatalogSearchEntriesOperator(
+            project_id=PROJECT_ID,
+            location="global",
+            task_id="search_task",
+            query="displayname:Display Name",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.search_entries.return_value = SearchEntriesPager(
+            response=(
+                SearchEntriesResponse(
+                    results=[
+                        {
+                            "dataplex_entry": {
+                                "name": f"projects/{PROJECT_ID}/locations/{REGION}/entryGroups/{ENTRY_GROUP_NAME}/entries/{ENTRY_NAME}",
+                                "entry_type": f"projects/{PROJECT_ID}/locations/{REGION}/entryTypes/{ENTRY_TYPE_NAME}",
+                            }
+                        }
+                    ]
+                )
+            ),
+            method=mock.MagicMock(),
+            request=SearchEntriesRequest(name="", query=""),
+        )
+
+        entry_mock.return_value.to_dict.return_value = None
+        op.execute(context=mock.MagicMock())
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        hook_mock.return_value.search_entries.assert_called_once_with(
+            project_id=PROJECT_ID,
+            location="global",
+            query="displayname:Display Name",
+            page_size=None,
+            page_token=None,
             order_by=None,
             retry=DEFAULT,
             timeout=None,

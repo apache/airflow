@@ -27,18 +27,25 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCatalogCreateAspectTypeOperator,
     DataplexCatalogCreateEntryGroupOperator,
+    DataplexCatalogCreateEntryOperator,
     DataplexCatalogCreateEntryTypeOperator,
     DataplexCatalogDeleteAspectTypeOperator,
     DataplexCatalogDeleteEntryGroupOperator,
+    DataplexCatalogDeleteEntryOperator,
     DataplexCatalogDeleteEntryTypeOperator,
     DataplexCatalogGetAspectTypeOperator,
     DataplexCatalogGetEntryGroupOperator,
+    DataplexCatalogGetEntryOperator,
     DataplexCatalogGetEntryTypeOperator,
     DataplexCatalogListAspectTypesOperator,
+    DataplexCatalogListEntriesOperator,
     DataplexCatalogListEntryGroupsOperator,
     DataplexCatalogListEntryTypesOperator,
+    DataplexCatalogLookupEntryOperator,
+    DataplexCatalogSearchEntriesOperator,
     DataplexCatalogUpdateAspectTypeOperator,
     DataplexCatalogUpdateEntryGroupOperator,
+    DataplexCatalogUpdateEntryOperator,
     DataplexCatalogUpdateEntryTypeOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
@@ -75,6 +82,14 @@ ASPECT_TYPE_BODY = {
     },
 }
 # [END howto_dataplex_aspect_type_configuration]
+
+ENTRY_NAME = f"{DAG_ID}_entry_{ENV_ID}".replace("_", "-")
+# [START howto_dataplex_entry_configuration]
+ENTRY_BODY = {
+    "name": f"projects/{PROJECT_ID}/locations/{GCP_LOCATION}/entryGroups/{ENTRY_GROUP_NAME}/entries/{ENTRY_NAME}",
+    "entry_type": f"projects/{PROJECT_ID}/locations/{GCP_LOCATION}/entryTypes/{ENTRY_TYPE_NAME}",
+}
+# [END howto_dataplex_entry_configuration]
 
 with DAG(
     DAG_ID,
@@ -115,6 +130,17 @@ with DAG(
     )
     # [END howto_operator_dataplex_catalog_create_aspect_type]
 
+    # [START howto_operator_dataplex_catalog_create_entry]
+    create_entry = DataplexCatalogCreateEntryOperator(
+        task_id="create_entry",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        entry_id=ENTRY_NAME,
+        entry_group_id=ENTRY_GROUP_NAME,
+        entry_configuration=ENTRY_BODY,
+    )
+    # [END howto_operator_dataplex_catalog_create_entry]
+
     # [START howto_operator_dataplex_catalog_get_entry_group]
     get_entry_group = DataplexCatalogGetEntryGroupOperator(
         task_id="get_entry_group",
@@ -141,6 +167,16 @@ with DAG(
         aspect_type_id=ASPECT_TYPE_NAME,
     )
     # [END howto_operator_dataplex_catalog_get_aspect_type]
+
+    # [START howto_operator_dataplex_catalog_get_entry]
+    get_entry = DataplexCatalogGetEntryOperator(
+        task_id="get_entry",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        entry_id=ENTRY_NAME,
+        entry_group_id=ENTRY_GROUP_NAME,
+    )
+    # [END howto_operator_dataplex_catalog_get_entry]
 
     # [START howto_operator_dataplex_catalog_list_entry_groups]
     list_entry_group = DataplexCatalogListEntryGroupsOperator(
@@ -171,6 +207,15 @@ with DAG(
         filter_by='display_name = "Display Name"',
     )
     # [END howto_operator_dataplex_catalog_list_aspect_types]
+
+    # [START howto_operator_dataplex_catalog_list_entries]
+    list_entry = DataplexCatalogListEntriesOperator(
+        task_id="list_entry",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        entry_group_id=ENTRY_GROUP_NAME,
+    )
+    # [END howto_operator_dataplex_catalog_list_entries]
 
     # [START howto_operator_dataplex_catalog_update_entry_group]
     update_entry_group = DataplexCatalogUpdateEntryGroupOperator(
@@ -205,6 +250,39 @@ with DAG(
     )
     # [END howto_operator_dataplex_catalog_update_aspect_type]
 
+    # [START howto_operator_dataplex_catalog_update_entry]
+    update_entry = DataplexCatalogUpdateEntryOperator(
+        task_id="update_entry",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        entry_id=ENTRY_NAME,
+        entry_group_id=ENTRY_GROUP_NAME,
+        entry_configuration={
+            "fully_qualified_name": f"dataplex:{PROJECT_ID}.{GCP_LOCATION}.{ENTRY_GROUP_NAME}.some-entry"
+        },
+        update_mask=["fully_qualified_name"],
+    )
+    # [END howto_operator_dataplex_catalog_update_entry]
+
+    # [START howto_operator_dataplex_catalog_search_entry]
+    search_entry = DataplexCatalogSearchEntriesOperator(
+        task_id="search_entry",
+        project_id=PROJECT_ID,
+        location="global",
+        query="displayname:Display Name",
+    )
+    # [END howto_operator_dataplex_catalog_search_entry]
+
+    # [START howto_operator_dataplex_catalog_lookup_entry]
+    lookup_entry = DataplexCatalogLookupEntryOperator(
+        task_id="lookup_entry",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        entry_id=ENTRY_NAME,
+        entry_group_id=ENTRY_GROUP_NAME,
+    )
+    # [END howto_operator_dataplex_catalog_lookup_entry]
+
     # [START howto_operator_dataplex_catalog_delete_entry_group]
     delete_entry_group = DataplexCatalogDeleteEntryGroupOperator(
         task_id="delete_entry_group",
@@ -235,14 +313,26 @@ with DAG(
     )
     # [END howto_operator_dataplex_catalog_delete_aspect_type]
 
+    # [START howto_operator_dataplex_catalog_delete_entry]
+    delete_entry = DataplexCatalogDeleteEntryOperator(
+        task_id="delete_entry",
+        project_id=PROJECT_ID,
+        location=GCP_LOCATION,
+        entry_id=ENTRY_NAME,
+        entry_group_id=ENTRY_GROUP_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    # [END howto_operator_dataplex_catalog_delete_entry]
+
     (
         [
-            create_entry_group >> get_entry_group >> update_entry_group >> delete_entry_group,
+            create_entry_group >> get_entry_group >> update_entry_group >> delete_entry >> delete_entry_group,
             list_entry_group,
-            create_entry_type >> get_entry_type >> update_entry_type >> delete_entry_type,
+            create_entry_type >> get_entry_type >> update_entry_type >> update_entry >> delete_entry_type,
             list_entry_type,
             create_aspect_type >> get_aspect_type >> update_aspect_type >> delete_aspect_type,
-            list_aspect_type,
+            list_aspect_type >> list_entry,
+            create_entry_type >> create_entry >> [get_entry, lookup_entry, search_entry],
         ]
     )
 

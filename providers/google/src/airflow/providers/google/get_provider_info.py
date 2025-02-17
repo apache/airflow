@@ -1436,6 +1436,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.dataplex.DataplexTasksLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexLakeLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypeLink",
+            "airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypesLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupsLink",

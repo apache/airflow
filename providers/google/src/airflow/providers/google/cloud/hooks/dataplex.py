@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
+from collections.abc import MutableSequence, Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
@@ -43,8 +43,10 @@ from google.cloud.dataplex_v1.types import (
     Asset,
     DataScan,
     DataScanJob,
+    Entry,
     EntryGroup,
     EntryType,
+    EntryView,
     Lake,
     Task,
     Zone,
@@ -59,8 +61,10 @@ if TYPE_CHECKING:
     from google.api_core.retry_async import AsyncRetry
     from google.cloud.dataplex_v1.services.catalog_service.pagers import (
         ListAspectTypesPager,
+        ListEntriesPager,
         ListEntryGroupsPager,
         ListEntryTypesPager,
+        SearchEntriesPager,
     )
 
 PATH_DATA_SCAN = "projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
@@ -139,6 +143,419 @@ class DataplexHook(GoogleBaseHook):
         except Exception:
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_entry(
+        self,
+        location: str,
+        entry_id: str,
+        entry_group_id: str,
+        entry_configuration: Entry | dict,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Entry:
+        """
+        Create an EntryType resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_id: Required. Entry identifier. It has to be unique within an Entry Group.
+            Entries corresponding to Google Cloud resources use an Entry ID format based on `full resource
+            names <https://cloud.google.com/apis/design/resource_names#full_resource_name>`__.
+            The format is a full resource name of the resource without the prefix double slashes in the API
+            service name part of the full resource name. This allows retrieval of entries using their
+            associated resource name.
+
+            For example, if the full resource name of a resource is
+            ``//library.googleapis.com/shelves/shelf1/books/book2``, then the suggested entry_id is
+            ``library.googleapis.com/shelves/shelf1/books/book2``.
+
+            It is also suggested to follow the same convention for entries corresponding to resources from
+            providers or systems other than Google Cloud.
+            The maximum size of the field is 4000 characters.
+        :param entry_group_id: Required. EntryGroup resource name to which created Entry belongs to.
+        :param entry_configuration: Required. Entry configuration body.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.create_entry(
+            request={
+                "parent": client.entry_group_path(project_id, location, entry_group_id),
+                "entry_id": entry_id,
+                "entry": entry_configuration,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_entry(
+        self,
+        location: str,
+        entry_id: str,
+        entry_group_id: str,
+        view: EntryView | str | None = None,
+        aspect_types: MutableSequence[str] | None = None,
+        paths: MutableSequence[str] | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Entry:
+        """
+        Get an Entry resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_id: Required. Entry identifier. It has to be unique within an Entry Group.
+            Entries corresponding to Google Cloud resources use an Entry ID format based on `full resource
+            names <https://cloud.google.com/apis/design/resource_names#full_resource_name>`__.
+            The format is a full resource name of the resource without the prefix double slashes in the API
+            service name part of the full resource name. This allows retrieval of entries using their
+            associated resource name.
+
+            For example, if the full resource name of a resource is
+            ``//library.googleapis.com/shelves/shelf1/books/book2``, then the suggested entry_id is
+            ``library.googleapis.com/shelves/shelf1/books/book2``.
+
+            It is also suggested to follow the same convention for entries corresponding to resources from
+            providers or systems other than Google Cloud.
+            The maximum size of the field is 4000 characters.
+        :param entry_group_id: Required. EntryGroup resource name to which created Entry belongs to.
+        :param view: Optional. View to control which parts of an entry the service should return.
+        :param aspect_types: Optional. Limits the aspects returned to the provided aspect types.
+            It only works for CUSTOM view.
+        :param paths: Optional. Limits the aspects returned to those associated with the provided paths
+            within the Entry. It only works for CUSTOM view.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.get_entry(
+            request={
+                "name": client.entry_path(project_id, location, entry_group_id, entry_id),
+                "view": view,
+                "aspect_types": aspect_types,
+                "paths": paths,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_entry(
+        self,
+        location: str,
+        entry_id: str,
+        entry_group_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Entry:
+        """
+        Delete an AspectType resource.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_id: Required. Entry identifier. It has to be unique within an Entry Group.
+            Entries corresponding to Google Cloud resources use an Entry ID format based on `full resource
+            names <https://cloud.google.com/apis/design/resource_names#full_resource_name>`__.
+            The format is a full resource name of the resource without the prefix double slashes in the API
+            service name part of the full resource name. This allows retrieval of entries using their
+            associated resource name.
+
+            For example, if the full resource name of a resource is
+            ``//library.googleapis.com/shelves/shelf1/books/book2``, then the suggested entry_id is
+            ``library.googleapis.com/shelves/shelf1/books/book2``.
+
+            It is also suggested to follow the same convention for entries corresponding to resources from
+            providers or systems other than Google Cloud.
+            The maximum size of the field is 4000 characters.
+        :param entry_group_id: Required. EntryGroup resource name to which created Entry belongs to.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.delete_entry(
+            request={
+                "name": client.entry_path(project_id, location, entry_group_id, entry_id),
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_entries(
+        self,
+        location: str,
+        entry_group_id: str,
+        filter_by: str | None = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> ListEntriesPager:
+        r"""
+        List Entries resources from specific location.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_group_id: Required. EntryGroup resource name to which created Entry belongs to.
+        :param filter_by: Optional. A filter on the entries to return. Filters are case-sensitive.
+            You can filter the request by the following fields:
+
+            - entry_type
+            - entry_source.display_name
+
+            The comparison operators are =, !=, <, >, <=, >=. The service compares strings according to
+            lexical order.
+            You can use the logical operators AND, OR, NOT in the filter. You can use Wildcard "*", but for
+            entry_type you need to provide the full project id or number.
+            Example filter expressions:
+
+            - "entry_source.display_name=AnExampleDisplayName"
+            - "entry_type=projects/example-project/locations/global/entryTypes/example-entry_type"
+            - "entry_type=projects/example-project/locations/us/entryTypes/a\*
+               OR entry_type=projects/another-project/locations/\*"
+            - "NOT entry_source.display_name=AnotherExampleDisplayName".
+
+        :param page_size: Optional. Number of items to return per page. If there are remaining results,
+            the service returns a next_page_token. If unspecified, the service returns at most 10 Entries.
+            The maximum value is 100; values above 100 will be coerced to 100.
+        :param page_token: Optional. Page token received from a previous ``ListEntries`` call. Provide
+            this to retrieve the subsequent page.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.list_entries(
+            request={
+                "parent": client.entry_group_path(project_id, location, entry_group_id),
+                "filter": filter_by,
+                "page_size": page_size,
+                "page_token": page_token,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def search_entries(
+        self,
+        location: str,
+        query: str,
+        order_by: str | None = None,
+        scope: str | None = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> SearchEntriesPager:
+        """
+        Search for Entries matching the given query and scope.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param query: Required. The query against which entries in scope should be matched. The query
+            syntax is defined in `Search syntax for Dataplex Catalog
+            <https://cloud.google.com/dataplex/docs/search-syntax>`__.
+        :param order_by: Optional. Specifies the ordering of results. Supported values are:
+
+            - ``relevance`` (default)
+            - ``last_modified_timestamp``
+            - ``last_modified_timestamp asc``
+
+        :param scope: Optional. The scope under which the search should be operating. It must either be
+            ``organizations/<org_id>`` or ``projects/<project_ref>``. If it is unspecified, it
+            defaults to the organization where the project provided in ``name`` is located.
+        :param page_size: Optional. Number of items to return per page. If there are remaining results,
+            the service returns a next_page_token. If unspecified, the service returns at most 10 Entries.
+            The maximum value is 100; values above 100 will be coerced to 100.
+        :param page_token: Optional. Page token received from a previous ``ListEntries`` call. Provide
+            this to retrieve the subsequent page.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.search_entries(
+            request={
+                "name": client.common_location_path(project_id, location),
+                "query": query,
+                "order_by": order_by,
+                "page_size": page_size,
+                "page_token": page_token,
+                "scope": scope,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def lookup_entry(
+        self,
+        location: str,
+        entry_id: str,
+        entry_group_id: str,
+        view: EntryView | str | None = None,
+        aspect_types: MutableSequence[str] | None = None,
+        paths: MutableSequence[str] | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Entry:
+        """
+        Look up a single Entry by name using the permission on the source system.
+
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param entry_id: Required. Entry identifier. It has to be unique within an Entry Group.
+            Entries corresponding to Google Cloud resources use an Entry ID format based on `full resource
+            names <https://cloud.google.com/apis/design/resource_names#full_resource_name>`__.
+            The format is a full resource name of the resource without the prefix double slashes in the API
+            service name part of the full resource name. This allows retrieval of entries using their
+            associated resource name.
+            For example, if the full resource name of a resource is
+            ``//library.googleapis.com/shelves/shelf1/books/book2``, then the suggested entry_id is
+            ``library.googleapis.com/shelves/shelf1/books/book2``.
+            It is also suggested to follow the same convention for entries corresponding to resources from
+            providers or systems other than Google Cloud.
+            The maximum size of the field is 4000 characters.
+        :param entry_group_id: Required. EntryGroup resource name to which created Entry belongs to.
+        :param view: Optional. View to control which parts of an entry the service should return.
+        :param aspect_types: Optional. Limits the aspects returned to the provided aspect types.
+            It only works for CUSTOM view.
+        :param paths: Optional. Limits the aspects returned to those associated with the provided paths
+            within the Entry. It only works for CUSTOM view.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        return client.lookup_entry(
+            request={
+                "name": client.common_location_path(project_id, location),
+                "entry": client.entry_path(project_id, location, entry_group_id, entry_id),
+                "view": view,
+                "aspect_types": aspect_types,
+                "paths": paths,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_entry(
+        self,
+        location: str,
+        entry_id: str,
+        entry_group_id: str,
+        entry_configuration: dict | Entry,
+        allow_missing: bool | None = False,
+        delete_missing_aspects: bool | None = False,
+        aspect_keys: MutableSequence[str] | None = None,
+        update_mask: list[str] | FieldMask | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Entry:
+        """
+        Update an Entry resource.
+
+        :param entry_id: Required. Entry identifier. It has to be unique within an Entry Group.
+            Entries corresponding to Google Cloud resources use an Entry ID format based on `full resource
+            names <https://cloud.google.com/apis/design/resource_names#full_resource_name>`__.
+            The format is a full resource name of the resource without the prefix double slashes in the API
+            service name part of the full resource name. This allows retrieval of entries using their
+            associated resource name.
+            For example, if the full resource name of a resource is
+            ``//library.googleapis.com/shelves/shelf1/books/book2``, then the suggested entry_id is
+            ``library.googleapis.com/shelves/shelf1/books/book2``.
+            It is also suggested to follow the same convention for entries corresponding to resources from
+            providers or systems other than Google Cloud.
+            The maximum size of the field is 4000 characters.
+        :param entry_group_id: Required. EntryGroup resource name to which created Entry belongs to.
+        :param entry_configuration: Required. The updated configuration body of the Entry.
+        :param location: Required. The ID of the Google Cloud location that the task belongs to.
+        :param update_mask: Optional. Names of fields whose values to overwrite on an entry group.
+            If this parameter is absent or empty, all modifiable fields are overwritten. If such
+            fields are non-required and omitted in the request body, their values are emptied.
+        :param allow_missing: Optional. If set to true and entry doesn't exist, the service will create it.
+        :param delete_missing_aspects: Optional. If set to true and the aspect_keys specify aspect
+            ranges, the service deletes any existing aspects from that range that weren't provided
+            in the request.
+        :param aspect_keys: Optional. The map keys of the Aspects which the service should modify.
+            It supports the following syntax:
+
+            - ``<aspect_type_reference>`` - matches an aspect of the given type and empty path.
+            - ``<aspect_type_reference>@path`` - matches an aspect of the given type and specified path.
+                For example, to attach an aspect to a field that is specified by the ``schema``
+                aspect, the path should have the format ``Schema.<field_name>``.
+            - ``<aspect_type_reference>@*`` - matches aspects of the given type for all paths.
+            - ``*@path`` - matches aspects of all types on the given path.
+
+            The service will not remove existing aspects matching the syntax unless ``delete_missing_aspects``
+            is set to true.
+            If this field is left empty, the service treats it as specifying exactly those Aspects present
+            in the request.
+        :param project_id: Optional. The ID of the Google Cloud project that the task belongs to.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Optional. Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_catalog_client()
+        _entry = (
+            deepcopy(entry_configuration)
+            if isinstance(entry_configuration, dict)
+            else Entry.to_dict(entry_configuration)
+        )
+        _entry["name"] = client.entry_path(project_id, location, entry_group_id, entry_id)
+        return client.update_entry(
+            request={
+                "entry": _entry,
+                "update_mask": FieldMask(paths=update_mask) if type(update_mask) is list else update_mask,
+                "allow_missing": allow_missing,
+                "delete_missing_aspects": delete_missing_aspects,
+                "aspect_keys": aspect_keys,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_aspect_type(
