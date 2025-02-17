@@ -43,16 +43,20 @@ from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
     GoogleDisplayVideo360RunQuerySensor,
 )
+from airflow.utils.trigger_rule import TriggerRule
+
+DAG_ID = "display_video"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 
 # [START howto_display_video_env_variables]
-BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://INVALID BUCKET NAME")
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 ADVERTISER_ID = os.environ.get("GMP_ADVERTISER_ID", 1234567)
-OBJECT_NAME = os.environ.get("GMP_OBJECT_NAME", "files/report.csv")
+OBJECT_NAME = "files/report.csv"
 PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
 PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
-SDF_VERSION = os.environ.get("GMP_SDF_VERSION", "SDF_VERSION_5_5")
-BQ_DATA_SET = os.environ.get("GMP_BQ_DATA_SET", "airflow_test")
+SDF_VERSION = "SDF_VERSION_5_5"
+BQ_DATASET = f"bq_dataset_{DAG_ID}_{ENV_ID}"
 GMP_PARTNER_ID = os.environ.get("GMP_PARTNER_ID", 123)
 ENTITY_TYPE = os.environ.get("GMP_ENTITY_TYPE", "LineItem")
 ERF_SOURCE_OBJECT = GoogleDisplayVideo360Hook.erf_uri(GMP_PARTNER_ID, ENTITY_TYPE)
@@ -86,19 +90,19 @@ CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: dict = {
 DOWNLOAD_LINE_ITEMS_REQUEST: dict = {"filterType": ADVERTISER_ID, "format": "CSV", "fileSpec": "EWF"}
 # [END howto_display_video_env_variables]
 
-START_DATE = datetime(2021, 1, 1)
 
 with DAG(
-    "example_display_video_misc",
-    start_date=START_DATE,
+    "display_video_misc",
+    start_date=datetime(2021, 1, 1),
     catchup=False,
-) as dag_example_display_video_misc:
+    tags=["example", "display_video_misc"],
+) as dag_misc:
     # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
     upload_erf_to_bq = GCSToBigQueryOperator(
         task_id="upload_erf_to_bq",
-        bucket=BUCKET,
+        bucket=BUCKET_NAME,
         source_objects=ERF_SOURCE_OBJECT,
-        destination_project_dataset_table=f"{BQ_DATA_SET}.gcs_to_bq_table",
+        destination_project_dataset_table=f"{BQ_DATASET}.gcs_to_bq_table",
         write_disposition="WRITE_TRUNCATE",
     )
     # [END howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
@@ -107,7 +111,7 @@ with DAG(
     download_line_items = GoogleDisplayVideo360DownloadLineItemsOperator(
         task_id="download_line_items",
         request_body=DOWNLOAD_LINE_ITEMS_REQUEST,
-        bucket_name=BUCKET,
+        bucket_name=BUCKET_NAME,
         object_name=OBJECT_NAME,
         gzip=False,
     )
@@ -116,16 +120,17 @@ with DAG(
     # [START howto_google_display_video_upload_line_items_operator]
     upload_line_items = GoogleDisplayVideo360UploadLineItemsOperator(
         task_id="upload_line_items",
-        bucket_name=BUCKET,
+        bucket_name=BUCKET_NAME,
         object_name=BUCKET_FILE_LOCATION,
     )
     # [END howto_google_display_video_upload_line_items_operator]
 
 with DAG(
-    "example_display_video_sdf",
-    start_date=START_DATE,
+    "display_video_sdf",
+    start_date=datetime(2021, 1, 1),
     catchup=False,
-) as dag_example_display_video_sdf:
+    tags=["example", "display_video_sdf"],
+) as dag_sdf:
     # [START howto_google_display_video_create_sdf_download_task_operator]
     create_sdf_download_task = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
         task_id="create_sdf_download_task", body_request=CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST
@@ -144,7 +149,7 @@ with DAG(
     save_sdf_in_gcs = GoogleDisplayVideo360SDFtoGCSOperator(
         task_id="save_sdf_in_gcs",
         operation_name=operation_name,
-        bucket_name=BUCKET,
+        bucket_name=BUCKET_NAME,
         object_name=BUCKET_FILE_LOCATION,
         gzip=False,
     )
@@ -153,9 +158,9 @@ with DAG(
     # [START howto_google_display_video_gcs_to_big_query_operator]
     upload_sdf_to_big_query = GCSToBigQueryOperator(
         task_id="upload_sdf_to_big_query",
-        bucket=BUCKET,
+        bucket=BUCKET_NAME,
         source_objects=[save_sdf_in_gcs.output],
-        destination_project_dataset_table=f"{BQ_DATA_SET}.gcs_to_bq_table",
+        destination_project_dataset_table=f"{BQ_DATASET}.gcs_to_bq_table",
         schema_fields=[
             {"name": "name", "type": "STRING", "mode": "NULLABLE"},
             {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
@@ -170,10 +175,11 @@ with DAG(
     #   save_sdf_in_gcs >> upload_sdf_to_big_query
 
 with DAG(
-    "example_display_video_v2",
-    start_date=START_DATE,
+    "display_video_v2",
+    start_date=datetime(2021, 1, 1),
     catchup=False,
-) as dag:
+    tags=["example", "display_video_v2"],
+) as dag_v2:
     # [START howto_google_display_video_create_query_operator]
     create_query_v2 = GoogleDisplayVideo360CreateQueryOperator(body=REPORT_V2, task_id="create_query")
 
@@ -202,12 +208,15 @@ with DAG(
         query_id=query_id,
         report_id=report_id,
         task_id="get_report",
-        bucket_name=BUCKET,
+        bucket_name=BUCKET_NAME,
         report_name="test1.csv",
     )
-    # # [END howto_google_display_video_get_report_operator]
-    # # [START howto_google_display_video_delete_query_report_operator]
-    delete_report_v2 = GoogleDisplayVideo360DeleteReportOperator(report_id=report_id, task_id="delete_report")
-    # # [END howto_google_display_video_delete_query_report_operator]
+    # [END howto_google_display_video_get_report_operator]
+
+    # [START howto_google_display_video_delete_query_report_operator]
+    delete_report_v2 = GoogleDisplayVideo360DeleteReportOperator(
+        report_id=report_id, task_id="delete_report", trigger_rule=TriggerRule.ALL_DONE
+    )
+    # [END howto_google_display_video_delete_query_report_operator]
 
     create_query_v2 >> run_query_v2 >> wait_for_query >> get_report_v2 >> delete_report_v2
