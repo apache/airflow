@@ -33,6 +33,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dagrun import DagRun
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
@@ -47,7 +48,7 @@ DEFAULT_DATE = datetime(2020, 6, 11, 18, 0, 0, tzinfo=timezone.utc)
 pytestmark = pytest.mark.db_test
 
 
-def _create_assets(session, num: int = 2) -> None:
+def _create_assets(session, num: int = 2) -> list[AssetModel]:
     assets = [
         AssetModel(
             id=i,
@@ -62,6 +63,7 @@ def _create_assets(session, num: int = 2) -> None:
     ]
     session.add_all(assets)
     session.commit()
+    return assets
 
 
 def _create_assets_with_sensitive_extra(session, num: int = 2) -> None:
@@ -192,8 +194,8 @@ class TestAssets:
         clear_db_runs()
 
     @provide_session
-    def create_assets(self, session, num: int = 2):
-        _create_assets(session=session, num=num)
+    def create_assets(self, session, num: int = 2) -> list[AssetModel]:
+        return _create_assets(session=session, num=num)
 
     @provide_session
     def create_assets_with_sensitive_extra(self, session, num: int = 2):
@@ -921,7 +923,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
 class TestPostAssetEvents(TestAssets):
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, test_client, session):
-        self.create_assets()
+        self.create_assets(session)
         event_payload = {"asset_id": 1, "extra": {"foo": "bar"}}
         response = test_client.post("/public/assets/events", json=event_payload)
         assert response.status_code == 200
@@ -968,6 +970,59 @@ class TestPostAssetEvents(TestAssets):
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
         }
+
+
+@pytest.mark.need_serialized_dag
+class TestPostAssetMaterialize(TestAssets):
+    DAG_ASSET1_ID = "test_dag_1"
+    DAG_ASSET2_ID_A = "test_dag_2a"
+    DAG_ASSET2_ID_B = "test_dag_2b"
+    DAG_ASSET_NO = "test_dag_no"
+
+    @pytest.fixture(autouse=True)
+    def create_dags(self, setup, dag_maker, session):
+        # Depend on 'setup' so it runs first. Otherwise it deletes what we create here.
+        assets = {am.id: am.to_public() for am in self.create_assets(session=session, num=3)}
+        with dag_maker(self.DAG_ASSET1_ID, schedule=None, session=session):
+            EmptyOperator(task_id="task", outlets=assets[1])
+        with dag_maker(self.DAG_ASSET2_ID_A, schedule=None, session=session):
+            EmptyOperator(task_id="task", outlets=assets[2])
+        with dag_maker(self.DAG_ASSET2_ID_B, schedule=None, session=session):
+            EmptyOperator(task_id="task", outlets=assets[2])
+        with dag_maker(self.DAG_ASSET_NO, schedule=None, session=session):
+            EmptyOperator(task_id="task")
+
+    def test_should_respond_200(self, test_client):
+        response = test_client.post("/public/assets/1/materialize")
+        assert response.status_code == 200
+        assert response.json() == {
+            "dag_run_id": mock.ANY,
+            "dag_id": self.DAG_ASSET1_ID,
+            "logical_date": None,
+            "queued_at": mock.ANY,
+            "run_after": mock.ANY,
+            "start_date": None,
+            "end_date": None,
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "state": "queued",
+            "external_trigger": True,
+            "triggered_by": "rest_api",
+            "conf": {},
+            "note": None,
+        }
+
+    def test_should_respond_409_on_multiple_dags(self, test_client):
+        response = test_client.post("/public/assets/2/materialize")
+        assert response.status_code == 409
+        assert response.json()["detail"] == "More than one DAG materializes asset with ID: 2"
+
+    def test_should_respond_404_on_multiple_dags(self, test_client):
+        response = test_client.post("/public/assets/3/materialize")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "No DAG materializes asset with ID: 3"
 
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
