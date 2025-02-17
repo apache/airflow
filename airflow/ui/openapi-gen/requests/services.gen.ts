@@ -15,6 +15,8 @@ import type {
   GetAssetEventsResponse,
   CreateAssetEventData,
   CreateAssetEventResponse,
+  MaterializeAssetData,
+  MaterializeAssetResponse,
   GetAssetQueuedEventsData,
   GetAssetQueuedEventsResponse,
   DeleteAssetQueuedEventsData,
@@ -376,6 +378,31 @@ export class AssetService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Materialize Asset
+   * Materialize an asset by triggering a DAG run that produces it.
+   * @param data The data for the request.
+   * @param data.assetId
+   * @returns DAGRunResponse Successful Response
+   * @throws ApiError
+   */
+  public static materializeAsset(data: MaterializeAssetData): CancelablePromise<MaterializeAssetResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/assets/{asset_id}/materialize",
+      path: {
+        asset_id: data.assetId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -2055,6 +2082,8 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.startDateGte
@@ -2088,6 +2117,8 @@ export class TaskInstanceService {
         task_id: data.taskId,
       },
       query: {
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,
@@ -2330,6 +2361,8 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.startDateGte
@@ -2362,6 +2395,8 @@ export class TaskInstanceService {
       },
       query: {
         task_id: data.taskId,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,

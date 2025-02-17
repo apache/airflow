@@ -333,7 +333,7 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
-"providers/standard/tests/provider_tests/standard/decorators/test_python.py" = ["I002"]
+"providers/standard/tests/unit/standard/decorators/test_python.py" = ["I002"]
 
 # The Pydantic representations of SqlAlchemy Models are not parsed well with Pydantic
 # when __future__.annotations is used so we need to skip them from upgrading
@@ -381,24 +381,24 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_dataset.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_endpoint_service.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_generative_model.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_hyperparameter_tuning_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/links/test_translate.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/operators/test_automl.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_dataset.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_endpoint_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_generative_model.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_hyperparameter_tuning_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/links/test_translate.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/operators/test_automl.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
 "providers/microsoft/azure/tests/conftest.py" = ["E402"]
-"providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
-"providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/unit/qdrant/hooks/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/unit/qdrant/operators/test_qdrant.py" = ["E402"]
 
 # Remove some docstring rules from files that do not need docstrings
 "providers/apache/hdfs/src/airflow/providers/apache/hdfs/sensors/hdfs.py" = ["D101"]
@@ -469,6 +469,7 @@ banned-module-level-imports = ["numpy", "pandas"]
 "sqlalchemy.ext.declarative.as_declarative".msg = "Use `sqlalchemy.orm.as_declarative`. Moved in SQLAlchemy 2.0"
 "sqlalchemy.ext.declarative.has_inherited_table".msg = "Use `sqlalchemy.orm.has_inherited_table`. Moved in SQLAlchemy 2.0"
 "sqlalchemy.ext.declarative.synonym_for".msg = "Use `sqlalchemy.orm.synonym_for`. Moved in SQLAlchemy 2.0"
+"providers".msg = "You should not import 'providers' as a Python module. Imports in providers should be done starting from 'src' or `tests' folders, for example 'from airflow.providers.airbyte'  or 'from unit.airbyte' or 'from system.airbyte'"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
@@ -542,7 +543,6 @@ python_files = [
 testpaths = [
     "tests",
 ]
-
 asyncio_default_fixture_loop_scope = "function"
 
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.

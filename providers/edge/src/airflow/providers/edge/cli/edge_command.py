@@ -449,11 +449,18 @@ def stop(args):
     pid = read_pid_from_pidfile(_pid_file_path(args.pid))
     # Send SIGINT
     if pid:
-        logger.warning("Sending SIGINT to worker pid %i.", pid)
+        logger.info("Sending SIGINT to worker pid %i.", pid)
         worker_process = psutil.Process(pid)
         worker_process.send_signal(signal.SIGINT)
     else:
         logger.warning("Could not find PID of worker.")
+        sys.exit(1)
+
+    if args.wait:
+        logger.info("Waiting for worker to stop...")
+        while psutil.pid_exists(pid):
+            sleep(0.1)
+        logger.info("Worker has been shut down.")
 
 
 ARG_CONCURRENCY = Arg(
@@ -469,6 +476,12 @@ ARG_QUEUES = Arg(
 ARG_EDGE_HOSTNAME = Arg(
     ("-H", "--edge-hostname"),
     help="Set the hostname of worker if you have multiple workers on a single machine",
+)
+ARG_WAIT = Arg(
+    ("-w", "--wait"),
+    default=False,
+    help="Wait until edge worker is shut down.",
+    action="store_true",
 )
 EDGE_COMMANDS: list[ActionCommand] = [
     ActionCommand(
@@ -488,6 +501,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
         help=stop.__doc__,
         func=stop,
         args=(
+            ARG_WAIT,
             ARG_PID,
             ARG_VERBOSE,
         ),
