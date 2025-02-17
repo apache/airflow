@@ -194,7 +194,7 @@ class MSGraphAsyncOperator(BaseOperator):
             self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
             response = execute_callable(
-                self.event_handler,
+                self.event_handler,  # type: ignore
                 event,
                 context,
                 "event_handler signature has changed, event parameter should be defined before context!",
