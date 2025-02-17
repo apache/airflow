@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import locale
 from base64 import b64encode
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 from providers.microsoft.azure.tests.conftest import (
@@ -39,12 +39,11 @@ from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
-if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+try:
+    from airflow.sdk.definitions.context import Context
+except ImportError:
+    # TODO: Remove once provider drops support for Airflow 2
+    from airflow.utils.context import Context
 
 
 class TestMSGraphAsyncOperator(Base):
