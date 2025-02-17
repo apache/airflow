@@ -2871,6 +2871,42 @@ export const useAssetServiceCreateAssetEvent = <
     ...options,
   });
 /**
+ * Materialize Asset
+ * Materialize an asset by triggering a DAG run that produces it.
+ * @param data The data for the request.
+ * @param data.assetId
+ * @returns DAGRunResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceMaterializeAsset = <
+  TData = Common.AssetServiceMaterializeAssetMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        assetId: number;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      assetId: number;
+    },
+    TContext
+  >({
+    mutationFn: ({ assetId }) => AssetService.materializeAsset({ assetId }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Create Backfill
  * @param data The data for the request.
  * @param data.requestBody
