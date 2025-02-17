@@ -220,7 +220,7 @@ class _EdgeWorkerCli:
 
     def shutdown_handler(self, sig, frame):
         logger.info("SIGTERM received. Terminating all jobs and quit")
-        for job in self.jobs:
+        for job in _EdgeWorkerCli.jobs:
             os.killpg(job.process.pid, signal.SIGTERM)
         _EdgeWorkerCli.drain = True
 
@@ -232,7 +232,7 @@ class _EdgeWorkerCli:
             "concurrency": self.concurrency,
             "free_concurrency": self.free_concurrency,
         }
-
+        
     @staticmethod
     def _get_state() -> EdgeWorkerState:
         """State of the Edge Worker."""
@@ -312,7 +312,7 @@ class _EdgeWorkerCli:
         else:
             # Airflow 2.10
             process, logfile = self._launch_job_af2_10(edge_job)
-        self.jobs.append(_Job(edge_job, process, logfile, 0))
+        _EdgeWorkerCli.jobs.append(_Job(edge_job, process, logfile, 0))
 
     def start(self):
         """Start the execution in a loop until terminated."""
@@ -334,7 +334,7 @@ class _EdgeWorkerCli:
         try:
             self.worker_state_changed = self.heartbeat()
             self.last_hb = datetime.now()
-            while not _EdgeWorkerCli.drain or self.jobs:
+            while not _EdgeWorkerCli.drain or _EdgeWorkerCli.jobs:
                 self.loop()
 
             logger.info("Quitting worker, signal being offline.")
@@ -356,7 +356,7 @@ class _EdgeWorkerCli:
     def loop(self):
         """Run a loop of scheduling and monitoring tasks."""
         new_job = False
-        previous_jobs = self.jobs
+        previous_jobs = _EdgeWorkerCli.jobs
         if not any((_EdgeWorkerCli.drain, _EdgeWorkerCli.maintenance_mode)) and self.free_concurrency > 0:
             new_job = self.fetch_job()
         self.check_running_jobs()
@@ -365,7 +365,7 @@ class _EdgeWorkerCli:
             _EdgeWorkerCli.drain
             or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval
             or self.worker_state_changed  # send heartbeat immediately if the state is different in db
-            or bool(previous_jobs) != bool(self.jobs)  # when number of jobs changes from/to 0
+            or bool(previous_jobs) != bool(_EdgeWorkerCli.jobs)  # when number of jobs changes from/to 0
         ):
             self.worker_state_changed = self.heartbeat()
             self.last_hb = datetime.now()
@@ -383,16 +383,16 @@ class _EdgeWorkerCli:
             jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
             return True
 
-        logger.info("No new job to process%s", f", {len(self.jobs)} still running" if self.jobs else "")
+        logger.info("No new job to process%s", f", {len(_EdgeWorkerCli.jobs)} still running" if _EdgeWorkerCli.jobs else "")
         return False
 
     def check_running_jobs(self) -> None:
         """Check which of the running tasks/jobs are completed and report back."""
         used_concurrency = 0
-        for i in range(len(self.jobs) - 1, -1, -1):
-            job = self.jobs[i]
+        for i in range(len(_EdgeWorkerCli.jobs) - 1, -1, -1):
+            job = _EdgeWorkerCli.jobs[i]
             if not job.is_running:
-                self.jobs.remove(job)
+                _EdgeWorkerCli.jobs.remove(job)
                 if job.is_success:
                     logger.info("Job completed: %s", job.edge_job)
                     jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
@@ -431,7 +431,7 @@ class _EdgeWorkerCli:
         sysinfo = self._get_sysinfo()
         worker_state_changed: bool = False
         try:
-            worker_info = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
+            worker_info = worker_set_state(self.hostname, state, len(_EdgeWorkerCli.jobs), self.queues, sysinfo)
             self.queues = worker_info.queues
             if worker_info.state == EdgeWorkerState.MAINTENANCE_REQUEST:
                 logger.info("Maintenance mode requested!")
