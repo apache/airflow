@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+0.18.0pre0
+..........
+
+Misc
+~~~~
+
+* ``CLI allows to retrieve status of worker.``
+
+
 0.17.0pre0
 ..........
 
