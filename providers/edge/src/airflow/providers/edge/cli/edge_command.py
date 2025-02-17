@@ -232,7 +232,7 @@ class _EdgeWorkerCli:
             "concurrency": self.concurrency,
             "free_concurrency": self.free_concurrency,
         }
-        
+
     @staticmethod
     def _get_state() -> EdgeWorkerState:
         """State of the Edge Worker."""
@@ -383,7 +383,10 @@ class _EdgeWorkerCli:
             jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
             return True
 
-        logger.info("No new job to process%s", f", {len(_EdgeWorkerCli.jobs)} still running" if _EdgeWorkerCli.jobs else "")
+        logger.info(
+            "No new job to process%s",
+            f", {len(_EdgeWorkerCli.jobs)} still running" if _EdgeWorkerCli.jobs else "",
+        )
         return False
 
     def check_running_jobs(self) -> None:
@@ -431,7 +434,9 @@ class _EdgeWorkerCli:
         sysinfo = self._get_sysinfo()
         worker_state_changed: bool = False
         try:
-            worker_info = worker_set_state(self.hostname, state, len(_EdgeWorkerCli.jobs), self.queues, sysinfo)
+            worker_info = worker_set_state(
+                self.hostname, state, len(_EdgeWorkerCli.jobs), self.queues, sysinfo
+            )
             self.queues = worker_info.queues
             if worker_info.state == EdgeWorkerState.MAINTENANCE_REQUEST:
                 logger.info("Maintenance mode requested!")
