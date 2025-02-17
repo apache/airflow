@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import pendulum
 import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
@@ -33,6 +36,20 @@ def cleanup():
 
 
 def test_get_dependencies(test_client, dag_maker):
+    with dag_maker(
+        dag_id="external_trigger_dag_id",
+        serialized=True,
+        start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        TriggerDagRunOperator(task_id="trigger_dag_run_operator", trigger_dag_id="downstream")
+
+    dag_maker.sync_dagbag_to_db()
+
+    with dag_maker(dag_id="other_dag", serialized=True):
+        EmptyOperator(task_id="task1")
+
+    dag_maker.sync_dagbag_to_db()
+
     asset = Asset(uri="s3://bucket/next-run-asset/1", name="asset1")
     with dag_maker(dag_id="upstream", serialized=True):
         EmptyOperator(task_id="task2", outlets=[asset])
@@ -42,7 +59,9 @@ def test_get_dependencies(test_client, dag_maker):
         schedule=[asset],
         serialized=True,
     ):
-        EmptyOperator(task_id="task1")
+        EmptyOperator(task_id="task1") >> ExternalTaskSensor(
+            task_id="external_task_sensor", external_dag_id="other_dag"
+        )
 
     dag_maker.sync_dagbag_to_db()
 
@@ -56,8 +75,24 @@ def test_get_dependencies(test_client, dag_maker):
                 "target_id": "dag:downstream",
             },
             {
+                "source_id": "dag:external_trigger_dag_id",
+                "target_id": "trigger:external_trigger_dag_id:downstream:trigger_dag_run_operator",
+            },
+            {
+                "source_id": "dag:other_dag",
+                "target_id": "sensor:other_dag:downstream:external_task_sensor",
+            },
+            {
                 "source_id": "dag:upstream",
                 "target_id": "asset:asset1",
+            },
+            {
+                "source_id": "sensor:other_dag:downstream:external_task_sensor",
+                "target_id": "dag:downstream",
+            },
+            {
+                "source_id": "trigger:external_trigger_dag_id:downstream:trigger_dag_run_operator",
+                "target_id": "dag:downstream",
             },
         ],
         "nodes": [
@@ -70,6 +105,21 @@ def test_get_dependencies(test_client, dag_maker):
                 "id": "asset:asset1",
                 "label": "asset1",
                 "type": "asset",
+            },
+            {
+                "id": "sensor:other_dag:downstream:external_task_sensor",
+                "label": "external_task_sensor",
+                "type": "sensor",
+            },
+            {
+                "id": "dag:external_trigger_dag_id",
+                "label": "external_trigger_dag_id",
+                "type": "dag",
+            },
+            {
+                "id": "trigger:external_trigger_dag_id:downstream:trigger_dag_run_operator",
+                "label": "trigger_dag_run_operator",
+                "type": "trigger",
             },
             {
                 "id": "dag:upstream",
