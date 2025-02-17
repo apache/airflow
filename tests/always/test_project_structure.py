@@ -25,8 +25,7 @@ import pathlib
 import pytest
 
 AIRFLOW_SOURCES_ROOT = pathlib.Path(__file__).parents[2]
-
-NEW_PROVIDER_SRC = AIRFLOW_SOURCES_ROOT.joinpath("providers")
+PROVIDERS_ROOT_PATH = AIRFLOW_SOURCES_ROOT / "providers"
 
 
 class TestProjectStructure:
@@ -216,7 +215,7 @@ class TestProjectStructure:
         modules_files = (f for f in modules_files if "get_provider_info.py" not in f.parts)
         # Make path relative
         modules_files = list(f.relative_to(AIRFLOW_SOURCES_ROOT) for f in modules_files)
-        current_test_files = list(NEW_PROVIDER_SRC.rglob("**/tests/**/*.py"))
+        current_test_files = list(PROVIDERS_ROOT_PATH.rglob("**/tests/**/*.py"))
         # Make path relative
         current_test_files = list(f.relative_to(AIRFLOW_SOURCES_ROOT) for f in current_test_files)
         # Exclude __init__.py
@@ -281,18 +280,9 @@ class ProjectStructureTest:
     CLASS_DIRS = {"operators", "sensors", "transfers"}
     CLASS_SUFFIXES = ["Operator", "Sensor"]
 
-    def class_paths(self):
-        for resource_type in self.CLASS_DIRS:
-            python_files = AIRFLOW_SOURCES_ROOT.glob(
-                f"airflow/providers/{self.PROVIDER}/**/{resource_type}/**/*.py",
-            )
-            # Make path relative
-            resource_files = filter(lambda f: f.name != "__init__.py", python_files)
-            yield from resource_files
-
     def new_class_paths(self):
         for resource_type in self.CLASS_DIRS:
-            python_files = NEW_PROVIDER_SRC.glob(
+            python_files = PROVIDERS_ROOT_PATH.glob(
                 f"{self.PROVIDER}/**/{resource_type}/**/*.py",
             )
             # Make path relative
@@ -302,7 +292,7 @@ class ProjectStructureTest:
     def list_of_classes(self):
         classes = {}
         for file in self.new_class_paths():
-            operators_paths = self.get_classes_from_file(file, NEW_PROVIDER_SRC)
+            operators_paths = self.get_classes_from_file(file, PROVIDERS_ROOT_PATH)
             classes.update(operators_paths)
         return classes
 
