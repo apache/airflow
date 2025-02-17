@@ -3304,6 +3304,45 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_verify_integrity_not_called_for_versioned_bundles(self, dag_maker, session):
+        with dag_maker("test_verify_integrity_if_dag_not_changed") as dag:
+            BashOperator(task_id="dummy", bash_command="echo hi")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        orm_dag = dag_maker.dag_model
+        assert orm_dag is not None
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        dag = self.job_runner.dagbag.get_dag("test_verify_integrity_if_dag_not_changed", session=session)
+        self.job_runner._create_dag_runs([orm_dag], session)
+
+        drs = DagRun.find(dag_id=dag.dag_id, session=session)
+        assert len(drs) == 1
+        dr = drs[0]
+        # Simulate versioned bundle by adding a version to dr.bundle_version
+        dr.bundle_version = "1"
+        session.merge(dr)
+        session.commit()
+        drs = session.query(DagRun).options(joinedload(DagRun.task_instances)).all()
+        dr = drs[0]
+        assert dr.bundle_version == "1"
+        dag_version_1 = DagVersion.get_latest_version(dr.dag_id, session=session)
+
+        # Now let's say the DAG got updated (new task got added)
+        BashOperator(task_id="bash_task_1", dag=dag, bash_command="echo hi")
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+
+        dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
+        assert dag_version_2 != dag_version_1
+
+        # Verify that DagRun.verify_integrity is not called
+        with mock.patch("airflow.jobs.scheduler_job_runner.DagRun.verify_integrity") as mock_verify_integrity:
+            self.job_runner._schedule_dag_run(dr, session)
+            mock_verify_integrity.assert_not_called()
+
     @pytest.mark.need_serialized_dag
     def test_retry_still_in_executor(self, dag_maker, session):
         """

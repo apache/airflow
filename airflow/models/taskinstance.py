@@ -804,7 +804,6 @@ def _set_ti_attrs(target, source, include_dag_run=False):
         target.dag_run.data_interval_start = source.dag_run.data_interval_start
         target.dag_run.data_interval_end = source.dag_run.data_interval_end
         target.dag_run.last_scheduling_decision = source.dag_run.last_scheduling_decision
-        target.dag_run.dag_version_id = source.dag_run.dag_version_id
         target.dag_run.updated_at = source.dag_run.updated_at
         target.dag_run.log_template_id = source.dag_run.log_template_id
 
