@@ -135,11 +135,46 @@ export type BackfillResponse = {
 };
 
 /**
+ * Base Edge serializer for responses.
+ */
+export type BaseEdgeResponse = {
+  source_id: string;
+  target_id: string;
+};
+
+/**
+ * Base Graph serializer for responses.
+ */
+export type BaseGraphResponse = {
+  edges: Array<BaseEdgeResponse>;
+  nodes: Array<BaseNodeResponse>;
+};
+
+/**
  * Base info serializer for responses.
  */
 export type BaseInfoResponse = {
   status: string | null;
 };
+
+/**
+ * Base Node serializer for responses.
+ */
+export type BaseNodeResponse = {
+  id: string;
+  label: string;
+  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
+};
+
+export type type =
+  | "join"
+  | "task"
+  | "asset-condition"
+  | "asset"
+  | "asset-alias"
+  | "dag"
+  | "sensor"
+  | "trigger";
 
 /**
  * Bulk Action to be performed on the used model.
@@ -852,10 +887,10 @@ export type DryRunBackfillResponse = {
  * Edge serializer for responses.
  */
 export type EdgeResponse = {
-  is_setup_teardown?: boolean | null;
-  label?: string | null;
   source_id: string;
   target_id: string;
+  is_setup_teardown?: boolean | null;
+  label?: string | null;
   is_source_asset?: boolean | null;
 };
 
@@ -1025,26 +1060,16 @@ export type JobResponse = {
  * Node serializer for responses.
  */
 export type NodeResponse = {
-  children?: Array<NodeResponse> | null;
   id: string;
-  is_mapped?: boolean | null;
   label: string;
+  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
+  children?: Array<NodeResponse> | null;
+  is_mapped?: boolean | null;
   tooltip?: string | null;
   setup_teardown_type?: "setup" | "teardown" | null;
-  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
   operator?: string | null;
   asset_condition_type?: "or-gate" | "and-gate" | null;
 };
-
-export type type =
-  | "join"
-  | "task"
-  | "asset-condition"
-  | "asset"
-  | "asset-alias"
-  | "dag"
-  | "sensor"
-  | "trigger";
 
 /**
  * Request body for Clear Task Instances endpoint.
@@ -1713,6 +1738,8 @@ export type RecentDagRunsData = {
 };
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetDependenciesResponse = BaseGraphResponse;
 
 export type HistoricalMetricsData = {
   endDate?: string | null;
@@ -2936,6 +2963,16 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dependencies": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BaseGraphResponse;
       };
     };
   };
