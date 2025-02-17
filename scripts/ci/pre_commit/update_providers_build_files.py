@@ -32,8 +32,7 @@ file_list = sys.argv[1:]
 console.print(f"[bright_blue]Determining providers to regenerate from: {file_list}\n")
 
 
-# TODO(potiuk) - rename when all providers are new-style
-def _find_new_providers_structure(examined_file: Path) -> None:
+def _find_all_providers(examined_file: Path) -> None:
     console.print(f"[bright_blue]Looking at {examined_file} for new structure provider.yaml")
     # find the folder where provider.yaml is
     for parent in Path(examined_file).parents:
@@ -60,7 +59,7 @@ def _find_new_providers_structure(examined_file: Path) -> None:
 
 # get all folders from arguments
 for examined_file in file_list:
-    _find_new_providers_structure(Path(examined_file))
+    _find_all_providers(Path(examined_file))
 
 console.print(f"[bright_blue]Regenerating build files for providers: {providers}[/]")
 

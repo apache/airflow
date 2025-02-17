@@ -101,8 +101,6 @@ from airflow_breeze.prepare_providers.provider_packages import (
     apply_version_suffix_to_pyproject_toml,
     build_provider_package,
     cleanup_build_remnants,
-    copy_provider_sources_to_target,
-    generate_build_files,
     get_packages_list_to_act_on,
     move_built_packages_and_cleanup,
     restore_pyproject_toml,
@@ -1054,48 +1052,28 @@ def prepare_provider_packages(
             get_console().print()
             with ci_group(f"Preparing provider package [special]{provider_id}"):
                 get_console().print()
-                # TODO(potiuk) - rename when all providers are new-style
-                new_provider_root_dir = AIRFLOW_PROVIDERS_DIR.joinpath(*provider_id.split("."))
-                if (new_provider_root_dir / "provider.yaml").exists():
+                provider_root_dir = AIRFLOW_PROVIDERS_DIR.joinpath(*provider_id.split("."))
+                if (provider_root_dir / "provider.yaml").exists():
                     get_console().print(
                         f"[info]Provider {provider_id} is a new-style provider building in-place."
                     )
-                    cleanup_build_remnants(new_provider_root_dir)
+                    cleanup_build_remnants(provider_root_dir)
                     old_content = apply_version_suffix_to_pyproject_toml(
-                        provider_id, new_provider_root_dir, package_version_suffix
+                        provider_id, provider_root_dir, package_version_suffix
                     )
                     try:
                         build_provider_package(
                             provider_id=provider_id,
                             package_format=package_format,
-                            target_provider_root_sources_path=new_provider_root_dir,
+                            target_provider_root_sources_path=provider_root_dir,
                         )
                     finally:
-                        restore_pyproject_toml(new_provider_root_dir, old_content)
+                        restore_pyproject_toml(provider_root_dir, old_content)
                     move_built_packages_and_cleanup(
-                        new_provider_root_dir,
+                        provider_root_dir,
                         DIST_DIR,
                         skip_cleanup=skip_deleting_generated_files,
                         delete_only_build_and_dist_folders=True,
-                    )
-                else:
-                    # TODO(potiuk) - remove this once all providers are new-style
-                    target_provider_root_sources_path = copy_provider_sources_to_target(provider_id)
-                    generate_build_files(
-                        provider_id=provider_id,
-                        version_suffix=package_version_suffix,
-                        target_provider_root_sources_path=target_provider_root_sources_path,
-                    )
-                    cleanup_build_remnants(target_provider_root_sources_path)
-                    build_provider_package(
-                        provider_id=provider_id,
-                        package_format=package_format,
-                        target_provider_root_sources_path=target_provider_root_sources_path,
-                    )
-                    move_built_packages_and_cleanup(
-                        target_provider_root_sources_path,
-                        DIST_DIR,
-                        skip_cleanup=skip_deleting_generated_files,
                     )
         except PrepareReleasePackageTagExistException:
             skipped_as_already_released_packages.append(provider_id)
@@ -1927,7 +1905,6 @@ def _add_chicken_egg_providers_to_build_args(
         python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
 
 
-# TODO(potiuk) - remove when all providers are new-style
 @release_management.command(
     name="clean-old-provider-artifacts",
     help="Cleans the old provider artifacts",

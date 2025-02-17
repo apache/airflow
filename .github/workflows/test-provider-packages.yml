@@ -99,7 +99,7 @@ jobs:
       - name: "Prepare provider documentation"
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers
-          --non-interactive
+          --non-interactive --answer yes
         if: matrix.package-format == 'wheel'
       - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: >

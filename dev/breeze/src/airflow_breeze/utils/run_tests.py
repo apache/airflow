@@ -175,8 +175,7 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "OpenAPI": ["clients/python"],
 }
 
-# TODO(potiuk) - rename when all providers are new-style
-ALL_NEW_PROVIDER_TEST_FOLDERS: list[str] = sorted(
+ALL_PROVIDER_TEST_FOLDERS: list[str] = sorted(
     [
         path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
         for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/tests/")
@@ -200,7 +199,7 @@ ALL_PROVIDER_INTEGRATION_TEST_FOLDERS: list[str] = sorted(
 
 TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
     GroupOfTests.CORE: ["tests"],
-    GroupOfTests.PROVIDERS: ALL_NEW_PROVIDER_TEST_FOLDERS,
+    GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
     GroupOfTests.TASK_SDK: ["task_sdk/tests"],
     GroupOfTests.HELM: ["helm_tests"],
     GroupOfTests.INTEGRATION_CORE: ["tests/integration"],

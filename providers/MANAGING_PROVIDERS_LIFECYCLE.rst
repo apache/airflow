@@ -42,9 +42,7 @@ Using the code above you will set up Docker containers. These containers your lo
 In this way, the changes made in your IDE are already applied to the code inside the container and tests can
 be carried out quickly.
 
-# TODO(potiuk) - rename when all providers are new-style
-
-In this how-to guide our example provider name will be ``<NEW_PROVIDER>``.
+In this how-to guide our example provider name will be ``<PROVIDER>``.
 When you see this placeholder you must change for your provider name.
 
 
@@ -64,55 +62,59 @@ triggers (and the list changes continuously).
 
     GIT apache/airflow/
     └── providers/
-        ├── src/
-        │   └── airflow/
-        │       └── providers/<NEW_PROVIDER>/
-        │           ├── __init__.py
-        │           ├── executors/
-        │           │   ├── __init__.py
-        │           │   └── *.py
-        │           ├── hooks/
-        │           │   ├── __init__.py
-        │           │   └── *.py
-        │           ├── notifications/
-        │           │   ├── __init__.py
-        │           │   └── *.py
-        │           ├── operators/
-        │           │   ├── __init__.py
-        │           │   └── *.py
-        │           ├── transfers/
-        │           │   ├── __init__.py
-        │           │   └── *.py
-        │           └── triggers/
-        │               ├── __init__.py
-        │               └── *.py
-        └── tests/
-            ├── <NEW_PROVIDER>/
-            |   ├── __init__.py
-            |   ├── executors/
-            |   │   ├── __init__.py
-            |   │   └── test_*.py
-            |   ├── hooks/
-            |   │   ├── __init__.py
-            |   │   └── test_*.py
-            |   ├── notifications/
-            |   │   ├── __init__.py
-            |   │   └── test_*.py
-            |   ├── operators/
-            |   │   ├── __init__.py
-            |   │   └── test_*.py
-            |   ├── transfers/
-            |   │   ├── __init__.py
-            |   │   └── test_*.py
-            |   └── triggers/
-            |       ├── __init__.py
-            |       └── test_*.py
-            └── system/<NEW_PROVIDER>/
-                ├── __init__.py
-                └── example_*.py
-
-.. note::
-      The above structure is work in progress and subject to change till Task SDK feature is complete.
+                 └── <PROVIDER>/
+                               ├── pyproject.toml
+                               ├── provider.yaml
+                               ├── src/
+                               │   └── airflow/
+                               │       └── providers/<PROVIDER>/
+                               │                               ├── __init__.py
+                               │                               ├── executors/
+                               │                               │   ├── __init__.py
+                               │                               │   └── *.py
+                               │                               ├── hooks/
+                               │                               │   ├── __init__.py
+                               │                               │   └── *.py
+                               │                               ├── notifications/
+                               │                               │   ├── __init__.py
+                               │                               │   └── *.py
+                               │                               ├── operators/
+                               │                               │   ├── __init__.py
+                               │                               │   └── *.py
+                               │                               ├── transfers/
+                               │                               │   ├── __init__.py
+                               │                               │   └── *.py
+                               │                               └── triggers/
+                               │                                   ├── __init__.py
+                               │                                   └── *.py
+                               └── tests/
+                                        ├── unit\
+                                        │       └── <PROVIDER>/
+                                        │                     ├── __init__.py
+                                        │                     ├── executors/
+                                        │                     │   ├── __init__.py
+                                        │                     │   └── test_*.py
+                                        │                     ├── hooks/
+                                        │                     │   ├── __init__.py
+                                        │                     │   └── test_*.py
+                                        │                     ├── notifications/
+                                        │                     │   ├── __init__.py
+                                        │                     │   └── test_*.py
+                                        │                     ├── operators/
+                                        │                     │   ├── __init__.py
+                                        │                     │   └── test_*.py
+                                        │                     ├── transfers/
+                                        │                     │   ├── __init__.py
+                                        │                     │   └── test_*.py
+                                        │                     └── triggers/
+                                        │                         ├── __init__.py
+                                        │                         └── test_*.py
+                                        ├── integration/<PROVIDER>/
+                                        │                         ├── __init__.py
+                                        │                         └── test_integration_*.py
+                                        └── system/<PROVIDER>/
+                                                             ├── __init__.py
+                                                             └── example_*.py
 
 Considering that you have already transferred your provider's code to the above structure, it will now be necessary
 to create unit tests for each component you created. The example below I have already set up an environment using
@@ -120,7 +122,7 @@ breeze and I'll run unit tests for my Hook.
 
   .. code-block:: bash
 
-      root@fafd8d630e46:/opt/airflow# python -m pytest providers/<NEW_PROVIDER>/tests/<NEW_PROVIDER>/hook/test_*.py
+      root@fafd8d630e46:/opt/airflow# python -m pytest providers/<PROVIDER>/tests/<PROVIDER>/hook/test_*.py
 
 Adding chicken-egg providers
 ----------------------------
@@ -219,20 +221,19 @@ by ``breeze release-management`` command by release manager when providers are r
   .. code-block:: bash
 
      ├── pyproject.toml
-     └── providers/<NEW_PROVIDER>/src/airflow/providers/
-                                ├── provider.yaml
-                                ├── pyproject.toml
-                                ├── CHANGELOG.rst
-                                │
-                                └── docs/
-                                    ├── integration-logos
-                                    │                   └── <NEW_PROVIDER>.png
-                                    ├── index.rst
-                                    ├── commits.rst
-                                    ├── connections.rst
-                                    └── operators/
-                                        └── <NEW_PROVIDER>.rst
-
+     └── providers/<PROVIDER>/src/airflow/providers/
+                                                   ├── provider.yaml
+                                                   ├── pyproject.toml
+                                                   ├── CHANGELOG.rst
+                                                   │
+                                                   └── docs/
+                                                       ├── integration-logos
+                                                       │                   └── <PROVIDER>.png
+                                                       ├── index.rst
+                                                       ├── commits.rst
+                                                       ├── connections.rst
+                                                       └── operators/
+                                                           └── <PROVIDER>.rst
 
 There is a chance that your provider's name is not a common English word.
 In this case is necessary to add it to the file ``docs/spelling_wordlist.txt``.
@@ -240,11 +241,11 @@ In this case is necessary to add it to the file ``docs/spelling_wordlist.txt``.
 Add your provider dependencies into ``provider.yaml`` under ``dependencies`` key..
 If your provider doesn't have any dependency add a empty list.
 
-In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/connections.rst``:
+In the ``docs/apache-airflow-providers-<PROVIDER>/connections.rst``:
 
 - add information how to configure connection for your provider.
 
-In the provider's ``docs/operators/<NEW_PROVIDER>.rst`` add information
+In the provider's ``docs/operators/<PROVIDER>.rst`` add information
 how to use the Operator. It's important to add examples and additional information if your
 Operator has extra-parameters.
 
@@ -255,7 +256,7 @@ Operator has extra-parameters.
       NewProviderOperator
       ===================
 
-      Use the :class:`~airflow.providers.<NEW_PROVIDER>.operators.NewProviderOperator` to do something
+      Use the :class:`~airflow.providers.<PROVIDER>.operators.NewProviderOperator` to do something
       amazing with Airflow!
 
       Using the Operator
@@ -264,10 +265,10 @@ Operator has extra-parameters.
       The NewProviderOperator requires a ``connection_id`` and this other awesome parameter.
       You can see an example below:
 
-      .. exampleinclude:: /../../providers/<NEW_PROVIDER>/example_dags/example_<NEW_PROVIDER>.py
+      .. exampleinclude:: /../../providers/<PROVIDER>/example_dags/example_<PROVIDER>.py
           :language: python
-          :start-after: [START howto_operator_<NEW_PROVIDER>]
-          :end-before: [END howto_operator_<NEW_PROVIDER>]
+          :start-after: [START howto_operator_<PROVIDER>]
+          :end-before: [END howto_operator_<PROVIDER>]
 
 
 Copy from another, similar provider the docs: ``docs/*.rst``:
@@ -284,42 +285,42 @@ At least those docs should be present
 
 Make sure to update/add all information that are specific for the new provider.
 
-In the ``providers/<NEW_PROVIDER>/src/airflow/providers/<NEW_PROVIDER>/provider.yaml`` add information of your provider:
+In the ``providers/<PROVIDER>/src/airflow/providers/<PROVIDER>/provider.yaml`` add information of your provider:
 
   .. code-block:: yaml
 
-      package-name: apache-airflow-providers-<NEW_PROVIDER>
-      name: <NEW_PROVIDER>
+      package-name: apache-airflow-providers-<PROVIDER>
+      name: <PROVIDER>
       description: |
-        `<NEW_PROVIDER> <https://example.io/>`__
+        `<PROVIDER> <https://example.io/>`__
       versions:
         - 1.0.0
 
       integrations:
-        - integration-name: <NEW_PROVIDER>
+        - integration-name: <PROVIDER>
           external-doc-url: https://www.example.io/
-          logo: /docs/integration-logos/<NEW_PROVIDER>.png
+          logo: /docs/integration-logos/<PROVIDER>.png
           how-to-guide:
-            - /docs/apache-airflow-providers-<NEW_PROVIDER>/operators/<NEW_PROVIDER>.rst
+            - /docs/apache-airflow-providers-<PROVIDER>/operators/<PROVIDER>.rst
           tags: [service]
 
       operators:
-        - integration-name: <NEW_PROVIDER>
+        - integration-name: <PROVIDER>
           python-modules:
-            - airflow.providers.<NEW_PROVIDER>.operators.<NEW_PROVIDER>
+            - airflow.providers.<PROVIDER>.operators.<PROVIDER>
 
       hooks:
-        - integration-name: <NEW_PROVIDER>
+        - integration-name: <PROVIDER>
           python-modules:
-            - airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>
+            - airflow.providers.<PROVIDER>.hooks.<PROVIDER>
 
       sensors:
-        - integration-name: <NEW_PROVIDER>
+        - integration-name: <PROVIDER>
           python-modules:
-            - airflow.providers.<NEW_PROVIDER>.sensors.<NEW_PROVIDER>
+            - airflow.providers.<PROVIDER>.sensors.<PROVIDER>
 
       connection-types:
-        - hook-class-name: airflow.providers.<NEW_PROVIDER>.hooks.<NEW_PROVIDER>.NewProviderHook
+        - hook-class-name: airflow.providers.<PROVIDER>.hooks.<PROVIDER>.NewProviderHook
         - connection-type: provider-connection-type
 
 After changing and creating these files you can build the documentation locally. The two commands below will

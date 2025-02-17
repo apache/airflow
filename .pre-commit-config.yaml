@@ -1382,7 +1382,7 @@ repos:
         stages: ['manual']
         name: Run mypy for providers (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py all_new_providers
+        entry: ./scripts/ci/pre_commit/mypy_folder.py all_providers
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

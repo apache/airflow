@@ -174,12 +174,8 @@ there where you should add and remove dependencies for providers (following by r
 ``update-providers-dependencies`` pre-commit to synchronize the dependencies with ``pyproject.toml``
 of Airflow).
 
-The old ``provider.yaml`` file is compliant with the schema that is available in
+The ``provider.yaml`` file is compliant with the schema that is available in
 `json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider.yaml.schema.json>`_.
-
-# TODO(potiuk) - rename when all providers are new-style
-The new ``provider.yaml`` file is compliant with the new schema that is available in
-`json-schema specification <https://github.com/apache/airflow/blob/main/airflow/new_provider.yaml.schema.json>`_.
 
 Thanks to that mechanism, you can develop community managed providers in a seamless way directly from
 Airflow sources, without preparing and releasing them as packages separately, which would be rather

@@ -23,8 +23,7 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
 
 
-# TODO(potiuk): rename to all_providers when we move all providers to the new structure
-def _all_new_providers() -> list[str]:
+def _all_providers() -> list[str]:
     providers_root = AIRFLOW_SOURCES_ROOT / "providers"
     return sorted(
         file.parent.relative_to(providers_root).as_posix() for file in providers_root.rglob("provider.yaml")
@@ -98,7 +97,7 @@ def _find_all_integration_folders() -> list[str]:
             GroupOfTests.PROVIDERS,
             "Providers",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                *[f"providers/{provider}/tests" for provider in _all_providers()],
             ],
         ),
         (
@@ -126,7 +125,7 @@ def _find_all_integration_folders() -> list[str]:
             [
                 *[
                     f"providers/{provider}/tests"
-                    for provider in _all_new_providers()
+                    for provider in _all_providers()
                     if provider not in ["amazon", "google", "microsoft/azure"]
                 ],
             ],
@@ -135,7 +134,7 @@ def _find_all_integration_folders() -> list[str]:
             GroupOfTests.PROVIDERS,
             "Providers[-edge]",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers() if provider != "edge"],
+                *[f"providers/{provider}/tests" for provider in _all_providers() if provider != "edge"],
             ],
         ),
         (
@@ -147,7 +146,7 @@ def _find_all_integration_folders() -> list[str]:
             GroupOfTests.PROVIDERS,
             "All-Quarantined",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                *[f"providers/{provider}/tests" for provider in _all_providers()],
                 "-m",
                 "quarantined",
                 "--include-quarantined",
@@ -249,7 +248,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
+                *[f"providers/{provider}/tests" for provider in _all_providers()],
             ],
         ),
         (
@@ -273,7 +272,7 @@ def test_pytest_args_for_missing_provider():
             [
                 *[
                     f"providers/{provider}/tests"
-                    for provider in _all_new_providers()
+                    for provider in _all_providers()
                     if provider not in ["amazon", "google"]
                 ],
             ],
@@ -284,7 +283,7 @@ def test_pytest_args_for_missing_provider():
             [
                 *[
                     f"providers/{provider}/tests"
-                    for provider in _all_new_providers()
+                    for provider in _all_providers()
                     if provider not in ["amazon", "google"]
                 ],
                 *["providers/amazon/tests", "providers/google/tests"],
