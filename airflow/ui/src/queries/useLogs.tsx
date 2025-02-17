@@ -29,7 +29,35 @@ type Props = {
 };
 
 type ParseLogsProps = {
-  data: string | undefined;
+  data: TaskInstanceResponse["content"];
+};
+
+const renderStructuredLog = ({ event, level = undefined, timestamp = undefined, ...structured }, index) => {
+  const elements = [];
+
+  if (Boolean(timestamp)) {
+    elements.push("[", <time datetime={timestamp}>{timestamp}</time>, "] ");
+  }
+
+  if (Boolean(level)) {
+    elements.push(<span className={`log-level ${level}`}>{level.toUpperCase()}</span>, " - ");
+  }
+
+  elements.push(<span className="event">{event}</span>);
+
+  for (const key in structured) {
+    if (!Object.hasOwn(structured, key)) {
+      continue;
+    }
+    elements.push(
+      " ",
+      <span className={`log-key ${key}`}>
+        {key}={JSON.stringify(structured[key])}
+      </span>,
+    );
+  }
+
+  return <p key={index}>{elements}</p>;
 };
 
 // TODO: add support for log groups, colors, formats, filters
@@ -41,16 +69,17 @@ const parseLogs = ({ data }: ParseLogsProps) => {
 
   let warning;
 
+  let parsedLines;
+
   try {
-    lines = data.split("\\n");
-  } catch {
+    parsedLines = data.map(renderStructuredLog);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn(`Error parsing logs: ${error}`);
     warning = "Unable to show logs. There was an error parsing logs.";
 
     return { data, warning };
   }
-
-  // eslint-disable-next-line react/no-array-index-key
-  const parsedLines = lines.map((line, index) => <p key={index}>{line}</p>);
 
   return {
     fileSources: [],

@@ -20,10 +20,11 @@ import logging
 import time
 from collections.abc import Iterator
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Union
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
+from airflow.utils.log.file_task_handler import StructuredLogMessage
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -32,6 +33,10 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.typing_compat import TypeAlias
+
+LogMessages: TypeAlias = Union[list[StructuredLogMessage], str]
+LogMetadata: TypeAlias = dict[str, Any]
 
 
 class TaskLogReader:
@@ -42,13 +47,12 @@ class TaskLogReader:
 
     def read_log_chunks(
         self, ti: TaskInstance, try_number: int | None, metadata
-    ) -> tuple[list[tuple[tuple[str, str]]], dict[str, str]]:
+    ) -> tuple[LogMessages, LogMetadata]:
         """
         Read chunks of Task Instance logs.
 
         :param ti: The taskInstance
-        :param try_number: If provided, logs for the given try will be returned.
-            Otherwise, logs from all attempts are returned.
+        :param try_number:
         :param metadata: A dictionary containing information about how to read the task log
 
         The following is an example of how to use this method to read log:
@@ -62,9 +66,7 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        logs, metadatas = self.log_handler.read(ti, try_number, metadata=metadata)
-        metadata = metadatas[0]
-        return logs, metadata
+        return self.log_handler.read(ti, try_number, metadata=metadata)
 
     def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
         """
@@ -75,29 +77,32 @@ class TaskLogReader:
         :param metadata: A dictionary containing information about how to read the task log
         """
         if try_number is None:
-            next_try = ti.try_number + 1
-            try_numbers = list(range(1, next_try))
-        else:
-            try_numbers = [try_number]
-        for current_try_number in try_numbers:
-            metadata.pop("end_of_log", None)
-            metadata.pop("max_offset", None)
-            metadata.pop("offset", None)
-            metadata.pop("log_pos", None)
-            while True:
-                logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
-                for host, log in logs[0]:
-                    yield "\n".join([host or "", log]) + "\n"
-                if "end_of_log" not in metadata or (
-                    not metadata["end_of_log"]
-                    and ti.state not in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
-                ):
-                    if not logs[0]:
-                        # we did not receive any logs in this loop
-                        # sleeping to conserve resources / limit requests on external services
-                        time.sleep(self.STREAM_LOOP_SLEEP_SECONDS)
-                else:
-                    break
+            try_number = ti.try_number
+        metadata.pop("end_of_log", None)
+        metadata.pop("max_offset", None)
+        metadata.pop("offset", None)
+        metadata.pop("log_pos", None)
+        while True:
+            logs, out_metadata = self.read_log_chunks(ti, try_number, metadata)
+            # Update the metadata dict in place so caller can get new values/end-of-log etc.
+
+            for log in logs:
+                # It's a bit wasteful here to parse the JSON then dump it back again.
+                # Optimize this so in stream mode we can just pass logs right through, or even better add
+                # support to 307 redirect to a signed URL etc.
+                yield (log if isinstance(log, str) else log.model_dump_json()) + "\n"
+            if not out_metadata.get("end_of_log", False) and ti.state not in (
+                TaskInstanceState.RUNNING,
+                TaskInstanceState.DEFERRED,
+            ):
+                if not logs[0]:
+                    # we did not receive any logs in this loop
+                    # sleeping to conserve resources / limit requests on external services
+                    time.sleep(self.STREAM_LOOP_SLEEP_SECONDS)
+            else:
+                metadata.clear()
+                metadata.update(out_metadata)
+                break
 
     @cached_property
     def log_handler(self):

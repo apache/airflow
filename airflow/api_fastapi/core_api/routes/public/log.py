@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import textwrap
-from typing import Any
 
 from fastapi import HTTPException, Request, Response, status
 from itsdangerous import BadSignature, URLSafeSerializer
@@ -65,6 +64,7 @@ text_example_response_for_get_log = {
         },
     },
     response_model=TaskInstancesLogResponse,
+    response_model_exclude_unset=True,
 )
 def get_log(
     dag_id: str,
@@ -135,12 +135,22 @@ def get_log(
         except TaskNotFound:
             pass
 
-    logs: Any
     if accept == Mimetype.JSON or accept == Mimetype.ANY:  # default
         logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
-        # we must have token here, so we can safely ignore it
-        token = URLSafeSerializer(request.app.state.secret_key).dumps(metadata)  # type: ignore[assignment]
-        return TaskInstancesLogResponse(continuation_token=token, content=str(logs[0])).model_dump()
-    # text/plain. Stream
-    logs = task_log_reader.read_log_stream(ti, try_number, metadata)
-    return Response(media_type=accept, content="".join(list(logs)))
+        encoded_token = None
+        if not metadata.get("end_of_log", False):
+            encoded_token = URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
+        return TaskInstancesLogResponse.model_construct(continuation_token=encoded_token, content=logs)
+    else:
+        # text/plain, or something else we don't understand. Return raw log content
+
+        # We need to exhaust the iterator before we can generate the continuation token.
+        # We could improve this by making it a streaming/async response, and by then setting the header using
+        # HTTP Trailers
+        logs = "".join(task_log_reader.read_log_stream(ti, try_number, metadata))
+        headers = None
+        if not metadata.get("end_of_log", False):
+            headers = {
+                "Airflow-Continuation-Token": URLSafeSerializer(request.app.state.secret_key).dumps(metadata)
+            }
+        return Response(media_type="application/x-ndjson", content=logs, headers=headers)
