@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge } from "@chakra-ui/react";
+import { Badge, Text } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 
@@ -117,6 +117,47 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
 
     return { data, warning };
   }
+
+  let startGroup = false;
+  let groupLines: Array<string> = [];
+  let groupName = "";
+
+  /* eslint-disable react/no-array-index-key */
+  const parsedLines = lines.map((line, index) => {
+    if (line.includes("::group::")) {
+      startGroup = true;
+      groupName = line.split("::group::")[1] as string;
+    } else if (line.includes("::endgroup::")) {
+      startGroup = false;
+      groupLines.push(line);
+      const group = (
+        <details>
+          <summary>
+            <Text as="span" color="fg.info" cursor="pointer">
+              {groupName}
+            </Text>
+          </summary>
+          {groupLines.map((text, groupIndex) => (
+            <Text key={groupIndex} py={1}>
+              {text}
+            </Text>
+          ))}
+        </details>
+      );
+
+      groupLines = [];
+
+      return group;
+    }
+
+    if (startGroup) {
+      groupLines.push(line);
+
+      return undefined;
+    } else {
+      return <Text key={index}>{line}</Text>;
+    }
+  });
 
   return {
     fileSources: [],
