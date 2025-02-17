@@ -28,7 +28,7 @@ from pathlib import Path
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
@@ -83,11 +83,13 @@ with DAG(
         dataset_id=DATASET,
     )
 
-    create_table = BigQueryCreateEmptyTableOperator(
+    create_table = BigQueryCreateTableOperator(
         task_id="create_table",
         dataset_id=DATASET,
         table_id=TABLE_1,
-        schema_fields=SCHEMA,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     insert_query_job = BigQueryInsertJobOperator(

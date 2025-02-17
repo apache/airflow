@@ -30,7 +30,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
     BigQueryColumnCheckOperator,
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryGetDataOperator,
     BigQueryInsertJobOperator,
@@ -82,18 +82,22 @@ with DAG(
         dataset_id=DATASET_NAME,
     )
 
-    create_table_1 = BigQueryCreateEmptyTableOperator(
+    create_table_1 = BigQueryCreateTableOperator(
         task_id="create_table_1",
         dataset_id=DATASET_NAME,
         table_id=TABLE_1,
-        schema_fields=SCHEMA,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
-    create_table_2 = BigQueryCreateEmptyTableOperator(
+    create_table_2 = BigQueryCreateTableOperator(
         task_id="create_table_2",
         dataset_id=DATASET_NAME,
         table_id=TABLE_2,
-        schema_fields=SCHEMA,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     # [START howto_operator_bigquery_insert_job]

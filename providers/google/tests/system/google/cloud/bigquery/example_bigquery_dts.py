@@ -32,7 +32,7 @@ from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.operators.bigquery_dts import (
@@ -50,9 +50,8 @@ from system.openlineage.operator import OpenLineageTestOperator
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "gcp_bigquery_dts"
-
-BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
+DAG_ID = "bigquery_dts"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("-", "_")
 
 FILE_NAME = "us-states.csv"
 CURRENT_FOLDER = Path(__file__).parent
@@ -102,14 +101,18 @@ with DAG(
     )
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
-    create_table = BigQueryCreateEmptyTableOperator(
+    create_table = BigQueryCreateTableOperator(
         task_id="create_table",
         dataset_id=DATASET_NAME,
         table_id=DTS_BQ_TABLE,
-        schema_fields=[
-            {"name": "name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {
+                "fields": [
+                    {"name": "name", "type": "STRING", "mode": "REQUIRED"},
+                    {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+        },
     )
 
     # [START howto_bigquery_create_data_transfer]

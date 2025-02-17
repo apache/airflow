@@ -28,7 +28,7 @@ from pathlib import Path
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -47,6 +47,10 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 ORIGIN = "origin"
 TARGET = "target"
+SCHEMA = [
+    {"name": "emp_name", "type": "STRING", "mode": "NULLABLE"},
+    {"name": "salary", "type": "FLOAT", "mode": "NULLABLE"},
+]
 
 with DAG(
     DAG_ID,
@@ -61,24 +65,22 @@ with DAG(
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
-    create_origin_table = BigQueryCreateEmptyTableOperator(
+    create_origin_table = BigQueryCreateTableOperator(
         task_id=f"create_{ORIGIN}_table",
         dataset_id=DATASET_NAME,
         table_id=ORIGIN,
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
-    create_target_table = BigQueryCreateEmptyTableOperator(
+    create_target_table = BigQueryCreateTableOperator(
         task_id=f"create_{TARGET}_table",
         dataset_id=DATASET_NAME,
         table_id=TARGET,
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     copy_selected_data = BigQueryToBigQueryOperator(

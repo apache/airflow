@@ -29,19 +29,20 @@ from pathlib import Path
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateExternalTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-DAG_ID = "example_trino_to_gcs"
+DAG_ID = "trino_to_gcs"
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 GCS_BUCKET = f"bucket_{DAG_ID}_{ENV_ID}"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 
@@ -97,15 +98,11 @@ with DAG(
     # [END howto_operator_trino_to_gcs_multiple_types]
 
     # [START howto_operator_create_external_table_multiple_types]
-    create_external_table_multiple_types = BigQueryCreateExternalTableOperator(  # TODO
+    create_external_table_multiple_types = BigQueryCreateTableOperator(
         task_id="create_external_table_multiple_types",
-        bucket=GCS_BUCKET,
+        dataset_id=DATASET_NAME,
+        table_id=f"{safe_name(SOURCE_SCHEMA_COLUMNS)}",
         table_resource={
-            "tableReference": {
-                "projectId": GCP_PROJECT_ID,
-                "datasetId": DATASET_NAME,
-                "tableId": f"{safe_name(SOURCE_SCHEMA_COLUMNS)}",
-            },
             "schema": {
                 "fields": [
                     {"name": "table_catalog", "type": "STRING"},
@@ -124,8 +121,7 @@ with DAG(
                 "sourceUris": [f"gs://{GCS_BUCKET}/{safe_name(SOURCE_SCHEMA_COLUMNS)}.*.json"],
             },
         },
-        source_objects=[f"{safe_name(SOURCE_SCHEMA_COLUMNS)}.*.json"],
-        schema_object=f"{safe_name(SOURCE_SCHEMA_COLUMNS)}-schema.json",
+        gcs_schema_object=f"gs://{GCS_BUCKET}/{safe_name(SOURCE_SCHEMA_COLUMNS)}-schema.json",
     )
     # [END howto_operator_create_external_table_multiple_types]
 
@@ -152,15 +148,11 @@ with DAG(
     )
     # [END howto_operator_trino_to_gcs_many_chunks]
 
-    create_external_table_many_chunks = BigQueryCreateExternalTableOperator(
+    create_external_table_many_chunks = BigQueryCreateTableOperator(
         task_id="create_external_table_many_chunks",
-        bucket=GCS_BUCKET,
+        dataset_id=DATASET_NAME,
+        table_id=f"{safe_name(SOURCE_CUSTOMER_TABLE)}",
         table_resource={
-            "tableReference": {
-                "projectId": GCP_PROJECT_ID,
-                "datasetId": DATASET_NAME,
-                "tableId": f"{safe_name(SOURCE_CUSTOMER_TABLE)}",
-            },
             "schema": {
                 "fields": [
                     {"name": "custkey", "type": "INT64"},
@@ -176,11 +168,10 @@ with DAG(
             "externalDataConfiguration": {
                 "sourceFormat": "NEWLINE_DELIMITED_JSON",
                 "compression": "NONE",
-                "sourceUris": [f"gs://{GCS_BUCKET}/{safe_name(SOURCE_CUSTOMER_TABLE)}.*.json"],
+                "sourceUris": [f"gs://{GCS_BUCKET}/{safe_name(SOURCE_SCHEMA_COLUMNS)}.*.json"],
             },
         },
-        source_objects=[f"{safe_name(SOURCE_CUSTOMER_TABLE)}.*.json"],
-        schema_object=f"{safe_name(SOURCE_CUSTOMER_TABLE)}-schema.json",
+        gcs_schema_object=f"gs://{GCS_BUCKET}/{safe_name(SOURCE_CUSTOMER_TABLE)}-schema.json",
     )
 
     # [START howto_operator_read_data_from_gcs_many_chunks]

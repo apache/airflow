@@ -26,75 +26,87 @@ from datetime import datetime
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.transfers.salesforce_to_gcs import SalesforceToGcsOperator
+from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-GCS_BUCKET = os.environ.get("GCS_BUCKET", "airflow-salesforce-bucket")
-DATASET_NAME = os.environ.get("SALESFORCE_DATASET_NAME", "salesforce_test_dataset")
-TABLE_NAME = os.environ.get("SALESFORCE_TABLE_NAME", "salesforce_test_datatable")
-GCS_OBJ_PATH = os.environ.get("GCS_OBJ_PATH", "results.csv")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
+DAG_ID = "salesforce_to_gcs"
+
+DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+
+TABLE_NAME = "salesforce_test_datatable"
+GCS_OBJ_PATH = "results.csv"
 QUERY = "SELECT Id, Name, Company, Phone, Email, CreatedDate, LastModifiedDate, IsDeleted FROM Lead"
-GCS_CONN_ID = os.environ.get("GCS_CONN_ID", "google_cloud_default")
-SALESFORCE_CONN_ID = os.environ.get("SALESFORCE_CONN_ID", "salesforce_default")
 
 
 with DAG(
-    "example_salesforce_to_gcs",
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    tags=["example", "salesforce_to_gcs"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
-        bucket_name=GCS_BUCKET,
-        project_id=GCP_PROJECT_ID,
-        gcp_conn_id=GCS_CONN_ID,
+        bucket_name=BUCKET_NAME,
+        project_id=PROJECT_ID,
     )
 
     # [START howto_operator_salesforce_to_gcs]
     gcs_upload_task = SalesforceToGcsOperator(
         query=QUERY,
         include_deleted=True,
-        bucket_name=GCS_BUCKET,
+        bucket_name=BUCKET_NAME,
         object_name=GCS_OBJ_PATH,
-        salesforce_conn_id=SALESFORCE_CONN_ID,
         export_format="csv",
         coerce_to_timestamp=False,
         record_time_added=False,
-        gcp_conn_id=GCS_CONN_ID,
         task_id="upload_to_gcs",
-        dag=dag,
+        salesforce_conn_id="salesforce_conn_id",
     )
     # [END howto_operator_salesforce_to_gcs]
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_dataset", dataset_id=DATASET_NAME, project_id=GCP_PROJECT_ID, gcp_conn_id=GCS_CONN_ID
+        task_id="create_dataset", dataset_id=DATASET_NAME, project_id=PROJECT_ID
     )
 
-    create_table = BigQueryCreateEmptyTableOperator(
+    create_table = BigQueryCreateTableOperator(
         task_id="create_table",
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
-        schema_fields=[
-            {"name": "id", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "name", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "company", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "phone", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "email", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "createddate", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "lastmodifieddate", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "isdeleted", "type": "BOOL", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "tableReference": {
+                "projectId": PROJECT_ID,
+                "datasetId": DATASET_NAME,
+                "tableId": TABLE_NAME,
+            },
+            "schema": {
+                "fields": [
+                    {"name": "id", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "name", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "company", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "phone", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "email", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "createddate", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "lastmodifieddate", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "isdeleted", "type": "BOOL", "mode": "NULLABLE"},
+                ],
+            },
+        },
     )
 
     load_csv = GCSToBigQueryOperator(
         task_id="gcs_to_bq",
-        bucket=GCS_BUCKET,
+        bucket=BUCKET_NAME,
         source_objects=[GCS_OBJ_PATH],
         destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
         write_disposition="WRITE_TRUNCATE",
@@ -104,7 +116,7 @@ with DAG(
         task_id="read_data_from_gcs",
         configuration={
             "query": {
-                "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
+                "query": f"SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
                 "useLegacySql": False,
             }
         },
@@ -112,18 +124,34 @@ with DAG(
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket",
-        bucket_name=GCS_BUCKET,
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
         delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    # TEST SETUP
     create_bucket >> gcs_upload_task >> load_csv
     create_dataset >> create_table >> load_csv
+    # TEST BODY
     load_csv >> read_data_from_gcs
+    # TEST TEARDOWN
     read_data_from_gcs >> delete_bucket
     read_data_from_gcs >> delete_dataset
+
+    from tests_common.test_utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

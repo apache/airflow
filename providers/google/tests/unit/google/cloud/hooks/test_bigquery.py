@@ -72,6 +72,10 @@ TABLE_REFERENCE_REPR = {
 TABLE_REFERENCE = TableReference.from_api_repr(TABLE_REFERENCE_REPR)
 
 
+def assert_warning(msg: str, warnings):
+    assert any(msg in str(w) for w in warnings)
+
+
 class _BigQueryBaseTestClass:
     def setup_method(self) -> None:
         class MockedBigQueryHook(BigQueryHook):
@@ -264,7 +268,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             mock_table.from_api_repr.reset_mock()
             mock_client.return_value.list_rows.reset_mock()
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables")
     def test_table_upsert_create_new_table(self, mock_get, mock_create):
         table_resource = {"tableReference": {"tableId": TABLE_ID}}
@@ -273,7 +277,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         self.hook.run_table_upsert(dataset_id=DATASET_ID, table_resource=table_resource)
 
         mock_get.assert_called_once_with(project_id=PROJECT_ID, dataset_id=DATASET_ID)
-        mock_create.assert_called_once_with(table_resource=table_resource, project_id=PROJECT_ID)
+        mock_create.assert_called_once_with(
+            dataset_id=DATASET_ID, table_id=TABLE_ID, table_resource=table_resource, project_id=PROJECT_ID
+        )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables")
@@ -810,15 +816,21 @@ class TestBigQueryTableSplitter:
 class TestTableOperations(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
-    def test_create_view(self, mock_bq_client, mock_table):
+    def test_create_empty_table_view(self, mock_bq_client, mock_table):
         view = {
             "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*`",
             "useLegacySql": False,
         }
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
+            self.hook.create_empty_table(
+                project_id=PROJECT_ID,
+                dataset_id=DATASET_ID,
+                table_id=TABLE_ID,
+                view=view,
+                retry=DEFAULT_RETRY,
+            )
+            assert_warning("create_empty_table", warnings)
 
-        self.hook.create_empty_table(
-            project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID, view=view, retry=DEFAULT_RETRY
-        )
         body = {"tableReference": TABLE_REFERENCE_REPR, "view": view}
         mock_table.from_api_repr.assert_called_once_with(body)
         mock_bq_client.return_value.create_table.assert_called_once_with(
@@ -827,10 +839,36 @@ class TestTableOperations(_BigQueryBaseTestClass):
             retry=DEFAULT_RETRY,
         )
 
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table.from_api_repr")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_table_view(self, mock_bq_client, mock_table):
+        table_resource = {
+            "view": {
+                "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*`",
+                "useLegacySql": False,
+            },
+        }
+        self.hook.create_table(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            table_resource=table_resource,
+            retry=DEFAULT_RETRY,
+        )
+
+        mock_bq_client.return_value.create_table.assert_called_once_with(
+            table=mock_table.return_value,
+            exists_ok=True,
+            retry=DEFAULT_RETRY,
+            timeout=None,
+        )
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_create_empty_table_succeed(self, mock_bq_client, mock_table):
-        self.hook.create_empty_table(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID)
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
+            self.hook.create_empty_table(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID)
+            assert_warning("create_empty_table", warnings)
 
         body = {
             "tableReference": {
@@ -844,6 +882,26 @@ class TestTableOperations(_BigQueryBaseTestClass):
             table=mock_table.from_api_repr.return_value, exists_ok=True, retry=DEFAULT_RETRY
         )
 
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table.from_api_repr")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_table_succeed(self, mock_bq_client, mock_table):
+        body = {
+            "tableReference": {
+                "tableId": TABLE_ID,
+                "projectId": PROJECT_ID,
+                "datasetId": DATASET_ID,
+            }
+        }
+        self.hook.create_table(
+            project_id=PROJECT_ID, dataset_id=DATASET_ID, table_id=TABLE_ID, table_resource=body
+        )
+        mock_bq_client.return_value.create_table.assert_called_once_with(
+            table=mock_table.return_value,
+            exists_ok=True,
+            retry=DEFAULT_RETRY,
+            timeout=None,
+        )
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_create_empty_table_with_extras_succeed(self, mock_bq_client, mock_table):
@@ -854,16 +912,42 @@ class TestTableOperations(_BigQueryBaseTestClass):
         ]
         time_partitioning = {"field": "created", "type": "DAY"}
         cluster_fields = ["name"]
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
+            self.hook.create_empty_table(
+                project_id=PROJECT_ID,
+                dataset_id=DATASET_ID,
+                table_id=TABLE_ID,
+                schema_fields=schema_fields,
+                time_partitioning=time_partitioning,
+                cluster_fields=cluster_fields,
+            )
+            assert_warning("create_empty_table", warnings)
 
-        self.hook.create_empty_table(
-            project_id=PROJECT_ID,
-            dataset_id=DATASET_ID,
-            table_id=TABLE_ID,
-            schema_fields=schema_fields,
-            time_partitioning=time_partitioning,
-            cluster_fields=cluster_fields,
-        )
+            body = {
+                "tableReference": {
+                    "tableId": TABLE_ID,
+                    "projectId": PROJECT_ID,
+                    "datasetId": DATASET_ID,
+                },
+                "schema": {"fields": schema_fields},
+                "timePartitioning": time_partitioning,
+                "clustering": {"fields": cluster_fields},
+            }
+            mock_table.from_api_repr.assert_called_once_with(body)
+            mock_bq_client.return_value.create_table.assert_called_once_with(
+                table=mock_table.from_api_repr.return_value, exists_ok=True, retry=DEFAULT_RETRY
+            )
 
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table.from_api_repr")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_create_table_with_extras_succeed(self, mock_bq_client, mock_table):
+        schema_fields = [
+            {"name": "id", "type": "STRING", "mode": "REQUIRED"},
+            {"name": "name", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "created", "type": "DATE", "mode": "REQUIRED"},
+        ]
+        time_partitioning = {"field": "created", "type": "DAY"}
+        cluster_fields = ["name"]
         body = {
             "tableReference": {
                 "tableId": TABLE_ID,
@@ -874,9 +958,18 @@ class TestTableOperations(_BigQueryBaseTestClass):
             "timePartitioning": time_partitioning,
             "clustering": {"fields": cluster_fields},
         }
-        mock_table.from_api_repr.assert_called_once_with(body)
+        self.hook.create_table(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            table_resource=body,
+        )
+
         mock_bq_client.return_value.create_table.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value, exists_ok=True, retry=DEFAULT_RETRY
+            table=mock_table.return_value,
+            exists_ok=True,
+            retry=DEFAULT_RETRY,
+            timeout=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
@@ -919,7 +1012,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
         for res, exp in zip(result, table_list):
             assert res["tableId"] == exp["tableReference"]["tableId"]
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table.from_api_repr")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_create_materialized_view(self, mock_bq_client, mock_table):
         query = """
@@ -932,20 +1025,20 @@ class TestTableOperations(_BigQueryBaseTestClass):
             "enableRefresh": True,
             "refreshIntervalMs": 2000000,
         }
-
-        self.hook.create_empty_table(
+        body = {"tableReference": TABLE_REFERENCE_REPR, "materializedView": materialized_view}
+        self.hook.create_table(
             project_id=PROJECT_ID,
             dataset_id=DATASET_ID,
             table_id=TABLE_ID,
-            materialized_view=materialized_view,
+            table_resource=body,
             retry=DEFAULT_RETRY,
         )
-        body = {"tableReference": TABLE_REFERENCE_REPR, "materializedView": materialized_view}
-        mock_table.from_api_repr.assert_called_once_with(body)
+
         mock_bq_client.return_value.create_table.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value,
+            table=mock_table.return_value,
             exists_ok=True,
             retry=DEFAULT_RETRY,
+            timeout=None,
         )
 
 
@@ -1429,30 +1522,28 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
 
 @pytest.mark.db_test
 class TestBigQueryWithKMS(_BigQueryBaseTestClass):
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table.from_api_repr")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_create_empty_table_with_kms(self, mock_bq_client, mock_table):
         schema_fields = [{"name": "id", "type": "STRING", "mode": "REQUIRED"}]
         encryption_configuration = {"kms_key_name": "projects/p/locations/l/keyRings/k/cryptoKeys/c"}
-
-        self.hook.create_empty_table(
-            project_id=PROJECT_ID,
-            dataset_id=DATASET_ID,
-            table_id=TABLE_ID,
-            schema_fields=schema_fields,
-            encryption_configuration=encryption_configuration,
-        )
-
         body = {
             "tableReference": {"tableId": TABLE_ID, "projectId": PROJECT_ID, "datasetId": DATASET_ID},
             "schema": {"fields": schema_fields},
             "encryptionConfiguration": encryption_configuration,
         }
-        mock_table.from_api_repr.assert_called_once_with(body)
+        self.hook.create_table(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=TABLE_ID,
+            table_resource=body,
+        )
+
         mock_bq_client.return_value.create_table.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value,
+            table=mock_table.return_value,
             exists_ok=True,
             retry=DEFAULT_RETRY,
+            timeout=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
@@ -1849,7 +1940,9 @@ class TestHookLevelLineage(_BigQueryBaseTestClass):
     def test_create_empty_table_collects_assets(self, mock_bq_client, hook_lineage_collector):
         mock_bq_client.return_value.create_table.return_value = Table(TABLE_REFERENCE)
 
-        self.hook.create_empty_table(project_id="p", dataset_id="d", table_id="t")
+        self.hook.create_table(
+            project_id="p", dataset_id="d", table_id="t", table_resource=TABLE_REFERENCE_REPR
+        )
 
         assert len(hook_lineage_collector.collected_assets.inputs) == 0
         assert len(hook_lineage_collector.collected_assets.outputs) == 1

@@ -54,11 +54,13 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
 from google.api_core.exceptions import Conflict
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
-from google.cloud.bigquery.table import RowIterator, Table, TableReference
+from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -1160,6 +1162,185 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         return event["records"]
 
 
+class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
+    """
+    Creates a new table in the specified BigQuery dataset, optionally with schema.
+
+    The schema to be used for the BigQuery table may be specified in one of
+    two ways. You may either directly pass the schema fields in, or you may
+    point the operator to a Google Cloud Storage object name. The object in
+    Google Cloud Storage must be a JSON file with the schema fields in it.
+    You can also create a table without schema.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigQueryCreateTableOperator`
+
+    :param project_id: Optional. The project to create the table into.
+    :param dataset_id: Required. The dataset to create the table into.
+    :param table_id: Required. The Name of the table to be created.
+    :param table_resource: Required. Table resource as described in documentation:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
+        If ``table`` is a reference, an empty table is created with the specified ID. The dataset that
+        the table belongs to must already exist.
+    :param if_exists: Optional. What should Airflow do if the table exists. If set to `log`,
+        the TI will be passed to success and an error message will be logged. Set to `ignore` to ignore
+        the error, set to `fail` to fail the TI, and set to `skip` to skip it.
+    :param gcs_schema_object: Optional. Full path to the JSON file containing schema. For
+        example: ``gs://test-bucket/dir1/dir2/employee_schema.json``
+    :param gcp_conn_id: Optional. The connection ID used to connect to Google Cloud and
+        interact with the Bigquery service.
+    :param google_cloud_storage_conn_id: Optional. The connection ID used to connect to Google Cloud.
+        and interact with the Google Cloud Storage service.
+    :param location: Optional. The location used for the operation.
+    :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    """
+
+    template_fields: Sequence[str] = (
+        "dataset_id",
+        "table_id",
+        "table_resource",
+        "project_id",
+        "gcs_schema_object",
+        "impersonation_chain",
+    )
+    template_fields_renderers = {"table_resource": "json"}
+    ui_color = BigQueryUIColors.TABLE.value
+    operator_extra_links = (BigQueryTableLink(),)
+
+    def __init__(
+        self,
+        *,
+        dataset_id: str,
+        table_id: str,
+        table_resource: dict[str, Any] | Table | TableReference | TableListItem,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str | None = None,
+        gcs_schema_object: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        google_cloud_storage_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        if_exists: str = "log",
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.table_resource = table_resource
+        self.if_exists = IfExistAction(if_exists)
+        self.gcs_schema_object = gcs_schema_object
+        self.gcp_conn_id = gcp_conn_id
+        self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.retry = retry
+        self.timeout = timeout
+        self._table: Table | None = None
+
+    def execute(self, context: Context) -> None:
+        bq_hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+        if self.gcs_schema_object:
+            gcs_bucket, gcs_object = _parse_gcs_url(self.gcs_schema_object)
+            gcs_hook = GCSHook(
+                gcp_conn_id=self.google_cloud_storage_conn_id,
+                impersonation_chain=self.impersonation_chain,
+            )
+            schema_fields_string = gcs_hook.download_as_byte_array(gcs_bucket, gcs_object).decode("utf-8")
+            schema_fields = json.loads(schema_fields_string)
+        else:
+            schema_fields = None
+
+        try:
+            self.log.info("Creating table...")
+            self._table = bq_hook.create_table(
+                project_id=self.project_id,
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+                schema_fields=schema_fields,
+                table_resource=self.table_resource,
+                exists_ok=self.if_exists == IfExistAction.IGNORE,
+                timeout=self.timeout,
+                location=self.location,
+            )
+            if self._table:
+                persist_kwargs = {
+                    "context": context,
+                    "task_instance": self,
+                    "project_id": self._table.to_api_repr()["tableReference"]["projectId"],
+                    "dataset_id": self._table.to_api_repr()["tableReference"]["datasetId"],
+                    "table_id": self._table.to_api_repr()["tableReference"]["tableId"],
+                }
+                self.log.info(
+                    "Table %s.%s.%s created successfully",
+                    self._table.project,
+                    self._table.dataset_id,
+                    self._table.table_id,
+                )
+            else:
+                raise AirflowException("Table creation failed.")
+        except Conflict:
+            error_msg = f"Table {self.dataset_id}.{self.table_id} already exists."
+            if self.if_exists == IfExistAction.LOG:
+                self.log.info(error_msg)
+                persist_kwargs = {
+                    "context": context,
+                    "task_instance": self,
+                    "project_id": self.project_id or bq_hook.project_id,
+                    "dataset_id": self.dataset_id,
+                    "table_id": self.table_id,
+                }
+            elif self.if_exists == IfExistAction.FAIL:
+                raise AirflowException(error_msg)
+            else:
+                raise AirflowSkipException(error_msg)
+
+        BigQueryTableLink.persist(**persist_kwargs)
+
+    def get_openlineage_facets_on_complete(self, _):
+        """Implement _on_complete as we will use table resource returned by create method."""
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import (
+            BIGQUERY_NAMESPACE,
+            get_facets_from_bq_table,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        if not self._table:
+            self.log.debug("OpenLineage did not find `self._table` attribute.")
+            return OperatorLineage()
+
+        output_dataset = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=f"{self._table.project}.{self._table.dataset_id}.{self._table.table_id}",
+            facets=get_facets_from_bq_table(self._table),
+        )
+
+        return OperatorLineage(outputs=[output_dataset])
+
+
+@deprecated(
+    planned_removal_date="July 30, 2025",
+    use_instead="airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
     """
     Creates a new table in the specified BigQuery dataset, optionally with schema.
@@ -1439,6 +1620,11 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         return OperatorLineage(outputs=[output_dataset])
 
 
+@deprecated(
+    planned_removal_date="July 30, 2025",
+    use_instead="airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
     """
     Create a new external table with data from Google Cloud Storage.

@@ -30,7 +30,7 @@ from datetime import datetime, timedelta
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
     BigQueryValueCheckOperator,
@@ -76,12 +76,13 @@ with DAG(
         location=NON_US_LOCATION,
     )
 
-    create_table = BigQueryCreateEmptyTableOperator(
+    create_table = BigQueryCreateTableOperator(
         task_id="create_table",
         dataset_id=DATASET,
         table_id=TABLE,
-        schema_fields=SCHEMA,
-        location=NON_US_LOCATION,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     insert_query_job = BigQueryInsertJobOperator(
