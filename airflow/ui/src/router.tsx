@@ -33,6 +33,7 @@ import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
@@ -98,6 +99,10 @@ export const routerConfig = [
       {
         element: <Providers />,
         path: "providers",
+      },
+      {
+        element: <Plugins />,
+        path: "plugins",
       },
       {
         children: [
