@@ -41,7 +41,7 @@ if __name__ == "__main__":
         with open(default_config_file, "w") as f:
             result = subprocess.run(default_config_cmd, stdout=f)
         if result.returncode != 0:
-            print("\033[0;31mERROR: when running `airflow config list`\033[0m\n")
+            print(f"\033[0;31mERROR: when running `{' '.join(default_config_cmd)}`\033[0m\n")
             exit(1)
         # Run airflow config lint to check the default config
         env = os.environ.copy()
@@ -51,9 +51,8 @@ if __name__ == "__main__":
 
     output: str = result.stdout.decode().strip()
     if result.returncode != 0 or expected_output not in output:
-        print("\033[0;31mERROR: when running `airflow config lint`\033[0m\n")
+        print(f"\033[0;31mERROR: when running `{' '.join(check_lint_cmd)}`\033[0m\n")
         print(output)
         exit(1)
-    else:
-        print(output)
-        exit(0)
+    print(output)
+    exit(0)
