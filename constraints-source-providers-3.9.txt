@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-17T14:00:56.449781
+# This constraints file was automatically generated on 2025-02-17T20:03:13.659126
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -86,7 +86,7 @@ astroid==3.3.8
 asttokens==3.0.0
 async-timeout==5.0.1
 asyncpg==0.30.0
-asyncssh==2.19.0
+asyncssh==2.20.0
 atlasclient==1.0.0
 atlassian-python-api==3.41.19
 attrs==25.1.0
@@ -386,7 +386,7 @@ nh3==0.2.20
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.63.1
+openai==1.63.2
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.28.0
@@ -535,7 +535,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.21.0
+sentry-sdk==2.22.0
 setproctitle==1.3.4
 shapely==2.0.7
 shellingham==1.5.4
@@ -634,7 +634,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==1.26.20
 uuid6==2024.7.10
-uv==0.5.26
+uv==0.6.0
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
@@ -655,7 +655,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
 ydb-dbapi==0.1.7
-ydb==3.18.16
+ydb==3.18.17
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
