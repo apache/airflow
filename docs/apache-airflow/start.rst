@@ -150,7 +150,7 @@ the all-in-one ``standalone`` command, you can instead run:
     airflow triggerer
 
 .. note::
-    ``airflow users`` command is only available when the FAB auth manager is enabled.
+    ``airflow users`` command is only available when FAB auth manager is enabled.
 
 What's Next?
 ''''''''''''
