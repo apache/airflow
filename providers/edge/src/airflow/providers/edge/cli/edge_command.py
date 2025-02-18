@@ -239,7 +239,7 @@ class _EdgeWorkerCli:
         if _EdgeWorkerCli.jobs:
             if _EdgeWorkerCli.drain:
                 return EdgeWorkerState.TERMINATING
-            if _EdgeWorkerCli.maintenance_mode: 
+            if _EdgeWorkerCli.maintenance_mode:
                 return EdgeWorkerState.MAINTENANCE_PENDING
             return EdgeWorkerState.RUNNING
 
