@@ -23,6 +23,15 @@ import time  # noqa: F401
 import uuid  # noqa: F401
 from datetime import datetime, timedelta
 from random import random  # noqa: F401
+from typing import TYPE_CHECKING, Any
+
+import dateutil  # noqa: F401
+
+import airflow.utils.yaml as yaml  # noqa: F401
+
+if TYPE_CHECKING:
+    from babel import Locale
+    from pendulum import DateTime
 
 
 def ds_add(ds: str, days: int) -> str:
@@ -59,3 +68,50 @@ def ds_format(ds: str, input_format: str, output_format: str) -> str:
     'Friday 12 July 2024'
     """
     return datetime.strptime(str(ds), input_format).strftime(output_format)
+
+
+def datetime_diff_for_humans(dt: Any, since: DateTime | None = None) -> str:
+    """
+    Return a human-readable/approximate difference between datetimes.
+
+    When only one datetime is provided, the comparison will be based on now.
+
+    :param dt: The datetime to display the diff for
+    :param since: When to display the date from. If ``None`` then the diff is
+        between ``dt`` and now.
+    """
+    import pendulum
+
+    return pendulum.instance(dt).diff_for_humans(since)
+
+
+def ds_format_locale(
+    ds: str, input_format: str, output_format: str, locale: Locale | str | None = None
+) -> str:
+    """
+    Output localized datetime string in a given Babel format.
+
+    :param ds: Input string which contains a date.
+    :param input_format: Input string format (e.g., '%Y-%m-%d').
+    :param output_format: Output string Babel format (e.g., `yyyy-MM-dd`).
+    :param locale: Locale used to format the output string (e.g., 'en_US').
+                   If locale not specified, default LC_TIME will be used and if that's also not available,
+                   'en_US' will be used.
+
+    >>> ds_format("2015-01-01", "%Y-%m-%d", "MM-dd-yy")
+    '01-01-15'
+    >>> ds_format("1/5/2015", "%m/%d/%Y", "yyyy-MM-dd")
+    '2015-01-05'
+    >>> ds_format("12/07/2024", "%d/%m/%Y", "EEEE dd MMMM yyyy", "en_US")
+    'Friday 12 July 2024'
+
+    .. versionadded:: 2.10.0
+    """
+    from babel import Locale
+    from babel.dates import LC_TIME, format_datetime
+
+    return format_datetime(
+        datetime.strptime(str(ds), input_format),
+        format=output_format,
+        locale=locale or LC_TIME or Locale("en_US"),
+    )
