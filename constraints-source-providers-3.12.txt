@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-17T20:03:13.449439
+# This constraints file was automatically generated on 2025-02-18T08:02:03.005980
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -233,6 +233,7 @@ google-cloud-dlp==3.27.0
 google-cloud-kms==3.3.0
 google-cloud-language==2.17.0
 google-cloud-logging==3.11.4
+google-cloud-managedkafka==0.1.7
 google-cloud-memcache==1.12.0
 google-cloud-monitoring==2.27.0
 google-cloud-orchestration-airflow==1.17.0
@@ -550,7 +551,7 @@ sortedcontainers==2.4.0
 soupsieve==2.6
 sphinx-airflow-theme==0.2.1
 sphinx-argparse==0.5.2
-sphinx-autoapi==3.5.0
+sphinx-autoapi==3.6.0
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
 sphinx-rtd-theme==3.0.2
