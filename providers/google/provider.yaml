@@ -199,6 +199,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/life_sciences.rst
     logo: /docs/integration-logos/Google-Cloud-Life-Sciences.png
     tags: [gcp]
+  - integration-name: Google Cloud Managed Service for Apache Kafka
+    external-doc-url: https://cloud.google.com/managed-service-for-apache-kafka/docs/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/managed_kafka.rst
+    tags: [gcp]
   - integration-name: Google Cloud Memorystore
     external-doc-url: https://cloud.google.com/memorystore/
     how-to-guide:
@@ -599,6 +604,9 @@ operators:
   - integration-name: Google Cloud Batch
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_batch
+  - integration-name: Google Cloud Managed Service for Apache Kafka
+    python-modules:
+      - airflow.providers.google.cloud.operators.managed_kafka
 
 sensors:
   - integration-name: Google BigQuery
@@ -877,6 +885,9 @@ hooks:
   - integration-name: Google Cloud Batch
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_batch
+  - integration-name: Google Cloud Managed Service for Apache Kafka
+    python-modules:
+      - airflow.providers.google.cloud.hooks.managed_kafka
 
 triggers:
   - integration-name: Google BigQuery Data Transfer Service
@@ -1100,6 +1111,7 @@ extra-links:
   - airflow.providers.google.cloud.links.dataplex.DataplexTasksLink
   - airflow.providers.google.cloud.links.dataplex.DataplexLakeLink
   - airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypeLink
+  - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryLink
   - airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypesLink
   - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupLink
   - airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupsLink
@@ -1215,6 +1227,8 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationModelsListLink
   - airflow.providers.google.cloud.links.translate.TranslateResultByOutputConfigLink
   - airflow.providers.google.cloud.links.translate.TranslationGlossariesListLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink
 
 
 secrets-backends:

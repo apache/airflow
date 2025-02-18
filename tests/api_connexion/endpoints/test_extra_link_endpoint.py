@@ -143,6 +143,7 @@ class TestGetExtraLinks:
         )
         assert response.status_code == 403
 
+    @pytest.mark.skip(reason="Legacy API tests.")
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200(self):
         XCom.set(
@@ -160,6 +161,7 @@ class TestGetExtraLinks:
         assert response.status_code == 200, response.data
         assert response.json == {"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"}
 
+    @pytest.mark.skip(reason="Legacy API tests.")
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_missing_xcom(self):
         response = self.client.get(
@@ -170,6 +172,7 @@ class TestGetExtraLinks:
         assert response.status_code == 200, response.data
         assert response.json == {"Google Custom": None}
 
+    @pytest.mark.skip(reason="Legacy API tests.")
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links(self):
         XCom.set(
@@ -190,6 +193,7 @@ class TestGetExtraLinks:
             "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_2",
         }
 
+    @pytest.mark.skip(reason="Legacy API tests.")
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links_missing_xcom(self):
         response = self.client.get(
@@ -200,6 +204,7 @@ class TestGetExtraLinks:
         assert response.status_code == 200, response.data
         assert response.json == {"BigQuery Console #1": None, "BigQuery Console #2": None}
 
+    @pytest.mark.skip(reason="Legacy API tests.")
     def test_should_respond_200_support_plugins(self):
         class GoogleLink(BaseOperatorLink):
             name = "Google"

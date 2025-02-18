@@ -22,10 +22,9 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import { DurationChart } from "src/components/DurationChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
-
-import { RunDuration } from "./RunDuration";
 
 const defaultHour = "168";
 
@@ -39,22 +38,22 @@ export const Overview = () => {
   const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
     dagId: dagId ?? "",
     dagRunId: "~",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
+    runAfterGte: startDate,
+    runAfterLte: endDate,
     state: ["failed"],
   });
 
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
+    runAfterGte: startDate,
+    runAfterLte: endDate,
     state: ["failed"],
   });
 
   const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     limit: 14,
-    orderBy: "-start_date",
+    orderBy: "-run_after",
   });
 
   return (
@@ -89,7 +88,7 @@ export const Overview = () => {
           count={failedRuns?.total_entries ?? 0}
           endDate={endDate}
           events={(failedRuns?.dag_runs ?? []).map((dr) => ({
-            timestamp: dr.start_date ?? dr.logical_date ?? "",
+            timestamp: dr.run_after,
           }))}
           isLoading={isLoadingFailedRuns}
           label="Failed Run"
@@ -105,7 +104,7 @@ export const Overview = () => {
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <RunDuration runs={runs?.dag_runs} totalEntries={runs?.total_entries ?? 0} />
+            <DurationChart entries={runs?.dag_runs.slice().reverse()} kind="Dag Run" />
           )}
         </Box>
       </SimpleGrid>

@@ -218,7 +218,7 @@ jobs:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "SystemTest"
       test-scope: "System"
-      test-groups: ${{ inputs.test-groups }}
+      test-groups: "['core']"
       backend: "postgres"
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"

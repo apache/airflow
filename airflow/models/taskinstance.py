@@ -1734,6 +1734,7 @@ class TaskInstance(Base, LoggingMixin):
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
+    run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")
     task_instance_note = relationship(
         "TaskInstanceNote",
@@ -2034,10 +2035,9 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
-        base_date = quote(self.logical_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
         map_index = f"&map_index={self.map_index}" if self.map_index >= 0 else ""
-        return (
+        _log_uri = (
             f"{base_url}"
             f"/dags"
             f"/{self.dag_id}"
@@ -2045,9 +2045,12 @@ class TaskInstance(Base, LoggingMixin):
             f"?dag_run_id={run_id}"
             f"&task_id={self.task_id}"
             f"{map_index}"
-            f"&base_date={base_date}"
             "&tab=logs"
         )
+        if self.logical_date:
+            base_date = quote(self.logical_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
+            _log_uri = f"{_log_uri}&base_date={base_date}"
+        return _log_uri
 
     @property
     def mark_success_url(self) -> str:

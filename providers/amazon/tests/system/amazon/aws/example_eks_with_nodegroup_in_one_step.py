@@ -19,8 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
-from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-from providers.amazon.tests.system.amazon.aws.utils.k8s import get_describe_pod_operator
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -33,6 +31,8 @@ from airflow.providers.amazon.aws.operators.eks import (
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksNodegroupStateSensor
 from airflow.utils.trigger_rule import TriggerRule
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils.k8s import get_describe_pod_operator
 
 DAG_ID = "example_eks_with_nodegroup_in_one_step"
 

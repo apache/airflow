@@ -33,7 +33,18 @@ CONTEXT_HINT = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "definitio
 TEMPLATES_REF_RST = ROOT_DIR.joinpath("docs", "apache-airflow", "templates-ref.rst")
 
 # These are only conditionally set
-IGNORE = {"ds", "ds_nodash", "ts", "ts_nodash", "ts_nodash_with_tz", "logical_date"}
+IGNORE = {
+    "ds",
+    "ds_nodash",
+    "ts",
+    "ts_nodash",
+    "ts_nodash_with_tz",
+    "logical_date",
+    "data_interval_end",
+    "data_interval_start",
+    "prev_data_interval_start_success",
+    "prev_data_interval_end_success",
+}
 
 
 def _iter_template_context_keys_from_original_return() -> typing.Iterator[str]:
