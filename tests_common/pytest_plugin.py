@@ -763,6 +763,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
     # This fixture is "called" early on in the pytest collection process, and
     # if we import airflow.* here the wrong (non-test) config will be loaded
     # and "baked" in to various constants
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     want_serialized = False
     want_activate_assets = True  # Only has effect if want_serialized=True on Airflow 3.
@@ -775,8 +776,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         (want_activate_assets,) = serialized_marker.args or (True,)
 
     from airflow.utils.log.logging_mixin import LoggingMixin
-
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     class DagFactory(LoggingMixin, DagMaker):
         _own_session = False
