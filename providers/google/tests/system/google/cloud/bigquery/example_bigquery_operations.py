@@ -28,7 +28,7 @@ from pathlib import Path
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateExternalTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -40,6 +40,7 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "bigquery_operations"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+BQ_LOCATION = "europe-north1"
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATA_SAMPLE_GCS_OBJECT_NAME = "bigquery/us-states/us-states.csv"
 CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "us-states.csv")
@@ -56,6 +57,12 @@ with DAG(
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
+    create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset_with_location",
+        dataset_id=DATASET_NAME + "_loc",
+        location=BQ_LOCATION,
+    )
+
     upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
         src=CSV_FILE_LOCAL_PATH,
@@ -63,22 +70,58 @@ with DAG(
         bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
     )
 
-    # [START howto_operator_bigquery_create_external_table]
-    create_external_table = BigQueryCreateExternalTableOperator(
-        task_id="create_external_table",
-        destination_project_dataset_table=f"{DATASET_NAME}.external_table",
-        bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        source_objects=[DATA_SAMPLE_GCS_OBJECT_NAME],
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+    create_table = BigQueryCreateTableOperator(
+        task_id="create_table",
+        dataset_id=DATASET_NAME,
+        table_id="external_table",
+        table_resource={
+            "externalDataConfiguration": {
+                "sourceFormat": "CSV",
+                "sourceUris": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DATA_SAMPLE_GCS_OBJECT_NAME}"],
+                "csvOptions": {
+                    "skipLeadingRows": 1,
+                },
+            },
+            "schema": {
+                "fields": [
+                    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+                ]
+            },
+        },
     )
-    # [END howto_operator_bigquery_create_external_table]
+
+    create_table_with_location = BigQueryCreateTableOperator(
+        task_id="create_table_with_location",
+        dataset_id=DATASET_NAME + "_loc",
+        table_id="external_table_with_location",
+        table_resource={
+            "externalDataConfiguration": {
+                "sourceFormat": "CSV",
+                "sourceUris": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DATA_SAMPLE_GCS_OBJECT_NAME}"],
+                "csvOptions": {
+                    "skipLeadingRows": 1,
+                },
+            },
+            "schema": {
+                "fields": [
+                    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+                ]
+            },
+        },
+    )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
         dataset_id=DATASET_NAME,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    delete_dataset_with_location = BigQueryDeleteDatasetOperator(
+        task_id="delete_dataset_with_location",
+        dataset_id=DATASET_NAME + "_loc",
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
@@ -94,13 +137,13 @@ with DAG(
 
     (
         # TEST SETUP
-        [create_bucket, create_dataset]
+        [create_bucket, create_dataset, create_dataset_with_location]
         # TEST BODY
         >> upload_file
-        >> create_external_table
+        >> [create_table, create_table_with_location]
         # TEST TEARDOWN
-        >> delete_dataset
         >> delete_bucket
+        >> [delete_dataset, delete_dataset_with_location]
         >> check_openlineage_events
     )
 

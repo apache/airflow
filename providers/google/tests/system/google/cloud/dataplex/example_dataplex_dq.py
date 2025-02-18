@@ -31,7 +31,7 @@ from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
@@ -155,18 +155,22 @@ with DAG(
     tags=["example", "dataplex", "data_quality"],
 ) as dag:
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET)
-    create_table_1 = BigQueryCreateEmptyTableOperator(
+    create_table_1 = BigQueryCreateTableOperator(
         task_id="create_table_1",
         dataset_id=DATASET,
         table_id=TABLE_1,
-        schema_fields=SCHEMA,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
         location=LOCATION,
     )
-    create_table_2 = BigQueryCreateEmptyTableOperator(
+    create_table_2 = BigQueryCreateTableOperator(
         task_id="create_table_2",
         dataset_id=DATASET,
         table_id=TABLE_2,
-        schema_fields=SCHEMA,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
         location=LOCATION,
     )
     insert_query_job = BigQueryInsertJobOperator(

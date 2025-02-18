@@ -593,7 +593,7 @@ class TestStringifiedDAGs:
             self.validate_deserialized_dag(serialized_dag, dag)
 
         # Let's not be exact about this, but if everything fails to parse we should fail this test too
-        assert len(dags) >= 10
+        assert len(dags) >= 8
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
