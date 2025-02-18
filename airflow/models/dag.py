@@ -90,8 +90,14 @@ from airflow.models.taskinstance import (
     clear_task_instances,
 )
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
-from airflow.sdk.definitions.dag import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
+from airflow.sdk.definitions import (
+    DAG as TaskSDKDag,
+    Asset,
+    AssetAlias,
+    AssetUniqueKey,
+    BaseAsset,
+    dag as task_sdk_dag_decorator,
+)
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.settings import json

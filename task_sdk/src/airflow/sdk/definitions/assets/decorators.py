@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetNameRef, AssetRef, BaseAsset
+from airflow.sdk.definitions.assets import Asset, AssetNameRef, AssetRef, BaseAsset
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.io.path import ObjectStoragePath
-    from airflow.sdk.definitions.asset import AssetAlias, AssetUniqueKey
+    from airflow.sdk.definitions.assets import AssetAlias, AssetUniqueKey
     from airflow.sdk.definitions.dag import DAG, DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.dag_dependency import DagDependency
