@@ -247,12 +247,10 @@ class _EdgeWorkerCli:
             if _EdgeWorkerCli.maintenance_mode:
                 return EdgeWorkerState.OFFLINE_MAINTENANCE
             return EdgeWorkerState.OFFLINE
-            
+
         if _EdgeWorkerCli.maintenance_mode:
             return EdgeWorkerState.MAINTENANCE_MODE
-         return EdgeWorkerState.IDLE
-
-
+        return EdgeWorkerState.IDLE
 
     def _launch_job_af3(self, edge_job: EdgeJobFetched) -> tuple[Process, Path]:
         if TYPE_CHECKING:
