@@ -771,12 +771,12 @@ export type DagProcessorInfoResponse = {
 export type DagRunAssetReference = {
   run_id: string;
   dag_id: string;
-  logical_date: string;
+  logical_date: string | null;
   start_date: string;
   end_date: string | null;
   state: string;
-  data_interval_start: string;
-  data_interval_end: string;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
 };
 
 /**
