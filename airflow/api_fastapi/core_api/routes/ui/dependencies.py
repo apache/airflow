@@ -20,6 +20,7 @@ from __future__ import annotations
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import BaseGraphResponse
+from airflow.api_fastapi.core_api.services.ui.dependencies import extract_connected_component_sub_graph
 from airflow.models.serialized_dag import SerializedDagModel
 
 dependencies_router = AirflowRouter(tags=["Dependencies"])
@@ -28,9 +29,7 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
 @dependencies_router.get(
     "/dependencies",
 )
-def get_dependencies(
-    session: SessionDep,
-) -> BaseGraphResponse:
+def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGraphResponse:
     """Dependencies graph."""
     nodes_dict: dict[str, dict] = {}
     edge_tuples: set[tuple[str, str]] = set()
@@ -68,5 +67,8 @@ def get_dependencies(
         "nodes": nodes,
         "edges": edges,
     }
+
+    if node_id is not None:
+        data = extract_connected_component_sub_graph(node_id, data["nodes"], data["edges"])
 
     return BaseGraphResponse(**data)

@@ -1739,6 +1739,10 @@ export type RecentDagRunsData = {
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
 
+export type GetDependenciesData = {
+  nodeId?: string | null;
+};
+
 export type GetDependenciesResponse = BaseGraphResponse;
 
 export type HistoricalMetricsData = {
@@ -2968,11 +2972,16 @@ export type $OpenApiTs = {
   };
   "/ui/dependencies": {
     get: {
+      req: GetDependenciesData;
       res: {
         /**
          * Successful Response
          */
         200: BaseGraphResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };
