@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+0.18.1pre0
+..........
+
+Fix
+~~~
+
+* ``Edge worker will not jump to maintenance request from offline maintenance during shut down.``
+
+
 0.18.0pre0
 ..........
 

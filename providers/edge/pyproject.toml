@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-edge"
-version = "0.18.0pre0"
+version = "0.18.1pre0"
 description = "Provider package apache-airflow-providers-edge for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -61,8 +61,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.18.0pre0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.18.0pre0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.18.1pre0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.18.1pre0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

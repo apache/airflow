@@ -236,12 +236,18 @@ class _EdgeWorkerCli:
     @staticmethod
     def _get_state() -> EdgeWorkerState:
         """State of the Edge Worker."""
-        if _EdgeWorkerCli.drain:
-            return EdgeWorkerState.TERMINATING
-        elif _EdgeWorkerCli.jobs:
+        if _EdgeWorkerCli.jobs:
+            if _EdgeWorkerCli.drain:
+                return EdgeWorkerState.TERMINATING
             if _EdgeWorkerCli.maintenance_mode:
                 return EdgeWorkerState.MAINTENANCE_PENDING
             return EdgeWorkerState.RUNNING
+
+        if _EdgeWorkerCli.drain:
+            if _EdgeWorkerCli.maintenance_mode:
+                return EdgeWorkerState.OFFLINE_MAINTENANCE
+            return EdgeWorkerState.OFFLINE
+
         if _EdgeWorkerCli.maintenance_mode:
             return EdgeWorkerState.MAINTENANCE_MODE
         return EdgeWorkerState.IDLE
