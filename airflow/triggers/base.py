@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import abc
+import json
 import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -124,6 +125,27 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     def __repr__(self) -> str:
         classpath, kwargs = self.serialize()
         return self.repr(classpath, kwargs)
+
+
+class BaseEventTrigger(BaseTrigger):
+    """
+    Base class for triggers used to schedule DAGs based on external events.
+
+    ``BaseEventTrigger`` is a subclass of ``BaseTrigger`` designed to identify triggers compatible with
+    event-driven scheduling.
+    """
+
+    @staticmethod
+    def hash(classpath: str, kwargs: dict[str, Any]) -> int:
+        """
+        Return the hash of the trigger classpath and kwargs. This is used to uniquely identify a trigger.
+
+        We do not want to have this logic in ``BaseTrigger`` because, when used to defer tasks, 2 triggers
+        can have the same classpath and kwargs. This is not true for event driven scheduling.
+        """
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        return hash((classpath, json.dumps(BaseSerialization.serialize(kwargs)).encode("utf-8")))
 
 
 class TriggerEvent:

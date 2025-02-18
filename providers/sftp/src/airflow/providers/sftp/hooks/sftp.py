@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
 
 def with_conn(func):
-    """Decorator to provide a connection to the function."""
+    """Provide SFTP connection to the function."""
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -127,8 +127,9 @@ class SFTPHook(SSHHook):
     @contextmanager
     def get_conn(self) -> Generator[SFTPClient, None, None]:
         """Context manager that closes the connection after use."""
-        with closing(super().get_conn().open_sftp()) as conn:
-            yield conn
+        with closing(super().get_conn()) as conn:
+            with closing(conn.open_sftp()) as sftp:
+                yield sftp
 
     @with_conn
     def describe_directory(self, path: str, conn: SFTPClient) -> dict[str, dict[str, str | int | None]]:
@@ -239,13 +240,16 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory to delete
         """
+        files: list[str] = []
+        dirs: list[str] = []
+
         if include_files is True:
-            files, dirs, _ = self.get_tree_map(path, conn=conn)
+            files, dirs, _ = self.get_tree_map(path)
             dirs = dirs[::-1]  # reverse the order for deleting deepest directories first
-            for file_path in files:
-                conn.remove(file_path)
-            for dir_path in dirs:
-                conn.rmdir(dir_path)
+        for file_path in files:
+            conn.remove(file_path)
+        for dir_path in dirs:
+            conn.rmdir(dir_path)
         conn.rmdir(path)
 
     @with_conn

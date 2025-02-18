@@ -20,15 +20,14 @@ import json
 import logging
 import os
 import sys
+import zipfile
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
 from tests_common.test_utils.log_handlers import non_pytest_handlers
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -43,14 +42,6 @@ collect_ignore = [
     "tests/dags_corrupted/test_impersonation_custom.py",
     "tests_common.test_utils/perf/dags/elastic_dag.py",
 ]
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_configure(config: pytest.Config) -> None:
-    dep_path = [config.rootpath.joinpath("tests", "deprecations_ignore.yml")]
-    config.inicfg["airflow_deprecations_ignore"] = (
-        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
-    )
 
 
 @pytest.fixture
@@ -131,6 +122,19 @@ def configure_testing_dag_bundle():
             yield
 
     return _config_bundle
+
+
+@pytest.fixture
+def test_zip_path(tmp_path: Path):
+    TEST_DAGS_FOLDER = Path(__file__).parent / "dags"
+    test_zip_folder = TEST_DAGS_FOLDER / "test_zip"
+    zipped = tmp_path / "test_zip.zip"
+    with zipfile.ZipFile(zipped, "w") as zf:
+        for root, _, files in os.walk(test_zip_folder):
+            for file in files:
+                zf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), test_zip_folder))
+
+    return os.fspath(zipped)
 
 
 if TYPE_CHECKING:

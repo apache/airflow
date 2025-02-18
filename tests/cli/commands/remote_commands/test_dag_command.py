@@ -429,7 +429,6 @@ class TestCliDags:
                     "trigger",
                     "example_bash_operator",
                     "--run-id=test_trigger_dag",
-                    "--exec-date=2021-06-04T09:00:00+08:00",
                     '--conf={"foo": "bar"}',
                 ],
             ),
@@ -442,13 +441,12 @@ class TestCliDags:
         assert dagrun.external_trigger
         assert dagrun.conf == {"foo": "bar"}
 
-        # Coerced to UTC.
-        assert dagrun.logical_date.isoformat(timespec="seconds") == "2021-06-04T01:00:00+00:00"
+        # logical_date is None as it's not provided
+        assert dagrun.logical_date is None
 
-        # example_bash_operator runs every day at midnight, so the data interval
-        # should be aligned to the previous day.
-        assert dagrun.data_interval_start.isoformat(timespec="seconds") == "2021-06-03T00:00:00+00:00"
-        assert dagrun.data_interval_end.isoformat(timespec="seconds") == "2021-06-04T00:00:00+00:00"
+        # data_interval is None as logical_date is None
+        assert dagrun.data_interval_start is None
+        assert dagrun.data_interval_end is None
 
     def test_trigger_dag_with_microseconds(self):
         dag_command.dag_trigger(

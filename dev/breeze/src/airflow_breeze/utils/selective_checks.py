@@ -66,10 +66,7 @@ from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_DIR,
     AIRFLOW_SOURCES_ROOT,
-    DOCS_DIR,
-    OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
-    OLD_SYSTEM_TESTS_PROVIDERS_ROOT,
-    OLD_TESTS_PROVIDERS_ROOT,
+    AIRFLOW_TEST_COMMON_DIR,
 )
 from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
@@ -189,8 +186,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^\.github/SECURITY\.rst$",
             r"^airflow/.*\.py$",
             r"^chart",
-            r"^providers/src/",
             r"^providers/.*/src/",
+            r"^providers/.*/docs/",
             r"^task_sdk/src/",
             r"^tests/system",
             r"^CHANGELOG\.txt",
@@ -209,9 +206,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
-            r"^providers/src/airflow/providers/cncf/kubernetes/",
-            r"^providers/tests/cncf/kubernetes/",
-            r"^providers/tests/system/cncf/kubernetes/",
             r"^providers/cncf/kubernetes/",
         ],
         FileGroupForCi.ALL_PYTHON_FILES: [
@@ -273,11 +267,9 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
         FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
             r"^.*/.*_vendor/.*",
             r"^airflow/migrations/.*",
-            r"^providers/src/airflow/providers/.*",
             r"^providers/.*/src/airflow/providers/.*",
             r"^dev/.*",
             r"^docs/.*",
-            r"^providers/tests/.*",
             r"^providers/.*/tests/.*",
             r"^tests/dags/test_imports.py",
             r"^task_sdk/src/airflow/sdk/.*\.py$",
@@ -287,7 +279,6 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
 )
 
 PYTHON_OPERATOR_FILES = [
-    r"^providers/src/providers/standard/operators/python.py",
     r"^providers/tests/standard/operators/test_python.py",
 ]
 
@@ -310,8 +301,6 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/operators/",
         ],
         SelectiveProvidersTestType.PROVIDERS: [
-            r"^providers/src/airflow/providers/",
-            r"^providers/tests/",
             r"^providers/.*/src/airflow/providers/",
             r"^providers/.*/tests/",
         ],
@@ -332,48 +321,27 @@ TEST_TYPE_EXCLUDES = HashableDict({})
 
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
-    # Check providers in SRC/SYSTEM_TESTS/TESTS/(optionally) DOCS
-    # TODO(potiuk) - this should be removed once we have all providers in the new structure (OLD + docs)
-    for provider_root in (
-        OLD_SYSTEM_TESTS_PROVIDERS_ROOT,
-        OLD_TESTS_PROVIDERS_ROOT,
-        OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
-        AIRFLOW_PROVIDERS_DIR,
-    ):
-        if file_path.is_relative_to(provider_root):
-            provider_base_path = provider_root
-            break
-    else:
-        if include_docs and file_path.is_relative_to(DOCS_DIR):
-            relative_path = file_path.relative_to(DOCS_DIR)
-            if relative_path.parts[0].startswith("apache-airflow-providers-"):
-                return relative_path.parts[0].replace("apache-airflow-providers-", "").replace("-", ".")
-        # This is neither providers nor provider docs files - not a provider change
-        return None
-
     if not include_docs:
         for parent_dir_path in file_path.parents:
             if parent_dir_path.name == "docs" and (parent_dir_path.parent / "provider.yaml").exists():
                 # Skip Docs changes if include_docs is not set
                 return None
-
     # Find if the path under src/system tests/tests belongs to provider or is a common code across
     # multiple providers
     for parent_dir_path in file_path.parents:
-        if parent_dir_path == provider_base_path:
+        if parent_dir_path == AIRFLOW_PROVIDERS_DIR:
             # We have not found any provider specific path up to the root of the provider base folder
             break
-        relative_path = parent_dir_path.relative_to(provider_base_path)
-        # check if this path belongs to a specific provider
-        # TODO(potiuk) - this should be removed once we have all providers in the new structure
-        if (OLD_AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
-            return str(parent_dir_path.relative_to(provider_base_path)).replace(os.sep, ".")
-        if (parent_dir_path / "provider.yaml").exists():
-            # new providers structure
-            return str(relative_path).replace(os.sep, ".")
-
-    # If we got here it means that some "common" files were modified. so we need to test all Providers
-    return "Providers"
+        if parent_dir_path.is_relative_to(AIRFLOW_PROVIDERS_DIR):
+            relative_path = parent_dir_path.relative_to(AIRFLOW_PROVIDERS_DIR)
+            # check if this path belongs to a specific provider
+            if (parent_dir_path / "provider.yaml").exists():
+                # new providers structure
+                return str(relative_path).replace(os.sep, ".")
+    if file_path.is_relative_to(AIRFLOW_TEST_COMMON_DIR):
+        # if tests_common changes, we want to run tests for all providers, as they might start failing
+        return "Providers"
+    return None
 
 
 def _match_files_with_regexps(files: tuple[str, ...], matched_files, matching_regexps):

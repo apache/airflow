@@ -19,10 +19,8 @@ Example DAGs
 ============
 You can learn how to use Google integrations by analyzing the source code of the example DAGs:
 
-* `Google Ads <https://github.com/apache/airflow/tree/providers-google/|version|/providers/tests/system/google/ads>`__
-* `Google Cloud (legacy) <https://github.com/apache/airflow/tree/providers-google/|version|/airflow/providers/google/cloud/example_dags>`__
-* `Google Cloud <https://github.com/apache/airflow/tree/providers-google/|version|/providers/tests/system/google>`__
-* `Google Firebase <https://github.com/apache/airflow/tree/providers-google/|version|/providers/tests/system/google/firebase>`__
-* `Google Marketing Platform <https://github.com/apache/airflow/tree/providers-google/|version|/airflow/providers/google/marketing_platform/example_dags>`__
-* `Google Workplace <https://github.com/apache/airflow/tree/providers-google/|version|/providers/tests/system/google/suite>`__ (formerly Google Suite)
-* `Google LevelDB <https://github.com/apache/airflow/tree/providers-google/|version|/providers/tests/system/google/leveldb>`__
+* `Google Ads <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google/ads>`__
+* `Google Cloud <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google>`__
+* `Google Firebase <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google/firebase>`__
+* `Google Workplace <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google/suite>`__
+* `Google LevelDB <https://github.com/apache/airflow/tree/providers-google/|version|/providers/google/tests/system/google/leveldb>`__

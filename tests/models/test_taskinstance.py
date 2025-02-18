@@ -1921,8 +1921,8 @@ class TestTaskInstance:
             "/dags/my_dag/grid"
             "?dag_run_id=test"
             "&task_id=op"
-            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
             "&tab=logs"
+            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
         )
         assert ti.log_url == expected_url
 
@@ -3611,7 +3611,12 @@ class TestTaskInstance:
         assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_echo_env_variables"
         assert os.environ["AIRFLOW_CTX_TASK_ID"] == "hive_in_python_op"
         assert DEFAULT_DATE.isoformat() == os.environ["AIRFLOW_CTX_LOGICAL_DATE"]
-        assert DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE) == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
+        assert (
+            DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
+            )
+            == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
+        )
 
     def test_echo_env_variables(self, dag_maker):
         with dag_maker(

@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common uti
 from common_precommit_utils import (
     AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_SOURCES_ROOT_PATH,
-    get_all_new_provider_info_dicts,
+    get_all_provider_info_dicts,
 )
 
 sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))  # make sure setup is imported from Airflow
@@ -189,7 +189,7 @@ def has_executor_package_defined(provider_id: str) -> bool:
 
 def run_all_checks():
     jinja_loader = Environment(loader=BaseLoader(), autoescape=True)
-    all_providers = get_all_new_provider_info_dicts()
+    all_providers = get_all_provider_info_dicts()
     status: list[bool] = []
 
     for provider_id, provider_info in all_providers.items():

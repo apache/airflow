@@ -59,7 +59,7 @@ export const Grid = () => {
       dagId,
       limit,
       offset,
-      orderBy: "-start_date",
+      orderBy: "-run_after",
     },
     undefined,
     {
