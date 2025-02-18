@@ -30,7 +30,6 @@ import os
 import sys
 from collections import defaultdict
 from collections.abc import Iterable
-from pathlib import Path
 from typing import Any, Callable, NamedTuple, TypeVar
 
 from rich.console import Console
@@ -479,11 +478,7 @@ def main():
     for package in available_packages:
         if package.startswith("apache-airflow-providers-"):
             package_id = package.replace("apache-airflow-providers-", "").replace("-", ".")
-            if not (Path(ROOT_PROJECT_DIR) / "providers").joinpath(*package_id.split(".")).exists():
-                # TODO(potiuk) - remove this when all packages are moved to the new structure
-                api_dir = os.path.join(DOCS_DIR, package, "_api")
-            else:
-                api_dir = os.path.join(ROOT_PROJECT_DIR, "providers", *package_id.split("."), "docs", "_api")
+            api_dir = os.path.join(ROOT_PROJECT_DIR, "providers", *package_id.split("."), "docs", "_api")
         else:
             api_dir = os.path.join(DOCS_DIR, package, "_api")
         if os.path.exists(api_dir):

@@ -380,17 +380,11 @@ generous policy of supporting multiple versions of providers at the same time. A
 backward compatible with future versions of Airflow, so you can upgrade Airflow and keep the providers
 at the same version.
 
-.. note::
-
-   In the new structure of providers the CHANGELOG.rst is named CHANGELOG.rst and it is present in
-   the docs subfolder of the provider. TODO(potiuk) replace references to CHANGELOG.rst when we
-   move all providers to the new structure.
-
 When you introduce a breaking change in the provider, you have to make sure that you communicate it
-properly. You have to update ``CHANGELOG.rst`` file in the provider package. Ideally you should provide
-a migration path for the users to follow in the``CHANGELOG.rst``.
+properly. You have to update ``changelog.rst`` file in the ``docs`` folder of the provider package.
+Ideally you should provide a migration path for the users to follow in the``changelog.rst``.
 
-If in doubt, you can always look at ``CHANGELOG.rst``  in other providers to see how we communicate
+If in doubt, you can always look at ``changelog.rst``  in other providers to see how we communicate
 breaking changes in the providers.
 
 It's important to note that the marking release as breaking / major is subject to the
