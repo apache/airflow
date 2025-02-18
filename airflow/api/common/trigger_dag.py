@@ -106,7 +106,7 @@ def _trigger_dag(
     dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     dag_run = dag.create_dagrun(
         run_id=run_id,
-        logical_date=logical_date,
+        logical_date=coerced_logical_date,
         data_interval=data_interval,
         run_after=run_after,
         conf=run_conf,
