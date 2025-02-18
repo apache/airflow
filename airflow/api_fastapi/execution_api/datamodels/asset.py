@@ -76,6 +76,12 @@ class AssetEventResponse(BaseModel):
         return redact(v)
 
 
+class AssetEventCollectionResponse(BaseModel):
+    """Collection of AssetEventResponse."""
+
+    asset_events: list[AssetEventResponse]
+
+
 class AssetProfile(StrictBaseModel):
     """
     Profile of an Asset.
