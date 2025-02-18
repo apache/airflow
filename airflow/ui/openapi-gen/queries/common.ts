@@ -458,6 +458,8 @@ export const UseGridServiceGridDataKeyFn = (
     offset,
     orderBy,
     root,
+    runAfterGte,
+    runAfterLte,
     runType,
     state,
   }: {
@@ -470,6 +472,8 @@ export const UseGridServiceGridDataKeyFn = (
     offset?: number;
     orderBy?: string;
     root?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     runType?: string[];
     state?: string[];
   },
@@ -487,6 +491,8 @@ export const UseGridServiceGridDataKeyFn = (
       offset,
       orderBy,
       root,
+      runAfterGte,
+      runAfterLte,
       runType,
       state,
     },
@@ -578,6 +584,8 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     logicalDateLte,
     offset,
     orderBy,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -592,6 +600,8 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -611,6 +621,8 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
       logicalDateLte,
       offset,
       orderBy,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,
@@ -978,6 +990,8 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1000,6 +1014,8 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1027,6 +1043,8 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
       orderBy,
       pool,
       queue,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,
@@ -1189,6 +1207,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1212,6 +1232,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1240,6 +1262,8 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
       orderBy,
       pool,
       queue,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,
@@ -1691,6 +1715,9 @@ export const UseLoginServiceLoginKeyFn = (
 ) => [useLoginServiceLoginKey, ...(queryKey ?? [{ next }])];
 export type AssetServiceCreateAssetEventMutationResult = Awaited<
   ReturnType<typeof AssetService.createAssetEvent>
+>;
+export type AssetServiceMaterializeAssetMutationResult = Awaited<
+  ReturnType<typeof AssetService.materializeAsset>
 >;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>

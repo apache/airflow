@@ -476,10 +476,10 @@ export type DAGDetailsResponse = {
   max_consecutive_failed_dag_runs: number;
   has_task_concurrency_limits: boolean;
   has_import_errors: boolean;
-  next_dagrun: string | null;
+  next_dagrun_logical_date: string | null;
   next_dagrun_data_interval_start: string | null;
   next_dagrun_data_interval_end: string | null;
-  next_dagrun_create_after: string | null;
+  next_dagrun_run_after: string | null;
   owners: Array<string>;
   catchup: boolean;
   dag_run_timeout: string | null;
@@ -535,10 +535,10 @@ export type DAGResponse = {
   max_consecutive_failed_dag_runs: number;
   has_task_concurrency_limits: boolean;
   has_import_errors: boolean;
-  next_dagrun: string | null;
+  next_dagrun_logical_date: string | null;
   next_dagrun_data_interval_start: string | null;
   next_dagrun_data_interval_end: string | null;
-  next_dagrun_create_after: string | null;
+  next_dagrun_run_after: string | null;
   owners: Array<string>;
   /**
    * Return file token.
@@ -628,6 +628,8 @@ export type DAGRunsBatchBody = {
   page_limit?: number;
   dag_ids?: Array<string> | null;
   states?: Array<DagRunState | null> | null;
+  run_after_gte?: string | null;
+  run_after_lte?: string | null;
   logical_date_gte?: string | null;
   logical_date_lte?: string | null;
   start_date_gte?: string | null;
@@ -708,10 +710,10 @@ export type DAGWithLatestDagRunsResponse = {
   max_consecutive_failed_dag_runs: number;
   has_task_concurrency_limits: boolean;
   has_import_errors: boolean;
-  next_dagrun: string | null;
+  next_dagrun_logical_date: string | null;
   next_dagrun_data_interval_start: string | null;
   next_dagrun_data_interval_end: string | null;
-  next_dagrun_create_after: string | null;
+  next_dagrun_run_after: string | null;
   owners: Array<string>;
   latest_dag_runs: Array<DAGRunResponse>;
   /**
@@ -820,6 +822,7 @@ export type DagVersionResponse = {
   bundle_name: string;
   bundle_version: string | null;
   created_at: string;
+  readonly bundle_url: string | null;
 };
 
 /**
@@ -906,8 +909,10 @@ export type GridDAGRunwithTIs = {
   queued_at: string | null;
   start_date: string | null;
   end_date: string | null;
+  run_after: string;
   state: DagRunState;
   run_type: DagRunType;
+  logical_date: string | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
   version_number: number | null;
@@ -1261,6 +1266,7 @@ export type TaskInstanceResponse = {
   dag_run_id: string;
   map_index: number;
   logical_date: string | null;
+  run_after: string;
   start_date: string | null;
   end_date: string | null;
   duration: number | null;
@@ -1336,6 +1342,8 @@ export type TaskInstancesBatchBody = {
   dag_run_ids?: Array<string> | null;
   task_ids?: Array<string> | null;
   state?: Array<TaskInstanceState | null> | null;
+  run_after_gte?: string | null;
+  run_after_lte?: string | null;
   logical_date_gte?: string | null;
   logical_date_lte?: string | null;
   start_date_gte?: string | null;
@@ -1616,6 +1624,12 @@ export type CreateAssetEventData = {
 
 export type CreateAssetEventResponse = AssetEventResponse;
 
+export type MaterializeAssetData = {
+  assetId: number;
+};
+
+export type MaterializeAssetResponse = DAGRunResponse;
+
 export type GetAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
@@ -1783,6 +1797,8 @@ export type GridDataData = {
   offset?: number;
   orderBy?: string;
   root?: string | null;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   runType?: Array<string>;
   state?: Array<string>;
 };
@@ -1884,6 +1900,8 @@ export type GetDagRunsData = {
   logicalDateLte?: string | null;
   offset?: number;
   orderBy?: string;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
@@ -2077,6 +2095,8 @@ export type GetMappedTaskInstancesData = {
   orderBy?: string;
   pool?: Array<string>;
   queue?: Array<string>;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
@@ -2159,6 +2179,8 @@ export type GetTaskInstancesData = {
   orderBy?: string;
   pool?: Array<string>;
   queue?: Array<string>;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
@@ -2597,6 +2619,37 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/{asset_id}/materialize": {
+    post: {
+      req: MaterializeAssetData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */

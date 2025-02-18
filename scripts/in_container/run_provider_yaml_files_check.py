@@ -31,6 +31,7 @@ import warnings
 from collections import Counter
 from collections.abc import Iterable
 from enum import Enum
+from functools import cache
 from typing import Any, Callable
 
 import jsonschema
@@ -62,11 +63,6 @@ KNOWN_DEPRECATED_CLASSES = [
     "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
 ]
 
-try:
-    from yaml import CSafeLoader as SafeLoader
-except ImportError:
-    from yaml import SafeLoader  # type: ignore
-
 if __name__ != "__main__":
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
@@ -77,7 +73,6 @@ PROVIDERS_DIR_PATH = ROOT_DIR / "providers"
 PROVIDERS_SRC_DIR_PATH = PROVIDERS_DIR_PATH / "src"
 DOCS_DIR_PATH = ROOT_DIR / "docs"
 PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR.joinpath("airflow", "provider.yaml.schema.json")
-NEW_PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR.joinpath("airflow", "new_provider.yaml.schema.json")
 PROVIDER_ISSUE_TEMPLATE_PATH = ROOT_DIR.joinpath(
     ".github", "ISSUE_TEMPLATE", "airflow_providers_bug_report.yml"
 )
@@ -117,32 +112,22 @@ def _filepath_to_module(filepath: pathlib.Path | str) -> str:
     return p.as_posix().replace("/", ".")
 
 
-# TODO(potiuk): remove this when we move all providers to the new structure
+@cache
 def _load_schema() -> dict[str, Any]:
     with PROVIDER_DATA_SCHEMA_PATH.open() as schema_file:
         content = json.load(schema_file)
     return content
 
 
-def _load_new_schema() -> dict[str, Any]:
-    with NEW_PROVIDER_DATA_SCHEMA_PATH.open() as schema_file:
-        content = json.load(schema_file)
-    return content
-
-
 def _load_package_data(package_paths: Iterable[str]):
-    schema = _load_schema()
-    new_schema = _load_new_schema()
     result = {}
+    schema = _load_schema()
     for provider_yaml_path in package_paths:
         with open(provider_yaml_path) as yaml_file:
-            provider = yaml.load(yaml_file, SafeLoader)
+            provider = yaml.safe_load(yaml_file)
         rel_path = pathlib.Path(provider_yaml_path).relative_to(ROOT_DIR).as_posix()
         try:
-            if "providers/src" in provider_yaml_path:
-                jsonschema.validate(provider, schema=schema)
-            else:
-                jsonschema.validate(provider, schema=new_schema)
+            jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError as ex:
             msg = f"Unable to parse: {provider_yaml_path}. Original error {type(ex).__name__}: {ex}"
             raise RuntimeError(msg)

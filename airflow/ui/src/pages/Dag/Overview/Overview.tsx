@@ -38,22 +38,22 @@ export const Overview = () => {
   const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
     dagId: dagId ?? "",
     dagRunId: "~",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
+    runAfterGte: startDate,
+    runAfterLte: endDate,
     state: ["failed"],
   });
 
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
+    runAfterGte: startDate,
+    runAfterLte: endDate,
     state: ["failed"],
   });
 
   const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     limit: 14,
-    orderBy: "-logical_date",
+    orderBy: "-run_after",
   });
 
   return (
@@ -88,7 +88,7 @@ export const Overview = () => {
           count={failedRuns?.total_entries ?? 0}
           endDate={endDate}
           events={(failedRuns?.dag_runs ?? []).map((dr) => ({
-            timestamp: dr.start_date ?? dr.logical_date ?? "",
+            timestamp: dr.run_after,
           }))}
           isLoading={isLoadingFailedRuns}
           label="Failed Run"

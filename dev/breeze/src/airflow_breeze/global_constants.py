@@ -126,7 +126,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.28.15", "v1.29.12", "v1.30.8", "v1.31.4", "v1.32.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.29.12", "v1.30.8", "v1.31.4", "v1.32.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"

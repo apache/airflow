@@ -22,7 +22,6 @@ import random
 from datetime import datetime
 
 import boto3
-from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 from airflow import DAG, settings
 from airflow.decorators import task, task_group
@@ -44,6 +43,7 @@ from airflow.providers.amazon.aws.sensors.kinesis_analytics import (
 )
 from airflow.providers.amazon.aws.transfers.http_to_s3 import HttpToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
+from system.amazon.aws.utils import SystemTestContextBuilder
 
 ROLE_ARN_KEY = "ROLE_ARN"
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()

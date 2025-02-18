@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+0.17.0pre0
+..........
+
+Misc
+~~~~
+
+* ``CLI allows to wait until edge worker is completed when stopping.``
+
+
+0.16.0pre0
+..........
+
+Misc
+~~~~
+
+* ``User who entered the maintenance mode is moved to the start of the comment.``
+
+
+0.15.0pre0
+..........
+
+Misc
+~~~~
+
+* ``User and time information added to maintenance comment.``
+
+
 0.14.1pre0
 ..........
 

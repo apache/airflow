@@ -44,7 +44,7 @@ def connect(
 
 
 class ElasticsearchSQLCursor:
-    """A PEP 249-like Cursor class for Elasticsearch SQL API"""
+    """A PEP 249-like Cursor class for Elasticsearch SQL API."""
 
     def __init__(self, es: Elasticsearch, **kwargs):
         self.es = es

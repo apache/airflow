@@ -589,6 +589,7 @@ Env
 env
 envFrom
 EnvFromSource
+envs
 EnvVar
 envvar
 eof
@@ -1101,6 +1102,7 @@ muldelete
 Multinamespace
 mutex
 mv
+mwaa
 mypy
 Mysql
 mysql

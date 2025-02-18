@@ -378,22 +378,6 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
-      - name: logical_date_gte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Logical Date Gte
-      - name: logical_date_lte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Logical Date Lte
       - name: root
         in: query
         required: false
@@ -441,6 +425,42 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
       responses:
         '200':
           description: Successful Response
@@ -823,6 +843,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/{asset_id}/materialize:
+    post:
+      tags:
+      - Asset
+      summary: Materialize Asset
+      description: Materialize an asset by triggering a DAG run that produces it.
+      operationId: materialize_asset
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRunResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -2230,6 +2301,24 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
       - name: logical_date_gte
         in: query
         required: false
@@ -4796,6 +4885,24 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
       - name: logical_date_gte
         in: query
         required: false
@@ -5418,6 +5525,24 @@ paths:
           - type: string
           - type: 'null'
           title: Task Id
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
       - name: logical_date_gte
         in: query
         required: false
@@ -7912,12 +8037,12 @@ components:
         has_import_errors:
           type: boolean
           title: Has Import Errors
-        next_dagrun:
+        next_dagrun_logical_date:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun
+          title: Next Dagrun Logical Date
         next_dagrun_data_interval_start:
           anyOf:
           - type: string
@@ -7930,12 +8055,12 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Data Interval End
-        next_dagrun_create_after:
+        next_dagrun_run_after:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun Create After
+          title: Next Dagrun Run After
         owners:
           items:
             type: string
@@ -8032,10 +8157,10 @@ components:
       - max_consecutive_failed_dag_runs
       - has_task_concurrency_limits
       - has_import_errors
-      - next_dagrun
+      - next_dagrun_logical_date
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
-      - next_dagrun_create_after
+      - next_dagrun_run_after
       - owners
       - catchup
       - dag_run_timeout
@@ -8135,12 +8260,12 @@ components:
         has_import_errors:
           type: boolean
           title: Has Import Errors
-        next_dagrun:
+        next_dagrun_logical_date:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun
+          title: Next Dagrun Logical Date
         next_dagrun_data_interval_start:
           anyOf:
           - type: string
@@ -8153,12 +8278,12 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Data Interval End
-        next_dagrun_create_after:
+        next_dagrun_run_after:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun Create After
+          title: Next Dagrun Run After
         owners:
           items:
             type: string
@@ -8188,10 +8313,10 @@ components:
       - max_consecutive_failed_dag_runs
       - has_task_concurrency_limits
       - has_import_errors
-      - next_dagrun
+      - next_dagrun_logical_date
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
-      - next_dagrun_create_after
+      - next_dagrun_run_after
       - owners
       - file_token
       title: DAGResponse
@@ -8418,6 +8543,18 @@ components:
             type: array
           - type: 'null'
           title: States
+        run_after_gte:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+        run_after_lte:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
         logical_date_gte:
           anyOf:
           - type: string
@@ -8637,12 +8774,12 @@ components:
         has_import_errors:
           type: boolean
           title: Has Import Errors
-        next_dagrun:
+        next_dagrun_logical_date:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun
+          title: Next Dagrun Logical Date
         next_dagrun_data_interval_start:
           anyOf:
           - type: string
@@ -8655,12 +8792,12 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Data Interval End
-        next_dagrun_create_after:
+        next_dagrun_run_after:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun Create After
+          title: Next Dagrun Run After
         owners:
           items:
             type: string
@@ -8695,10 +8832,10 @@ components:
       - max_consecutive_failed_dag_runs
       - has_task_concurrency_limits
       - has_import_errors
-      - next_dagrun
+      - next_dagrun_logical_date
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
-      - next_dagrun_create_after
+      - next_dagrun_run_after
       - owners
       - latest_dag_runs
       - file_token
@@ -8910,6 +9047,12 @@ components:
           type: string
           format: date-time
           title: Created At
+        bundle_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Url
+          readOnly: true
       type: object
       required:
       - id
@@ -8918,6 +9061,7 @@ components:
       - bundle_name
       - bundle_version
       - created_at
+      - bundle_url
       title: DagVersionResponse
       description: Dag Version serializer for responses.
     DagWarningType:
@@ -9122,10 +9266,20 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         state:
           $ref: '#/components/schemas/DagRunState'
         run_type:
           $ref: '#/components/schemas/DagRunType'
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
         data_interval_start:
           anyOf:
           - type: string
@@ -9159,8 +9313,10 @@ components:
       - queued_at
       - start_date
       - end_date
+      - run_after
       - state
       - run_type
+      - logical_date
       - data_interval_start
       - data_interval_end
       - version_number
@@ -10070,6 +10226,10 @@ components:
             format: date-time
           - type: 'null'
           title: Logical Date
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         start_date:
           anyOf:
           - type: string
@@ -10190,6 +10350,7 @@ components:
       - dag_run_id
       - map_index
       - logical_date
+      - run_after
       - start_date
       - end_date
       - duration
@@ -10326,6 +10487,18 @@ components:
             type: array
           - type: 'null'
           title: State
+        run_after_gte:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+        run_after_lte:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
         logical_date_gte:
           anyOf:
           - type: string

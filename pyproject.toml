@@ -328,16 +328,12 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Those are needed so that __init__.py chaining of packages properly works for IDEs
 # the first non-comment line of such empty __init__.py files should be:
 # __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
-"providers/src/airflow/providers/__init__.py" = ["I002"]
-"providers/src/airflow/__init__.py" = ["I002"]
 "providers/*/tests/*/__init__.py" = ["I002"]
 "providers/*/*/tests/*/*/__init__.py" = ["I002"]
-"providers/tests/__init__.py" = ["I002"]
-"providers/__init__.py" = ["I002"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
-"providers/standard/tests/provider_tests/standard/decorators/test_python.py" = ["I002"]
+"providers/standard/tests/unit/standard/decorators/test_python.py" = ["I002"]
 
 # The Pydantic representations of SqlAlchemy Models are not parsed well with Pydantic
 # when __future__.annotations is used so we need to skip them from upgrading
@@ -377,6 +373,7 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "docker_tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes_tests/*" = ["D", "TID253", "S101", "TRY002"]
 "helm_tests/*" = ["D", "TID253", "S101", "TRY002"]
+"providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -384,24 +381,28 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_dataset.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_endpoint_service.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_generative_model.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_hyperparameter_tuning_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/links/test_translate.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/operators/test_automl.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
-"providers/google/tests/provider_tests/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_auto_ml.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_custom_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_dataset.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_endpoint_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_generative_model.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_hyperparameter_tuning_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_model_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/hooks/vertex_ai/test_prediction_service.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/links/test_translate.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/operators/test_automl.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/operators/test_vertex_ai.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/operators/vertex_ai/test_generative_model.py" = [ "E402"]
+"providers/google/tests/unit/google/cloud/triggers/test_vertex_ai.py" = [ "E402"]
 "providers/microsoft/azure/tests/conftest.py" = ["E402"]
-"providers/qdrant/tests/provider_tests/qdrant/hooks/test_qdrant.py" = ["E402"]
-"providers/qdrant/tests/provider_tests/qdrant/operators/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/unit/qdrant/hooks/test_qdrant.py" = ["E402"]
+"providers/qdrant/tests/unit/qdrant/operators/test_qdrant.py" = ["E402"]
+
+# Remove some docstring rules from files that do not need docstrings
+"providers/apache/hdfs/src/airflow/providers/apache/hdfs/sensors/hdfs.py" = ["D101"]
+
 
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
@@ -410,6 +411,10 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Test compat imports banned imports to allow testing against older airflow versions
 "tests_common/test_utils/compat.py" = ["TID251", "F401"]
 "tests_common/pytest_plugin.py" = ["F811"]
+
+# While pandas import is banned, sql.pyi should be excluded from it as it does not have a TYPE_CHECKING
+# mechanism and whole .pyi is really "type-checking" only
+"providers/common/sql/src/airflow/providers/common/sql/hooks/sql.pyi" = ["TID253"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
@@ -464,6 +469,7 @@ banned-module-level-imports = ["numpy", "pandas"]
 "sqlalchemy.ext.declarative.as_declarative".msg = "Use `sqlalchemy.orm.as_declarative`. Moved in SQLAlchemy 2.0"
 "sqlalchemy.ext.declarative.has_inherited_table".msg = "Use `sqlalchemy.orm.has_inherited_table`. Moved in SQLAlchemy 2.0"
 "sqlalchemy.ext.declarative.synonym_for".msg = "Use `sqlalchemy.orm.synonym_for`. Moved in SQLAlchemy 2.0"
+"providers".msg = "You should not import 'providers' as a Python module. Imports in providers should be done starting from 'src' or `tests' folders, for example 'from airflow.providers.airbyte'  or 'from unit.airbyte' or 'from system.airbyte'"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
@@ -537,7 +543,6 @@ python_files = [
 testpaths = [
     "tests",
 ]
-
 asyncio_default_fixture_loop_scope = "function"
 
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
@@ -589,14 +594,12 @@ disable_error_code = [
     "annotation-unchecked",
 ]
 # Since there are no __init__.py files in
-# providers/src/apache/airflow/providers we need to tell MyPy where the "base"
+# providers/<provided>src/apache/airflow/providers we need to tell MyPy where the "base"
 # is, otherwise when it sees
-# providers/src/apache/airflow/providers/redis/__init__.py, it thinks this is
-# the toplevel `redis` folder.
+# TODO(potiuk): check if those providers/*/src are still needed
 explicit_package_bases = true
 mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
-  "$MYPY_CONFIG_FILE_DIR/providers/src",
   "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
   "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
   "$MYPY_CONFIG_FILE_DIR/providers/celery/src",
@@ -636,8 +639,7 @@ ignore_errors = true
 
 [dependency-groups]
 dev = [
-  # TODO(potiuk): remove me when all providers are moved to new structure
-  "local-providers",
+  "apache-airflow",
   "apache-airflow-providers-airbyte",
   "apache-airflow-providers-alibaba",
   "apache-airflow-providers-amazon",
@@ -737,7 +739,7 @@ dev = [
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
-local-providers = { workspace = true }
+apache-airflow = {workspace = true}
 apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
@@ -835,7 +837,6 @@ apache-airflow-task-sdk = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "providers",
     "providers/airbyte",
     "providers/alibaba",
     "providers/amazon",
@@ -929,5 +930,6 @@ members = [
     "providers/yandex",
     "providers/ydb",
     "providers/zendesk",
+    ".",
     "task_sdk",
 ]

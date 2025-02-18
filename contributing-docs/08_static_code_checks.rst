@@ -158,6 +158,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-default-configuration                               | Check the default configuration                        | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-deferrable-default                                  | Check and fix default value of default_deferrable      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-docstring-param-types                               | Check that docstrings do not specify param types       |         |
@@ -255,6 +257,8 @@ require Breeze Docker image to be built locally.
 | check-zip-file-is-not-committed                           | Check no zip files are committed                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | codespell                                                 | Run codespell                                          |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| compile-fab-assets                                        | Compile FAB provider assets                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | compile-ui-assets                                         | Compile ui assets (manual)                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

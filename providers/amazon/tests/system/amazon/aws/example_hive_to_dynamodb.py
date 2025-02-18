@@ -24,8 +24,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
-
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
@@ -34,6 +32,7 @@ from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.transfers.hive_to_dynamodb import HiveToDynamoDBOperator
 from airflow.utils import db
 from airflow.utils.trigger_rule import TriggerRule
+from system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_hive_to_dynamodb"
 

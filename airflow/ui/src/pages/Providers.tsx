@@ -38,11 +38,13 @@ const columns: Array<ColumnDef<ProviderResponse>> = [
         {original.package_name}
       </Link>
     ),
+    enableSorting: false,
     header: "Package Name",
   },
   {
     accessorKey: "version",
     cell: ({ row: { original } }) => original.version,
+    enableSorting: false,
     header: () => "Version",
   },
   {
@@ -62,6 +64,7 @@ const columns: Array<ColumnDef<ProviderResponse>> = [
         ),
       );
     },
+    enableSorting: false,
     header: "Description",
   },
 ];

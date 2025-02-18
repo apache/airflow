@@ -1614,7 +1614,7 @@ export const $DAGDetailsResponse = {
       type: "boolean",
       title: "Has Import Errors",
     },
-    next_dagrun: {
+    next_dagrun_logical_date: {
       anyOf: [
         {
           type: "string",
@@ -1624,7 +1624,7 @@ export const $DAGDetailsResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun",
+      title: "Next Dagrun Logical Date",
     },
     next_dagrun_data_interval_start: {
       anyOf: [
@@ -1650,7 +1650,7 @@ export const $DAGDetailsResponse = {
       ],
       title: "Next Dagrun Data Interval End",
     },
-    next_dagrun_create_after: {
+    next_dagrun_run_after: {
       anyOf: [
         {
           type: "string",
@@ -1660,7 +1660,7 @@ export const $DAGDetailsResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun Create After",
+      title: "Next Dagrun Run After",
     },
     owners: {
       items: {
@@ -1826,10 +1826,10 @@ export const $DAGDetailsResponse = {
     "max_consecutive_failed_dag_runs",
     "has_task_concurrency_limits",
     "has_import_errors",
-    "next_dagrun",
+    "next_dagrun_logical_date",
     "next_dagrun_data_interval_start",
     "next_dagrun_data_interval_end",
-    "next_dagrun_create_after",
+    "next_dagrun_run_after",
     "owners",
     "catchup",
     "dag_run_timeout",
@@ -1988,7 +1988,7 @@ export const $DAGResponse = {
       type: "boolean",
       title: "Has Import Errors",
     },
-    next_dagrun: {
+    next_dagrun_logical_date: {
       anyOf: [
         {
           type: "string",
@@ -1998,7 +1998,7 @@ export const $DAGResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun",
+      title: "Next Dagrun Logical Date",
     },
     next_dagrun_data_interval_start: {
       anyOf: [
@@ -2024,7 +2024,7 @@ export const $DAGResponse = {
       ],
       title: "Next Dagrun Data Interval End",
     },
-    next_dagrun_create_after: {
+    next_dagrun_run_after: {
       anyOf: [
         {
           type: "string",
@@ -2034,7 +2034,7 @@ export const $DAGResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun Create After",
+      title: "Next Dagrun Run After",
     },
     owners: {
       items: {
@@ -2069,10 +2069,10 @@ export const $DAGResponse = {
     "max_consecutive_failed_dag_runs",
     "has_task_concurrency_limits",
     "has_import_errors",
-    "next_dagrun",
+    "next_dagrun_logical_date",
     "next_dagrun_data_interval_start",
     "next_dagrun_data_interval_end",
-    "next_dagrun_create_after",
+    "next_dagrun_run_after",
     "owners",
     "file_token",
   ],
@@ -2418,6 +2418,30 @@ export const $DAGRunsBatchBody = {
       ],
       title: "States",
     },
+    run_after_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Gte",
+    },
+    run_after_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Lte",
+    },
     logical_date_gte: {
       anyOf: [
         {
@@ -2761,7 +2785,7 @@ export const $DAGWithLatestDagRunsResponse = {
       type: "boolean",
       title: "Has Import Errors",
     },
-    next_dagrun: {
+    next_dagrun_logical_date: {
       anyOf: [
         {
           type: "string",
@@ -2771,7 +2795,7 @@ export const $DAGWithLatestDagRunsResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun",
+      title: "Next Dagrun Logical Date",
     },
     next_dagrun_data_interval_start: {
       anyOf: [
@@ -2797,7 +2821,7 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Next Dagrun Data Interval End",
     },
-    next_dagrun_create_after: {
+    next_dagrun_run_after: {
       anyOf: [
         {
           type: "string",
@@ -2807,7 +2831,7 @@ export const $DAGWithLatestDagRunsResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun Create After",
+      title: "Next Dagrun Run After",
     },
     owners: {
       items: {
@@ -2849,10 +2873,10 @@ export const $DAGWithLatestDagRunsResponse = {
     "max_consecutive_failed_dag_runs",
     "has_task_concurrency_limits",
     "has_import_errors",
-    "next_dagrun",
+    "next_dagrun_logical_date",
     "next_dagrun_data_interval_start",
     "next_dagrun_data_interval_end",
-    "next_dagrun_create_after",
+    "next_dagrun_run_after",
     "owners",
     "latest_dag_runs",
     "file_token",
@@ -3112,9 +3136,21 @@ export const $DagVersionResponse = {
       format: "date-time",
       title: "Created At",
     },
+    bundle_url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Url",
+      readOnly: true,
+    },
   },
   type: "object",
-  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at"],
+  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at", "bundle_url"],
   title: "DagVersionResponse",
   description: "Dag Version serializer for responses.",
 } as const;
@@ -3436,11 +3472,28 @@ export const $GridDAGRunwithTIs = {
       ],
       title: "End Date",
     },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     state: {
       $ref: "#/components/schemas/DagRunState",
     },
     run_type: {
       $ref: "#/components/schemas/DagRunType",
+    },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
     },
     data_interval_start: {
       anyOf: [
@@ -3502,8 +3555,10 @@ export const $GridDAGRunwithTIs = {
     "queued_at",
     "start_date",
     "end_date",
+    "run_after",
     "state",
     "run_type",
+    "logical_date",
     "data_interval_start",
     "data_interval_end",
     "version_number",
@@ -4848,6 +4903,11 @@ export const $TaskInstanceResponse = {
       ],
       title: "Logical Date",
     },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     start_date: {
       anyOf: [
         {
@@ -5084,6 +5144,7 @@ export const $TaskInstanceResponse = {
     "dag_run_id",
     "map_index",
     "logical_date",
+    "run_after",
     "start_date",
     "end_date",
     "duration",
@@ -5274,6 +5335,30 @@ export const $TaskInstancesBatchBody = {
         },
       ],
       title: "State",
+    },
+    run_after_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Gte",
+    },
+    run_after_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Lte",
     },
     logical_date_gte: {
       anyOf: [

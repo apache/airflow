@@ -43,6 +43,7 @@ def compare_attributes(path1, path2):
         get_class_attributes(path2, "TaskInstanceHistory")
     )
     diff = diff - {
+        "run_after",
         "_logger_name",
         "_task_display_property_value",
         "task_instance_note",
