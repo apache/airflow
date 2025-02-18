@@ -272,7 +272,6 @@ def _create_orm_dagrun(
         conf=conf,
         state=state,
         run_type=run_type,
-        dag_version=dag_version,
         creating_job_id=creating_job_id,
         data_interval=data_interval,
         triggered_by=triggered_by,
@@ -287,7 +286,9 @@ def _create_orm_dagrun(
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    run.verify_integrity(session=session)
+    if not dag_version:
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
     return run
 
 
@@ -1831,7 +1832,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         if conf:
             copied_params.update(conf)
         copied_params.validate()
-
         return _create_orm_dagrun(
             dag=self,
             run_id=run_id,

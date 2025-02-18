@@ -22,6 +22,7 @@ import json
 import unittest.mock
 import urllib.parse
 from getpass import getuser
+from unittest import mock
 
 import pendulum
 import pytest
@@ -977,7 +978,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
+            "dag_version_id": mock.ANY,
         },
         "run_after_loop": {
             "custom_operator_name": None,
@@ -1015,7 +1016,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
+            "dag_version_id": mock.ANY,
         },
         "run_this_last": {
             "custom_operator_name": None,
@@ -1053,7 +1054,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
+            "dag_version_id": mock.ANY,
         },
         "runme_0": {
             "custom_operator_name": None,
@@ -1091,7 +1092,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
+            "dag_version_id": mock.ANY,
         },
         "runme_1": {
             "custom_operator_name": None,
@@ -1129,7 +1130,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
+            "dag_version_id": mock.ANY,
         },
         "runme_2": {
             "custom_operator_name": None,
@@ -1167,7 +1168,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
+            "dag_version_id": mock.ANY,
         },
         "this_will_skip": {
             "custom_operator_name": None,
@@ -1205,6 +1206,6 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
+            "dag_version_id": mock.ANY,
         },
     }
