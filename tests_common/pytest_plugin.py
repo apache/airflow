@@ -1728,3 +1728,97 @@ def add_providers_test_folders_to_pythonpath():
     yield
     sys.path.clear()
     sys.path.extend(old_path)
+
+
+@pytest.fixture
+def cap_structlog():
+    """
+    Test that structlog messages are logged.
+
+    This extends the feature built in to structlog to make it easier to find if a message is logged.
+
+    >>> def test_something(cap_structlog):
+    ...     log.info("some event", field1=False, field2=[1, 2])
+    ...     log.info("some event", field1=True)
+    ...     assert "some_event" in cap_structlog  # a string searches on `event` field
+    ...     assert {"event": "some_event", "field1": True} in cap_structlog  # Searches only on passed fields
+    ...     assert {"field2": [1, 2]} in cap_structlog
+    ...
+    ...     assert "not logged" not in cap_structlog  # not in works too
+    """
+    import structlog.testing
+    from structlog import configure, get_config
+
+    class LogCapture(structlog.testing.LogCapture):
+        def __contains__(self, target):
+            import operator
+
+            if isinstance(target, str):
+
+                def predicate(e):
+                    return e["event"] == target
+            elif isinstance(target, dict):
+                # Partial comparison -- only check keys passed in
+                get = operator.itemgetter(*target.keys())
+                want = tuple(target.values())
+
+                def predicate(e):
+                    try:
+                        return get(e) == want
+                    except Exception:
+                        return False
+            else:
+                raise TypeError(f"Can't search logs using {type(target)}")
+
+            return any(predicate(e) for e in self.entries)
+
+        def __getitem__(self, i):
+            return self.entries[i]
+
+        def __iter__(self):
+            return iter(self.entries)
+
+        def __repr__(self):
+            return repr(self.entries)
+
+        @property
+        def text(self):
+            """All the event text as a single multi-line string."""
+            return "\n".join(e["event"] for e in self.entries)
+
+    cap = LogCapture()
+    # Modify `_Configuration.default_processors` set via `configure` but always
+    # keep the list instance intact to not break references held by bound
+    # loggers.
+    processors = get_config()["processors"]
+    old_processors = processors.copy()
+    try:
+        # clear processors list and use LogCapture for testing
+        processors.clear()
+        processors.append(cap)
+        configure(processors=processors)
+        yield cap
+    finally:
+        # remove LogCapture and restore original processors
+        processors.clear()
+        processors.extend(old_processors)
+        configure(processors=processors)
+
+
+@pytest.fixture(name="caplog")
+def override_caplog(request):
+    """
+    Override the builtin caplog test fixture to also re-configure Airflow logging test afterwards.
+
+    This is in an effort to reduce flakiness from caplog related tests where one test file can change log
+    behaviour and bleed in to affecting other test files
+    """
+    # We need this `_ispytest` so it doesn't warn about using private
+    fixture = pytest.LogCaptureFixture(request.node, _ispytest=True)
+    yield fixture
+    fixture._finalize()
+
+    if "airflow.logging_config" in sys.modules:
+        import airflow.logging_config
+
+        airflow.logging_config.configure_logging()
