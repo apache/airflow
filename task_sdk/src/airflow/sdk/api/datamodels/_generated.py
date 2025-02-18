@@ -370,3 +370,11 @@ class TITerminalStatePayload(BaseModel):
     )
     state: TerminalStateNonSuccess
     end_date: Annotated[datetime, Field(title="End Date")]
+
+
+class AssetEventCollectionResponse(BaseModel):
+    """
+    Collection of AssetEventResponse.
+    """
+
+    asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
