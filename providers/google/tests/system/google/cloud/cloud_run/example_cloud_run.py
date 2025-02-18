@@ -23,6 +23,9 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.cloud.run_v2 import Job
+from google.cloud.run_v2.types import k8s_min
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
@@ -33,8 +36,6 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
-from google.cloud.run_v2 import Job
-from google.cloud.run_v2.types import k8s_min
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

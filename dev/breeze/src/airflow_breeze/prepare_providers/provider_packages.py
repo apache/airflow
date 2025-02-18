@@ -21,24 +21,20 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from shutil import copytree, rmtree
 from typing import Any, TextIO
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.packages import (
-    apply_version_suffix,
     get_available_packages,
     get_latest_provider_tag,
     get_not_ready_provider_ids,
-    get_old_source_providers_package_path,
     get_provider_details,
     get_provider_jinja_context,
     get_removed_provider_ids,
-    get_target_root_for_copied_provider_sources,
+    regenerate_pyproject_toml,
     render_template,
     tag_exists_for_provider,
 )
-from airflow_breeze.utils.path_utils import BREEZE_SOURCES_DIR, OLD_AIRFLOW_PROVIDERS_SRC_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.version_utils import is_local_package_version
 
@@ -72,37 +68,6 @@ class PrepareReleasePackageWrongSetupException(Exception):
 
 class PrepareReleasePackageErrorBuildingPackageException(Exception):
     """Error when building the package."""
-
-
-def copy_provider_sources_to_target(provider_id: str) -> Path:
-    target_provider_root_path = get_target_root_for_copied_provider_sources(provider_id)
-
-    if target_provider_root_path.exists() and not target_provider_root_path.is_dir():
-        get_console().print(
-            f"[error]Target folder for {provider_id} sources is not a directory "
-            f"please delete {target_provider_root_path} and try again!"
-        )
-    rmtree(target_provider_root_path, ignore_errors=True)
-    target_provider_root_path.mkdir(parents=True)
-    source_provider_sources_path = get_old_source_providers_package_path(provider_id)
-    relative_provider_path = source_provider_sources_path.relative_to(OLD_AIRFLOW_PROVIDERS_SRC_DIR)
-    target_providers_sub_folder = target_provider_root_path / relative_provider_path
-    get_console().print(
-        f"[info]Copying provider sources: {source_provider_sources_path} -> {target_providers_sub_folder}"
-    )
-    copytree(source_provider_sources_path, target_providers_sub_folder)
-    shutil.copy(
-        BREEZE_SOURCES_DIR / "airflow_breeze" / "templates" / "PROVIDER_LICENSE.txt",
-        target_providers_sub_folder / "LICENSE",
-    )
-    # We do not copy NOTICE from the top level source of Airflow because NOTICE only refers to
-    # Airflow sources - not to providers. If any of the providers is going to have a code that
-    # requires NOTICE, then it should be stored in the provider sources (airflow/providers/PROVIDER_ID)
-    # And it will be copied from there.
-    (target_providers_sub_folder / ".latest-doc-only-change.txt").unlink(missing_ok=True)
-    (target_providers_sub_folder / "CHANGELOG.rst").unlink(missing_ok=True)
-    (target_providers_sub_folder / "provider.yaml").unlink(missing_ok=True)
-    return target_provider_root_path
 
 
 def get_provider_package_jinja_context(provider_id: str, version_suffix: str) -> dict[str, Any]:
@@ -212,15 +177,9 @@ def apply_version_suffix_to_pyproject_toml(
     if not version_suffix:
         return original_pyproject_toml_content
     get_console().print(f"\n[info]Applying version suffix {version_suffix} to {pyproject_toml_path}")
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib
-    pyproject_toml_data = tomllib.loads(original_pyproject_toml_content)
-    new_dependencies = []
-    for dependency in pyproject_toml_data["project"].get("dependencies", []):
-        new_dependencies.append(apply_version_suffix(dependency, version_suffix))
     jinja_context = get_provider_package_jinja_context(provider_id=provider_id, version_suffix=version_suffix)
+    provider_details = get_provider_details(provider_id)
+    regenerate_pyproject_toml(jinja_context, provider_details, version_suffix)
     _prepare_pyproject_toml_file(jinja_context, target_provider_root_sources_path)
     return original_pyproject_toml_content
 

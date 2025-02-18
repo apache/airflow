@@ -87,10 +87,10 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
   {
     accessorKey: "next_dagrun",
     cell: ({ row: { original } }) =>
-      Boolean(original.next_dagrun_create_after) ? (
+      Boolean(original.next_dagrun_run_after) ? (
         <DagRunInfo
-          logicalDate={original.next_dagrun}
-          runAfter={original.next_dagrun_create_after as string}
+          logicalDate={original.next_dagrun_logical_date}
+          runAfter={original.next_dagrun_run_after as string}
         />
       ) : undefined,
     header: "Next Dag Run",

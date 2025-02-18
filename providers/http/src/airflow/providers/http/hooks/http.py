@@ -228,6 +228,26 @@ class HttpHook(BaseHook):
             ),
         }
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, Select2Widget
+        from flask_babel import lazy_gettext
+        from wtforms.fields import SelectField, TextAreaField
+
+        default_auth_type: str = ""
+        auth_types_choices = frozenset({default_auth_type}) | get_auth_types()
+        return {
+            "auth_type": SelectField(
+                lazy_gettext("Auth type"),
+                choices=[(clazz, clazz) for clazz in auth_types_choices],
+                widget=Select2Widget(),
+                default=default_auth_type
+            ),
+            "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
+            "extra_headers": TextAreaField(lazy_gettext("Extra Headers"), widget=BS3TextAreaFieldWidget()),
+        }
+
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
     def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
@@ -518,7 +538,6 @@ class HttpAsyncHook(BaseHook):
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
-        :param json: Payload to be uploaded as JSON.
         :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as

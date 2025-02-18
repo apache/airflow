@@ -130,25 +130,30 @@ To delete an existing dataset from a BigQuery database you can use
 Manage tables
 ^^^^^^^^^^^^^
 
-.. _howto/operator:BigQueryCreateEmptyTableOperator:
+.. _howto/operator:BigQueryCreateTableOperator:
 
-Create native table
-"""""""""""""""""""
+Create table
+""""""""""""
 
-To create a new, empty table in the given BigQuery dataset, optionally with
-schema you can use
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator`.
-
-The schema to be used for the BigQuery table may be specified in one of two
-ways. You may either directly pass the schema fields in, or you may point the
-operator to a Google Cloud Storage object name. The object in Google Cloud
-Storage must be a JSON file with the schema fields in it.
+To create a new table in a dataset with the data in Google Cloud Storage
+you can use
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator` by providing `table structure <https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource:-table>`__
+in ``table_resource`` field.
 
 .. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_create_table]
     :end-before: [END howto_operator_bigquery_create_table]
+
+You can also specify Google Cloud Storage object name as a way to specify schema. The object in Google Cloud
+Storage must be a JSON file with the schema fields in it.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_create_table_schema_json]
+    :end-before: [END howto_operator_bigquery_create_table_schema_json]
 
 You can use this operator to create a view on top of an existing table.
 
@@ -159,7 +164,7 @@ You can use this operator to create a view on top of an existing table.
     :end-before: [END howto_operator_bigquery_create_view]
 
 You can also use this operator to create a materialized view that periodically
-cache results of a query for increased performance and efficiency.
+caches results of a query for increased performance and efficiency.
 
 .. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
     :language: python
@@ -167,35 +172,31 @@ cache results of a query for increased performance and efficiency.
     :start-after: [START howto_operator_bigquery_create_materialized_view]
     :end-before: [END howto_operator_bigquery_create_materialized_view]
 
+.. _howto/operator:BigQueryCreateEmptyTableOperator:
+
+Create native table
+"""""""""""""""""""
+
+.. warning::
+    This operator is deprecated and will be removed after July 30, 2025. Please use
+    :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator`.
+
+To create a new, empty table in the given BigQuery dataset, optionally with
+schema you can use
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator`.
+
 .. _howto/operator:BigQueryCreateExternalTableOperator:
 
 Create external table
 """""""""""""""""""""
 
+.. warning::
+    This operator is deprecated and will be removed after July 30, 2025. Please use
+    :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator`.
+
 To create a new external table in a dataset with the data in Google Cloud Storage
 you can use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateExternalTableOperator`.
-
-Similarly to
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateEmptyTableOperator`
-you can directly pass the schema fields in.
-
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_operations.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_bigquery_create_external_table]
-    :end-before: [END howto_operator_bigquery_create_external_table]
-
-Or you may point the operator to a Google Cloud Storage object name where the schema is stored.
-
-.. exampleinclude:: /../../providers/google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_bigquery_create_table_schema_json]
-    :end-before: [END howto_operator_bigquery_create_table_schema_json]
-
-To use BigQuery `schema auto-detection <https://cloud.google.com/bigquery/docs/schema-detect#schema_auto-detection_for_external_data_sources>`__,
-set the ``autodetect`` flag instead of providing explicit schema information.
 
 .. _howto/operator:BigQueryGetDataOperator:
 

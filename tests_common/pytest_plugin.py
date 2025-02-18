@@ -359,9 +359,13 @@ def initialize_airflow_tests(request):
             sys.exit(1)
 
 
+def _find_all_deprecation_ignore_files() -> list[str]:
+    all_deprecation_ignore_files = AIRFLOW_SOURCES_ROOT_DIR.rglob("deprecations_ignore.yml")
+    return list(path.as_posix() for path in all_deprecation_ignore_files)
+
+
 def pytest_configure(config: pytest.Config) -> None:
-    # Ensure that the airflow sources dir is at the end of the sys path if it's not already there. Needed to
-    # run import from `providers/tests/`
+    # Ensure that the airflow sources dir is at the end of the sys path if it's not already there.
     if os.environ.get("USE_AIRFLOW_VERSION") == "":
         # if USE_AIRFLOW_VERSION is not empty, we are running tests against the installed version of Airflow
         # and providers so there is no need to add the sources directory to the path
@@ -380,7 +384,7 @@ def pytest_configure(config: pytest.Config) -> None:
                 f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
             )
             pytest.exit(msg, returncode=6)
-
+    config.inicfg["airflow_deprecations_ignore"] = _find_all_deprecation_ignore_files()
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
     config.addinivalue_line("markers", "system: mark test to run as system test")
@@ -1712,3 +1716,109 @@ def create_db_api_hook(request):
     test_db_hook.escape_column_names = escape_column_names or False
 
     return test_db_hook
+
+
+@pytest.fixture(autouse=True, scope="session")
+def add_providers_test_folders_to_pythonpath():
+    old_path = sys.path.copy()
+    all_provider_test_folders: list[Path] = list(Path(__file__).parents[1].glob("providers/*/tests"))
+    all_provider_test_folders.extend(list(Path(__file__).parents[1].glob("providers/*/*/tests")))
+    for provider_test_folder in all_provider_test_folders:
+        sys.path.append(str(provider_test_folder))
+    yield
+    sys.path.clear()
+    sys.path.extend(old_path)
+
+
+@pytest.fixture
+def cap_structlog():
+    """
+    Test that structlog messages are logged.
+
+    This extends the feature built in to structlog to make it easier to find if a message is logged.
+
+    >>> def test_something(cap_structlog):
+    ...     log.info("some event", field1=False, field2=[1, 2])
+    ...     log.info("some event", field1=True)
+    ...     assert "some_event" in cap_structlog  # a string searches on `event` field
+    ...     assert {"event": "some_event", "field1": True} in cap_structlog  # Searches only on passed fields
+    ...     assert {"field2": [1, 2]} in cap_structlog
+    ...
+    ...     assert "not logged" not in cap_structlog  # not in works too
+    """
+    import structlog.testing
+    from structlog import configure, get_config
+
+    class LogCapture(structlog.testing.LogCapture):
+        def __contains__(self, target):
+            import operator
+
+            if isinstance(target, str):
+
+                def predicate(e):
+                    return e["event"] == target
+            elif isinstance(target, dict):
+                # Partial comparison -- only check keys passed in
+                get = operator.itemgetter(*target.keys())
+                want = tuple(target.values())
+
+                def predicate(e):
+                    try:
+                        return get(e) == want
+                    except Exception:
+                        return False
+            else:
+                raise TypeError(f"Can't search logs using {type(target)}")
+
+            return any(predicate(e) for e in self.entries)
+
+        def __getitem__(self, i):
+            return self.entries[i]
+
+        def __iter__(self):
+            return iter(self.entries)
+
+        def __repr__(self):
+            return repr(self.entries)
+
+        @property
+        def text(self):
+            """All the event text as a single multi-line string."""
+            return "\n".join(e["event"] for e in self.entries)
+
+    cap = LogCapture()
+    # Modify `_Configuration.default_processors` set via `configure` but always
+    # keep the list instance intact to not break references held by bound
+    # loggers.
+    processors = get_config()["processors"]
+    old_processors = processors.copy()
+    try:
+        # clear processors list and use LogCapture for testing
+        processors.clear()
+        processors.append(cap)
+        configure(processors=processors)
+        yield cap
+    finally:
+        # remove LogCapture and restore original processors
+        processors.clear()
+        processors.extend(old_processors)
+        configure(processors=processors)
+
+
+@pytest.fixture(name="caplog")
+def override_caplog(request):
+    """
+    Override the builtin caplog test fixture to also re-configure Airflow logging test afterwards.
+
+    This is in an effort to reduce flakiness from caplog related tests where one test file can change log
+    behaviour and bleed in to affecting other test files
+    """
+    # We need this `_ispytest` so it doesn't warn about using private
+    fixture = pytest.LogCaptureFixture(request.node, _ispytest=True)
+    yield fixture
+    fixture._finalize()
+
+    if "airflow.logging_config" in sys.modules:
+        import airflow.logging_config
+
+        airflow.logging_config.configure_logging()
