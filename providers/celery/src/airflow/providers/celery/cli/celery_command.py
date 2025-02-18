@@ -35,7 +35,6 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.serve_logs import serve_logs
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
-from celery.app.defaults import DEFAULT_TASK_LOG_FMT
 from celery.signals import after_setup_logger
 
 WORKER_PROCESS_NAME = "worker"
@@ -128,7 +127,7 @@ def logger_setup_handler(logger, **kwargs):
     * logs of severity lower than error goes to stdout.
     """
     if conf.getboolean("logging", "celery_stdout_stderr_separation", fallback=False):
-        celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
+        celery_formatter = logging.Formatter(kwargs["format"])
 
         class NoErrorOrAboveFilter(logging.Filter):
             """Allow only logs with level *lower* than ERROR to be reported."""
