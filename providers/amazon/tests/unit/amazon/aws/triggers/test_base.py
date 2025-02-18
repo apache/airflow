@@ -122,5 +122,6 @@ class TestAwsBaseWaiterTrigger:
         res: TriggerEvent = await generator.asend(None)
 
         wait_mock.assert_called_once()
+        assert isinstance(res.payload, dict)
         assert res.payload["status"] == "success"
         assert res.payload["hello"] == "world"

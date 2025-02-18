@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import datetime
+import logging
 from collections.abc import Iterable
 from enum import Enum
+from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
@@ -30,6 +32,7 @@ from airflow.assets.manager import AssetManager
 from airflow.models.asset import asset_trigger_association_table
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
+from airflow.triggers import base as events
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -49,6 +52,8 @@ Internal use only.
 
 :meta private:
 """
+
+log = logging.getLogger(__name__)
 
 
 class TriggerFailureReason(str, Enum):
@@ -225,7 +230,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_event(cls, trigger_id, event, session: Session = NEW_SESSION) -> None:
+    def submit_event(cls, trigger_id, event: events.TriggerEvent, session: Session = NEW_SESSION) -> None:
         """
         Fire an event.
 
@@ -238,7 +243,7 @@ class Trigger(Base):
                 TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
             )
         ):
-            event.handle_submit(task_instance=task_instance)
+            handle_event_submit(event, task_instance=task_instance, session=session)
 
         # Send an event to assets
         trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one()
@@ -260,10 +265,6 @@ class Trigger(Base):
         We use a special __fail__ value for next_method to achieve this that
         the runtime code understands as immediate-fail, and pack the error into
         next_kwargs.
-
-        TODO: Once we have shifted callback (and email) handling to run on
-        workers as first-class concepts, we can run the failure code here
-        in-process, but we can't do that right now.
         """
         for task_instance in session.scalars(
             select(TaskInstance).where(
@@ -271,7 +272,10 @@ class Trigger(Base):
             )
         ):
             # Add the error and set the next_method to the fail state
-            traceback = format_exception(type(exc), exc, exc.__traceback__) if exc else None
+            if isinstance(exc, BaseException):
+                traceback = format_exception(type(exc), exc, exc.__traceback__)
+            else:
+                traceback = exc
             task_instance.next_method = TRIGGER_FAIL_REPR
             task_instance.next_kwargs = {
                 "error": TriggerFailureReason.TRIGGER_FAILURE,
@@ -360,3 +364,82 @@ class Trigger(Base):
         # Add triggers associated to assets after triggers associated to tasks
         # It prioritizes DAGs over event driven scheduling which is fair
         return ti_triggers + asset_triggers
+
+
+@singledispatch
+def handle_event_submit(event: events.TriggerEvent, *, task_instance: TaskInstance, session: Session) -> None:
+    """
+    Handle the submit event for a given task instance.
+
+    This function sets the next method and next kwargs of the task instance,
+    as well as its state to scheduled. It also adds the event's payload
+    into the kwargs for the task.
+
+    :param task_instance: The task instance to handle the submit event for.
+    :param session: The session to be used for the database callback sink.
+    """
+    from airflow.utils.state import TaskInstanceState
+
+    # Get the next kwargs of the task instance, or an empty dictionary if it doesn't exist
+    next_kwargs = task_instance.next_kwargs or {}
+
+    # Add the event's payload into the kwargs for the task
+    next_kwargs["event"] = event.payload
+
+    # Update the next kwargs of the task instance
+    task_instance.next_kwargs = next_kwargs
+
+    # Remove ourselves as its trigger
+    task_instance.trigger_id = None
+
+    # Set the state of the task instance to scheduled
+    task_instance.state = TaskInstanceState.SCHEDULED
+    task_instance.scheduled_dttm = timezone.utcnow()
+    session.flush()
+
+
+@handle_event_submit.register(events.BaseTaskEndEvent)
+def _process_BaseTaskEndEvent(
+    event: events.BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session
+) -> None:
+    """
+    Submit event for the given task instance.
+
+    Marks the task with the state `task_instance_state` and optionally pushes xcom if applicable.
+
+    :param task_instance: The task instance to be submitted.
+    :param session: The session to be used for the database callback sink.
+    """
+    from airflow.callbacks.callback_requests import TaskCallbackRequest
+    from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+    from airflow.utils.state import TaskInstanceState
+
+    # Mark the task with terminal state and prevent it from resuming on worker
+    task_instance.trigger_id = None
+    task_instance.set_state(event.task_instance_state, session=session)
+
+    def _submit_callback_if_necessary() -> None:
+        """Submit a callback request if the task state is SUCCESS or FAILED."""
+        if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
+            request = TaskCallbackRequest(
+                filepath=task_instance.dag_model.relative_fileloc,
+                ti=task_instance,
+                task_callback_type=event.task_instance_state,
+                bundle_name=task_instance.dag_model.bundle_name,
+                bundle_version=task_instance.dag_run.bundle_version,
+            )
+            log.info("Sending callback: %s", request)
+            try:
+                DatabaseCallbackSink().send(callback=request, session=session)
+            except Exception:
+                log.exception("Failed to send callback.")
+
+    def _push_xcoms_if_necessary() -> None:
+        """Pushes XComs to the database if they are provided."""
+        if event.xcoms:
+            for key, value in event.xcoms.items():
+                task_instance.xcom_push(key=key, value=value)
+
+    _submit_callback_if_necessary()
+    _push_xcoms_if_necessary()
+    session.flush()
