@@ -486,6 +486,7 @@ class DagRun(Base, LoggingMixin):
                 DagModel.is_paused == false(),
                 DagModel.is_active == true(),
             )
+            .options(joinedload(cls.task_instances))
             .order_by(
                 nulls_first(BackfillDagRun.sort_ordinal, session=session),
                 nulls_first(cls.last_scheduling_decision, session=session),
