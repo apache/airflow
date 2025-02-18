@@ -122,17 +122,18 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
   let groupLines: Array<string> = [];
   let groupName = "";
 
+  // TODO: Add support for nested groups
   /* eslint-disable react/no-array-index-key */
   const parsedLines = lines.map((line, index) => {
-    if (line.includes("::group::")) {
+    if (line.includes("::group::") && !startGroup) {
       startGroup = true;
       groupName = line.split("::group::")[1] as string;
     } else if (line.includes("::endgroup::")) {
       startGroup = false;
       groupLines.push(line);
       const group = (
-        <details>
-          <summary>
+        <details key={groupName}>
+          <summary data-testid={`summary-${groupName}`}>
             <Text as="span" color="fg.info" cursor="pointer">
               {groupName}
             </Text>
