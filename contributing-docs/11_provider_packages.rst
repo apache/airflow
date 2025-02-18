@@ -174,12 +174,8 @@ there where you should add and remove dependencies for providers (following by r
 ``update-providers-dependencies`` pre-commit to synchronize the dependencies with ``pyproject.toml``
 of Airflow).
 
-The old ``provider.yaml`` file is compliant with the schema that is available in
+The ``provider.yaml`` file is compliant with the schema that is available in
 `json-schema specification <https://github.com/apache/airflow/blob/main/airflow/provider.yaml.schema.json>`_.
-
-# TODO(potiuk) - rename when all providers are new-style
-The new ``provider.yaml`` file is compliant with the new schema that is available in
-`json-schema specification <https://github.com/apache/airflow/blob/main/airflow/new_provider.yaml.schema.json>`_.
 
 Thanks to that mechanism, you can develop community managed providers in a seamless way directly from
 Airflow sources, without preparing and releasing them as packages separately, which would be rather
@@ -384,17 +380,11 @@ generous policy of supporting multiple versions of providers at the same time. A
 backward compatible with future versions of Airflow, so you can upgrade Airflow and keep the providers
 at the same version.
 
-.. note::
-
-   In the new structure of providers the CHANGELOG.rst is named CHANGELOG.rst and it is present in
-   the docs subfolder of the provider. TODO(potiuk) replace references to CHANGELOG.rst when we
-   move all providers to the new structure.
-
 When you introduce a breaking change in the provider, you have to make sure that you communicate it
-properly. You have to update ``CHANGELOG.rst`` file in the provider package. Ideally you should provide
-a migration path for the users to follow in the``CHANGELOG.rst``.
+properly. You have to update ``changelog.rst`` file in the ``docs`` folder of the provider package.
+Ideally you should provide a migration path for the users to follow in the``changelog.rst``.
 
-If in doubt, you can always look at ``CHANGELOG.rst``  in other providers to see how we communicate
+If in doubt, you can always look at ``changelog.rst``  in other providers to see how we communicate
 breaking changes in the providers.
 
 It's important to note that the marking release as breaking / major is subject to the

@@ -201,6 +201,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -249,6 +250,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "note": None,
             "rendered_map_index": None,
             "rendered_fields": {},
+            "run_after": mock.ANY,
             "trigger": None,
             "triggerer_job": None,
             "dag_version": {
@@ -316,6 +318,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "run_after": "2020-01-01T00:00:00Z",
             "rendered_fields": {},
             "rendered_map_index": None,
             "trigger": {
@@ -367,6 +370,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -412,6 +416,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -514,6 +519,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
                 "rendered_map_index": None,
+                "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
             }
@@ -2304,6 +2310,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "scheduled_when": None,
                 "rendered_fields": {},
                 "rendered_map_index": None,
+                "run_after": "2020-01-01T00:00:00Z",
                 "start_date": "2020-01-02T00:00:00Z",
                 "state": "restarting",
                 "task_display_name": "print_the_context",
@@ -2943,6 +2950,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "rendered_fields": {},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -3139,6 +3147,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "rendered_fields": {},
                     "rendered_map_index": None,
+                    "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
                 },
@@ -3240,6 +3249,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": self.RUN_ID,
             "rendered_fields": {},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -3282,6 +3292,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": self.RUN_ID,
             "rendered_fields": {},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -3338,6 +3349,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "dag_run_id": self.RUN_ID,
                 "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
                 "rendered_map_index": None,
+                "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
             }
@@ -3437,6 +3449,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "rendered_fields": {},
                     "rendered_map_index": None,
+                    "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
                 }
@@ -3660,6 +3673,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "unixname": getuser(),
                             "rendered_fields": {},
                             "rendered_map_index": None,
+                            "run_after": "2020-01-01T00:00:00Z",
                             "trigger": None,
                             "triggerer_job": None,
                         }
