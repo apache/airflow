@@ -36,14 +36,13 @@ from typing import TYPE_CHECKING, Optional
 from setproctitle import setproctitle
 
 from airflow import settings
+from airflow.executors import workloads
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-
-    from airflow.executors import workloads
 
     TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Optional[Exception]]
 
@@ -81,6 +80,9 @@ def _run_worker(
         if workload is None:
             # Received poison pill, no more tasks to run
             return
+
+        if not isinstance(workload, workloads.ExecuteTask):
+            raise ValueError(f"LocalExecutor does not now how to handle {type(workload)}")
 
         # Decrement this as soon as we pick up a message off the queue
         with unread_messages:

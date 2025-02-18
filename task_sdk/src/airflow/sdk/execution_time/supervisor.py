@@ -304,7 +304,7 @@ class WatchedSubprocess:
     stdin: BinaryIO
     """The handle connected to stdin of the child process"""
 
-    decoder: TypeAdapter
+    decoder: ClassVar[TypeAdapter]
     """The decoder to use for incoming messages from the child process."""
 
     _process: psutil.Process
@@ -584,7 +584,7 @@ class ActivitySubprocess(WatchedSubprocess):
     TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
 
-    decoder: TypeAdapter[ToSupervisor] = TypeAdapter(ToSupervisor)
+    decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     @classmethod
     def start(  # type: ignore[override]

@@ -20,7 +20,7 @@ import os
 import sys
 import traceback
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Callable, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Callable, ClassVar, Literal, Union
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -207,7 +207,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     """
 
     parsing_result: DagFileParsingResult | None = None
-    decoder: TypeAdapter[ToParent] = TypeAdapter[ToParent](ToParent)
+    decoder: ClassVar[TypeAdapter[ToParent]] = TypeAdapter[ToParent](ToParent)
 
     @classmethod
     def start(  # type: ignore[override]
