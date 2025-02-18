@@ -82,7 +82,7 @@ def _run_worker(
             return
 
         if not isinstance(workload, workloads.ExecuteTask):
-            raise ValueError(f"LocalExecutor does not now how to handle {type(workload)}")
+            raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
 
         # Decrement this as soon as we pick up a message off the queue
         with unread_messages:

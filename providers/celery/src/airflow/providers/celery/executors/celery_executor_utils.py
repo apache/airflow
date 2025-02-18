@@ -152,7 +152,7 @@ def execute_workload(input: str) -> None:
     celery_task_id = app.current_task.request.id
 
     if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"CeleryExecutor does not now how to handle {type(workload)}")
+        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
 
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
