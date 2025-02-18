@@ -28,7 +28,6 @@ from enum import Enum
 from functools import partial
 from itertools import chain
 from pathlib import Path
-from types import GeneratorType
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from urllib.parse import urljoin
 
@@ -44,9 +43,12 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
+    from requests import Response
+
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
+
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +65,15 @@ _ParsedLogStreamType = Generator[_ParsedLogRecordType, None, None]
 _LogSourceType = tuple[list[str], list[_ParsedLogStreamType], int]
 """Tuple of messages, parsed log streams, total size of logs."""
 _OldLogSourceType = tuple[list[str], list[str]]
-_OldGroupedByHostLogType = tuple[list[tuple[str, str]], dict]
+_OldProviderLogType = tuple[str, dict[str, Any]]
+"""OSSTaskHandler, CloudwatchTaskHandler, and RedisTaskHandler return type, add this to avoid mypy error during migration."""
+_OldProviderGroupedByHostLogType = tuple[list[tuple[str, str]], dict]
 """Elasticsearch and OpenSearch log reading return type, add this to avoid mypy error during migration."""
 """Tuple of messages and list of log str, will be removed after all providers adapt to stream-based log reading."""
 _CompatibleLogSourceType = Union[_LogSourceType, _OldLogSourceType]
 """Compatible type hint for stream-based log reading and old log reading."""
+_LogStreamWithMetadataType = tuple[Iterable[str], dict[str, Any]]
+"""Type hint for log stream with metadata."""
 
 
 class LogType(str, Enum):
@@ -100,7 +106,7 @@ def _set_task_deferred_context_var():
         h.ctx_task_deferred = True
 
 
-def _fetch_logs_from_service(url, log_relative_path):
+def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
     import requests
 
@@ -142,15 +148,14 @@ def _get_parsed_log_stream(file_path: Path) -> _ParsedLogStreamType:
             timestamp = None
             next_timestamp = None
             for line in lines:
-                if line:
-                    with suppress(Exception):
-                        # next_timestamp unchanged if line can't be parsed
-                        next_timestamp = _parse_timestamp(line)
-                    if next_timestamp:
-                        timestamp = next_timestamp
+                with suppress(Exception):
+                    # next_timestamp unchanged if line can't be parsed
+                    next_timestamp = _parse_timestamp(line)
+                if next_timestamp:
+                    timestamp = next_timestamp
 
-                    yield timestamp, line_num, line
-                    line_num += 1
+                yield timestamp, line_num, line
+                line_num += 1
 
 
 def _sort_key(timestamp: pendulum.DateTime | None, line_num: int) -> int:
@@ -278,7 +283,7 @@ def _get_compatible_parse_log_streams(remote_logs: list[str]) -> list[_ParsedLog
         # empty remote logs
         return []
 
-    def _parse_log(logs: list[str]):
+    def _parse_log(logs: list[str]) -> _ParsedLogStreamType:
         timestamp = None
         next_timestamp = None
         for line_num, line in enumerate(logs):
@@ -292,13 +297,15 @@ def _get_compatible_parse_log_streams(remote_logs: list[str]) -> list[_ParsedLog
     return [_parse_log(remote_logs)]
 
 
-def _get_compatible_read_for_providers(read_response: tuple) -> tuple[Iterable[str], dict[str, Any]]:
+def _get_compatible_read_for_providers(
+    read_response: _OldProviderLogType | _OldProviderGroupedByHostLogType,
+) -> _LogStreamWithMetadataType:
     """
     Compatible utility for transforming `_read` method return value for providers.
 
     Providers methods return type might be:
     - `tuple[str,dict[str,Any]]`
-        - alibaba.cloud.log.oss_task_handler.OssTaskHandler
+        - alibaba.cloud.log.oss_task_handler.OSSTaskHandler
         - amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler
         - redis.log.redis_task_handler.RedisTaskHandler
     - `tuple[list[tuple[str,str]],dict[str,Any]]` ( tuple[list[host,log_documents],metadata] )
@@ -311,15 +318,15 @@ def _get_compatible_read_for_providers(read_response: tuple) -> tuple[Iterable[s
     # for tuple[str,dict[str,Any]]
     if isinstance(read_response[0], str):
         log_str, metadata = read_response
-        return (log_str.splitlines(), metadata)
+        return ((line for line in log_str.splitlines()), metadata)
 
     # for tuple[list[tuple[str,str]],dict[str,Any]]
     if isinstance(read_response[0], list):
         host_by_logs, metadata = read_response
-        if len(host_by_logs) > 0:
+        if len(host_by_logs):
             metadata["host"] = host_by_logs[0][0]
 
-        def _host_by_logs_to_log_stream(host_by_logs):
+        def _host_by_logs_to_log_stream(host_by_logs: list[tuple[str, str]]) -> Iterable[str]:
             for _, log in host_by_logs:
                 yield log
 
@@ -471,7 +478,7 @@ class FileTaskHandler(logging.Handler):
 
     def _get_executor_get_task_log(
         self, ti: TaskInstance
-    ) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
+    ) -> Callable[[TaskInstance, int], _CompatibleLogSourceType]:
         """
         Get the get_task_log method from executor of current task instance.
 
@@ -496,7 +503,7 @@ class FileTaskHandler(logging.Handler):
         ti: TaskInstance,
         try_number: int,
         metadata: dict[str, Any] | None = None,
-    ) -> tuple[Iterable[str], dict[str, Any]] | _OldGroupedByHostLogType:
+    ) -> _LogStreamWithMetadataType | _OldProviderLogType | _OldProviderGroupedByHostLogType:
         """
         Template method that contains custom logic of reading logs given the try_number.
 
@@ -519,7 +526,7 @@ class FileTaskHandler(logging.Handler):
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
-        worker_log_rel_path = self._render_filename(ti, try_number)
+        worker_log_rel_path: str = self._render_filename(ti, try_number)
         messages_list: list[str] = []
         remote_parsed_logs: list[_ParsedLogStreamType] = []
         remote_logs_size = 0
@@ -548,7 +555,7 @@ class FileTaskHandler(logging.Handler):
         if ti.state == TaskInstanceState.RUNNING:
             executor_get_task_log = self._get_executor_get_task_log(ti)
             response = executor_get_task_log(ti, try_number)
-            if response:
+            if response and len(response) == 2:
                 executor_messages, executor_logs = response
                 executor_logs_size = sum(len(log) for log in executor_logs)
                 executor_parsed_logs = _get_compatible_parse_log_streams(executor_logs)
@@ -604,7 +611,7 @@ class FileTaskHandler(logging.Handler):
                 next(interleave_log_stream, None)
 
         out_stream: Iterable[str]
-        if "log_pos" in (metadata or {}):
+        if metadata and "log_pos" in metadata:
             # don't need to add messages, since we're in the middle of the log
             out_stream = interleave_log_stream
         else:
@@ -644,7 +651,10 @@ class FileTaskHandler(logging.Handler):
         )
 
     def read(
-        self, task_instance, try_number=None, metadata=None
+        self,
+        task_instance: TaskInstance,
+        try_number: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> tuple[list[str], list[Generator[str, None, None]], list[dict[str, Any]]]:
         """
         Read logs of given task instance from local machine.
@@ -669,9 +679,10 @@ class FileTaskHandler(logging.Handler):
         else:
             try_numbers = [try_number]
 
-        hosts = [""] * len(try_numbers)
-        logs: list = [None] * len(try_numbers)
-        metadata_array: list[dict] = [{}] * len(try_numbers)
+        try_numbers_len = len(try_numbers)
+        hosts = [""] * try_numbers_len
+        logs: list = [None] * try_numbers_len
+        metadata_array: list[dict] = [{}] * try_numbers_len
 
         # subclasses implement _read and may not have log_type, which was added recently
         for i, try_number_element in enumerate(try_numbers):
@@ -680,9 +691,9 @@ class FileTaskHandler(logging.Handler):
             read_response = self._read(task_instance, try_number_element, metadata)
             if len(read_response) != 2:
                 raise ValueError("Unexpected return value from _read")
-            if not (isinstance(read_response[0], GeneratorType) or isinstance(read_response[0], chain)):
+            elif isinstance(read_response[0], str) or isinstance(read_response[0], list):
                 # providers haven't adapted to stream-based log reading yet
-                log_stream, out_metadata = _get_compatible_read_for_providers(read_response)
+                log_stream, out_metadata = _get_compatible_read_for_providers(read_response)  # type: ignore
             else:
                 log_stream, out_metadata = read_response
             # es_task_handler return logs grouped by host. wrap other handler returning log string
@@ -784,12 +795,12 @@ class FileTaskHandler(logging.Handler):
 
         return messages, parsed_log_streams, total_log_size
 
-    def _read_from_logs_server(self, ti, worker_log_rel_path) -> _LogSourceType:
+    def _read_from_logs_server(self, ti: TaskInstance, worker_log_rel_path: str) -> _LogSourceType:
         total_log_size: int = 0
         messages: list[str] = []
         parsed_log_streams: list[_ParsedLogStreamType] = []
 
-        def _get_parsed_log_stream_from_response(response):
+        def _get_parsed_log_stream_from_response(response: Response) -> _ParsedLogStreamType:
             line_num = 0
             # read response in chunks instead of reading whole response text
             for resp_chunk in response.iter_content(chunk_size=CHUNK_SIZE, decode_unicode=True):
@@ -831,7 +842,7 @@ class FileTaskHandler(logging.Handler):
         except Exception as e:
             from requests.exceptions import InvalidSchema
 
-            if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
+            if isinstance(e, InvalidSchema) and ti.task and ti.task.inherits_from_empty_operator is True:
                 messages.append(self.inherits_from_empty_operator_log_message)
             else:
                 messages.append(f"Could not read served logs: {e}")
