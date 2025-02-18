@@ -267,11 +267,20 @@ class CeleryExecutor(BaseExecutor):
 
         self._send_tasks(task_tuples_to_send)
 
-    def _process_workloads(self, workloads: list[workloads.All]) -> None:
-        # Airflow V3 version
+    def _process_workloads(self, input: list[workloads.All]) -> None:
+        # Airflow V3 version -- have to delay imports until we know we are on v3
+        from airflow.executors import workloads
         from airflow.providers.celery.executors.celery_executor_utils import execute_workload
 
-        tasks = [(workload.ti.key, workload, workload.ti.queue, execute_workload) for workload in workloads]
+        tasks = [
+            (workload.ti.key, workload, workload.ti.queue, execute_workload)
+            for workload in input
+            if isinstance(workload, workloads.ExecuteTask)
+        ]
+        if len(tasks) != len(input):
+            invalid = list(workload for workload in input if not isinstance(workload, workloads.ExecuteTask))
+            raise ValueError(f"{type(self)}._process_workloads cannot handle {invalid}")
+
         self._send_tasks(tasks)
 
     def _send_tasks(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
@@ -495,7 +504,11 @@ class CeleryExecutor(BaseExecutor):
             ),
         ]
 
-    def queue_workload(self, workload: workloads.ExecuteTask, session: Session | None) -> None:
+    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+        from airflow.executors import workloads
+
+        if not isinstance(workload, workloads.ExecuteTask):
+            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 
