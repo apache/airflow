@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 from urllib3.exceptions import ReadTimeoutError
 
 from airflow.exceptions import AirflowException
+from airflow.executors.workloads import ExecuteTask
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
@@ -389,7 +390,16 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
         dag_id, task_id, run_id, try_number, map_index = key
 
-        if command[0:3] != ["airflow", "tasks", "run"]:
+        if len(command) == 1 and isinstance(command[0], ExecuteTask):
+            workload = command[0]
+            ser_input = workload.model_dump_json()
+            command = [
+                "python",
+                "-m",
+                "airflow.sdk.execution_time.execute_workload",
+                "/tmp/execute/input.json",
+            ]
+        elif command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
         base_worker_pod = get_base_pod_from_template(pod_template_file, self.kube_config)
@@ -411,6 +421,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             date=None,
             run_id=run_id,
             args=list(command),
+            content_json_for_volume=ser_input,
             pod_override_object=kube_executor_config,
             base_worker_pod=base_worker_pod,
             with_mutation_hook=True,

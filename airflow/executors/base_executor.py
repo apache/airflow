@@ -23,7 +23,7 @@ import sys
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import pendulum
 from deprecated import deprecated
@@ -53,13 +53,14 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.executors.executor_utils import ExecutorName
+    from airflow.executors.workloads import ExecuteTask
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Command to execute - list of strings
     # the first element is always "airflow".
     # It should be result of TaskInstance.generate_command method.
-    CommandType = Sequence[str]
+    CommandType = Sequence[Union[str, ExecuteTask]]
 
     # Task that is queued. It contains all the information that is
     # needed to run the task.
@@ -410,6 +411,8 @@ class BaseExecutor(LoggingMixin):
 
     @add_span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
+        print("The task tuples are", task_tuples)
+
         for key, command, queue, executor_config in task_tuples:
             task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element
             trace_id = int(gen_trace_id(task_instance.dag_run, as_int=True))

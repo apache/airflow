@@ -39,6 +39,8 @@ from typing import TYPE_CHECKING, Any
 from deprecated import deprecated
 from sqlalchemy import select
 
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from kubernetes.dynamic import DynamicClient
 
 try:
@@ -78,6 +80,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.executors import workloads
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -135,6 +138,11 @@ class KubernetesExecutor(BaseExecutor):
 
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
+
+    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
+        # In the v3 path, we store workloads, not commands as strings.
+        # TODO: TaskSDK: move this type change into BaseExecutor
+        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self):
         self.kube_config = KubeConfig()
@@ -250,8 +258,6 @@ class KubernetesExecutor(BaseExecutor):
         else:
             self.log.info("Add task %s with command %s", key, command)
 
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-
         try:
             kube_executor_config = PodGenerator.from_obj(executor_config)
         except Exception:
@@ -268,6 +274,26 @@ class KubernetesExecutor(BaseExecutor):
         # We keep a temporary local record that we've handled this so we don't
         # try and remove it from the QUEUED state while we process it
         self.last_handled[key] = time.time()
+
+    def queue_workload(self, workload: workloads.ExecuteTask, session: Session | None) -> None:
+        ti = workload.ti
+        self.queued_tasks[ti.key] = workload
+
+    def _process_workloads(self, workloads: list[workloads.All]) -> None:
+        # Airflow V3 version
+        for w in workloads:
+            if not w.token:
+                w.token = "placeholder-token"
+            command = [w]
+            key = w.ti.key
+            queue = w.ti.queue
+
+            # TODO: setting to empty for now, needs to be revisited
+            executor_config = {}  # type: ignore[var-annotated]
+
+            del self.queued_tasks[key]
+            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+            self.running.add(key)
 
     def sync(self) -> None:
         """Synchronize task state."""
