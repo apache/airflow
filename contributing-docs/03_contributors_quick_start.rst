@@ -462,6 +462,8 @@ see in CI in your local environment.
                 --role Admin \
                 --email admin@example.org
 
+.. note::
+    ``airflow users`` command is only available when the FAB auth manager is enabled.
 
 7. Exiting the Breeze environment. After successfully finishing above command will leave you in container,
    type ``exit`` to exit the container. The database created before will remain and servers will be
