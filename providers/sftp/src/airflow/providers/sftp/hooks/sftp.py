@@ -26,6 +26,7 @@ import warnings
 from collections.abc import Generator, Sequence
 from contextlib import closing, contextmanager
 from fnmatch import fnmatch
+from functools import wraps
 from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
@@ -42,6 +43,19 @@ if TYPE_CHECKING:
     from paramiko.sftp_client import SFTPClient
 
     from airflow.models.connection import Connection
+
+
+def with_conn(func):
+    """Decorator to provide a connection to the function."""
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if "conn" in kwargs and kwargs["conn"] is not None:
+            return func(self, *args, **kwargs)
+        with self.get_conn() as conn:
+            return func(self, *args, conn=conn, **kwargs)
+
+    return wrapper
 
 
 class SFTPHook(SSHHook):
@@ -116,7 +130,8 @@ class SFTPHook(SSHHook):
         with closing(super().get_conn().open_sftp()) as conn:
             yield conn
 
-    def describe_directory(self, path: str) -> dict[str, dict[str, str | int | None]]:
+    @with_conn
+    def describe_directory(self, path: str, conn: SFTPClient) -> dict[str, dict[str, str | int | None]]:
         """
         Get file information in a directory on the remote system.
 
@@ -125,37 +140,37 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory
         """
-        with self.get_conn() as conn:  # type: SFTPClient
-            flist = sorted(conn.listdir_attr(path), key=lambda x: x.filename)
-            files = {}
-            for f in flist:
-                modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime("%Y%m%d%H%M%S")  # type: ignore
-                files[f.filename] = {
-                    "size": f.st_size,
-                    "type": "dir" if stat.S_ISDIR(f.st_mode) else "file",  # type: ignore
-                    "modify": modify,
-                }
-            return files
+        flist = sorted(conn.listdir_attr(path), key=lambda x: x.filename)
+        files = {}
+        for f in flist:
+            modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime("%Y%m%d%H%M%S")  # type: ignore
+            files[f.filename] = {
+                "size": f.st_size,
+                "type": "dir" if stat.S_ISDIR(f.st_mode) else "file",  # type: ignore
+                "modify": modify,
+            }
+        return files
 
-    def list_directory(self, path: str) -> list[str]:
+    @with_conn
+    def list_directory(self, path: str, conn: SFTPClient) -> list[str]:
         """
         List files in a directory on the remote system.
 
         :param path: full path to the remote directory to list
         """
-        with self.get_conn() as conn:
-            return sorted(conn.listdir(path))
+        return sorted(conn.listdir(path))
 
-    def list_directory_with_attr(self, path: str) -> list[SFTPAttributes]:
+    @with_conn
+    def list_directory_with_attr(self, path: str, conn: SFTPClient) -> list[SFTPAttributes]:
         """
         List files in a directory on the remote system including their SFTPAttributes.
 
         :param path: full path to the remote directory to list
         """
-        with self.get_conn() as conn:
-            return [file for file in conn.listdir_attr(path)]
+        return [file for file in conn.listdir_attr(path)]
 
-    def mkdir(self, path: str, mode: int = 0o777) -> None:
+    @with_conn
+    def mkdir(self, path: str, conn: SFTPClient, mode: int = 0o777) -> None:
         """
         Create a directory on the remote system.
 
@@ -165,34 +180,34 @@ class SFTPHook(SSHHook):
         :param path: full path to the remote directory to create
         :param mode: int permissions of octal mode for directory
         """
-        with self.get_conn() as conn:
-            conn.mkdir(path, mode=mode)
+        conn.mkdir(path, mode=mode)
 
-    def isdir(self, path: str) -> bool:
+    @with_conn
+    def isdir(self, path: str, conn: SFTPClient) -> bool:
         """
         Check if the path provided is a directory.
 
         :param path: full path to the remote directory to check
         """
-        with self.get_conn() as conn:
-            try:
-                return stat.S_ISDIR(conn.stat(path).st_mode)  # type: ignore
-            except OSError:
-                return False
+        try:
+            return stat.S_ISDIR(conn.stat(path).st_mode)  # type: ignore
+        except OSError:
+            return False
 
-    def isfile(self, path: str) -> bool:
+    @with_conn
+    def isfile(self, path: str, conn: SFTPClient) -> bool:
         """
         Check if the path provided is a file.
 
         :param path: full path to the remote file to check
         """
-        with self.get_conn() as conn:
-            try:
-                return stat.S_ISREG(conn.stat(path).st_mode)  # type: ignore
-            except OSError:
-                return False
+        try:
+            return stat.S_ISREG(conn.stat(path).st_mode)  # type: ignore
+        except OSError:
+            return False
 
-    def create_directory(self, path: str, mode: int = 0o777) -> None:
+    @with_conn
+    def create_directory(self, path: str, conn: SFTPClient, mode: int = 0o777) -> None:
         """
         Create a directory on the remote system.
 
@@ -204,37 +219,43 @@ class SFTPHook(SSHHook):
         :param path: full path to the remote directory to create
         :param mode: int permissions of octal mode for directory
         """
-        with self.get_conn() as conn:
-            if self.isdir(path):
-                self.log.info("%s already exists", path)
-                return
-            elif self.isfile(path):
-                raise AirflowException(f"{path} already exists and is a file")
-            else:
-                dirname, basename = os.path.split(path)
-                if dirname and not self.isdir(dirname):
-                    self.create_directory(dirname, mode)
-                if basename:
-                    self.log.info("Creating %s", path)
-                    conn.mkdir(path, mode=mode)
+        if self.isdir(path, conn=conn):
+            self.log.info("%s already exists", path)
+            return
+        elif self.isfile(path, conn=conn):
+            raise AirflowException(f"{path} already exists and is a file")
+        else:
+            dirname, basename = os.path.split(path)
+            if dirname and not self.isdir(dirname, conn=conn):
+                self.create_directory(dirname, conn=conn, mode=mode)
+            if basename:
+                self.log.info("Creating %s", path)
+                conn.mkdir(path, mode=mode)
 
-    def delete_directory(self, path: str, include_files: bool = False) -> None:
+    @with_conn
+    def delete_directory(self, path: str, conn: SFTPClient, include_files: bool = False) -> None:
         """
         Delete a directory on the remote system.
 
         :param path: full path to the remote directory to delete
         """
-        with self.get_conn() as conn:
-            if include_files is True:
-                files, dirs, _ = self.get_tree_map(path)
-                dirs = dirs[::-1]  # reverse the order for deleting deepest directories first
-                for file_path in files:
-                    conn.remove(file_path)
-                for dir_path in dirs:
-                    conn.rmdir(dir_path)
-            conn.rmdir(path)
+        if include_files is True:
+            files, dirs, _ = self.get_tree_map(path, conn=conn)
+            dirs = dirs[::-1]  # reverse the order for deleting deepest directories first
+            for file_path in files:
+                conn.remove(file_path)
+            for dir_path in dirs:
+                conn.rmdir(dir_path)
+        conn.rmdir(path)
 
-    def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
+    @with_conn
+    def retrieve_file(
+        self,
+        remote_full_path: str,
+        local_full_path: str,
+        conn: SFTPClient,
+        prefetch: bool = True,
+    ) -> None:
         """
         Transfer the remote file to a local location.
 
@@ -245,13 +266,15 @@ class SFTPHook(SSHHook):
         :param local_full_path: full path to the local file or a file-like buffer
         :param prefetch: controls whether prefetch is performed (default: True)
         """
-        with self.get_conn() as conn:
-            if isinstance(local_full_path, BytesIO):
-                conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)
-            else:
-                conn.get(remote_full_path, local_full_path, prefetch=prefetch)
+        if isinstance(local_full_path, BytesIO):
+            conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)
+        else:
+            conn.get(remote_full_path, local_full_path, prefetch=prefetch)
 
-    def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
+    @with_conn
+    def store_file(
+        self, remote_full_path: str, local_full_path: str, conn: SFTPClient, confirm: bool = True
+    ) -> None:
         """
         Transfer a local file to the remote location.
 
@@ -261,22 +284,24 @@ class SFTPHook(SSHHook):
         :param remote_full_path: full path to the remote file
         :param local_full_path: full path to the local file or a file-like buffer
         """
-        with self.get_conn() as conn:
-            if isinstance(local_full_path, BytesIO):
-                conn.putfo(local_full_path, remote_full_path, confirm=confirm)
-            else:
-                conn.put(local_full_path, remote_full_path, confirm=confirm)
+        if isinstance(local_full_path, BytesIO):
+            conn.putfo(local_full_path, remote_full_path, confirm=confirm)
+        else:
+            conn.put(local_full_path, remote_full_path, confirm=confirm)
 
-    def delete_file(self, path: str) -> None:
+    @with_conn
+    def delete_file(self, path: str, conn: SFTPClient) -> None:
         """
         Remove a file on the server.
 
         :param path: full path to the remote file
         """
-        with self.get_conn() as conn:
-            conn.remove(path)
+        conn.remove(path)
 
-    def retrieve_directory(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
+    @with_conn
+    def retrieve_directory(
+        self, remote_full_path: str, local_full_path: str, conn: SFTPClient, prefetch: bool = True
+    ) -> None:
         """
         Transfer the remote directory to a local location.
 
@@ -290,19 +315,18 @@ class SFTPHook(SSHHook):
         if Path(local_full_path).exists():
             raise AirflowException(f"{local_full_path} already exists")
         Path(local_full_path).mkdir(parents=True)
-        files, dirs, _ = self.get_tree_map(remote_full_path)
+        files, dirs, _ = self.get_tree_map(remote_full_path, conn=conn)
         for dir_path in dirs:
             new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
             Path(new_local_path).mkdir(parents=True, exist_ok=True)
-        with self.get_conn() as conn:
-            for file_path in files:
-                new_local_path = os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
-                if isinstance(new_local_path, BytesIO):
-                    conn.getfo(file_path, new_local_path, prefetch=prefetch)
-                else:
-                    conn.get(file_path, new_local_path, prefetch=prefetch)
+        for file_path in files:
+            new_local_path = os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
+            self.retrieve_file(file_path, new_local_path, conn=conn, prefetch=prefetch)
 
-    def store_directory(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
+    @with_conn
+    def store_directory(
+        self, remote_full_path: str, local_full_path: str, conn: SFTPClient, confirm: bool = True
+    ) -> None:
         """
         Transfer a local directory to the remote location.
 
@@ -312,47 +336,41 @@ class SFTPHook(SSHHook):
         :param remote_full_path: full path to the remote directory
         :param local_full_path: full path to the local directory
         """
-        if self.path_exists(remote_full_path):
+        if self.path_exists(remote_full_path, conn=conn):
             raise AirflowException(f"{remote_full_path} already exists")
-        self.create_directory(remote_full_path)
+        self.create_directory(remote_full_path, conn=conn)
         for root, dirs, files in os.walk(local_full_path):
             for dir_name in dirs:
                 dir_path = os.path.join(root, dir_name)
                 new_remote_path = os.path.join(remote_full_path, os.path.relpath(dir_path, local_full_path))
-                self.create_directory(new_remote_path)
-            with self.get_conn() as conn:
-                for file_name in files:
-                    file_path = os.path.join(root, file_name)
-                    new_remote_path = os.path.join(
-                        remote_full_path, os.path.relpath(file_path, local_full_path)
-                    )
-                    if isinstance(file_path, BytesIO):
-                        conn.putfo(file_path, new_remote_path, confirm=confirm)
-                    else:
-                        conn.put(file_path, new_remote_path, confirm=confirm)
+                self.create_directory(new_remote_path, conn=conn)
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                new_remote_path = os.path.join(remote_full_path, os.path.relpath(file_path, local_full_path))
+                self.store_file(new_remote_path, file_path, conn=conn, confirm=confirm)
 
-    def get_mod_time(self, path: str) -> str:
+    @with_conn
+    def get_mod_time(self, path: str, conn: SFTPClient) -> str:
         """
         Get an entry's modification time.
 
         :param path: full path to the remote file
         """
-        with self.get_conn() as conn:
-            ftp_mdtm = conn.stat(path).st_mtime
-            return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
+        ftp_mdtm = conn.stat(path).st_mtime
+        return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
 
-    def path_exists(self, path: str) -> bool:
+    @with_conn
+    def path_exists(self, path: str, conn: SFTPClient) -> bool:
         """
         Whether a remote entity exists.
 
         :param path: full path to the remote file or directory
         """
-        with self.get_conn() as conn:
-            try:
-                conn.stat(path)
-            except OSError:
-                return False
-            return True
+        try:
+            conn.stat(path)
+        except OSError:
+            return False
+        return True
 
     @staticmethod
     def _is_path_match(path: str, prefix: str | None = None, delimiter: str | None = None) -> bool:
@@ -370,12 +388,14 @@ class SFTPHook(SSHHook):
             return False
         return True
 
+    @with_conn
     def walktree(
         self,
         path: str,
         fcallback: Callable[[str], Any | None],
         dcallback: Callable[[str], Any | None],
         ucallback: Callable[[str], Any | None],
+        conn: SFTPClient,
         recurse: bool = True,
     ) -> None:
         """
@@ -397,7 +417,7 @@ class SFTPHook(SSHHook):
             (form: ``func(str)``)
         :param bool recurse: *Default: True* - should it recurse
         """
-        for entry in self.list_directory_with_attr(path):
+        for entry in self.list_directory_with_attr(path, conn=conn):
             pathname = os.path.join(path, entry.filename)
             mode = entry.st_mode
             if stat.S_ISDIR(mode):  # type: ignore
@@ -405,7 +425,7 @@ class SFTPHook(SSHHook):
                 dcallback(pathname)
                 if recurse:
                     # now, recurse into it
-                    self.walktree(pathname, fcallback, dcallback, ucallback)
+                    self.walktree(pathname, fcallback, dcallback, ucallback, conn=conn)
             elif stat.S_ISREG(mode):  # type: ignore
                 # It's a file, call the fcallback function
                 fcallback(pathname)
@@ -413,8 +433,9 @@ class SFTPHook(SSHHook):
                 # Unknown file type
                 ucallback(pathname)
 
+    @with_conn
     def get_tree_map(
-        self, path: str, prefix: str | None = None, delimiter: str | None = None
+        self, path: str, conn: SFTPClient, prefix: str | None = None, delimiter: str | None = None
     ) -> tuple[list[str], list[str], list[str]]:
         """
         Get tuple with recursive lists of files, directories and unknown paths.
@@ -435,6 +456,7 @@ class SFTPHook(SSHHook):
 
         self.walktree(
             path=path,
+            conn=conn,
             fcallback=append_matching_path_callback(files),
             dcallback=append_matching_path_callback(dirs),
             ucallback=append_matching_path_callback(unknowns),
@@ -452,7 +474,8 @@ class SFTPHook(SSHHook):
         except Exception as e:
             return False, str(e)
 
-    def get_file_by_pattern(self, path, fnmatch_pattern) -> str:
+    @with_conn
+    def get_file_by_pattern(self, path, fnmatch_pattern, conn) -> str:
         """
         Get the first matching file based on the given fnmatch type pattern.
 
@@ -460,12 +483,13 @@ class SFTPHook(SSHHook):
         :param fnmatch_pattern: The pattern that will be matched with `fnmatch`
         :return: string containing the first found file, or an empty string if none matched
         """
-        for file in self.list_directory(path):
+        for file in self.list_directory(path, conn=conn):
             if fnmatch(file, fnmatch_pattern):
                 return file
         return ""
 
-    def get_files_by_pattern(self, path, fnmatch_pattern) -> list[str]:
+    @with_conn
+    def get_files_by_pattern(self, path, fnmatch_pattern, conn) -> list[str]:
         """
         Get all matching files based on the given fnmatch type pattern.
 
@@ -474,7 +498,7 @@ class SFTPHook(SSHHook):
         :return: list of string containing the found files, or an empty list if none matched
         """
         matched_files = []
-        for file in self.list_directory_with_attr(path):
+        for file in self.list_directory_with_attr(path, conn=conn):
             if fnmatch(file.filename, fnmatch_pattern):
                 matched_files.append(file.filename)
 
