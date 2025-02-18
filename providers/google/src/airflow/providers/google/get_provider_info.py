@@ -221,6 +221,12 @@ def get_provider_info():
                 "tags": ["gcp"],
             },
             {
+                "integration-name": "Google Cloud Managed Service for Apache Kafka",
+                "external-doc-url": "https://cloud.google.com/managed-service-for-apache-kafka/docs/",
+                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/managed_kafka.rst"],
+                "tags": ["gcp"],
+            },
+            {
                 "integration-name": "Google Cloud Memorystore",
                 "external-doc-url": "https://cloud.google.com/memorystore/",
                 "how-to-guide": [
@@ -753,6 +759,10 @@ def get_provider_info():
                 "integration-name": "Google Cloud Batch",
                 "python-modules": ["airflow.providers.google.cloud.operators.cloud_batch"],
             },
+            {
+                "integration-name": "Google Cloud Managed Service for Apache Kafka",
+                "python-modules": ["airflow.providers.google.cloud.operators.managed_kafka"],
+            },
         ],
         "sensors": [
             {
@@ -1112,6 +1122,10 @@ def get_provider_info():
                 "integration-name": "Google Cloud Batch",
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_batch"],
             },
+            {
+                "integration-name": "Google Cloud Managed Service for Apache Kafka",
+                "python-modules": ["airflow.providers.google.cloud.hooks.managed_kafka"],
+            },
         ],
         "triggers": [
             {
@@ -1436,6 +1450,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.dataplex.DataplexTasksLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexLakeLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypeLink",
+            "airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypesLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupsLink",
@@ -1551,6 +1566,8 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.translate.TranslationModelsListLink",
             "airflow.providers.google.cloud.links.translate.TranslateResultByOutputConfigLink",
             "airflow.providers.google.cloud.links.translate.TranslationGlossariesListLink",
+            "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink",
+            "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink",
         ],
         "secrets-backends": [
             "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
@@ -1595,6 +1612,7 @@ def get_provider_info():
             "google-cloud-kms>=2.15.0",
             "google-cloud-language>=2.9.0",
             "google-cloud-logging>=3.5.0",
+            "google-cloud-managedkafka>=0.1.6",
             "google-cloud-memcache>=1.7.0",
             "google-cloud-monitoring>=2.18.0",
             "google-cloud-orchestration-airflow>=1.10.0",

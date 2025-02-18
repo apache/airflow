@@ -45,6 +45,7 @@ from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksQueuesListOperator,
     CloudTasksQueueUpdateOperator,
 )
+from airflow.providers.google.cloud.sensors.tasks import TaskQueueEmptySensor
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -52,7 +53,7 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "cloud_tasks_queue"
 
 LOCATION = os.environ.get("GCP_APP_ENGINE_LOCATION", "europe-west2")
-QUEUE_ID = f"queue-{ENV_ID}-{DAG_ID.replace('_', '-')}"
+QUEUE_ID = f"queue-{ENV_ID}-{DAG_ID}".replace("_", "-")
 
 
 with DAG(
@@ -148,9 +149,17 @@ with DAG(
     list_queue = CloudTasksQueuesListOperator(location=LOCATION, task_id="list_queue")
     # [END list_queue]
 
+    # [START cloud_tasks_empty_sensor]
+    queue_sensor = TaskQueueEmptySensor(
+        location=LOCATION,
+        task_id="queue_sensor",
+        queue_name=QUEUE_ID + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
+    )
+    # [END cloud_tasks_empty_sensor]
+
     chain(
         random_string,
-        create_queue,
+        [create_queue, queue_sensor],
         update_queue,
         pause_queue,
         resume_queue,

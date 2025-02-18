@@ -244,7 +244,6 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
-        "aiofiles>=23.2.0",
         "aioresponses>=0.7.6",
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
@@ -421,7 +420,7 @@ DEPENDENCIES = [
     "requests-toolbelt>=0.4.0",
     "rfc3339-validator>=0.1.4",
     "rich-argparse>=1.0.0",
-    "rich>=12.4.4",
+    "rich>=13.1.0",
     "setproctitle>=1.3.3",
     # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
