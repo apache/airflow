@@ -21,11 +21,12 @@ import os
 from datetime import datetime
 from typing import Any
 
+from github import GithubException
+
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.github.operators.github import GithubOperator
 from airflow.providers.github.sensors.github import GithubSensor, GithubTagSensor
-from github import GithubException
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_github_operator"

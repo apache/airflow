@@ -23,7 +23,6 @@ from datetime import datetime
 from typing import Any
 
 import boto3
-from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -37,6 +36,7 @@ from airflow.providers.amazon.aws.operators.emr import (
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor, EmrStepSensor
 from airflow.utils.trigger_rule import TriggerRule
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_emr"
 CONFIG_NAME = "EMR Runtime Role Security Configuration"
