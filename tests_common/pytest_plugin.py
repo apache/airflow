@@ -1004,7 +1004,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             fileloc=None,
             relative_fileloc=None,
             bundle_name=None,
-            bundle_path=None,
             session=None,
             **kwargs,
         ):
@@ -1039,7 +1038,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.want_serialized = serialized
             self.want_activate_assets = activate_assets
             self.bundle_name = bundle_name or "dag_maker"
-            self.bundle_path = Path(bundle_path or request.module.__file__).parent
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.models.dagbundle import DagBundleModel

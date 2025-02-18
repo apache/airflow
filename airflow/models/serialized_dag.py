@@ -22,7 +22,6 @@ from __future__ import annotations
 import logging
 import zlib
 from datetime import timedelta
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 import sqlalchemy_jsonfield
@@ -32,7 +31,8 @@ from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
-from airflow.exceptions import TaskNotFound
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -217,9 +217,16 @@ class SerializedDagModel(Base):
         session.add(new_serialized_dag)
         log.debug("DAG: %s written to the DB", dag.dag_id)
 
-        if TYPE_CHECKING:
-            assert dag.relative_fileloc
-        DagCode.write_code(dagv, dag.relative_fileloc, code_reader, session=session)
+        fileloc = dag.relative_fileloc
+        if not fileloc:
+            if not conf.get("core", "unit_test_mode"):
+                raise AirflowException(
+                    "SerializedDagModel.write_dag for Dags without a bundle is only supported in unit test mode starting from Airflow 3.0"
+                )
+            # Fallback for unit-test code - relative path is absolute.
+            fileloc = dag.fileloc
+
+        DagCode.write_code(dagv, fileloc, code_reader, session=session)
         return True
 
     @classmethod
@@ -351,7 +358,7 @@ class SerializedDagModel(Base):
     def bulk_sync_to_db(
         dags: list[DAG] | list[LazyDeserializedDAG],
         bundle_name: str,
-        bundle_path: Path,
+        code_reader: Callable[[str], str],
         bundle_version: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
@@ -362,15 +369,12 @@ class SerializedDagModel(Base):
 
         :param dags: the DAG objects to save to the DB
         :param bundle_name: name of the bundle
-        :param bundle_path: path of the bundle
+        :param code_reader: provider of a file content from path within a bundle
         :param bundle_version: version of the bundle
         :param session: ORM Session
         :return: None
         """
         for dag in dags:
-            if TYPE_CHECKING:
-                assert dag.relative_fileloc
-            code_reader = lambda _: DagCode.get_code_from_file(str(bundle_path / Path(dag.relative_fileloc)))
             SerializedDagModel.write_dag(
                 dag=dag,
                 bundle_name=bundle_name,

@@ -643,8 +643,15 @@ class DagBag(LoggingMixin):
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
         from airflow.models.dagcode import DagCode
 
-        # Fallback to empty path - DAGs are parsed outside of bundle, relative filelocs are absolute.
-        bundle_path = self.bundle_path or Path("")
+        bundle_path = self.bundle_path
+        if not bundle_path:
+            if not conf.get("core", "unit_test_mode"):
+                raise AirflowException(
+                    "DagBag.sync_to_db for Dags without a bundle is only supported in unit test mode starting from Airflow 3.0"
+                )
+            # Fallback to empty path - DAGs are parsed outside of bundle, relative filelocs are absolute.
+            bundle_path = Path("")
+
         code_reader = lambda rel_fileloc: DagCode.get_code_from_file(str(bundle_path / Path(rel_fileloc)))
         update_dag_parsing_results_in_db(
             bundle_name,

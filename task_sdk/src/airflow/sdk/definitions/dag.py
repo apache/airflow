@@ -433,7 +433,7 @@ class DAG:
     )
 
     fileloc: str = attrs.field(init=False, factory=_default_fileloc)
-    relative_fileloc: str = attrs.field(init=False, factory=_default_fileloc)
+    relative_fileloc: str | None = attrs.field(init=False, default=None)
     partial: bool = attrs.field(init=False, default=False)
 
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(init=False, factory=dict)
@@ -1105,8 +1105,6 @@ else:
                     # set file location to caller source path
                     back = sys._getframe().f_back
                     dag_obj.fileloc = back.f_code.co_filename if back else ""
-                    # set relative file location to absolute path as a fallback for DAG tests.
-                    dag_obj.relative_fileloc = back.f_code.co_filename if back else ""
 
                     # Invoke function to create operators in the DAG scope.
                     f(**f_kwargs)

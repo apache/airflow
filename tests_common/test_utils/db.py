@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from airflow.jobs.job import Job
 from airflow.models import (
@@ -53,6 +53,9 @@ from tests_common.test_utils.compat import (
 )
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 def _bootstrap_dagbag():
     from airflow.models.dag import DAG
@@ -69,11 +72,7 @@ def _bootstrap_dagbag():
         dagbag = DagBag()
         # Save DAGs in the ORM
         if AIRFLOW_V_3_0_PLUS:
-            dagbag.sync_to_db(
-                bundle_name="dags-folder",
-                bundle_version=None,
-                session=session,
-            )
+            dagbag.sync_to_db(bundle_name="dags-folder", bundle_version=None, session=session)
         else:
             dagbag.sync_to_db(session=session)
 

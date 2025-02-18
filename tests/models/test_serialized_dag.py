@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest import mock
 
 import pendulum
@@ -202,7 +201,7 @@ class TestSerializedDagModel:
         # we also write to dag_version and dag_code tables
         # in dag_version.
         with assert_queries_count(24):
-            SDM.bulk_sync_to_db(dags, bundle_name="testing", bundle_path=Path(""))
+            SDM.bulk_sync_to_db(dags, bundle_name="testing", code_reader=lambda _: "dag source code")
 
     def test_order_of_dag_params_is_stable(self):
         """
