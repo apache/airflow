@@ -36,8 +36,6 @@ TEST_ROLE_2 = "admin"
 
 @pytest.mark.db_test
 class TestLogin:
-    login_service = SimpleAuthManagerLogin()
-
     @pytest.mark.parametrize(
         "test_user",
         [
@@ -60,7 +58,7 @@ class TestLogin:
             auth_manager.init()
             users = auth_manager.get_users()
             passwords = auth_manager.get_passwords(users=users)
-            login_response: LoginResponse = self.login_service.create_token(
+            login_response: LoginResponse = SimpleAuthManagerLogin.create_token(
                 body=LoginBody(username=test_user, password=passwords.get(test_user, "invalid_password")),
                 expiration_time_in_sec=1,
             )
@@ -76,7 +74,7 @@ class TestLogin:
     )
     def test_create_token_empty_user_password(self, test_client, json_body):
         with pytest.raises(HTTPException) as ex:
-            self.login_service.create_token(
+            SimpleAuthManagerLogin.create_token(
                 body=LoginBody(username=json_body["username"], password=json_body["password"]),
                 expiration_time_in_sec=1,
             )
