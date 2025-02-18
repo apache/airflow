@@ -244,7 +244,7 @@ class SFTPHook(SSHHook):
         dirs: list[str] = []
 
         if include_files is True:
-            files, dirs, _ = self.get_tree_map(path)
+            files, dirs, _ = self.get_tree_map(path, conn=conn)
             dirs = dirs[::-1]  # reverse the order for deleting deepest directories first
         for file_path in files:
             conn.remove(file_path)
