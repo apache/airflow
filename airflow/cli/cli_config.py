@@ -485,6 +485,8 @@ ARG_DB_RETRY_DELAY = Arg(
     type=positive_int(allow_zero=False),
     help="Wait time between retries in seconds",
 )
+ARG_DAG_IDS = Arg(("dag_ids",), help="The ids of the dags to clean up")
+ARG_EXCLUDE_DAG_IDS = Arg(("exclude_dag_ids",), help="The ids of the dags to exclude from clean up")
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -1396,6 +1398,8 @@ DB_COMMANDS = (
             ARG_VERBOSE,
             ARG_YES,
             ARG_DB_SKIP_ARCHIVE,
+            ARG_DAG_IDS,
+            ARG_EXCLUDE_DAG_IDS,
         ),
     ),
     ActionCommand(
