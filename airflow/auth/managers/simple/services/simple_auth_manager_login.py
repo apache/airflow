@@ -27,7 +27,7 @@ from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner
 
 
-class Login:
+class SimpleAuthManagerLogin:
     """Service for login."""
 
     @classmethod

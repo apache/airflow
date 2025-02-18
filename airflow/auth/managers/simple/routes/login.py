@@ -22,7 +22,7 @@ from fastapi import status
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
-from airflow.auth.managers.simple.services.login import Login
+from airflow.auth.managers.simple.services.simple_auth_manager_login import SimpleAuthManagerLogin
 from airflow.configuration import conf
 
 login_router = AirflowRouter(tags=["SimpleAuthManagerLogin"])
@@ -37,7 +37,7 @@ def create_token(
     body: LoginBody,
 ) -> LoginResponse:
     """Authenticate the user."""
-    return Login.create_token(body, conf.getint("api", "auth_jwt_expiration_time"))
+    return SimpleAuthManagerLogin.create_token(body, conf.getint("api", "auth_jwt_expiration_time"))
 
 
 @login_router.post(
@@ -49,4 +49,4 @@ def create_token_cli(
     body: LoginBody,
 ) -> LoginResponse:
     """Authenticate the user for the CLI."""
-    return Login.create_token(body, conf.getint("api", "auth_jwt_cli_expiration_time"))
+    return SimpleAuthManagerLogin.create_token(body, conf.getint("api", "auth_jwt_cli_expiration_time"))

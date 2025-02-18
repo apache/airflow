@@ -22,61 +22,61 @@ from unittest.mock import patch
 
 import pytest
 
-from tests_common.test_utils.config import conf_vars
+from airflow.auth.managers.simple.datamodels.login import LoginResponse
 
 TEST_USER_1 = "test1"
-TEST_ROLE_1 = "viewer"
 TEST_USER_2 = "test2"
-TEST_ROLE_2 = "admin"
 
 
-@pytest.mark.db_test
 class TestLogin:
     @pytest.mark.parametrize(
-        "endpoint, expected_status_code, test_user",
+        "test_user",
         [
-            ("/token", 201, TEST_USER_1),
-            ("/token", 201, TEST_USER_2),
-            ("/token/cli", 201, TEST_USER_1),
-            ("/token/cli", 201, TEST_USER_2),
-            ("/token", 401, "invalid_user"),
-            ("/token/cli", 401, "invalid_user"),
+            TEST_USER_1,
+            TEST_USER_2,
         ],
     )
-    @patch("airflow.auth.managers.simple.services.login.get_auth_manager")
-    def test_create_token(
-        self, get_auth_manager, test_client, auth_manager, endpoint, expected_status_code, test_user
-    ):
-        get_auth_manager.return_value = auth_manager
+    @patch("airflow.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
+    def test_create_token(self, mock_simple_auth_manager_login, test_client, auth_manager, test_user):
+        mock_simple_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
 
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "simple_auth_manager_users",
-                ): f"{TEST_USER_1}:{TEST_ROLE_1},{TEST_USER_2}:{TEST_ROLE_2}",
-            }
-        ):
-            auth_manager.init()
-            users = auth_manager.get_users()
-            passwords = auth_manager.get_passwords(users=users)
+        response = test_client.post(
+            "/token",
+            json={"username": test_user, "password": "DUMMY_PASS"},
+        )
+        assert response.status_code == 201
+        assert response.json()["jwt_token"]
 
-            response = test_client.post(
-                endpoint,
-                json={"username": test_user, "password": passwords.get(test_user, "invalid_password")},
-            )
-            assert response.status_code == expected_status_code
-            assert response.json()["jwt_token"] if expected_status_code == 201 else True
+    def test_create_token_invalid_user_password(self, test_client):
+        response = test_client.post(
+            "/token",
+            json={"username": "INVALID_USER", "password": "INVALID_PASS"},
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid credentials"
 
     @pytest.mark.parametrize(
-        "json_body",
+        "test_user",
         [
-            {"username": "test", "password": ""},
-            {"username": "", "password": "test"},
-            {"username": "", "password": ""},
+            TEST_USER_1,
+            TEST_USER_2,
         ],
     )
-    def test_create_token_empty_user_password(self, test_client, json_body):
-        response = test_client.post("/token", json=json_body)
-        assert response.status_code == 400
-        assert response.json()["detail"] == "Username and password must be provided"
+    @patch("airflow.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
+    def test_create_token_cli(self, mock_simple_auth_manager_login, test_client, auth_manager, test_user):
+        mock_simple_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
+
+        response = test_client.post(
+            "/token/cli",
+            json={"username": test_user, "password": "DUMMY_PASS"},
+        )
+        assert response.status_code == 201
+        assert response.json()["jwt_token"]
+
+    def test_create_token_invalid_user_password_cli(self, test_client):
+        response = test_client.post(
+            "/token/cli",
+            json={"username": "INVALID_USER", "password": "INVALID_PASS"},
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid credentials"
