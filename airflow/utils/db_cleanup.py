@@ -210,8 +210,8 @@ def _do_delete(*, query: Query, orm_model: Base, skip_archive: bool, session: Se
         if target_table and skip_archive:
             bind = session.get_bind()
             target_table.drop(bind=bind)
-        session.commit()
-        print("Finished Performing Delete")
+            session.commit()
+            print("Finished Performing Delete")
 
 
 def _subquery_keep_last(
