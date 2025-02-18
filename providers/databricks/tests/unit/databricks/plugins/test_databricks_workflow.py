@@ -38,7 +38,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     get_launch_task_id,
     get_task_instance,
 )
-from airflow.www.app import create_app
+from airflow.providers.fab.www.app import create_app
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 

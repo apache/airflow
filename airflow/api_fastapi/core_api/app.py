@@ -22,6 +22,7 @@ import warnings
 from pathlib import Path
 from typing import cast
 
+from airflow.api_fastapi.core_api.init_dagbag import get_dag_bag
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -34,7 +35,6 @@ from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
-from airflow.www.extensions.init_dagbag import get_dag_bag
 
 log = logging.getLogger(__name__)
 
