@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, Union
 import attrs
 import structlog
 
-from airflow.models.asset import AssetEvent
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -32,6 +31,7 @@ from airflow.sdk.definitions.asset import (
     AssetAlias,
     AssetAliasEvent,
     AssetAliasUniqueKey,
+    AssetEvent,
     AssetNameRef,
     AssetRef,
     AssetUniqueKey,
@@ -39,12 +39,6 @@ from airflow.sdk.definitions.asset import (
     BaseAssetUniqueKey,
 )
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
-from airflow.sdk.execution_time.comms import (
-    AssetEventResult,
-    ErrorResponse,
-    GetAssetEventByAliasName,
-    GetAssetEventByName,
-)
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -314,16 +308,16 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
     def __iter__(self) -> Iterator[Asset | AssetAlias]:
         return iter(self._inlets)
 
-            AssetEventCollectionResult,
-            ErrorResponse,
-            GetAssetEventByAliasName,
-            GetAssetEventByName,
     def __len__(self) -> int:
         return len(self._inlets)
 
     def __getitem__(self, key: int | Asset | AssetAlias | AssetRef):
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.execution_time.comms import (
+            AssetEventCollectionResult,
+            ErrorResponse,
+            GetAssetEventByAliasName,
+            GetAssetEventByName,
             GetAssetEventByNameUri,
             GetAssetEventByUri,
         )
@@ -362,8 +356,8 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
             raise AirflowRuntimeError(msg)
 
         if TYPE_CHECKING:
-            assert isinstance(msg, AssetEventResult)
-        return AssetEvent(**msg.model_dump(excldue={"type"}))
+            assert isinstance(msg, AssetEventCollectionResult)
+        return [AssetEvent(**event) for event in msg.model_dump()["asset_events"]]
 
 
 @cache  # Prevent multiple API access.

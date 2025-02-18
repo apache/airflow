@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import datetime
 import logging
 import operator
 import os
@@ -692,6 +693,39 @@ class AssetAll(_AssetBooleanCondition):
         :meta private:
         """
         return {"all": [o.as_expression() for o in self.objects]}
+
+
+@attrs.define(kw_only=True)
+class DagRunAssetReference:
+    run_id: str
+    dag_id: str
+    start_date: datetime.datetime
+    state: str
+    end_date: datetime.datetime | None = None
+
+    logical_date: datetime.datetime | None = None
+    data_interval_start: datetime.datetime | None = None
+    data_interval_end: datetime.datetime | None = None
+
+
+@attrs.define(kw_only=True)
+class AssetEvent:
+    """Representation of asset event to be triggered by an asset alias."""
+
+    id: int
+    asset_id: int
+
+    created_dagruns: list[DagRunAssetReference]
+    timestamp: datetime.datetime
+
+    uri: str | None = None
+    name: str | None = None
+    group: str | None = None
+    extra: dict[str, Any] | None = None
+    source_task_id: str | None = None
+    source_dag_id: str | None = None
+    source_run_id: str | None = None
+    source_map_index: int | None = None
 
 
 @attrs.define
