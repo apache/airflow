@@ -41,7 +41,7 @@ from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
@@ -76,6 +76,10 @@ INSERT_ROWS_QUERY = (
     f"INSERT INTO {BIGQUERY_DATASET_NAME}.{BIGQUERY_TABLE} (emp_name, salary) "
     "VALUES ('emp 1', 10000), ('emp 2', 15000);"
 )
+SCHEMA = [
+    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+]
 
 DB_PORT = 1433
 DB_USER_NAME = "sa"
@@ -169,14 +173,13 @@ with DAG(
         task_id="create_bigquery_dataset", dataset_id=BIGQUERY_DATASET_NAME
     )
 
-    create_bigquery_table = BigQueryCreateEmptyTableOperator(
+    create_bigquery_table = BigQueryCreateTableOperator(
         task_id="create_bigquery_table",
         dataset_id=BIGQUERY_DATASET_NAME,
         table_id=BIGQUERY_TABLE,
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     insert_bigquery_data = BigQueryInsertJobOperator(

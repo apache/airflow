@@ -15,6 +15,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DependenciesService,
   EventLogService,
   ExtraLinksService,
   GridService,
@@ -446,6 +447,17 @@ export const prefetchUseDagsServiceRecentDagRuns = (
       }),
   });
 /**
+ * Get Dependencies
+ * Dependencies graph.
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDependenciesServiceGetDependencies = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn(),
+    queryFn: () => DependenciesService.getDependencies(),
+  });
+/**
  * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.
@@ -603,14 +615,16 @@ export const prefetchUseBackfillServiceGetBackfill = (
  * @param data.dagId
  * @param data.includeUpstream
  * @param data.includeDownstream
- * @param data.logicalDateGte
- * @param data.logicalDateLte
  * @param data.root
  * @param data.offset
  * @param data.runType
  * @param data.state
  * @param data.limit
  * @param data.orderBy
+ * @param data.runAfterGte
+ * @param data.runAfterLte
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
  * @returns GridResponse Successful Response
  * @throws ApiError
  */
@@ -626,6 +640,8 @@ export const prefetchUseGridServiceGridData = (
     offset,
     orderBy,
     root,
+    runAfterGte,
+    runAfterLte,
     runType,
     state,
   }: {
@@ -638,6 +654,8 @@ export const prefetchUseGridServiceGridData = (
     offset?: number;
     orderBy?: string;
     root?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     runType?: string[];
     state?: string[];
   },
@@ -653,6 +671,8 @@ export const prefetchUseGridServiceGridData = (
       offset,
       orderBy,
       root,
+      runAfterGte,
+      runAfterLte,
       runType,
       state,
     }),
@@ -667,6 +687,8 @@ export const prefetchUseGridServiceGridData = (
         offset,
         orderBy,
         root,
+        runAfterGte,
+        runAfterLte,
         runType,
         state,
       }),
@@ -771,6 +793,8 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
  * @param data.dagId
  * @param data.limit
  * @param data.offset
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -795,6 +819,8 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     logicalDateLte,
     offset,
     orderBy,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -809,6 +835,8 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -826,6 +854,8 @@ export const prefetchUseDagRunServiceGetDagRuns = (
       logicalDateLte,
       offset,
       orderBy,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,
@@ -842,6 +872,8 @@ export const prefetchUseDagRunServiceGetDagRuns = (
         logicalDateLte,
         offset,
         orderBy,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1316,6 +1348,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstance = (
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -1354,6 +1388,8 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1376,6 +1412,8 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1401,6 +1439,8 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
       orderBy,
       pool,
       queue,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,
@@ -1425,6 +1465,8 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1603,6 +1645,8 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -1642,6 +1686,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1665,6 +1711,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1691,6 +1739,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
       orderBy,
       pool,
       queue,
+      runAfterGte,
+      runAfterLte,
       startDateGte,
       startDateLte,
       state,
@@ -1716,6 +1766,8 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,

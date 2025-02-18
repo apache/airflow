@@ -81,6 +81,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
 
+class TaskRunnerMarker:
+    """Marker for listener hooks, to properly detect from which component they are called."""
+
+
 # TODO: Move this entire class into a separate file:
 #  `airflow/sdk/execution_time/task_instance.py`
 #   or `airflow/sdk/execution_time/runtime_ti.py`
@@ -314,12 +318,14 @@ class RuntimeTaskInstance(TaskInstance):
                 raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
             if msg.value is not None:
-                from airflow.models.xcom import XCom
+                from airflow.serialization.serde import deserialize
 
                 # TODO: Move XCom serialization & deserialization to Task SDK
                 #   https://github.com/apache/airflow/issues/45231
-                xcom = XCom.deserialize_value(msg)  # type: ignore[arg-type]
-                xcoms.append(xcom)
+
+                # The execution API server deals in json compliant types now.
+                # serde's deserialize can handle deserializing primitive, collections, and complex objects too
+                xcoms.append(deserialize(msg.value))  # type: ignore[type-var]
             else:
                 xcoms.append(default)
 
@@ -346,11 +352,15 @@ class RuntimeTaskInstance(TaskInstance):
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
-    from airflow.models.xcom import XCom
+    from airflow.serialization.serde import serialize
 
     # TODO: Move XCom serialization & deserialization to Task SDK
     #   https://github.com/apache/airflow/issues/45231
-    value = XCom.serialize_value(value)
+
+    # The execution API server now deals in json compliant objects.
+    # It is responsibility of the client to handle any non native object serialization.
+    # serialize does just that.
+    value = serialize(value)
 
     log = structlog.get_logger(logger_name="task")
     SUPERVISOR_COMMS.send_request(
@@ -473,6 +483,8 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
 def startup() -> tuple[RuntimeTaskInstance, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
+
+    get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
 
     if isinstance(msg, StartupDetails):
         from setproctitle import setproctitle
@@ -748,6 +760,12 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
 
 
 def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
+    # Pushing xcom for each operator extra links defined on the operator only.
+    for oe in ti.task.operator_extra_links:
+        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
+        log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
+        _xcom_push(ti, key=xcom_key, value=link)
+
     log.debug("Running finalizers", ti=ti)
     if state in [TerminalTIState.SUCCESS]:
         get_listener_manager().hook.on_task_instance_success(
@@ -759,6 +777,8 @@ def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
             previous_state=TaskInstanceState.RUNNING, task_instance=ti
         )
         # TODO: Run task failure callbacks here
+
+    get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
 
 
 def main():

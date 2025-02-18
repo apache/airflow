@@ -2317,7 +2317,7 @@ class DagModel(Base):
                 dm.is_active = False
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:
+    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
@@ -2341,11 +2341,12 @@ class DagModel(Base):
         adrq_by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
         for r in session.scalars(select(AssetDagRunQueue)):
             adrq_by_dag[r.target_dag_id].append(r)
-        dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {}
-        for dag_id, records in adrq_by_dag.items():
-            dag_statuses[dag_id] = {AssetUniqueKey.from_asset(x.asset): True for x in records}
-        ser_dags = SerializedDagModel.get_latest_serialized_dags(dag_ids=list(dag_statuses), session=session)
 
+        dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {
+            dag_id: {AssetUniqueKey.from_asset(adrq.asset): True for adrq in adrqs}
+            for dag_id, adrqs in adrq_by_dag.items()
+        }
+        ser_dags = SerializedDagModel.get_latest_serialized_dags(dag_ids=list(dag_statuses), session=session)
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
@@ -2353,14 +2354,16 @@ class DagModel(Base):
                 del adrq_by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
-        # TODO: make it more readable (rename it or make it attrs, dataclass or etc.)
-        asset_triggered_dag_info: dict[str, tuple[datetime, datetime]] = {}
-        for dag_id, records in adrq_by_dag.items():
-            times = sorted(x.created_at for x in records)
-            asset_triggered_dag_info[dag_id] = (times[0], times[-1])
+
+        # triggered dates for asset triggered dags
+        triggered_date_by_dag: dict[str, datetime] = {
+            dag_id: max(adrq.created_at for adrq in adrqs) for dag_id, adrqs in adrq_by_dag.items()
+        }
         del adrq_by_dag
-        asset_triggered_dag_ids = set(asset_triggered_dag_info.keys())
+
+        asset_triggered_dag_ids = set(triggered_date_by_dag.keys())
         if asset_triggered_dag_ids:
+            # exclude as max active runs has been reached
             exclusion_list = set(
                 session.scalars(
                     select(DagModel.dag_id)
@@ -2373,8 +2376,8 @@ class DagModel(Base):
             )
             if exclusion_list:
                 asset_triggered_dag_ids -= exclusion_list
-                asset_triggered_dag_info = {
-                    k: v for k, v in asset_triggered_dag_info.items() if k not in exclusion_list
+                triggered_date_by_dag = {
+                    k: v for k, v in triggered_date_by_dag.items() if k not in exclusion_list
                 }
 
         # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
@@ -2395,7 +2398,7 @@ class DagModel(Base):
 
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
-            asset_triggered_dag_info,
+            triggered_date_by_dag,
         )
 
     def calculate_dagrun_date_fields(

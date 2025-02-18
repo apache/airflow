@@ -34,26 +34,20 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.www.views import TaskInstanceModelView, _safe_parse_datetime
-from providers.fab.tests.provider_tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
-    create_user,
-    delete_roles,
-    delete_user,
-)
 
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.www import (
+    capture_templates,  # noqa: F401
     check_content_in_response,
     check_content_not_in_response,
-    client_with_login,
 )
 
 pytestmark = pytest.mark.db_test
@@ -135,34 +129,6 @@ def _init_dagruns(app):
     yield
     clear_db_runs()
     clear_db_xcom()
-
-
-@pytest.fixture(scope="module")
-def client_ti_without_dag_edit(app):
-    create_user(
-        app,
-        username="all_ti_permissions_except_dag_edit",
-        role_name="all_ti_permissions_except_dag_edit",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-        ],
-    )
-
-    yield client_with_login(
-        app,
-        username="all_ti_permissions_except_dag_edit",
-        password="all_ti_permissions_except_dag_edit",
-    )
-
-    delete_user(app, username="all_ti_permissions_except_dag_edit")  # type: ignore
-    delete_roles(app)
 
 
 @pytest.mark.parametrize(
@@ -454,23 +420,6 @@ def test_gantt_trigger_origin_grid_view(app, admin_client):
     check_content_in_response(href, resp)
 
 
-def test_graph_view_without_dag_permission(app, one_dag_perm_user_client):
-    url = "/dags/example_bash_operator/graph"
-    resp = one_dag_perm_user_client.get(url, follow_redirects=True)
-    assert resp.status_code == 200
-    assert (
-        resp.request.url
-        == "http://localhost/dags/example_bash_operator/grid?tab=graph&dag_run_id=TEST_DAGRUN"
-    )
-    check_content_in_response("example_bash_operator", resp)
-
-    url = "/dags/example_xcom/graph"
-    resp = one_dag_perm_user_client.get(url, follow_redirects=True)
-    assert resp.status_code == 200
-    assert resp.request.url == "http://localhost/home"
-    check_content_in_response("Access is Denied", resp)
-
-
 def test_last_dagruns(admin_client):
     resp = admin_client.post("last_dagruns", follow_redirects=True)
     check_content_in_response("example_bash_operator", resp)
@@ -621,84 +570,17 @@ def new_dag_to_delete(testing_dag_bundle):
     return dag
 
 
-@pytest.fixture
-def per_dag_perm_user_client(app, new_dag_to_delete):
-    sm = app.appbuilder.sm
-    perm = f"{permissions.RESOURCE_DAG_PREFIX}{new_dag_to_delete.dag_id}"
-
-    sm.create_permission(permissions.ACTION_CAN_DELETE, perm)
-
-    create_user(
-        app,
-        username="test_user_per_dag_perms",
-        role_name="User with some perms",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, perm),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-        ],
-    )
-
-    sm.find_user(username="test_user_per_dag_perms")
-
-    yield client_with_login(
-        app,
-        username="test_user_per_dag_perms",
-        password="test_user_per_dag_perms",
-    )
-
-    delete_user(app, username="test_user_per_dag_perms")  # type: ignore
-    delete_roles(app)
-
-
-@pytest.fixture
-def one_dag_perm_user_client(app):
-    username = "test_user_one_dag_perm"
-    dag_id = "example_bash_operator"
-    sm = app.appbuilder.sm
-    perm = f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}"
-
-    sm.create_permission(permissions.ACTION_CAN_READ, perm)
-
-    create_user(
-        app,
-        username=username,
-        role_name="User with permission to access only one dag",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-            (permissions.ACTION_CAN_READ, perm),
-        ],
-    )
-
-    sm.find_user(username=username)
-
-    yield client_with_login(
-        app,
-        username=username,
-        password=username,
-    )
-
-    delete_user(app, username=username)  # type: ignore
-    delete_roles(app)
-
-
-def test_delete_just_dag_per_dag_permissions(new_dag_to_delete, per_dag_perm_user_client):
-    resp = per_dag_perm_user_client.post(
-        f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True
-    )
-    check_content_in_response(f"Deleting DAG with id {new_dag_to_delete.dag_id}.", resp)
-
-
 def test_delete_just_dag_resource_permissions(new_dag_to_delete, user_client):
     resp = user_client.post(f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True)
     check_content_in_response(f"Deleting DAG with id {new_dag_to_delete.dag_id}.", resp)
 
 
 @pytest.mark.parametrize("endpoint", ["graph", "tree"])
-def test_show_external_log_redirect_link_with_local_log_handler(capture_templates, admin_client, endpoint):
+def test_show_external_log_redirect_link_with_local_log_handler(
+    capture_templates,  # noqa: F811
+    admin_client,
+    endpoint,
+):
     """Do not show external links if log handler is local."""
     url = f"{endpoint}?dag_id=example_bash_operator"
     with capture_templates() as templates:
@@ -731,7 +613,10 @@ class _ExternalHandler(ExternalLoggingMixin):
     return_value=_ExternalHandler(),
 )
 def test_show_external_log_redirect_link_with_external_log_handler(
-    _, capture_templates, admin_client, endpoint
+    _,
+    capture_templates,  # noqa: F811
+    admin_client,
+    endpoint,
 ):
     """Show external links if log handler is external."""
     url = f"{endpoint}?dag_id=example_bash_operator"
@@ -749,7 +634,10 @@ def test_show_external_log_redirect_link_with_external_log_handler(
     return_value=_ExternalHandler(),
 )
 def test_external_log_redirect_link_with_external_log_handler_not_shown(
-    _external_handler, capture_templates, admin_client, endpoint
+    _external_handler,
+    capture_templates,  # noqa: F811
+    admin_client,
+    endpoint,
 ):
     """Show external links if log handler is external."""
     _external_handler.return_value._supports_external_link = False
@@ -792,23 +680,6 @@ def test_task_instance_delete(session, admin_client, create_task_instance):
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
     admin_client.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 0
-
-
-def test_task_instance_delete_permission_denied(session, client_ti_without_dag_edit, create_task_instance):
-    task_instance_to_delete = create_task_instance(
-        task_id="test_task_instance_delete_permission_denied",
-        logical_date=timezone.utcnow(),
-        state=State.DEFERRED,
-        session=session,
-    )
-    session.commit()
-    composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
-    task_id = task_instance_to_delete.task_id
-
-    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
-    resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
-    check_content_in_response("Access is Denied", resp)
-    assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
 
 
 @pytest.mark.parametrize(
