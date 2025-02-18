@@ -20,24 +20,14 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from flask import Flask
 
 from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 
 @pytest.fixture
 def auth_manager():
     return SimpleAuthManager(None)
-
-
-@pytest.fixture
-def auth_manager_with_appbuilder():
-    flask_app = Flask(__name__)
-    auth_manager = SimpleAuthManager()
-    auth_manager.appbuilder = init_appbuilder(flask_app)
-    return auth_manager
 
 
 @pytest.fixture
@@ -53,14 +43,3 @@ def test_admin():
 @pytest.fixture
 def test_client(auth_manager):
     return TestClient(auth_manager.get_fastapi_app())
-
-
-@pytest.fixture
-def client(auth_manager):
-    """This fixture is more flexible than test_client, as it allows to specify which apps to include."""
-
-    def create_test_client():
-        app = auth_manager.get_fastapi_app()
-        return TestClient(app)
-
-    return create_test_client
