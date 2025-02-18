@@ -596,16 +596,6 @@ def print_cluster_urls(
     get_console(output=output).print(
         f"\n[info]KinD Cluster API server URL: [/]http://localhost:{api_server_port}"
     )
-    if _attempt_to_connect(port_number=web_server_port, output=output, wait_seconds=wait_time_in_seconds):
-        get_console(output=output).print(
-            f"[info]Airflow Web server URL: [/]http://localhost:{web_server_port} (admin/admin)\n"
-        )
-    else:
-        get_console(output=output).print(
-            f"\n[warning]Airflow webserver is not available at port {web_server_port}. "
-            f"Run `breeze k8s deploy-airflow --python {python} --kubernetes-version {kubernetes_version}` "
-            "to (re)deploy airflow\n"
-        )
 
 
 class KubernetesPythonVersion(NamedTuple):

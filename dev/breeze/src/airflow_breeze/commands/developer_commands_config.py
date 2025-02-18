@@ -26,7 +26,6 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "shell",
         "exec",
         "compile-ui-assets",
-        "compile-www-assets",
         "cleanup",
         "generate-migration-file",
     ],
@@ -84,7 +83,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--load-example-dags",
                 "--load-default-connections",
                 "--standalone-dag-processor",
-                "--start-webserver-with-examples",
             ],
         },
         {
@@ -188,15 +186,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--no-db-cleanup",
             ],
         },
-    ],
-    "breeze compile-www-assets": [
-        {
-            "name": "Compile www assets flag",
-            "options": [
-                "--dev",
-                "--force-clean",
-            ],
-        }
     ],
     "breeze compile-ui-assets": [
         {

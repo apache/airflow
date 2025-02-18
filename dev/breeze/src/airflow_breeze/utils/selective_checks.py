@@ -106,7 +106,6 @@ class FileGroupForCi(Enum):
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
     UI_FILES = "ui_files"
-    LEGACY_WWW_FILES = "legacy_www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
     TASK_SDK_FILES = "task_sdk_files"
@@ -197,12 +196,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.json",
         ],
         FileGroupForCi.UI_FILES: [r"^airflow/ui/", r"^airflow/auth/managers/simple/ui/"],
-        FileGroupForCi.LEGACY_WWW_FILES: [
-            r"^airflow/www/.*\.ts[x]?$",
-            r"^airflow/www/.*\.js[x]?$",
-            r"^airflow/www/[^/]+\.json$",
-            r"^airflow/www/.*\.lock$",
-        ],
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
@@ -312,7 +305,6 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/serialization/",
             r"^tests/serialization/",
         ],
-        SelectiveCoreTestType.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
 
@@ -706,10 +698,6 @@ class SelectiveChecks:
     @cached_property
     def run_ui_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.UI_FILES)
-
-    @cached_property
-    def run_www_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.LEGACY_WWW_FILES)
 
     @cached_property
     def run_amazon_tests(self) -> bool:
@@ -1141,10 +1129,6 @@ class SelectiveChecks:
             # when full tests are needed, we do not want to skip any checks and we should
             # run all the pre-commits just to be sure everything is ok when some structural changes occurred
             return ",".join(sorted(pre_commits_to_skip))
-        if not self._matching_files(
-            FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("ts-compile-format-lint-www")
         if not (
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
             or self._matching_files(
@@ -1517,17 +1501,6 @@ class SelectiveChecks:
             get_console().print(
                 f"[error]Please ask maintainer to assign "
                 f"the '{LEGACY_API_LABEL}' label to the PR in order to continue"
-            )
-            sys.exit(1)
-        elif (
-            self._matching_files(
-                FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-            and LEGACY_UI_LABEL not in self._pr_labels
-        ):
-            get_console().print(
-                f"[error]Please ask maintainer to assign "
-                f"the '{LEGACY_UI_LABEL}' label to the PR in order to continue"
             )
             sys.exit(1)
         else:

@@ -24,6 +24,7 @@ from urllib.parse import unquote
 
 from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder.api import expose
+from flask_appbuilder import BaseView
 
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -39,7 +40,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.www import auth
-from airflow.www.views import AirflowBaseView
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -387,7 +387,7 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
         return url_for("RepairDatabricksTasks.repair", **query_params)
 
 
-class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
+class RepairDatabricksTasks(BaseView, LoggingMixin):
     """Repair databricks tasks from Airflow."""
 
     default_view = "repair"

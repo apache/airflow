@@ -295,27 +295,6 @@ airflowPodAnnotations: {}
 # main Airflow configmap
 airflowConfigAnnotations: {}
 
-# `airflow_local_settings` file as a string (templated).
-airflowLocalSettings: |-
-  {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
-  {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
-  from airflow.www.utils import UIAlert
-
-  DASHBOARD_UIALERTS = [
-    UIAlert(
-      'Usage of a dynamic webserver secret key detected. We recommend a static webserver secret key instead.'
-      ' See the <a href='
-      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key" '
-      'target="_blank" rel="noopener noreferrer">'
-      'Helm Chart Production Guide</a> for more details.',
-      category="warning",
-      roles=["Admin"],
-      html=True,
-    )
-  ]
-  {{- end }}
-  {{- end }}
-
 # Enable RBAC (default on most clusters these days)
 rbac:
   # Specifies whether RBAC resources should be created
