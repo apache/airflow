@@ -18,20 +18,16 @@ from __future__ import annotations
 
 import json
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
-import multidict
 import pytest
 import requests
-from aiohttp import ClientResponseError, RequestInfo
 from requests.exceptions import RequestException
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, LivyHook
 from airflow.utils import db
-
-from tests_common.test_utils.db import clear_db_connections
 
 LIVY_CONN_ID = LivyHook.default_conn_name
 DEFAULT_CONN_ID = LivyHook.default_conn_name
@@ -51,41 +47,34 @@ INVALID_SESSION_ID_TEST_CASES = [
     pytest.param("forty two", id="invalid string"),
     pytest.param({"a": "b"}, id="dictionary"),
 ]
+CONNECTIONS: dict[str, Connection] = {
+    DEFAULT_CONN_ID: Connection(
+        conn_id=DEFAULT_CONN_ID,
+        conn_type="http",
+        host=DEFAULT_HOST,
+        schema=DEFAULT_SCHEMA,
+        port=DEFAULT_PORT,
+    ),
+    "default_port": Connection(conn_id="default_port", conn_type="http", host="http://host"),
+    "default_protocol": Connection(conn_id="default_protocol", conn_type="http", host="host"),
+    "port_set": Connection(conn_id="port_set", host="host", conn_type="http", port=1234),
+    "schema_set": Connection(conn_id="schema_set", host="host", conn_type="http", schema="https"),
+    "dont_override_schema": Connection(
+        conn_id="dont_override_schema", conn_type="http", host="http://host", schema="https"
+    ),
+    "missing_host": Connection(conn_id="missing_host", conn_type="http", port=1234),
+    "invalid_uri": Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"),
+    "with_credentials": Connection(
+        conn_id="with_credentials", login="login", password="secret", conn_type="http", host="host"
+    ),
+}
 
 
-@pytest.mark.db_test
+def get_connection(conn_id: str) -> Connection:
+    return CONNECTIONS[conn_id]
+
+
 class TestLivyDbHook:
-    @classmethod
-    def setup_class(cls):
-        clear_db_connections(add_default_connections_back=False)
-        db.merge_conn(
-            Connection(
-                conn_id=DEFAULT_CONN_ID,
-                conn_type="http",
-                host=DEFAULT_HOST,
-                schema=DEFAULT_SCHEMA,
-                port=DEFAULT_PORT,
-            )
-        )
-        db.merge_conn(Connection(conn_id="default_port", conn_type="http", host="http://host"))
-        db.merge_conn(Connection(conn_id="default_protocol", conn_type="http", host="host"))
-        db.merge_conn(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="schema_set", host="host", conn_type="http", schema="https"))
-        db.merge_conn(
-            Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="https")
-        )
-        db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
-        db.merge_conn(
-            Connection(
-                conn_id="with_credentials", login="login", password="secret", conn_type="http", host="host"
-            )
-        )
-
-    @classmethod
-    def teardown_class(cls):
-        clear_db_connections(add_default_connections_back=True)
-
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         "conn_id, expected",
@@ -98,9 +87,13 @@ class TestLivyDbHook:
         ],
     )
     def test_build_get_hook(self, conn_id, expected):
-        hook = LivyHook(livy_conn_id=conn_id)
-        hook.get_conn()
-        assert hook.base_url == expected
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_connection,
+        ):
+            hook = LivyHook(livy_conn_id=conn_id)
+            hook.get_conn()
+            assert hook.base_url == expected
 
     @pytest.mark.skip("Inherited HttpHook does not handle missing hostname")
     def test_missing_host(self):
@@ -309,8 +302,12 @@ class TestLivyDbHook:
         mock_get_conn.assert_not_called()
 
     def test_invalid_uri(self):
-        with pytest.raises(RequestException):
-            LivyHook(livy_conn_id="invalid_uri").post_batch(file="sparkapp")
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_connection,
+        ):
+            with pytest.raises(RequestException):
+                LivyHook(livy_conn_id="invalid_uri").post_batch(file="sparkapp")
 
     def test_get_batch_state_success(self, requests_mock):
         running = BatchState.RUNNING
@@ -418,15 +415,19 @@ class TestLivyDbHook:
         hook.post_batch(file="sparkapp")
 
     def test_alternate_auth_type(self):
-        auth_type = MagicMock()
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_connection,
+        ):
+            auth_type = MagicMock()
 
-        hook = LivyHook(livy_conn_id="with_credentials", auth_type=auth_type)
+            hook = LivyHook(livy_conn_id="with_credentials", auth_type=auth_type)
 
-        auth_type.assert_not_called()
+            auth_type.assert_not_called()
 
-        hook.get_conn()
+            hook.get_conn()
 
-        auth_type.assert_called_once_with("login", "secret")
+            auth_type.assert_called_once_with("login", "secret")
 
     @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.run_method")
     def test_post_batch_with_endpoint_prefix(self, mock_request):
@@ -575,160 +576,45 @@ class TestLivyAsyncHook:
         assert log_dump == {"id": 1, "log": ["mock_log_1", "mock_log_2"]}
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook._do_api_call_async")
-    async def test_run_method_success(self, mock_do_api_call_async):
+    @mock.patch("airflow.providers.http.hooks.http.HttpAsyncHook.run")
+    async def test_do_api_call_async_gives_deprecation_warning(self, mock_run):
         """Asserts the run_method for success response."""
-        mock_do_api_call_async.return_value = {"status": "error", "response": {"id": 1}}
+        from airflow.exceptions import AirflowProviderDeprecationWarning
+
+        mock_run.return_value = {"status": "error", "response": {"id": 1}}
+        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="deprecated"):
+            response = await hook._do_api_call_async("localhost")
+            assert response["status"] == "success"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.http.hooks.http.HttpAsyncHook.run")
+    async def test_run_method_success(self, mock_run):
+        """Asserts the run_method for success response."""
+        mock_run.return_value = {"status": "error", "response": {"id": 1}}
         hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
         response = await hook.run_method("localhost", "GET")
         assert response["status"] == "success"
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook._do_api_call_async")
-    async def test_run_method_error(self, mock_do_api_call_async):
+    @mock.patch("airflow.providers.http.hooks.http.HttpAsyncHook.run")
+    async def test_run_method_error(self, mock_run):
         """Asserts the run_method for error response."""
-        mock_do_api_call_async.return_value = {"status": "error", "response": {"id": 1}}
+        mock_run.return_value = {"status": "error", "response": {"id": 1}}
         hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
         response = await hook.run_method("localhost", "abc")
         assert response == {"status": "error", "response": "Invalid http method abc"}
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.aiohttp.ClientSession")
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_connection")
-    async def test_do_api_call_async_post_method_with_success(self, mock_get_connection, mock_session):
-        """Asserts the _do_api_call_async for success response for POST method."""
+    @mock.patch("airflow.providers.http.hooks.http.HttpAsyncHook.run")
+    async def test_run_method_http_error(self, mock_run):
+        """Asserts the run_method for error response."""
+        from airflow.providers.http.exceptions import HttpErrorException
 
-        async def mock_fun(arg1, arg2, arg3, arg4):
-            return {"status": "success"}
-
-        mock_session.return_value.__aexit__.return_value = mock_fun
-        mock_session.return_value.__aenter__.return_value.post = AsyncMock()
-        mock_session.return_value.__aenter__.return_value.post.return_value.json = AsyncMock(
-            return_value={"status": "success"}
-        )
-        GET_RUN_ENDPOINT = "api/jobs/runs/get"
+        mock_run.side_effect = HttpErrorException("404:Unauthorized")
         hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
-        hook.http_conn_id = mock_get_connection
-        hook.http_conn_id.host = "https://localhost"
-        hook.http_conn_id.login = "login"
-        hook.http_conn_id.password = "PASSWORD"
-        response = await hook._do_api_call_async(GET_RUN_ENDPOINT)
-        assert response == {"status": "success"}
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.aiohttp.ClientSession")
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_connection")
-    async def test_do_api_call_async_get_method_with_success(self, mock_get_connection, mock_session):
-        """Asserts the _do_api_call_async for GET method."""
-
-        async def mock_fun(arg1, arg2, arg3, arg4):
-            return {"status": "success"}
-
-        mock_session.return_value.__aexit__.return_value = mock_fun
-        mock_session.return_value.__aenter__.return_value.get = AsyncMock()
-        mock_session.return_value.__aenter__.return_value.get.return_value.json = AsyncMock(
-            return_value={"status": "success"}
-        )
-        GET_RUN_ENDPOINT = "api/jobs/runs/get"
-        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
-        hook.method = "GET"
-        hook.http_conn_id = mock_get_connection
-        hook.http_conn_id.host = "test.com"
-        hook.http_conn_id.login = "login"
-        hook.http_conn_id.password = "PASSWORD"
-        hook.http_conn_id.extra_dejson = ""
-        response = await hook._do_api_call_async(GET_RUN_ENDPOINT)
-        assert response == {"status": "success"}
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.aiohttp.ClientSession")
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_connection")
-    async def test_do_api_call_async_patch_method_with_success(self, mock_get_connection, mock_session):
-        """Asserts the _do_api_call_async for PATCH method."""
-
-        async def mock_fun(arg1, arg2, arg3, arg4):
-            return {"status": "success"}
-
-        mock_session.return_value.__aexit__.return_value = mock_fun
-        mock_session.return_value.__aenter__.return_value.patch = AsyncMock()
-        mock_session.return_value.__aenter__.return_value.patch.return_value.json = AsyncMock(
-            return_value={"status": "success"}
-        )
-        GET_RUN_ENDPOINT = "api/jobs/runs/get"
-        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
-        hook.method = "PATCH"
-        hook.http_conn_id = mock_get_connection
-        hook.http_conn_id.host = "test.com"
-        hook.http_conn_id.login = "login"
-        hook.http_conn_id.password = "PASSWORD"
-        hook.http_conn_id.extra_dejson = ""
-        response = await hook._do_api_call_async(GET_RUN_ENDPOINT)
-        assert response == {"status": "success"}
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.aiohttp.ClientSession")
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_connection")
-    async def test_do_api_call_async_unexpected_method_error(self, mock_get_connection, mock_session):
-        """Asserts the _do_api_call_async for unexpected method error"""
-        GET_RUN_ENDPOINT = "api/jobs/runs/get"
-        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
-        hook.method = "abc"
-        hook.http_conn_id = mock_get_connection
-        hook.http_conn_id.host = "test.com"
-        hook.http_conn_id.login = "login"
-        hook.http_conn_id.password = "PASSWORD"
-        hook.http_conn_id.extra_dejson = ""
-        response = await hook._do_api_call_async(endpoint=GET_RUN_ENDPOINT, headers={})
-        assert response == {"Response": "Unexpected HTTP Method: abc", "status": "error"}
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.aiohttp.ClientSession")
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_connection")
-    async def test_do_api_call_async_with_type_error(self, mock_get_connection, mock_session):
-        """Asserts the _do_api_call_async for TypeError."""
-
-        async def mock_fun(arg1, arg2, arg3, arg4):
-            return {"random value"}
-
-        mock_session.return_value.__aexit__.return_value = mock_fun
-        mock_session.return_value.__aenter__.return_value.patch.return_value.json.return_value = {}
-        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID)
-        hook.method = "PATCH"
-        hook.retry_limit = 1
-        hook.retry_delay = 1
-        hook.http_conn_id = mock_get_connection
-        with pytest.raises(TypeError):
-            await hook._do_api_call_async(endpoint="", data="test", headers=mock_fun, extra_options=mock_fun)
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.aiohttp.ClientSession")
-    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_connection")
-    async def test_do_api_call_async_with_client_response_error(self, mock_get_connection, mock_session):
-        """Asserts the _do_api_call_async for Client Response Error."""
-
-        async def mock_fun(arg1, arg2, arg3, arg4):
-            return {"random value"}
-
-        mock_session.return_value.__aexit__.return_value = mock_fun
-        mock_session.return_value.__aenter__.return_value.patch = AsyncMock()
-        mock_session.return_value.__aenter__.return_value.patch.return_value.json.side_effect = (
-            ClientResponseError(
-                request_info=RequestInfo(url="example.com", method="PATCH", headers=multidict.CIMultiDict()),
-                status=500,
-                history=[],
-            )
-        )
-        GET_RUN_ENDPOINT = ""
-        hook = LivyAsyncHook(livy_conn_id="livy_default")
-        hook.method = "PATCH"
-        hook.base_url = ""
-        hook.http_conn_id = mock_get_connection
-        hook.http_conn_id.host = "test.com"
-        hook.http_conn_id.login = "login"
-        hook.http_conn_id.password = "PASSWORD"
-        hook.http_conn_id.extra_dejson = ""
-        response = await hook._do_api_call_async(GET_RUN_ENDPOINT)
-        assert response["status"] == "error"
+        response = await hook.run_method("localhost", "POST")
+        assert response == {"Response": {"Unauthorized"}, "Status Code": {"404"}, "status": "error"}
 
     def set_conn(self):
         db.merge_conn(

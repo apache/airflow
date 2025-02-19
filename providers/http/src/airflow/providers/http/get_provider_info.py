@@ -103,6 +103,20 @@ def get_provider_info():
         "connection-types": [
             {"hook-class-name": "airflow.providers.http.hooks.http.HttpHook", "connection-type": "http"}
         ],
+        "config": {
+            "http": {
+                "description": "Options for Http provider.",
+                "options": {
+                    "extra_auth_types": {
+                        "description": "A comma separated list of auth_type classes, which can be used to\nconfigure Http Connections in Airflow's UI. This list restricts which\nclasses can be arbitrary imported to prevent dependency injections.\n",
+                        "type": "string",
+                        "version_added": "4.8.0",
+                        "example": "requests_kerberos.HTTPKerberosAuth,any.other.custom.HTTPAuth",
+                        "default": None,
+                    }
+                },
+            }
+        },
         "dependencies": [
             "apache-airflow>=2.9.0",
             "requests>=2.27.0,<3",

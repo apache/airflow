@@ -17,6 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import json
+import warnings
+from contextlib import suppress
+from functools import cache
+from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlparse
 
@@ -25,19 +31,31 @@ import requests
 import tenacity
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
-from requests.auth import HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
     from requests.adapters import HTTPAdapter
+    from requests.auth import AuthBase
 
     from airflow.models import Connection
+
+
+DEFAULT_AUTH_TYPES = frozenset(
+    {
+        "requests.auth.HTTPBasicAuth",
+        "requests.auth.HTTPProxyAuth",
+        "requests.auth.HTTPDigestAuth",
+        "requests_kerberos.HTTPKerberosAuth",
+        "aiohttp.BasicAuth",
+    }
+)
 
 
 def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
@@ -47,9 +65,57 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     return (base_url or "") + (endpoint or "")
 
 
+def _load_conn_auth_type(module_name: str | None) -> Any:
+    """
+    Load auth_type module from extra Connection parameters.
+
+    Check if the auth_type module is listed in 'extra_auth_types' and load it.
+    This method protects against the execution of random modules.
+    """
+    if module_name:
+        if module_name in HttpHook.get_auth_types():
+            try:
+                module = import_string(module_name)
+                return module
+            except Exception as error:
+                raise AirflowException(error)
+        warnings.warn(
+            f"Skipping import of auth_type '{module_name}'. The class should be listed in "
+            "'extra_auth_types' config of the http provider.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+    return None
+
+
+def _extract_auth(connection: Connection, auth_type: Any) -> AuthBase | None:
+    extra = connection.extra_dejson
+    auth_type = auth_type or _load_conn_auth_type(module_name=extra.get("auth_type"))
+
+    if auth_type:
+        auth_args: list[str | None] = [connection.login, connection.password]
+
+        if any(auth_args):
+            auth_kwargs = extra.get("auth_kwargs", {})
+
+            if auth_kwargs:
+                _auth = auth_type(*auth_args, **auth_kwargs)
+            else:
+                return auth_type(*auth_args)
+        else:
+            return auth_type()
+    return None
+
+
 class HttpHook(BaseHook):
     """
     Interact with HTTP servers.
+
+    To configure the auth_type, in addition to the `auth_type` parameter, you can also:
+        * set the `auth_type` parameter in the Connection settings.
+        * define extra parameters used to instantiate the `auth_type` class, in the Connection settings.
+
+    See :doc:`/connections/http` for full documentation.
 
     :param method: the API method to be called
     :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
@@ -86,7 +152,7 @@ class HttpHook(BaseHook):
         self.method = method.upper()
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
-        self._auth_type: Any = auth_type
+        self.auth_type: Any = auth_type
 
         # If no adapter is provided, use TCPKeepAliveAdapter (default behavior)
         self.adapter = adapter
@@ -99,13 +165,68 @@ class HttpHook(BaseHook):
         else:
             self.keep_alive_adapter = None
 
-    @property
-    def auth_type(self):
-        return self._auth_type or HTTPBasicAuth
+    @classmethod
+    @cache
+    def get_auth_types(cls) -> frozenset[str]:
+        """
+        Get comma-separated extra auth_types from airflow config.
 
-    @auth_type.setter
-    def auth_type(self, v):
-        self._auth_type = v
+        Those auth_types can then be used in Connection configuration.
+        """
+        from airflow.configuration import conf
+
+        auth_types = DEFAULT_AUTH_TYPES.copy()
+        extra_auth_types = conf.get("http", "extra_auth_types", fallback=None)
+        if extra_auth_types:
+            auth_types |= frozenset({field.strip() for field in extra_auth_types.split(",")})
+        return auth_types
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Hive Client Wrapper connection."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {},
+        }
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to the connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget
+        from flask_babel import lazy_gettext
+        from wtforms.fields import BooleanField, SelectField, StringField, TextAreaField
+
+        default_auth_type: str = ""
+        auth_types_choices = frozenset({default_auth_type}) | cls.get_auth_types()
+
+        return {
+            "timeout": StringField(lazy_gettext("Timeout"), widget=BS3TextFieldWidget()),
+            "allow_redirects": BooleanField(lazy_gettext("Allow redirects"), default=True),
+            "proxies": TextAreaField(lazy_gettext("Proxies"), widget=BS3TextAreaFieldWidget()),
+            "stream": BooleanField(lazy_gettext("Stream"), default=False),
+            "verify": BooleanField(lazy_gettext("Verify"), default=True),
+            "trust_env": BooleanField(lazy_gettext("Trust env"), default=True),
+            "cert": StringField(lazy_gettext("Cert"), widget=BS3TextFieldWidget()),
+            "max_redirects": StringField(
+                lazy_gettext("Max redirects"), widget=BS3TextFieldWidget(), default=DEFAULT_REDIRECT_LIMIT
+            ),
+            "auth_type": SelectField(
+                lazy_gettext("Auth type"),
+                choices=[(clazz, clazz) for clazz in auth_types_choices],
+                widget=Select2Widget(),
+                default=default_auth_type,
+            ),
+            "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
+            "headers": TextAreaField(
+                lazy_gettext("Headers"),
+                widget=BS3TextAreaFieldWidget(),
+                description=(
+                    "Warning: Passing headers parameters directly in 'Extra' field is deprecated, and "
+                    "will be removed in a future version of the Http provider. Use the 'Headers' "
+                    "field instead."
+                ),
+            ),
+        }
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
@@ -144,32 +265,46 @@ class HttpHook(BaseHook):
     def _configure_session_from_auth(
         self, session: requests.Session, connection: Connection
     ) -> requests.Session:
-        session.auth = self._extract_auth(connection)
+        session.auth = _extract_auth(connection, self.auth_type)
         return session
-
-    def _extract_auth(self, connection: Connection) -> Any | None:
-        if connection.login:
-            return self.auth_type(connection.login, connection.password)
-        elif self._auth_type:
-            return self.auth_type()
-        return None
 
     def _configure_session_from_extra(
         self, session: requests.Session, connection: Connection
     ) -> requests.Session:
+        # TODO: once http provider depends on Airflow 2.10.0, use get_extra_dejson(True) instead
         extra = connection.extra_dejson
         extra.pop("timeout", None)
         extra.pop("allow_redirects", None)
+        extra.pop("auth_type", None)
+        extra.pop("auth_kwargs", None)
+        headers = extra.pop("headers", {})
+
+        # TODO: once http provider depends on Airflow 2.10.0, we can remove this checked section below
+        if isinstance(headers, str):
+            with suppress(JSONDecodeError):
+                headers = json.loads(headers)
+
         session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
         session.stream = extra.pop("stream", False)
         session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
         session.cert = extra.pop("cert", None)
         session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
         session.trust_env = extra.pop("trust_env", True)
+
+        if extra:
+            warnings.warn(
+                "Passing headers parameters directly in 'Extra' field is deprecated, and "
+                "will be removed in a future version of the Http provider. Use the 'Headers' "
+                "field instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            headers = {**extra, **headers}
+
         try:
-            session.headers.update(extra)
+            session.headers.update(headers)
         except TypeError:
-            self.log.warning("Connection to %s has invalid extra field.", connection.host)
+            self.log.warning("Connection to %s has invalid headers field.", connection.host)
         return session
 
     def _configure_session_from_mount_adapters(self, session: requests.Session) -> requests.Session:
@@ -343,7 +478,7 @@ class HttpAsyncHook(BaseHook):
         self,
         method: str = "POST",
         http_conn_id: str = default_conn_name,
-        auth_type: Any = aiohttp.BasicAuth,
+        auth_type: Any = None,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
     ) -> None:
@@ -356,6 +491,18 @@ class HttpAsyncHook(BaseHook):
             raise ValueError("Retry limit must be greater than equal to 1")
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
+
+    def _generate_base_url(self, conn: Connection) -> str:
+        if conn.host and "://" in conn.host:
+            base_url: str = conn.host
+        else:
+            # schema defaults to HTTP
+            schema = conn.schema if conn.schema else "http"
+            host = conn.host if conn.host else ""
+            base_url = f"{schema}://{host}"
+        if conn.port:
+            base_url = f"{base_url}:{conn.port}"
+        return base_url
 
     async def run(
         self,
@@ -371,7 +518,6 @@ class HttpAsyncHook(BaseHook):
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
-        :param json: Payload to be uploaded as JSON.
         :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
@@ -386,19 +532,9 @@ class HttpAsyncHook(BaseHook):
 
         if self.http_conn_id:
             conn = await sync_to_async(self.get_connection)(self.http_conn_id)
-
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
-            else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
-                self.base_url = schema + "://" + host
-
-            if conn.port:
-                self.base_url += f":{conn.port}"
+            self.base_url = self._generate_base_url(conn=conn)
             if conn.login:
-                auth = self.auth_type(conn.login, conn.password)
+                auth = _extract_auth(conn, self.auth_type)
             if conn.extra:
                 extra = self._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
 
@@ -438,6 +574,7 @@ class HttpAsyncHook(BaseHook):
                 auth=auth,
                 **extra_options,
             )
+
             try:
                 response.raise_for_status()
             except ClientResponseError as e:
@@ -452,6 +589,8 @@ class HttpAsyncHook(BaseHook):
                     # In this case, the user probably made a mistake.
                     # Don't retry.
                     raise HttpErrorException(f"{e.status}:{e.message}")
+
+                await asyncio.sleep(self.retry_delay)
             else:
                 return response
 
