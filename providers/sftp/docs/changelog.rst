@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DELETE operation in SFTPOperator (#46233)``
+* ``Also allow passing buffer instead of path for retrieve_file and store_file methods in SFTPHook (#44247)``
+* ``Add directory transfer support for SFTPOperator (#44126)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make sure the SSHClient is also closed when using connection in context manager from SFTPHook (#46716)``
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Move SFTP Provider to the New Structure and fix codespell checks (#46155)``
+
 5.0.0
 .....
 

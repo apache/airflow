@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+6.0.1
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``move Trino provider to new provider structure (#46162)``
+
 6.0.0
 .....
 

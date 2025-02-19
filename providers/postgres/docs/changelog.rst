@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Introduce notion of dialects in DbApiHook (#41327)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix escaping of special characters or reserved words as column names in dialects of common sql provider (#45640)``
+
+Misc
+~~~~
+
+* ``Bump psycopg2 to 2.9.9 to possibly avoid crash on Python 3.12 (#46431)``
+* ``Added ADR document describing why the notion of dialects is introduced (#45456)``
+* ``Bump minimum version of psycopg2-binary to 2.9.7 (#45635)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Revert "Improve example docs around SQLExecuteQueryOperator in Postgres/Oracle/Presto/Vertica/ODBC (#46352)" (#46368)``
+   * ``Improve example docs around SQLExecuteQueryOperator in Postgres/Oracle/Presto/Vertica/ODBC (#46352)``
+   * ``Move PGVECTOR provider to new structure (#46051)``
+
 6.0.0
 .....
 

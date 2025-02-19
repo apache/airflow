@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+4.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix rowcount logging in exasol provider (#44022) (#45760)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``move exasol provider to new structure (#46122)``
+   * ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+
 4.7.0
 .....
 
