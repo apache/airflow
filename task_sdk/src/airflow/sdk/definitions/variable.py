@@ -21,6 +21,8 @@ from typing import Any
 
 import attrs
 
+from airflow.sdk.definitions._internal.types import NOTSET
+
 
 @attrs.define
 class Variable:
@@ -39,3 +41,14 @@ class Variable:
     description: str | None = None
 
     # TODO: Extend this definition for reading/writing variables without context
+    @classmethod
+    def get(cls, key: str, default: Any = NOTSET, deserialize_json: bool = False):
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.context import _get_variable
+
+        try:
+            return _get_variable(key, deserialize_json=deserialize_json).value
+        except AirflowRuntimeError as e:
+            if e.error.error == ErrorType.VARIABLE_NOT_FOUND and default is not NOTSET:
+                return default
+            raise

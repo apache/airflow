@@ -19,32 +19,11 @@ from __future__ import annotations
 import json
 
 import pytest
-from flask import Flask
 
 from airflow.auth.managers.models.resource_details import AccessView
-from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 from tests_common.test_utils.config import conf_vars
-
-
-@pytest.fixture
-def auth_manager():
-    return SimpleAuthManager(None)
-
-
-@pytest.fixture
-def auth_manager_with_appbuilder():
-    flask_app = Flask(__name__)
-    auth_manager = SimpleAuthManager()
-    auth_manager.appbuilder = init_appbuilder(flask_app)
-    return auth_manager
-
-
-@pytest.fixture
-def test_user():
-    return SimpleAuthManagerUser(username="test", role="test")
 
 
 class TestSimpleAuthManager:

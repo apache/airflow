@@ -241,7 +241,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
         This sub application, if specified, is mounted in the main FastAPI application.
         """
-        from airflow.auth.managers.simple.router.login import login_router
+        from airflow.auth.managers.simple.routes.login import login_router
 
         dev_mode = os.environ.get("DEV_MODE", False) == "true"
         directory = Path(AIRFLOW_PATH) / (
