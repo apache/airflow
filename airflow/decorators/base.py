@@ -533,6 +533,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         )
         return XComArg(operator=operator)
 
+    def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> XComArg:
+        raise NotImplementedError
+
+    def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
+        raise NotImplementedError
+
     def partial(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
         self._validate_arg_names("partial", kwargs)
         old_kwargs = self.kwargs.get("op_kwargs", {})

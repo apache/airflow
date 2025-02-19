@@ -2456,11 +2456,9 @@ if STATICA_HACK:  # pragma: no cover
 
 
 def _run_inline_trigger(trigger):
-    async def _run_inline_trigger_main():
-        async for event in trigger.run():
-            return event
+    from airflow.triggers.base import run_trigger
 
-    return asyncio.run(_run_inline_trigger_main())
+    return asyncio.run(run_trigger(trigger))
 
 
 def _run_task(

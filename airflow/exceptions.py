@@ -32,7 +32,7 @@ from airflow.utils.trigger_rule import TriggerRule
 if TYPE_CHECKING:
     from collections.abc import Sized
 
-    from airflow.models import DagRun
+    from airflow.models import DagRun, TaskInstance
     from airflow.sdk.definitions.asset import AssetUniqueKey
 
 
@@ -84,6 +84,18 @@ class AirflowRescheduleException(AirflowException):
     def serialize(self):
         cls = self.__class__
         return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
+
+
+class AirflowRescheduleTaskInstanceException(AirflowRescheduleException):
+    """
+    Raise when the task should be re-scheduled for a specific TaskInstance at a later time.
+
+    :param task_instance: The task instance that should be rescheduled
+    """
+
+    def __init__(self, task: TaskInstance):
+        super().__init__(reschedule_date=task.next_retry_datetime())
+        self.task = task
 
 
 class InvalidStatsNameException(AirflowException):

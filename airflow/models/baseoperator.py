@@ -154,6 +154,7 @@ class ExecutorSafeguard:
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             from airflow.decorators.base import DecoratedOperator
+            from airflow.models.iterableoperator import IterableOperator
 
             sentinel_key = f"{self.__class__.__name__}__sentinel"
             sentinel = kwargs.pop(sentinel_key, None)
@@ -165,7 +166,12 @@ class ExecutorSafeguard:
             else:
                 sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
 
-            if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
+            if (
+                not cls.test_mode
+                and not sentinel == _sentinel
+                and not isinstance(self, DecoratedOperator)
+                and not isinstance(self, IterableOperator)
+            ):
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
                 if not self.allow_nested_operators:
                     raise AirflowException(message)
@@ -760,8 +766,8 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
-    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
-        """Call this method when a deferred task is resumed."""
+    def next_callable(self, next_method, next_kwargs) -> Callable[..., Any]:
+        """Get the next callable from given operator."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
         if next_method == TRIGGER_FAIL_REPR:
@@ -777,6 +783,11 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         execute_callable = getattr(self, next_method)
         if next_kwargs:
             execute_callable = functools.partial(execute_callable, **next_kwargs)
+        return execute_callable
+
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        """Call this method when a deferred task is resumed."""
+        execute_callable = self.next_callable(self, next_method, next_kwargs)
         return execute_callable(context)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:

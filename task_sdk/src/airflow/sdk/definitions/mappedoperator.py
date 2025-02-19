@@ -84,7 +84,7 @@ if TYPE_CHECKING:
 
     TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, list[TaskStateChangeCallback]]
 
-ValidationSource = Union[Literal["expand"], Literal["partial"]]
+ValidationSource = Union[Literal["expand"], Literal["iterate"], Literal["partial"]]
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
@@ -251,6 +251,44 @@ class OperatorPartial:
             start_from_trigger=bool(getattr(self.operator_class, "start_from_trigger", False)),
         )
         return op
+
+    def iterate(self, **mapped_kwargs: OperatorExpandArgument) -> IterableOperator:
+        if not mapped_kwargs:
+            raise TypeError("no arguments to expand against")
+        validate_mapping_kwargs(self.operator_class, "iterate", mapped_kwargs)
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
+        return self._iterate(DictOfListsExpandInput(mapped_kwargs))
+
+    def iterate_kwargs(self, kwargs: OperatorExpandKwargsArgument) -> IterableOperator:
+        if isinstance(kwargs, Sequence):
+            for item in kwargs:
+                if not isinstance(item, (XComArg, Mapping)):
+                    raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        elif not isinstance(kwargs, XComArg):
+            raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
+        return self._iterate(ListOfDictsExpandInput(kwargs))
+
+    def _iterate(self, expand_input) -> IterableOperator:
+        from airflow.models.iterableoperator import IterableOperator
+
+        ensure_xcomarg_return_value(expand_input.value)
+        kwargs = {}
+        for parameter_name in BaseOperator._comps:
+            parameter_value = self.kwargs.get(parameter_name)
+            if parameter_value:
+                kwargs[parameter_name] = parameter_value
+        # We don't retry the whole stream operator, we retry the individual tasks
+        kwargs["retries"] = 0
+        # We don't want to time out the whole stream operator, we only time out the individual tasks
+        kwargs["timeout"] = kwargs.pop("execution_timeout", None)
+        kwargs["max_active_tis_per_dag"] = self.kwargs.get("max_active_tis_per_dag")
+
+        return IterableOperator(
+            **kwargs,
+            operator_class=self.operator_class,
+            expand_input=expand_input,
+            partial_kwargs=self.kwargs,
+        )
 
 
 @attrs.define(
