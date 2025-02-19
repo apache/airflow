@@ -26,6 +26,7 @@ from unittest.mock import Mock, patch
 import pytest
 from httpx import Response
 from httpx._utils import URLPattern
+from kiota_abstractions.request_information import RequestInformation
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_serialization_json.json_parse_node import JsonParseNode
 from kiota_serialization_text.text_parse_node import TextParseNode
@@ -270,6 +271,26 @@ class TestKiotaRequestAdapterHook:
         )
 
         assert actual == {"%24expand": "reports,users,datasets,dataflows,dashboards", "%24top": 5000}
+
+    def test_request_information_with_custom_host(self):
+        connection = lambda conn_id: get_airflow_connection(
+            conn_id=conn_id,
+            host="api.fabric.microsoft.com",
+            api_version="v1",
+        )
+
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            request_info = hook.request_information(url="myorg/admin/apps", query_parameters={"$top": 5000})
+            request_adapter = hook.get_conn()
+            request_adapter.set_base_url_for_request_information(request_info)
+
+            assert isinstance(request_info, RequestInformation)
+            assert isinstance(request_adapter, HttpxRequestAdapter)
+            assert request_info.url == "https://api.fabric.microsoft.com/v1/myorg/admin/apps?%24top=5000"
 
     @pytest.mark.asyncio
     async def test_throw_failed_responses_with_text_plain_content_type(self):
