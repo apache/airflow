@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.utils.log.file_task_handler import _CompatibleLogSourceType
 
     # Command to execute - list of strings
     # the first element is always "airflow".
@@ -528,7 +529,7 @@ class BaseExecutor(LoggingMixin):
         """
         raise NotImplementedError()
 
-    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+    def get_task_log(self, ti: TaskInstance, try_number: int) -> _CompatibleLogSourceType:
         """
         Return the task logs.
 
