@@ -124,6 +124,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-k8s-not-used                                | Check airflow.kubernetes imports are not used          |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow          |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-providers-bug-report-template               | Sort airflow-bug-report provider list                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                    |         |
@@ -175,8 +177,6 @@ require Breeze Docker image to be built locally.
 | check-for-inclusive-language                              | Check for language that we do not accept as community  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-get-lineage-collector-providers                     | Check providers import hook lineage code from compat   |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-google-re2-as-dependency                            | Check google-re2 declared as dep                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-hatch-build-order                                   | Check order of dependencies in hatch_build.py          |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -247,8 +247,6 @@ require Breeze Docker image to be built locally.
 | check-tests-unittest-testcase                             | Unit tests do not inherit from unittest.TestCase       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-urlparse-usage-in-code                              | Don't use urlparse in code                             |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-usage-of-re2-over-re                                | Use re2 module instead of re                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-xml                                                 | Check XML files with xmllint                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

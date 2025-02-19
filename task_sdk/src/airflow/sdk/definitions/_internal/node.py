@@ -25,7 +25,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import methodtools
-import re2
 
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
@@ -38,8 +37,8 @@ if TYPE_CHECKING:
     from airflow.serialization.enums import DagAttributeTypes
 
 
-KEY_REGEX = re2.compile(r"^[\w.-]+$")
-GROUP_KEY_REGEX = re2.compile(r"^[\w-]+$")
+KEY_REGEX = re.compile(r"^[\w.-]+$")
+GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
 CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r"(?!^)([A-Z]+)")
 
 

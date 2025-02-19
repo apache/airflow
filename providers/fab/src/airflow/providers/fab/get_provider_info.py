@@ -47,6 +47,7 @@ def get_provider_info():
             "1.0.1",
             "1.0.0",
         ],
+        "excluded-python-versions": ["3.13"],
         "config": {
             "fab": {
                 "description": "This section contains configs specific to FAB provider.",
@@ -78,13 +79,11 @@ def get_provider_info():
         "auth-managers": ["airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"],
         "dependencies": [
             "apache-airflow>=3.0.0.dev0",
-            "apache-airflow-providers-common-compat>=1.2.1",
-            "flask>=2.2,<2.3",
-            "flask-appbuilder==4.5.3",
-            "flask-login>=0.6.2",
-            "google-re2>=1.0",
-            "jmespath>=0.7.0",
+            'apache-airflow-providers-common-compat>=1.2.1; python_version < "3.13"',
+            'flask>=2.2,<2.3; python_version < "3.13"',
+            'flask-login>=0.6.2; python_version < "3.13"',
+            'jmespath>=0.7.0; python_version < "3.13"',
         ],
-        "optional-dependencies": {"kerberos": ["kerberos>=1.3.0"]},
-        "devel-dependencies": ["kerberos>=1.3.0"],
+        "optional-dependencies": {"kerberos": ['kerberos>=1.3.0; python_version < "3.13"']},
+        "devel-dependencies": ['kerberos>=1.3.0; python_version < "3.13"'],
     }

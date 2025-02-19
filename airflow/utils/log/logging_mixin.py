@@ -20,18 +20,17 @@ from __future__ import annotations
 import abc
 import enum
 import logging
+import re
 import sys
 from io import TextIOBase, UnsupportedOperation
 from logging import Handler, StreamHandler
 from typing import IO, TYPE_CHECKING, Any, Optional, TypeVar, cast
 
-import re2
-
 if TYPE_CHECKING:
     from logging import Logger
 
 # 7-bit C1 ANSI escape sequences
-ANSI_ESCAPE = re2.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
+ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
 
 
 # Private: A sentinel objects

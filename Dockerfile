@@ -180,6 +180,8 @@ function install_debian_dev_dependencies() {
     echo
     # shellcheck disable=SC2086
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
+    # we have to install latest cargo to support let..else statement from pendulum
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
 }
 
 function install_debian_runtime_dependencies() {
@@ -1358,7 +1360,7 @@ COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scrip
 RUN bash /scripts/docker/install_mysql.sh dev && \
     bash /scripts/docker/install_mssql.sh dev && \
     bash /scripts/docker/install_postgres.sh dev
-ENV PATH=${PATH}:/opt/mssql-tools/bin
+ENV PATH=${HOME}/.cargo/bin:${PATH}:/opt/mssql-tools/bin
 
 # By default we do not install from docker context files but if we decide to install from docker context
 # files, we should override those variables to "docker-context-files"
