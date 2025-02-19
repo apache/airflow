@@ -357,6 +357,8 @@ class PodGenerator:
         )
 
         if content_json_for_volume:
+            import shlex
+
             input_file_path = "/tmp/execute/input.json"
             execute_volume = V1Volume(
                 name="execute-volume",
@@ -369,10 +371,11 @@ class PodGenerator:
                 read_only=False,
             )
 
+            escaped_json = shlex.quote(content_json_for_volume)
             init_container = k8s.V1Container(
                 name="init-container",
                 image="busybox",
-                command=["/bin/sh", "-c", f"echo '{content_json_for_volume}' > {input_file_path}"],
+                command=["/bin/sh", "-c", f"echo {escaped_json} > {input_file_path}"],
                 volume_mounts=[execute_volume_mount],
             )
 
