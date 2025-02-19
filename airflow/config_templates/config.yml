@@ -1405,6 +1405,16 @@ api:
       type: integer
       example: ~
       default: "86400"
+    auth_jwt_cli_expiration_time:
+      description: |
+        Number in seconds until the JWT token used for authentication expires for CLI commands.
+        When the token expires, all CLI calls using this token will fail on authentication.
+        Make sure that time on ALL the machines that you run airflow components on is synchronized
+        (for example using ntpd) otherwise you might get "forbidden" errors.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "3600"
 lineage:
   description: ~
   options:
