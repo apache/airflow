@@ -133,6 +133,9 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         self.batch = batch
         self.message = message
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
+        self.message_id = message_id
+        self.reply_to = reply_to
+        self.message_headers = message_headers
 
     def execute(self, context: Context) -> None:
         """Send Message to the specific queue in Service Bus namespace."""
@@ -140,7 +143,9 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         hook = MessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
         # send message
-        hook.send_message(self.queue_name, self.message, self.batch)
+        hook.send_message(
+            self.queue_name, self.message, self.batch, self.message_id, self.reply_to, self.message_headers
+        )
 
 
 class AzureServiceBusReceiveMessageOperator(BaseOperator):
