@@ -74,10 +74,11 @@
 apache-airflow-providers-gremlin package
 ------------------------------------------------------
 
-`gremlin <https://gremlin.com/>`__
+`Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
+provides hooks to interact with Graph DB using the Gremlin API.
 
 
-Release: 3.8.0
+Release: 0.0.1
 
 Provider package
 ----------------
@@ -95,11 +96,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.10.3``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.9.0``
-``gremlinpython"``  ``>=3.4.8``
+``apache-airflow``  ``>=2.10.3``
+``gremlinpython``   ``>=3.4.8``
+``nest-asyncio``    ``>=1.5.6``
 ==================  ==================

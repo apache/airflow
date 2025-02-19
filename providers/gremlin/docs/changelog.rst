@@ -15,4 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
+
+0.0.1
+.....
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 .. include:: ../../airflow/providers/gremlin/CHANGELOG.rst
