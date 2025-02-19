@@ -40,7 +40,7 @@ def execute_workload(input: str) -> None:
     from airflow.executors import workloads
     from airflow.sdk.execution_time.supervisor import supervise
 
-    decoder = TypeAdapter(workloads.All)
+    decoder = TypeAdapter[workloads.All](workloads.All)
     workload = decoder.validate_json(input)
 
     if not isinstance(workload, workloads.ExecuteTask):

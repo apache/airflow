@@ -275,24 +275,24 @@ class KubernetesExecutor(BaseExecutor):
         # try and remove it from the QUEUED state while we process it
         self.last_handled[key] = time.time()
 
-    def queue_workload(self, workload: workloads.ExecuteTask, session: Session | None) -> None:
+    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 
     def _process_workloads(self, workloads: list[workloads.All]) -> None:
         # Airflow V3 version
         for w in workloads:
-            if not w.token:
-                w.token = "placeholder-token"
+            if not w.token:  # type: ignore[union-attr]
+                w.token = "placeholder-token"  # type: ignore[union-attr]
             command = [w]
-            key = w.ti.key
-            queue = w.ti.queue
+            key = w.ti.key  # type: ignore[union-attr]
+            queue = w.ti.queue  # type: ignore[union-attr]
 
             # TODO: setting to empty for now, needs to be revisited
             executor_config = {}  # type: ignore[var-annotated]
 
             del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
             self.running.add(key)
 
     def sync(self) -> None:
