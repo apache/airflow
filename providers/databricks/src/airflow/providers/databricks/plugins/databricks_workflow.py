@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import unquote
 
 from flask import current_app, flash, redirect, request, url_for
-from flask_appbuilder.api import expose
 from flask_appbuilder import BaseView
+from flask_appbuilder.api import expose
 
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
 from airflow.models import BaseOperator, BaseOperatorLink
