@@ -65,7 +65,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
-from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
@@ -521,9 +520,8 @@ class TestSchedulerJob:
         dag_id = "SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute"
         task_id_1 = "dummy_task"
 
-        with dag_maker(dag_id=dag_id, session=session) as dag:
+        with dag_maker(dag_id=dag_id, session=session):
             EmptyOperator(task_id=task_id_1)
-        assert isinstance(dag, SerializedDAG)
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -554,7 +552,7 @@ class TestSchedulerJob:
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
 
-        ti1 = TaskInstance(task1, run_id=dr1.run_id)
+        ti1 = TaskInstance(task1, run_id=dr1.run_id, dag_version_id=dr1.task_instances[0].dag_version_id)
         ti1.refresh_from_db()
         ti1.state = State.SCHEDULED
         session.merge(ti1)
@@ -5085,7 +5083,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        ti = TaskInstance(task=task1, run_id=dr1_running.run_id)
+        ti = TaskInstance(task=task1, run_id=dr1_running.run_id, dag_version_id=dag_version.id)
         ti.refresh_from_db()
         ti.state = State.SUCCESS
         session.merge(ti)
@@ -5586,10 +5584,10 @@ class TestSchedulerJob:
 
         # We will provision 2 tasks so we can check we only find zombies from this scheduler
         tasks_to_setup = ["branching", "run_this_first"]
-
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
         for task_id in tasks_to_setup:
             task = dag.get_task(task_id=task_id)
-            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_version.id)
             ti.queued_by_job_id = 999
 
             session.add(ti)
@@ -5885,7 +5883,6 @@ class TestSchedulerJob:
                 assert end_date is None
                 assert duration is None
 
-    @pytest.mark.need_serialized_dag
     def test_catchup_works_correctly(self, dag_maker, testing_dag_bundle):
         """Test that catchup works correctly"""
         session = settings.Session()
@@ -5919,7 +5916,6 @@ class TestSchedulerJob:
         session.flush()
 
         dag.catchup = False
-        DAG.bulk_write_to_db("testing", None, [dag])
         assert not dag.catchup
 
         dm = DagModel.get_dagmodel(dag.dag_id)

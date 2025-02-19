@@ -26,6 +26,7 @@ from markupsafe import escape
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.variable import Variable
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
@@ -48,13 +49,16 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture
 def dag():
-    return DAG(
+    dag = DAG(
         "testdag",
         start_date=DEFAULT_DATE,
         schedule="0 0 * * *",
         user_defined_filters={"hello": lambda name: f"Hello {name}"},
         user_defined_macros={"fullname": lambda fname, lname: f"{fname} {lname}"},
     )
+    dag.sync_to_db()
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    return dag
 
 
 @pytest.fixture

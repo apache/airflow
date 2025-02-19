@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import sys
+import uuid
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from io import FileIO
@@ -92,6 +93,7 @@ class RuntimeTaskInstance(TaskInstance):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     task: BaseOperator
+    dag_version_id: uuid.UUID
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 

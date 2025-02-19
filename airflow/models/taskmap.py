@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import collections.abc
 import enum
+import uuid
 from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -121,7 +122,9 @@ class TaskMap(TaskInstanceDependencies):
         return TaskMapVariant.DICT
 
     @classmethod
-    def expand_mapped_task(cls, task, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
+    def expand_mapped_task(
+        cls, dag_version_id: uuid.UUID, task, run_id: str, *, session: Session
+    ) -> tuple[Sequence[TaskInstance], int]:
         """
         Create the mapped task instances for mapped task.
 
@@ -224,7 +227,10 @@ class TaskMap(TaskInstanceDependencies):
 
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
-            ti = TaskInstance(task, run_id=run_id, map_index=index, state=state)
+
+            ti = TaskInstance(
+                task, run_id=run_id, map_index=index, state=state, dag_version_id=dag_version_id
+            )
             task.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)

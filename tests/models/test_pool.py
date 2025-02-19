@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow import settings
@@ -179,9 +181,9 @@ class TestPool:
 
         dr = dag_maker.create_dagrun()
 
-        ti1 = TI(task=op1, run_id=dr.run_id)
+        ti1 = TI(task=op1, run_id=dr.run_id, dag_version_id=mock.ANY)
         ti1.refresh_from_db()
-        ti2 = TI(task=op2, run_id=dr.run_id)
+        ti2 = TI(task=op2, run_id=dr.run_id, dag_version_id=mock.ANY)
         ti2.refresh_from_db()
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
@@ -229,9 +231,9 @@ class TestPool:
 
         dr = dag_maker.create_dagrun()
 
-        ti1 = TI(task=op1, run_id=dr.run_id)
-        ti2 = TI(task=op2, run_id=dr.run_id)
-        ti3 = TI(task=op3, run_id=dr.run_id)
+        ti1 = TI(task=op1, run_id=dr.run_id, dag_version_id=mock.ANY)
+        ti2 = TI(task=op2, run_id=dr.run_id, dag_version_id=mock.ANY)
+        ti3 = TI(task=op3, run_id=dr.run_id, dag_version_id=mock.ANY)
         ti1.refresh_from_db()
         ti1.state = State.RUNNING
         ti2.refresh_from_db()

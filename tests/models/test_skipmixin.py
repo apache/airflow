@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+from unittest import mock
 from unittest.mock import Mock, patch
 
 import pytest
@@ -104,9 +105,9 @@ class TestSkipMixin:
             task1 >> [task2, task3]
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
 
-        ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
-        ti2 = TI(task2, run_id=DEFAULT_DAG_RUN_ID)
-        ti3 = TI(task3, run_id=DEFAULT_DAG_RUN_ID)
+        ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=mock.ANY)
+        ti2 = TI(task2, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=mock.ANY)
+        ti3 = TI(task3, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=mock.ANY)
 
         SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
 
@@ -136,12 +137,42 @@ class TestSkipMixin:
             task_group_op.expand(k=[0, 1])
 
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
-        branch_op_ti_0 = TI(dag.get_task("task_group_op.branch_op"), run_id=DEFAULT_DAG_RUN_ID, map_index=0)
-        branch_op_ti_1 = TI(dag.get_task("task_group_op.branch_op"), run_id=DEFAULT_DAG_RUN_ID, map_index=1)
-        branch_a_ti_0 = TI(dag.get_task("task_group_op.branch_a"), run_id=DEFAULT_DAG_RUN_ID, map_index=0)
-        branch_a_ti_1 = TI(dag.get_task("task_group_op.branch_a"), run_id=DEFAULT_DAG_RUN_ID, map_index=1)
-        branch_b_ti_0 = TI(dag.get_task("task_group_op.branch_b"), run_id=DEFAULT_DAG_RUN_ID, map_index=0)
-        branch_b_ti_1 = TI(dag.get_task("task_group_op.branch_b"), run_id=DEFAULT_DAG_RUN_ID, map_index=1)
+        branch_op_ti_0 = TI(
+            dag.get_task("task_group_op.branch_op"),
+            run_id=DEFAULT_DAG_RUN_ID,
+            map_index=0,
+            dag_version_id=mock.ANY,
+        )
+        branch_op_ti_1 = TI(
+            dag.get_task("task_group_op.branch_op"),
+            run_id=DEFAULT_DAG_RUN_ID,
+            map_index=1,
+            dag_version_id=mock.ANY,
+        )
+        branch_a_ti_0 = TI(
+            dag.get_task("task_group_op.branch_a"),
+            run_id=DEFAULT_DAG_RUN_ID,
+            map_index=0,
+            dag_version_id=mock.ANY,
+        )
+        branch_a_ti_1 = TI(
+            dag.get_task("task_group_op.branch_a"),
+            run_id=DEFAULT_DAG_RUN_ID,
+            map_index=1,
+            dag_version_id=mock.ANY,
+        )
+        branch_b_ti_0 = TI(
+            dag.get_task("task_group_op.branch_b"),
+            run_id=DEFAULT_DAG_RUN_ID,
+            map_index=0,
+            dag_version_id=mock.ANY,
+        )
+        branch_b_ti_1 = TI(
+            dag.get_task("task_group_op.branch_b"),
+            run_id=DEFAULT_DAG_RUN_ID,
+            map_index=1,
+            dag_version_id=mock.ANY,
+        )
 
         SkipMixin().skip_all_except(ti=branch_op_ti_0, branch_task_ids="task_group_op.branch_a")
         SkipMixin().skip_all_except(ti=branch_op_ti_1, branch_task_ids="task_group_op.branch_b")
@@ -159,7 +190,7 @@ class TestSkipMixin:
         with dag_maker("dag_test_skip_all_except_wrong_type"):
             task = EmptyOperator(task_id="task")
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
-        ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID)
+        ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=mock.ANY)
         error_message = (
             r"'branch_task_ids' must be either None, a task ID, or an Iterable of IDs, but got 'int'\."
         )
@@ -170,7 +201,7 @@ class TestSkipMixin:
         with dag_maker("dag_test_skip_all_except_wrong_type"):
             task = EmptyOperator(task_id="task")
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
-        ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID)
+        ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=mock.ANY)
         error_message = (
             r"'branch_task_ids' expected all task IDs are strings. "
             r"Invalid tasks found: \{\(42, 'int'\)\}\."
@@ -195,7 +226,7 @@ class TestSkipMixin:
             task1 >> [task2, task3]
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
 
-        ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
+        ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=mock.ANY)
 
         error_message = r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: .*"
         with pytest.raises(AirflowException, match=error_message):

@@ -26,6 +26,7 @@ import operator
 import os
 import signal
 import traceback
+import uuid
 from collections import defaultdict
 from collections.abc import Collection, Generator, Iterable, Mapping
 from datetime import timedelta
@@ -1691,7 +1692,9 @@ class TaskInstance(Base, LoggingMixin):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
-    dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version_id = Column(
+        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False
+    )
     dag_version = relationship("DagVersion", back_populates="task_instances")
     # If adding new fields here then remember to add them to
     # _set_ti_attrs() or they won't display in the UI correctly
@@ -1757,10 +1760,11 @@ class TaskInstance(Base, LoggingMixin):
     def __init__(
         self,
         task: Operator,
+        *,
+        dag_version_id: uuid.UUID,
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
-        dag_version_id: UUIDType | None = None,
     ):
         super().__init__()
         self.dag_id = task.dag_id
@@ -1799,7 +1803,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     def insert_mapping(
-        run_id: str, task: Operator, map_index: int, dag_version_id: UUIDType | None
+        run_id: str, task: Operator, map_index: int, dag_version_id: uuid.UUID
     ) -> dict[str, Any]:
         """
         Insert mapping.
@@ -1807,7 +1811,7 @@ class TaskInstance(Base, LoggingMixin):
         :meta private:
         """
         priority_weight = task.weight_rule.get_weight(
-            TaskInstance(task=task, run_id=run_id, map_index=map_index)
+            TaskInstance(task=task, run_id=run_id, map_index=map_index, dag_version_id=dag_version_id)
         )
 
         return {
@@ -1854,6 +1858,7 @@ class TaskInstance(Base, LoggingMixin):
             run_id=runtime_ti.run_id,
             task=runtime_ti.task,  # type: ignore[arg-type]
             map_index=runtime_ti.map_index,
+            dag_version_id=runtime_ti.dag_version_id,
         )
 
         if TYPE_CHECKING:
@@ -1869,6 +1874,7 @@ class TaskInstance(Base, LoggingMixin):
             task_id=self.task_id,
             dag_id=self.dag_id,
             run_id=self.run_id,
+            dag_version_id=self.dag_version_id,
             try_numer=self.try_number,
             map_index=self.map_index,
             task=self.task,

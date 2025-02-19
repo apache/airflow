@@ -44,6 +44,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.executors.local_executor import LocalExecutor
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
+from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -616,6 +617,8 @@ class TestCliTasks:
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()
         data_interval = dag2.timetable.infer_manual_data_interval(run_after=default_date2)
+        dag2.sync_to_db()
+        SerializedDagModel.write_dag(dag2, bundle_name="testing")
         dagrun = dag2.create_dagrun(
             run_id="test",
             state=State.RUNNING,
@@ -627,7 +630,9 @@ class TestCliTasks:
             dag_version=None,
             triggered_by=DagRunTriggeredByType.CLI,
         )
-        ti2 = TaskInstance(task2, run_id=dagrun.run_id)
+        dag_version = DagVersion.get_latest_version(dag2.dag_id)
+        assert dag_version
+        ti2 = TaskInstance(task2, run_id=dagrun.run_id, dag_version_id=dag_version.id)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date

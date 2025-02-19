@@ -21,8 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -225,6 +227,10 @@ class TestGetXComEntry(TestXComEndpoint):
     def _create_xcom_entry(
         self, dag_id, run_id, logical_date, task_id, xcom_key, xcom_value="TEST_VALUE", *, backend=XCom
     ):
+        with DAG(dag_id=dag_id) as dag:
+            pass
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         with create_session() as session:
             dagrun = DagRun(
                 dag_id=dag_id,
@@ -234,7 +240,9 @@ class TestGetXComEntry(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun)
-            ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            assert dag_version
+            ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, dag_version_id=dag_version.id)
             ti.dag_id = dag_id
             session.add(ti)
         backend.set(
@@ -550,6 +558,7 @@ class TestGetXComEntries(TestXComEndpoint):
         with create_session() as session:
             dag = DagModel(dag_id=dag_id)
             session.add(dag)
+            SerializedDagModel.write_dag(DAG(dag_id=dag_id), bundle_name="testing")
             dagrun = DagRun(
                 dag_id=dag_id,
                 run_id=run_id,
@@ -558,13 +567,22 @@ class TestGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            assert dag_version
             if mapped_ti:
                 for i in [0, 1]:
-                    ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, map_index=i)
+                    ti = TaskInstance(
+                        EmptyOperator(task_id=task_id),
+                        run_id=run_id,
+                        map_index=i,
+                        dag_version_id=dag_version.id,
+                    )
                     ti.dag_id = dag_id
                     session.add(ti)
             else:
-                ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
+                ti = TaskInstance(
+                    EmptyOperator(task_id=task_id), run_id=run_id, dag_version_id=dag_version.id
+                )
                 ti.dag_id = dag_id
                 session.add(ti)
 
@@ -587,6 +605,7 @@ class TestGetXComEntries(TestXComEndpoint):
         with create_session() as session:
             dag = DagModel(dag_id="invalid_dag")
             session.add(dag)
+            SerializedDagModel.write_dag(DAG(dag_id="invalid_dag"), bundle_name="testing")
             dagrun = DagRun(
                 dag_id="invalid_dag",
                 run_id="invalid_run_id",
@@ -595,6 +614,8 @@ class TestGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            assert dag_version
             dagrun1 = DagRun(
                 dag_id="invalid_dag",
                 run_id="not_this_run_id",
@@ -603,7 +624,9 @@ class TestGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun1)
-            ti = TaskInstance(EmptyOperator(task_id="invalid_task"), run_id="not_this_run_id")
+            ti = TaskInstance(
+                EmptyOperator(task_id="invalid_task"), run_id="not_this_run_id", dag_version_id=dag_version.id
+            )
             ti.dag_id = "invalid_dag"
             session.add(ti)
         for i in [1, 2]:
@@ -683,6 +706,10 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
             f"/api/v1/dags/{self.dag_id}/dagRuns/{self.run_id}/taskInstances/{self.task_id}/xcomEntries"
             f"?{query_params}"
         )
+        with DAG(dag_id=self.dag_id) as dag:
+            ...
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         with create_session() as session:
             dagrun = DagRun(
                 dag_id=self.dag_id,
@@ -692,7 +719,11 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
                 run_type=DagRunType.MANUAL,
             )
             session.add(dagrun)
-            ti = TaskInstance(EmptyOperator(task_id=self.task_id), run_id=self.run_id)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            assert dag_version
+            ti = TaskInstance(
+                EmptyOperator(task_id=self.task_id), run_id=self.run_id, dag_version_id=dag_version.id
+            )
             ti.dag_id = self.dag_id
             session.add(ti)
 

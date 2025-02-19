@@ -25,7 +25,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.configuration import conf
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -56,8 +58,12 @@ def reset_db():
 
 
 @pytest.fixture
-def task_instance_factory(request, session: Session):
+def task_instance_factory(request, dag_maker, session: Session):
     def func(*, dag_id, task_id, logical_date):
+        with dag_maker(dag_id=dag_id) as dag:
+            ...
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         run_id = DagRun.generate_run_id(
             run_type=DagRunType.SCHEDULED, logical_date=logical_date, run_after=logical_date
         )
@@ -70,7 +76,10 @@ def task_instance_factory(request, session: Session):
             run_after=logical_date,
         )
         session.add(run)
-        ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
+
+        dag_version = DagVersion.get_latest_version(dag_id, session=session)
+        assert dag_version
+        ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, dag_version_id=dag_version.id)
         ti.dag_id = dag_id
         session.add(ti)
         session.commit()
@@ -97,7 +106,11 @@ def task_instance(task_instance_factory):
 
 @pytest.fixture
 def task_instances(session, task_instance):
-    ti2 = TaskInstance(EmptyOperator(task_id="task_2"), run_id=task_instance.run_id)
+    ti2 = TaskInstance(
+        EmptyOperator(task_id="task_2"),
+        run_id=task_instance.run_id,
+        dag_version_id=task_instance.dag_version_id,
+    )
     ti2.dag_id = task_instance.dag_id
     session.add(ti2)
     session.commit()

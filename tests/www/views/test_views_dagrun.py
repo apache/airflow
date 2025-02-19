@@ -20,6 +20,8 @@ from __future__ import annotations
 import pytest
 
 from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -55,6 +57,8 @@ def _reset_dagrun():
 def running_dag_run(session):
     dag = DagBag().get_dag("example_bash_operator")
     logical_date = timezone.datetime(2016, 1, 9)
+    dag.sync_to_db()
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
     dr = dag.create_dagrun(
         state="running",
         logical_date=logical_date,
@@ -66,9 +70,15 @@ def running_dag_run(session):
         triggered_by=DagRunTriggeredByType.TEST,
     )
     session.add(dr)
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
+    assert dag_version
     tis = [
-        TaskInstance(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="failed"),
+        TaskInstance(
+            dag.get_task("runme_0"), run_id=dr.run_id, state="success", dag_version_id=dag_version.id
+        ),
+        TaskInstance(
+            dag.get_task("runme_1"), run_id=dr.run_id, state="failed", dag_version_id=dag_version.id
+        ),
     ]
     session.bulk_save_objects(tis)
     session.commit()
@@ -79,6 +89,8 @@ def running_dag_run(session):
 def completed_dag_run_with_missing_task(session):
     dag = DagBag().get_dag("example_bash_operator")
     logical_date = timezone.datetime(2016, 1, 9)
+    dag.sync_to_db()
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
     dr = dag.create_dagrun(
         state="success",
         logical_date=logical_date,
@@ -90,13 +102,27 @@ def completed_dag_run_with_missing_task(session):
         triggered_by=DagRunTriggeredByType.TEST,
     )
     session.add(dr)
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
+    assert dag_version
     tis = [
-        TaskInstance(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("also_run_this"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("run_after_loop"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("this_will_skip"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("run_this_last"), run_id=dr.run_id, state="success"),
+        TaskInstance(
+            dag.get_task("runme_0"), run_id=dr.run_id, state="success", dag_version_id=dag_version.id
+        ),
+        TaskInstance(
+            dag.get_task("runme_1"), run_id=dr.run_id, state="success", dag_version_id=dag_version.id
+        ),
+        TaskInstance(
+            dag.get_task("also_run_this"), run_id=dr.run_id, state="success", dag_version_id=dag_version.id
+        ),
+        TaskInstance(
+            dag.get_task("run_after_loop"), run_id=dr.run_id, state="success", dag_version_id=dag_version.id
+        ),
+        TaskInstance(
+            dag.get_task("this_will_skip"), run_id=dr.run_id, state="success", dag_version_id=dag_version.id
+        ),
+        TaskInstance(
+            dag.get_task("run_this_last"), run_id=dr.run_id, state="success", dag_version_id=dag_version.id
+        ),
     ]
     session.bulk_save_objects(tis)
     session.commit()
@@ -202,6 +228,7 @@ def dag_run_with_all_done_task(session):
 
     # Re-sync the DAG to the DB
     dag.sync_to_db()
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
 
     logical_date = timezone.datetime(2016, 1, 9)
     dr = dag.create_dagrun(
@@ -214,20 +241,40 @@ def dag_run_with_all_done_task(session):
         run_after=logical_date,
         triggered_by=DagRunTriggeredByType.TEST,
     )
-
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
+    assert dag_version
     # Create task instances in various states to test the ALL_DONE trigger rule
     tis = [
         # runme_loop tasks
-        TaskInstance(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="failed"),
-        TaskInstance(dag.get_task("runme_2"), run_id=dr.run_id, state="running"),
+        TaskInstance(
+            dag.get_task("runme_0"), run_id=dr.run_id, state="success", dag_version_id=dag_version.id
+        ),
+        TaskInstance(
+            dag.get_task("runme_1"), run_id=dr.run_id, state="failed", dag_version_id=dag_version.id
+        ),
+        TaskInstance(
+            dag.get_task("runme_2"), run_id=dr.run_id, state="running", dag_version_id=dag_version.id
+        ),
         # Other tasks before run_this_last
-        TaskInstance(dag.get_task("run_after_loop"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("also_run_this"), run_id=dr.run_id, state="success"),
-        TaskInstance(dag.get_task("also_run_this_again"), run_id=dr.run_id, state="skipped"),
-        TaskInstance(dag.get_task("this_will_skip"), run_id=dr.run_id, state="running"),
+        TaskInstance(
+            dag.get_task("run_after_loop"), run_id=dr.run_id, state="success", dag_version_id=dag_version.id
+        ),
+        TaskInstance(
+            dag.get_task("also_run_this"), run_id=dr.run_id, state="success", dag_version_id=dag_version.id
+        ),
+        TaskInstance(
+            dag.get_task("also_run_this_again"),
+            run_id=dr.run_id,
+            state="skipped",
+            dag_version_id=dag_version.id,
+        ),
+        TaskInstance(
+            dag.get_task("this_will_skip"), run_id=dr.run_id, state="running", dag_version_id=dag_version.id
+        ),
         # The task with trigger_rule=ALL_DONE
-        TaskInstance(dag.get_task("run_this_last"), run_id=dr.run_id, state=None),
+        TaskInstance(
+            dag.get_task("run_this_last"), run_id=dr.run_id, state=None, dag_version_id=dag_version.id
+        ),
     ]
     session.bulk_save_objects(tis)
     session.commit()

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 
 def expand_mapped_task(
-    mapped: MappedOperator, run_id: str, upstream_task_id: str, length: int, session: Session
+    dag_version_id, mapped: MappedOperator, run_id: str, upstream_task_id: str, length: int, session: Session
 ):
     session.add(
         TaskMap(
@@ -41,4 +41,4 @@ def expand_mapped_task(
     )
     session.flush()
 
-    TaskMap.expand_mapped_task(mapped, run_id, session=session)
+    TaskMap.expand_mapped_task(dag_version_id, mapped, run_id, session=session)

@@ -39,6 +39,8 @@ from airflow.jobs.triggerer_job_runner import (
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
@@ -84,9 +86,11 @@ def create_trigger_in_db(session, trigger, operator=None):
         operator.dag = dag
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
-    task_instance = TaskInstance(operator, run_id=run.run_id)
-    task_instance.trigger_id = trigger_orm.id
     session.add(dag_model)
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
+    task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
+    task_instance.trigger_id = trigger_orm.id
     session.add(run)
     session.add(trigger_orm)
     session.add(task_instance)
@@ -321,15 +325,18 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     session.add(trigger_orm)
 
     dag = DagModel(dag_id="test-dag")
+    session.add(dag)
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
+    SerializedDagModel.write_dag(DAG(dag_id=dag.dag_id), bundle_name="testing")
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
     ti = TaskInstance(
         PythonOperator(task_id="dummy-task", python_callable=print),
         run_id=dag_run.run_id,
         state=TaskInstanceState.DEFERRED,
+        dag_version_id=dag_version.id,
     )
     ti.dag_id = dag.dag_id
     ti.trigger_id = trigger_orm.id
-    session.add(dag)
     session.add(dag_run)
     session.add(ti)
 
@@ -401,11 +408,19 @@ def test_trigger_create_race_condition_18392(session, supervisor_builder, spy_ag
     session.add(trigger_orm)
 
     dag = DagModel(dag_id="test-dag")
+    session.add(dag)
+    SerializedDagModel.write_dag(DAG(dag_id=dag.dag_id), bundle_name="testing")
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
-    ti = TaskInstance(PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id)
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
+    assert dag_version
+    ti = TaskInstance(
+        PythonOperator(task_id="dummy-task", python_callable=print),
+        run_id=dag_run.run_id,
+        dag_version_id=dag_version.id,
+    )
     ti.dag_id = dag.dag_id
     ti.trigger_id = 1
-    session.add(dag)
+
     session.add(dag_run)
     session.add(ti)
 

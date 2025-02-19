@@ -23,7 +23,9 @@ import pytest
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
 from airflow.models import XCom
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -409,13 +411,17 @@ class TestGetXComEntries(TestXComEndpoint):
             run_type=DagRunType.MANUAL,
         )
         session.add(dagrun)
+        SerializedDagModel.write_dag(dag, session=session)
+        dag_version = DagVersion.get_latest_version(dag_id, session=session)
         if mapped_ti:
             for i in [0, 1]:
-                ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, map_index=i)
+                ti = TaskInstance(
+                    EmptyOperator(task_id=task_id), run_id=run_id, map_index=i, dag_version_id=dag_version.id
+                )
                 ti.dag_id = dag_id
                 session.add(ti)
         else:
-            ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
+            ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, dag_version_id=dag_version.id)
             ti.dag_id = dag_id
             session.add(ti)
         session.commit()
