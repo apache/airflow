@@ -209,7 +209,7 @@ def _do_delete(*, query: Query, orm_model: Base, skip_archive: bool, session: Se
     except BaseException as e:
         raise e
     finally:
-        if target_table and skip_archive:
+        if target_table is not None and skip_archive:
             bind = session.get_bind()
             target_table.drop(bind=bind)
             session.commit()
