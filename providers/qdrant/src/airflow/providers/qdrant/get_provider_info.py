@@ -49,5 +49,10 @@ def get_provider_info():
         "operators": [
             {"integration-name": "Qdrant", "python-modules": ["airflow.providers.qdrant.operators.qdrant"]}
         ],
-        "dependencies": ["qdrant_client>=1.10.1", "apache-airflow>=2.9.0"],
+        "dependencies": [
+            "apache-airflow>=2.9.0",
+            "qdrant_client>=1.10.1",
+            'grpcio-tools>=1.62.0; python_version < "3.13"',
+            'grpcio-tools>=1.66.0; python_version >= "3.13"',
+        ],
     }

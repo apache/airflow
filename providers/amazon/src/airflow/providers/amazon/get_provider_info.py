@@ -1351,7 +1351,7 @@ def get_provider_info():
             "python3-saml>=1.16.0",
         ],
         "optional-dependencies": {
-            "pandas": ["pandas>=2.1.2,<2.2"],
+            "pandas": ["pandas>=2.1.2"],
             "aiobotocore": ["aiobotocore[boto3]>=2.13.0"],
             "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0"],
             "s3fs": ["s3fs>=2023.10.0"],

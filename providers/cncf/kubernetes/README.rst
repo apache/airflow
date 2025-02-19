@@ -46,7 +46,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-cncf-kubernetes``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.9,3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -60,7 +60,6 @@ PIP package             Version required
 ``cryptography``        ``>=41.0.0``
 ``kubernetes``          ``>=29.0.0,<=31.0.0``
 ``kubernetes_asyncio``  ``>=29.0.0,<=31.0.0``
-``google-re2``          ``>=1.0``
 ======================  =====================
 
 The changelog for the provider package can be found in the

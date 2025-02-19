@@ -46,23 +46,24 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-databricks``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.9,3.10,3.11,3.12,3.13
 
 Requirements
 ------------
 
-=======================================  ==================
+=======================================  ======================================
 PIP package                              Version required
-=======================================  ==================
+=======================================  ======================================
 ``apache-airflow``                       ``>=2.9.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``requests``                             ``>=2.27.0,<3``
-``databricks-sql-connector``             ``>=3.0.0``
+``databricks-sql-connector``             ``>=4.0.0``
 ``aiohttp``                              ``>=3.9.2,<4``
 ``mergedeep``                            ``>=1.3.4``
-``pandas``                               ``>=2.1.2,<2.2``
-``pyarrow``                              ``>=14.0.1``
-=======================================  ==================
+``pandas``                               ``>=2.1.2``
+``pyarrow``                              ``>=14.0.1; python_version < "3.13"``
+``pyarrow``                              ``>=18.0.0; python_version >= "3.13"``
+=======================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------

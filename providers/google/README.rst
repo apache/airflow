@@ -53,7 +53,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-google``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.9,3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -120,9 +120,10 @@ PIP package                                 Version required
 ``json-merge-patch``                        ``>=0.2``
 ``looker-sdk``                              ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                              ``>=0.7.0``
-``pandas``                                  ``>=2.1.2,<2.2``
+``pandas``                                  ``>=2.1.2``
 ``proto-plus``                              ``>=1.19.6``
-``pyarrow``                                 ``>=14.0.1``
+``pyarrow``                                 ``>=14.0.1; python_version < "3.13"``
+``pyarrow``                                 ``>=18.0.0; python_version >= "3.13"``
 ``python-slugify``                          ``>=7.0.0``
 ``PyOpenSSL``                               ``>=23.0.0``
 ``sqlalchemy-bigquery``                     ``>=1.2.1``

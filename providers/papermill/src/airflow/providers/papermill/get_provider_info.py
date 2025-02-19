@@ -86,7 +86,7 @@ def get_provider_info():
             "papermill[all]>=2.6.0",
             "scrapbook[all]>=0.5.0",
             "ipykernel>=6.29.4",
-            "pandas>=2.1.2,<2.2",
+            "pandas>=2.1.2",
         ],
         "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
     }

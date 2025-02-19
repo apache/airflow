@@ -103,7 +103,7 @@ def get_provider_info():
         ],
         "dependencies": ["apache-airflow>=2.9.0", "sqlparse>=0.5.1", "more-itertools>=9.0.0"],
         "optional-dependencies": {
-            "pandas": ["pandas>=2.1.2,<2.2"],
+            "pandas": ["pandas>=2.1.2"],
             "openlineage": ["apache-airflow-providers-openlineage"],
         },
     }

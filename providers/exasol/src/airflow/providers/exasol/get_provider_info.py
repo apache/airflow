@@ -89,6 +89,6 @@ def get_provider_info():
             "apache-airflow>=2.9.0",
             "apache-airflow-providers-common-sql>=1.20.0",
             "pyexasol>=0.5.1",
-            "pandas>=2.1.2,<2.2",
+            "pandas>=2.1.2",
         ],
     }
