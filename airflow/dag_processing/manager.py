@@ -920,7 +920,7 @@ class DagFileProcessorManager(LoggingMixin):
         # and we need to maintain the order of files for `[dag_processor] file_parsing_sort_mode`
         to_queue = [x for x in files if x not in to_exclude]
 
-        if self.log.isEnabledFor(logging.DEBUG):
+        if self.log.is_enabled_for(logging.DEBUG):
             for path, processor in self._processors.items():
                 self.log.debug(
                     "File path %s is still being processed (started: %s)", path, processor.start_time

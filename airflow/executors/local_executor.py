@@ -33,6 +33,7 @@ import os
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING, Optional
 
+import structlog
 from setproctitle import setproctitle
 
 from airflow import settings
@@ -49,7 +50,6 @@ if TYPE_CHECKING:
 
 
 def _run_worker(
-    logger_name: str,
     input: SimpleQueue[workloads.All | None],
     output: Queue[TaskInstanceStateType],
     unread_messages: multiprocessing.sharedctypes.Synchronized[int],
@@ -59,7 +59,7 @@ def _run_worker(
     # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    log = logging.getLogger(logger_name)
+    log = structlog.get_logger()
     log.info("Worker starting up pid=%d", os.getpid())
 
     # We know we've just started a new process, so lets disconnect from the metadata db now
@@ -192,7 +192,6 @@ class LocalExecutor(BaseExecutor):
         p = multiprocessing.Process(
             target=_run_worker,
             kwargs={
-                "logger_name": self.log.name,
                 "input": self.activity_queue,
                 "output": self.result_queue,
                 "unread_messages": self._unread_messages,

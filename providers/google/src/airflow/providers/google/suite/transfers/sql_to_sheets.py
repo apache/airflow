@@ -116,7 +116,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        if self.log.isEnabledFor(logging.INFO):
+        if self.log.is_enabled_for(logging.INFO):
             url = f"https://docs.google.com/spreadsheets/d/{self.spreadsheet_id}"
             self.log.info("Uploading data to %s", url)
 

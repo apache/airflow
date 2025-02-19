@@ -245,7 +245,7 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.task_queue
 
-        if self.log.isEnabledFor(logging.DEBUG):
+        if self.log.is_enabled_for(logging.DEBUG):
             self.log.debug("Add task %s with command %s, executor_config %s", key, command, executor_config)
         else:
             self.log.info("Add task %s with command %s", key, command)
