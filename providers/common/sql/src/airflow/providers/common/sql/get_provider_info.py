@@ -119,7 +119,7 @@ def get_provider_info():
             "methodtools>=0.4.7",
         ],
         "optional-dependencies": {
-            "pandas": ["pandas>=2.1.2,<2.2"],
+            "pandas": ["pandas>=2.1.2"],
             "openlineage": ["apache-airflow-providers-openlineage"],
         },
         "devel-dependencies": [],

@@ -97,6 +97,6 @@ def get_provider_info():
                 "connection-type": "salesforce",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "simple-salesforce>=1.0.0", "pandas>=2.1.2,<2.2"],
+        "dependencies": ["apache-airflow>=2.9.0", "simple-salesforce>=1.0.0", "pandas>=2.1.2"],
         "devel-dependencies": [],
     }

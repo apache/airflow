@@ -72,7 +72,8 @@ def get_provider_info():
             "apache-airflow>=2.9.0",
             "httpx>=0.25.0",
             "weaviate-client>=4.4.0",
-            "pandas>=2.1.2,<2.2",
+            "grpcio-tools>=1.66.0",
+            "pandas>=2.1.2",
         ],
         "devel-dependencies": [],
     }

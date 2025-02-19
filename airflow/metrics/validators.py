@@ -253,6 +253,7 @@ class ListValidator(metaclass=abc.ABCMeta):
         return False
 
 
+# TODO(potiuk): check if regexp pattern matching in list validations are safe
 class PatternAllowListValidator(ListValidator):
     """Match the provided strings anywhere in the metric name."""
 
@@ -263,6 +264,7 @@ class PatternAllowListValidator(ListValidator):
             return True  # default is all metrics are allowed
 
 
+# TODO(potiuk): check if regexp pattern matching in list validations are safe
 class PatternBlockListValidator(ListValidator):
     """Only allow names that do not match the blocked strings."""
 
