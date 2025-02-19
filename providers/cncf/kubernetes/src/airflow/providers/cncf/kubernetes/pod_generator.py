@@ -333,7 +333,6 @@ class PodGenerator:
             image=image,
             env=[
                 k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True"),
-                k8s.V1EnvVar(name="EXECUTE_JSON", value=content_json_for_volume),
             ],
         )
         dynamic_pod = k8s.V1Pod(
@@ -378,6 +377,7 @@ class PodGenerator:
             )
 
             main_container.volume_mounts = [execute_volume_mount]
+            main_container.env.append(k8s.V1EnvVar(name="EXECUTE_JSON", value=content_json_for_volume))
             main_container.command = args[:-1]
             main_container.args = args[-1:]
 
