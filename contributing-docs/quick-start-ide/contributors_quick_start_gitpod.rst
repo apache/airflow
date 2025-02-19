@@ -95,7 +95,7 @@ Before running the webserver, you need to initialize the database:
          --lastname bar
 
 .. note::
-    ``airflow users`` command is only available when FAB auth manager is enabled.
+    ``airflow users`` command is only available when `FAB auth manager <https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth-manager/index.html>`_ is enabled.
 
 Starting Airflow
 --------------
