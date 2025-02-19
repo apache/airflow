@@ -454,15 +454,17 @@ class DagFileProcessorManager(LoggingMixin):
         now = timezone.utcnow()
 
         # we don't need to check if it's time to refresh every loop - that is way too often
-        last_checked_ago = time.monotonic() - self._bundles_last_refreshed
-        if last_checked_ago < self.bundle_refresh_check_interval:
+        next_check = self._bundles_last_refreshed + self.bundle_refresh_check_interval
+        now_ss = time.monotonic()
+        if now_ss < next_check:
             self.log.debug(
-                "Not time to check if DAG Bundles need refreshed yet - skipping. Next check in %.2f seconds",
-                self.bundle_refresh_check_interval - last_checked_ago,
+                "Not time to check if DAG Bundles need refreshed yet - skipping. "
+                "Next check in %.2f seconds",
+                next_check - now_ss,
             )
             return
 
-        self._bundles_last_refreshed = time.monotonic()
+        self._bundles_last_refreshed = now_ss
 
         for bundle in self._dag_bundles:
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
