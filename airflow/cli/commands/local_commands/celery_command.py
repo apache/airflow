@@ -25,14 +25,12 @@ from __future__ import annotations
 
 import logging
 import sys
-import time
 import warnings
 from contextlib import contextmanager
 from multiprocessing import Process
 
 import psutil
 import sqlalchemy.exc
-import structlog
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
 from celery.app.defaults import DEFAULT_TASK_LOG_FMT
 from celery.signals import after_setup_logger
@@ -41,7 +39,6 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 from airflow import settings
 from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.base import STALE_BUNDLE_CHECK_INTERVAL, BundleUsageTrackingManager
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -54,12 +51,6 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2,
 )
-
-structlog.configure(
-    wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
-)
-
-log = structlog.get_logger()
 
 
 @cli_utils.action_cli
@@ -101,27 +92,6 @@ def _serve_logs(skip_serve_logs: bool = False):
         sub_proc = Process(target=serve_logs)
         sub_proc.start()
     try:
-        yield
-    finally:
-        if sub_proc:
-            sub_proc.terminate()
-
-
-@contextmanager
-def _run_stale_bundle_cleanup():
-    """Start stale bundle cleanup sub-process."""
-    log.info("starting stale bundle cleanup process")
-    sub_proc = None
-    mgr = BundleUsageTrackingManager()
-
-    def bundle_cleanup_main():
-        while True:
-            time.sleep(STALE_BUNDLE_CHECK_INTERVAL)
-            mgr.remove_stale_bundle_versions()
-
-    try:
-        sub_proc = Process(target=bundle_cleanup_main)
-        sub_proc.start()
         yield
     finally:
         if sub_proc:
@@ -237,7 +207,7 @@ def worker(args):
     )
 
     def run_celery_worker():
-        with _serve_logs(skip_serve_logs), _run_stale_bundle_cleanup():
+        with _serve_logs(skip_serve_logs):
             celery_app.worker_main(options)
 
     if args.umask:

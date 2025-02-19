@@ -17,13 +17,15 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import fcntl
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.base import BaseDagBundle, BundleUsageTrackingManager
 from airflow.dag_processing.bundles.local import LocalDagBundle
 
 from tests_common.test_utils.config import conf_vars
@@ -117,3 +119,14 @@ def test_lock_exception_handling():
         except OSError:
             acquired = False
         assert acquired
+
+class TestBundleUsageTrackingManager:
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager.get_all_dag_bundles")
+    def test_remove_stale_bundle_versions(self, mock_get_bundles):
+        b1 = BasicBundle(name="abc1")
+        b1.supports_versioning = True
+        b2 = BasicBundle(name="abc2")
+        mock_get_bundles.return_value = [b1, b2]
+        BundleUsageTrackingManager().remove_stale_bundle_versions()
+
