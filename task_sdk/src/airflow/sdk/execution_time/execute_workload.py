@@ -28,9 +28,11 @@ Arguments:
 from __future__ import annotations
 
 import argparse
-import logging
+import sys
 
-log = logging.getLogger(__name__)
+import structlog
+
+log = structlog.get_logger(logger_name=__name__)
 
 
 def execute_workload(input: str) -> None:
@@ -39,6 +41,9 @@ def execute_workload(input: str) -> None:
     from airflow.configuration import conf
     from airflow.executors import workloads
     from airflow.sdk.execution_time.supervisor import supervise
+    from airflow.sdk.log import configure_logging
+
+    configure_logging(output=sys.stdout.buffer)
 
     decoder = TypeAdapter[workloads.All](workloads.All)
     workload = decoder.validate_json(input)
@@ -46,7 +51,7 @@ def execute_workload(input: str) -> None:
     if not isinstance(workload, workloads.ExecuteTask):
         raise ValueError(f"KubernetesExecutor does not know how to handle {type(workload)}")
 
-    log.info("Executing workload in Kubernetes: %s", workload)
+    log.info("Executing workload in Kubernetes", workload=workload)
 
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
