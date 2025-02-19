@@ -65,8 +65,12 @@ def execute_workload(input: str) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Execute a workload in Kubernetes using task SDK.")
-    parser.add_argument("input_file", help="Path to the input JSON file containing the execution workload.")
+    parser = argparse.ArgumentParser(
+        description="Execute a workload in a Containerised executor using the task SDK."
+    )
+    parser.add_argument(
+        "input_file", help="Path to the input JSON file containing the execution workload payload."
+    )
 
     args = parser.parse_args()
 
