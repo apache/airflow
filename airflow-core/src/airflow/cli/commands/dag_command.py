@@ -628,6 +628,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
     logical_date = args.logical_date or timezone.utcnow()
     use_executor = args.use_executor
 
+    # TODO(potiuk): we should likely get rid of rege passed by user here
     mark_success_pattern = (
         re.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
     )
