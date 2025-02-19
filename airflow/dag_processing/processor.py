@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 import os
 import sys
 import traceback
@@ -32,7 +33,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.models.dagbag import DagBag
-from airflow.sdk.execution_time.comms import GetConnection, GetVariable
+from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection, GetVariable, VariableResult
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
@@ -40,8 +41,20 @@ from airflow.stats import Stats
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
+    from airflow.api_fastapi.execution_api.app import InProcessExecuctionAPI
+    from airflow.sdk.api.client import Client
     from airflow.sdk.definitions.context import Context
     from airflow.typing_compat import Self
+
+ToManager = Annotated[
+    Union["DagFileParsingResult", GetConnection, GetVariable],
+    Field(discriminator="type"),
+]
+
+ToDagProcessor = Annotated[
+    Union["DagFileParseRequest", ConnectionResult, VariableResult],
+    Field(discriminator="type"),
+]
 
 
 def _parse_file_entrypoint():
@@ -51,19 +64,24 @@ def _parse_file_entrypoint():
 
     from airflow.sdk.execution_time import task_runner
     from airflow.settings import configure_orm
+
     # Parse DAG file, send JSON back up!
 
     # We need to reconfigure the orm here, as DagFileProcessorManager does db queries for bundles, and
     # the session across forks blows things up.
     configure_orm()
 
-    comms_decoder = task_runner.CommsDecoder[DagFileParseRequest, DagFileParsingResult](
+    comms_decoder = task_runner.CommsDecoder[ToDagProcessor, ToManager](
         input=sys.stdin,
-        decoder=TypeAdapter[DagFileParseRequest](DagFileParseRequest),
+        decoder=TypeAdapter[ToDagProcessor](ToDagProcessor),
     )
+
     msg = comms_decoder.get_message()
+    if not isinstance(msg, DagFileParseRequest):
+        raise RuntimeError(f"Required first message to be a DagFileParseRequest, it was {msg}")
     comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
 
+    task_runner.SUPERVISOR_COMMS = comms_decoder
     log = structlog.get_logger(logger_name="task")
 
     result = _parse_file(msg, log)
@@ -188,10 +206,12 @@ class DagFileParsingResult(BaseModel):
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
-ToParent = Annotated[
-    Union[DagFileParsingResult, GetConnection, GetVariable],
-    Field(discriminator="type"),
-]
+@functools.cache
+def in_process_api_server() -> InProcessExecuctionAPI:
+    from airflow.api_fastapi.execution_api.app import InProcessExecuctionAPI
+
+    api = InProcessExecuctionAPI()
+    return api
 
 
 @attrs.define(kw_only=True)
@@ -207,7 +227,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     """
 
     parsing_result: DagFileParsingResult | None = None
-    decoder: ClassVar[TypeAdapter[ToParent]] = TypeAdapter[ToParent](ToParent)
+    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -237,12 +257,36 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
         self.stdin.write(msg.model_dump_json().encode() + b"\n")
 
-    def _handle_request(self, msg: ToParent, log: FilteringBoundLogger) -> None:  # type: ignore[override]
-        # TODO: GetVariable etc -- parsing a dag can run top level code that asks for an Airflow Variable
+    @functools.cached_property
+    def client(self) -> Client:
+        from airflow.sdk.api.client import Client
+
+        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
+        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
+        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        return client
+
+    def _handle_request(self, msg: ToManager, log: FilteringBoundLogger) -> None:  # type: ignore[override]
+        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
+
         resp = None
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
             return
+        elif isinstance(msg, GetConnection):
+            conn = self.client.connections.get(msg.conn_id)
+            if isinstance(conn, ConnectionResponse):
+                conn_result = ConnectionResult.from_conn_response(conn)
+                resp = conn_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = conn.model_dump_json().encode()
+        elif isinstance(msg, GetVariable):
+            var = self.client.variables.get(msg.key)
+            if isinstance(var, VariableResponse):
+                var_result = VariableResult.from_variable_response(var)
+                resp = var_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = var.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return
