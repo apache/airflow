@@ -55,7 +55,7 @@ class BaseTestAuth:
 class TestBasicAuth(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_auth_api):
-        from airflow.www.extensions.init_security import init_api_auth
+        from airflow.providers.fab.www.extensions.init_security import init_api_auth
 
         old_auth = getattr(minimal_app_for_auth_api, "api_auth")
 
@@ -73,7 +73,7 @@ class TestBasicAuth(BaseTestAuth):
         clear_db_pools()
 
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
+            response = test_client.get("/auth/fab/v1/users", headers={"Authorization": token})
             assert current_user.email == "test@fab.org"
 
         assert response.status_code == 200
@@ -110,7 +110,7 @@ class TestBasicAuth(BaseTestAuth):
     )
     def test_malformed_headers(self, token):
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
+            response = test_client.get("/auth/fab/v1/users", headers={"Authorization": token})
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
             assert response.headers["WWW-Authenticate"] == "Basic"
@@ -127,7 +127,7 @@ class TestBasicAuth(BaseTestAuth):
     )
     def test_invalid_auth_header(self, token):
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
+            response = test_client.get("/auth/fab/v1/users", headers={"Authorization": token})
             assert response.status_code == 401
             assert response.headers["Content-Type"] == "application/problem+json"
             assert response.headers["WWW-Authenticate"] == "Basic"
@@ -137,7 +137,7 @@ class TestBasicAuth(BaseTestAuth):
 class TestSessionWithBasicAuthFallback(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_auth_api):
-        from airflow.www.extensions.init_security import init_api_auth
+        from airflow.providers.fab.www.extensions.init_security import init_api_auth
 
         old_auth = getattr(minimal_app_for_auth_api, "api_auth")
 
@@ -161,15 +161,15 @@ class TestSessionWithBasicAuthFallback(BaseTestAuth):
 
         # request uses session
         admin_user = client_with_login(self.app, username="test", password="test")
-        response = admin_user.get("/api/v1/pools")
+        response = admin_user.get("/auth/fab/v1/users")
         assert response.status_code == 200
 
         # request uses basic auth
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/v1/pools", headers={"Authorization": token})
+            response = test_client.get("/auth/fab/v1/users", headers={"Authorization": token})
             assert response.status_code == 200
 
         # request without session or basic auth header
         with self.app.test_client() as test_client:
-            response = test_client.get("/api/v1/pools")
+            response = test_client.get("/auth/fab/v1/users")
             assert response.status_code == 401

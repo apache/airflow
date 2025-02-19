@@ -26,6 +26,7 @@ from connexion.exceptions import BadRequestProblem
 from flask import jsonify
 from starlette import status
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.fab.www.api_connexion.exceptions import (
     BadRequest,
     NotFound,
@@ -121,6 +122,9 @@ def init_plugins(app):
         app.register_blueprint(blue_print["blueprint"])
 
 
+base_paths: list[str] = []  # contains the list of base paths that have api endpoints
+
+
 def init_error_handlers(app: Flask):
     """Add custom errors handlers."""
 
@@ -146,3 +150,13 @@ def init_error_handlers(app: Flask):
     app.register_error_handler(NotFound, handle_not_found)
     app.register_error_handler(Unauthenticated, handle_unauthenticated)
     app.register_error_handler(PermissionDenied, handle_denied)
+
+
+def init_api_auth_provider(app):
+    """Initialize the API offered by the auth manager."""
+    auth_mgr = get_auth_manager()
+    blueprint = auth_mgr.get_api_endpoints()
+    if blueprint:
+        base_paths.append(blueprint.url_prefix)
+        app.register_blueprint(blueprint)
+        app.extensions["csrf"].exempt(blueprint)

@@ -25,8 +25,8 @@ from flask.sessions import SecureCookieSessionInterface
 from flask_appbuilder import SQLA
 
 from airflow import settings
+from airflow.providers.fab.www import app as application
 from airflow.security import permissions
-from airflow.www import app as application
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_role,
@@ -75,7 +75,7 @@ class TestSecurity:
         # an exception because app context teardown is removed and if even single request is run via app
         # it cannot be re-intialized again by passing it as constructor to SQLA
         # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
-        self.app = application.create_app(testing=True)
+        self.app = application.create_app(enable_plugins=False)
         self.appbuilder = self.app.appbuilder
         self.app.config["WTF_CSRF_ENABLED"] = False
         self.security_manager = self.appbuilder.sm
