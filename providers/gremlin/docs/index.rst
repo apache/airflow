@@ -17,8 +17,7 @@
     under the License.
 
 ``apache-airflow-providers-gremlin``
-==================================
-
+====================================
 
 .. toctree::
     :hidden:
@@ -32,14 +31,6 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: Guides
-
-    Connection types <connections/gremlin>
-    Operators <operators/gremlin>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/gremlin/index>
@@ -47,17 +38,9 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: System tests
-
-    System Tests <_api/tests/system/gremlin/index>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/providers-gremlin/|version|/providers/gremlin/tests/system/gremlin>
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-gremlin/>
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
