@@ -102,7 +102,7 @@ class ExecuteTask(BaseWorkload):
             name=ti.dag_model.bundle_name,
             version=ti.dag_run.bundle_version,
         )
-        relative_fileloc = Path(ti.dag_run.dag_model.relative_fileloc)
+        relative_fileloc = Path(ti.dag_model.relative_fileloc)
         path = dag_rel_path or relative_fileloc
         print(f"WORKLOADS: {dag_rel_path=} {relative_fileloc=}")
         fname = log_filename_template_renderer()(ti=ti)
