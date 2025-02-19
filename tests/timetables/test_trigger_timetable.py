@@ -318,3 +318,28 @@ def test_multi_run_next(last, expected):
         restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
     )
     assert next_info == DagRunInfo.exact(expected)
+
+
+def test_multi_serialization():
+    timetable = MultipleCronTriggerTimetable(
+        "@every 30s",
+        "*/2 * * * *",
+        timezone="UTC",
+        interval=datetime.timedelta(minutes=10),
+    )
+    data = timetable.serialize()
+    assert data == {
+        "expressions": ["@every 30s", "*/2 * * * *"],
+        "timezone": "UTC",
+        "interval": 600.0,
+        "run_immediately": False,
+    }
+
+    tt = MultipleCronTriggerTimetable.deserialize(data)
+    assert isinstance(tt, MultipleCronTriggerTimetable)
+    assert len(tt._timetables) == 2
+    assert tt._timetables[0]._expression == "@every 30s"
+    assert tt._timetables[1]._expression == "*/2 * * * *"
+    assert tt._timetables[0]._timezone == tt._timetables[1]._timezone == utc
+    assert tt._timetables[0]._interval == tt._timetables[1]._interval == datetime.timedelta(minutes=10)
+    assert tt._timetables[0].run_immediately == tt._timetables[1].run_immediately is False
