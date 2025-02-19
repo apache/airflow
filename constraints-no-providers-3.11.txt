@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-19T15:50:51.965213
+# This constraints file was automatically generated on 2025-02-19T19:57:54.917507
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -34,6 +34,7 @@ SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
 WTForms==3.2.1
 Werkzeug==2.2.3
+a2wsgi==1.10.8
 aiobotocore==2.19.0
 aiohappyeyeballs==2.4.6
 aiohttp==3.11.12

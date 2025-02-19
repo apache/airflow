@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-19T16:04:59.621322
+# This constraints file was automatically generated on 2025-02-19T20:12:01.741523
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -67,6 +67,7 @@ SecretStorage==3.3.3
 Sphinx==8.2.0
 WTForms==3.2.1
 Werkzeug==2.2.3
+a2wsgi==1.10.8
 adal==1.2.7
 adlfs==2024.12.0
 aiobotocore==2.19.0
@@ -744,7 +745,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.6.1
+uv==0.6.2
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
