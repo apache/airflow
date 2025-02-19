@@ -228,9 +228,6 @@ class DagFileProcessorManager(LoggingMixin):
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
-        # TODO: AIP-66 move to report by bundle self.log.info(
-        #     "Checking for new files in %s every %s seconds", self._dag_directory, self.dag_dir_list_interval
-        # )
 
         DagBundlesManager().sync_bundles_to_db()
 
@@ -238,6 +235,11 @@ class DagFileProcessorManager(LoggingMixin):
         if self.bundle_names_to_parse:
             dag_bundles = [b for b in dag_bundles if b.name in self.bundle_names_to_parse]
         self._dag_bundles = dag_bundles
+
+        for bundle in self._dag_bundles:
+            self.log.info(
+                "Checking for new files in bundle %s every %s seconds", bundle.name, bundle.refresh_interval
+            )
 
         self._symlink_latest_log_directory()
 
@@ -445,8 +447,6 @@ class DagFileProcessorManager(LoggingMixin):
         """Refresh DAG bundles, if required."""
         now = timezone.utcnow()
 
-        self.log.info("Refreshing DAG bundles")
-
         for bundle in self._dag_bundles:
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
             #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
@@ -479,8 +479,10 @@ class DagFileProcessorManager(LoggingMixin):
                     and current_version_matches_db
                     and previously_seen
                 ):
-                    self.log.info("Not time to refresh %s", bundle.name)
+                    self.log.info("Not time to refresh bundle %s", bundle.name)
                     continue
+
+                self.log.info("Refreshing bundle %s", bundle.name)
 
                 try:
                     bundle.refresh()
