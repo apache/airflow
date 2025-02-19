@@ -15,19 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from airflow.sdk.definitions.macros import (  # noqa: F401
-    datetime,
-    datetime_diff_for_humans,
-    dateutil,
-    ds_add,
-    ds_format,
-    ds_format_locale,
-    json,
-    random,
-    time,
-    timedelta,
-    uuid,
-    yaml,
-)
+import pytest
+from fastapi.testclient import TestClient
+
+from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.auth.managers.simple.user import SimpleAuthManagerUser
+
+
+@pytest.fixture
+def auth_manager():
+    return SimpleAuthManager(None)
+
+
+@pytest.fixture
+def test_user():
+    return SimpleAuthManagerUser(username="test", role="test")
+
+
+@pytest.fixture
+def test_admin():
+    return SimpleAuthManagerUser(username="test", role="admin")
+
+
+@pytest.fixture
+def test_client(auth_manager):
+    return TestClient(auth_manager.get_fastapi_app())

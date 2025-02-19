@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.sdk.definitions.macros import (  # noqa: F401
-    datetime,
-    datetime_diff_for_humans,
-    dateutil,
-    ds_add,
-    ds_format,
-    ds_format_locale,
-    json,
-    random,
-    time,
-    timedelta,
-    uuid,
-    yaml,
-)
