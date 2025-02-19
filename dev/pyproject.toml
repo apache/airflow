@@ -26,7 +26,7 @@ description = "Development tools for Apache Airflow"
 classifiers = [
     "Private :: Do Not Upload",
 ]
-requires-python = "~=3.9,<3.13"
+requires-python = "~=3.9,<3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -44,6 +44,7 @@ dependencies = [
     "jsonschema>=4.19.1",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    'pendulum @ git+https://github.com/python-pendulum/pendulum.git ; python_version>="3.13"',
     "pyyaml>=6.0.2",
     "packaging>=23.2",
     "rich>=13.6.0",
@@ -57,3 +58,6 @@ exclude = ["*"]
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
