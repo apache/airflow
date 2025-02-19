@@ -26,8 +26,8 @@ from airflow.models.xcom import BaseXCom
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.sdk.definitions.baseoperator import BaseOperator
 
 
 @attrs.define()
