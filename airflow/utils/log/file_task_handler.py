@@ -143,7 +143,7 @@ def _parse_log_lines(lines: Iterable[str]) -> Iterable[tuple[datetime | None, in
             yield timestamp, idx, log
 
 
-def _interleave_logs(*logs) -> Iterable[StructuredLogMessage]:
+def _interleave_logs(*logs: str) -> Iterable[StructuredLogMessage]:
     min_date = pendulum.datetime(2000, 1, 1)
 
     records = itertools.chain.from_iterable(_parse_log_lines(log.splitlines()) for log in logs)
@@ -462,7 +462,10 @@ class FileTaskHandler(logging.Handler):
         )
 
     def read(
-        self, task_instance, try_number: int | None = None, metadata=None
+        self,
+        task_instance: TaskInstance,
+        try_number: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> tuple[list[StructuredLogMessage] | str, dict[str, Any]]:
         """
         Read logs of given task instance from local machine.
