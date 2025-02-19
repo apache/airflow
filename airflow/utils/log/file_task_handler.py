@@ -472,7 +472,7 @@ class FileTaskHandler(logging.Handler):
 
         :param task_instance: task instance object
         :param try_number: task instance try_number to read logs from. If None
-                           it returns all logs separated by try_number
+                            it returns the log of task_instance.try_number
         :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
         :return: a list of listed tuples which order log string by host
         """

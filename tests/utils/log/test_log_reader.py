@@ -126,101 +126,94 @@ class TestLogView:
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
         logs, metadata = task_log_reader.read_log_chunks(ti=ti, try_number=1, metadata={})
-        assert logs == [
-            (
-                " INFO - ::group::Log message source details\n"
-                "*** Found local files:\n"
-                f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                " INFO - ::endgroup::\n"
-                "try_number=1.",
-            )
-        ]
-        assert metadata == {"end_of_log": True, "log_pos": 13}
 
-    def test_test_read_log_chunks_should_read_all_files(self):
+        assert logs[0].event == "::group::Log message source details"
+        assert logs[0].sources == [
+            f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log"
+        ]
+        assert logs[1].event == "::endgroup::"
+        assert logs[2].event == "try_number=1."
+        assert metadata == {"end_of_log": True, "log_pos": 1}
+
+    def test_test_read_log_chunks_should_read_latest_files(self):
         task_log_reader = TaskLogReader()
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
-        logs, metadatas = task_log_reader.read_log_chunks(ti=ti, try_number=None, metadata={})
+        logs, metadata = task_log_reader.read_log_chunks(ti=ti, try_number=None, metadata={})
 
-        for i in range(0, 3):
-            assert logs[i][0][0] == "localhost"
-            assert (
-                "*** Found local files:\n"
-                f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/{i + 1}.log\n"
-            ) in logs[i][0][1]
-            assert f"try_number={i + 1}." in logs[i][0][1]
-        assert metadatas == {"end_of_log": True, "log_pos": 13}
+        assert logs[0].event == "::group::Log message source details"
+        assert logs[0].sources == [
+            f"{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log"
+        ]
+        assert logs[1].event == "::endgroup::"
+        assert logs[2].event == f"try_number={ti.try_number}."
+        assert metadata == {"end_of_log": True, "log_pos": 1}
 
     def test_test_test_read_log_stream_should_read_one_try(self):
         task_log_reader = TaskLogReader()
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
         stream = task_log_reader.read_log_stream(ti=ti, try_number=1, metadata={})
+
         assert list(stream) == [
-            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
-            f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            " INFO - ::endgroup::\ntry_number=1.\n"
+            "{"
+            '"event":"::group::Log message source details",'
+            f'"sources":["{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log"]'
+            "}\n",
+            '{"event":"::endgroup::"}\n',
+            '{"timestamp":null,"event":"try_number=1."}\n',
         ]
 
-    def test_test_test_read_log_stream_should_read_all_logs(self):
+    def test_test_test_read_log_stream_should_read_latest_logs(self):
         task_log_reader = TaskLogReader()
         self.ti.state = TaskInstanceState.SUCCESS  # Ensure mocked instance is completed to return stream
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
+
         assert list(stream) == [
-            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
-            f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            " INFO - ::endgroup::\ntry_number=1."
-            "\n",
-            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
-            f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-            " INFO - ::endgroup::\ntry_number=2."
-            "\n",
-            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
-            f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-            " INFO - ::endgroup::\ntry_number=3."
-            "\n",
+            "{"
+            '"event":"::group::Log message source details",'
+            f'"sources":["{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log"]'
+            "}\n",
+            '{"event":"::endgroup::"}\n',
+            '{"timestamp":null,"event":"try_number=3."}\n',
         ]
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
     def test_read_log_stream_should_support_multiple_chunks(self, mock_read):
-        first_return = ([[("", "1st line")]], [{}])
-        second_return = ([[("", "2nd line")]], [{"end_of_log": False}])
-        third_return = ([[("", "3rd line")]], [{"end_of_log": True}])
-        fourth_return = ([[("", "should never be read")]], [{"end_of_log": True}])
+        first_return = (["1st line"], {})
+        second_return = (["2nd line"], {"end_of_log": False})
+        third_return = (["3rd line"], {"end_of_log": True})
+        fourth_return = (["should never be read"], {"end_of_log": True})
         mock_read.side_effect = [first_return, second_return, third_return, fourth_return]
 
         task_log_reader = TaskLogReader()
         self.ti.state = TaskInstanceState.SUCCESS
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
-        assert list(log_stream) == ["\n1st line\n", "\n2nd line\n", "\n3rd line\n"]
+        assert list(log_stream) == ["1st line\n", "2nd line\n", "3rd line\n"]
 
+        # as the metadata is now updated in place, when the latest run update metadata.
+        # the metadata stored in the mock_read will also be updated
+        # https://github.com/python/cpython/issues/77848
         mock_read.assert_has_calls(
             [
-                mock.call(self.ti, 1, metadata={}),
-                mock.call(self.ti, 1, metadata={}),
-                mock.call(self.ti, 1, metadata={"end_of_log": False}),
+                mock.call(self.ti, 1, metadata={"end_of_log": True}),
+                mock.call(self.ti, 1, metadata={"end_of_log": True}),
+                mock.call(self.ti, 1, metadata={"end_of_log": True}),
             ],
             any_order=False,
         )
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
     def test_read_log_stream_should_read_each_try_in_turn(self, mock_read):
-        first_return = ([[("", "try_number=1.")]], [{"end_of_log": True}])
-        second_return = ([[("", "try_number=2.")]], [{"end_of_log": True}])
-        third_return = ([[("", "try_number=3.")]], [{"end_of_log": True}])
-        fourth_return = ([[("", "should never be read")]], [{"end_of_log": True}])
-        mock_read.side_effect = [first_return, second_return, third_return, fourth_return]
+        mock_read.side_effect = [(["try_number=3."], {"end_of_log": True})]
 
         task_log_reader = TaskLogReader()
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
-        assert list(log_stream) == ["\ntry_number=1.\n", "\ntry_number=2.\n", "\ntry_number=3.\n"]
+        assert list(log_stream) == ["try_number=3.\n"]
 
         mock_read.assert_has_calls(
             [
-                mock.call(self.ti, 1, metadata={}),
-                mock.call(self.ti, 2, metadata={}),
-                mock.call(self.ti, 3, metadata={}),
+                mock.call(self.ti, 3, metadata={"end_of_log": True}),
             ],
             any_order=False,
         )
