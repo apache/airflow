@@ -195,7 +195,9 @@ def _do_delete(*, query: Query, orm_model: Base, skip_archive: bool, session: Se
         if dialect_name == "sqlite":
             pk_cols = source_table.primary_key.columns
             delete = source_table.delete().where(
-                tuple_(*pk_cols).in_(select(*[target_table.c[x.name] for x in source_table.primary_key.columns]))
+                tuple_(*pk_cols).in_(
+                    select(*[target_table.c[x.name] for x in source_table.primary_key.columns])
+                )
             )
         else:
             delete = source_table.delete().where(
