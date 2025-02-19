@@ -28,6 +28,9 @@ Arguments:
 from __future__ import annotations
 
 import argparse
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def execute_workload(input: str) -> None:
@@ -41,9 +44,9 @@ def execute_workload(input: str) -> None:
     workload = decoder.validate_json(input)
 
     if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"KubernetesExecutor does not now how to handle {type(workload)}")
+        raise ValueError(f"KubernetesExecutor does not know how to handle {type(workload)}")
 
-    print("[%s] Executing workload in Kubernetes: %s", workload)
+    log.info("[%s] Executing workload in Kubernetes: %s", workload)
 
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.

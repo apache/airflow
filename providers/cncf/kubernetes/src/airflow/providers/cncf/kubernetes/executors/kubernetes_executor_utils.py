@@ -389,7 +389,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         key, command, kube_executor_config, pod_template_file = next_job
 
         dag_id, task_id, run_id, try_number, map_index = key
-
+        ser_input = ""
         if len(command) == 1 and isinstance(command[0], ExecuteTask):
             workload = command[0]
             ser_input = workload.model_dump_json()
