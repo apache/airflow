@@ -275,7 +275,7 @@ class KubernetesExecutor(BaseExecutor):
         # try and remove it from the QUEUED state while we process it
         self.last_handled[key] = time.time()
 
-    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+    def queue_workload(self, workload: workloads.ExecuteTask, session: Session | None) -> None:
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 
