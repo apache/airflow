@@ -2488,7 +2488,7 @@ class TestQueries:
         dag = DAG("test_dagrun_query_count", schedule=None, start_date=DEFAULT_DATE)
         for i in range(tasks_count):
             EmptyOperator(task_id=f"dummy_task_{i}", owner="test", dag=dag)
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             dag.create_dagrun(
                 run_id="test_dagrun_query_count",
                 run_type=DagRunType.MANUAL,

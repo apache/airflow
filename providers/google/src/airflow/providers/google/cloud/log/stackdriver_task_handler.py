@@ -29,7 +29,6 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 from airflow.utils.types import NOTSET, ArgNotSet
 from google.cloud import logging as gcp_logging
 from google.cloud.logging import Resource
@@ -40,6 +39,10 @@ from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesR
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
     from google.auth.credentials import Credentials
+
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
@@ -182,7 +185,7 @@ class StackdriverTaskHandler(logging.Handler):
         """
         message = self.format(record)
         ti = None
-        if getattr(record, ctx_indiv_trigger.name, None):
+        if not AIRFLOW_V_3_0_PLUS and getattr(record, ctx_indiv_trigger.name, None):
             ti = getattr(record, "task_instance", None)  # trigger context
         labels = self._get_labels(ti)
         self._transport.send(record, message, resource=self.resource, labels=labels)

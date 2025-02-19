@@ -1636,7 +1636,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("Logical date is in future: %s", dag_run.logical_date)
                 return callback
 
-            if not self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session):
+            if not dag_run.bundle_version and not self._verify_integrity_if_dag_changed(
+                dag_run=dag_run, session=session
+            ):
                 self.log.warning(
                     "The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id
                 )
@@ -1671,19 +1673,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         latest_dag_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
         if TYPE_CHECKING:
             assert latest_dag_version
-        if dag_run.dag_version_id == latest_dag_version.id:
+
+        if dag_run.check_version_id_exists_in_dr(latest_dag_version.id, session):
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
-
         # Refresh the DAG
         dag_run.dag = self.dagbag.get_dag(dag_id=dag_run.dag_id, session=session)
         if not dag_run.dag:
             return False
-
-        dag_run.dag_version = latest_dag_version
-
+        # Select all TIs in State.unfinished and update the dag_version_id
+        for ti in dag_run.task_instances:
+            if ti.state in State.unfinished:
+                ti.dag_version = latest_dag_version
         # Verify integrity also takes care of session.flush
-        dag_run.verify_integrity(session=session)
+        dag_run.verify_integrity(dag_version_id=latest_dag_version.id, session=session)
+
         return True
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: DagCallbackRequest | None = None) -> None:

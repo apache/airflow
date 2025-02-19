@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from copy import deepcopy
 from typing import (
@@ -25,7 +26,7 @@ from typing import (
     Callable,
 )
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
@@ -44,12 +45,29 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-def default_event_handler(context: Context, event: dict[Any, Any] | None = None) -> Any:
+def default_event_handler(event: dict[Any, Any] | None = None, **context) -> Any:
     if event:
         if event.get("status") == "failure":
             raise AirflowException(event.get("message"))
 
         return event.get("response")
+
+
+def execute_callable(
+    func: Callable[[dict[Any, Any] | None, Context], Any] | Callable[[dict[Any, Any] | None, Any], Any],
+    value: Any,
+    context: Context,
+    message: str,
+) -> Any:
+    try:
+        return func(value, **context)  # type: ignore
+    except TypeError:
+        warnings.warn(
+            message,
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return func(context, value)  # type: ignore
 
 
 class MSGraphAsyncOperator(BaseOperator):
@@ -76,7 +94,7 @@ class MSGraphAsyncOperator(BaseOperator):
         You can pass an enum named APIVersion which has 2 possible members v1 and beta,
         or you can pass a string as `v1.0` or `beta`.
     :param result_processor: Function to further process the response from MS Graph API
-        (default is lambda: context, response: response).  When the response returned by the
+        (default is lambda: response, context: response).  When the response returned by the
         `KiotaRequestAdapterHook` are bytes, then those will be base64 encoded into a string.
     :param event_handler: Function to process the event returned from `MSGraphTrigger`.  By default, when the
         event returned by the `MSGraphTrigger` has a failed status, an AirflowException is being raised with
@@ -114,8 +132,8 @@ class MSGraphAsyncOperator(BaseOperator):
         scopes: str | list[str] | None = None,
         api_version: APIVersion | str | None = None,
         pagination_function: Callable[[MSGraphAsyncOperator, dict, Context], tuple[str, dict]] | None = None,
-        result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
-        event_handler: Callable[[Context, dict[Any, Any] | None], Any] | None = None,
+        result_processor: Callable[[Any, Context], Any] = lambda result, **context: result,
+        event_handler: Callable[[dict[Any, Any] | None, Context], Any] | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         **kwargs: Any,
     ):
@@ -175,7 +193,12 @@ class MSGraphAsyncOperator(BaseOperator):
         if event:
             self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
-            response = self.event_handler(context, event)
+            response = execute_callable(
+                self.event_handler,  # type: ignore
+                event,
+                context,
+                "event_handler signature has changed, event parameter should be defined before context!",
+            )
 
             self.log.debug("response: %s", response)
 
@@ -186,7 +209,12 @@ class MSGraphAsyncOperator(BaseOperator):
 
                 self.log.debug("deserialize response: %s", response)
 
-                result = self.result_processor(context, response)
+                result = execute_callable(
+                    self.result_processor,
+                    response,
+                    context,
+                    "result_processor signature has changed, result parameter should be defined before context!",
+                )
 
                 self.log.debug("processed response: %s", result)
 
@@ -234,13 +262,14 @@ class MSGraphAsyncOperator(BaseOperator):
                 return result
         return results
 
-    def pull_xcom(self, context: Context) -> list:
+    def pull_xcom(self, context: Context | dict[str, Any]) -> list:
         map_index = context["ti"].map_index
         value = list(
             context["ti"].xcom_pull(
                 key=self.key,
                 task_ids=self.task_id,
                 dag_id=self.dag_id,
+                map_indexes=map_index,
             )
             or []
         )
@@ -265,7 +294,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
         return value
 
-    def push_xcom(self, context: Context, value) -> None:
+    def push_xcom(self, context: Any, value) -> None:
         self.log.debug("do_xcom_push: %s", self.do_xcom_push)
         if self.do_xcom_push:
             self.log.info("Pushing XCom with key '%s': %s", self.key, value)
@@ -273,7 +302,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
     @staticmethod
     def paginate(
-        operator: MSGraphAsyncOperator, response: dict, context: Context
+        operator: MSGraphAsyncOperator, response: dict, **context
     ) -> tuple[Any, dict[str, Any] | None]:
         odata_count = response.get("@odata.count")
         if odata_count and operator.query_parameters:
@@ -282,7 +311,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
             if top and odata_count:
                 if len(response.get("value", [])) == top and context:
-                    results = operator.pull_xcom(context=context)
+                    results = operator.pull_xcom(context)
                     skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
                     query_parameters["$skip"] = skip
                     return operator.url, query_parameters
@@ -290,7 +319,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
     def trigger_next_link(self, response, method_name: str, context: Context) -> None:
         if isinstance(response, dict):
-            url, query_parameters = self.pagination_function(self, response, context)
+            url, query_parameters = self.pagination_function(self, response, **dict(context.items()))  # type: ignore
 
             self.log.debug("url: %s", url)
             self.log.debug("query_parameters: %s", query_parameters)

@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Literal, Union
 
 from pydantic import BaseModel, Field
 
@@ -106,4 +107,33 @@ class ExecuteTask(BaseWorkload):
         return cls(ti=ser_ti, dag_rel_path=path, token="", log_path=fname, bundle_info=bundle_info)
 
 
-All = Union[ExecuteTask]
+class RunTrigger(BaseModel):
+    """Execute an async "trigger" process that yields events."""
+
+    id: int
+
+    ti: TaskInstance | None
+    """
+    The task instance associated with this trigger.
+
+    Could be none for asset-based triggers.
+    """
+
+    classpath: str
+    """
+    Dot-separated name of the module+fn to import and run this workload.
+
+    Consumers of this Workload must perform their own validation of this input.
+    """
+
+    encrypted_kwargs: str
+
+    timeout_after: datetime | None = None
+
+    kind: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
+
+
+All = Annotated[
+    Union[ExecuteTask, RunTrigger],
+    Field(discriminator="kind"),
+]

@@ -22,6 +22,7 @@ from datetime import datetime
 from unittest import mock
 
 import pytest
+import time_machine
 
 from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred
 from airflow.models.dag import DagModel
@@ -118,26 +119,27 @@ class TestDagRunOperator:
 
     def test_trigger_dagrun(self, dag_maker):
         """Test TriggerDagRunOperator."""
-        with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
-        ):
-            task = TriggerDagRunOperator(task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID)
-        dag_maker.sync_dagbag_to_db()
-        parse_and_sync_to_db(self.f_name)
-        dag_maker.create_dagrun()
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            with dag_maker(
+                TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+            ):
+                task = TriggerDagRunOperator(task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID)
+            dag_maker.sync_dagbag_to_db()
+            parse_and_sync_to_db(self.f_name)
+            dag_maker.create_dagrun()
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        dagrun = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
-        assert dagrun.external_trigger
-        actual_timestamp = dagrun.run_id.split("__")[1][:19]
+            dagrun = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            assert dagrun.external_trigger
+            actual_run_id = dagrun.run_id.rsplit("_", 1)[0]
 
-        expected_timestamp = DagRun.generate_run_id(
-            run_type=DagRunType.MANUAL, run_after=timezone.utcnow()
-        ).split("__")[1][:19]
+            expected_run_id = DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, run_after=timezone.utcnow()
+            ).rsplit("_", 1)[0]
 
-        assert actual_timestamp == expected_timestamp
+            assert actual_run_id == expected_run_id
 
-        self.assert_extra_link(dagrun, task, dag_maker.session)
+            self.assert_extra_link(dagrun, task, dag_maker.session)
 
     def test_trigger_dagrun_custom_run_id(self, dag_maker):
         with dag_maker(
