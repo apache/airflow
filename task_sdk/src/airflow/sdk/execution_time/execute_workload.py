@@ -46,7 +46,7 @@ def execute_workload(input: str) -> None:
     if not isinstance(workload, workloads.ExecuteTask):
         raise ValueError(f"KubernetesExecutor does not know how to handle {type(workload)}")
 
-    log.info("[%s] Executing workload in Kubernetes: %s", workload)
+    log.info("Executing workload in Kubernetes: %s", workload)
 
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
