@@ -285,8 +285,8 @@ class RuntimeTaskInstance(TaskInstance):
         When pulling task is mapped the specified ``map_index`` is used, so by default
         pulling on mapped task will result in no matching XComs if the task instance
         of the method call is not mapped. Otherwise the map_index of the calling task
-        instance is used. Setting ``map_indexes`` to *None* will pull XCom as from
-        not mapped task.
+        instance is used. Setting ``map_indexes`` to *None* will pull XCom as it would
+        from a non mapped task.
 
         In either case, ``default`` (*None* if not specified) is returned if no
         matching XComs are found.
@@ -312,8 +312,13 @@ class RuntimeTaskInstance(TaskInstance):
             map_indexes_iterable = [self.map_index]
         elif isinstance(map_indexes, int) or map_indexes is None:
             map_indexes_iterable = [map_indexes]
-        else:
+        elif isinstance(map_indexes, Iterable):
             map_indexes_iterable = map_indexes
+        else:
+            raise TypeError(
+                "map_indexes can be omitted or must be an int, an iterable of ints, "
+                f"or None, got {type(map_indexes)}"
+            )
 
         xcoms = []
         # TODO: Execution API only allows working with a single map_index at a time
