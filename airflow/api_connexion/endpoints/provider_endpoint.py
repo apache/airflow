@@ -16,9 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
-
-import re2
 
 from airflow.api_connexion import security
 from airflow.api_connexion.schemas.provider_schema import (
@@ -36,7 +35,7 @@ if TYPE_CHECKING:
 
 
 def _remove_rst_syntax(value: str) -> str:
-    return re2.sub("[`_<>]", "", value.strip(" \n."))
+    return re.sub("[`_<>]", "", value.strip(" \n."))
 
 
 def _provider_mapper(provider: ProviderInfo) -> Provider:

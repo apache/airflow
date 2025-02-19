@@ -48,6 +48,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 requires-python = "~=3.9"
@@ -56,8 +57,9 @@ requires-python = "~=3.9"
 # Any change in the dependencies is preserved when the file is regenerated
 dependencies = [
     "apache-airflow>=2.9.0",
-    "yandexcloud>=0.308.0",
-    "yandex-query-client>=0.1.4",
+    # Yandex is excluded in Python 3.13 because it requires pandas and currently we cannot install pandas in 3.13
+    "yandexcloud>=0.308.0; python_version < \"3.13\"",
+    "yandex-query-client>=0.1.4; python_version < \"3.13\"",
 ]
 
 [project.urls]

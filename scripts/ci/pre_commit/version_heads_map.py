@@ -19,10 +19,9 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
-
-import re2
 
 PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -57,8 +56,8 @@ def revision_heads_map(migration_path):
             continue
         with open(os.path.join(migration_path, filename)) as file:
             content = file.read()
-            revision_match = re2.search(pattern, content)
-            _version_match = re2.search(version_pattern, content)
+            revision_match = re.search(pattern, content)
+            _version_match = re.search(version_pattern, content)
             if revision_match and _version_match:
                 revision = revision_match.group(0).split('"')[1]
                 version = _version_match.group(0).split('"')[1]
@@ -73,7 +72,7 @@ if __name__ == "__main__":
             content = file.read()
 
         pattern = r"_REVISION_HEADS_MAP:\s*dict\[\s*str\s*,\s*str\s*\]\s*=\s*\{[^}]*\}"
-        match = re2.search(pattern, content)
+        match = re.search(pattern, content)
         if not match:
             print(
                 f"_REVISION_HEADS_MAP not found in {dbfile}. If this has been removed intentionally, "

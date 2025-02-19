@@ -50,29 +50,31 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.9"
+requires-python = "~=3.9,!=3.13"
 
 # The dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 dependencies = [
     "apache-airflow>=2.9.0",
     # Apache Beam > 2.53.0 and pyarrow > 14.0.1 fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
-    'apache-beam>=2.53.0; python_version < "3.12"',
-    'apache-beam>=2.57.0; python_version >= "3.12"',
-    "pyarrow>=14.0.1",
-    "numpy>=1.26.0",
-
+    # Apache Beam is for now disabled on Python 3.13 because of pyarrow compatibility issues.
+    # For now commented out due to `uv` workspace issue https://github.com/astral-sh/uv/issues/11629
+    #    'apache-beam>=2.53.0; python_version < "3.12"',
+    #    'apache-beam>=2.57.0; python_version >= "3.12" and python_version < "3.13"',
+    'pyarrow>=14.0.1; python_version < "3.13"',
+    "numpy>=1.26.0; python_version < \"3.13'\"",
 ]
 
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "google" = [
-    'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
-    'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
+    # 'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
+    # Apache beam is not supported on Python 3.13 yet
+    # 'apache-beam[gcp]>=2.57.0; python_version >= "3.12" and python_version < "3.13"',
 ]
 "common.compat" = [
-    "apache-airflow-providers-common-compat"
+    "apache-airflow-providers-common-compat; python_version < \"3.13\"",
 ]
 
 [project.urls]

@@ -20,16 +20,16 @@ name = "apache-airflow-task-sdk"
 dynamic = ["version"]
 description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.9, <3.13"
+requires-python = ">=3.9, <3.14"
 dependencies = [
     "attrs>=24.2.0",
-    "google-re2>=1.1.20240702",
     "httpx>=0.27.0",
     "jinja2>=3.1.4",
     "methodtools>=0.4.7",
     "msgspec>=0.19.0",
-    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
-    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+#    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
+#    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    'pendulum @ git+https://github.com/python-pendulum/pendulum.git@76422468575b5817f7a58f3d05c26b480bf671a9',
     "python-dateutil>=2.7.0",
     "psutil>=6.1.0",
     "structlog>=24.4.0",
@@ -45,6 +45,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "src/airflow/sdk/__init__.py"
+
+# TODO(potiuk) remove me when direct reference to pendulum is removed
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]

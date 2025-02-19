@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import collections.abc
 import logging
+import re
 import sys
 from collections.abc import Generator, Iterable, Iterator
 from enum import Enum
@@ -33,8 +34,6 @@ from typing import (
     TypeVar,
     Union,
 )
-
-import re2
 
 from airflow import settings
 
@@ -142,6 +141,8 @@ def _get_v1_env_var_type() -> type:
 
 def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
     return isinstance(v, _get_v1_env_var_type())
+
+    # TODO(potiuk): check if regexp pattern matching here is safe
 
 
 class SecretsMasker(logging.Filter):
@@ -340,13 +341,12 @@ class SecretsMasker(logging.Filter):
             new_mask = False
             for s in self._adaptations(secret):
                 if s:
-                    pattern = re2.escape(s)
+                    pattern = re.escape(s)
                     if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
                         new_mask = True
-
             if new_mask:
-                self.replacer = re2.compile("|".join(self.patterns))
+                self.replacer = re.compile("|".join(self.patterns))
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
