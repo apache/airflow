@@ -41,21 +41,21 @@ class WorkflowTrigger(BaseTrigger):
     """
     A trigger to monitor tasks, task group and dag execution in Apache Airflow.
 
-    :param external_dag_id: The ID of the external DAG.
-    :param logical_dates: A list of logical dates for the external DAG.
+    :param external_dag_id: The ID of the external dag.
+    :param run_ids: A list of run ids for the external dag.
     :param external_task_ids: A collection of external task IDs to wait for.
     :param external_task_group_id: The ID of the external task group to wait for.
     :param failed_states: States considered as failed for external tasks.
     :param skipped_states: States considered as skipped for external tasks.
     :param allowed_states: States considered as successful for external tasks.
     :param poke_interval: The interval (in seconds) for poking the external tasks.
-    :param soft_fail: If True, the trigger will not fail the entire DAG on external task failure.
+    :param soft_fail: If True, the trigger will not fail the entire dag on external task failure.
     """
 
     def __init__(
         self,
         external_dag_id: str,
-        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
         execution_dates: list[datetime] | None = None,
         external_task_ids: typing.Collection[str] | None = None,
         external_task_group_id: str | None = None,
@@ -72,7 +72,7 @@ class WorkflowTrigger(BaseTrigger):
         self.failed_states = failed_states
         self.skipped_states = skipped_states
         self.allowed_states = allowed_states
-        self.logical_dates = logical_dates
+        self.run_ids = run_ids
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.execution_dates = execution_dates
@@ -80,25 +80,22 @@ class WorkflowTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the trigger param and module path."""
-        _dates = (
-            {"logical_dates": self.logical_dates}
-            if AIRFLOW_V_3_0_PLUS
-            else {"execution_dates": self.execution_dates}
-        )
-        return (
-            "airflow.providers.standard.triggers.external_task.WorkflowTrigger",
-            {
-                "external_dag_id": self.external_dag_id,
-                "external_task_ids": self.external_task_ids,
-                "external_task_group_id": self.external_task_group_id,
-                "failed_states": self.failed_states,
-                "skipped_states": self.skipped_states,
-                "allowed_states": self.allowed_states,
-                **_dates,
-                "poke_interval": self.poke_interval,
-                "soft_fail": self.soft_fail,
-            },
-        )
+        data: dict[str, typing.Any] = {
+            "external_dag_id": self.external_dag_id,
+            "external_task_ids": self.external_task_ids,
+            "external_task_group_id": self.external_task_group_id,
+            "failed_states": self.failed_states,
+            "skipped_states": self.skipped_states,
+            "allowed_states": self.allowed_states,
+            "poke_interval": self.poke_interval,
+            "soft_fail": self.soft_fail,
+        }
+        if AIRFLOW_V_3_0_PLUS:
+            data["run_ids"] = self.run_ids
+        else:
+            data["execution_dates"] = self.execution_dates
+
+        return "airflow.providers.standard.triggers.external_task.WorkflowTrigger", data
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically tasks, task group or dag status."""
@@ -117,7 +114,7 @@ class WorkflowTrigger(BaseTrigger):
                     yield TriggerEvent({"status": "skipped"})
                     return
             allowed_count = await self._get_count(self.allowed_states)
-            _dates = self.logical_dates if AIRFLOW_V_3_0_PLUS else self.execution_dates
+            _dates = self.run_ids if AIRFLOW_V_3_0_PLUS else self.execution_dates
             if allowed_count == len(_dates):  # type: ignore[arg-type]
                 yield TriggerEvent({"status": "success"})
                 return
@@ -133,7 +130,7 @@ class WorkflowTrigger(BaseTrigger):
         :return The count of records.
         """
         return _get_count(
-            dttm_filter=self.logical_dates if AIRFLOW_V_3_0_PLUS else self.execution_dates,
+            dttm_filter=self.run_ids if AIRFLOW_V_3_0_PLUS else self.execution_dates,
             external_task_ids=self.external_task_ids,
             external_task_group_id=self.external_task_group_id,
             external_dag_id=self.external_dag_id,
@@ -143,11 +140,11 @@ class WorkflowTrigger(BaseTrigger):
 
 class DagStateTrigger(BaseTrigger):
     """
-    Waits asynchronously for a DAG to complete for a specific logical date.
+    Waits asynchronously for a dag to complete for a specific run_id.
 
     :param dag_id: The dag_id that contains the task you want to wait for
     :param states: allowed states, default is ``['success']``
-    :param logical_dates: The logical date at which DAG run.
+    :param run_ids: The run_id of dag run.
     :param poll_interval: The time interval in seconds to check the state.
         The default value is 5.0 sec.
     """
@@ -156,40 +153,38 @@ class DagStateTrigger(BaseTrigger):
         self,
         dag_id: str,
         states: list[DagRunState],
-        logical_dates: list[datetime] | None = None,
+        run_ids: list[str] | None = None,
         execution_dates: list[datetime] | None = None,
         poll_interval: float = 5.0,
     ):
         super().__init__()
         self.dag_id = dag_id
         self.states = states
-        self.logical_dates = logical_dates
+        self.run_ids = run_ids
         self.execution_dates = execution_dates
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serialize DagStateTrigger arguments and classpath."""
-        _dates = (
-            {"logical_dates": self.logical_dates}
-            if AIRFLOW_V_3_0_PLUS
-            else {"execution_dates": self.execution_dates}
-        )
-        return (
-            "airflow.providers.standard.triggers.external_task.DagStateTrigger",
-            {
-                "dag_id": self.dag_id,
-                "states": self.states,
-                **_dates,
-                "poll_interval": self.poll_interval,
-            },
-        )
+        data = {
+            "dag_id": self.dag_id,
+            "states": self.states,
+            "poll_interval": self.poll_interval,
+        }
+
+        if AIRFLOW_V_3_0_PLUS:
+            data["run_ids"] = self.run_ids
+        else:
+            data["execution_dates"] = self.execution_dates
+
+        return "airflow.providers.standard.triggers.external_task.DagStateTrigger", data
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Check periodically if the dag run exists, and has hit one of the states yet, or not."""
         while True:
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]
-            _dates = self.logical_dates if AIRFLOW_V_3_0_PLUS else self.execution_dates
+            _dates = self.run_ids if AIRFLOW_V_3_0_PLUS else self.execution_dates
             if num_dags == len(_dates):  # type: ignore[arg-type]
                 yield TriggerEvent(self.serialize())
                 return
@@ -200,7 +195,7 @@ class DagStateTrigger(BaseTrigger):
     def count_dags(self, *, session: Session = NEW_SESSION) -> int | None:
         """Count how many dag runs in the database match our criteria."""
         _dag_run_date_condition = (
-            DagRun.logical_date.in_(self.logical_dates)
+            DagRun.run_id.in_(self.run_ids)
             if AIRFLOW_V_3_0_PLUS
             else DagRun.execution_date.in_(self.execution_dates)
         )

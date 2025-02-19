@@ -30,24 +30,26 @@ from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.facebook_ads_to_gcs import FacebookAdsReportToGcsOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
+from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-# [START howto_GCS_env_variables]
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "free-tier-1997")
-GCS_BUCKET = os.environ.get("GCS_BUCKET", "airflow_bucket_fb")
-GCS_OBJ_PATH = os.environ.get("GCS_OBJ_PATH", "Temp/this_is_my_report_csv.csv")
-GCS_CONN_ID = os.environ.get("GCS_CONN_ID", "google_cloud_default")
-DATASET_NAME = os.environ.get("DATASET_NAME", "airflow_test_dataset")
-TABLE_NAME = os.environ.get("FB_TABLE_NAME", "airflow_test_datatable")
-# [END howto_GCS_env_variables]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-# [START howto_FB_ADS_variables]
+DAG_ID = "facebook_ads_to_gcs"
+
+DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+TABLE_NAME = "airflow_test_datatable"
+GCS_OBJ_PATH = "Temp/this_is_my_report_csv.csv"
+
 FIELDS = [
     AdsInsights.Field.campaign_name,
     AdsInsights.Field.campaign_id,
@@ -56,17 +58,17 @@ FIELDS = [
     AdsInsights.Field.impressions,
 ]
 PARAMETERS = {"level": "ad", "date_preset": "yesterday"}
-# [END howto_FB_ADS_variables]
 
 with DAG(
-    "example_facebook_ads_to_gcs",
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    tags=["example", "facebook_ads_to_gcs"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
-        bucket_name=GCS_BUCKET,
-        project_id=GCP_PROJECT_ID,
+        bucket_name=BUCKET_NAME,
+        project_id=PROJECT_ID,
     )
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(
@@ -74,34 +76,37 @@ with DAG(
         dataset_id=DATASET_NAME,
     )
 
-    create_table = BigQueryCreateEmptyTableOperator(
+    create_table = BigQueryCreateTableOperator(
         task_id="create_table",
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
-        schema_fields=[
-            {"name": "campaign_name", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "campaign_id", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "ad_id", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "clicks", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "impressions", "type": "STRING", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {
+                "fields": [
+                    {"name": "campaign_name", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "campaign_id", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "ad_id", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "clicks", "type": "STRING", "mode": "NULLABLE"},
+                    {"name": "impressions", "type": "STRING", "mode": "NULLABLE"},
+                ],
+            },
+        },
     )
 
     # [START howto_operator_facebook_ads_to_gcs]
     run_operator = FacebookAdsReportToGcsOperator(
         task_id="run_fetch_data",
         owner="airflow",
-        bucket_name=GCS_BUCKET,
+        bucket_name=BUCKET_NAME,
         parameters=PARAMETERS,
         fields=FIELDS,
-        gcp_conn_id=GCS_CONN_ID,
         object_name=GCS_OBJ_PATH,
     )
     # [END howto_operator_facebook_ads_to_gcs]
 
     load_csv = GCSToBigQueryOperator(
         task_id="gcs_to_bq_example",
-        bucket=GCS_BUCKET,
+        bucket=BUCKET_NAME,
         source_objects=[GCS_OBJ_PATH],
         destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
         write_disposition="WRITE_TRUNCATE",
@@ -111,7 +116,7 @@ with DAG(
         task_id="read_data_from_gcs_many_chunks",
         configuration={
             "query": {
-                "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
+                "query": f"SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}`",
                 "useLegacySql": False,
             }
         },
@@ -119,23 +124,39 @@ with DAG(
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket",
-        bucket_name=GCS_BUCKET,
+        bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
         delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(
+        # TEST SETUP
         create_bucket,
         create_dataset,
         create_table,
+        # TEST BODY
         run_operator,
         load_csv,
         read_data_from_gcs_many_chunks,
+        # TEST TEARDOWN
         delete_bucket,
         delete_dataset,
     )
+
+    from tests_common.test_utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

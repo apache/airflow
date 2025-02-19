@@ -40,8 +40,8 @@ export const Overview = () => {
       dagId,
       dagRunId: "~",
       limit: 14,
-      logicalDateGte: startDate,
-      logicalDateLte: endDate,
+      runAfterGte: startDate,
+      runAfterLte: endDate,
       state: ["failed"],
       taskId,
     });
@@ -50,7 +50,7 @@ export const Overview = () => {
     dagId,
     dagRunId: "~",
     limit: 14,
-    orderBy: "-logical_date",
+    orderBy: "-run_after",
     taskId,
   });
 

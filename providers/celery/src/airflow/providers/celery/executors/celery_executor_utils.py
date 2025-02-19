@@ -146,13 +146,13 @@ def execute_workload(input: str) -> None:
     from airflow.executors import workloads
     from airflow.sdk.execution_time.supervisor import supervise
 
-    decoder = TypeAdapter(workloads.All)
+    decoder = TypeAdapter[workloads.All](workloads.All)
     workload = decoder.validate_json(input)
 
     celery_task_id = app.current_task.request.id
 
     if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"CeleryExecutor does not now how to handle {type(workload)}")
+        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
 
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
@@ -269,7 +269,9 @@ def send_task_to_executor(
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
 
-    return key, args, result
+    # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
+    # concurrently;
+    return key, args, result  # type: ignore[return-value]
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:

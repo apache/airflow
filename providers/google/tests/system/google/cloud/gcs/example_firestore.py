@@ -31,7 +31,7 @@ from datetime import datetime
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateExternalTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
@@ -104,15 +104,11 @@ with DAG(
     )
     # [END howto_operator_export_database_to_gcs]
     # [START howto_operator_create_external_table_multiple_types]
-    create_external_table_multiple_types = BigQueryCreateExternalTableOperator(
+    create_external_table_multiple_types = BigQueryCreateTableOperator(
         task_id="create_external_table",
-        bucket=BUCKET_NAME,
+        dataset_id=DATASET_NAME,
+        table_id="firestore_data",
         table_resource={
-            "tableReference": {
-                "projectId": PROJECT_ID,
-                "datasetId": DATASET_NAME,
-                "tableId": "firestore_data",
-            },
             "externalDataConfiguration": {
                 "sourceFormat": "DATASTORE_BACKUP",
                 "compression": "NONE",

@@ -318,12 +318,14 @@ class RuntimeTaskInstance(TaskInstance):
                 raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
             if msg.value is not None:
-                from airflow.models.xcom import XCom
+                from airflow.serialization.serde import deserialize
 
                 # TODO: Move XCom serialization & deserialization to Task SDK
                 #   https://github.com/apache/airflow/issues/45231
-                xcom = XCom.deserialize_value(msg)  # type: ignore[arg-type]
-                xcoms.append(xcom)
+
+                # The execution API server deals in json compliant types now.
+                # serde's deserialize can handle deserializing primitive, collections, and complex objects too
+                xcoms.append(deserialize(msg.value))  # type: ignore[type-var]
             else:
                 xcoms.append(default)
 
@@ -350,11 +352,15 @@ class RuntimeTaskInstance(TaskInstance):
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
-    from airflow.models.xcom import XCom
+    from airflow.serialization.serde import serialize
 
     # TODO: Move XCom serialization & deserialization to Task SDK
     #   https://github.com/apache/airflow/issues/45231
-    value = XCom.serialize_value(value)
+
+    # The execution API server now deals in json compliant objects.
+    # It is responsibility of the client to handle any non native object serialization.
+    # serialize does just that.
+    value = serialize(value)
 
     log = structlog.get_logger(logger_name="task")
     SUPERVISOR_COMMS.send_request(
