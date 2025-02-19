@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,16 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
+import pytest
+from fastapi.testclient import TestClient
 
-def get_base_airflow_version_tuple() -> tuple[int, int, int]:
-    from packaging.version import Version
-
-    from airflow import __version__
-
-    airflow_version = Version(__version__)
-    return airflow_version.major, airflow_version.minor, airflow_version.micro
+from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 
 
-AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
+@pytest.fixture
+def auth_manager():
+    return SimpleAuthManager(None)
+
+
+@pytest.fixture
+def test_user():
+    return SimpleAuthManagerUser(username="test", role="test")
+
+
+@pytest.fixture
+def test_admin():
+    return SimpleAuthManagerUser(username="test", role="admin")
+
+
+@pytest.fixture
+def test_client(auth_manager):
+    return TestClient(auth_manager.get_fastapi_app())

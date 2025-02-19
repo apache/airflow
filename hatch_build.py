@@ -342,6 +342,7 @@ BUNDLE_EXTRAS: dict[str, list[str]] = {
 }
 
 DEPENDENCIES = [
+    "a2wsgi>=1.10.8",
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1

@@ -43,11 +43,6 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
     : [
         {
           accessorKey: "dag_id",
-          cell: ({ row: { original } }: DagRunRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
-            </Link>
-          ),
           enableSorting: false,
           header: "Dag ID",
         },
