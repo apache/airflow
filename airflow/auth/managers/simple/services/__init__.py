@@ -14,15 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-
-class TestSimpleAuthManagerUser:
-    def test_get_id(self, test_admin):
-        assert test_admin.get_id() == "test"
-
-    def test_get_name(self, test_admin):
-        assert test_admin.get_name() == "test"
-
-    def test_get_role(self, test_admin):
-        assert test_admin.get_role() == "admin"

@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,15 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
+import pytest
+from fastapi.testclient import TestClient
 
-class TestSimpleAuthManagerUser:
-    def test_get_id(self, test_admin):
-        assert test_admin.get_id() == "test"
+from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 
-    def test_get_name(self, test_admin):
-        assert test_admin.get_name() == "test"
 
-    def test_get_role(self, test_admin):
-        assert test_admin.get_role() == "admin"
+@pytest.fixture
+def auth_manager():
+    return SimpleAuthManager(None)
+
+
+@pytest.fixture
+def test_user():
+    return SimpleAuthManagerUser(username="test", role="test")
+
+
+@pytest.fixture
+def test_admin():
+    return SimpleAuthManagerUser(username="test", role="admin")
+
+
+@pytest.fixture
+def test_client(auth_manager):
+    return TestClient(auth_manager.get_fastapi_app())
