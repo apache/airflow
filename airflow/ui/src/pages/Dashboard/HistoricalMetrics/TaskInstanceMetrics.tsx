@@ -27,6 +27,8 @@ import { MetricSection } from "./MetricSection";
 type TaskInstanceMetricsProps = {
   readonly taskInstanceStates: TaskInstanceStateCount;
   readonly total: number;
+  readonly startDate: string;
+  readonly endDate: string;
 };
 
 const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
@@ -44,7 +46,12 @@ const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
   "deferred",
 ];
 
-export const TaskInstanceMetrics = ({ taskInstanceStates, total }: TaskInstanceMetricsProps) => (
+export const TaskInstanceMetrics = ({
+  taskInstanceStates,
+  total,
+  startDate,
+  endDate,
+}: TaskInstanceMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} mt={2} p={2}>
     <HStack mb={4}>
       <StateBadge colorPalette="blue" fontSize="md" variant="solid">
@@ -62,6 +69,9 @@ export const TaskInstanceMetrics = ({ taskInstanceStates, total }: TaskInstanceM
           runs={taskInstanceStates[state]}
           state={state as TaskInstanceState}
           total={total}
+          startDate={startDate}
+          endDate={endDate}
+          kind={"task_instances"}
         />
       ) : undefined,
     )}

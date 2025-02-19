@@ -155,6 +155,8 @@ const taskInstanceColumns = (
 ];
 
 const STATE_PARAM = "state";
+const START_DATE_PARAM = "start_date";
+const END_DATE_PARAM = "end_date";
 
 export const TaskInstances = () => {
   const { dagId, runId, taskId } = useParams();
@@ -164,6 +166,8 @@ export const TaskInstances = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
   const filteredState = searchParams.getAll(STATE_PARAM);
+  const startDate = searchParams.get(START_DATE_PARAM);
+  const endDate = searchParams.get(END_DATE_PARAM);
   const hasFilteredState = filteredState.length > 0;
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
 
@@ -216,6 +220,8 @@ export const TaskInstances = () => {
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
       taskId: taskId ?? undefined,
+      startDateGte: startDate ?? undefined,
+      endDateLte: endDate ?? undefined,
     },
     undefined,
     {
