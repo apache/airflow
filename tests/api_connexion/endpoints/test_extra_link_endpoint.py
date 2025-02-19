@@ -209,17 +209,17 @@ class TestGetExtraLinks:
         class GoogleLink(BaseOperatorLink):
             name = "Google"
 
-            def get_link(self, operator, dttm):
+            def get_link(self, operator, *, ti_key):
                 return "https://www.google.com"
 
         class S3LogLink(BaseOperatorLink):
             name = "S3"
             operators = [CustomOperator]
 
-            def get_link(self, operator, dttm):
+            def get_link(self, operator, *, ti_key):
                 return (
                     f"https://s3.amazonaws.com/airflow-logs/{operator.dag_id}/"
-                    f"{operator.task_id}/{quote_plus(dttm.isoformat())}"
+                    f"{operator.task_id}/{quote_plus(ti_key.run_id)}"
                 )
 
         class AirflowTestPlugin(AirflowPlugin):
@@ -241,8 +241,5 @@ class TestGetExtraLinks:
             assert response.json == {
                 "Google Custom": None,
                 "Google": "https://www.google.com",
-                "S3": (
-                    "https://s3.amazonaws.com/airflow-logs/"
-                    "TEST_DAG_ID/TEST_SINGLE_LINK/2020-01-01T00%3A00%3A00%2B00%3A00"
-                ),
+                "S3": "https://s3.amazonaws.com/airflow-logs/TEST_DAG_ID/TEST_SINGLE_LINK/TEST_DAG_RUN_ID",
             }

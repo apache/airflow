@@ -26,8 +26,8 @@ from airflow.models.xcom import BaseXCom
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.sdk.definitions.baseoperator import BaseOperator
 
 
 @attrs.define()
@@ -98,9 +98,6 @@ class BaseOperatorLink(metaclass=ABCMeta):
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Link to external system.
-
-        Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
-        supported at runtime but is deprecated.
 
         :param operator: The Airflow operator object this link is associated to.
         :param ti_key: TaskInstance ID to return link for.
