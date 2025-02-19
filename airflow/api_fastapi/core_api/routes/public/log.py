@@ -92,10 +92,7 @@ def get_log(
     if metadata.get("download_logs") and metadata["download_logs"]:
         full_content = True
 
-    if full_content:
-        metadata["download_logs"] = True
-    else:
-        metadata["download_logs"] = False
+    metadata["download_logs"] = full_content
 
     task_log_reader = TaskLogReader()
 
