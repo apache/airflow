@@ -46,7 +46,7 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-hdfs``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.9,3.10,3.11,3.12,3.13
 
 Requirements
 ------------
@@ -57,7 +57,8 @@ PIP package                        Version required
 ``apache-airflow``                 ``>=2.10.0``
 ``hdfs[avro,dataframe,kerberos]``  ``>=2.5.4; python_version < "3.12"``
 ``hdfs[avro,dataframe,kerberos]``  ``>=2.7.3; python_version >= "3.12"``
-``pandas``                         ``>=2.1.2,<2.2``
+``pandas``                         ``>=2.1.2; python_version < "3.13"``
+``pandas``                         ``>=2.2.0; python_version >= "3.13"``
 =================================  =====================================
 
 The changelog for the provider package can be found in the
