@@ -321,6 +321,7 @@ def _init_dagruns(app):
         ),
     ],
 )
+
 def test_views_get(admin_client, url, contents):
     resp = admin_client.get(url, follow_redirects=True)
     for content in contents:
