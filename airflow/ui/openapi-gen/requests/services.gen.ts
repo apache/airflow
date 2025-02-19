@@ -758,6 +758,7 @@ export class DependenciesService {
         node_id: data.nodeId,
       },
       errors: {
+        404: "Not Found",
         422: "Validation Error",
       },
     });

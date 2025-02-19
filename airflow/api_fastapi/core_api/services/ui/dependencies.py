@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 
-def dfs_connected_components(
+def _dfs_connected_components(
     temp: list[str], node_id: str, visited: dict[str, bool], adjacency_matrix: dict[str, list[str]]
 ) -> list[str]:
     visited[node_id] = True
@@ -29,12 +29,13 @@ def dfs_connected_components(
 
     for adj_node_id in adjacency_matrix[node_id]:
         if not visited[adj_node_id]:
-            temp = dfs_connected_components(temp, adj_node_id, visited, adjacency_matrix)
+            temp = _dfs_connected_components(temp, adj_node_id, visited, adjacency_matrix)
 
     return temp
 
 
 def extract_connected_components(adjacency_matrix: dict[str, list[str]]) -> list[list[str]]:
+    """Extract all connected components of a graph."""
     visited: dict[str, bool] = {node_id: False for node_id in adjacency_matrix}
 
     connected_components: list[list[str]] = []
@@ -42,11 +43,14 @@ def extract_connected_components(adjacency_matrix: dict[str, list[str]]) -> list
     for node_id in adjacency_matrix:
         if visited[node_id] is False:
             temp: list[str] = []
-            connected_components.append(dfs_connected_components(temp, node_id, visited, adjacency_matrix))
+            connected_components.append(_dfs_connected_components(temp, node_id, visited, adjacency_matrix))
     return connected_components
 
 
-def extract_connected_component_sub_graph(node_id: str, nodes: list[dict], edges: list[dict]) -> dict:
+def extract_single_connected_component(
+    node_id: str, nodes: list[dict], edges: list[dict]
+) -> dict[str, list[dict]]:
+    """Find the connected component that contains the node with the id ``node_id``."""
     adjacency_matrix: dict[str, list[str]] = defaultdict(list)
 
     for edge in edges:
@@ -59,7 +63,7 @@ def extract_connected_component_sub_graph(node_id: str, nodes: list[dict], edges
 
     if len(filtered_connected_components) != 1:
         raise ValueError(
-            f"Something unexpected happened, found {filtered_connected_components} for connected components of node {node_id}, expected 1 connected component."
+            f"Unique connected component not found, got {filtered_connected_components} for connected components of node {node_id}, expected only 1 connected component."
         )
 
     connected_component = filtered_connected_components[0]

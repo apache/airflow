@@ -2979,6 +2979,10 @@ export type $OpenApiTs = {
          */
         200: BaseGraphResponse;
         /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
          * Validation Error
          */
         422: HTTPValidationError;
