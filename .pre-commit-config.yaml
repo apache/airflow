@@ -215,12 +215,6 @@ repos:
         files: ^airflow/models/taskinstance.py$|^airflow/models/taskinstancehistory.py$
         pass_filenames: false
         require_serial: true
-      - id: check-default-configuration
-        name: Check the default configuration
-        entry: ./scripts/ci/pre_commit/check_default_configuration.py
-        language: python
-        additional_dependencies: ['rich>=12.4.4']
-        always_run: true
       - id: check-deferrable-default
         name: Check and fix default value of default_deferrable
         language: python
@@ -1388,7 +1382,7 @@ repos:
         stages: ['manual']
         name: Run mypy for providers (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py all_new_providers
+        entry: ./scripts/ci/pre_commit/mypy_folder.py all_providers
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
@@ -1462,4 +1456,12 @@ repos:
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-default-configuration
+        name: Check the default configuration
+        entry: ./scripts/ci/pre_commit/check_default_configuration.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        require_serial: true
+        pass_filenames: false
+        files: ^airflow/config_templates/config.yml
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

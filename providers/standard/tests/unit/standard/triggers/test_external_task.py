@@ -32,10 +32,11 @@ from airflow.utils.state import DagRunState
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 _DATES = (
-    {"logical_dates": [timezone.datetime(2022, 1, 1)]}
+    {"run_ids": ["external_task_run_id"]}
     if AIRFLOW_V_3_0_PLUS
     else {"execution_dates": [timezone.datetime(2022, 1, 1)]}
 )
+key, value = next(iter(_DATES.items()))
 
 
 class TestWorkflowTrigger:
@@ -67,8 +68,9 @@ class TestWorkflowTrigger:
         assert trigger_task.done()
         result = trigger_task.result()
         assert result.payload == {"status": "success"}
+
         mock_get_count.assert_called_once_with(
-            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            dttm_filter=value,
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -102,7 +104,7 @@ class TestWorkflowTrigger:
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "failed"}
         mock_get_count.assert_called_once_with(
-            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            dttm_filter=value,
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -133,7 +135,7 @@ class TestWorkflowTrigger:
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "success"}
         mock_get_count.assert_called_once_with(
-            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            dttm_filter=value,
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -167,7 +169,7 @@ class TestWorkflowTrigger:
         assert isinstance(result, TriggerEvent)
         assert result.payload == {"status": "skipped"}
         mock_get_count.assert_called_once_with(
-            dttm_filter=[timezone.datetime(2022, 1, 1)],
+            dttm_filter=value,
             external_task_ids=["external_task_op"],
             external_task_group_id=None,
             external_dag_id="external_task",
@@ -243,17 +245,12 @@ class TestDagStateTrigger:
         reaches an allowed state (i.e. SUCCESS).
         """
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
-        logical_date_or_execution_date = (
-            {"logical_date": timezone.datetime(2022, 1, 1)}
+        run_id_or_execution_date = (
+            {"run_id": "external_task_run_id"}
             if AIRFLOW_V_3_0_PLUS
-            else {"execution_date": timezone.datetime(2022, 1, 1)}
+            else {"execution_date": timezone.datetime(2022, 1, 1), "run_id": "external_task_run_id"}
         )
-        dag_run = DagRun(
-            dag_id=dag.dag_id,
-            run_type="manual",
-            **logical_date_or_execution_date,
-            run_id=self.RUN_ID,
-        )
+        dag_run = DagRun(dag_id=dag.dag_id, run_type="manual", **run_id_or_execution_date)
         session.add(dag_run)
         session.commit()
 

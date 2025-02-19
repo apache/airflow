@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DependenciesService,
   EventLogService,
   ExtraLinksService,
   GridService,
@@ -549,6 +550,25 @@ export const useDagsServiceRecentDagRuns = <
         tags,
         tagsMatchMode,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Dependencies
+ * Dependencies graph.
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const useDependenciesServiceGetDependencies = <
+  TData = Common.DependenciesServiceGetDependenciesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn(queryKey),
+    queryFn: () => DependenciesService.getDependencies() as TData,
     ...options,
   });
 /**
@@ -1603,6 +1623,8 @@ export const useTaskInstanceServiceGetTaskInstance = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -1644,6 +1666,8 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1666,6 +1690,8 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -1694,6 +1720,8 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1720,6 +1748,8 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -1932,6 +1962,8 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.runAfterGte
+ * @param data.runAfterLte
  * @param data.logicalDateGte
  * @param data.logicalDateLte
  * @param data.startDateGte
@@ -1974,6 +2006,8 @@ export const useTaskInstanceServiceGetTaskInstances = <
     orderBy,
     pool,
     queue,
+    runAfterGte,
+    runAfterLte,
     startDateGte,
     startDateLte,
     state,
@@ -1997,6 +2031,8 @@ export const useTaskInstanceServiceGetTaskInstances = <
     orderBy?: string;
     pool?: string[];
     queue?: string[];
+    runAfterGte?: string;
+    runAfterLte?: string;
     startDateGte?: string;
     startDateLte?: string;
     state?: string[];
@@ -2026,6 +2062,8 @@ export const useTaskInstanceServiceGetTaskInstances = <
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,
@@ -2053,6 +2091,8 @@ export const useTaskInstanceServiceGetTaskInstances = <
         orderBy,
         pool,
         queue,
+        runAfterGte,
+        runAfterLte,
         startDateGte,
         startDateLte,
         state,

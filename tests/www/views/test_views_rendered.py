@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from unittest import mock
 from urllib.parse import quote_plus
 
@@ -39,7 +38,6 @@ from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_runs,
     clear_rendered_ti_fields,
-    initial_db_init,
 )
 from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
@@ -263,11 +261,11 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     assert ti.state == TaskInstanceState.QUEUED
 
 
-if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
-    # Handle collection of the test by non-db case
-    Variable = mock.MagicMock()  # type: ignore[misc]
-else:
-    initial_db_init()
+@pytest.fixture
+def clear_vars():
+    yield
+    Variable.delete("plain_var")
+    Variable.delete("secret_var")
 
 
 @pytest.mark.enable_redact
@@ -280,14 +278,19 @@ else:
             id="env-plain-key-val",
         ),
         pytest.param(
-            {"plain_key": Variable.setdefault("plain_var", "banana")},
+            {"plain_key": "banana"},
             "{'plain_key': 'banana'}",
-            id="env-plain-key-plain-var",
+            id="env-plain-key-plain-var-set",
         ),
         pytest.param(
-            {"plain_key": Variable.setdefault("secret_var", "monkey")},
+            {"plain_key": "monkey"},
+            "{'plain_key': 'monkey'}",
+            id="env-plain-key-sensitive-var-not-set",
+        ),
+        pytest.param(
+            {"plain_key": "monkey"},
             "{'plain_key': '***'}",
-            id="env-plain-key-sensitive-var",
+            id="env-plain-key-sensitive-var-set",
         ),
         pytest.param(
             {"plain_key": "{{ var.value.plain_var }}"},
@@ -305,14 +308,19 @@ else:
             id="env-sensitive-key-plain-val",
         ),
         pytest.param(
-            {"secret_key": Variable.setdefault("plain_var", "monkey")},
+            {"secret_key": "monkey"},
             "{'secret_key': '***'}",
-            id="env-sensitive-key-plain-var",
+            id="env-sensitive-key-plain-var-set",
         ),
         pytest.param(
-            {"secret_key": Variable.setdefault("secret_var", "monkey")},
+            {"secret_key": "monkey"},
             "{'secret_key': '***'}",
-            id="env-sensitive-key-sensitive-var",
+            id="env-sensitive-key-sensitive-var-set",
+        ),
+        pytest.param(
+            {"secret_key": "monkey"},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-sensitive-var-not-set",
         ),
         pytest.param(
             {"secret_key": "{{ var.value.plain_var }}"},
@@ -326,10 +334,19 @@ else:
         ),
     ],
 )
-def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
+def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected, clear_vars):
     if request.node.callspec.id.endswith("-tpld-var"):
         Variable.set("plain_var", "banana")
         Variable.set("secret_var", "monkey")
+    elif request.node.callspec.id.endswith("-plain-var-set"):
+        val = env.get("plain_key") or env["secret_key"]
+        Variable.setdefault("plain_var", val)
+        # Without the get there is no `mask_secret` call, and we will fail
+        Variable.get("plain_var")
+    elif request.node.callspec.id.endswith("-sensitive-var-set"):
+        val = env.get("plain_key") or env["secret_key"]
+        Variable.setdefault("secret_var", val)
+        Variable.get("secret_var")
 
     dag: DAG = patch_app.dag_bag.get_dag("testdag")
     task_secret: BashOperator = dag.get_task(task_id="task1")
@@ -351,10 +368,6 @@ def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, 
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response(str(escape(expected)), resp)
-
-    if request.node.callspec.id.endswith("-tpld-var"):
-        Variable.delete("plain_var")
-        Variable.delete("secret_var")
 
 
 @pytest.mark.usefixtures("patch_app")

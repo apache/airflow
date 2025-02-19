@@ -29,9 +29,9 @@ class TestGremlinHook:
     @pytest.mark.parametrize(
         "conn_extra, host, port, expected_uri",
         [
-            ({}, "host", None, "wss://host:443/"),
-            ({"development-graphdb": True}, "myhost", 1234, "wss://myhost:1234/"),
-            ({"development-graphdb": False}, "localhost", 8888, "wss://localhost:8888/"),
+            ({}, "host", None, "wss://host:443"),
+            ({"development-graphdb": True}, "myhost", 1234, "wss://myhost:1234"),
+            ({"development-graphdb": False}, "localhost", 8888, "wss://localhost:8888"),
         ],
     )
     def test_get_uri(self, conn_extra, host, port, expected_uri):
@@ -39,16 +39,16 @@ class TestGremlinHook:
         Test that get_uri builds the expected URI from the connection.
         """
         conn = Connection(conn_id="gremlin_default", host=host, port=port)
-        with mock.patch.dict("os.environ", AIRFLOW_CONN_GREMLIN_DEFAULT=conn.get_uri()):
-            gremlin_hook = GremlinHook()
-            uri = gremlin_hook.get_uri(conn)
+        # Instead of set_extra_json, assign extra directly.
+        conn.extra = json.dumps(conn_extra)
+        hook = GremlinHook()
+        uri = hook.get_uri(conn)
+        assert uri == expected_uri
 
-            assert uri == expected_uri
-
-    @mock.patch("airflow.providers.gremlin.hooks.gremlin.Client")
-    def test_get_conn(self, mock_client):
+    @mock.patch("airflow.providers.gremlin.hooks.gremlin.DriverRemoteConnection")
+    def test_get_conn(self, mock_driver):
         """
-        Test that get_conn() retrieves the connection and creates a client correctly.
+        Test that get_conn() retrieves the connection and creates a driver correctly.
         """
         hook = GremlinHook()
         conn = Connection(
@@ -59,16 +59,18 @@ class TestGremlinHook:
             login="mylogin",
             password="mypassword",
         )
+        # Set the extra attribute using json.dumps.
         conn.extra = json.dumps({"development-graphdb": True})
+        # Override get_connection so that it returns our dummy connection.
         hook.get_connection = lambda conn_id: conn
 
         hook.get_conn()
-        expected_uri = "wss://host:1234/"
-        expected_username = "/dbs/mydb/colls/mylogin"
+        expected_uri = "wss://host:1234"
+        # Expected username is built from login and schema in that order.
+        expected_username = "/dbs/mylogin/colls/mydb"
 
-        mock_client.assert_called_once()
-
-        call_args = mock_client.call_args.kwargs
+        mock_driver.assert_called_once()
+        call_args = mock_driver.call_args.kwargs
         assert call_args["url"] == expected_uri
         assert call_args["traversal_source"] == hook.traversal_source
         assert call_args["username"] == expected_username
@@ -81,24 +83,31 @@ class TestGremlinHook:
             (Exception("Test error"), Exception, None),
         ],
     )
-    @mock.patch("airflow.providers.gremlin.hooks.gremlin.Client")
-    def test_run(self, mock_client, side_effect, expected_exception, expected_result):
+    @mock.patch("airflow.providers.gremlin.hooks.gremlin.traversal")
+    @mock.patch("airflow.providers.gremlin.hooks.gremlin.DriverRemoteConnection")
+    def test_get_traversal(
+        self, mock_driver, mock_traversal, side_effect, expected_exception, expected_result
+    ):
         """
-        Test that run() returns the expected result or propagates an exception.
+        Test that get_traversal() returns the expected result or propagates an exception.
         """
-        instance = mock_client.return_value
+        # Create a dummy driver from the patched DriverRemoteConnection.
+        dummy_driver = mock_driver.return_value
 
+        # Configure the traversal chain.
+        # When traversal() is called, it returns a mock on which with_remote(driver) is called.
         if side_effect is None:
-            instance.submit.return_value.all.return_value.result.return_value = expected_result
+            mock_traversal.return_value.with_remote.return_value = expected_result
         else:
-            instance.submit.return_value.all.return_value.result.side_effect = side_effect
+            mock_traversal.return_value.with_remote.side_effect = side_effect
 
         hook = GremlinHook()
-        hook.client = instance
-        query = "g.V().limit(1)"
+        # Patch get_conn so that it returns our dummy driver.
+        hook.get_conn = lambda: dummy_driver
+
         if expected_exception:
             with pytest.raises(expected_exception, match="Test error"):
-                hook.run(query)
+                hook.get_traversal()
         else:
-            result = hook.run(query)
+            result = hook.get_traversal()
             assert result == expected_result
