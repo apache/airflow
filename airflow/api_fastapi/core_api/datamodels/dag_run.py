@@ -19,15 +19,19 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 import pendulum
 from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.models import DAG, DagRun
+from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models import DAG
 
 
 class DAGRunPatchStates(str, Enum):
