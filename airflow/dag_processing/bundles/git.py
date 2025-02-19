@@ -208,7 +208,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
                 # Protection should the bare repo be removed manually
                 raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
         else:
-            print("repo exist")
+            self.log.debug("repo exists repo_path='%s'", self.repo_path)
         self.repo = Repo(self.repo_path)
 
     def _clone_bare_repo_if_required(self) -> None:

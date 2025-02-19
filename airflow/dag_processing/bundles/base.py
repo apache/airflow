@@ -41,11 +41,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 if TYPE_CHECKING:
     from pendulum import DateTime
 
-log = structlog.get_logger(logger_name=__name__)
-# todo: remove
-structlog.configure(
-    wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG),
-)
+log = structlog.get_logger(__name__)
 
 STALE_BUNDLE_TRACKING_FOLDER = Path(
     tempfile.gettempdir(),

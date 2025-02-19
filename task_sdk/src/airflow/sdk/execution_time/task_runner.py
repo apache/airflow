@@ -392,11 +392,7 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     )
     bundle_instance.initialize()
 
-    # print(f"BUNDLE REPO_PATH: {bundle_instance.repo_path}")
-    print(f"BUNDLE INSTANCE PATH: {bundle_instance.path}")
-    print(f"{what.dag_rel_path=}")
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    print(f"{dag_absolute_path=}")
     bag = DagBag(
         dag_folder=dag_absolute_path,
         include_examples=False,
