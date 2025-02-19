@@ -235,7 +235,7 @@ GRID_RUN_1 = {
             "try_number": 0,
         },
     ],
-    "version_number": None,
+    "version_number": 1,
 }
 
 GRID_RUN_2 = {
@@ -427,7 +427,7 @@ GRID_RUN_2 = {
             "try_number": 0,
         },
     ],
-    "version_number": None,
+    "version_number": 1,
 }
 
 

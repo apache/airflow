@@ -47,6 +47,7 @@ class TaskInstanceResponse(BaseModel):
     run_id: str = Field(alias="dag_run_id")
     map_index: int
     logical_date: datetime | None
+    run_after: datetime
     start_date: datetime | None
     end_date: datetime | None
     duration: float | None
@@ -104,6 +105,8 @@ class TaskInstancesBatchBody(StrictBaseModel):
     dag_run_ids: list[str] | None = None
     task_ids: list[str] | None = None
     state: list[TaskInstanceState | None] | None = None
+    run_after_gte: AwareDatetime | None = None
+    run_after_lte: AwareDatetime | None = None
     logical_date_gte: AwareDatetime | None = None
     logical_date_lte: AwareDatetime | None = None
     start_date_gte: AwareDatetime | None = None

@@ -152,14 +152,14 @@ class TaskInstanceOperations:
 
     def defer(self, id: uuid.UUID, msg):
         """Tell the API server that this TI has been deferred."""
-        body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True))
+        body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
 
         # Create a deferred state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
         """Tell the API server that this TI has been reschduled."""
-        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True))
+        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
 
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())

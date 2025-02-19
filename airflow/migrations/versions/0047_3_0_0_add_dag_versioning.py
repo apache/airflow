@@ -154,14 +154,6 @@ def upgrade():
         batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
-        batch_op.create_foreign_key(
-            batch_op.f("dag_run_dag_version_id_fkey"),
-            "dag_version",
-            ["dag_version_id"],
-            ["id"],
-            ondelete="CASCADE",
-        )
         batch_op.drop_column("dag_hash")
 
 
@@ -199,7 +191,5 @@ def downgrade():
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("dag_hash", sa.String(length=32), autoincrement=False, nullable=True))
-        batch_op.drop_constraint(batch_op.f("dag_run_dag_version_id_fkey"), type_="foreignkey")
-        batch_op.drop_column("dag_version_id")
 
     op.drop_table("dag_version")

@@ -1938,7 +1938,7 @@ def test_upgrade_to_newer_dependencies(
     "files, expected_outputs,",
     [
         pytest.param(
-            ("docs/apache-airflow-providers-google/docs.rst",),
+            ("providers/google/docs/some_file.rst",),
             {
                 "docs-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp "
@@ -1958,14 +1958,14 @@ def test_upgrade_to_newer_dependencies(
             id="Common SQL provider package python files changed",
         ),
         pytest.param(
-            ("docs/apache-airflow-providers-airbyte/docs.rst",),
+            ("providers/airbyte/docs/some_file.rst",),
             {
                 "docs-list-as-string": "airbyte",
             },
             id="Airbyte provider docs changed",
         ),
         pytest.param(
-            ("docs/apache-airflow-providers-airbyte/docs.rst", "docs/apache-airflow/docs.rst"),
+            ("providers/airbyte/docs/some_file.rst", "docs/apache-airflow/docs.rst"),
             {
                 "docs-list-as-string": "apache-airflow airbyte",
             },
@@ -1973,7 +1973,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             (
-                "docs/apache-airflow-providers-airbyte/docs.rst",
+                "providers/airbyte/docs/some_file.rst",
                 "docs/apache-airflow/docs.rst",
                 "docs/apache-airflow-providers/docs.rst",
             ),
