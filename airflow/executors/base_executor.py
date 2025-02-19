@@ -23,7 +23,7 @@ import sys
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 import pendulum
 from deprecated import deprecated
@@ -53,14 +53,13 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.executors.executor_utils import ExecutorName
-    from airflow.executors.workloads import ExecuteTask
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Command to execute - list of strings
     # the first element is always "airflow".
     # It should be result of TaskInstance.generate_command method.
-    CommandType = Sequence[Union[str, ExecuteTask]]
+    CommandType = Sequence[str]
 
     # Task that is queued. It contains all the information that is
     # needed to run the task.
