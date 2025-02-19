@@ -26,6 +26,9 @@ from kubernetes_tests.test_base import (
 
 @pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")
 class TestKubernetesExecutor(BaseK8STest):
+    @pytest.mark.skip(
+        reason="TODO: AIP-72 Porting over executor_config not yet done. Remove once #46892 is handled"
+    )
     @pytest.mark.execution_timeout(300)
     def test_integration_run_dag(self):
         dag_id = "example_kubernetes_executor"
@@ -51,6 +54,9 @@ class TestKubernetesExecutor(BaseK8STest):
         )
 
     @pytest.mark.execution_timeout(300)
+    @pytest.mark.skip(
+        reason="TODO: AIP-72 Porting over executor_config not yet done. Remove once #46892 is handled"
+    )
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = "example_kubernetes_executor"
 

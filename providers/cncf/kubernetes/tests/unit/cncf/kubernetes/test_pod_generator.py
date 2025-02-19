@@ -167,6 +167,61 @@ class TestPodGenerator:
             ),
         )
 
+    def test_pod_spec_for_task_sdk_runs(self, data_file):
+        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
+        worker_config = PodGenerator.deserialize_model_file(template_file)
+        result = PodGenerator.construct_pod(
+            dag_id="dag_id",
+            task_id="task_id",
+            pod_id="pod_id",
+            kube_image="test-image",
+            try_number=3,
+            date=self.logical_date,
+            args=["command"],
+            pod_override_object=None,
+            base_worker_pod=worker_config,
+            namespace="namespace",
+            scheduler_job_id="uuid",
+            content_json_for_volume='{"token":"mock","ti":{"id":"4d828a62-a417-4936-a7a6-2b3fabacecab","task_id":"mock","dag_id":"mock","run_id":"mock","try_number":1,"map_index":-1,"pool_slots":1,"queue":"default","priority_weight":1},"dag_rel_path":"mock.py","bundle_info":{"name":"n/a","version":"no matter"},"log_path":"mock.log","kind":"ExecuteTask"}',
+        )
+        sanitized_result = self.k8s_client.sanitize_for_serialization(result)
+
+        init_containers = sanitized_result["spec"]["initContainers"]
+        assert len(init_containers) == 1
+        init_container = init_containers[0]
+        assert init_container == {
+            "command": [
+                "/bin/sh",
+                "-c",
+                "echo "
+                '\'{"token":"mock","ti":{"id":"4d828a62-a417-4936-a7a6-2b3fabacecab","task_id":"mock","dag_id":"mock","run_id":"mock","try_number":1,"map_index":-1,"pool_slots":1,"queue":"default","priority_weight":1},"dag_rel_path":"mock.py","bundle_info":{"name":"n/a","version":"no '
+                'matter"},"log_path":"mock.log","kind":"ExecuteTask"}\' > '
+                "/tmp/execute/input.json",
+            ],
+            "image": "busybox",
+            "name": "init-container",
+            "volumeMounts": [{"mountPath": "/tmp/execute", "name": "execute-volume", "readOnly": False}],
+        }
+
+        volumes = sanitized_result["spec"]["volumes"]
+        assert len(volumes) == 1
+        volume = volumes[0]
+        assert volume == {"emptyDir": {}, "name": "execute-volume"}
+
+        main_container = sanitized_result["spec"]["containers"][0]
+        env_found = False
+        env_value = ""
+        for e in main_container["env"]:
+            if e["name"] == "EXECUTE_JSON":
+                env_value = e["value"]
+                env_found = True
+
+        assert env_found
+        assert env_value == (
+            '{"token":"mock","ti":{"id":"4d828a62-a417-4936-a7a6-2b3fabacecab","task_id":"mock","dag_id":"mock","run_id":"mock","try_number":1,"map_index":-1,"pool_slots":1,"queue":"default","priority_weight":1},"dag_rel_path":"mock.py","bundle_info":{"name":"n/a","version":"no '
+            'matter"},"log_path":"mock.log","kind":"ExecuteTask"}'
+        )
+
     def test_from_obj_pod_override_object(self):
         obj = {
             "pod_override": k8s.V1Pod(
