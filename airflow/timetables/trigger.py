@@ -222,7 +222,7 @@ class MultipleCronTriggerTimetable(Timetable):
         from airflow.serialization.serialized_objects import decode_timezone
 
         return cls(
-            data["expressions"],
+            *data["expressions"],
             timezone=decode_timezone(data["timezone"]),
             interval=_deserialize_interval(data["interval"]),
             run_immediately=_deserialize_run_immediately(data["run_immediately"]),
