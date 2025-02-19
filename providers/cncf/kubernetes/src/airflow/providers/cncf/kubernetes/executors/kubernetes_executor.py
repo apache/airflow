@@ -282,9 +282,7 @@ class KubernetesExecutor(BaseExecutor):
     def _process_workloads(self, workloads: list[workloads.All]) -> None:
         # Airflow V3 version
         for w in workloads:
-            # TODO: AIP-72 remove once actual tokens are working.
-            if not w.token:  # type: ignore[union-attr]
-                w.token = "placeholder-token"  # type: ignore[union-attr]
+            # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
             command = [w]
             key = w.ti.key  # type: ignore[union-attr]
             queue = w.ti.queue  # type: ignore[union-attr]

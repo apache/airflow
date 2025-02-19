@@ -401,6 +401,10 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     "airflow.sdk.execution_time.execute_workload",
                     "/tmp/execute/input.json",
                 ]
+            else:
+                raise ValueError(
+                    f"KubernetesExecutor doesn't know how to handle workload of type: {type(command[0])}"
+                )
         elif command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
