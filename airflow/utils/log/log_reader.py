@@ -78,10 +78,10 @@ class TaskLogReader:
         """
         if try_number is None:
             try_number = ti.try_number
-        metadata.pop("end_of_log", None)
-        metadata.pop("max_offset", None)
-        metadata.pop("offset", None)
-        metadata.pop("log_pos", None)
+
+        for key in ("end_of_log", "max_offset", "offset", "log_pos"):
+            metadata.pop(key, None)
+
         while True:
             logs, out_metadata = self.read_log_chunks(ti, try_number, metadata)
             # Update the metadata dict in place so caller can get new values/end-of-log etc.
@@ -91,6 +91,7 @@ class TaskLogReader:
                 # Optimize this so in stream mode we can just pass logs right through, or even better add
                 # support to 307 redirect to a signed URL etc.
                 yield (log if isinstance(log, str) else log.model_dump_json()) + "\n"
+
             if not out_metadata.get("end_of_log", False) and ti.state not in (
                 TaskInstanceState.RUNNING,
                 TaskInstanceState.DEFERRED,
