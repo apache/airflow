@@ -17,11 +17,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import fcntl
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -120,8 +119,8 @@ def test_lock_exception_handling():
             acquired = False
         assert acquired
 
-class TestBundleUsageTrackingManager:
 
+class TestBundleUsageTrackingManager:
     @patch("airflow.dag_processing.bundles.manager.DagBundlesManager.get_all_dag_bundles")
     def test_remove_stale_bundle_versions(self, mock_get_bundles):
         b1 = BasicBundle(name="abc1")
@@ -129,4 +128,3 @@ class TestBundleUsageTrackingManager:
         b2 = BasicBundle(name="abc2")
         mock_get_bundles.return_value = [b1, b2]
         BundleUsageTrackingManager().remove_stale_bundle_versions()
-
