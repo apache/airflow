@@ -54,14 +54,14 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)     | Stable version (2.10.5)    |
-|------------|------------------------|----------------------------|
-| Python     | 3.9, 3.10, 3.11, 3.12  | 3.8, 3.9, 3.10, 3.11, 3.12 |
-| Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)            |
-| Kubernetes | 1.29, 1.30, 1.31, 1.32 | 1.27, 1.28, 1.29, 1.30     |
-| PostgreSQL | 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16         |
-| MySQL      | 8.0, 8.4, Innovation   | 8.0, 8.4, Innovation       |
-| SQLite     | 3.15.0+                | 3.15.0+                    |
+|            | Main version (dev)     | Stable version (3.0.0) |
+|------------|------------------------|------------------------|
+| Python     | 3.9, 3.10, 3.11, 3.12  | 3.9, 3.10, 3.11, 3.12  |
+| Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)        |
+| Kubernetes | 1.29, 1.30, 1.31, 1.32 | 1.29, 1.30, 1.31, 1.32 |
+| PostgreSQL | 13, 14, 15, 16, 17     | 13, 14, 15, 16, 17     |
+| MySQL      | 8.0, 8.4, Innovation   | 8.0, 8.4, Innovation   |
+| SQLite     | 3.15.0+                | 3.15.0+                |
 
 \* Experimental
 
@@ -128,15 +128,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.10.5' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.9.txt"
+pip install 'apache-airflow==3.0.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.10.5' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.9.txt"
+pip install 'apache-airflow[postgres,google]==3.0.0' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.0/constraints-3.9.txt"
 ```
 
 For information on installing provider distributions, check
