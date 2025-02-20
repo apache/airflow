@@ -24,7 +24,7 @@ from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api.datamodels.asset import (
+from airflow.api_fastapi.execution_api.datamodels.asset_event import (
     AssetEventCollectionResponse,
 )
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
