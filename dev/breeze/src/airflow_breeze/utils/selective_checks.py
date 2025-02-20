@@ -82,6 +82,7 @@ INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 LEGACY_UI_LABEL = "legacy ui"
 LEGACY_API_LABEL = "legacy api"
+LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
@@ -119,6 +120,7 @@ class FileGroupForCi(Enum):
     ALL_DOCS_PYTHON_FILES = "all_docs_python_files"
     TESTS_UTILS_FILES = "test_utils_files"
     ASSET_FILES = "asset_files"
+    UNIT_TEST_FILES = "unit_test_files"
 
 
 class AllProvidersSentinel:
@@ -258,6 +260,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/models/assets/",
             r"^task_sdk/src/airflow/sdk/definitions/asset/",
             r"^airflow/datasets/",
+        ],
+        FileGroupForCi.UNIT_TEST_FILES: [
+            r"^tests/",
+            r"^task_sdk/tests/",
+            r"^providers/.*/tests/",
         ],
     }
 )
@@ -1532,6 +1539,65 @@ class SelectiveChecks:
             sys.exit(1)
         else:
             return True
+
+    @staticmethod
+    def _check_if_log_is_mocked_in_a_file(file) -> bool:
+        """
+        Check if log is used without mock in a file
+
+        :param file: file to check
+        :return: True if log is used with mock else False
+        """
+        def_found = False
+        mock_found = False
+
+        with open(file) as f:
+            if "caplog" not in f.read():
+                return True
+
+            for line in f:
+                if "def " in line:
+                    def_found = True
+                    continue
+                elif def_found and "log" in line and "patch.object" in line:
+                    mock_found = True
+                    break
+                elif line == "\n":
+                    def_found = False
+
+        return mock_found
+
+    @cached_property
+    def is_log_mocked_in_the_tests(self) -> bool:
+        """
+        Check if log is used without mock in the tests
+        """
+        if self._is_canary_run() or self._github_event not in (
+            GithubEvents.PULL_REQUEST,
+            GithubEvents.PULL_REQUEST_TARGET,
+        ):
+            return False
+
+        # Check if changed files are unit tests
+        if self._matching_files(
+            FileGroupForCi.UNIT_TEST_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        ):
+            # Read files and check if log is used without mock
+            for file in self._files:
+                if not self._check_if_log_is_mocked_in_a_file(file=file):
+                    get_console().print(
+                        f"[error]Please use `patch.object` to mock `log` in {file}."
+                        "Using `caplog` directly can cause side effects "
+                        "and flakiness with tests and not recommended. If you think, caplog is the only way, "
+                        "please either ask maintainer to include as an exception using "
+                        f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label or please mock it."
+                        "It is up to maintainer decision to allow this exception.",
+                    )
+                    if LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL not in self._pr_labels:
+                        sys.exit(1)
+                    else:
+                        return True
+        return True
 
     @cached_property
     def force_pip(self):
