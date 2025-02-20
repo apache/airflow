@@ -302,7 +302,6 @@ labelPRBasedOnFilePath:
     - airflow/api_connexion/**/*
     - clients/**/*
     - docs/apache-airflow/stable-rest-api-ref.rst
-    - tests/api_connexion/**/*
 
   area:dev-tools:
     - scripts/**/*
