@@ -37,6 +37,7 @@ from sqlalchemy import and_, delete, exists, func, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
+from sqlalchemy.sql.functions import coalesce
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -1987,7 +1988,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .join(DM, TI.dag_id == DM.dag_id)
             .where(
                 TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
-                TI.last_heartbeat_at < limit_dttm,
+                coalesce(TI.last_heartbeat_at, TI.updated_at) < limit_dttm,
             )
             .where(TI.queued_by_job_id == self.job.id)
         ).all()
