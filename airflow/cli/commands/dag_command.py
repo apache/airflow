@@ -31,6 +31,8 @@ from typing import TYPE_CHECKING
 
 import re2
 from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
@@ -363,6 +365,34 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "next_dagrun_data_interval_end": None,
         "next_dagrun_create_after": None,
     }
+
+
+@cli_utils.action_cli
+@suppress_logs_and_warning
+@providers_configuration_loaded
+@provide_session
+def list_failed_runs():
+        """Lists failed DAG runs within the past 24 hours, grouped by dag_id, using AirflowConsole."""
+        since = timezone.make_aware(datetime.now() - timedelta(days=1))
+        dag_runs = DagRun.find(state="failed")
+
+        failed_dags = {}
+        for dag_run in dag_runs:
+            if dag_run.execution_date >= since:
+                if dag_run.dag_id not in failed_dags or dag_run.execution_date > failed_dags[dag_run.dag_id].execution_date:
+                    failed_dags[dag_run.dag_id] = dag_run
+
+        data = [
+            {
+                "DAG ID": dag_id,
+                "Last Failed Run": dag_run.execution_date,
+                "Start Date": dag_run.start_date,
+                "End Date": dag_run.end_date,
+            }
+            for dag_id, dag_run in failed_dags.items()
+        ]
+
+        AirflowConsole().print_as(data=data, output="table")
 
 
 @cli_utils.action_cli
