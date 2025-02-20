@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.execution_time.comms import (
+        AssetEventsResult,
         AssetResult,
         ConnectionResult,
         PrevSuccessfulDagRunResponse,
@@ -313,13 +314,6 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
 
     def __getitem__(self, key: int | Asset | AssetAlias | AssetRef):
         from airflow.sdk.definitions.asset import Asset
-        from airflow.sdk.execution_time.comms import (
-            AssetEventCollectionResult,
-            ErrorResponse,
-            GetAssetEventByAsset,
-            GetAssetEventByAssetAlias,
-        )
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
@@ -366,7 +360,7 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
             raise AirflowRuntimeError(msg)
 
         if TYPE_CHECKING:
-            assert isinstance(msg, AssetEventCollectionResult)
+            assert isinstance(msg, AssetEventsResult)
         return [AssetEvent(**event) for event in msg.model_dump()["asset_events"]]
 
 
