@@ -21,7 +21,7 @@ import logging
 from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Query, Response, status
-from pydantic import JsonValue
+from pydantic import JsonValue, StringConstraints
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -119,23 +119,11 @@ def get_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, StringConstraints(min_length=1)],
     xcom_query: Annotated[Select, Depends(xcom_query)],
     map_index: Annotated[int, Query()] = -1,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
-
-    # Validate that the provided key is not empty
-    # An empty key is not a valid XCom identifier and would lead to unintended queries
-    if not key:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "invalid_key",
-                "message": "XCom key must be a non-empty string.",
-            },
-        )
-
     # The xcom_query allows no map_index to be passed. This endpoint should always return just a single item,
     # so we override that query value
     xcom_query = xcom_query.filter(BaseXCom.map_index == map_index)
@@ -170,7 +158,7 @@ def set_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, StringConstraints(min_length=1)],
     value: Annotated[
         JsonValue,
         Body(
@@ -200,17 +188,6 @@ def set_xcom(
 ):
     """Set an Airflow XCom."""
     from airflow.configuration import conf
-
-    # Validate that the provided key is not empty
-    # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.
-    if not key:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "invalid_key",
-                "message": "XCom key must be a non-empty string.",
-            },
-        )
 
     if not has_xcom_access(dag_id, run_id, task_id, key, token, write=True):
         raise HTTPException(
