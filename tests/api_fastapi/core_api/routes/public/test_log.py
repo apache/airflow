@@ -165,12 +165,12 @@ class TestTaskInstancesLog:
         )
         expected_filename = f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt={try_number}.log"
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
-        assert "[('localhost'," in response.json()["content"]
-        assert f"*** Found local files:\\n***   * {expected_filename}\\n" in response.json()["content"]
-        assert f"{log_content}')]" in response.json()["content"]
 
-        info = serializer.loads(response.json()["continuation_token"])
-        assert info == {"end_of_log": True, "log_pos": 16 if try_number == 1 else 18}
+        resp_contnt = response.json()["content"]
+        assert expected_filename in resp_contnt[0]["sources"]
+        assert log_content in resp_contnt[2]["event"]
+
+        assert response.json()["continuation_token"] is None
         assert response.status_code == 200
 
     @pytest.mark.parametrize(
@@ -220,9 +220,10 @@ class TestTaskInstancesLog:
         assert response.status_code == 200
 
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
-        assert "localhost\n" in response.content.decode("utf-8")
-        assert f"*** Found local files:\n***   * {expected_filename}\n" in response.content.decode("utf-8")
-        assert f"{log_content}\n" in response.content.decode("utf-8")
+        resp_content = response.content.decode("utf-8")
+
+        assert expected_filename in resp_content
+        assert log_content in resp_content
 
     @pytest.mark.parametrize(
         "request_url, expected_filename, extra_query_string, try_number",
@@ -275,9 +276,9 @@ class TestTaskInstancesLog:
         assert response.status_code == 200
 
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
-        assert "localhost\n" in response.content.decode("utf-8")
-        assert f"*** Found local files:\n***   * {expected_filename}\n" in response.content.decode("utf-8")
-        assert f"{log_content}\n" in response.content.decode("utf-8")
+        resp_content = response.content.decode("utf-8")
+        assert expected_filename in resp_content
+        assert log_content in resp_content
 
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_get_logs_response_with_ti_equal_to_none(self, try_number):
@@ -295,10 +296,10 @@ class TestTaskInstancesLog:
     @pytest.mark.parametrize("try_number", [1, 2])
     def test_get_logs_with_metadata_as_download_large_file(self, try_number):
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read") as read_mock:
-            first_return = ([[("", "1st line")]], [{}])
-            second_return = ([[("", "2nd line")]], [{"end_of_log": False}])
-            third_return = ([[("", "3rd line")]], [{"end_of_log": True}])
-            fourth_return = ([[("", "should never be read")]], [{"end_of_log": True}])
+            first_return = (["", "1st line"], {})
+            second_return = (["", "2nd line"], {"end_of_log": False})
+            third_return = (["", "3rd line"], {"end_of_log": True})
+            fourth_return = (["", "should never be read"], {"end_of_log": True})
             read_mock.side_effect = [first_return, second_return, third_return, fourth_return]
 
             response = self.client.get(
