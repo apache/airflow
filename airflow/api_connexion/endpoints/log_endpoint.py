@@ -67,10 +67,7 @@ def get_log(
     if metadata.get("download_logs") and metadata["download_logs"]:
         full_content = True
 
-    if full_content:
-        metadata["download_logs"] = True
-    else:
-        metadata["download_logs"] = False
+    metadata["download_logs"] = full_content
 
     task_log_reader = TaskLogReader()
 
@@ -116,11 +113,18 @@ def get_log(
     logs: Any
     if return_type == "application/json" or return_type is None:  # default
         logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
-        logs = logs[0] if task_try_number is not None else logs
-        # we must have token here, so we can safely ignore it
-        token = URLSafeSerializer(key).dumps(metadata)  # type: ignore[assignment]
-        return logs_schema.dump(LogResponseObject(continuation_token=token, content=logs))
-    # text/plain. Stream
-    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
+        encoded_token = None
+        if not metadata.get("end_of_log", False):
+            encoded_token = URLSafeSerializer(key).dumps(metadata)
+        return logs_schema.dump(LogResponseObject(continuation_token=encoded_token, content=logs))
 
-    return Response(logs, headers={"Content-Type": return_type})
+    # text/plain, or something else we don't understand. Return raw log content
+
+    # We need to exhaust the iterator before we can generate the continuation token.
+    # We could improve this by making it a streaming/async response, and by then setting the header using
+    # HTTP Trailers
+    logs = "".join(task_log_reader.read_log_stream(ti, task_try_number, metadata))
+    headers = None
+    if not metadata.get("end_of_log", False):
+        headers = {"Airflow-Continuation-Token": URLSafeSerializer(key).dumps(metadata)}
+    return Response(mimetype="application/x-ndjson", response=logs, headers=headers)

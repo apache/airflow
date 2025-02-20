@@ -165,7 +165,6 @@ class TestTaskInstancesLog:
         )
         expected_filename = f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt={try_number}.log"
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
-
         resp_contnt = response.json()["content"]
         assert expected_filename in resp_contnt[0]["sources"]
         assert log_content in resp_contnt[2]["event"]
