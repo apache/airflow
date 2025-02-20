@@ -28,6 +28,7 @@ const tabs = [
   { label: "Overview", value: "" },
   { label: "Runs", value: "runs" },
   { label: "Tasks", value: "tasks" },
+  { label: "Backfills", value: "backfills" },
   { label: "Events", value: "events" },
   { label: "Code", value: "code" },
 ];
