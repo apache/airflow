@@ -28,6 +28,7 @@ from airflow.models.dag import DAG
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.providers.http.triggers.http import HttpSensorTrigger
+from airflow.sensors.base import PokeReturnValue
 from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
@@ -64,6 +65,33 @@ class TestHttpSensor:
         )
         with pytest.raises(AirflowException, match="AirflowException raised here!"):
             task.execute(context={})
+
+    @patch("airflow.providers.http.hooks.http.requests.Session.send")
+    def test_poke_xcom_value(self, mock_session_send, create_task_of_operator):
+        """
+        XCom value can be generated via response_check
+        """
+        response = requests.Response()
+        response.status_code = 200
+        response._content = b'{"data": "somedata"}'
+        response.headers["Content-Type"] = "application/json"
+        mock_session_send.return_value = response
+
+        def resp_check(rsp):
+            return PokeReturnValue(is_done=True, xcom_value=rsp.json()["data"])
+
+        task = create_task_of_operator(
+            HttpSensor,
+            dag_id="http_sensor_poke_exception",
+            task_id="http_sensor_poke_exception",
+            http_conn_id="http_default",
+            endpoint="",
+            request_params={},
+            response_check=resp_check,
+            timeout=5,
+            poke_interval=1,
+        )
+        assert task.execute(context={}) == "somedata"
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_poke_continues_for_http_500_with_extra_options_check_response_false(
