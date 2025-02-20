@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowFailException, AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.sensors.base import BaseSensorOperator
@@ -137,7 +137,7 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         try:
             state = self.hook.get_export_task_state(self.export_task_identifier)
             if state in self.error_statuses:
-                raise AirflowFailException(
+                raise AirflowException(
                     f"Export task {self.export_task_identifier} failed with status {state}"
                 )
 

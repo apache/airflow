@@ -21,7 +21,7 @@ from unittest.mock import patch
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowFailException
+from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.sensors.rds import (
@@ -243,7 +243,7 @@ class TestRdsExportTaskExistenceSensor:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
-        with pytest.raises(AirflowFailException):
+        with pytest.raises(AirflowException):
             op.poke(None)
 
         assert "failed" in op.error_statuses
