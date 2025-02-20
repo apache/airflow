@@ -167,14 +167,14 @@ These can be useful if your code has extra knowledge about its environment and w
 
 .. _concepts:zombies:
 
-Zombie Tasks
-------------
+Task Heartbeat Timeout
+----------------------
 
 No system runs perfectly, and task instances are expected to die once in a while.
 
-*Zombie tasks* are ``TaskInstances`` stuck in a ``running`` state despite their associated jobs being inactive
-(e.g. their process did not send a recent heartbeat as it got killed, or the machine died). Airflow will find these
-periodically, clean them up, and either fail or retry the task depending on its settings. Tasks can become zombies for
+``TaskInstances`` may get stuck in a ``running`` state despite their associated jobs being inactive
+(for example if the ``TaskInstance``'s worker ran out of memory). Such tasks were formerly known as zombie tasks. Airflow will find these
+periodically, clean them up, and mark the ``TaskInstance`` as failed or retry it if it has available retries. The ``TaskInstance``'s heartbeat can timeout for
 many reasons, including:
 
 * The Airflow worker ran out of memory and was OOMKilled.
@@ -182,10 +182,10 @@ many reasons, including:
 * The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
 
 
-Reproducing zombie tasks locally
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Reproducing task heartbeat timeouts locally
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you'd like to reproduce zombie tasks for development/testing processes, follow the steps below:
+If you'd like to reproduce local task job heartbeat timeouts for development/testing processes, follow the steps below:
 
 1. Set the below environment variables for your local Airflow setup (alternatively you could tweak the corresponding config values in airflow.cfg)
 
@@ -216,7 +216,7 @@ If you'd like to reproduce zombie tasks for development/testing processes, follo
     sleep_dag()
 
 
-Run the above DAG and wait for a while. You should see the task instance becoming a zombie task and then being killed by the scheduler.
+Run the above DAG and wait for a while. The ``TaskInstance`` will be marked failed after <scheduler_zombie_task_threshold> seconds.
 
 
 
