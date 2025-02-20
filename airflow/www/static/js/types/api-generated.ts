@@ -4838,8 +4838,8 @@ export interface operations {
       200: {
         content: {
           "application/json": {
-            continuation_token?: string;
-            content?: string;
+            continuation_token?: string | null;
+            content?: string[];
           };
           "text/plain": string;
         };
