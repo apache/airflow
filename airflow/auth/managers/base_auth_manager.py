@@ -29,8 +29,8 @@ from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
+from airflow.security.tokens import JWTGenerator, JWTValidator, get_signing_key
 from airflow.typing_compat import Literal
-from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -102,13 +102,13 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """Create a user object from dict."""
 
     @abstractmethod
-    def serialize_user(self, user: T) -> dict[str, Any]:
-        """Create a dict from a user object."""
+    def serialize_user(self, user: T) -> tuple[str, dict[str, Any]]:
+        """Create a subject and extra claims dict from a user object."""
 
     def get_user_from_token(self, token: str) -> BaseUser:
         """Verify the JWT token is valid and create a user object from it if valid."""
         try:
-            payload: dict[str, Any] = self._get_token_signer().verify_token(token)
+            payload: dict[str, Any] = self._get_token_validator().validated_claims(token)
             return self.deserialize_user(payload)
         except InvalidTokenError as e:
             log.error("JWT token is not valid")
@@ -116,7 +116,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
 
     def get_jwt_token(self, user: T) -> str:
         """Return the JWT token from a user object."""
-        return self._get_token_signer().generate_signed_token(self.serialize_user(user))
+        return self._get_token_signer().generate(*self.serialize_user(user))
 
     def get_user_id(self) -> str | None:
         """Return the user ID associated to the user in session."""
@@ -457,14 +457,28 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """Register views specific to the auth manager."""
 
     @staticmethod
-    def _get_token_signer():
+    def _get_token_signer() -> JWTGenerator:
         """
         Return the signer used to sign JWT token.
 
         :meta private:
         """
-        return JWTSigner(
-            secret_key=get_signing_key("api", "auth_jwt_secret"),
-            expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
+        return JWTGenerator(
+            secret_key=get_signing_key("api_auth", "jwt_secret"),
+            valid_for=conf.getint("api", "auth_jwt_expiration_time"),
+            audience="front-apis",
+        )
+
+    @staticmethod
+    def _get_token_validator() -> JWTValidator:
+        """
+        Return the signer used to sign JWT token.
+
+        :meta private:
+        """
+        return JWTValidator(
+            # issuer=conf.get("api_auth", "jwt_iussuer"),
+            secret_key=get_signing_key("api_auth", "jwt_secret"),
+            leeway=conf.getint("api", "auth_jwt_expiration_time"),
             audience="front-apis",
         )

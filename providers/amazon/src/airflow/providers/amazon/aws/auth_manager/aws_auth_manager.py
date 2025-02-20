@@ -93,11 +93,10 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return "aws_user" in session
 
     def deserialize_user(self, token: dict[str, Any]) -> AwsAuthManagerUser:
-        return AwsAuthManagerUser(**token)
+        return AwsAuthManagerUser(user_id=token.pop("sub"), **token)
 
     def serialize_user(self, user: AwsAuthManagerUser) -> dict[str, Any]:
-        return {
-            "user_id": user.get_id(),
+        return user.get_id(), {
             "groups": user.get_groups(),
             "username": user.username,
             "email": user.email,

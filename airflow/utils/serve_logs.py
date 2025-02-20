@@ -36,8 +36,8 @@ from setproctitle import setproctitle
 from werkzeug.exceptions import HTTPException
 
 from airflow.configuration import conf
+from airflow.security.tokens import JWTValidator
 from airflow.utils.docs import get_docs_url
-from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.module_loading import import_string
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,6 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     flask_app = Flask(__name__, static_folder=None)
-    expiration_time_in_seconds = conf.getint("webserver", "log_request_clock_grace", fallback=30)
     log_directory = os.path.expanduser(conf.get("logging", "BASE_LOG_FOLDER"))
     log_config_class = conf.get("logging", "logging_config_class")
     if log_config_class:
@@ -70,9 +69,9 @@ def create_app():
                 )
         except Exception as e:
             raise ImportError(f"Unable to load {log_config_class} due to error: {e}")
-    signer = JWTSigner(
+    signer = JWTValidator(
+        issuer=None,
         secret_key=conf.get("webserver", "secret_key"),
-        expiration_time_in_seconds=expiration_time_in_seconds,
         audience="task-instance-logs",
     )
 
@@ -84,7 +83,7 @@ def create_app():
             if auth is None:
                 logger.warning("The Authorization header is missing: %s.", request.headers)
                 abort(403)
-            payload = signer.verify_token(auth)
+            payload = signer.validated_claims(auth)
             token_filename = payload.get("filename")
             request_filename = request.view_args["filename"]
             if token_filename is None:
