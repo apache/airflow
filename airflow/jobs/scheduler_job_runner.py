@@ -872,11 +872,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     task_log_reader = TaskLogReader()
                     if task_log_reader.supports_read:
-                        hosts: list[str] = []
-                        log_streams: list[Iterable[str]]
-                        metadata: dict[str, Any] = {}
                         hosts, log_streams, metadata = task_log_reader.read_log_chunks(
-                            ti, ti.try_number, metadata
+                            ti, ti.try_number, None
                         )
                         if ti.hostname in hosts:
                             message = str(next(iter(log_streams[0])))

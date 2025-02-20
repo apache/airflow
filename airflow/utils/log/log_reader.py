@@ -62,9 +62,6 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
-        hosts: list[str]
-        log_streams: list[Iterable[str]]
-        metadata_array: list[dict[str, Any]]
         hosts, log_streams, metadata_array = self.log_handler.read(ti, try_number, metadata=metadata)
         metadata = metadata_array[0]
         return hosts, log_streams, metadata
