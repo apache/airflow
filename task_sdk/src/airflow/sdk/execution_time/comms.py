@@ -367,25 +367,15 @@ class GetAssetByUri(BaseModel):
     type: Literal["GetAssetByUri"] = "GetAssetByUri"
 
 
-class GetAssetEventByNameUri(BaseModel):
-    name: str
-    uri: str
-    type: Literal["GetAssetEventByNameUri"] = "GetAssetEventByNameUri"
+class GetAssetEventByAsset(BaseModel):
+    name: str | None
+    uri: str | None
+    type: Literal["GetAssetEventByAsset"] = "GetAssetEventByAsset"
 
 
-class GetAssetEventByName(BaseModel):
-    name: str
-    type: Literal["GetAssetEventByName"] = "GetAssetEventByName"
-
-
-class GetAssetEventByUri(BaseModel):
-    uri: str
-    type: Literal["GetAssetEventByUri"] = "GetAssetEventByUri"
-
-
-class GetAssetEventByAliasName(BaseModel):
+class GetAssetEventByAssetAlias(BaseModel):
     alias_name: str
-    type: Literal["GetAssetEventByAliasName"] = "GetAssetEventByAliasName"
+    type: Literal["GetAssetEventByAssetAlias"] = "GetAssetEventByAssetAlias"
 
 
 class GetPrevSuccessfulDagRun(BaseModel):
@@ -399,10 +389,8 @@ ToSupervisor = Annotated[
         DeferTask,
         GetAssetByName,
         GetAssetByUri,
-        GetAssetEventByNameUri,
-        GetAssetEventByName,
-        GetAssetEventByUri,
-        GetAssetEventByAliasName,
+        GetAssetEventByAsset,
+        GetAssetEventByAssetAlias,
         GetConnection,
         GetPrevSuccessfulDagRun,
         GetVariable,
