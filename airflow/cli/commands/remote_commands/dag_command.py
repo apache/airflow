@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 """Dag sub-commands."""
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ import sys
 from typing import TYPE_CHECKING
 
 import re2
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow.api.client import get_current_api_client
 from airflow.api_connexion.schemas.dag_schema import dag_schema
@@ -38,6 +39,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli as cli_utils, timezone
@@ -224,6 +226,8 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     return {
         "dag_id": dag.dag_id,
         "dag_display_name": dag.dag_display_name,
+        "bundle_name": dag.get_bundle_name(),
+        "bundle_version": dag.get_bundle_version(),
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),
         "last_parsed_time": None,
@@ -322,11 +326,12 @@ def dag_next_execution(args) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_list_dags(args, session=NEW_SESSION) -> None:
+def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
     cols = args.columns if args.columns else []
     invalid_cols = [c for c in cols if c not in dag_schema.fields]
     valid_cols = [c for c in cols if c in dag_schema.fields]
+
     if invalid_cols:
         from rich import print as rich_print
 
@@ -335,8 +340,18 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
             f"List of valid columns: {list(dag_schema.fields.keys())}",
             file=sys.stderr,
         )
-    dagbag = DagBag(process_subdir(args.subdir))
-    if dagbag.import_errors:
+
+    dagbag = DagBag(read_dags_from_db=True)
+    dagbag.collect_dags_from_db()
+
+    # Get import errors from the DB
+    query = select(func.count()).select_from(ParseImportError)
+    if args.bundle_name:
+        query = query.where(ParseImportError.bundle_name.in_(args.bundle_name))
+
+    dagbag_import_errors = session.scalar(query)
+
+    if dagbag_import_errors > 0:
         from rich import print as rich_print
 
         rich_print(
@@ -353,8 +368,19 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
             dag_detail = _get_dagbag_dag_details(dag)
         return {col: dag_detail[col] for col in valid_cols}
 
+    def filter_dags_by_bundle(dags: list[DAG], bundle_names: list[str] | None) -> list[DAG]:
+        """Filter DAGs based on the specified bundle name, if provided."""
+        if not bundle_names:
+            return dags
+
+        validate_dag_bundle_arg(bundle_names)
+        return [dag for dag in dags if dag.get_bundle_name() in bundle_names]
+
     AirflowConsole().print_as(
-        data=sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id")),
+        data=sorted(
+            filter_dags_by_bundle(list(dagbag.dags.values()), args.bundle_name),
+            key=operator.attrgetter("dag_id"),
+        ),
         output=args.output,
         mapper=get_dag_detail,
     )
@@ -364,7 +390,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def dag_details(args, session=NEW_SESSION):
+def dag_details(args, session: Session = NEW_SESSION):
     """Get DAG details given a DAG id."""
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
     if not dag:

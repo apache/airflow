@@ -167,6 +167,8 @@ class TestGetDag(TestDagEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "dag_id": "TEST_DAG_1",
+            "bundle_name": None,
+            "bundle_version": None,
             "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
@@ -205,6 +207,8 @@ class TestGetDag(TestDagEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "dag_id": "TEST_DAG_1",
+            "bundle_name": None,
+            "bundle_version": None,
             "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
@@ -292,6 +296,8 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "dag_id": "test_dag",
+            "bundle_name": None,
+            "bundle_version": None,
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "asset_expression": None,
@@ -347,6 +353,8 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "dag_id": "test_dag",
+            "bundle_name": None,
+            "bundle_version": None,
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "asset_expression": {
@@ -407,6 +415,8 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "dag_id": "test_dag2",
+            "bundle_name": None,
+            "bundle_version": None,
             "dag_display_name": "test_dag2",
             "dag_run_timeout": None,
             "asset_expression": None,
@@ -455,6 +465,8 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "dag_id": "test_dag3",
+            "bundle_name": None,
+            "bundle_version": None,
             "dag_display_name": "test_dag3",
             "dag_run_timeout": None,
             "asset_expression": None,
@@ -506,6 +518,8 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "dag_id": "test_dag",
+            "bundle_name": None,
+            "bundle_version": None,
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "asset_expression": None,
@@ -564,6 +578,8 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "dag_id": "test_dag",
+            "bundle_name": None,
+            "bundle_version": None,
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
             "asset_expression": None,
@@ -673,6 +689,8 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -698,6 +716,8 @@ class TestGetDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
@@ -735,6 +755,8 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -773,6 +795,8 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -798,6 +822,8 @@ class TestGetDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_DELETED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_del_1.py",
@@ -952,6 +978,8 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_PAUSED_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_PAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -989,6 +1017,8 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_UNPAUSED_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_UNPAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -1026,6 +1056,8 @@ class TestGetDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_PAUSED_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_PAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -1051,6 +1083,8 @@ class TestGetDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_UNPAUSED_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_UNPAUSED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -1138,6 +1172,8 @@ class TestPatchDag(TestDagEndpoint):
         assert response.status_code == 200
         expected_response = {
             "dag_id": "TEST_DAG_1",
+            "bundle_name": None,
+            "bundle_version": None,
             "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
@@ -1234,6 +1270,8 @@ class TestPatchDag(TestDagEndpoint):
         assert response.status_code == 200
         expected_response = {
             "dag_id": "TEST_DAG_1",
+            "bundle_name": None,
+            "bundle_version": None,
             "dag_display_name": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
@@ -1326,6 +1364,8 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -1351,6 +1391,8 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
@@ -1401,6 +1443,8 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -1426,6 +1470,8 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
@@ -1516,6 +1562,8 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -1562,6 +1610,8 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -1587,6 +1637,8 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_DELETED_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_DELETED_1",
                     "description": None,
                     "fileloc": "/tmp/dag_del_1.py",
@@ -1783,6 +1835,8 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -1808,6 +1862,8 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_2",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
@@ -1854,6 +1910,8 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
@@ -1879,6 +1937,8 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_10",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_10",
                     "description": None,
                     "fileloc": "/tmp/dag_10.py",
@@ -1927,6 +1987,8 @@ class TestPatchDags(TestDagEndpoint):
             "dags": [
                 {
                     "dag_id": "TEST_DAG_2",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
@@ -1952,6 +2014,8 @@ class TestPatchDags(TestDagEndpoint):
                 },
                 {
                     "dag_id": "TEST_DAG_1",
+                    "bundle_name": None,
+                    "bundle_version": None,
                     "dag_display_name": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",

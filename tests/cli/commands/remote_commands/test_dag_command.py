@@ -274,12 +274,17 @@ class TestCliDags:
         assert "Ignoring the following invalid columns: ['invalid_col']" in out
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_dags_prints_import_errors(self):
-        dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
-        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
-        with contextlib.redirect_stderr(StringIO()) as temp_stderr:
-            dag_command.dag_list_dags(args)
-            out = temp_stderr.getvalue()
+    def test_cli_list_dags_prints_import_errors(self, configure_testing_dag_bundle, get_test_dag):
+        path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
+        get_test_dag("test_invalid_cron")
+
+        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--bundle-name", "testing"])
+
+        with configure_testing_dag_bundle(path_to_parse):
+            with contextlib.redirect_stderr(StringIO()) as temp_stderr:
+                dag_command.dag_list_dags(args)
+                out = temp_stderr.getvalue()
+
         assert "Failed to load all files." in out
 
     @conf_vars({("core", "load_examples"): "true"})
@@ -305,7 +310,9 @@ class TestCliDags:
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_import_errors(self):
         dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
-        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--output", "yaml", "--subdir", dag_path]
+        )
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             with pytest.raises(SystemExit) as err_ctx:
                 dag_command.dag_list_import_errors(args)
