@@ -20,7 +20,15 @@
 DAGs
 ====
 
-A *DAG* (Directed Acyclic Graph) is the core concept of Airflow, collecting :doc:`tasks` together, organized with dependencies and relationships to say how they should run.
+A *DAG* is the core concept of Airflow. A DAG is a model that encapsulates everything needed to execute a workflow:
+
+* **Schedule**: When the workflow should run.
+* **Task Dependencies**: The order and conditions under which :doc:`tasks` execute.
+* **Completion Behavior**: Actions to take when the entire workflow completes.
+* **Error Handling**: Actions to take when a task fails.
+* **Additional Parameters**: And many other operational details.
+
+The term "DAG" comes from the mathematical concept "directed acyclic graph", but the meaning in Airflow has evolved well beyond just the literal data structure associated with the mathematical DAG concept.
 
 Here's a basic example DAG:
 
