@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import PipelineJob
@@ -50,7 +51,7 @@ if TYPE_CHECKING:
     from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListPipelineJobsPager
 
 
-class PipelineJobHook(GoogleBaseHook):
+class PipelineJobHook(GoogleBaseHook, OperationHelper):
     """Hook for Google Cloud Vertex AI Pipeline Job APIs."""
 
     def __init__(
@@ -110,14 +111,6 @@ class PipelineJobHook(GoogleBaseHook):
             location=location,
             failure_policy=failure_policy,
         )
-
-    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     def cancel_pipeline_job(self) -> None:
         """Cancel PipelineJob."""
