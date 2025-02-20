@@ -69,6 +69,54 @@ To update cluster you can use
     :start-after: [START how_to_cloud_managed_kafka_update_cluster_operator]
     :end-before: [END how_to_cloud_managed_kafka_update_cluster_operator]
 
+Interacting with Apache Kafka Topics
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create an Apache Kafka topic you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaCreateTopicOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_create_topic_operator]
+    :end-before: [END how_to_cloud_managed_kafka_create_topic_operator]
+
+To delete topic you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaDeleteTopicOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_delete_topic_operator]
+    :end-before: [END how_to_cloud_managed_kafka_delete_topic_operator]
+
+To get topic you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaGetTopicOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_get_topic_operator]
+    :end-before: [END how_to_cloud_managed_kafka_get_topic_operator]
+
+To get a list of topics you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaListTopicsOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_list_topic_operator]
+    :end-before: [END how_to_cloud_managed_kafka_list_topic_operator]
+
+To update topic you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaUpdateTopicOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_topic.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_update_topic_operator]
+    :end-before: [END how_to_cloud_managed_kafka_update_topic_operator]
+
 Reference
 ^^^^^^^^^
 

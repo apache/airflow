@@ -22,11 +22,13 @@ from unittest import mock
 from airflow.providers.google.cloud.links.managed_kafka import (
     ApacheKafkaClusterLink,
     ApacheKafkaClusterListLink,
+    ApacheKafkaTopicLink,
 )
 
 TEST_LOCATION = "test-location"
 TEST_CLUSTER_ID = "test-cluster-id"
 TEST_PROJECT_ID = "test-project-id"
+TEST_TOPIC_ID = "test-topic-id"
 EXPECTED_MANAGED_KAFKA_CLUSTER_LINK_NAME = "Apache Kafka Cluster"
 EXPECTED_MANAGED_KAFKA_CLUSTER_LINK_KEY = "cluster_conf"
 EXPECTED_MANAGED_KAFKA_CLUSTER_LINK_FORMAT_STR = (
@@ -35,6 +37,11 @@ EXPECTED_MANAGED_KAFKA_CLUSTER_LINK_FORMAT_STR = (
 EXPECTED_MANAGED_KAFKA_CLUSTER_LIST_LINK_NAME = "Apache Kafka Cluster List"
 EXPECTED_MANAGED_KAFKA_CLUSTER_LIST_LINK_KEY = "cluster_list_conf"
 EXPECTED_MANAGED_KAFKA_CLUSTER_LIST_LINK_FORMAT_STR = "/managedkafka/clusters?project={project_id}"
+EXPECTED_MANAGED_KAFKA_TOPIC_LINK_NAME = "Apache Kafka Topic"
+EXPECTED_MANAGED_KAFKA_TOPIC_LINK_KEY = "topic_conf"
+EXPECTED_MANAGED_KAFKA_TOPIC_LINK_FORMAT_STR = (
+    "/managedkafka/{location}/clusters/{cluster_id}/topics/{topic_id}?project={project_id}"
+)
 
 
 class TestApacheKafkaClusterLink:
@@ -84,6 +91,37 @@ class TestApacheKafkaClusterListLink:
             context=mock_context,
             key=EXPECTED_MANAGED_KAFKA_CLUSTER_LIST_LINK_KEY,
             value={
+                "project_id": TEST_PROJECT_ID,
+            },
+        )
+
+
+class TestApacheKafkaTopicLink:
+    def test_class_attributes(self):
+        assert ApacheKafkaTopicLink.key == EXPECTED_MANAGED_KAFKA_TOPIC_LINK_KEY
+        assert ApacheKafkaTopicLink.name == EXPECTED_MANAGED_KAFKA_TOPIC_LINK_NAME
+        assert ApacheKafkaTopicLink.format_str == EXPECTED_MANAGED_KAFKA_TOPIC_LINK_FORMAT_STR
+
+    def test_persist(self):
+        mock_context, mock_task_instance = (
+            mock.MagicMock(),
+            mock.MagicMock(location=TEST_LOCATION, project_id=TEST_PROJECT_ID),
+        )
+
+        ApacheKafkaTopicLink.persist(
+            context=mock_context,
+            task_instance=mock_task_instance,
+            cluster_id=TEST_CLUSTER_ID,
+            topic_id=TEST_TOPIC_ID,
+        )
+
+        mock_task_instance.xcom_push.assert_called_once_with(
+            context=mock_context,
+            key=EXPECTED_MANAGED_KAFKA_TOPIC_LINK_KEY,
+            value={
+                "location": TEST_LOCATION,
+                "cluster_id": TEST_CLUSTER_ID,
+                "topic_id": TEST_TOPIC_ID,
                 "project_id": TEST_PROJECT_ID,
             },
         )

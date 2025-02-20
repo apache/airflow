@@ -27,12 +27,12 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.managedkafka_v1 import Cluster, ManagedKafkaClient, types
+from google.cloud.managedkafka_v1 import Cluster, ManagedKafkaClient, Topic, types
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
-    from google.cloud.managedkafka_v1.services.managed_kafka.pagers import ListClustersPager
+    from google.cloud.managedkafka_v1.services.managed_kafka.pagers import ListClustersPager, ListTopicsPager
     from google.protobuf.field_mask_pb2 import FieldMask
 
 
@@ -286,3 +286,197 @@ class ManagedKafkaHook(GoogleBaseHook):
             metadata=metadata,
         )
         return operation
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_topic(
+        self,
+        project_id: str,
+        location: str,
+        cluster_id: str,
+        topic_id: str,
+        topic: types.Topic | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> types.Topic:
+        """
+        Create a new topic in a given project and location.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud region that the service belongs to.
+        :param cluster_id: Required. The ID of the cluster in which to create the topic.
+        :param topic_id: Required. The ID to use for the topic, which will become the final component of the
+            topic's name.
+        :param topic: Required. Configuration of the topic to create.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_managed_kafka_client()
+        parent = client.cluster_path(project_id, location, cluster_id)
+
+        result = client.create_topic(
+            request={
+                "parent": parent,
+                "topic_id": topic_id,
+                "topic": topic,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_topics(
+        self,
+        project_id: str,
+        location: str,
+        cluster_id: str,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> ListTopicsPager:
+        """
+        List the topics in a given cluster.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud region that the service belongs to.
+        :param cluster_id: Required. The ID of the cluster whose topics are to be listed.
+        :param page_size: Optional. The maximum number of topics to return. The service may return fewer than
+            this value. If unset or zero, all topics for the parent is returned.
+        :param page_token: Optional. A page token, received from a previous ``ListTopics`` call. Provide this
+            to retrieve the subsequent page. When paginating, all other parameters provided to ``ListTopics``
+            must match the call that provided the page token.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_managed_kafka_client()
+        parent = client.cluster_path(project_id, location, cluster_id)
+
+        result = client.list_topics(
+            request={
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_topic(
+        self,
+        project_id: str,
+        location: str,
+        cluster_id: str,
+        topic_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> types.Topic:
+        """
+        Return the properties of a single topic.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud region that the service belongs to.
+        :param cluster_id: Required. The ID of the cluster whose topic is to be returned.
+        :param topic_id: Required. The ID of the topic whose configuration to return.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_managed_kafka_client()
+        name = client.topic_path(project_id, location, cluster_id, topic_id)
+
+        result = client.get_topic(
+            request={
+                "name": name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_topic(
+        self,
+        project_id: str,
+        location: str,
+        cluster_id: str,
+        topic_id: str,
+        topic: types.Topic | dict,
+        update_mask: FieldMask | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> types.Topic:
+        """
+        Update the properties of a single topic.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud region that the service belongs to.
+        :param cluster_id: Required. The ID of the cluster whose topic is to be updated.
+        :param topic_id: Required. The ID of the topic whose configuration to update.
+        :param topic: Required. The topic to update. Its ``name`` field must be populated.
+        :param update_mask: Required. Field mask is used to specify the fields to be overwritten in the Topic
+            resource by the update. The fields specified in the update_mask are relative to the resource, not
+            the full request. A field will be overwritten if it is in the mask.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_managed_kafka_client()
+        _topic = deepcopy(topic) if isinstance(topic, dict) else Topic.to_dict(topic)
+        _topic["name"] = client.topic_path(project_id, location, cluster_id, topic_id)
+
+        result = client.update_topic(
+            request={
+                "update_mask": update_mask,
+                "topic": _topic,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_topic(
+        self,
+        project_id: str,
+        location: str,
+        cluster_id: str,
+        topic_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> None:
+        """
+        Delete a single topic.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud region that the service belongs to.
+        :param cluster_id: Required. The ID of the cluster whose topic is to be deleted.
+        :param topic_id: Required. The ID of the topic to delete.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = self.get_managed_kafka_client()
+        name = client.topic_path(project_id, location, cluster_id, topic_id)
+
+        client.delete_topic(
+            request={
+                "name": name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
