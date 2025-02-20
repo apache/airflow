@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
@@ -49,8 +50,47 @@ const parseLogs = ({ data }: ParseLogsProps) => {
     return { data, warning };
   }
 
-  // eslint-disable-next-line react/no-array-index-key
-  const parsedLines = lines.map((line, index) => <p key={index}>{line}</p>);
+  let startGroup = false;
+  let groupLines: Array<string> = [];
+  let groupName = "";
+
+  // TODO: Add support for nested groups
+  /* eslint-disable react/no-array-index-key */
+  const parsedLines = lines.map((line, index) => {
+    if (line.includes("::group::") && !startGroup) {
+      startGroup = true;
+      groupName = line.split("::group::")[1] as string;
+    } else if (line.includes("::endgroup::")) {
+      startGroup = false;
+      groupLines.push(line);
+      const group = (
+        <details key={groupName}>
+          <summary data-testid={`summary-${groupName}`}>
+            <Text as="span" color="fg.info" cursor="pointer">
+              {groupName}
+            </Text>
+          </summary>
+          {groupLines.map((text, groupIndex) => (
+            <Text key={groupIndex} py={1}>
+              {text}
+            </Text>
+          ))}
+        </details>
+      );
+
+      groupLines = [];
+
+      return group;
+    }
+
+    if (startGroup) {
+      groupLines.push(line);
+
+      return undefined;
+    } else {
+      return <Text key={index}>{line}</Text>;
+    }
+  });
 
   return {
     fileSources: [],
