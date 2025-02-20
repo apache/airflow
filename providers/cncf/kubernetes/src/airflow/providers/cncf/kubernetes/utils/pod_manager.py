@@ -865,8 +865,7 @@ class PodManager(LoggingMixin):
         self.log.info("Running command... %s", command)
         resp.write_stdin(f"{command}\n")
         while resp.is_open():
-            resp.update(timeout=1)
-            while resp.peek_stdout():
+            while resp.peek_stdout(timeout=1):
                 res += resp.read_stdout()
             error_res = ""
             while resp.peek_stderr():
