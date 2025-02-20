@@ -26,7 +26,12 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, NoReturn, SupportsAbs
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, return_single_query_results
+from airflow.providers.common.sql.hooks.sql import (
+    DbApiHook,
+    default_output_processor,
+    fetch_all_handler,
+    return_single_query_results,
+)
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -114,32 +119,6 @@ _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "trino": "3.1.0",
     "vertica": "3.1.0",
 }
-
-
-def default_output_processor(results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
-    return results
-
-
-def output_processor_with_column_names(
-    results: list[Any], descriptions: list[Sequence[Sequence] | None]
-) -> list[tuple[Any, list[str]]]:
-    """
-    Returns both the data and column names when used as output_processor of the SQLExecuteQueryOperator.
-
-    Args:
-        results (list[Any]): The data outputs of the executed queries.
-        descriptions (list[Sequence[Sequence] | None]): The column descriptions of the executed queries (description attribute of the corresponding cursor).
-
-    Returns:
-        list[tuple[Any, list[str]]]: A list with an item for each SQL statement that was executed.
-        Each list item is a tuple of 1. the data and 2. the corresponding column names resulting from the SQL statement in question.
-    """
-    column_names = [
-        [single_col_desc[0] for single_col_desc in query_col_desc] if query_col_desc is not None else None
-        for query_col_desc in descriptions
-    ]
-    output = list(zip(results, column_names))
-    return output
 
 
 class BaseSQLOperator(BaseOperator):
