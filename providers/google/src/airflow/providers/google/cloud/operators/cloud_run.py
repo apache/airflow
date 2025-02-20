@@ -276,6 +276,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        expose_logging_url: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -288,6 +289,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.timeout_seconds = timeout_seconds
         self.deferrable = deferrable
+        self.expose_logging_url = expose_logging_url
         self.operation: operation.Operation | None = None
 
     def execute(self, context: Context):
@@ -300,6 +302,9 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
 
         if self.operation is None:
             raise AirflowException("Operation is None")
+
+        if self.expose_logging_url:
+            self.log.info("GCP Console Logging URL: %s", self.operation.metadata.get("log_uri"))
 
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
