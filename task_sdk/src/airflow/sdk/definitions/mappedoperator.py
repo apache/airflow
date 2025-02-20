@@ -290,6 +290,7 @@ class MappedOperator(AbstractOperator):
     ui_color: str
     ui_fgcolor: str
     _is_empty: bool = attrs.field(alias="is_empty")
+    _is_skip_mixin: bool = attrs.field(alias="is_skip_mixin")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     _task_module: str
     _task_type: str
@@ -379,8 +380,13 @@ class MappedOperator(AbstractOperator):
 
     @property
     def inherits_from_empty_operator(self) -> bool:
-        """Implementing Operator."""
+        """Implementing an empty Operator."""
         return self._is_empty
+
+    @property
+    def inherits_from_skip_mixin(self) -> bool:
+        """Implementing a Skip Mixin."""
+        return self._is_skip_mixin
 
     @property
     def roots(self) -> Sequence[AbstractOperator]:
@@ -749,6 +755,8 @@ class MappedOperator(AbstractOperator):
             op.is_setup = is_setup
             op.is_teardown = is_teardown
             op.on_failure_fail_dagrun = on_failure_fail_dagrun
+            op.downstream_task_ids = self.downstream_task_ids
+            op.upstream_task_ids = self.upstream_task_ids
             return op
 
         # TODO: TaskSDK: This probably doesn't need to live in definition time as the next section of code is

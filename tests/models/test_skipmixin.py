@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 import pytest
 
 from airflow import settings
 from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowException
+from airflow.models import MappedOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -75,11 +76,38 @@ class TestSkipMixin:
             TI.end_date == now,
         ).one()
 
-    def test_skip_none_tasks(self):
+    def test_skip__no_tasks_passed(self):
         session = Mock()
-        SkipMixin().skip(dag_id="test_dag", run_id="test_run", tasks=[])
+        SkipMixin().skip(dag_id="test_dag", run_id="test_run", tasks=[], session=session)
         assert not session.query.called
         assert not session.commit.called
+
+    def test_skip__only_mapped_operators_passed(self):
+        session = Mock()
+        SkipMixin().skip(
+            dag_id="test_dag",
+            run_id="test_run",
+            tasks=[MagicMock(spec=MappedOperator)],
+            map_index=2,
+            session=session
+        )
+        assert not session.query.called
+        assert not session.commit.called
+
+    @patch("airflow.models.skipmixin.update")
+    def test_skip__only_none_mapped_operators_passed(self, mock_update):
+        session = Mock()
+        SkipMixin().skip(
+            dag_id="test_dag",
+            run_id="test_run",
+            tasks=[MagicMock(spec=MappedOperator)],
+            session=session,
+            map_index=-1,
+        )
+        session.execute.assert_called_once_with(
+            mock_update.return_value.where.return_value.values.return_value.execution_options.return_value
+        )
+        session.commit.assert_called_once()
 
     @pytest.mark.parametrize(
         "branch_task_ids, expected_states",

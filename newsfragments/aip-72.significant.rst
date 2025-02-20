@@ -42,6 +42,9 @@ As part of this change the following breaking changes have occurred:
 
   It is recommended that you replace such a custom operator with a deferrable sensor, a condition or another triggering mechanism.
 
+- The following operators subclassing ``SkipMixin`` have been adjusted to use the ``TaskExecution`` interface:
+
+  - ``airflow.standard.python.ShortCircuitOperator``
 
 * Types of change
 

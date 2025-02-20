@@ -38,7 +38,6 @@ class NotPreviouslySkippedDep(BaseTIDep):
             XCOM_SKIPMIXIN_FOLLOWED,
             XCOM_SKIPMIXIN_KEY,
             XCOM_SKIPMIXIN_SKIPPED,
-            SkipMixin,
         )
         from airflow.utils.state import TaskInstanceState
 
@@ -49,12 +48,14 @@ class NotPreviouslySkippedDep(BaseTIDep):
         finished_task_ids = {t.task_id for t in finished_tis}
 
         for parent in upstream:
-            if isinstance(parent, SkipMixin):
+            if parent.inherits_from_skip_mixin is True:
                 if parent.task_id not in finished_task_ids:
                     # This can happen if the parent task has not yet run.
                     continue
 
-                prev_result = ti.xcom_pull(task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session)
+                # TODO: Use XCom.deserialize_value instead (requires some additional adjustments)
+                import json
+                prev_result = json.loads(ti.xcom_pull(task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session) or "{}")
 
                 if prev_result is None:
                     # This can happen if the parent task has not yet run.
@@ -84,7 +85,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
                         )
                         if not past_depends_met:
                             yield self._failing_status(
-                                reason=("Task should be skipped but the past depends are not met")
+                                reason="Task should be skipped but the past depends are not met"
                             )
                             return
                     ti.set_state(TaskInstanceState.SKIPPED, session)

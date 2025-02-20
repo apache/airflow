@@ -1418,6 +1418,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
 
+    @property
+    def inherits_from_skip_mixin(self):
+        """Used to determine if an Operator is inherited from SkipMixin."""
+        return getattr(self, "_is_skip_mixin", False)
+
     def render_template_fields(
         self,
         context: Context,
