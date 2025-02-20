@@ -469,20 +469,20 @@ class TestDagBag:
         assert dag_id == dag.dag_id
         assert dagbag.process_file_calls == 2
 
-    def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path):
+    def test_dag_removed_if_serialized_dag_is_removed(self, tmp_path):
         """
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
         remove dags from the DagBag
         """
         from airflow.providers.standard.operators.empty import EmptyOperator
 
-        with dag_maker(
+        with DAG(
             dag_id="test_dag_removed_if_serialized_dag_is_removed",
             schedule=None,
             start_date=tz.datetime(2021, 10, 12),
         ) as dag:
             EmptyOperator(task_id="task_1")
-        dag_maker.create_dagrun()
+
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, read_dags_from_db=True)
         dagbag.dags = {dag.dag_id: SerializedDAG.from_dict(SerializedDAG.to_dict(dag))}
         dagbag.dags_last_fetched = {dag.dag_id: (tz.utcnow() - timedelta(minutes=2))}

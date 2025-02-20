@@ -775,6 +775,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
     if serialized_marker := request.node.get_closest_marker("want_activate_assets"):
         (want_activate_assets,) = serialized_marker.args or (True,)
 
+    if AIRFLOW_V_3_0_PLUS:
+        want_serialized = True
+
     from airflow.utils.log.logging_mixin import LoggingMixin
 
     class DagFactory(LoggingMixin, DagMaker):
@@ -790,7 +793,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.serialized_model = None
 
             self.dag.__enter__()
-            if self.want_serialized:
+            if self.want_serialized and not AIRFLOW_V_3_0_PLUS:
 
                 class DAGProxy(lazy_object_proxy.Proxy):
                     # Make `@dag.task` decorator work when need_serialized_dag marker is set
@@ -897,6 +900,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
+
             else:
                 DagRunType.ASSET_TRIGGERED = DagRunType.DATASET_TRIGGERED
 
@@ -955,9 +959,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             kwargs["run_type"] = run_type
 
             if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.dag_version import DagVersion
+
+                dag_version = DagVersion.get_latest_version(dag.dag_id, session=self.session)
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
-                kwargs.setdefault("dag_version", None)
+                kwargs["dag_version"] = kwargs.get("dag_version", dag_version)
                 kwargs.setdefault("run_after", data_interval[-1] if data_interval else timezone.utcnow())
             else:
                 kwargs.pop("dag_version", None)
@@ -1231,7 +1238,9 @@ class CreateTaskInstance(Protocol):
 
 
 @pytest.fixture
-def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) -> CreateTaskInstance:
+def create_task_instance(
+    dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG, session: Session
+) -> CreateTaskInstance:
     """
     Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc).
 
@@ -1322,6 +1331,12 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         ti.hostname = hostname or ""
         ti.pid = pid
         ti.last_heartbeat_at = last_heartbeat_at
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            dag_version = DagVersion.get_latest_version(dag_id, session=session)
+            assert dag_version
+            ti.dag_version_id = dag_version.id
         dag_maker.session.flush()
         return ti
 
@@ -1411,9 +1426,8 @@ def session():
 
 
 @pytest.fixture
-def get_test_dag():
+def get_test_dag(session):
     def _get(dag_id: str):
-        from airflow import settings
         from airflow.models.dagbag import DagBag
         from airflow.models.serialized_dag import SerializedDagModel
 
@@ -1424,7 +1438,6 @@ def get_test_dag():
 
         dag = dagbag.get_dag(dag_id)
         if AIRFLOW_V_3_0_PLUS:
-            session = settings.Session()
             from airflow.models.dagbundle import DagBundleModel
 
             if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:

@@ -39,7 +39,9 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import SIGSEGV_MESSAGE, LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -303,6 +305,8 @@ class TestLocalTaskJob:
             dag = self.dagbag.get_dag(dag_id)
             task = dag.get_task(task_id)
             data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(dag, bundle_name="testing")
             dr = dag.create_dagrun(
                 run_id="test_heartbeat_failed_fast_run",
                 run_type=DagRunType.MANUAL,
@@ -372,7 +376,8 @@ class TestLocalTaskJob:
         dag = self.dagbag.dags.get("test_localtaskjob_double_trigger")
         task = dag.get_task("test_localtaskjob_double_trigger_task")
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         session = settings.Session()
 
         dag.clear()
@@ -395,7 +400,7 @@ class TestLocalTaskJob:
         session.merge(ti)
         session.commit()
 
-        ti_run = TaskInstance(task=task, run_id=dr.run_id)
+        ti_run = TaskInstance(task=task, run_id=dr.run_id, dag_version_id=ti.dag_version_id)
         ti_run.refresh_from_db()
         job1 = Job(dag_id=ti_run.dag_id, executor=SequentialExecutor())
         job_runner = LocalTaskJobRunner(job=job1, task_instance=ti_run)
@@ -414,8 +419,9 @@ class TestLocalTaskJob:
     def test_local_task_return_code_metric(self, mock_stats_incr, mock_return_code, create_dummy_dag):
         dag, task = create_dummy_dag("test_localtaskjob_code")
         dag_run = dag.get_last_dagrun()
-
-        ti_run = TaskInstance(task=task, run_id=dag_run.run_id)
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert dag_version
+        ti_run = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         ti_run.refresh_from_db()
         job1 = Job(dag_id=ti_run.dag_id, executor=SequentialExecutor())
         job_runner = LocalTaskJobRunner(job=job1, task_instance=ti_run)
@@ -445,8 +451,10 @@ class TestLocalTaskJob:
     def test_localtaskjob_maintain_heart_rate(self, mock_return_code, caplog, create_dummy_dag):
         dag, task = create_dummy_dag("test_localtaskjob_double_trigger")
         dag_run = dag.get_last_dagrun()
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert dag_version
 
-        ti_run = TaskInstance(task=task, run_id=dag_run.run_id)
+        ti_run = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         ti_run.refresh_from_db()
         job1 = Job(dag_id=ti_run.dag_id, executor=SequentialExecutor())
         job_runner = LocalTaskJobRunner(job=job1, task_instance=ti_run)
@@ -564,7 +572,9 @@ class TestLocalTaskJob:
                 triggered_by=DagRunTriggeredByType.TEST,
             )
         task = dag.get_task(task_id="test_on_failure_callback_task")
-        ti = TaskInstance(task=task, run_id=dr.run_id)
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert dag_version
+        ti = TaskInstance(task=task, run_id=dr.run_id, dag_version_id=dag_version.id)
         ti.refresh_from_db()
 
         job1 = Job(executor=SequentialExecutor(), dag_id=ti.dag_id)
@@ -763,7 +773,9 @@ class TestLocalTaskJob:
             )
         task = dag.get_task(task_id="bash_sleep")
         dag_run = dag.get_last_dagrun()
-        ti = TaskInstance(task=task, run_id=dag_run.run_id)
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert dag_version
+        ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         ti.refresh_from_db()
 
         signal_sent_status = {"sent": False}
@@ -856,7 +868,9 @@ class TestLocalTaskJob:
                 python_callable=task_function,
             )
         dag_run = dag_maker.create_dagrun()
-        ti = TaskInstance(task=task, run_id=dag_run.run_id)
+        ti = TaskInstance(
+            task=task, run_id=dag_run.run_id, dag_version_id=dag_run.task_instances[0].dag_version_id
+        )
         ti.refresh_from_db()
         job = Job(executor=SequentialExecutor(), dag_id=ti.dag_id)
         job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
@@ -1011,6 +1025,8 @@ class TestSigtermOnRunner:
         logger.addHandler(tmpfile_handler)
 
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         dag_run = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
@@ -1020,7 +1036,9 @@ class TestSigtermOnRunner:
             run_after=DEFAULT_LOGICAL_DATE,
             triggered_by=DagRunTriggeredByType.TEST,
         )
-        ti = TaskInstance(task=task, run_id=dag_run.run_id)
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert dag_version
+        ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         ti.refresh_from_db()
         job = Job(executor=SequentialExecutor(), dag_id=ti.dag_id)
         job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)

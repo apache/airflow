@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import uuid
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -153,7 +154,9 @@ class AbstractOperator(LoggingMixin, TaskSDKAbstractOperator):
             )
         )
 
-    def expand_mapped_task(self, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
+    def expand_mapped_task(
+        self, run_id: str, *, dag_version_id: uuid.UUID, session: Session
+    ) -> tuple[Sequence[TaskInstance], int]:
         """
         Create the mapped task instances for mapped task.
 
@@ -262,7 +265,9 @@ class AbstractOperator(LoggingMixin, TaskSDKAbstractOperator):
 
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
-            ti = TaskInstance(self, run_id=run_id, map_index=index, state=state)
+            ti = TaskInstance(
+                self, run_id=run_id, map_index=index, state=state, dag_version_id=dag_version_id
+            )
             self.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)

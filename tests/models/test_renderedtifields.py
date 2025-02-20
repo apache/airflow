@@ -289,8 +289,8 @@ class TestRenderedTaskInstanceFields:
                 dr = dag_maker.create_dagrun(
                     run_id=f"run_{num}", logical_date=dag.start_date + timedelta(days=num)
                 )
-
-                TaskMap.expand_mapped_task(mapped, dr.run_id, session=dag_maker.session)
+                dag_version_id = dr.task_instances[0].dag_version_id
+                TaskMap.expand_mapped_task(dag_version_id, mapped, dr.run_id, session=dag_maker.session)
                 session.refresh(dr)
                 for ti in dr.task_instances:
                     ti.task = dag.get_task(ti.task_id)

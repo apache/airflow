@@ -28,7 +28,6 @@ from sqlalchemy import select
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
@@ -48,7 +47,7 @@ if TYPE_CHECKING:
 
 
 @patch("airflow.models.abstractoperator.AbstractOperator.render_template")
-def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
+def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, dag_maker, caplog):
     class UnrenderableClass:
         def __bool__(self):
             raise ValueError("Similar to Pandas DataFrames, this class raises an exception.")
@@ -63,7 +62,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         def execute(self, context: Context):
             pass
 
-    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+    with dag_maker("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = CustomOperator(task_id="op1", arg=None)
         unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
@@ -105,6 +104,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
+    dag_version_id = dr.task_instances[0].dag_version_id
 
     session.add(
         TaskMap(
@@ -127,11 +127,17 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 
     for index in range(num_existing_tis):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance(
+            mapped,
+            run_id=dr.run_id,
+            map_index=index,
+            state=TaskInstanceState.SUCCESS,
+            dag_version_id=dag_version_id,
+        )
         session.add(ti)
     session.flush()
 
-    TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
+    TaskMap.expand_mapped_task(dag_version_id, mapped, dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -155,6 +161,7 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
+    dag_version_id = dr.task_instances[0].dag_version_id
 
     session.add(
         TaskMap(
@@ -169,7 +176,13 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
 
     for index in range(2):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance(
+            mapped,
+            run_id=dr.run_id,
+            map_index=index,
+            state=TaskInstanceState.SUCCESS,
+            dag_version_id=dag_version_id,
+        )
         session.add(ti)
     session.flush()
 
@@ -182,7 +195,7 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     # Make sure we have the faulty state in the database
     assert indices == [(-1, None), (0, "success"), (1, "success")]
 
-    TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
+    TaskMap.expand_mapped_task(dag_version_id, mapped, dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -200,8 +213,8 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
-
-    expand_mapped_task(mapped, dr.run_id, task1.task_id, length=0, session=session)
+    dag_version_id = dr.task_instances[0].dag_version_id
+    expand_mapped_task(dag_version_id, mapped, dr.run_id, task1.task_id, length=0, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -242,6 +255,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
         mapped = MockOperator.partial(task_id="task_2").expand_kwargs(task1.output)
 
     dr = dag_maker.create_dagrun()
+    dag_version_id = dr.task_instances[0].dag_version_id
 
     session.add(
         TaskMap(
@@ -264,11 +278,17 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
 
     for index in range(num_existing_tis):
         # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        ti = TaskInstance(
+            mapped,
+            run_id=dr.run_id,
+            map_index=index,
+            state=TaskInstanceState.SUCCESS,
+            dag_version_id=dag_version_id,
+        )
         session.add(ti)
     session.flush()
 
-    TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
+    TaskMap.expand_mapped_task(dag_version_id, mapped, dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -301,6 +321,7 @@ def test_map_product_expansion(dag_maker, session):
         show.expand(number=emit_numbers(), letter=emit_letters())
 
     dr = dag_maker.create_dagrun()
+    dag_version_id = dr.task_instances[0].dag_version_id
     for fn in (emit_numbers, emit_letters):
         session.add(
             TaskMap(
@@ -315,7 +336,9 @@ def test_map_product_expansion(dag_maker, session):
 
     session.flush()
     show_task = dag.get_task("show")
-    mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dr.run_id, session=session)
+    mapped_tis, max_map_index = TaskMap.expand_mapped_task(
+        dag_version_id, show_task, dr.run_id, session=session
+    )
     assert max_map_index + 1 == len(mapped_tis) == 6
 
 
@@ -435,14 +458,18 @@ def test_expand_mapped_task_task_instance_mutation_hook(dag_maker, session, crea
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
+    dag_version_id = dr.task_instances[0].dag_version_id
 
     with mock.patch("airflow.settings.task_instance_mutation_hook") as mock_hook:
-        expand_mapped_task(mapped, dr.run_id, task1.task_id, length=len(expected_map_index), session=session)
+        expand_mapped_task(
+            dag_version_id, mapped, dr.run_id, task1.task_id, length=len(expected_map_index), session=session
+        )
 
         for index, call in enumerate(mock_hook.call_args_list):
             assert call.args[0].map_index == expected_map_index[index]
 
 
+@pytest.mark.need_serialized_dag
 class TestMappedSetupTeardown:
     @staticmethod
     def get_states(dr):
@@ -1316,6 +1343,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.need_serialized_dag
     def test_skip_one_mapped_task_from_task_group(self, dag_maker):
         with dag_maker() as dag:
 

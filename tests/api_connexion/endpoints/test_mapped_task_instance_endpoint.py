@@ -27,6 +27,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.taskmap import TaskMap
 from airflow.utils.platform import getuser
@@ -92,6 +93,7 @@ class TestMappedTaskInstanceEndpoint:
                 mapped = MockOperator.partial(task_id="task_2", executor="default").expand(arg2=task1.output)
 
             dr = dag_maker.create_dagrun(run_id=f"run_{dag_id}")
+            dag_version_id = DagVersion.get_latest_version(dr.dag_id, session=session).id
 
             session.add(
                 TaskMap(
@@ -119,7 +121,9 @@ class TestMappedTaskInstanceEndpoint:
                     itertools.repeat(TaskInstanceState.RUNNING, dag["running"]),
                 )
             ):
-                ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=state)
+                ti = TaskInstance(
+                    mapped, run_id=dr.run_id, map_index=index, state=state, dag_version_id=dag_version_id
+                )
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)
                 session.add(ti)
 
@@ -129,7 +133,7 @@ class TestMappedTaskInstanceEndpoint:
             self.app.dag_bag.sync_to_db("dags-folder", None)
             session.flush()
 
-            TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
+            TaskMap.expand_mapped_task(dag_version_id, mapped, dr.run_id, session=session)
 
     @pytest.fixture
     def one_task_with_mapped_tis(self, dag_maker, session):

@@ -324,6 +324,9 @@ class TestClearTasks:
         assert ti1.try_number == 1
         assert ti1.max_tries == 2
 
+    @pytest.mark.xfail(
+        reason="Remove this and update clear_task_instances as tasks cannot exists without DAG"
+    )
     def test_clear_task_instances_without_dag(self, dag_maker):
         # Don't write DAG to the database, so no DAG is found by clear_task_instances().
         with dag_maker(
@@ -624,19 +627,19 @@ class TestClearTasks:
         assert ti0.try_number == 1
         assert ti0.max_tries == 1
 
-    def test_dags_clear(self):
+    def test_dags_clear(self, dag_maker):
         # setup
         session = settings.Session()
         dags, tis = [], []
         num_of_dags = 5
         for i in range(num_of_dags):
-            dag = DAG(
+            with dag_maker(
                 f"test_dag_clear_{i}",
                 schedule=datetime.timedelta(days=1),
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE + datetime.timedelta(days=10),
-            )
-            task = EmptyOperator(task_id=f"test_task_clear_{i}", owner="test", dag=dag)
+            ) as dag:
+                task = EmptyOperator(task_id=f"test_task_clear_{i}", owner="test", dag=dag)
 
             dr = dag.create_dagrun(
                 run_id=f"scheduled_{i}",

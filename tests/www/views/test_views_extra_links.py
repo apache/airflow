@@ -26,6 +26,7 @@ import pytest
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -80,7 +81,10 @@ class DummyTestOperator(BaseOperator):
 
 @pytest.fixture(scope="module")
 def dag():
-    return DAG("dag", start_date=DEFAULT_DATE, schedule="0 0 * * *")
+    dag = DAG("dag", start_date=DEFAULT_DATE, schedule="0 0 * * *")
+    dag.sync_to_db()
+    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    return dag
 
 
 @pytest.fixture(scope="module")

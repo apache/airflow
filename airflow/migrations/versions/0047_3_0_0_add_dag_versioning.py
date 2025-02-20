@@ -141,7 +141,7 @@ def upgrade():
         batch_op.add_column(sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow))
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False), nullable=False))
         batch_op.create_foreign_key(
             batch_op.f("task_instance_dag_version_id_fkey"),
             "dag_version",

@@ -28,7 +28,9 @@ from sqlalchemy.orm import contains_eager
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagRun, TaskInstance, Trigger
+from airflow.models.dag_version import DagVersion
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
@@ -100,6 +102,8 @@ class TestTaskInstanceEndpoint:
         """Method to create task instances using kwargs and default arguments"""
 
         dag = self.dagbag.get_dag(dag_id)
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag, bundle_name="testing")
         tasks = dag.tasks
         counter = len(tasks)
         if task_instances is not None:
@@ -110,6 +114,8 @@ class TestTaskInstanceEndpoint:
         dr = None
 
         tis = []
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        assert dag_version
         for i in range(counter):
             if task_instances is None:
                 pass
@@ -132,7 +138,8 @@ class TestTaskInstanceEndpoint:
                     state=dag_run_state,
                 )
                 session.add(dr)
-            ti = TaskInstance(task=tasks[i], **self.ti_init)
+
+            ti = TaskInstance(task=tasks[i], **self.ti_init, dag_version_id=dag_version.id)
             session.add(ti)
             ti.dag_run = dr
             ti.note = "placeholder-note"
@@ -366,7 +373,9 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         tis = self.create_task_instances(session)
         old_ti = tis[0]
         for idx in (1, 2):
-            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti = TaskInstance(
+                task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=tis[0].dag_version_id
+            )
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
                 setattr(ti, attr, getattr(old_ti, attr))
@@ -2112,7 +2121,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         NEW_STATE = "failed"
         map_index = 1
         tis = self.create_task_instances(session)
-        ti = TaskInstance(task=tis[0].task, run_id=tis[0].run_id, map_index=map_index)
+        ti = TaskInstance(
+            task=tis[0].task, run_id=tis[0].run_id, map_index=map_index, dag_version_id=tis[0].dag_version_id
+        )
         ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
         session.add(ti)
         session.commit()
@@ -2334,7 +2345,9 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
         tis = self.create_task_instances(session)
         old_ti = tis[0]
         for idx in (1, 2):
-            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti = TaskInstance(
+                task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
+            )
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
                 setattr(ti, attr, getattr(old_ti, attr))
@@ -2519,7 +2532,13 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
         )
         old_ti = tis[0]
 
-        ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=0, state=old_ti.state)
+        ti = TaskInstance(
+            task=old_ti.task,
+            run_id=old_ti.run_id,
+            map_index=0,
+            state=old_ti.state,
+            dag_version_id=old_ti.dag_version_id,
+        )
         session.add(ti)
         session.commit()
 
@@ -2645,7 +2664,9 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
         old_ti = tis[0]
         for idx in (1, 2):
-            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti = TaskInstance(
+                task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=old_ti.dag_version_id
+            )
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
             ti.try_number = 1
             for attr in ["duration", "end_date", "pid", "start_date", "state", "queue", "note"]:
@@ -2861,9 +2882,12 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
 
     def test_mapped_task_should_respond_200(self, session):
         tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
+        dag_version_id = tis[0].dag_version_id
         old_ti = tis[0]
         for idx in (1, 2):
-            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti = TaskInstance(
+                task=old_ti.task, run_id=old_ti.run_id, map_index=idx, dag_version_id=dag_version_id
+            )
             ti.try_number = 1
             session.add(ti)
         session.commit()

@@ -60,6 +60,7 @@ from airflow.models.abstractoperator import (
     NotMapped,
 )
 from airflow.models.base import _sentinel
+from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
@@ -623,7 +624,10 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                         DagRun.logical_date == info.logical_date,
                     )
                 ).one()
-                ti = TaskInstance(self, run_id=dag_run.run_id)
+                dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
+                if TYPE_CHECKING:
+                    assert dag_version
+                ti = TaskInstance(self, run_id=dag_run.run_id, dag_version_id=dag_version.id)
             except NoResultFound:
                 # This is _mostly_ only used in tests
                 dr = DagRun(
@@ -640,7 +644,10 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                     triggered_by=DagRunTriggeredByType.TEST,
                     state=DagRunState.RUNNING,
                 )
-                ti = TaskInstance(self, run_id=dr.run_id)
+                dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
+                if TYPE_CHECKING:
+                    assert dag_version
+                ti = TaskInstance(self, run_id=dr.run_id, dag_version_id=dag_version.id)
                 ti.dag_run = dr
                 session.add(dr)
                 session.flush()

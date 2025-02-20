@@ -203,7 +203,7 @@ class TaskInstance(StrictBaseModel):
     """Schema for TaskInstance model with minimal required fields needed for Runtime."""
 
     id: uuid.UUID
-
+    dag_version_id: uuid.UUID
     task_id: str
     dag_id: str
     run_id: str
