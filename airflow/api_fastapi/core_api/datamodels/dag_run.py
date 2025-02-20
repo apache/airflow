@@ -21,11 +21,11 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-import pendulum
 from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models import DagRun
+from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -105,16 +105,14 @@ class TriggerDAGRunPostBody(StrictBaseModel):
         return values
 
     def validate_context(self, dag: DAG) -> dict:
-        from airflow.timetables.base import DataInterval
-
-        coerced_logical_date = timezone.coerce_datetime(self.logical_date) if self.logical_date else None
+        coerced_logical_date = timezone.coerce_datetime(self.logical_date)
         run_after = self.run_after
         data_interval = None
         if coerced_logical_date:
             if self.data_interval_start and self.data_interval_end:
                 data_interval = DataInterval(
-                    start=pendulum.instance(self.data_interval_start),
-                    end=pendulum.instance(self.data_interval_end),
+                    start=timezone.coerce_datetime(self.data_interval_start),
+                    end=timezone.coerce_datetime(self.data_interval_end),
                 )
             else:
                 data_interval = dag.timetable.infer_manual_data_interval(
