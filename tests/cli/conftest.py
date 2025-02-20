@@ -18,9 +18,12 @@
 from __future__ import annotations
 
 import sys
+from unittest.mock import patch
 
+import httpx
 import pytest
 
+from airflow.cli.api.client import Client, Credentials
 from airflow.executors import local_executor
 from airflow.models.dagbag import DagBag
 from airflow.providers.celery.executors import celery_executor, celery_kubernetes_executor
@@ -64,3 +67,33 @@ def parser():
     from airflow.cli import cli_parser
 
     return cli_parser.get_parser()
+
+
+@pytest.fixture(scope="session")
+def cli_api_client_maker(cli_api_client_credentials):
+    """
+    Create a CLI API client with a custom transport and returns callable to create a client with a custom transport
+    """
+
+    def make_cli_api_client(transport: httpx.MockTransport) -> Client:
+        """Get a client with a custom transport"""
+        return Client(base_url="test://server", transport=transport)
+
+    def _cli_api_client(path: str, response_json: dict, expected_http_status_code: int) -> Client:
+        """Get a client with a custom transport"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            """Handle the request and return a response"""
+            assert request.url.path == path
+            return httpx.Response(expected_http_status_code, json=response_json)
+
+        return make_cli_api_client(transport=httpx.MockTransport(handle_request))
+
+    return _cli_api_client
+
+
+@pytest.fixture(scope="session")
+def cli_api_client_credentials():
+    """Create credentials for CLI API"""
+    with patch("airflow.cli.api.client.keyring"):
+        Credentials(api_url="http://localhost:9091", api_token="NO_TOKEN").save()

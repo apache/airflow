@@ -14,30 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from datetime import datetime
-
-from airflow.api_fastapi.core_api.base import BaseModel
-
-
-class JobResponse(BaseModel):
-    """Job serializer for responses."""
-
-    id: int
-    dag_id: str | None
-    state: str | None
-    job_type: str | None
-    start_date: datetime | None
-    end_date: datetime | None
-    latest_heartbeat: datetime | None
-    executor_class: str | None
-    hostname: str | None
-    unixname: str | None
-
-
-class JobCollectionResponse(BaseModel):
-    """Job Collection Response."""
-
-    jobs: list[JobResponse]
-    total_entries: int

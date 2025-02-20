@@ -18,21 +18,26 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shlex
 import warnings
 from contextlib import redirect_stdout
 from io import StringIO
 from unittest import mock
+from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 
-from airflow.cli import cli_config, cli_parser
+from airflow.cli import cli_parser
+from airflow.cli.api.datamodels._generated import (
+    ConnectionBody,
+    ConnectionBulkActionResponse,
+    ConnectionCollectionResponse,
+    ConnectionResponse,
+    ConnectionTestResponse,
+)
 from airflow.cli.commands.remote_commands import connection_command
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
-from airflow.utils.db import merge_conn
-from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import clear_db_connections
 
@@ -45,94 +50,139 @@ def clear_connections():
     clear_db_connections(add_default_connections_back=False)
 
 
-class TestCliGetConnection:
+class TestCliConnection:
     parser = cli_parser.get_parser()
+    connection = ConnectionBody(
+        connection_id="google_cloud_default",
+        conn_type="google_cloud_platform",
+    )
+
+    _expected_cons = [
+        {"connection_id": "airflow_db", "conn_type": "mysql"},
+        {"connection_id": "google_cloud_default", "conn_type": "google_cloud_platform"},
+        {"connection_id": "http_default", "conn_type": "http"},
+        {"connection_id": "local_mysql", "conn_type": "mysql"},
+        {"connection_id": "mongo_default", "conn_type": "mongo"},
+        {"connection_id": "mssql_default", "conn_type": "mssql"},
+        {"connection_id": "mysql_default", "conn_type": "mysql"},
+        {"connection_id": "pinot_broker_default", "conn_type": "pinot"},
+        {"connection_id": "postgres_default", "conn_type": "postgres"},
+        {"connection_id": "presto_default", "conn_type": "presto"},
+        {"connection_id": "sqlite_default", "conn_type": "sqlite"},
+        {"connection_id": "trino_default", "conn_type": "trino"},
+        {"connection_id": "vertica_default", "conn_type": "vertica"},
+    ]
+    connections = ConnectionCollectionResponse(
+        connections=[
+            ConnectionResponse(connection_id=connection["connection_id"], conn_type=connection["conn_type"])
+            for connection in _expected_cons
+        ],
+        total_entries=len(_expected_cons),
+    )
+    connection_bulk_action_response = ConnectionBulkActionResponse(
+        success=[connection["connection_id"] for connection in _expected_cons],
+        errors=[],
+    )
+    expected_connections: dict = {}
+    expected_connections_as_yaml = ()
+    expected_connections_as_env: list = []
+    empty_connections = ConnectionCollectionResponse(connections=[], total_entries=0)
+
+    connection_test_response = ConnectionTestResponse(status=True, message="Connection success!")
+    connection_failed_test_response = ConnectionTestResponse(status=False, message="Connection failed!")
 
     def setup_method(self):
         clear_db_connections(add_default_connections_back=True)
+        if not self.expected_connections:
+            for connection in self.connections.connections:
+                self.expected_connections.update(
+                    {
+                        connection.connection_id: {
+                            "conn_type": connection.conn_type,
+                            "description": connection.description,
+                            "host": connection.host,
+                            "login": connection.login,
+                            "password": connection.password,
+                            "schema": connection.schema_,
+                            "port": connection.port,
+                            "extra": connection.extra,
+                        }
+                    }
+                )
+        if not self.expected_connections_as_env:
+            for key, value in self.expected_connections.items():
+                self.expected_connections_as_env.append(f"{key}={value['conn_type'].replace('_', '-')}://")
 
-    def test_cli_connection_get(self):
+        if not self.expected_connections_as_yaml:
+            self.expected_connections_as_yaml = yaml.dump(self.expected_connections)
+
+
+class TestCliGetConnection(TestCliConnection):
+    def test_cli_connection_get(self, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections/google_cloud_default",
+            response_json=self.connection.model_dump(),
+            expected_http_status_code=200,
+        )
+
         with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_get(
-                self.parser.parse_args(["connections", "get", "google_cloud_default", "--output", "json"])
+                self.parser.parse_args(["connections", "get", "google_cloud_default", "--output", "json"]),
+                cli_api_client=cli_api_client,
             )
-            stdout = stdout.getvalue()
-        assert "google-cloud-platform:///default" in stdout
+        stdout = stdout.getvalue()
+        assert self.connection.connection_id in stdout
+        assert self.connection.conn_type in stdout
 
-    def test_cli_connection_get_invalid(self):
-        with pytest.raises(SystemExit, match=re.escape("Connection not found.")):
-            connection_command.connections_get(self.parser.parse_args(["connections", "get", "INVALID"]))
+    def test_cli_connection_get_invalid(self, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections/INVALID",
+            response_json={"detail": "Connection not found."},
+            expected_http_status_code=404,
+        )
+        with pytest.raises(SystemExit), redirect_stdout(StringIO()) as stdout:
+            connection_command.connections_get(
+                self.parser.parse_args(["connections", "get", "INVALID"]),
+                cli_api_client=cli_api_client,
+            )
+        stdout = stdout.getvalue()
+        assert "Connection not found." in stdout
 
 
-class TestCliListConnections:
-    parser = cli_parser.get_parser()
-    EXPECTED_CONS = [
-        ("airflow_db", "mysql"),
-        ("google_cloud_default", "google_cloud_platform"),
-        ("http_default", "http"),
-        ("local_mysql", "mysql"),
-        ("mongo_default", "mongo"),
-        ("mssql_default", "mssql"),
-        ("mysql_default", "mysql"),
-        ("pinot_broker_default", "pinot"),
-        ("postgres_default", "postgres"),
-        ("presto_default", "presto"),
-        ("sqlite_default", "sqlite"),
-        ("trino_default", "trino"),
-        ("vertica_default", "vertica"),
-    ]
+class TestCliListConnections(TestCliConnection):
+    def test_cli_connections_list_as_json(self, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connections.model_dump(),
+            expected_http_status_code=200,
+        )
 
-    def setup_method(self):
-        clear_db_connections(add_default_connections_back=True)
-
-    def test_cli_connections_list_as_json(self):
         args = self.parser.parse_args(["connections", "list", "--output", "json"])
         with redirect_stdout(StringIO()) as stdout:
-            connection_command.connections_list(args)
+            connection_command.connections_list(args, cli_api_client=cli_api_client)
             print(stdout.getvalue())
             stdout = stdout.getvalue()
 
-        for conn_id, conn_type in self.EXPECTED_CONS:
-            assert conn_type in stdout
-            assert conn_id in stdout
+        for connection_id, connection in self.expected_connections.items():
+            assert connection_id in stdout
+            assert connection["conn_type"] in stdout
 
-    def test_cli_connections_filter_conn_id(self):
+    def test_cli_connections_filter_conn_id(self, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connections.model_dump(),
+            expected_http_status_code=200,
+        )
         args = self.parser.parse_args(
             ["connections", "list", "--output", "json", "--conn-id", "http_default"]
         )
         with redirect_stdout(StringIO()) as stdout:
-            connection_command.connections_list(args)
+            connection_command.connections_list(args, cli_api_client=cli_api_client)
             stdout = stdout.getvalue()
         assert "http_default" in stdout
 
 
-class TestCliExportConnections:
-    parser = cli_parser.get_parser()
-
-    def setup_method(self):
-        clear_db_connections(add_default_connections_back=False)
-        merge_conn(
-            Connection(
-                conn_id="airflow_db",
-                conn_type="mysql",
-                description="mysql conn description",
-                host="mysql",
-                login="root",
-                password="plainpassword",
-                schema="airflow",
-            ),
-        )
-        merge_conn(
-            Connection(
-                conn_id="druid_broker_default",
-                conn_type="druid",
-                description="druid-broker conn description",
-                host="druid-broker",
-                port=8082,
-                extra='{"endpoint": "druid/v2/sql"}',
-            ),
-        )
-
+class TestCliExportConnections(TestCliConnection):
     def test_cli_connections_export_should_return_error_for_invalid_command(self):
         with pytest.raises(SystemExit):
             self.parser.parse_args(["connections", "export"])
@@ -141,138 +191,240 @@ class TestCliExportConnections:
         with pytest.raises(SystemExit):
             self.parser.parse_args(["connections", "export", "--format", "invalid", "/path/to/file"])
 
-    def test_cli_connections_export_should_return_error_for_invalid_export_format(self, tmp_path):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_export_should_return_error_for_invalid_export_format(
+        self, mock_keyring, tmp_path
+    ):
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         output_filepath = tmp_path / "connections.invalid"
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         with pytest.raises(SystemExit, match=r"Unsupported file format"):
             connection_command.connections_export(args)
 
-    @mock.patch.object(connection_command, "create_session")
-    def test_cli_connections_export_should_raise_error_if_create_session_fails(
-        self, mock_create_session, tmp_path
-    ):
-        output_filepath = tmp_path / "connections.json"
-
-        def my_side_effect():
-            raise Exception("dummy exception")
-
-        mock_create_session.side_effect = my_side_effect
-        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
-        with pytest.raises(Exception, match=r"dummy exception"):
-            connection_command.connections_export(args)
-
-    @mock.patch.object(connection_command, "create_session")
-    def test_cli_connections_export_should_raise_error_if_fetching_connections_fails(
-        self, mock_session, tmp_path
-    ):
-        output_filepath = tmp_path / "connections.json"
-
-        def my_side_effect(_):
-            raise Exception("dummy exception")
-
-        mock_session.return_value.__enter__.return_value.scalars.side_effect = my_side_effect
-        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
-        with pytest.raises(Exception, match=r"dummy exception"):
-            connection_command.connections_export(args)
-
-    @mock.patch.object(connection_command, "create_session")
     def test_cli_connections_export_should_not_raise_error_if_connections_is_empty(
-        self, mock_session, tmp_path
+        self, tmp_path, cli_api_client_maker
     ):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.empty_connections.model_dump(),
+            expected_http_status_code=200,
+        )
         output_filepath = tmp_path / "connections.json"
-        mock_session.return_value.__enter__.return_value.query.return_value.all.return_value = []
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
-        connection_command.connections_export(args)
+        connection_command.connections_export(args, cli_api_client=cli_api_client)
         assert output_filepath.read_text() == "{}"
 
-    def test_cli_connections_export_should_export_as_json(self, tmp_path):
+    def test_cli_connections_export_should_export_as_json(self, tmp_path, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connections.model_dump(),
+            expected_http_status_code=200,
+        )
         output_filepath = tmp_path / "connections.json"
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
-        connection_command.connections_export(args)
-        expected_connections = {
-            "airflow_db": {
-                "conn_type": "mysql",
-                "description": "mysql conn description",
-                "host": "mysql",
-                "login": "root",
-                "password": "plainpassword",
-                "schema": "airflow",
-                "port": None,
-                "extra": None,
-            },
-            "druid_broker_default": {
-                "conn_type": "druid",
-                "description": "druid-broker conn description",
-                "host": "druid-broker",
-                "login": None,
-                "password": None,
-                "schema": None,
-                "port": 8082,
-                "extra": '{"endpoint": "druid/v2/sql"}',
-            },
-        }
+        connection_command.connections_export(args, cli_api_client=cli_api_client)
+        expected_connections = self.expected_connections
         assert json.loads(output_filepath.read_text()) == expected_connections
 
-    def test_cli_connections_export_should_export_as_yaml(self, tmp_path):
+    def test_cli_connections_export_should_export_as_yaml(self, tmp_path, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connections.model_dump(),
+            expected_http_status_code=200,
+        )
         output_filepath = tmp_path / "connections.yaml"
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
-        connection_command.connections_export(args)
-        expected_connections = (
-            "airflow_db:\n"
-            "  conn_type: mysql\n"
-            "  description: mysql conn description\n"
-            "  extra: null\n"
-            "  host: mysql\n"
-            "  login: root\n"
-            "  password: plainpassword\n"
-            "  port: null\n"
-            "  schema: airflow\n"
-            "druid_broker_default:\n"
-            "  conn_type: druid\n"
-            "  description: druid-broker conn description\n"
-            '  extra: \'{"endpoint": "druid/v2/sql"}\'\n'
-            "  host: druid-broker\n"
-            "  login: null\n"
-            "  password: null\n"
-            "  port: 8082\n"
-            "  schema: null\n"
-        )
-        assert output_filepath.read_text() == expected_connections
+        connection_command.connections_export(args, cli_api_client=cli_api_client)
+        assert output_filepath.read_text() == self.expected_connections_as_yaml
 
     @pytest.mark.parametrize(
         "serialization_format, expected",
         [
             (
                 "uri",
-                [
-                    "airflow_db=mysql://root:plainpassword@mysql/airflow",
-                    "druid_broker_default=druid://druid-broker:8082/?endpoint=druid%2Fv2%2Fsql",
-                ],
+                {
+                    "airflow_db": "mysql://",
+                    "google_cloud_default": "google-cloud-platform://",
+                    "http_default": "http://",
+                    "local_mysql": "mysql://",
+                    "mongo_default": "mongo://",
+                    "mssql_default": "mssql://",
+                    "mysql_default": "mysql://",
+                    "pinot_broker_default": "pinot://",
+                    "postgres_default": "postgres://",
+                    "presto_default": "presto://",
+                    "sqlite_default": "sqlite://",
+                    "trino_default": "trino://",
+                    "vertica_default": "vertica://",
+                },
             ),
             (
                 None,  # tests that default is URI
-                [
-                    "airflow_db=mysql://root:plainpassword@mysql/airflow",
-                    "druid_broker_default=druid://druid-broker:8082/?endpoint=druid%2Fv2%2Fsql",
-                ],
+                {
+                    "airflow_db": "mysql://",
+                    "google_cloud_default": "google-cloud-platform://",
+                    "http_default": "http://",
+                    "local_mysql": "mysql://",
+                    "mongo_default": "mongo://",
+                    "mssql_default": "mssql://",
+                    "mysql_default": "mysql://",
+                    "pinot_broker_default": "pinot://",
+                    "postgres_default": "postgres://",
+                    "presto_default": "presto://",
+                    "sqlite_default": "sqlite://",
+                    "trino_default": "trino://",
+                    "vertica_default": "vertica://",
+                },
             ),
             (
                 "json",
-                [
-                    'airflow_db={"conn_type": "mysql", "description": "mysql conn description", '
-                    '"login": "root", "password": "plainpassword", "host": "mysql", "port": null, '
-                    '"schema": "airflow", "extra": null}',
-                    'druid_broker_default={"conn_type": "druid", "description": "druid-broker conn '
-                    'description", "login": null, "password": null, "host": "druid-broker", "port": 8082, '
-                    '"schema": null, "extra": "{\\"endpoint\\": \\"druid/v2/sql\\"}"}',
-                ],
+                {
+                    "airflow_db": {
+                        "conn_type": "mysql",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "google_cloud_default": {
+                        "conn_type": "google_cloud_platform",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "http_default": {
+                        "conn_type": "http",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "local_mysql": {
+                        "conn_type": "mysql",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "mongo_default": {
+                        "conn_type": "mongo",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "mssql_default": {
+                        "conn_type": "mssql",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "mysql_default": {
+                        "conn_type": "mysql",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "pinot_broker_default": {
+                        "conn_type": "pinot",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "postgres_default": {
+                        "conn_type": "postgres",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "presto_default": {
+                        "conn_type": "presto",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "sqlite_default": {
+                        "conn_type": "sqlite",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "trino_default": {
+                        "conn_type": "trino",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                    "vertica_default": {
+                        "conn_type": "vertica",
+                        "description": None,
+                        "login": None,
+                        "password": None,
+                        "host": None,
+                        "port": None,
+                        "schema": None,
+                        "extra": None,
+                    },
+                },
             ),
         ],
     )
-    def test_cli_connections_export_should_export_as_env(self, serialization_format, expected, tmp_path):
+    def test_cli_connections_export_should_export_as_env(
+        self, serialization_format, expected, tmp_path, cli_api_client_maker
+    ):
         """
         When exporting with env file format, we should
         """
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connections.model_dump(),
+            expected_http_status_code=200,
+        )
         output_filepath = tmp_path / "connections.env"
         args_input = [
             "connections",
@@ -282,21 +434,32 @@ class TestCliExportConnections:
         if serialization_format:
             args_input = [*args_input, "--serialization-format", serialization_format]
         args = self.parser.parse_args(args_input)
-        connection_command.connections_export(args)
-        assert output_filepath.read_text().splitlines() == expected
-
-    def test_cli_connections_export_should_export_as_env_for_uppercase_file_extension(self, tmp_path):
-        output_filepath = tmp_path / "connections.ENV"
-        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
-        connection_command.connections_export(args)
-        expected_connections = [
-            "airflow_db=mysql://root:plainpassword@mysql/airflow",
-            "druid_broker_default=druid://druid-broker:8082/?endpoint=druid%2Fv2%2Fsql",
+        connection_command.connections_export(args, cli_api_client=cli_api_client)
+        assert output_filepath.read_text().splitlines() == [
+            f"{key}={json.dumps(value) if type(value) is dict else value}" for key, value in expected.items()
         ]
 
-        assert output_filepath.read_text().splitlines() == expected_connections
+    def test_cli_connections_export_should_export_as_env_for_uppercase_file_extension(
+        self, tmp_path, cli_api_client_maker
+    ):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connections.model_dump(),
+            expected_http_status_code=200,
+        )
+        output_filepath = tmp_path.absolute() / "connections.ENV"
+        args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
+        connection_command.connections_export(args, cli_api_client=cli_api_client)
+        assert output_filepath.read_text().splitlines() == self.expected_connections_as_env
 
-    def test_cli_connections_export_should_force_export_as_specified_format(self, tmp_path):
+    def test_cli_connections_export_should_force_export_as_specified_format(
+        self, tmp_path, cli_api_client_maker
+    ):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connections.model_dump(),
+            expected_http_status_code=200,
+        )
         output_filepath = tmp_path / "connections.yaml"
         args = self.parser.parse_args(
             [
@@ -307,30 +470,9 @@ class TestCliExportConnections:
                 "json",
             ]
         )
-        connection_command.connections_export(args)
-        expected_connections = {
-            "airflow_db": {
-                "conn_type": "mysql",
-                "description": "mysql conn description",
-                "host": "mysql",
-                "login": "root",
-                "password": "plainpassword",
-                "schema": "airflow",
-                "port": None,
-                "extra": None,
-            },
-            "druid_broker_default": {
-                "conn_type": "druid",
-                "description": "druid-broker conn description",
-                "host": "druid-broker",
-                "login": None,
-                "password": None,
-                "schema": None,
-                "port": 8082,
-                "extra": '{"endpoint": "druid/v2/sql"}',
-            },
-        }
-        assert json.loads(output_filepath.read_text()) == expected_connections
+        connection_command.connections_export(args, cli_api_client=cli_api_client)
+
+        assert json.loads(output_filepath.read_text()) == self.expected_connections
 
 
 TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"
@@ -347,12 +489,7 @@ TEST_JSON = json.dumps(
 )
 
 
-class TestCliAddConnections:
-    parser = cli_parser.get_parser()
-
-    def setup_method(self):
-        clear_db_connections(add_default_connections_back=False)
-
+class TestCliAddConnections(TestCliConnection):
     @pytest.mark.parametrize(
         "cmd, expected_output, expected_conn",
         [
@@ -557,40 +694,58 @@ class TestCliAddConnections:
         ],
     )
     @pytest.mark.execution_timeout(120)
-    def test_cli_connection_add(self, cmd, expected_output, expected_conn, session):
+    def test_cli_connection_add(self, cmd, expected_output, expected_conn: dict, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=ConnectionResponse(
+                connection_id=cmd[2],
+                conn_type=expected_conn["conn_type"],
+                description=expected_conn["description"],
+                host=expected_conn["host"],
+                login=expected_conn["login"],
+                schema_=expected_conn["schema"],
+                port=expected_conn["port"],
+                extra=expected_conn["extra"],
+            ).model_dump(),
+            expected_http_status_code=201,
+        )
         with redirect_stdout(StringIO()) as stdout:
-            connection_command.connections_add(self.parser.parse_args(cmd))
+            connection_command.connections_add(self.parser.parse_args(cmd), cli_api_client=cli_api_client)
 
-        stdout = stdout.getvalue()
+        stdout_value = stdout.getvalue()
 
-        assert expected_output in stdout
-        conn_id = cmd[2]
-        comparable_attrs = [
-            "conn_type",
-            "description",
-            "host",
-            "is_encrypted",
-            "is_extra_encrypted",
-            "login",
-            "port",
-            "schema",
-            "extra",
-        ]
-        current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
-        assert expected_conn == {attr: getattr(current_conn, attr) for attr in comparable_attrs}
+        assert expected_output in stdout_value
 
-    def test_cli_connections_add_duplicate(self):
-        conn_id = "to_be_duplicated"
+    def test_cli_connections_add_duplicate(self, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connection.model_dump(),
+            expected_http_status_code=201,
+        )
         connection_command.connections_add(
-            self.parser.parse_args(["connections", "add", conn_id, f"--conn-uri={TEST_URL}"])
+            self.parser.parse_args(
+                ["connections", "add", self.connection.connection_id, f"--conn-uri={TEST_URL}"],
+            ),
+            cli_api_client=cli_api_client,
+        )
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connection.model_dump(),
+            expected_http_status_code=409,
         )
         # Check for addition attempt
-        with pytest.raises(SystemExit, match=rf"A connection with `conn_id`={conn_id} already exists"):
+        with pytest.raises(SystemExit):
             connection_command.connections_add(
-                self.parser.parse_args(["connections", "add", conn_id, f"--conn-uri={TEST_URL}"])
+                self.parser.parse_args(
+                    ["connections", "add", self.connection.connection_id, f"--conn-uri={TEST_URL}"],
+                ),
+                cli_api_client=cli_api_client,
             )
 
-    def test_cli_connections_add_delete_with_missing_parameters(self):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_add_delete_with_missing_parameters(self, mock_keyring):
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         # Attempt to add without providing conn_uri
         with pytest.raises(
             SystemExit,
@@ -598,8 +753,11 @@ class TestCliAddConnections:
         ):
             connection_command.connections_add(self.parser.parse_args(["connections", "add", "new1"]))
 
-    def test_cli_connections_add_json_invalid_args(self):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_add_json_invalid_args(self, mock_keyring):
         """can't supply extra and json"""
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         with pytest.raises(
             SystemExit,
             match=r"The following args are not compatible with the --conn-json flag: \['--conn-extra'\]",
@@ -610,8 +768,11 @@ class TestCliAddConnections:
                 )
             )
 
-    def test_cli_connections_add_json_and_uri(self):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_add_json_and_uri(self, mock_keyring):
         """can't supply both uri and json"""
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         with pytest.raises(
             SystemExit,
             match="Cannot supply both conn-uri and conn-json",
@@ -629,7 +790,10 @@ class TestCliAddConnections:
             pytest.param("://password:type@host:42/schema", id="missing-conn-type"),
         ],
     )
-    def test_cli_connections_add_invalid_uri(self, invalid_uri):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_add_invalid_uri(self, mock_keyring, invalid_uri):
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         # Attempt to add with invalid uri
         with pytest.raises(SystemExit, match=r"The URI provided to --conn-uri is invalid: .*"):
             connection_command.connections_add(
@@ -638,15 +802,24 @@ class TestCliAddConnections:
                 )
             )
 
-    def test_cli_connections_add_invalid_type(self):
+    def test_cli_connections_add_invalid_type(self, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connection.model_dump(),
+            expected_http_status_code=201,
+        )
         with warnings.catch_warnings(record=True):
             connection_command.connections_add(
                 self.parser.parse_args(
                     ["connections", "add", "fsconn", "--conn-host=/tmp", "--conn-type=File"]
-                )
+                ),
+                cli_api_client=cli_api_client,
             )
 
-    def test_cli_connections_add_invalid_conn_id(self):
+    @patch("airflow.cli.api.client.keyring")
+    def test_cli_connections_add_invalid_conn_id(self, mock_keyring):
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         with pytest.raises(SystemExit) as e:
             connection_command.connections_add(
                 self.parser.parse_args(["connections", "add", "Test$", f"--conn-uri={TEST_URL}"])
@@ -657,63 +830,67 @@ class TestCliAddConnections:
         )
 
 
-class TestCliDeleteConnections:
-    parser = cli_parser.get_parser()
-
-    def setup_method(self):
-        clear_db_connections(add_default_connections_back=False)
-
-    def test_cli_delete_connections(self, session):
-        merge_conn(
-            Connection(
-                conn_id="new1",
-                conn_type="mysql",
-                description="mysql description",
-                host="mysql",
-                login="root",
-                password="",
-                schema="airflow",
-            ),
-            session=session,
+class TestCliDeleteConnections(TestCliConnection):
+    def test_cli_delete_connections(self, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path=f"/public/connections/{self.connection.connection_id}",
+            response_json={"detail": "Successfully deleted connection with `conn_id`=new1"},
+            expected_http_status_code=204,
         )
         # Delete connections
         with redirect_stdout(StringIO()) as stdout:
-            connection_command.connections_delete(self.parser.parse_args(["connections", "delete", "new1"]))
+            connection_command.connections_delete(
+                self.parser.parse_args(["connections", "delete", self.connection.connection_id]),
+                cli_api_client=cli_api_client,
+            )
             stdout = stdout.getvalue()
 
         # Check deletion stdout
-        assert "Successfully deleted connection with `conn_id`=new1" in stdout
+        assert f"Successfully deleted connection with `conn_id`={self.connection.connection_id}" in stdout
 
-        # Check deletions
-        result = session.query(Connection).filter(Connection.conn_id == "new1").first()
-
-        assert result is None
-
-    def test_cli_delete_invalid_connection(self):
+    def test_cli_delete_invalid_connection(self, cli_api_client_maker):
         # Attempt to delete a non-existing connection
-        with pytest.raises(SystemExit, match=r"Did not find a connection with `conn_id`=fake"):
-            connection_command.connections_delete(self.parser.parse_args(["connections", "delete", "fake"]))
+        cli_api_client = cli_api_client_maker(
+            path=f"/public/connections/{self.connection.connection_id}",
+            response_json={"detail": "Connection not found."},
+            expected_http_status_code=404,
+        )
+        with pytest.raises(SystemExit):
+            connection_command.connections_delete(
+                self.parser.parse_args(["connections", "delete", self.connection.connection_id]),
+                cli_api_client=cli_api_client,
+            )
 
 
-class TestCliImportConnections:
-    parser = cli_parser.get_parser()
-
-    def setup_method(self):
-        clear_db_connections(add_default_connections_back=False)
-
+class TestCliImportConnections(TestCliConnection):
     @mock.patch("os.path.exists")
-    def test_cli_connections_import_should_return_error_if_file_does_not_exist(self, mock_exists):
-        mock_exists.return_value = False
+    def test_cli_connections_import_should_return_error_if_file_does_not_exist(
+        self, mock_exists, cli_api_client_maker
+    ):
+        mock_exists.side_effect = [True, False]
         filepath = "/does/not/exist.json"
-        with pytest.raises(SystemExit, match=r"Missing connections file."):
-            connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
+        cli_api_client = cli_api_client_maker(
+            path="dummy",
+            response_json=self.connection_bulk_action_response.model_dump(),
+            expected_http_status_code=201,
+        )
+        with pytest.raises(
+            AirflowException,
+            match=r"File (.*) was not found. Check the configuration of your Secrets backend.",
+        ):
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", filepath]), cli_api_client=cli_api_client
+            )
 
     @pytest.mark.parametrize("filepath", ["sample.jso", "sample.environ"])
-    @mock.patch("os.path.exists")
+    @patch("os.path.exists")
+    @patch("airflow.cli.api.client.keyring")
     def test_cli_connections_import_should_return_error_if_file_format_is_invalid(
-        self, mock_exists, filepath
+        self, mock_keyring, mock_exists, filepath
     ):
         mock_exists.return_value = True
+        mock_keyring.set_password.return_value = MagicMock()
+        mock_keyring.get_password.return_value = "NO_TOKEN"
         with pytest.raises(
             AirflowException,
             match=(
@@ -723,273 +900,171 @@ class TestCliImportConnections:
         ):
             connection_command.connections_import(self.parser.parse_args(["connections", "import", filepath]))
 
-    @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
-    @mock.patch("os.path.exists")
-    def test_cli_connections_import_should_load_connections(self, mock_exists, mock_parse_secret_file):
+    @patch("airflow.secrets.local_filesystem._parse_secret_file")
+    @patch("os.path.exists")
+    def test_cli_connections_import_should_load_connections(
+        self, mock_exists, mock_parse_secret_file, cli_api_client_maker
+    ):
         mock_exists.return_value = True
 
-        # Sample connections to import
-        expected_connections = {
-            "new0": {
-                "conn_type": "postgres",
-                "description": "new0 description",
-                "host": "host",
-                "login": "airflow",
-                "password": "password",
-                "port": 5432,
-                "schema": "airflow",
-                "extra": '{"foo": "bar"}',
-            },
-            "new1": {
-                "conn_type": "mysql",
-                "description": "new1 description",
-                "host": "host",
-                "login": "airflow",
-                "password": "password",
-                "port": 3306,
-                "schema": "airflow",
-                "extra": '{"spam": "egg"}',
-            },
-        }
-
         # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
-        mock_parse_secret_file.return_value = expected_connections
+        mock_parse_secret_file.return_value = self.expected_connections
 
-        connection_command.connections_import(
-            self.parser.parse_args(["connections", "import", "sample.json"])
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connection_bulk_action_response.model_dump(),
+            expected_http_status_code=201,
         )
 
-        # Verify that the imported connections match the expected, sample connections
-        with create_session() as session:
-            current_conns = session.query(Connection).all()
+        with redirect_stdout(StringIO()) as stdout:
+            connection_command.connections_import(
+                self.parser.parse_args(["connections", "import", "sample.json"]),
+                cli_api_client=cli_api_client,
+            )
 
-            comparable_attrs = [
-                "conn_id",
-                "conn_type",
-                "description",
-                "host",
-                "login",
-                "password",
-                "port",
-                "schema",
-                "extra",
-            ]
+        stdout = stdout.getvalue()
+        for connection_id, _ in self.expected_connections.items():
+            assert f"Imported connection {connection_id}" in stdout
 
-            current_conns_as_dicts = {
-                current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
-                for current_conn in current_conns
-            }
-            assert expected_connections == current_conns_as_dicts
-
-    @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
-    @mock.patch("os.path.exists")
+    @patch("airflow.secrets.local_filesystem._parse_secret_file")
+    @patch("os.path.exists")
     def test_cli_connections_import_should_not_overwrite_existing_connections(
-        self, mock_exists, mock_parse_secret_file, session
+        self, mock_exists, mock_parse_secret_file, cli_api_client_maker
     ):
         mock_exists.return_value = True
 
-        # Add a pre-existing connection "new3"
-        merge_conn(
-            Connection(
-                conn_id="new3",
-                conn_type="mysql",
-                description="original description",
-                host="mysql",
-                login="root",
-                password="password",
-                schema="airflow",
-            ),
-            session=session,
+        # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
+        mock_parse_secret_file.return_value = self.expected_connections
+
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json={"detail": {"reason": "Unique constraint violation"}},
+            expected_http_status_code=409,
         )
 
-        # Sample connections to import, including a collision with "new3"
-        expected_connections = {
-            "new2": {
-                "conn_type": "postgres",
-                "description": "new2 description",
-                "host": "host",
-                "login": "airflow",
-                "password": "password",
-                "port": 5432,
-                "schema": "airflow",
-                "extra": '{"foo": "bar"}',
-            },
-            "new3": {
-                "conn_type": "mysql",
-                "description": "updated description",
-                "host": "host",
-                "login": "airflow",
-                "password": "new password",
-                "port": 3306,
-                "schema": "airflow",
-                "extra": '{"spam": "egg"}',
-            },
-        }
-
-        # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
-        mock_parse_secret_file.return_value = expected_connections
-
-        with redirect_stdout(StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
             connection_command.connections_import(
-                self.parser.parse_args(["connections", "import", "sample.json"])
+                self.parser.parse_args(["connections", "import", "sample.json"]),
+                cli_api_client=cli_api_client,
             )
 
-            assert "Could not import connection new3: connection already exists." in stdout.getvalue()
+        stdout = stdout.getvalue()
+        assert "Unique constraint violation" in stdout
 
-        # Verify that the imported connections match the expected, sample connections
-        current_conns = session.query(Connection).all()
-
-        comparable_attrs = [
-            "conn_id",
-            "conn_type",
-            "description",
-            "host",
-            "login",
-            "password",
-            "port",
-            "schema",
-            "extra",
-        ]
-
-        current_conns_as_dicts = {
-            current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
-            for current_conn in current_conns
-        }
-        assert current_conns_as_dicts["new2"] == expected_connections["new2"]
-
-        # The existing connection's description should not have changed
-        assert current_conns_as_dicts["new3"]["description"] == "original description"
-
-    @mock.patch("airflow.secrets.local_filesystem._parse_secret_file")
-    @mock.patch("os.path.exists")
+    @patch("airflow.secrets.local_filesystem._parse_secret_file")
+    @patch("os.path.exists")
     def test_cli_connections_import_should_overwrite_existing_connections(
-        self, mock_exists, mock_parse_secret_file, session
+        self, mock_exists, mock_parse_secret_file, cli_api_client_maker
     ):
         mock_exists.return_value = True
 
-        # Add a pre-existing connection "new3"
-        merge_conn(
-            Connection(
-                conn_id="new3",
-                conn_type="mysql",
-                description="original description",
-                host="mysql",
-                login="root",
-                password="password",
-                schema="airflow",
-            ),
-            session=session,
-        )
-
-        # Sample connections to import, including a collision with "new3"
-        expected_connections = {
-            "new2": {
-                "conn_type": "postgres",
-                "description": "new2 description",
-                "host": "host",
-                "login": "airflow",
-                "password": "password",
-                "port": 5432,
-                "schema": "airflow",
-                "extra": '{"foo": "bar"}',
-            },
-            "new3": {
-                "conn_type": "mysql",
-                "description": "updated description",
-                "host": "host",
-                "login": "airflow",
-                "password": "new password",
-                "port": 3306,
-                "schema": "airflow",
-                "extra": '{"spam": "egg"}',
-            },
-        }
-
         # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
-        mock_parse_secret_file.return_value = expected_connections
+        mock_parse_secret_file.return_value = self.expected_connections
+
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections",
+            response_json=self.connection_bulk_action_response.model_dump(),
+            expected_http_status_code=201,
+        )
 
         with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_import(
-                self.parser.parse_args(["connections", "import", "sample.json", "--overwrite"])
+                self.parser.parse_args(["connections", "import", "sample.json", "--overwrite"]),
+                cli_api_client=cli_api_client,
             )
+            stdout = stdout.getvalue()
 
-            assert "Could not import connection new3: connection already exists." not in stdout.getvalue()
-
-        # Verify that the imported connections match the expected, sample connections
-        current_conns = session.query(Connection).all()
-
-        comparable_attrs = [
-            "conn_id",
-            "conn_type",
-            "description",
-            "host",
-            "login",
-            "password",
-            "port",
-            "schema",
-            "extra",
-        ]
-
-        current_conns_as_dicts = {
-            current_conn.conn_id: {attr: getattr(current_conn, attr) for attr in comparable_attrs}
-            for current_conn in current_conns
-        }
-        assert current_conns_as_dicts["new2"] == expected_connections["new2"]
-
-        # The existing connection should have been overwritten
-        assert current_conns_as_dicts["new3"] == expected_connections["new3"]
+        for connection_id, _ in self.expected_connections.items():
+            assert f"Imported connection {connection_id}" in stdout
 
 
-class TestCliTestConnections:
-    parser = cli_parser.get_parser()
-
-    def setup_class(self):
-        clear_db_connections()
-
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
-    def test_cli_connections_test_success(self, mock_test_conn):
+class TestCliTestConnections(TestCliConnection):
+    @patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_cli_connections_test_success(self, cli_api_client_maker):
         """Check that successful connection test result is displayed properly."""
-        conn_id = "http_default"
-        mock_test_conn.return_value = True, None
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections/test",
+            response_json=self.connection_test_response.model_dump(),
+            expected_http_status_code=200,
+        )
         with redirect_stdout(StringIO()) as stdout:
-            connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
+            connection_command.connections_test(
+                self.parser.parse_args(
+                    ["connections", "test", self.connection.connection_id, self.connection.conn_type]
+                ),
+                cli_api_client=cli_api_client,
+            )
 
             assert "Connection success!" in stdout.getvalue()
 
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
-    def test_cli_connections_test_fail(self, mock_test_conn):
+    @patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_cli_connections_test_fail(self, cli_api_client_maker):
         """Check that failed connection test result is displayed properly."""
-        conn_id = "http_default"
-        mock_test_conn.return_value = False, "Failed."
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections/test",
+            response_json=self.connection_failed_test_response.model_dump(),
+            expected_http_status_code=200,
+        )
         with redirect_stdout(StringIO()) as stdout:
-            connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
+            connection_command.connections_test(
+                self.parser.parse_args(
+                    ["connections", "test", self.connection.connection_id, self.connection.conn_type]
+                ),
+                cli_api_client=cli_api_client,
+            )
 
-            assert "Connection failed!\nFailed.\n\n" in stdout.getvalue()
+            assert "Connection failed!" in stdout.getvalue()
 
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_cli_connections_test_missing_conn(self):
+    @patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_cli_connections_test_missing_conn(self, cli_api_client_maker):
         """Check a connection test on a non-existent connection raises a "Connection not found" message."""
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections/test",
+            response_json={"detail": "Connection not found."},
+            expected_http_status_code=404,
+        )
         with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
-            connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
-        assert "Connection not found.\n\n" in stdout.getvalue()
+            connection_command.connections_test(
+                self.parser.parse_args(
+                    ["connections", "test", self.connection.connection_id, self.connection.conn_type]
+                ),
+                cli_api_client=cli_api_client,
+            )
+        assert "Connection not found." in stdout.getvalue()
 
-    def test_cli_connections_test_disabled_by_default(self):
+    def test_cli_connections_test_disabled_by_default(self, cli_api_client_maker):
         """Check that test connection functionality is disabled by default."""
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections/test",
+            response_json=self.connection_test_response.model_dump(),
+            expected_http_status_code=200,
+        )
         with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
-            connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+            connection_command.connections_test(
+                self.parser.parse_args(
+                    ["connections", "test", self.connection.connection_id, self.connection.conn_type]
+                ),
+                cli_api_client=cli_api_client,
+            )
         assert (
             "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "
             "enable it.\n\n"
         ) in stdout.getvalue()
 
 
-class TestCliCreateDefaultConnection:
-    @mock.patch("airflow.cli.commands.remote_commands.connection_command.db_create_default_connections")
-    def test_cli_create_default_connections(self, mock_db_create_default_connections):
-        create_default_connection_fnc = dict(
-            (db_command.name, db_command.func) for db_command in cli_config.CONNECTIONS_COMMANDS
-        )["create-default-connections"]
-        create_default_connection_fnc(())
-        mock_db_create_default_connections.assert_called_once()
+class TestCliCreateDefaultConnection(TestCliConnection):
+    def test_cli_create_default_connections(self, cli_api_client_maker):
+        cli_api_client = cli_api_client_maker(
+            path="/public/connections/defaults",
+            response_json="",
+            expected_http_status_code=204,
+        )
+
+        with redirect_stdout(StringIO()) as stdout:
+            connection_command.create_default_connections(
+                self.parser.parse_args(["connections", "create-default-connections"]),
+                cli_api_client=cli_api_client,
+            )
+            stdout = stdout.getvalue()
+
+        assert "Default connections have been created." in stdout
