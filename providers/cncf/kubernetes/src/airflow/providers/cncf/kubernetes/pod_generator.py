@@ -47,7 +47,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.utils import yaml
 from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
-from kubernetes.client import V1EmptyDirVolumeSource, V1Volume, V1VolumeMount, models as k8s
+from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 if TYPE_CHECKING:
@@ -327,6 +327,16 @@ class PodGenerator:
         if run_id:
             annotations["run_id"] = run_id
 
+        log_volume = k8s.V1Volume(
+            name="logs-volume",
+            empty_dir=k8s.V1EmptyDirVolumeSource(),
+        )
+
+        log_volume_mount = k8s.V1VolumeMount(
+            name="logs-volume",
+            mount_path="/opt/airflow/logs",
+        )
+
         main_container = k8s.V1Container(
             name="base",
             args=args,
@@ -334,7 +344,63 @@ class PodGenerator:
             env=[
                 k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True"),
             ],
+            volume_mounts=[],
         )
+
+        log_tailer_container = k8s.V1Container(
+            name="log-tailer",
+            image="busybox",
+            command=[
+                "sh",
+                "-c",
+                """
+                while [ -z "$(find /opt/airflow/logs -type f -name '*.log' 2>/dev/null)" ]; do
+                    echo 'Waiting for logs...'; sleep 2;
+                done;
+                find /opt/airflow/logs -type f -name '*.log' -print0 | xargs -0 tail -F
+                """,
+            ],
+            volume_mounts=[
+                k8s.V1VolumeMount(
+                    name="logs",
+                    mount_path="/opt/airflow/logs",
+                )
+            ],
+        )
+        podspec = k8s.V1PodSpec(
+            containers=[main_container, log_tailer_container],
+            volumes=[log_volume],
+        )
+
+        if content_json_for_volume:
+            import shlex
+
+            input_file_path = "/tmp/execute/input.json"
+            execute_volume = k8s.V1Volume(
+                name="execute-volume",
+                empty_dir=k8s.V1EmptyDirVolumeSource(),
+            )
+            execute_volume_mount = k8s.V1VolumeMount(
+                name="execute-volume",
+                mount_path="/tmp/execute",
+                read_only=False,
+            )
+
+            escaped_json = shlex.quote(content_json_for_volume)
+            init_container = k8s.V1Container(
+                name="init-container",
+                image="busybox",
+                command=["/bin/sh", "-c", f"echo {escaped_json} > {input_file_path}"],
+                volume_mounts=[execute_volume_mount],
+            )
+
+            main_container.volume_mounts.append(execute_volume_mount)
+            main_container.command = args[:-1]
+            main_container.args = args[-1:]
+
+            podspec.init_containers = [init_container]
+            podspec.volumes.append(execute_volume)
+
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
@@ -350,46 +416,8 @@ class PodGenerator:
                     run_id=run_id,
                 ),
             ),
+            spec=podspec,
         )
-
-        podspec = k8s.V1PodSpec(
-            containers=[main_container],
-        )
-
-        if content_json_for_volume:
-            import shlex
-
-            input_file_path = "/tmp/execute/input.json"
-            execute_volume = V1Volume(
-                name="execute-volume",
-                empty_dir=V1EmptyDirVolumeSource(),
-            )
-
-            execute_volume_mount = V1VolumeMount(
-                name="execute-volume",
-                mount_path="/tmp/execute",
-                read_only=False,
-            )
-
-            escaped_json = shlex.quote(content_json_for_volume)
-            init_container = k8s.V1Container(
-                name="init-container",
-                image="busybox",
-                command=["/bin/sh", "-c", f"echo {escaped_json} > {input_file_path}"],
-                volume_mounts=[execute_volume_mount],
-            )
-
-            main_container.volume_mounts = [execute_volume_mount]
-            main_container.command = args[:-1]
-            main_container.args = args[-1:]
-
-            podspec = k8s.V1PodSpec(
-                containers=[main_container],
-                volumes=[execute_volume],
-                init_containers=[init_container],
-            )
-
-        dynamic_pod.spec = podspec
 
         # Reconcile the pods starting with the first chronologically,
         # Pod from the pod_template_File -> Pod from the K8s executor -> Pod from executor_config arg
