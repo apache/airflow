@@ -119,7 +119,7 @@ apache-airflow-providers-apprise==2.0.0
 apache-airflow-providers-arangodb==2.7.0
 apache-airflow-providers-asana==2.7.0
 apache-airflow-providers-atlassian-jira==3.0.0
-apache-airflow-providers-celery==3.10.0
+apache-airflow-providers-celery==3.11.0a4
 apache-airflow-providers-cohere==1.4.0
 apache-airflow-providers-common-io==1.5.0
 apache-airflow-providers-common-sql==1.21.0
@@ -131,7 +131,7 @@ apache-airflow-providers-discord==3.9.0
 apache-airflow-providers-docker==4.0.0
 apache-airflow-providers-elasticsearch==6.0.0
 apache-airflow-providers-exasol==4.7.0
-apache-airflow-providers-fab==1.5.3
+apache-airflow-providers-fab==2.0.0a4
 apache-airflow-providers-facebook==3.7.0
 apache-airflow-providers-ftp==3.12.0
 apache-airflow-providers-github==2.8.0
@@ -176,7 +176,7 @@ apache-airflow-providers-smtp==1.9.0
 apache-airflow-providers-snowflake==6.0.0
 apache-airflow-providers-sqlite==4.0.0
 apache-airflow-providers-ssh==4.0.0
-apache-airflow-providers-standard==0.0.3
+apache-airflow-providers-standard==0.1.0a4
 apache-airflow-providers-tableau==5.0.0
 apache-airflow-providers-telegram==4.7.0
 apache-airflow-providers-teradata==3.0.0
