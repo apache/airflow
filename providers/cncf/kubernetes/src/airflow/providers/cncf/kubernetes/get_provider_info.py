@@ -356,6 +356,5 @@ def get_provider_info():
             "cryptography>=41.0.0",
             "kubernetes>=29.0.0,<=31.0.0",
             "kubernetes_asyncio>=29.0.0,<=31.0.0",
-            "google-re2>=1.0",
         ],
     }

@@ -95,7 +95,7 @@ def get_provider_info():
             "apache-airflow>=2.9.0",
             "apache-airflow-providers-common-sql>=1.20.0",
             "presto-python-client>=0.8.4",
-            "pandas>=2.1.2,<2.2",
+            "pandas>=2.1.2",
         ],
         "optional-dependencies": {"google": ["apache-airflow-providers-google"]},
     }

@@ -117,5 +117,9 @@ def get_provider_info():
                 },
             }
         },
-        "dependencies": ["apache-airflow>=2.9.0", "yandexcloud>=0.308.0", "yandex-query-client>=0.1.4"],
+        "dependencies": [
+            "apache-airflow>=2.9.0",
+            'yandexcloud>=0.308.0; python_version < "3.13"',
+            'yandex-query-client>=0.1.4; python_version < "3.13"',
+        ],
     }

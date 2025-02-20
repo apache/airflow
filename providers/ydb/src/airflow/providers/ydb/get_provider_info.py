@@ -29,6 +29,7 @@ def get_provider_info():
         "state": "ready",
         "source-date-epoch": 1734537521,
         "versions": ["2.1.0", "2.0.0", "1.4.0", "1.3.0", "1.2.0", "1.1.0", "1.0.0"],
+        "excluded-python-versions": ["3.13"],
         "integrations": [
             {
                 "integration-name": "YDB",
@@ -45,8 +46,8 @@ def get_provider_info():
         ],
         "dependencies": [
             "apache-airflow>=2.9.0",
-            "apache-airflow-providers-common-sql>=1.20.0",
-            "ydb>=3.18.8",
-            "ydb-dbapi>=0.1.0",
+            'apache-airflow-providers-common-sql>=1.20.0; python_version < "3.13"',
+            'ydb>=3.18.8; python_version < "3.13"',
+            'ydb-dbapi>=0.1.0; python_version < "3.13"',
         ],
     }

@@ -22,6 +22,7 @@ import functools
 import itertools
 import logging
 import os
+import re
 import sys
 import weakref
 from collections import abc
@@ -41,7 +42,6 @@ from urllib.parse import urlsplit
 
 import attrs
 import jinja2
-import re2
 from dateutil.relativedelta import relativedelta
 
 from airflow import settings
@@ -768,8 +768,9 @@ class DAG:
         memo = {id(self.task_dict): None, id(self.task_group): None}
         dag = copy.deepcopy(self, memo)  # type: ignore
 
+        # TODO(potiuk): we should likely get rid of rege passed by user here
         if isinstance(task_ids_or_regex, (str, Pattern)):
-            matched_tasks = [t for t in self.tasks if re2.findall(task_ids_or_regex, t.task_id)]
+            matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
 

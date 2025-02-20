@@ -67,6 +67,7 @@ def get_provider_info():
             "1.0.1",
             "1.0.0",
         ],
+        "excluded-python-versions": ["3.13"],
         "integrations": [
             {
                 "integration-name": "Apache Beam",
@@ -96,15 +97,12 @@ def get_provider_info():
         "dependencies": [
             "apache-airflow>=2.9.0",
             'apache-beam>=2.53.0; python_version < "3.12"',
-            'apache-beam>=2.57.0; python_version >= "3.12"',
-            "pyarrow>=14.0.1",
-            "numpy>=1.26.0",
+            'apache-beam>=2.57.0; python_version >= "3.12" and python_version < "3.13"',
+            'pyarrow>=14.0.1; python_version < "3.13"',
+            'numpy>=1.26.0; python_version < "3.13\'"',
         ],
         "optional-dependencies": {
-            "google": [
-                'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
-                'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
-            ],
-            "common.compat": ["apache-airflow-providers-common-compat"],
+            "google": [],
+            "common.compat": ['apache-airflow-providers-common-compat; python_version < "3.13"'],
         },
     }

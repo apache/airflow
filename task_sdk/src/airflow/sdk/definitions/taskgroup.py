@@ -22,13 +22,13 @@ from __future__ import annotations
 import copy
 import functools
 import operator
+import re
 import weakref
 from collections.abc import Generator, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 import attrs
 import methodtools
-import re2
 
 from airflow.exceptions import (
     AirflowDagCycleException,
@@ -169,11 +169,11 @@ class TaskGroup(DAGNode):
         if self.group_id in self.used_group_ids:
             if not add_suffix_on_collision:
                 raise DuplicateTaskIdFound(f"group_id '{self._group_id}' has already been added to the DAG")
-            base = re2.split(r"__\d+$", self._group_id)[0]
+            base = re.split(r"__\d+$", self._group_id)[0]
             suffixes = sorted(
-                int(re2.split(r"^.+__", used_group_id)[1])
+                int(re.split(r"^.+__", used_group_id)[1])
                 for used_group_id in self.used_group_ids
-                if used_group_id is not None and re2.match(rf"^{base}__\d+$", used_group_id)
+                if used_group_id is not None and re.match(rf"^{base}__\d+$", used_group_id)
             )
             if not suffixes:
                 self._group_id += "__1"

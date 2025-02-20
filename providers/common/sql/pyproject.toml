@@ -48,6 +48,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 requires-python = "~=3.9"
@@ -64,11 +65,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "pandas" = [
-    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-    # In addition FAB also limit sqlalchemy to < 2.0
-    "pandas>=2.1.2,<2.2",
+    "pandas>=2.1.2",
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage"
