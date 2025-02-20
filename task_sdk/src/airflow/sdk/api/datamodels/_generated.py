@@ -329,3 +329,48 @@ class TITerminalStatePayload(BaseModel):
     )
     state: TerminalStateNonSuccess
     end_date: Annotated[datetime, Field(title="End Date")]
+
+
+class DagRunAssetReference(BaseModel):
+    """
+    DAGRun serializer for asset responses.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    run_id: Annotated[str, Field(title="Run Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    start_date: Annotated[datetime, Field(title="Start Date")]
+    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    state: Annotated[str, Field(title="State")]
+    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+
+
+class AssetEventResponse(BaseModel):
+    """
+    Asset event schema with fields that are needed for Runtime.
+    """
+
+    id: Annotated[int, Field(title="Id")]
+    asset_id: Annotated[int, Field(title="Asset Id")]
+    uri: Annotated[str | None, Field(title="Uri")] = None
+    name: Annotated[str | None, Field(title="Name")] = None
+    group: Annotated[str | None, Field(title="Group")] = None
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
+    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
+    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
+    source_map_index: Annotated[int, Field(title="Source Map Index")]
+    created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
+    timestamp: Annotated[datetime, Field(title="Timestamp")]
+
+
+class AssetEventsResponse(BaseModel):
+    """
+    Collection of AssetEventResponse.
+    """
+
+    asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
