@@ -25,7 +25,7 @@ from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 
 class AssetProfile(BaseModel):
@@ -37,6 +37,9 @@ class AssetProfile(BaseModel):
     AssetUriRef will have uri and asset_type defined.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     name: Annotated[str | None, Field(title="Name")] = None
     uri: Annotated[str | None, Field(title="Uri")] = None
     asset_type: Annotated[str, Field(title="Asset Type")]
@@ -68,24 +71,6 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
-class DagRunAssetReference(BaseModel):
-    """
-    DAGRun serializer for asset responses.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    run_id: Annotated[str, Field(title="Run Id")]
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
-    start_date: Annotated[datetime, Field(title="Start Date")]
-    end_date: Annotated[datetime | None, Field(title="End Date")] = None
-    state: Annotated[str, Field(title="State")]
-    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
-    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
-
-
 class DagRunType(str, Enum):
     """
     Class with DagRun types.
@@ -109,10 +94,6 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     UPSTREAM_FAILED = "upstream_failed"
     DEFERRED = "deferred"
-
-
-class JsonValue(RootModel[Any]):
-    root: Any
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
@@ -192,7 +173,6 @@ class TIRuntimeCheckPayload(BaseModel):
     )
     inlets: Annotated[list[AssetProfile] | None, Field(title="Inlets")] = None
     outlets: Annotated[list[AssetProfile] | None, Field(title="Outlets")] = None
-    type: Annotated[str | None, Field(title="Type")] = None
 
 
 class TISuccessStatePayload(BaseModel):
@@ -301,25 +281,6 @@ class TerminalTIState(str, Enum):
     FAIL_WITHOUT_RETRY = "fail_without_retry"
 
 
-class AssetEventResponse(BaseModel):
-    """
-    Asset event schema with fields that are needed for Runtime.
-    """
-
-    id: Annotated[int, Field(title="Id")]
-    asset_id: Annotated[int, Field(title="Asset Id")]
-    uri: Annotated[str | None, Field(title="Uri")] = None
-    name: Annotated[str | None, Field(title="Name")] = None
-    group: Annotated[str | None, Field(title="Group")] = None
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
-    source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
-    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
-    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
-    source_map_index: Annotated[int, Field(title="Source Map Index")]
-    created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
-    timestamp: Annotated[datetime, Field(title="Timestamp")]
-
-
 class DagRun(BaseModel):
     """
     Schema for DagRun model with minimal required fields needed for Runtime.
@@ -330,7 +291,7 @@ class DagRun(BaseModel):
     )
     dag_id: Annotated[str, Field(title="Dag Id")]
     run_id: Annotated[str, Field(title="Run Id")]
-    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     run_after: Annotated[datetime, Field(title="Run After")]
@@ -351,7 +312,7 @@ class TIRunContext(BaseModel):
     """
 
     dag_run: DagRun
-    task_reschedule_count: Annotated[int | None, Field(title="Task Reschedule Count")] = 0
+    task_reschedule_count: Annotated[int, Field(title="Task Reschedule Count")] = 0
     max_tries: Annotated[int, Field(title="Max Tries")]
     variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
     connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
@@ -370,6 +331,43 @@ class TITerminalStatePayload(BaseModel):
     )
     state: TerminalStateNonSuccess
     end_date: Annotated[datetime, Field(title="End Date")]
+
+
+class DagRunAssetReference(BaseModel):
+    """
+    DagRun serializer for asset responses.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    run_id: Annotated[str, Field(title="Run Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    start_date: Annotated[datetime, Field(title="Start Date")]
+    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    state: Annotated[str, Field(title="State")]
+    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+
+
+class AssetEventResponse(BaseModel):
+    """
+    Asset event schema with fields that are needed for Runtime.
+    """
+
+    id: Annotated[int, Field(title="Id")]
+    asset_id: Annotated[int, Field(title="Asset Id")]
+    uri: Annotated[str | None, Field(title="Uri")] = None
+    name: Annotated[str | None, Field(title="Name")] = None
+    group: Annotated[str | None, Field(title="Group")] = None
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
+    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
+    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
+    source_map_index: Annotated[int, Field(title="Source Map Index")] = -1
+    created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
+    timestamp: Annotated[datetime, Field(title="Timestamp")]
 
 
 class AssetEventCollectionResponse(BaseModel):
