@@ -37,6 +37,10 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.file_task_handler import (
+    mark_test_for_old_read_log_method,
+    mark_test_for_stream_based_read_log_method,
+)
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
@@ -130,6 +134,7 @@ class TestCloudwatchTaskHandler:
             ]
         )
 
+    @mark_test_for_old_read_log_method
     def test_read(self):
         # Confirmed via AWS Support call:
         # CloudWatch events must be ordered chronologically otherwise
@@ -159,6 +164,38 @@ class TestCloudwatchTaskHandler:
             [[("", msg_template.format(self.remote_log_group, self.remote_log_stream, events))]],
             [{"end_of_log": True}],
         )
+
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read(self):
+        # Confirmed via AWS Support call:
+        # CloudWatch events must be ordered chronologically otherwise
+        # boto3 put_log_event API throws InvalidParameterException
+        # (moto does not throw this exception)
+        current_time = int(time.time()) * 1000
+        generate_log_events(
+            self.conn,
+            self.remote_log_group,
+            self.remote_log_stream,
+            [
+                {"timestamp": current_time - 2000, "message": "First"},
+                {"timestamp": current_time - 1000, "message": "Second"},
+                {"timestamp": current_time, "message": "Third"},
+            ],
+        )
+
+        msg_template = "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}"
+        events = "\n".join(
+            [
+                f"[{get_time_str(current_time-2000)}] First",
+                f"[{get_time_str(current_time-1000)}] Second",
+                f"[{get_time_str(current_time)}] Third",
+            ]
+        )
+        hosts, log_streams, metadatas = self.cloudwatch_task_handler.read(self.ti)
+        assert hosts == [""]
+        log_str = "\n".join(line for line in log_streams[0])
+        assert log_str == msg_template.format(self.remote_log_group, self.remote_log_stream, events)
+        assert metadatas == [{"end_of_log": True}]
 
     @pytest.mark.parametrize(
         "end_date, expected_end_time",

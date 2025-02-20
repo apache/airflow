@@ -48,6 +48,10 @@ from unit.elasticsearch.log.elasticmock.utilities import SearchFailedException
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.file_task_handler import (
+    mark_test_for_old_read_log_method,
+    mark_test_for_stream_based_read_log_method,
+)
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
@@ -202,6 +206,7 @@ class TestElasticsearchTaskHandler:
         )
         assert handler.index_patterns == patterns
 
+    @mark_test_for_old_read_log_method
     def test_read(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
@@ -216,6 +221,22 @@ class TestElasticsearchTaskHandler:
         assert metadatas[0]["offset"] == "1"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read(self, ti):
+        ts = pendulum.now()
+        _, log_streams, metadatas = self.es_task_handler.read(
+            ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+        )
+
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert self.test_message == log_str
+        assert not metadatas[0]["end_of_log"]
+        assert metadatas[0]["offset"] == "1"
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+
+    @mark_test_for_old_read_log_method
     def test_read_with_patterns(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.es_task_handler, "index_patterns", new="test_*,other_*"):
@@ -231,6 +252,23 @@ class TestElasticsearchTaskHandler:
         assert metadatas[0]["offset"] == "1"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_patterns(self, ti):
+        ts = pendulum.now()
+        with mock.patch.object(self.es_task_handler, "index_patterns", new="test_*,other_*"):
+            _, log_streams, metadatas = self.es_task_handler.read(
+                ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+            )
+
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert self.test_message == log_str
+        assert not metadatas[0]["end_of_log"]
+        assert metadatas[0]["offset"] == "1"
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+
+    @mark_test_for_old_read_log_method
     def test_read_with_patterns_no_match(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.es_task_handler, "index_patterns", new="test_other_*,test_another_*"):
@@ -246,6 +284,23 @@ class TestElasticsearchTaskHandler:
         # last_log_timestamp won't change if no log lines read.
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_patterns_no_match(self, ti):
+        ts = pendulum.now()
+        with mock.patch.object(self.es_task_handler, "index_patterns", new="test_other_*,test_another_*"):
+            _, log_streams, metadatas = self.es_task_handler.read(
+                ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+            )
+
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str == ""
+        assert not metadatas[0]["end_of_log"]
+        assert metadatas[0]["offset"] == "0"
+        # last_log_timestamp won't change if no log lines read.
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+
     def test_read_with_missing_index(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.es_task_handler, "index_patterns", new="nonexistent,test_*"):
@@ -254,6 +309,7 @@ class TestElasticsearchTaskHandler:
                     ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
                 )
 
+    @mark_test_for_old_read_log_method
     @pytest.mark.parametrize("seconds", [3, 6])
     def test_read_missing_logs(self, seconds, create_task_instance):
         """
@@ -286,6 +342,40 @@ class TestElasticsearchTaskHandler:
         assert metadatas[0]["offset"] == "0"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
+    @mark_test_for_stream_based_read_log_method
+    @pytest.mark.parametrize("seconds", [3, 6])
+    def test_stream_based_read_missing_logs(self, seconds, create_task_instance):
+        """
+        When the log actually isn't there to be found, we only want to wait for 5 seconds.
+        In this case we expect to receive a message of the form 'Log {log_id} not found in elasticsearch ...'
+        """
+        ti = get_ti(
+            self.DAG_ID,
+            self.TASK_ID,
+            pendulum.instance(self.LOGICAL_DATE).add(days=1),  # so logs are not found
+            create_task_instance=create_task_instance,
+        )
+        ts = pendulum.now().add(seconds=-seconds)
+        _, log_streams, metadatas = self.es_task_handler.read(
+            ti, 1, {"offset": 0, "last_log_timestamp": str(ts)}
+        )
+
+        assert len(log_streams) == 1
+        log_str = "".join(line for line in log_streams[0])
+        if seconds > 5:
+            # we expect a log not found message when checking began more than 5 seconds ago
+            expected_pattern = r"^\*\*\* Log .* not found in Elasticsearch.*"
+            assert re.match(expected_pattern, log_str) is not None
+            assert metadatas[0]["end_of_log"] is True
+        else:
+            # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
+            assert log_str == ""
+            assert metadatas[0]["end_of_log"] is False
+        assert len(log_streams) == len(metadatas)
+        assert metadatas[0]["offset"] == "0"
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+
+    @mark_test_for_old_read_log_method
     def test_read_with_match_phrase_query(self, ti):
         similar_log_id = (
             f"{TestElasticsearchTaskHandler.TASK_ID}-"
@@ -309,6 +399,32 @@ class TestElasticsearchTaskHandler:
         assert metadatas[0]["offset"] == "1"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_match_phrase_query(self, ti):
+        similar_log_id = (
+            f"{TestElasticsearchTaskHandler.TASK_ID}-"
+            f"{TestElasticsearchTaskHandler.DAG_ID}-2016-01-01T00:00:00+00:00-1"
+        )
+        another_test_message = "another message"
+
+        another_body = {"message": another_test_message, "log_id": similar_log_id, "offset": 1}
+        self.es.index(index=self.index_name, doc_type=self.doc_type, body=another_body, id=1)
+
+        ts = pendulum.now()
+        _, log_streams, metadatas = self.es_task_handler.read(
+            ti, 1, {"offset": "0", "last_log_timestamp": str(ts), "end_of_log": False, "max_offset": 2}
+        )
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert self.test_message == log_str
+        assert another_test_message != log_str
+
+        assert not metadatas[0]["end_of_log"]
+        assert metadatas[0]["offset"] == "1"
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+
+    @mark_test_for_old_read_log_method
     def test_read_with_none_metadata(self, ti):
         logs, metadatas = self.es_task_handler.read(ti, 1)
         assert len(logs) == 1
@@ -318,6 +434,18 @@ class TestElasticsearchTaskHandler:
         assert metadatas[0]["offset"] == "1"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) < pendulum.now()
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_none_metadata(self, ti):
+        _, log_streams, metadatas = self.es_task_handler.read(ti, 1)
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert self.test_message == log_str
+        assert not metadatas[0]["end_of_log"]
+        assert metadatas[0]["offset"] == "1"
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) < pendulum.now()
+
+    @mark_test_for_old_read_log_method
     def test_read_nonexistent_log(self, ti):
         ts = pendulum.now()
         # In ElasticMock, search is going to return all documents with matching index
@@ -335,6 +463,26 @@ class TestElasticsearchTaskHandler:
         # last_log_timestamp won't change if no log lines read.
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_nonexistent_log(self, ti):
+        ts = pendulum.now()
+        # In ElasticMock, search is going to return all documents with matching index
+        # and doc_type regardless of match filters, so we delete the log entry instead
+        # of making a new TaskInstance to query.
+        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
+        _, log_streams, metadatas = self.es_task_handler.read(
+            ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+        )
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str == ""
+        assert not metadatas[0]["end_of_log"]
+        assert metadatas[0]["offset"] == "0"
+        # last_log_timestamp won't change if no log lines read.
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+
+    @mark_test_for_old_read_log_method
     def test_read_with_empty_metadata(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(ti, 1, {})
@@ -361,6 +509,36 @@ class TestElasticsearchTaskHandler:
         # if not last_log_timestamp is provided.
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_empty_metadata(self, ti):
+        ts = pendulum.now()
+        _, log_streams, metadatas = self.es_task_handler.read(ti, 1, {})
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert self.test_message == log_str
+        assert not metadatas[0]["end_of_log"]
+        # offset should be initialized to 0 if not provided.
+        assert metadatas[0]["offset"] == "1"
+        # last_log_timestamp will be initialized using log reading time
+        # if not last_log_timestamp is provided.
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+
+        # case where offset is missing but metadata not empty.
+        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
+        _, log_streams, metadatas = self.es_task_handler.read(ti, 1, {"end_of_log": False})
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str == ""
+        assert not metadatas[0]["end_of_log"]
+        # offset should be initialized to 0 if not provided.
+        assert metadatas[0]["offset"] == "0"
+        # last_log_timestamp will be initialized using log reading time
+        # if not last_log_timestamp is provided.
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+
+    @mark_test_for_old_read_log_method
     def test_read_timeout(self, ti):
         ts = pendulum.now().subtract(minutes=5)
 
@@ -385,6 +563,33 @@ class TestElasticsearchTaskHandler:
         assert str(offset) == metadatas[0]["offset"]
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_timeout(self, ti):
+        ts = pendulum.now().subtract(minutes=5)
+
+        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
+        # in the below call, offset=1 implies that we have already retrieved something
+        # if we had never retrieved any logs at all (offset=0), then we would have gotten
+        # a "logs not found" message after 5 seconds of trying
+        offset = 1
+        _, log_streams, metadatas = self.es_task_handler.read(
+            task_instance=ti,
+            try_number=1,
+            metadata={
+                "offset": offset,
+                "last_log_timestamp": str(ts),
+                "end_of_log": False,
+            },
+        )
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str == ""
+        assert metadatas[0]["end_of_log"]
+        assert str(offset) == metadatas[0]["offset"]
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+
+    @mark_test_for_old_read_log_method
     def test_read_as_download_logs(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
@@ -401,6 +606,24 @@ class TestElasticsearchTaskHandler:
         assert metadatas[0]["offset"] == "1"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_as_download_logs(self, ti):
+        ts = pendulum.now()
+        _, log_streams, metadatas = self.es_task_handler.read(
+            ti,
+            1,
+            {"offset": 0, "last_log_timestamp": str(ts), "download_logs": True, "end_of_log": False},
+        )
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert self.test_message == log_str
+        assert not metadatas[0]["end_of_log"]
+        assert metadatas[0]["download_logs"]
+        assert metadatas[0]["offset"] == "1"
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+
+    @mark_test_for_old_read_log_method
     def test_read_raises(self, ti):
         with mock.patch.object(self.es_task_handler.log, "exception") as mock_exception:
             with mock.patch.object(self.es_task_handler.client, "search") as mock_execute:
@@ -415,6 +638,22 @@ class TestElasticsearchTaskHandler:
         assert not metadatas[0]["end_of_log"]
         assert metadatas[0]["offset"] == "0"
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_raises(self, ti):
+        with mock.patch.object(self.es_task_handler.log, "exception") as mock_exception:
+            with mock.patch.object(self.es_task_handler.client, "search") as mock_execute:
+                mock_execute.side_effect = SearchFailedException("Failed to read")
+                _, log_streams, metadatas = self.es_task_handler.read(ti, 1)
+            assert mock_exception.call_count == 1
+            args, kwargs = mock_exception.call_args
+            assert "Could not read log with log_id:" in args[0]
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str == ""
+        assert not metadatas[0]["end_of_log"]
+        assert metadatas[0]["offset"] == "0"
+
     def test_set_context(self, ti):
         self.es_task_handler.set_context(ti)
         assert self.es_task_handler.mark_end_on_close
@@ -426,6 +665,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.json_format = True
         self.es_task_handler.set_context(ti)
 
+    @mark_test_for_old_read_log_method
     def test_read_with_json_format(self, ti):
         ts = pendulum.now()
         formatter = logging.Formatter(
@@ -451,6 +691,34 @@ class TestElasticsearchTaskHandler:
         )
         assert logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_json_format(self, ti):
+        ts = pendulum.now()
+        formatter = logging.Formatter(
+            "[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s - %(exc_text)s"
+        )
+        self.es_task_handler.formatter = formatter
+        self.es_task_handler.json_format = True
+
+        self.body = {
+            "message": self.test_message,
+            "log_id": f"{self.DAG_ID}-{self.TASK_ID}-2016_01_01T00_00_00_000000-1",
+            "offset": 1,
+            "asctime": "2020-12-24 19:25:00,962",
+            "filename": "taskinstance.py",
+            "lineno": 851,
+            "levelname": "INFO",
+        }
+        self.es_task_handler.set_context(ti)
+        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+
+        _, log_streams, _ = self.es_task_handler.read(
+            ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+        )
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+
+    @mark_test_for_old_read_log_method
     def test_read_with_json_format_with_custom_offset_and_host_fields(self, ti):
         ts = pendulum.now()
         formatter = logging.Formatter(
@@ -479,6 +747,37 @@ class TestElasticsearchTaskHandler:
         )
         assert logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_json_format_with_custom_offset_and_host_fields(self, ti):
+        ts = pendulum.now()
+        formatter = logging.Formatter(
+            "[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s - %(exc_text)s"
+        )
+        self.es_task_handler.formatter = formatter
+        self.es_task_handler.json_format = True
+        self.es_task_handler.host_field = "host.name"
+        self.es_task_handler.offset_field = "log.offset"
+
+        self.body = {
+            "message": self.test_message,
+            "log_id": f"{self.DAG_ID}-{self.TASK_ID}-2016_01_01T00_00_00_000000-1",
+            "log": {"offset": 1},
+            "host": {"name": "somehostname"},
+            "asctime": "2020-12-24 19:25:00,962",
+            "filename": "taskinstance.py",
+            "lineno": 851,
+            "levelname": "INFO",
+        }
+        self.es_task_handler.set_context(ti)
+        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+
+        _, log_streams, _ = self.es_task_handler.read(
+            ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+        )
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+
+    @mark_test_for_old_read_log_method
     def test_read_with_custom_offset_and_host_fields(self, ti):
         ts = pendulum.now()
         # Delete the existing log entry as it doesn't have the new offset and host fields
@@ -499,6 +798,29 @@ class TestElasticsearchTaskHandler:
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
         assert self.test_message == logs[0][0][1]
+
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_custom_offset_and_host_fields(self, ti):
+        ts = pendulum.now()
+        # Delete the existing log entry as it doesn't have the new offset and host fields
+        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
+
+        self.es_task_handler.host_field = "host.name"
+        self.es_task_handler.offset_field = "log.offset"
+
+        self.body = {
+            "message": self.test_message,
+            "log_id": self.LOG_ID,
+            "log": {"offset": 1},
+            "host": {"name": "somehostname"},
+        }
+        self.es.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=id)
+
+        _, log_streams, _ = self.es_task_handler.read(
+            ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+        )
+        log_str = "".join(line for line in log_streams[0])
+        assert self.test_message == log_str
 
     def test_close(self, ti):
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")

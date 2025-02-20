@@ -37,6 +37,11 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.file_task_handler import (
+    log_str_to_parsed_log_stream,
+    mark_test_for_old_read_log_method,
+    mark_test_for_stream_based_read_log_method,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -60,6 +65,7 @@ class TestFileTaskLogHandler:
     def teardown_method(self):
         self.clean_up()
 
+    @mark_test_for_old_read_log_method
     def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
         log from worker"""
@@ -83,3 +89,33 @@ class TestFileTaskLogHandler:
         assert "*** this message\n" in actual[0]
         assert actual[0].endswith("this\nlog\ncontent")
         assert actual[1] == {"end_of_log": False, "log_pos": 16}
+
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
+        """Test for executors which do not have `get_task_log` method, it fallbacks to reading
+        log from worker"""
+        executor_name = "CeleryExecutor"
+        ti = create_task_instance(
+            dag_id="dag_for_testing_celery_executor_log_read",
+            task_id="task_for_testing_celery_executor_log_read",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+        )
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        with conf_vars({("core", "executor"): executor_name}):
+            reload(executor_loader)
+            fth = FileTaskHandler("")
+
+            fth._read_from_logs_server = mock.Mock()
+            fth._read_from_logs_server.return_value = (
+                ["this message"],
+                [log_str_to_parsed_log_stream("this\nlog\ncontent")],
+                len("this\nlog\ncontent"),
+            )
+            log_stream, metadata = fth._read(ti=ti, try_number=1)
+            log_str = "\n".join(line for line in log_stream)
+            fth._read_from_logs_server.assert_called_once()
+        assert "*** this message\n" in log_str
+        assert log_str.endswith("this\nlog\ncontent")
+        assert metadata == {"end_of_log": False, "log_pos": 16}
