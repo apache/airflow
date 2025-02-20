@@ -125,6 +125,7 @@ def redefine_state_if_maintenance(
             EdgeWorkerState.MAINTENANCE_MODE,
         )
         or worker_state == EdgeWorkerState.OFFLINE_MAINTENANCE
+        and body_state == EdgeWorkerState.STARTING
     ):
         return EdgeWorkerState.MAINTENANCE_REQUEST
 

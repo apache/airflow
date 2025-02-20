@@ -99,7 +99,11 @@ def variables_import(args, session):
             skipped.add(k)
             continue
         try:
-            Variable.set(k, v, serialize_json=not isinstance(v, str))
+            value = v
+            description = None
+            if isinstance(v, dict) and v.get("value"):  # verify that var configuration has value
+                value, description = v["value"], v.get("description")
+            Variable.set(k, value, description, serialize_json=not isinstance(value, str))
         except Exception as e:
             print(f"Variable import failed: {e!r}")
             fail_count += 1
@@ -128,7 +132,13 @@ def variables_export(args):
                 val = data.decode(var.val)
             except Exception:
                 val = var.val
-            var_dict[var.key] = val
+            if var.description:
+                var_dict[var.key] = {
+                    "value": val,
+                    "description": var.description,
+                }
+            else:
+                var_dict[var.key] = val
 
     with args.file as varfile:
         json.dump(var_dict, varfile, sort_keys=True, indent=4)

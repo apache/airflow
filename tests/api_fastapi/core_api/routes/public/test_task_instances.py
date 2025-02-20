@@ -2238,7 +2238,20 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.json()["total_entries"] == 6
         assert failed_dag_runs == 0
 
-    def test_should_respond_200_with_dag_run_id(self, test_client, session):
+    @pytest.mark.parametrize(
+        "target_logical_date, response_logical_date",
+        [
+            pytest.param(DEFAULT_DATETIME_1, "2020-01-01T00:00:00Z", id="date"),
+            pytest.param(None, None, id="null"),
+        ],
+    )
+    def test_should_respond_200_with_dag_run_id(
+        self,
+        test_client,
+        session,
+        target_logical_date,
+        response_logical_date,
+    ):
         dag_id = "example_python_operator"
         payload = {
             "dry_run": False,
@@ -2247,29 +2260,14 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_running": True,
             "dag_run_id": "TEST_DAG_RUN_ID_0",
         }
-        task_instances = [
-            {"logical_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
-            {
-                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-                "state": State.RUNNING,
-            },
-            {
-                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-                "state": State.RUNNING,
-            },
-            {
-                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
-                "state": State.RUNNING,
-            },
-            {
-                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
-                "state": State.RUNNING,
-            },
-            {
-                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
-                "state": State.RUNNING,
-            },
-        ]
+        if target_logical_date:
+            task_instances = [
+                {"logical_date": target_logical_date + dt.timedelta(days=i), "state": State.RUNNING}
+                for i in range(6)
+            ]
+        else:
+            self.ti_extras["run_after"] = DEFAULT_DATETIME_1
+            task_instances = [{"logical_date": target_logical_date, "state": State.RUNNING} for _ in range(6)]
 
         self.create_task_instances(
             session,
@@ -2296,7 +2294,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "executor_config": "{}",
                 "hostname": "",
                 "id": mock.ANY,
-                "logical_date": "2020-01-01T00:00:00Z",
+                "logical_date": response_logical_date,
                 "map_index": -1,
                 "max_tries": 0,
                 "note": "placeholder-note",
