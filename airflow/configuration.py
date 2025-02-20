@@ -46,7 +46,6 @@ from packaging.version import parse as parse_version
 from typing_extensions import overload
 
 from airflow.exceptions import AirflowConfigException
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -2102,23 +2101,58 @@ def get_custom_secret_backend() -> BaseSecretsBackend | None:
     return secrets_backend_cls(**backend_kwargs)
 
 
-def initialize_secrets_backends() -> list[BaseSecretsBackend]:
+def get_importable_secret_backend(class_name: str) -> BaseSecretsBackend:
+    """Get secret backend defined in the given class name."""
+    secrets_backend_cls = import_string(class_name)
+    return secrets_backend_cls()
+
+
+def initialize_secrets_backends() -> list[BaseSecretsBackend]:  # here
     """
     Initialize secrets backend.
 
     * import secrets backend classes
     * instantiate them and return them in a list
     """
+    backends_map: dict[str, dict[str, Any]] = {
+        "environment_variable": {
+            "callback": get_importable_secret_backend,
+            "args": ("airflow.secrets.environment_variables.EnvironmentVariablesBackend",),
+        },
+        "metastore": {
+            "callback": get_importable_secret_backend,
+            "args": ("airflow.secrets.metastore.MetastoreBackend",),
+        },
+        "custom": {
+            "callback": get_custom_secret_backend,
+            "args": None,
+        },
+    }
+
+    backends_order = conf.getlist("secrets", "backends_order", delimiter=",")
+
+    required_backends = ["metastore", "environment_variable"]
+    if missing_backends := [b for b in required_backends if b not in backends_order]:
+        raise AirflowConfigException(
+            "The configuration option [secrets]backends_order is misconfigured. "
+            "The following backend types are missing: %s",
+            missing_backends,
+        )
+
+    if unsupported_backends := [b for b in backends_order if b not in backends_map.keys()]:
+        raise AirflowConfigException(
+            "The configuration option [secrets]backends_order is misconfigured. "
+            "The following backend types are unsupported: %s",
+            unsupported_backends,
+        )
+
     backend_list = []
-
-    custom_secret_backend = get_custom_secret_backend()
-
-    if custom_secret_backend is not None:
-        backend_list.append(custom_secret_backend)
-
-    for class_name in DEFAULT_SECRETS_SEARCH_PATH:
-        secrets_backend_cls = import_string(class_name)
-        backend_list.append(secrets_backend_cls())
+    for backend_type in backends_order:
+        backend_item = backends_map[backend_type]
+        callback, args = backend_item["callback"], backend_item["args"]
+        backend = callback(*args) if args else callback()
+        if backend:
+            backend_list.append(backend)
 
     return backend_list
 

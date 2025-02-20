@@ -1267,6 +1267,20 @@ secrets:
       sensitive: true
       example: ~
       default: ""
+    backends_order:
+      description: |
+        Comma-separated list of secret backends. These backends will be used in the order they are specified.
+        Please note that the `environment_variable` and `metastore` are required values and cannot be removed
+        from the list. Supported values are:
+
+        * ``custom``: Custom secret backend specified in the ``secrets[backend]`` configuration option.
+        * ``environment_variable``: Standard environment variable backend
+          ``airflow.secrets.environment_variables.EnvironmentVariablesBackend``.
+        * ``metastore``: Standard metastore backend ``airflow.secrets.metastore.MetastoreBackend``.
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "custom,environment_variable,metastore"
     use_cache:
       description: |
         .. note:: |experimental|
