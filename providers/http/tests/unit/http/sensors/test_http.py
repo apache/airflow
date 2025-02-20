@@ -39,7 +39,7 @@ TEST_DAG_ID = "unit_test_dag"
 
 
 class TestHttpSensor:
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
+    @patch("airflow.providers.http.hooks.http.Session.send")
     def test_poke_exception(self, mock_session_send, create_task_of_operator):
         """
         Exception occurs in poke function should not be ignored.
@@ -65,7 +65,7 @@ class TestHttpSensor:
         with pytest.raises(AirflowException, match="AirflowException raised here!"):
             task.execute(context={})
 
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
+    @patch("airflow.providers.http.hooks.http.Session.send")
     def test_poke_continues_for_http_500_with_extra_options_check_response_false(
         self,
         mock_session_send,
@@ -97,7 +97,7 @@ class TestHttpSensor:
         with pytest.raises(AirflowSensorTimeout):
             task.execute(context={})
 
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
+    @patch("airflow.providers.http.hooks.http.Session.send")
     def test_head_method(self, mock_session_send, create_task_of_operator):
         def resp_check(_):
             return True
@@ -124,7 +124,7 @@ class TestHttpSensor:
         assert prep_request.url == received_request.url
         assert prep_request.method, received_request.method
 
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
+    @patch("airflow.providers.http.hooks.http.Session.send")
     def test_poke_context(self, mock_session_send, create_task_instance_of_operator):
         response = requests.Response()
         response.status_code = 200
@@ -149,7 +149,7 @@ class TestHttpSensor:
 
         task_instance.task.execute(task_instance.get_template_context())
 
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
+    @patch("airflow.providers.http.hooks.http.Session.send")
     def test_logging_head_error_request(self, mock_session_send, create_task_of_operator):
         def resp_check(_):
             return True
@@ -186,7 +186,7 @@ class TestHttpSensor:
             ]
             mock_log.error.assert_has_calls(calls)
 
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
+    @patch("airflow.providers.http.hooks.http.Session.send")
     def test_response_error_codes_allowlist(self, mock_session_send, create_task_of_operator):
         allowed_error_response_gen = iter(
             [
@@ -264,7 +264,7 @@ class TestHttpOpSensor:
         dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
-    @mock.patch("requests.Session", FakeSession)
+    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_get(self):
         op = HttpOperator(
             task_id="get_op",
@@ -276,7 +276,7 @@ class TestHttpOpSensor:
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch("requests.Session", FakeSession)
+    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_get_response_check(self):
         op = HttpOperator(
             task_id="get_op",
@@ -289,7 +289,7 @@ class TestHttpOpSensor:
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch("requests.Session", FakeSession)
+    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
     def test_sensor(self):
         sensor = HttpSensor(
             task_id="http_sensor_check",
