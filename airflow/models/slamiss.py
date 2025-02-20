@@ -17,10 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, Column, Index, String, Text
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class SlaMiss(Base):
@@ -44,3 +49,7 @@ class SlaMiss(Base):
 
     def __repr__(self):
         return str((self.dag_id, self.task_id, self.execution_date.isoformat()))
+
+    @property
+    def logical_date(self) -> datetime:
+        return self.execution_date

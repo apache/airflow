@@ -115,6 +115,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
     )
 
     execution_date = association_proxy("dag_run", "execution_date")
+    logical_date = association_proxy("dag_run", "execution_date")
 
     def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
         self.dag_id = ti.dag_id
