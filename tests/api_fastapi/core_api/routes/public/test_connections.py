@@ -306,10 +306,11 @@ class TestPostConnection(TestConnectionEndpoint):
             ),
         ],
     )
-    def test_post_should_response_201_redacted_password(self, test_client, body, expected_response):
+    def test_post_should_response_201_redacted_password(self, test_client, body, expected_response, session):
         response = test_client.post("/public/connections", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
+        _check_last_log(session, dag_id=None, event="post_connection", logical_date=None, check_masked=True)
 
 
 class TestPatchConnection(TestConnectionEndpoint):
@@ -581,6 +582,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 200
         assert response.json() == expected_response
+        _check_last_log(session, dag_id=None, event="post_connection", logical_date=None, check_masked=True)
 
 
 class TestConnection(TestConnectionEndpoint):
