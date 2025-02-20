@@ -34,7 +34,34 @@ AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_SOURCES_ROOT_PATH / "providers"
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
 
+RUFF_CMD = "ruff check --force-exclude --fix {file_path}"
+RUFF_FORMAT_CMD = (
+    "ruff format --force-exclude {file_path} 2>&1 | grep -v '`ISC001`. To avoid unexpected behavior'"
+)
+
 console = Console(width=400, color_system="standard")
+
+
+def get_file_hash(file_path: Path) -> str:
+    return subprocess.run(["md5sum", file_path], capture_output=True, text=True).stdout.strip().split()[0]
+
+
+def ruff_format_file_until_no_change(file_path: Path):
+    envcopy = os.environ.copy()
+    envcopy["CLICOLOR_FORCE"] = "1"
+    last_file_hash = ""
+    current_file_hash = get_file_hash(file_path)
+    ruff_cmd = RUFF_CMD.format(file_path=file_path)
+    ruff_format_cmd = RUFF_FORMAT_CMD.format(file_path=file_path)
+    console.print(
+        "Running ruff & ruff format in a while loop to ensure that the files are formatted correctly"
+    )
+    while last_file_hash != current_file_hash:
+        console.print(f"Last hash: {last_file_hash}, Current hash: {current_file_hash}")
+        last_file_hash = current_file_hash
+        subprocess.run(ruff_cmd, shell=True, check=True, env=envcopy)
+        subprocess.run(ruff_format_cmd, shell=True, check=True, env=envcopy)
+        current_file_hash = get_file_hash(file_path)
 
 
 def read_airflow_version() -> str:
