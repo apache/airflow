@@ -384,8 +384,8 @@ class Client(httpx.Client):
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
             # real client, but just don't make any HTTP requests
-            kwargs["transport"] = httpx.MockTransport(noop_handler)
-            kwargs["base_url"] = "dry-run://server"
+            kwargs.setdefault("transport", httpx.MockTransport(noop_handler))
+            kwargs.setdefault("base_url", "dry-run://server")
         else:
             kwargs["base_url"] = base_url
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
