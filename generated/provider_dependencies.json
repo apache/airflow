@@ -59,6 +59,7 @@
       "common.compat",
       "common.sql",
       "exasol",
+      "fab",
       "ftp",
       "google",
       "http",

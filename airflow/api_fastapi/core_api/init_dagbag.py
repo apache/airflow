@@ -14,3 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import os
+
+from airflow.models import DagBag
+from airflow.settings import DAGS_FOLDER
+
+
+def get_dag_bag() -> DagBag:
+    """Instantiate the appropriate DagBag based on the ``SKIP_DAGS_PARSING`` environment variable."""
+    if os.environ.get("SKIP_DAGS_PARSING") == "True":
+        return DagBag(os.devnull, include_examples=False)
+    return DagBag(DAGS_FOLDER, read_dags_from_db=True)
+
+
+def init_dagbag(app):
+    """
+    Create global DagBag for webserver and API.
+
+    To access it use ``flask.current_app.dag_bag``.
+    """
+    app.dag_bag = get_dag_bag()

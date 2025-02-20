@@ -67,14 +67,6 @@ if [[ ! ${USE_AIRFLOW_VERSION=} =~ ^2\..*  ]]; then
     fi
 fi
 
-tmux split-window -h
-tmux select-pane -t 3
-if [[ ${DEV_MODE=} == "true" ]]; then
-    tmux send-keys 'airflow webserver -d' C-m
-else
-    tmux send-keys 'airflow webserver' C-m
-fi
-
 tmux select-pane -t 0
 tmux split-window -h
 tmux send-keys 'airflow triggerer' C-m

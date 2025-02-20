@@ -45,12 +45,6 @@ from airflow_breeze.utils.path_utils import (
     UI_ASSET_OUT_FILE,
     UI_DIST_DIR,
     UI_NODE_MODULES_DIR,
-    WWW_ASSET_COMPILE_LOCK,
-    WWW_ASSET_HASH_FILE,
-    WWW_ASSET_OUT_DEV_MODE_FILE,
-    WWW_ASSET_OUT_FILE,
-    WWW_NODE_MODULES_DIR,
-    WWW_STATIC_DIST_DIR,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -458,57 +452,6 @@ def kill_process_group(gid: int):
         os.killpg(gid, signal.SIGTERM)
     except OSError:
         pass
-
-
-def clean_www_assets():
-    get_console().print("[info]Cleaning www assets[/]")
-    WWW_ASSET_HASH_FILE.unlink(missing_ok=True)
-    shutil.rmtree(WWW_NODE_MODULES_DIR, ignore_errors=True)
-    shutil.rmtree(WWW_STATIC_DIST_DIR, ignore_errors=True)
-    get_console().print("[success]Cleaned www assets[/]")
-
-
-def run_compile_www_assets(
-    dev: bool,
-    run_in_background: bool,
-    force_clean: bool,
-):
-    if force_clean:
-        clean_www_assets()
-    if dev:
-        get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
-        get_console().print(
-            "\n[info]If you want to see output of the compilation command,\n"
-            "[info]cancel it, go to airflow/www folder and run 'yarn dev'.\n"
-            "[info]However, it requires you to have local yarn installation.\n"
-        )
-    command_to_execute = [
-        "pre-commit",
-        "run",
-        "--hook-stage",
-        "manual",
-        "compile-www-assets-dev" if dev else "compile-www-assets",
-        "--all-files",
-        "--verbose",
-    ]
-    get_console().print(
-        "[info]The output of the asset compilation is stored in: [/]"
-        f"{WWW_ASSET_OUT_DEV_MODE_FILE if dev else WWW_ASSET_OUT_FILE}\n"
-    )
-    if run_in_background:
-        pid = os.fork()
-        if pid:
-            # Parent process - send signal to process group of the child process
-            atexit.register(kill_process_group, pid)
-        else:
-            # Check if we are not a group leader already (We should not be)
-            if os.getpid() != os.getsid(0):
-                # and create a new process group where we are the leader
-                os.setpgid(0, 0)
-            _run_compile_internally(command_to_execute, dev, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE)
-            sys.exit(0)
-    else:
-        return _run_compile_internally(command_to_execute, dev, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE)
 
 
 def clean_ui_assets():
