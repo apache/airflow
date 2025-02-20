@@ -117,7 +117,7 @@ class TestClient:
     @mock.patch("time.sleep", return_value=None)
     def test_retry_handling_unrecoverable_error(self, mock_sleep):
         responses: list[httpx.Response] = [
-            *[httpx.Response(500, text="Internal Server Error")] * 11,
+            *[httpx.Response(500, text="Internal Server Error")] * 4,
             httpx.Response(200, json={"detail": "Recovered from error - but will fail before"}),
             httpx.Response(400, json={"detail": "Should not get here"}),
         ]
@@ -126,13 +126,14 @@ class TestClient:
         with pytest.raises(httpx.HTTPStatusError) as err:
             client.get("http://error")
         assert not isinstance(err.value, ServerResponseError)
+        # 3 responses consumed due to the number of retries set, 3 remaining from the responses list
         assert len(responses) == 3
-        assert mock_sleep.call_count == 9
+        assert mock_sleep.call_count == 2
 
     @mock.patch("time.sleep", return_value=None)
     def test_retry_handling_recovered(self, mock_sleep):
         responses: list[httpx.Response] = [
-            *[httpx.Response(500, text="Internal Server Error")] * 3,
+            *[httpx.Response(500, text="Internal Server Error")] * 2,
             httpx.Response(200, json={"detail": "Recovered from error"}),
             httpx.Response(400, json={"detail": "Should not get here"}),
         ]
@@ -141,7 +142,7 @@ class TestClient:
         response = client.get("http://error")
         assert response.status_code == 200
         assert len(responses) == 1
-        assert mock_sleep.call_count == 3
+        assert mock_sleep.call_count == 2
 
     @mock.patch("time.sleep", return_value=None)
     def test_retry_handling_overload(self, mock_sleep):
@@ -210,7 +211,8 @@ class TestTaskInstanceOperations:
         def handle_request(request: httpx.Request) -> httpx.Response:
             nonlocal call_count
             call_count += 1
-            if call_count < 4:
+            if call_count < 3:
+                # Return 2 failures, and then succeed
                 return httpx.Response(status_code=500, json={"detail": "Internal Server Error"})
             if request.url.path == f"/task-instances/{ti_id}/run":
                 actual_body = json.loads(request.read())
@@ -226,7 +228,7 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         resp = client.task_instances.start(ti_id, 100, start_date)
         assert resp == ti_context
-        assert call_count == 4
+        assert call_count == 3
 
     @pytest.mark.parametrize(
         "state", [state for state in TerminalTIState if state != TerminalTIState.SUCCESS]
