@@ -220,7 +220,7 @@ Migrating from Statically-Coded Hybrid Executors to Multi-Executor Configuration
 Here are some steps to migrate from statically-coded hybrid executors to the new multi-executor configuration:
 
 1. **Update Airflow**: Ensure you are using Airflow 2.10.0 or later.
-2. **Update executor configuration**: Update the ``core.executor`` configuration to replace the use of the statically-coded hybrid executor with the new multi-executor configuration (i.e. a list of the executors you'd like to use). For example, replace ``LocalKubernetesExecutor`` with ``LocalExecutor,KubernetesExecutor``.
+2. **Update executor configuration**: Update the ``[core] executor`` configuration to replace the use of the statically-coded hybrid executor with the new multi-executor configuration (i.e. a list of the executors you'd like to use). For example, replace ``LocalKubernetesExecutor`` with ``LocalExecutor,KubernetesExecutor``.
 3. **Update Dags**: Update your dags to use the new multi-executor configuration. This involves replacing the use of the ``queue`` field on your tasks with the ``executor`` field to specify which executor you'd like to use.
 
 Writing Your Own Executor
