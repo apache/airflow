@@ -150,7 +150,7 @@ the all-in-one ``standalone`` command, you can instead run:
     airflow triggerer
 
 .. note::
-    ``airflow users`` command is only available when `FAB auth manager <https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth-manager/index.html>`_ is enabled.
+    ``airflow users`` command is only available when :doc:`apache-airflow-providers-fab:auth-manager/index` is enabled.
 
 What's Next?
 ''''''''''''
