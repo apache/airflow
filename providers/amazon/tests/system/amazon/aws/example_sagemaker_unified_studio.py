@@ -16,12 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
 import pytest
 
-from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import (
@@ -53,6 +51,7 @@ DOMAIN_ID_KEY = "DOMAIN_ID"
 PROJECT_ID_KEY = "PROJECT_ID"
 ENVIRONMENT_ID_KEY = "ENVIRONMENT_ID"
 S3_PATH_KEY = "S3_PATH"
+REGION_NAME_KEY = "REGION_NAME"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
@@ -60,29 +59,36 @@ sys_test_context_task = (
     .add_variable(PROJECT_ID_KEY)
     .add_variable(ENVIRONMENT_ID_KEY)
     .add_variable(S3_PATH_KEY)
+    .add_variable(REGION_NAME_KEY)
     .build()
 )
 
 
-@task
 def emulate_mwaa_environment(
-    domain_id: str, project_id: str, environment_id: str, s3_path: str
+    domain_id: str,
+    project_id: str,
+    environment_id: str,
+    s3_path: str,
+    region_name: str,
 ):
     """
     Sets several environment variables in the container to emulate an MWAA environment provisioned
     within SageMaker Unified Studio.
     """
     AIRFLOW_PREFIX = "AIRFLOW__WORKFLOWS__"
-    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_ID"] = domain_id
-    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_PROJECT_ID"] = project_id
-    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_ENVIRONMENT_ID"] = environment_id
-    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_SCOPE_NAME"] = "dev"
-    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_STAGE"] = "prod"
-    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_ENDPOINT"] = (
-        "https://datazone.us-east-1.api.aws"
+
+    params = {}
+    params[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_ID"] = domain_id
+    params[f"{AIRFLOW_PREFIX}DATAZONE_PROJECT_ID"] = project_id
+    params[f"{AIRFLOW_PREFIX}DATAZONE_ENVIRONMENT_ID"] = environment_id
+    params[f"{AIRFLOW_PREFIX}DATAZONE_SCOPE_NAME"] = "dev"
+    params[f"{AIRFLOW_PREFIX}DATAZONE_STAGE"] = "prod"
+    params[f"{AIRFLOW_PREFIX}DATAZONE_ENDPOINT"] = (
+        f"https://datazone.{region_name}.api.aws"
     )
-    os.environ[f"{AIRFLOW_PREFIX}PROJECT_S3_PATH"] = s3_path
-    os.environ[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = "us-east-1"
+    params[f"{AIRFLOW_PREFIX}PROJECT_S3_PATH"] = s3_path
+    params[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = region_name
+    return params
 
 
 with DAG(
@@ -99,12 +105,14 @@ with DAG(
     project_id = test_context[PROJECT_ID_KEY]
     environment_id = test_context[ENVIRONMENT_ID_KEY]
     s3_path = test_context[S3_PATH_KEY]
+    region_name = test_context[REGION_NAME_KEY]
 
-    setup_mock_mwaa_environment = emulate_mwaa_environment(
+    mock_mwaa_environment_params = emulate_mwaa_environment(
         domain_id,
         project_id,
         environment_id,
         s3_path,
+        region_name,
     )
 
     # [START howto_operator_sagemaker_unified_studio_notebook]
@@ -123,13 +131,16 @@ with DAG(
         wait_for_completion=True,  # optional
         waiter_delay=5,  # optional
         deferrable=False,  # optional
+        executor_config={  # optional
+            "ECSExecutor": mock_mwaa_environment_params,
+            "LocalExecutor": mock_mwaa_environment_params,
+        },
     )
     # [END howto_operator_sagemaker_unified_studio_notebook]
 
     chain(
         # TEST SETUP
         test_context,
-        setup_mock_mwaa_environment,
         # TEST BODY
         run_notebook,
     )
