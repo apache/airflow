@@ -59,7 +59,7 @@ export const Bar = ({ index, limit, max, nodes, run }: Props) => {
         justifyContent="center"
         pb="2px"
         px="5px"
-        width="14px"
+        width="18px"
         zIndex={1}
       >
         <GridButton

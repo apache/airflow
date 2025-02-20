@@ -38,7 +38,7 @@ import { flattenNodes, type RunWithDuration } from "./utils";
 dayjs.extend(dayjsDuration);
 
 const OFFSET_CHANGE = 10;
-const limit = 25;
+const limit = 14;
 
 export const Grid = () => {
   const { openGroupIds } = useOpenGroups();
