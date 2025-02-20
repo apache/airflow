@@ -35,7 +35,7 @@ from uuid6 import uuid7
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRuntimeCheckPayload
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
-    AssetEventCollectionResponse,
+    AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
     DagRunType,
@@ -349,7 +349,7 @@ class AssetEventOperations:
 
     def get(
         self, name: str | None = None, uri: str | None = None, alias_name: str | None = None
-    ) -> AssetEventCollectionResponse:
+    ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
         if name or uri:
             resp = self.client.get("asset-events/by-asset", params={"name": name, "uri": uri})
@@ -358,7 +358,7 @@ class AssetEventOperations:
         else:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")
 
-        return AssetEventCollectionResponse.model_validate_json(resp.read())
+        return AssetEventsResponse.model_validate_json(resp.read())
 
 
 class BearerAuth(httpx.Auth):

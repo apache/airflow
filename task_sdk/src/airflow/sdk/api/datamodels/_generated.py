@@ -370,7 +370,7 @@ class AssetEventResponse(BaseModel):
     timestamp: Annotated[datetime, Field(title="Timestamp")]
 
 
-class AssetEventCollectionResponse(BaseModel):
+class AssetEventsResponse(BaseModel):
     """
     Collection of AssetEventResponse.
     """

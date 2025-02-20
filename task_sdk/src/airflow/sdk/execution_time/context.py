@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.execution_time.comms import (
+        AssetEventsResult,
         AssetResult,
         ConnectionResult,
         PrevSuccessfulDagRunResponse,
@@ -312,13 +313,6 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
 
     def __getitem__(self, key: int | Asset | AssetAlias | AssetRef):
         from airflow.sdk.definitions.asset import Asset
-        from airflow.sdk.execution_time.comms import (
-            AssetEventCollectionResult,
-            ErrorResponse,
-            GetAssetEventByAsset,
-            GetAssetEventByAssetAlias,
-        )
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
@@ -326,6 +320,17 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
                 raise IndexError(key)
         else:
             obj = key
+
+        return self._get_asset_events_from_db(obj)
+
+    # TODO: This is temporary to avoid code duplication between here & airflow/models/taskinstance.py
+    def _get_asset_events_from_db(self, obj: Asset | AssetAlias | AssetRef) -> list[AssetEvent]:
+        from airflow.sdk.execution_time.comms import (
+            ErrorResponse,
+            GetAssetEventByAsset,
+            GetAssetEventByAssetAlias,
+        )
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         if isinstance(obj, Asset):
             asset = self._assets[AssetUniqueKey.from_asset(obj)]
@@ -345,15 +350,13 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
         elif isinstance(obj, AssetAlias):
             asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
             SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAssetAlias(alias_name=asset_alias.name))
-        else:
-            raise ValueError(key)
 
         msg = SUPERVISOR_COMMS.get_message()
         if isinstance(msg, ErrorResponse):
             raise AirflowRuntimeError(msg)
 
         if TYPE_CHECKING:
-            assert isinstance(msg, AssetEventCollectionResult)
+            assert isinstance(msg, AssetEventsResult)
         return [AssetEvent(**event) for event in msg.model_dump()["asset_events"]]
 
 

@@ -29,10 +29,21 @@ from typing import (
 )
 
 import attrs
-from sqlalchemy import select
+from sqlalchemy import and_, select
 
 from airflow.models.asset import (
+    AssetAliasModel,
+    AssetEvent,
     AssetModel,
+)
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetAliasUniqueKey,
+    AssetNameRef,
+    AssetRef,
+    AssetUniqueKey,
+    AssetUriRef,
 )
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.execution_time.context import (
@@ -41,10 +52,14 @@ from airflow.sdk.execution_time.context import (
     OutletEventAccessors as OutletEventAccessorsSDK,
     VariableAccessor as VariableAccessorSDK,
 )
+from airflow.utils.db import LazySelectSequence
 from airflow.utils.session import create_session
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Row
+    from sqlalchemy.sql.expression import Select, TextClause
+
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:
@@ -150,6 +165,22 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
         return asset.to_public()
 
 
+class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
+    """
+    List-like interface to lazily access AssetEvent rows.
+
+    :meta private:
+    """
+
+    @staticmethod
+    def _rebuild_select(stmt: TextClause) -> Select:
+        return select(AssetEvent).from_statement(stmt)
+
+    @staticmethod
+    def _process_row(row: Row) -> AssetEvent:
+        return row[0]
+
+
 @attrs.define(init=False)
 class InletEventsAccessors(InletEventsAccessorsSDK):
     """
@@ -157,6 +188,37 @@ class InletEventsAccessors(InletEventsAccessorsSDK):
 
     :meta private:
     """
+
+    def _get_asset_events_from_db(self, obj: Asset | AssetAlias | AssetRef):
+        if isinstance(obj, Asset):
+            asset = self._assets[AssetUniqueKey.from_asset(obj)]
+            join_clause = AssetEvent.asset
+            where_clause = and_(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
+        elif isinstance(obj, AssetAlias):
+            asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
+            join_clause = AssetEvent.source_aliases
+            where_clause = AssetAliasModel.name == asset_alias.name
+        elif isinstance(obj, AssetNameRef):
+            try:
+                asset = next(a for k, a in self._assets.items() if k.name == obj.name)
+            except StopIteration:
+                raise KeyError(obj) from None
+            join_clause = AssetEvent.asset
+            where_clause = and_(AssetModel.name == asset.name, AssetModel.active.has())
+        elif isinstance(obj, AssetUriRef):
+            try:
+                asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
+            except StopIteration:
+                raise KeyError(obj) from None
+            join_clause = AssetEvent.asset
+            where_clause = and_(AssetModel.uri == asset.uri, AssetModel.active.has())
+
+        with create_session() as session:
+            return LazyAssetEventSelectSequence.from_select(
+                select(AssetEvent).join(join_clause).where(where_clause),
+                order_by=[AssetEvent.timestamp],
+                session=session,
+            )
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
