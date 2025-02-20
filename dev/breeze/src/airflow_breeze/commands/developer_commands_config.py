@@ -372,4 +372,9 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
+    "breeze doctor": [
+        {
+            "name": "Debug breeze",
+        }
+    ],
 }
