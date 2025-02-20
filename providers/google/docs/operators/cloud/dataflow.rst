@@ -344,6 +344,20 @@ Here is an example how you can use this operator:
     :start-after: [START howto_operator_delete_dataflow_pipeline]
     :end-before: [END howto_operator_delete_dataflow_pipeline]
 
+Updating a pipeline
+^^^^^^^^^^^^^^^^^^^
+After being created, streaming pipeline can not be updated, because once a streaming job is running, its configuration
+is immutable. To apply any changes, you must modify the pipeline's definition (e.g., update your code or template)
+and then submit a new job. Essentially, you're creating a new instance of the pipeline with the desired updates.
+
+For batch pipelines, if the job is running and you want to update its configuration, you must cancel it because
+Dataflow jobs are immutable once they've started. Even though batch pipelines are designed to process finite data and
+eventually finish on their own, you cannot update a running job. If you decide to change any parameters or the
+pipeline logic while it's in progress, you need to cancel the current run and then launch a new job with the updated
+configuration.
+If the batch pipeline has already finished normally, then there's no running job to update—the new configuration
+would only apply to the next job submission.
+
 .. _howto/operator:DataflowJobStatusSensor:
 .. _howto/operator:DataflowJobMetricsSensor:
 .. _howto/operator:DataflowJobMessagesSensor:
