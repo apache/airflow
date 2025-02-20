@@ -21,6 +21,7 @@ from datetime import datetime
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
+from airflow.providers.amazon.aws.sensors.mwaa import MwaaDagRunSensor
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_mwaa"
@@ -28,7 +29,6 @@ DAG_ID = "example_mwaa"
 # Externally fetched variables:
 EXISTING_ENVIRONMENT_NAME_KEY = "ENVIRONMENT_NAME"
 EXISTING_DAG_ID_KEY = "DAG_ID"
-
 
 sys_test_context_task = (
     SystemTestContextBuilder()
@@ -67,11 +67,22 @@ with DAG(
     )
     # [END howto_operator_mwaa_trigger_dag_run]
 
+    # [START howto_sensor_mwaa_dag_run]
+    wait_for_dag_run = MwaaDagRunSensor(
+        task_id="wait_for_dag_run",
+        external_env_name=env_name,
+        external_dag_id=trigger_dag_id,
+        external_dag_run_id="{{ task_instance.xcom_pull(task_ids='trigger_dag_run')['RestApiResponse']['dag_run_id'] }}",
+        poke_interval=5,
+    )
+    # [END howto_sensor_mwaa_dag_run]
+
     chain(
         # TEST SETUP
         test_context,
         # TEST BODY
         trigger_dag_run,
+        wait_for_dag_run,
     )
 
     from tests_common.test_utils.watcher import watcher
