@@ -81,6 +81,10 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
 
+class TaskRunnerMarker:
+    """Marker for listener hooks, to properly detect from which component they are called."""
+
+
 # TODO: Move this entire class into a separate file:
 #  `airflow/sdk/execution_time/task_instance.py`
 #   or `airflow/sdk/execution_time/runtime_ti.py`
@@ -155,16 +159,8 @@ class RuntimeTaskInstance(TaskInstance):
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
-                "data_interval_end": dag_run.data_interval_end,
-                "data_interval_start": dag_run.data_interval_start,
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
                 "task_reschedule_count": self._ti_context_from_server.task_reschedule_count,
-                "prev_data_interval_start_success": lazy_object_proxy.Proxy(
-                    lambda: get_previous_dagrun_success(self.id).data_interval_start
-                ),
-                "prev_data_interval_end_success": lazy_object_proxy.Proxy(
-                    lambda: get_previous_dagrun_success(self.id).data_interval_end
-                ),
                 "prev_start_date_success": lazy_object_proxy.Proxy(
                     lambda: get_previous_dagrun_success(self.id).start_date
                 ),
@@ -180,8 +176,10 @@ class RuntimeTaskInstance(TaskInstance):
                 ts = logical_date.isoformat()
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
+                # logical_date and data_interval either coexist or be None together
                 context.update(
                     {
+                        # keys that depend on logical_date
                         "logical_date": logical_date,
                         "ds": ds,
                         "ds_nodash": ds_nodash,
@@ -189,8 +187,18 @@ class RuntimeTaskInstance(TaskInstance):
                         "ts": ts,
                         "ts_nodash": ts_nodash,
                         "ts_nodash_with_tz": ts_nodash_with_tz,
+                        # keys that depend on data_interval
+                        "data_interval_end": dag_run.data_interval_end,
+                        "data_interval_start": dag_run.data_interval_start,
+                        "prev_data_interval_start_success": lazy_object_proxy.Proxy(
+                            lambda: get_previous_dagrun_success(self.id).data_interval_start
+                        ),
+                        "prev_data_interval_end_success": lazy_object_proxy.Proxy(
+                            lambda: get_previous_dagrun_success(self.id).data_interval_end
+                        ),
                     }
                 )
+
             if from_server.upstream_map_indexes is not None:
                 # We stash this in here for later use, but we purposefully don't want to document it's
                 # existence. Should this be a private attribute on RuntimeTI instead perhaps?
@@ -310,12 +318,14 @@ class RuntimeTaskInstance(TaskInstance):
                 raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
             if msg.value is not None:
-                from airflow.models.xcom import XCom
+                from airflow.serialization.serde import deserialize
 
                 # TODO: Move XCom serialization & deserialization to Task SDK
                 #   https://github.com/apache/airflow/issues/45231
-                xcom = XCom.deserialize_value(msg)  # type: ignore[arg-type]
-                xcoms.append(xcom)
+
+                # The execution API server deals in json compliant types now.
+                # serde's deserialize can handle deserializing primitive, collections, and complex objects too
+                xcoms.append(deserialize(msg.value))  # type: ignore[type-var]
             else:
                 xcoms.append(default)
 
@@ -342,11 +352,15 @@ class RuntimeTaskInstance(TaskInstance):
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
-    from airflow.models.xcom import XCom
+    from airflow.serialization.serde import serialize
 
     # TODO: Move XCom serialization & deserialization to Task SDK
     #   https://github.com/apache/airflow/issues/45231
-    value = XCom.serialize_value(value)
+
+    # The execution API server now deals in json compliant objects.
+    # It is responsibility of the client to handle any non native object serialization.
+    # serialize does just that.
+    value = serialize(value)
 
     log = structlog.get_logger(logger_name="task")
     SUPERVISOR_COMMS.send_request(
@@ -470,6 +484,8 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 def startup() -> tuple[RuntimeTaskInstance, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
 
+    get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+
     if isinstance(msg, StartupDetails):
         from setproctitle import setproctitle
 
@@ -587,8 +603,7 @@ def run(
 
             result = _execute_task(context, ti)
 
-        log.info("Pushing xcom", ti=ti)
-        _push_xcom_if_needed(result, ti)
+        _push_xcom_if_needed(result, ti, log)
 
         task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
         msg = SucceedTask(
@@ -697,7 +712,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
     return result
 
 
-def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
+def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     """Push XCom values when task has ``do_xcom_push`` set to ``True`` and the task returns a result."""
     if ti.task.do_xcom_push:
         xcom_value = result
@@ -723,6 +738,8 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
             raise UnmappableXComTypePushed(xcom_value)
         mapped_length = len(xcom_value)
 
+    log.info("Pushing xcom", ti=ti)
+
     # If the task has multiple outputs, push each output as a separate XCom.
     if ti.task.multiple_outputs:
         if not isinstance(xcom_value, Mapping):
@@ -743,6 +760,13 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
 
 
 def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
+    # Pushing xcom for each operator extra links defined on the operator only.
+    for oe in ti.task.operator_extra_links:
+        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
+        log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
+        _xcom_push(ti, key=xcom_key, value=link)
+
+    log.debug("Running finalizers", ti=ti)
     if state in [TerminalTIState.SUCCESS]:
         get_listener_manager().hook.on_task_instance_success(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti
@@ -754,10 +778,11 @@ def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
         )
         # TODO: Run task failure callbacks here
 
+    get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
+
 
 def main():
     # TODO: add an exception here, it causes an oof of a stack trace!
-
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
     try:

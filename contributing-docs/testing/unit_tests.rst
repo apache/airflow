@@ -871,7 +871,7 @@ will ask you to rebuild the image if it is needed and some new dependencies shou
 
 .. code-block:: bash
 
-     breeze testing providers-tests providers/tests/http/hooks/test_http.py tests/core/test_core.py --db-reset --log-cli-level=DEBUG
+     breeze testing providers-tests providers/http/tests/http/hooks/test_http.py tests/core/test_core.py --db-reset --log-cli-level=DEBUG
 
 You can run the whole core test suite without adding the test target:
 
@@ -1070,7 +1070,7 @@ directly to the container.
 
 .. code-block:: bash
 
-   pytest providers/tests/<provider>/test.py
+   pytest providers/<provider>/tests/.../test.py
 
 4. Iterate with the tests and providers. Both providers and tests are mounted from local sources so
    changes you do locally in both - tests and provider sources are immediately reflected inside the
@@ -1207,7 +1207,7 @@ In case you want to reproduce canary run, you need to add ``--clean-airflow-inst
 
 .. code-block:: bash
 
-   pytest providers/tests/<provider>/test.py
+   pytest providers/<provider>/tests/.../test.py
 
 7. Iterate with the tests
 

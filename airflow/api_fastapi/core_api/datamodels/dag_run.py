@@ -19,14 +19,19 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models import DagRun
+from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models import DAG
 
 
 class DAGRunPatchStates(str, Enum):
@@ -62,6 +67,7 @@ class DAGRunResponse(BaseModel):
     end_date: datetime | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
+    run_after: datetime
     last_scheduling_decision: datetime | None
     run_type: DagRunType
     state: DagRunState
@@ -98,8 +104,36 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             )
         return values
 
-    ## when logical date is null, the run id should be generated from run_after + random string.
-    # TODO: AIP83: we need to modify this validator after https://github.com/apache/airflow/pull/46398 is merged
+    def validate_context(self, dag: DAG) -> dict:
+        coerced_logical_date = timezone.coerce_datetime(self.logical_date)
+        run_after = self.run_after
+        data_interval = None
+        if coerced_logical_date:
+            if self.data_interval_start and self.data_interval_end:
+                data_interval = DataInterval(
+                    start=timezone.coerce_datetime(self.data_interval_start),
+                    end=timezone.coerce_datetime(self.data_interval_end),
+                )
+            else:
+                data_interval = dag.timetable.infer_manual_data_interval(
+                    run_after=coerced_logical_date or timezone.coerce_datetime(self.run_after)
+                )
+                run_after = data_interval.end
+
+        run_id = self.dag_run_id or DagRun.generate_run_id(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=coerced_logical_date,
+            run_after=self.run_after,
+        )
+        return {
+            "run_id": run_id,
+            "logical_date": coerced_logical_date,
+            "data_interval": data_interval,
+            "run_after": run_after,
+            "conf": self.conf,
+            "note": self.note,
+        }
+
     @model_validator(mode="after")
     def validate_dag_run_id(self):
         if not self.dag_run_id:
@@ -117,6 +151,8 @@ class DAGRunsBatchBody(StrictBaseModel):
     page_limit: NonNegativeInt = 100
     dag_ids: list[str] | None = None
     states: list[DagRunState | None] | None = None
+    run_after_gte: AwareDatetime | None = None
+    run_after_lte: AwareDatetime | None = None
     logical_date_gte: AwareDatetime | None = None
     logical_date_lte: AwareDatetime | None = None
     start_date_gte: AwareDatetime | None = None

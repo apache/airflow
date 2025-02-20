@@ -123,7 +123,7 @@
                 </button>
                 <form id="form_{{ host.worker_name }}" style="display: none" action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/on" method="POST">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                  <div>
+                  <div style="white-space: pre-line;">
                     <label for="maintenance_comment">Maintenance Comment:</label>
                   </div>
                   <textarea  name="maintenance_comment" rows="3" maxlength="1024" style="width: 100%; margin-bottom: 5px;" required></textarea>
@@ -136,7 +136,7 @@
             {%- elif host.state in ["maintenance pending", "maintenance mode", "maintenance request"] -%}
               <form action="../edgeworkerhosts/status/maintenance/{{ host.worker_name }}/off" method="POST">
                 <td>
-                  <div id="display_{{ host.worker_name }}">
+                  <div id="display_{{ host.worker_name }}" style="white-space: pre-line;">
                     {{ host.maintenance_comment }}
                     <a onclick="showEditComment('{{ host.worker_name }}')" class="btn btn-sm btn-default" data-toggle="tooltip" rel="tooltip" title="Edit maintenance comment">
                       <span class="sr-only">Edit</span>

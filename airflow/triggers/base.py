@@ -17,25 +17,25 @@
 from __future__ import annotations
 
 import abc
-import logging
+import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Annotated, Any, Union
 
-from airflow.callbacks.callback_requests import TaskCallbackRequest
-from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
-from airflow.utils import timezone
+import structlog
+from pydantic import (
+    BaseModel,
+    Discriminator,
+    JsonValue,
+    Tag,
+    model_serializer,
+)
+
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
-    from airflow.models import TaskInstance
-
-log = logging.getLogger(__name__)
+log = structlog.get_logger(logger_name=__name__)
 
 
 @dataclass
@@ -126,7 +126,28 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         return self.repr(classpath, kwargs)
 
 
-class TriggerEvent:
+class BaseEventTrigger(BaseTrigger):
+    """
+    Base class for triggers used to schedule DAGs based on external events.
+
+    ``BaseEventTrigger`` is a subclass of ``BaseTrigger`` designed to identify triggers compatible with
+    event-driven scheduling.
+    """
+
+    @staticmethod
+    def hash(classpath: str, kwargs: dict[str, Any]) -> int:
+        """
+        Return the hash of the trigger classpath and kwargs. This is used to uniquely identify a trigger.
+
+        We do not want to have this logic in ``BaseTrigger`` because, when used to defer tasks, 2 triggers
+        can have the same classpath and kwargs. This is not true for event driven scheduling.
+        """
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        return hash((classpath, json.dumps(BaseSerialization.serialize(kwargs)).encode("utf-8")))
+
+
+class TriggerEvent(BaseModel):
     """
     Something that a trigger can fire when its conditions are met.
 
@@ -136,44 +157,18 @@ class TriggerEvent:
     events.
     """
 
-    def __init__(self, payload: Any):
-        self.payload = payload
+    payload: Any = None
+    """
+    The payload for the event to send back to the task.
+
+    Must be natively JSON-serializable, or registered with the airflow serialization code.
+    """
+
+    def __init__(self, payload, **kwargs):
+        super().__init__(payload=payload, **kwargs)
 
     def __repr__(self) -> str:
         return f"TriggerEvent<{self.payload!r}>"
-
-    def __eq__(self, other):
-        if isinstance(other, TriggerEvent):
-            return other.payload == self.payload
-        return False
-
-    @provide_session
-    def handle_submit(self, *, task_instance: TaskInstance, session: Session = NEW_SESSION) -> None:
-        """
-        Handle the submit event for a given task instance.
-
-        This function sets the next method and next kwargs of the task instance,
-        as well as its state to scheduled. It also adds the event's payload
-        into the kwargs for the task.
-
-        :param task_instance: The task instance to handle the submit event for.
-        :param session: The session to be used for the database callback sink.
-        """
-        # Get the next kwargs of the task instance, or an empty dictionary if it doesn't exist
-        next_kwargs = task_instance.next_kwargs or {}
-
-        # Add the event's payload into the kwargs for the task
-        next_kwargs["event"] = self.payload
-
-        # Update the next kwargs of the task instance
-        task_instance.next_kwargs = next_kwargs
-
-        # Remove ourselves as its trigger
-        task_instance.trigger_id = None
-
-        # Set the state of the task instance to scheduled
-        task_instance.state = TaskInstanceState.SCHEDULED
-        task_instance.scheduled_dttm = timezone.utcnow()
 
 
 class BaseTaskEndEvent(TriggerEvent):
@@ -184,8 +179,9 @@ class BaseTaskEndEvent(TriggerEvent):
     """
 
     task_instance_state: TaskInstanceState
+    xcoms: dict[str, JsonValue] | None = None
 
-    def __init__(self, *, xcoms: dict[str, Any] | None = None, **kwargs) -> None:
+    def __init__(self, *, xcoms: dict[str, JsonValue] | None = None, **kwargs) -> None:
         """
         Initialize the class with the specified parameters.
 
@@ -194,61 +190,50 @@ class BaseTaskEndEvent(TriggerEvent):
         """
         if "payload" in kwargs:
             raise ValueError("Param 'payload' not supported for this class.")
-        super().__init__(payload=self.task_instance_state)
+        # Yes this is _odd_. It's to support both constructor from users of
+        # `TaskSuccessEvent(some_xcom_value)` and deserialization by pydantic.
+        state = kwargs.pop("task_instance_state", self.__pydantic_fields__["task_instance_state"].default)
+        super().__init__(payload=str(state), task_instance_state=state, **kwargs)
         self.xcoms = xcoms
 
-    @provide_session
-    def handle_submit(self, *, task_instance: TaskInstance, session: Session = NEW_SESSION) -> None:
-        """
-        Submit event for the given task instance.
-
-        Marks the task with the state `task_instance_state` and optionally pushes xcom if applicable.
-
-        :param task_instance: The task instance to be submitted.
-        :param session: The session to be used for the database callback sink.
-        """
-        # Mark the task with terminal state and prevent it from resuming on worker
-        task_instance.trigger_id = None
-        task_instance.set_state(self.task_instance_state, session=session)
-        self._submit_callback_if_necessary(task_instance=task_instance, session=session)
-        self._push_xcoms_if_necessary(task_instance=task_instance)
-
-    def _submit_callback_if_necessary(self, *, task_instance: TaskInstance, session) -> None:
-        """Submit a callback request if the task state is SUCCESS or FAILED."""
-        if self.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
-            request = TaskCallbackRequest(
-                filepath=task_instance.dag_model.relative_fileloc,
-                ti=task_instance,
-                task_callback_type=self.task_instance_state,
-                bundle_name=task_instance.dag_model.bundle_name,
-                bundle_version=task_instance.dag_run.bundle_version,
-            )
-            log.info("Sending callback: %s", request)
-            try:
-                DatabaseCallbackSink().send(callback=request, session=session)
-            except Exception:
-                log.exception("Failed to send callback.")
-
-    def _push_xcoms_if_necessary(self, *, task_instance: TaskInstance) -> None:
-        """Pushes XComs to the database if they are provided."""
-        if self.xcoms:
-            for key, value in self.xcoms.items():
-                task_instance.xcom_push(key=key, value=value)
+    @model_serializer
+    def ser_model(self) -> dict[str, Any]:
+        # We need to customize the serialized schema so it works for the custom constructor we have to keep
+        # the interface to this class "nice"
+        return {"task_instance_state": self.task_instance_state, "xcoms": self.xcoms}
 
 
 class TaskSuccessEvent(BaseTaskEndEvent):
     """Yield this event in order to end the task successfully."""
 
-    task_instance_state = TaskInstanceState.SUCCESS
+    task_instance_state: TaskInstanceState = TaskInstanceState.SUCCESS
 
 
 class TaskFailedEvent(BaseTaskEndEvent):
     """Yield this event in order to end the task with failure."""
 
-    task_instance_state = TaskInstanceState.FAILED
+    task_instance_state: TaskInstanceState = TaskInstanceState.FAILED
 
 
 class TaskSkippedEvent(BaseTaskEndEvent):
     """Yield this event in order to end the task with status 'skipped'."""
 
-    task_instance_state = TaskInstanceState.SKIPPED
+    task_instance_state: TaskInstanceState = TaskInstanceState.SKIPPED
+
+
+def trigger_event_discriminator(v):
+    if isinstance(v, dict):
+        return v.get("task_instance_state", "_event_")
+    if isinstance(v, TriggerEvent):
+        return getattr(v, "task_instance_state", "_event_")
+
+
+DiscrimatedTriggerEvent = Annotated[
+    Union[
+        Annotated[TriggerEvent, Tag("_event_")],
+        Annotated[TaskSuccessEvent, Tag(TaskInstanceState.SUCCESS)],
+        Annotated[TaskFailedEvent, Tag(TaskInstanceState.FAILED)],
+        Annotated[TaskSkippedEvent, Tag(TaskInstanceState.SKIPPED)],
+    ],
+    Discriminator(trigger_event_discriminator),
+]

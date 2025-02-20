@@ -27,10 +27,9 @@ This should generally only be called by internal methods such as
 
 from __future__ import annotations
 
-import json
 import logging
 import traceback
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from sqlalchemy import and_, delete, exists, func, insert, select, tuple_
 from sqlalchemy.exc import OperationalError
@@ -53,7 +52,8 @@ from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
-from airflow.serialization.serialized_objects import BaseSerialization, SerializedAssetWatcher
+from airflow.serialization.serialized_objects import SerializedAssetWatcher
+from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.timezone import utcnow
@@ -202,6 +202,7 @@ def _serialize_dag_capturing_errors(
         else:
             # Check and update DagCode
             DagCode.update_source_code(dag.dag_id, dag.fileloc)
+
         return []
     except OperationalError:
         raise
@@ -758,7 +759,7 @@ class AssetModelOperation(NamedTuple):
                 else []
             )
             trigger_hash_to_trigger_dict: dict[int, dict] = {
-                self._get_trigger_hash(
+                BaseEventTrigger.hash(
                     watcher.trigger["classpath"], watcher.trigger["kwargs"]
                 ): watcher.trigger
                 for watcher in asset_watchers
@@ -768,7 +769,7 @@ class AssetModelOperation(NamedTuple):
 
             asset_model = assets[name_uri]
             trigger_hash_from_asset_model: set[int] = {
-                self._get_trigger_hash(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
+                BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
             }
 
             # Optimization: no diff between the DB and DAG definitions, no update needed
@@ -796,7 +797,7 @@ class AssetModelOperation(NamedTuple):
                 for trigger_hash in trigger_hashes
             }
             orm_triggers: dict[int, Trigger] = {
-                self._get_trigger_hash(trigger.classpath, trigger.kwargs): trigger
+                BaseEventTrigger.hash(trigger.classpath, trigger.kwargs): trigger
                 for trigger in session.scalars(
                     select(Trigger).where(
                         tuple_(Trigger.classpath, Trigger.encrypted_kwargs).in_(all_trigger_keys)
@@ -817,7 +818,7 @@ class AssetModelOperation(NamedTuple):
             ]
             session.add_all(new_trigger_models)
             orm_triggers.update(
-                (self._get_trigger_hash(trigger.classpath, trigger.kwargs), trigger)
+                (BaseEventTrigger.hash(trigger.classpath, trigger.kwargs), trigger)
                 for trigger in new_trigger_models
             )
 
@@ -835,7 +836,7 @@ class AssetModelOperation(NamedTuple):
                 asset_model.triggers = [
                     trigger
                     for trigger in asset_model.triggers
-                    if self._get_trigger_hash(trigger.classpath, trigger.kwargs) not in trigger_hashes
+                    if BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) not in trigger_hashes
                 ]
 
         # Remove references from assets no longer used
@@ -845,15 +846,3 @@ class AssetModelOperation(NamedTuple):
         for asset_model in orphan_assets:
             if (asset_model.name, asset_model.uri) not in self.assets:
                 asset_model.triggers = []
-
-    @staticmethod
-    def _get_trigger_hash(classpath: str, kwargs: dict[str, Any]) -> int:
-        """
-        Return the hash of the trigger classpath and kwargs. This is used to uniquely identify a trigger.
-
-        We do not want to move this logic in a `__hash__` method in `BaseTrigger` because we do not want to
-        make the triggers hashable. The reason being, when the triggerer retrieve the list of triggers, we do
-        not want it dedupe them. When used to defer tasks, 2 triggers can have the same classpath and kwargs.
-        This is not true for event driven scheduling.
-        """
-        return hash((classpath, json.dumps(BaseSerialization.serialize(kwargs)).encode("utf-8")))
