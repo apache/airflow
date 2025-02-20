@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Feat: support docker operator arg 'labels' (#46643)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix f-string ruff static check (#46813)``
+* ``Using quotes for file path in find command (#46795)``
+* ``Update DockerSwarmOperator auto_remove to align with DockerOperator (#45745)``
+
+Misc
+~~~~
+
+* ``Using env for file path in find command (#46809)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Move Literal alias into TYPE_CHECKING block (#45345)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Move Docker Provider to the New Structure (#46097)``
+
 4.0.0
 .....
 

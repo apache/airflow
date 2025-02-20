@@ -24,7 +24,7 @@
 
 Package ``apache-airflow-providers-yandex``
 
-Release: ``4.0.0``
+Release: ``4.0.1``
 
 
 This package is for Yandex, including:
@@ -39,7 +39,7 @@ This is a provider package for ``yandex`` provider. All classes for this provide
 are in ``airflow.providers.yandex`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.1/>`_.
 
 Installation
 ------------
@@ -62,4 +62,4 @@ PIP package              Version required
 =======================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.1/changelog.html>`_.

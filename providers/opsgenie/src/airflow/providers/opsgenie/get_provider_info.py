@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Opsgenie",
         "description": "`Opsgenie <https://www.atlassian.com/software/opsgenie>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536073,
+        "source-date-epoch": 1739964047,
         "versions": [
+            "5.8.1",
             "5.8.0",
             "5.7.0",
             "5.6.1",
