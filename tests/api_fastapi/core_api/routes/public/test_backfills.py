@@ -404,7 +404,6 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
                 [
                     {"logical_date": "2024-01-01T00:00:00Z"},
                     {"logical_date": "2024-01-02T00:00:00Z"},  # Reprocess all
-                    {"logical_date": "2024-01-03T00:00:00Z"},
                     {"logical_date": "2024-01-04T00:00:00Z"},
                     {"logical_date": "2024-01-05T00:00:00Z"},
                 ],

@@ -200,16 +200,32 @@ def _get_latest_dag_run_row_query(info, session):
     )
 
 
-def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> str | None:
-    non_create_reason = None
+def _dag_run_skip_reason_or_clear(
+    dr, reprocess_behavior: ReprocessBehavior
+) -> tuple[BackfillDagRunExceptionReason | None, bool]:
+    """Determine whether to clear the DAG run or return a reason for skipping."""
+    # If DAG run is in progress, it cannot be reprocessed
     if dr.state not in (DagRunState.SUCCESS, DagRunState.FAILED):
-        non_create_reason = BackfillDagRunExceptionReason.IN_FLIGHT
-    elif reprocess_behavior is ReprocessBehavior.NONE:
-        non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
-    elif reprocess_behavior is ReprocessBehavior.FAILED:
-        if dr.state != DagRunState.FAILED:
-            non_create_reason = BackfillDagRunExceptionReason.ALREADY_EXISTS
-    return non_create_reason
+        return BackfillDagRunExceptionReason.IN_FLIGHT, False
+
+    # If reprocessing is disabled, indicate that the DAG run already exists
+    if reprocess_behavior is ReprocessBehavior.NONE:
+        return BackfillDagRunExceptionReason.ALREADY_EXISTS, False
+
+    # Allow clearing if the DAG run state matches the reprocess behavior
+    if (dr.state == DagRunState.SUCCESS and reprocess_behavior == ReprocessBehavior.COMPLETED) or (
+        dr.state == DagRunState.FAILED and reprocess_behavior == ReprocessBehavior.FAILED
+    ):
+        return None, True
+    # If reprocessing only failed runs, but the DAG run was successful, do not clear
+    if dr.state != DagRunState.FAILED and reprocess_behavior == ReprocessBehavior.FAILED:
+        return BackfillDagRunExceptionReason.ALREADY_EXISTS, False
+
+    # If reprocessing only completed runs, but the DAG run was failed, do not clear
+    if dr.state == DagRunState.FAILED and reprocess_behavior == ReprocessBehavior.COMPLETED:
+        return BackfillDagRunExceptionReason.ALREADY_EXISTS, False
+
+    return None, False  # Default case: no reason to skip, no need to clear
 
 
 def _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior: ReprocessBehavior | None):
@@ -257,7 +273,7 @@ def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, sess
             statement=_get_latest_dag_run_row_query(info, session),
         )
         if dr:
-            non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
+            non_create_reason, _ = _dag_run_skip_reason_or_clear(dr, reprocess_behavior)
             if not non_create_reason:
                 logical_dates.append(info.logical_date)
         else:
@@ -266,24 +282,28 @@ def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, sess
 
 
 def should_create_backfill_dag_run(
-    info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
+    dag, info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
 ) -> bool:
     """Determine if a backfill DAG run should be created and add a BackfillDagRun if required."""
-    dr = session.scalar(_get_latest_dag_run_row_query(info, session))
+    dr = session.scalar(
+        statement=_get_latest_dag_run_row_query(info, session),
+    )
     if not dr:
         return False
-    non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
-    if non_create_reason:
-        session.add(
-            BackfillDagRun(
-                backfill_id=backfill_id,
-                dag_run_id=None,
-                logical_date=info.logical_date,
-                exception_reason=non_create_reason,
-                sort_ordinal=backfill_sort_ordinal,
-            )
-        )
+
+    non_create_reason, do_clear_run = _dag_run_skip_reason_or_clear(dr, reprocess_behavior)
+    print(f"dr is {dr.logical_date}")
+    print(f"state is {dr.state}")
+    print(f"non_create_reason is {non_create_reason}")
+    print(f"do_clear_run is {do_clear_run}")
+    if non_create_reason and not do_clear_run:
+        _handle_non_create_reason(session, backfill_id, info, non_create_reason, backfill_sort_ordinal)
         return True
+
+    if do_clear_run:
+        _handle_clear_run(session, dag, dr, info, backfill_id, backfill_sort_ordinal)
+        return True
+
     return False
 
 
@@ -301,7 +321,7 @@ def _create_backfill_dag_run(
 
     with session.begin_nested():
         should_skip_create_backfill = should_create_backfill_dag_run(
-            info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
+            dag, info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
         )
         if should_skip_create_backfill:
             return
@@ -343,7 +363,7 @@ def _create_backfill_dag_run(
             session.rollback()
 
             should_create_backfill_dag_run(
-                info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
+                dag, info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
             )
 
 
@@ -443,3 +463,53 @@ def _create_backfill(
                 info,
             )
     return br
+
+
+def _handle_non_create_reason(session, backfill_id, info, reason, sort_ordinal):
+    """Record why a backfill DAG run was not created."""
+    session.add(
+        BackfillDagRun(
+            backfill_id=backfill_id,
+            dag_run_id=None,
+            logical_date=info.logical_date,
+            exception_reason=reason,
+            sort_ordinal=sort_ordinal,
+        )
+    )
+
+
+def _handle_clear_run(session, dag, dr, info, backfill_id, sort_ordinal):
+    """Clear the existing DAG run and update backfill metadata."""
+    from sqlalchemy.sql import update
+
+    from airflow.models import DagRun
+    from airflow.utils.state import DagRunState
+    from airflow.utils.types import DagRunType
+
+    dag.clear(
+        run_id=dr.run_id,
+        dag_run_state=DagRunState.QUEUED,
+        session=session,
+        confirm_prompt=False,
+        dry_run=False,
+    )
+
+    # Update backfill_id and run_type in DagRun table
+    session.execute(
+        update(DagRun)
+        .where(DagRun.logical_date == info.logical_date)
+        .values(
+            backfill_id=backfill_id,
+            run_type=DagRunType.BACKFILL_JOB,
+            triggered_by=DagRunTriggeredByType.BACKFILL,
+        )
+    )
+
+    session.add(
+        BackfillDagRun(
+            backfill_id=backfill_id,
+            dag_run_id=dr.id,
+            logical_date=info.logical_date,
+            sort_ordinal=sort_ordinal,
+        )
+    )
