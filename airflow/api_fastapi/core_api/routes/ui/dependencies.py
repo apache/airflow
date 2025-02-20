@@ -17,9 +17,14 @@
 
 from __future__ import annotations
 
+from fastapi import status
+from fastapi.exceptions import HTTPException
+
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import BaseGraphResponse
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.ui.dependencies import extract_single_connected_component
 from airflow.models.serialized_dag import SerializedDagModel
 
 dependencies_router = AirflowRouter(tags=["Dependencies"])
@@ -27,10 +32,13 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
 
 @dependencies_router.get(
     "/dependencies",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
 )
-def get_dependencies(
-    session: SessionDep,
-) -> BaseGraphResponse:
+def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGraphResponse:
     """Dependencies graph."""
     nodes_dict: dict[str, dict] = {}
     edge_tuples: set[tuple[str, str]] = set()
@@ -68,5 +76,11 @@ def get_dependencies(
         "nodes": nodes,
         "edges": edges,
     }
+
+    if node_id is not None:
+        try:
+            data = extract_single_connected_component(node_id, data["nodes"], data["edges"])
+        except ValueError as e:
+            raise HTTPException(404, str(e))
 
     return BaseGraphResponse(**data)

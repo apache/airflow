@@ -18,16 +18,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator, Sequence
-from typing import IO, Any, Callable
+from collections.abc import AsyncIterator
+from typing import IO, Any
 
-from google.cloud.dataflow_v1beta3 import ListJobsRequest
-
-from airflow.providers.apache.beam.hooks.beam import BeamAsyncHook, BeamRunnerType
-from airflow.providers.google.cloud.hooks.dataflow import (
-    AsyncDataflowHook,
-    process_line_and_extract_dataflow_job_id_callback,
-)
+from airflow.providers.apache.beam.hooks.beam import BeamAsyncHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -38,18 +32,6 @@ class BeamPipelineBaseTrigger(BaseTrigger):
     @staticmethod
     def _get_async_hook(*args, **kwargs) -> BeamAsyncHook:
         return BeamAsyncHook(*args, **kwargs)
-
-    @staticmethod
-    def _get_sync_dataflow_hook(**kwargs) -> AsyncDataflowHook:
-        return AsyncDataflowHook(**kwargs)
-
-    def _get_dataflow_process_callback(self) -> Callable[[str], None]:
-        def set_current_dataflow_job_id(job_id):
-            self.dataflow_job_id = job_id
-
-        return process_line_and_extract_dataflow_job_id_callback(
-            on_new_job_id_callback=set_current_dataflow_job_id
-        )
 
 
 class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
@@ -70,8 +52,6 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
     :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
         This option is only relevant if the ``py_requirements`` parameter is not None.
-    :param project_id: Optional, the Google Cloud project ID in which to start a job.
-    :param location: Optional, Job location.
     :param runner: Runner on which pipeline will be run. By default, "DirectRunner" is being used.
         Other possible options: DataflowRunner, SparkRunner, FlinkRunner, PortableRunner.
         See: :class:`~providers.apache.beam.hooks.beam.BeamRunnerType`
@@ -87,8 +67,6 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
         py_interpreter: str = "python3",
         py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
-        project_id: str | None = None,
-        location: str | None = None,
         runner: str = "DirectRunner",
         gcp_conn_id: str = "google_cloud_default",
     ):
@@ -99,9 +77,6 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
         self.py_interpreter = py_interpreter
         self.py_requirements = py_requirements
         self.py_system_site_packages = py_system_site_packages
-        self.dataflow_job_id: str | None = None
-        self.project_id = project_id
-        self.location = location
         self.runner = runner
         self.gcp_conn_id = gcp_conn_id
 
@@ -116,8 +91,6 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
                 "py_interpreter": self.py_interpreter,
                 "py_requirements": self.py_requirements,
                 "py_system_site_packages": self.py_system_site_packages,
-                "project_id": self.project_id,
-                "location": self.location,
                 "runner": self.runner,
                 "gcp_conn_id": self.gcp_conn_id,
             },
@@ -126,7 +99,6 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current pipeline status and yields a TriggerEvent."""
         hook = self._get_async_hook(runner=self.runner)
-        is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
 
         try:
             # Get the current running event loop to manage I/O operations asynchronously
@@ -152,7 +124,6 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
                 py_interpreter=self.py_interpreter,
                 py_requirements=self.py_requirements,
                 py_system_site_packages=self.py_system_site_packages,
-                process_line_callback=self._get_dataflow_process_callback() if is_dataflow else None,
             )
         except Exception as e:
             self.log.exception("Exception occurred while checking for pipeline state")
@@ -163,9 +134,6 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
                     {
                         "status": "success",
                         "message": "Pipeline has finished SUCCESSFULLY",
-                        "dataflow_job_id": self.dataflow_job_id,
-                        "project_id": self.project_id,
-                        "location": self.location,
                     }
                 )
             else:
@@ -184,23 +152,7 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
         Other possible options: DataflowRunner, SparkRunner, FlinkRunner, PortableRunner.
         See: :class:`~providers.apache.beam.hooks.beam.BeamRunnerType`
         See: https://beam.apache.org/documentation/runners/capability-matrix/
-    :param check_if_running: Optional. Before running job, validate that a previous run is not in process.
-    :param project_id: Optional. The Google Cloud project ID in which to start a job.
-    :param location: Optional. Job location.
-    :param job_name: Optional. The 'jobName' to use when executing the Dataflow job.
     :param gcp_conn_id: Optional. The connection ID to use connecting to Google Cloud.
-    :param impersonation_chain: Optional. GCP service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    :param poll_sleep: Optional. The time in seconds to sleep between polling GCP for the dataflow job status.
-        Default value is 10s.
-    :param cancel_timeout: Optional. How long (in seconds) operator should wait for the pipeline to be
-        successfully cancelled when task is being killed. Default value is 300s.
     """
 
     def __init__(
@@ -209,29 +161,14 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
         jar: str,
         job_class: str | None = None,
         runner: str = "DirectRunner",
-        check_if_running: bool = False,
-        project_id: str | None = None,
-        location: str | None = None,
-        job_name: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        poll_sleep: int = 10,
-        cancel_timeout: int | None = None,
     ):
         super().__init__()
         self.variables = variables
         self.jar = jar
         self.job_class = job_class
         self.runner = runner
-        self.check_if_running = check_if_running
-        self.project_id = project_id
-        self.location = location
-        self.job_name = job_name
         self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-        self.poll_sleep = poll_sleep
-        self.cancel_timeout = cancel_timeout
-        self.dataflow_job_id: str | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize BeamJavaPipelineTrigger arguments and classpath."""
@@ -242,45 +179,14 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
                 "jar": self.jar,
                 "job_class": self.job_class,
                 "runner": self.runner,
-                "check_if_running": self.check_if_running,
-                "project_id": self.project_id,
-                "location": self.location,
-                "job_name": self.job_name,
                 "gcp_conn_id": self.gcp_conn_id,
-                "impersonation_chain": self.impersonation_chain,
-                "poll_sleep": self.poll_sleep,
-                "cancel_timeout": self.cancel_timeout,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current Java pipeline status and yields a TriggerEvent."""
         hook = self._get_async_hook(runner=self.runner)
-        is_dataflow = self.runner.lower() == BeamRunnerType.DataflowRunner.lower()
-
         return_code = 0
-        if self.check_if_running:
-            dataflow_hook = self._get_sync_dataflow_hook(
-                gcp_conn_id=self.gcp_conn_id,
-                poll_sleep=self.poll_sleep,
-                impersonation_chain=self.impersonation_chain,
-                cancel_timeout=self.cancel_timeout,
-            )
-            is_running = True
-            while is_running:
-                try:
-                    jobs = await dataflow_hook.list_jobs(
-                        project_id=self.project_id,
-                        location=self.location,
-                        jobs_filter=ListJobsRequest.Filter.ACTIVE,
-                    )
-                    is_running = bool([job async for job in jobs if job.name == self.job_name])
-                except Exception as e:
-                    self.log.exception("Exception occurred while requesting jobs with name %s", self.job_name)
-                    yield TriggerEvent({"status": "error", "message": str(e)})
-                    return
-                if is_running:
-                    await asyncio.sleep(self.poll_sleep)
         try:
             # Get the current running event loop to manage I/O operations asynchronously
             loop = asyncio.get_running_loop()
@@ -302,7 +208,6 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
                 variables=self.variables,
                 jar=self.jar,
                 job_class=self.job_class,
-                process_line_callback=self._get_dataflow_process_callback() if is_dataflow else None,
             )
         except Exception as e:
             self.log.exception("Exception occurred while starting the Java pipeline")
@@ -313,9 +218,6 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
                 {
                     "status": "success",
                     "message": "Pipeline has finished SUCCESSFULLY",
-                    "dataflow_job_id": self.dataflow_job_id,
-                    "project_id": self.project_id,
-                    "location": self.location,
                 }
             )
         else:
