@@ -948,6 +948,36 @@ class TestDagFileProcessorManager:
                 manager.run()
                 assert bundletwo.refresh.call_count == 2
 
+    def test_bundle_refresh_check_interval(self):
+        """Ensure dag processor doesn't refresh bundles every loop."""
+        config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+            },
+        ]
+
+        bundleone = MagicMock()
+        bundleone.name = "bundleone"
+        bundleone.path = "/dev/null"
+        bundleone.refresh_interval = 0
+        bundleone.get_current_version.return_value = None
+
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(config),
+                ("dag_processor", "bundle_refresh_check_interval"): "10",
+            }
+        ):
+            DagBundlesManager().sync_bundles_to_db()
+            manager = DagFileProcessorManager(max_runs=2)
+            manager._dag_bundles = [bundleone]
+            manager._refresh_dag_bundles({})
+            assert bundleone.refresh.call_count == 1
+            manager._refresh_dag_bundles({})
+            assert bundleone.refresh.call_count == 1  # didn't fresh the second time
+
     def test_bundles_versions_are_stored(self, session):
         config = [
             {

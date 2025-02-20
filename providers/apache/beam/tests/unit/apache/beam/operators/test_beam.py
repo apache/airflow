@@ -109,9 +109,6 @@ class TestBeamBasePipelineOperator:
             event={
                 "status": "success",
                 "message": "Pipeline has finished SUCCESSFULLY",
-                "dataflow_job_id": "test_dataflow_job_id",
-                "project_id": "test_project_id",
-                "location": "test_location",
             },
         )
         assert f"{TASK_ID} completed with response Pipeline has finished SUCCESSFULLY" in caplog.text
@@ -192,7 +189,6 @@ class TestBeamRunPythonPipelineOperator:
             py_interpreter=PY_INTERPRETER,
             py_requirements=None,
             py_system_site_packages=False,
-            process_line_callback=None,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -252,7 +248,7 @@ class TestBeamRunPythonPipelineOperator:
             py_requirements=None,
             py_system_site_packages=False,
             process_line_callback=mock.ANY,
-            check_job_status_callback=mock.ANY,
+            is_dataflow_job_id_exist_callback=mock.ANY,
         )
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
@@ -411,7 +407,6 @@ class TestBeamRunJavaPipelineOperator:
             variables={**default_options, **pipeline_options},
             jar=gcs_provide_file.return_value.__enter__.return_value.name,
             job_class=JOB_CLASS,
-            process_line_callback=None,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -463,6 +458,7 @@ class TestBeamRunJavaPipelineOperator:
             jar=gcs_provide_file.return_value.__enter__.return_value.name,
             job_class=JOB_CLASS,
             process_line_callback=mock.ANY,
+            is_dataflow_job_id_exist_callback=mock.ANY,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -960,7 +956,8 @@ class TestBeamRunPythonPipelineOperatorAsync:
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
-    def test_exec_dataflow_runner(self, dataflow_hook_mock, beam_hook_mock):
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner(self, gcs_hook_mock, dataflow_hook_mock, beam_hook_mock):
         """
         Test DataflowHook is created and the right args are passed to
         start_python_dataflow when executing Dataflow runner.
@@ -984,7 +981,7 @@ class TestBeamRunPythonPipelineOperatorAsync:
             cancel_timeout=dataflow_config.cancel_timeout,
             wait_until_finished=dataflow_config.wait_until_finished,
         )
-        beam_hook_mock.return_value.start_python_pipeline.assert_not_called()
+        beam_hook_mock.return_value.start_python_pipeline.assert_called_once()
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -1066,7 +1063,8 @@ class TestBeamRunJavaPipelineOperatorAsync:
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
-    def test_exec_dataflow_runner(self, dataflow_hook_mock, beam_hook_mock):
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner(self, gcs_hook_mock, dataflow_hook_mock, beam_hook_mock):
         """
         Test DataflowHook is created and the right args are passed to
         start_java_pipeline when executing Dataflow runner.
@@ -1075,6 +1073,7 @@ class TestBeamRunJavaPipelineOperatorAsync:
         op = BeamRunJavaPipelineOperator(
             runner="DataflowRunner", dataflow_config=dataflow_config, **self.default_op_kwargs
         )
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         magic_mock = mock.MagicMock()
         with pytest.raises(TaskDeferred):
             op.execute(context=magic_mock)
@@ -1095,6 +1094,7 @@ class TestBeamRunJavaPipelineOperatorAsync:
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
     def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, __, ___):
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         dataflow_cancel_job = dataflow_hook_mock.return_value.cancel_job
         op = BeamRunJavaPipelineOperator(runner="DataflowRunner", **self.default_op_kwargs)
         with pytest.raises(TaskDeferred):

@@ -2669,6 +2669,16 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+    bundle_refresh_check_interval:
+      description: |
+        How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting
+        the bundles refresh_interval or because another DAG processor has seen a newer version of the bundle.
+        A low value means we check more frequently, and have a smaller window of time where DAG processors are
+        out of sync with each other, parsing different versions of the same bundle.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "5"
 fastapi:
   description: Configuration for the Fastapi webserver.
   options:

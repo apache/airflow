@@ -449,13 +449,22 @@ export const prefetchUseDagsServiceRecentDagRuns = (
 /**
  * Get Dependencies
  * Dependencies graph.
+ * @param data The data for the request.
+ * @param data.nodeId
  * @returns BaseGraphResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDependenciesServiceGetDependencies = (queryClient: QueryClient) =>
+export const prefetchUseDependenciesServiceGetDependencies = (
+  queryClient: QueryClient,
+  {
+    nodeId,
+  }: {
+    nodeId?: string;
+  } = {},
+) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn(),
-    queryFn: () => DependenciesService.getDependencies(),
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }),
+    queryFn: () => DependenciesService.getDependencies({ nodeId }),
   });
 /**
  * Historical Metrics

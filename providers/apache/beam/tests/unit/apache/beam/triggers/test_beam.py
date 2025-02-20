@@ -28,13 +28,7 @@ HOOK_STATUS_STR_JAVA = "airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.s
 CLASSPATH_PYTHON = "airflow.providers.apache.beam.triggers.beam.BeamPythonPipelineTrigger"
 CLASSPATH_JAVA = "airflow.providers.apache.beam.triggers.beam.BeamJavaPipelineTrigger"
 
-TASK_ID = "test_task"
-LOCATION = "test-location"
-INSTANCE_NAME = "airflow-test-instance"
-INSTANCE = {"type": "BASIC", "displayName": INSTANCE_NAME}
-PROJECT_ID = "test_project_id"
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
-TEST_IMPERSONATION_CHAIN = "A,B,C"
 TEST_VARIABLES = {"output": "gs://bucket_test/output", "labels": {"airflow-version": "v2-7-0-dev0"}}
 TEST_PY_FILE = "apache_beam.examples.wordcount"
 TEST_PY_OPTIONS: list[str] = []
@@ -46,10 +40,6 @@ TEST_JAR_FILE = "example.jar"
 TEST_GCS_JAR_FILE = "gs://my-bucket/example/test.jar"
 TEST_GCS_PY_FILE = "gs://my-bucket/my-object.py"
 TEST_JOB_CLASS = "TestClass"
-TEST_CHECK_IF_RUNNING = False
-TEST_JOB_NAME = "test_job_name"
-TEST_POLL_SLEEP = 10
-TEST_CANCEL_TIMEOUT = 300
 
 
 @pytest.fixture
@@ -61,8 +51,6 @@ def python_trigger():
         py_interpreter=TEST_PY_INTERPRETER,
         py_requirements=TEST_PY_REQUIREMENTS,
         py_system_site_packages=TEST_PY_PACKAGES,
-        project_id=PROJECT_ID,
-        location=LOCATION,
         runner=TEST_RUNNER,
         gcp_conn_id=TEST_GCP_CONN_ID,
     )
@@ -75,14 +63,7 @@ def java_trigger():
         jar=TEST_JAR_FILE,
         job_class=TEST_JOB_CLASS,
         runner=TEST_RUNNER,
-        check_if_running=TEST_CHECK_IF_RUNNING,
-        project_id=PROJECT_ID,
-        location=LOCATION,
-        job_name=TEST_JOB_NAME,
         gcp_conn_id=TEST_GCP_CONN_ID,
-        impersonation_chain=TEST_IMPERSONATION_CHAIN,
-        poll_sleep=TEST_POLL_SLEEP,
-        cancel_timeout=TEST_CANCEL_TIMEOUT,
     )
 
 
@@ -101,8 +82,6 @@ class TestBeamPythonPipelineTrigger:
             "py_interpreter": TEST_PY_INTERPRETER,
             "py_requirements": TEST_PY_REQUIREMENTS,
             "py_system_site_packages": TEST_PY_PACKAGES,
-            "project_id": PROJECT_ID,
-            "location": LOCATION,
             "runner": TEST_RUNNER,
             "gcp_conn_id": TEST_GCP_CONN_ID,
         }
@@ -123,9 +102,6 @@ class TestBeamPythonPipelineTrigger:
                 {
                     "status": "success",
                     "message": "Pipeline has finished SUCCESSFULLY",
-                    "dataflow_job_id": None,
-                    "project_id": PROJECT_ID,
-                    "location": LOCATION,
                 }
             )
             == actual
@@ -183,14 +159,7 @@ class TestBeamJavaPipelineTrigger:
             "jar": TEST_JAR_FILE,
             "job_class": TEST_JOB_CLASS,
             "runner": TEST_RUNNER,
-            "check_if_running": TEST_CHECK_IF_RUNNING,
-            "project_id": PROJECT_ID,
-            "location": LOCATION,
-            "job_name": TEST_JOB_NAME,
             "gcp_conn_id": TEST_GCP_CONN_ID,
-            "impersonation_chain": TEST_IMPERSONATION_CHAIN,
-            "poll_sleep": TEST_POLL_SLEEP,
-            "cancel_timeout": TEST_CANCEL_TIMEOUT,
         }
 
     @pytest.mark.asyncio
@@ -209,9 +178,6 @@ class TestBeamJavaPipelineTrigger:
                 {
                     "status": "success",
                     "message": "Pipeline has finished SUCCESSFULLY",
-                    "dataflow_job_id": None,
-                    "project_id": PROJECT_ID,
-                    "location": LOCATION,
                 }
             )
             == actual
@@ -239,21 +205,6 @@ class TestBeamJavaPipelineTrigger:
         """
         mock_pipeline_status.side_effect = Exception("Test exception")
 
-        generator = java_trigger.run()
-        actual = await generator.asend(None)
-        assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.list_jobs")
-    async def test_beam_trigger_exception_list_jobs_should_execute_successfully(
-        self, mock_list_jobs, java_trigger
-    ):
-        """
-        Test that BeamJavaPipelineTrigger fires the correct event in case of an error.
-        """
-        mock_list_jobs.side_effect = Exception("Test exception")
-
-        java_trigger.check_if_running = True
         generator = java_trigger.run()
         actual = await generator.asend(None)
         assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual

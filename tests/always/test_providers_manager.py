@@ -79,7 +79,6 @@ class TestProviderManager:
             providers_manager._provider_dict["test-package"] = ProviderInfo(
                 version="0.0.1",
                 data={"hook-class-names": ["airflow.providers.sftp.hooks.sftp.SFTPHook"]},
-                package_or_source="package",
             )
             providers_manager._discover_hooks()
         assert warning_records
@@ -98,7 +97,6 @@ class TestProviderManager:
                         }
                     ],
                 },
-                package_or_source="package",
             )
             providers_manager._discover_hooks()
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
@@ -118,7 +116,6 @@ class TestProviderManager:
                         }
                     ],
                 },
-                package_or_source="package",
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict["wrong-connection-type"]
@@ -140,7 +137,6 @@ class TestProviderManager:
                         }
                     ],
                 },
-                package_or_source="package",
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict["sftp"]
@@ -164,7 +160,6 @@ class TestProviderManager:
                         },
                     ],
                 },
-                package_or_source="package",
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict["dummy"]
@@ -188,7 +183,6 @@ class TestProviderManager:
                     }
                 ]
             },
-            package_or_source="package",
         )
         providers_manager._discover_plugins()
         assert len(providers_manager._plugins_set) == 1
@@ -211,7 +205,6 @@ class TestProviderManager:
                     }
                 ]
             },
-            package_or_source="package",
         )
         providers_manager._discover_hooks()
         assert len(providers_manager._dialect_provider_dict) == 1
