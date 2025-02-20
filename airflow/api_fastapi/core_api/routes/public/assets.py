@@ -296,7 +296,6 @@ def materialize_asset(
         run_after=run_after,
         run_type=DagRunType.MANUAL,
         triggered_by=DagRunTriggeredByType.REST_API,
-        external_trigger=True,
         dag_version=DagVersion.get_latest_version(dag_id, session=session),
         state=DagRunState.QUEUED,
         session=session,

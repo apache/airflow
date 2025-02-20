@@ -129,7 +129,6 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock.dag_id = dag.dag_id
     dagrun_mock.data_interval_start = datetime.datetime(2024, 6, 1, 1, 2, 3, tzinfo=datetime.timezone.utc)
     dagrun_mock.data_interval_end = datetime.datetime(2024, 6, 1, 2, 3, 4, tzinfo=datetime.timezone.utc)
-    dagrun_mock.external_trigger = True
     dagrun_mock.run_id = "manual_2024-06-01T00:00:00+00:00"
     dagrun_mock.run_type = DagRunType.MANUAL
     dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
@@ -157,7 +156,6 @@ def test_get_airflow_dag_run_facet():
                 "dag_id": "dag",
                 "data_interval_start": "2024-06-01T01:02:03+00:00",
                 "data_interval_end": "2024-06-01T02:03:04+00:00",
-                "external_trigger": True,
                 "run_id": "manual_2024-06-01T00:00:00+00:00",
                 "run_type": "manual",
                 "start_date": "2024-06-01T01:02:04+00:00",

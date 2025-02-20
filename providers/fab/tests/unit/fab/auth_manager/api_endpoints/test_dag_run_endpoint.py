@@ -159,7 +159,6 @@ class TestDagRunEndpoint:
                 run_id=f"TEST_DAG_RUN_ID_{i}",
                 run_type=DagRunType.MANUAL,
                 start_date=timezone.parse(self.default_time),
-                external_trigger=True,
                 state=state,
                 **_v3_kwargs(timezone.parse(self.default_time) + timedelta(days=i - 1)),
             )
@@ -175,7 +174,6 @@ class TestDagRunEndpoint:
                         run_id=f"TEST_DAG_RUN_ID_{i}",
                         run_type=DagRunType.MANUAL,
                         start_date=timezone.parse(self.default_time),
-                        external_trigger=True,
                         state=state,
                         **_v3_kwargs(timezone.parse(self.default_time_2)),
                     )
@@ -209,7 +207,6 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "state": "running",
             "logical_date": self.default_time,
             "run_after": self.default_time,
-            "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
             "data_interval_end": self.default_time,
@@ -226,7 +223,6 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "state": "running",
             "logical_date": self.default_time_2,
             "run_after": self.default_time_2,
-            "external_trigger": True,
             "start_date": self.default_time,
             "conf": {},
             "data_interval_end": self.default_time_2,

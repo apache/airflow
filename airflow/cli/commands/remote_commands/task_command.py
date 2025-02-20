@@ -139,7 +139,6 @@ def _get_dag_run(
             dag_id=dag.dag_id,
             run_id=logical_date_or_run_id,
             run_type=DagRunType.MANUAL,
-            external_trigger=True,
             logical_date=dag_run_logical_date,
             data_interval=data_interval,
             run_after=run_after,

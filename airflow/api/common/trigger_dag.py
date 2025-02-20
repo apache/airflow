@@ -112,7 +112,6 @@ def _trigger_dag(
         conf=run_conf,
         run_type=DagRunType.MANUAL,
         triggered_by=triggered_by,
-        external_trigger=True,
         dag_version=dag_version,
         state=DagRunState.QUEUED,
         session=session,
