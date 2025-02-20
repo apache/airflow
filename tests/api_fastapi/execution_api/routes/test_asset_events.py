@@ -27,16 +27,77 @@ DEFAULT_DATE = timezone.parse("2021-01-01T00:00:00")
 pytestmark = pytest.mark.db_test
 
 
-class TestGetAssetByName:
-    def test_get_asset_event_by_name_uri(self, client, session):
-        asset = AssetModel(
-            id=1,
-            name="test_get_asset_by_name",
-            uri="s3://bucket/key",
-            group="asset",
-            extra={"foo": "bar"},
-            created_at=DEFAULT_DATE,
-            updated_at=DEFAULT_DATE,
+@pytest.fixture
+def test_asset_events(session):
+    common = {
+        "asset_id": 1,
+        "extra": {"foo": "bar"},
+        "source_dag_id": "foo",
+        "source_task_id": "bar",
+        "source_run_id": "custom",
+        "source_map_index": -1,
+    }
+
+    events = [AssetEvent(id=i, timestamp=DEFAULT_DATE, **common) for i in (1, 2)]
+    session.add_all(events)
+    session.commit()
+    yield events
+
+    for event in events:
+        session.delete(event)
+    session.commit()
+
+
+@pytest.fixture
+def test_asset(session):
+    asset = AssetModel(
+        id=1,
+        name="test_get_asset_by_name",
+        uri="s3://bucket/key",
+        group="asset",
+        extra={"foo": "bar"},
+        created_at=DEFAULT_DATE,
+        updated_at=DEFAULT_DATE,
+    )
+    asset_active = AssetActive.for_asset(asset)
+    session.add_all([asset, asset_active])
+    session.commit()
+
+    yield asset
+
+    session.delete(asset)
+    session.delete(asset_active)
+    session.commit()
+
+
+@pytest.fixture
+def test_asset_alias(session, test_asset_events, test_asset):
+    alias = AssetAliasModel(id=1, name="test_alias")
+    alias.asset_events = test_asset_events
+    alias.assets.append(test_asset)
+    session.add(alias)
+    session.commit()
+
+    yield alias
+
+    session.delete(alias)
+    session.commit()
+
+
+class TestGetAssetEventByAsset:
+    @pytest.mark.parametrize(
+        "uri, name",
+        [
+            (None, "test_get_asset_by_name"),
+            ("s3://bucket/key", None),
+            ("s3://bucket/key", "test_get_asset_by_name"),
+        ],
+    )
+    @pytest.mark.usefixtures("test_asset", "test_asset_events")
+    def test_get_by_asset(self, uri, name, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params={"name": name, "uri": uri},
         )
         assert response.status_code == 200
         assert response.json() == {
@@ -81,7 +142,7 @@ class TestGetAssetEventByAssetAlias:
     @pytest.mark.usefixtures("test_asset_alias")
     def test_get_by_asset(self, client):
         response = client.get(
-            "/execution/asset-events/by-asset-name-uri",
+            "/execution/asset-events/by-asset",
             params={"name": "test_get_asset_by_name", "uri": "s3://bucket/key"},
         )
         assert response.status_code == 200
@@ -103,8 +164,8 @@ class TestGetAssetEventByAssetAlias:
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
                 },
-                {
-                    "id": 2,
+            "/execution/asset-events/by-asset-alias",
+            params={"name": "test_alias"},
                     "asset_id": 1,
                     "uri": "s3://bucket/key",
                     "name": "test_get_asset_by_name",

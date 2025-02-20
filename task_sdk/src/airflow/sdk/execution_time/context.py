@@ -315,10 +315,8 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
         from airflow.sdk.execution_time.comms import (
             AssetEventCollectionResult,
             ErrorResponse,
-            GetAssetEventByAliasName,
-            GetAssetEventByName,
-            GetAssetEventByNameUri,
-            GetAssetEventByUri,
+            GetAssetEventByAsset,
+            GetAssetEventByAssetAlias,
         )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -331,22 +329,22 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
 
         if isinstance(obj, Asset):
             asset = self._assets[AssetUniqueKey.from_asset(obj)]
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByNameUri(name=asset.name, uri=asset.uri))
-        elif isinstance(obj, AssetAlias):
-            asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAliasName(alias_name=asset_alias.name))
+            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAsset(name=asset.name, uri=asset.uri))
         elif isinstance(obj, AssetNameRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.name == obj.name)
             except StopIteration:
                 raise KeyError(obj) from None
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByName(name=asset.name))
+            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAsset(name=asset.name, uri=None))
         elif isinstance(obj, AssetUriRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
             except StopIteration:
                 raise KeyError(obj) from None
-            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByUri(uri=asset.uri))
+            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAsset(name=None, uri=asset.uri))
+        elif isinstance(obj, AssetAlias):
+            asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
+            SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAssetAlias(alias_name=asset_alias.name))
         else:
             raise ValueError(key)
 

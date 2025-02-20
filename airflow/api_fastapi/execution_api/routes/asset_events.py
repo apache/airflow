@@ -47,45 +47,30 @@ def _get_asset_events_through_sql_clauses(
     return AssetEventCollectionResponse.model_validate({"asset_events": asset_events or []})
 
 
-@router.get("/by-asset-name-uri")
+@router.get("/by-asset")
 def get_asset_event_by_asset_name_uri(
     name: Annotated[str, Query(description="The name of the Asset")],
     uri: Annotated[str, Query(description="The URI of the Asset")],
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
+    if name and uri:
+        where_clause = and_(AssetModel.name == name, AssetModel.uri == uri)
+    elif uri:
+        where_clause = and_(AssetModel.uri == uri, AssetModel.active.has())
+    elif name:
+        where_clause = and_(AssetModel.name == name, AssetModel.active.has())
+    else:
+        raise ValueError()
+
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.asset,
-        where_clause=and_(AssetModel.name == name, AssetModel.uri == uri),
+        where_clause=where_clause,
         session=session,
     )
 
 
-@router.get("/by-asset-uri")
-def get_asset_event_by_uri(
-    uri: Annotated[str, Query(description="The URI of the Asset")],
-    session: SessionDep,
-) -> AssetEventCollectionResponse:
-    return _get_asset_events_through_sql_clauses(
-        join_clause=AssetEvent.asset,
-        where_clause=and_(AssetModel.uri == uri, AssetModel.active.has()),
-        session=session,
-    )
-
-
-@router.get("/by-asset-name")
-def get_asset_event_by_name(
-    name: Annotated[str, Query(description="The name of the Asset")],
-    session: SessionDep,
-) -> AssetEventCollectionResponse:
-    return _get_asset_events_through_sql_clauses(
-        join_clause=AssetEvent.asset,
-        where_clause=and_(AssetModel.uri == name, AssetModel.active.has()),
-        session=session,
-    )
-
-
-@router.get("/by-alias-name")
-def get_asset_event_by_alias_name(
+@router.get("/by-asset-alias")
+def get_asset_event_by_asset_alias(
     name: Annotated[str, Query(description="The name of the Asset Alias")],
     session: SessionDep,
 ) -> AssetEventCollectionResponse:

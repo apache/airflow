@@ -350,15 +350,11 @@ class AssetEventOperations:
     def get(
         self, name: str | None = None, uri: str | None = None, alias_name: str | None = None
     ) -> AssetEventCollectionResponse:
-        """Get Asset value from the API server."""
-        if name and uri:
-            resp = self.client.get("asset-events/by-asset-name-uri", params={"name": name, "uri": uri})
+        """Get Asset event from the API server."""
+        if name or uri:
+            resp = self.client.get("asset-events/by-asset", params={"name": name, "uri": uri})
         elif alias_name:
-            resp = self.client.get("asset-events/by-alias-name", params={"name": name})
-        elif name:
-            resp = self.client.get("asset-events/by-asset-name", params={"name": name})
-        elif uri:
-            resp = self.client.get("asset-events/by-asset-uri", params={"uri": uri})
+            resp = self.client.get("asset-events/by-asset-alias", params={"name": name})
         else:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")
 

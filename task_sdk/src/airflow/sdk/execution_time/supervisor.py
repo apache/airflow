@@ -67,10 +67,8 @@ from airflow.sdk.execution_time.comms import (
     DeferTask,
     GetAssetByName,
     GetAssetByUri,
-    GetAssetEventByAliasName,
-    GetAssetEventByName,
-    GetAssetEventByNameUri,
-    GetAssetEventByUri,
+    GetAssetEventByAsset,
+    GetAssetEventByAssetAlias,
     GetConnection,
     GetPrevSuccessfulDagRun,
     GetVariable,
@@ -847,25 +845,13 @@ class ActivitySubprocess(WatchedSubprocess):
             asset_resp = self.client.assets.get(uri=msg.uri)
             asset_result = AssetResult.from_asset_response(asset_resp)
             resp = asset_result.model_dump_json(exclude_unset=True).encode()
-        elif isinstance(msg, GetAssetEventByNameUri):
+        elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(uri=msg.uri, name=msg.name)
             asset_event_result = AssetEventCollectionResult.from_asset_event_collection_response(
                 asset_event_resp
             )
             resp = asset_event_result.model_dump_json(exclude_unset=True).encode()
-        elif isinstance(msg, GetAssetEventByName):
-            asset_event_resp = self.client.asset_events.get(name=msg.name)
-            asset_event_result = AssetEventCollectionResult.from_asset_event_collection_response(
-                asset_event_resp
-            )
-            resp = asset_event_result.model_dump_json(exclude_unset=True).encode()
-        elif isinstance(msg, GetAssetEventByUri):
-            asset_event_resp = self.client.asset_events.get(uri=msg.uri)
-            asset_event_result = AssetEventCollectionResult.from_asset_event_collection_response(
-                asset_event_resp
-            )
-            resp = asset_event_result.model_dump_json(exclude_unset=True).encode()
-        elif isinstance(msg, GetAssetEventByAliasName):
+        elif isinstance(msg, GetAssetEventByAssetAlias):
             asset_event_resp = self.client.asset_events.get(name=msg.alias_name)
             asset_event_result = AssetEventCollectionResult.from_asset_event_collection_response(
                 asset_event_resp
