@@ -303,7 +303,6 @@ labelPRBasedOnFilePath:
     - airflow/api_fastapi/**/*
     - clients/**/*
     - docs/apache-airflow/stable-rest-api-ref.rst
-    - tests/api_connexion/**/*
     - tests/api_fastapi/**/*
 
   area:dev-tools:
