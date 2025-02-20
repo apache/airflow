@@ -1720,8 +1720,7 @@ class Airflow(AirflowBaseView):
                 ti.task = dag.get_task(ti.task_id)
 
             if response_format == "json":
-                logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
-                message = logs[0] if try_number is not None else logs
+                message, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
                 return {"message": message, "metadata": metadata}
 
             metadata["download_logs"] = True
@@ -4703,8 +4702,7 @@ class VariableModelView(AirflowModelView):
             if skipped:
                 skipped_repr = ", ".join(repr(k) for k in sorted(skipped))
                 flash(
-                    f"The variables with these keys: {skipped_repr} were skipped "
-                    "because they already exists",
+                    f"The variables with these keys: {skipped_repr} were skipped because they already exists",
                     "warning",
                 )
             self.update_redirect()
