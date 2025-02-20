@@ -1,0 +1,16 @@
+Statically-coded executors are now deprecated
+
+The Statically-coded executors ``LocalKubernetesExecutor`` and ``CeleryKubernetesExecutor`` are now deprecated in favor of Multiple Executor Configuration. They will be removed in Airflow 3.0
+
+* Types of change
+
+  * [x] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
