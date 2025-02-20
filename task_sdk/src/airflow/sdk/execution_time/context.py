@@ -328,6 +328,20 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
         else:
             obj = key
 
+        if not isinstance(obj, (Asset, AssetEvent, AssetNameRef, AssetUriRef)):
+            raise ValueError(key)
+
+        return self._get_asset_events_from_db(obj)
+
+    # TODO: This is temporary to avoid code duplication between here & airflow/models/taskinstance.py
+    def _get_asset_events_from_db(self, obj: Asset | AssetAlias | AssetRef) -> list[AssetEvent]:
+        from airflow.sdk.execution_time.comms import (
+            ErrorResponse,
+            GetAssetEventByAsset,
+            GetAssetEventByAssetAlias,
+        )
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
         if isinstance(obj, Asset):
             asset = self._assets[AssetUniqueKey.from_asset(obj)]
             SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAsset(name=asset.name, uri=asset.uri))
@@ -346,8 +360,6 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
         elif isinstance(obj, AssetAlias):
             asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
             SUPERVISOR_COMMS.send_request(log=log, msg=GetAssetEventByAssetAlias(alias_name=asset_alias.name))
-        else:
-            raise ValueError(key)
 
         msg = SUPERVISOR_COMMS.get_message()
         if isinstance(msg, ErrorResponse):

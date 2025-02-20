@@ -29,10 +29,21 @@ from typing import (
 )
 
 import attrs
-from sqlalchemy import select
+from sqlalchemy import and_, select
 
 from airflow.models.asset import (
+    AssetAliasModel,
     AssetModel,
+)
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetAliasUniqueKey,
+    AssetEvent,
+    AssetNameRef,
+    AssetRef,
+    AssetUniqueKey,
+    AssetUriRef,
 )
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.execution_time.context import (
@@ -158,6 +169,36 @@ class InletEventsAccessors(InletEventsAccessorsSDK):
 
     :meta private:
     """
+
+    def _get_asset_events_from_db(self, obj: Asset | AssetAlias | AssetRef) -> list[AssetEvent]:
+        if isinstance(obj, Asset):
+            asset = self._assets[AssetUniqueKey.from_asset(obj)]
+            join_clause = AssetEvent.asset
+            where_clause = and_(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
+        elif isinstance(obj, AssetAlias):
+            asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
+            join_clause = AssetEvent.source_aliases
+            where_clause = AssetAliasModel.name == asset_alias.name
+        elif isinstance(obj, AssetNameRef):
+            try:
+                asset = next(a for k, a in self._assets.items() if k.name == obj.name)
+            except StopIteration:
+                raise KeyError(obj) from None
+            join_clause = AssetEvent.asset
+            where_clause = and_(AssetModel.name == asset.name, AssetModel.active.has())
+        elif isinstance(obj, AssetUriRef):
+            try:
+                asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
+            except StopIteration:
+                raise KeyError(obj) from None
+            join_clause = AssetEvent.asset
+            where_clause = and_(AssetModel.uri == asset.uri, AssetModel.active.has())
+
+        with create_session() as session:
+            asset_events = session.scalars(
+                select(AssetEvent).join(join_clause).where(where_clause).order_by(AssetEvent.timestamp)
+            )
+        return asset_events
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
