@@ -38,6 +38,7 @@ import type {
   GetConfigValueResponse,
   RecentDagRunsData,
   RecentDagRunsResponse,
+  GetDependenciesData,
   GetDependenciesResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
@@ -744,13 +745,22 @@ export class DependenciesService {
   /**
    * Get Dependencies
    * Dependencies graph.
+   * @param data The data for the request.
+   * @param data.nodeId
    * @returns BaseGraphResponse Successful Response
    * @throws ApiError
    */
-  public static getDependencies(): CancelablePromise<GetDependenciesResponse> {
+  public static getDependencies(data: GetDependenciesData = {}): CancelablePromise<GetDependenciesResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/dependencies",
+      query: {
+        node_id: data.nodeId,
+      },
+      errors: {
+        404: "Not Found",
+        422: "Validation Error",
+      },
     });
   }
 }
