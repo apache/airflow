@@ -42,7 +42,10 @@ class TestDagVersionEndpoint:
 
         dag.sync_to_db()
         SerializedDagModel.write_dag(
-            dag, bundle_name="another_bundle_name", bundle_version="some_commit_hash"
+            dag,
+            bundle_name="another_bundle_name",
+            code_reader=lambda _: "dag source code",
+            bundle_version="some_commit_hash",
         )
 
 

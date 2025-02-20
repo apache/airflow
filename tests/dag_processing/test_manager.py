@@ -435,7 +435,9 @@ class TestDagFileProcessorManager:
             dag = dagbag.get_dag("test_example_bash_operator")
             dag.last_parsed_time = timezone.utcnow()
             DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            SerializedDagModel.write_dag(
+                dag, bundle_name="testing", code_reader=lambda _: DagCode.get_code_from_file(dag.fileloc)
+            )
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(
@@ -630,7 +632,7 @@ class TestDagFileProcessorManager:
         dagbag.process_file(test_zip_path)
         dag = dagbag.get_dag("test_zip_dag")
         DAG.bulk_write_to_db("testing", None, [dag])
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag, bundle_name="testing", code_reader=lambda _: "source code")
 
         with configure_testing_dag_bundle(test_zip_path):
             manager = DagFileProcessorManager(max_runs=1)

@@ -3272,7 +3272,7 @@ class TestSchedulerJob:
 
         # Now let's say the DAG got updated (new task got added)
         BashOperator(task_id="bash_task_1", dag=dag, bash_command="echo hi")
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", code_reader=lambda _: "dag source code")
 
         dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
@@ -5321,7 +5321,7 @@ class TestSchedulerJob:
         assert len(tis) == 1
 
         BashOperator(task_id="dummy2", dag=dag, bash_command="echo test")
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", code_reader=lambda _: "dag source code")
 
         self.job_runner._schedule_dag_run(dr, session)
         assert session.query(TaskInstance).filter_by(state=State.SCHEDULED).count() == 2
@@ -5511,7 +5511,7 @@ class TestSchedulerJob:
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         DAG.bulk_write_to_db("testing", None, [dag])
-        SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+        SerializedDagModel.write_dag(dag=dag, bundle_name="testing", code_reader=lambda _: "dag source code")
         dag_v = DagVersion.get_latest_version(dag.dag_id)
         data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
         dag_run = create_dagrun(
@@ -5637,7 +5637,9 @@ class TestSchedulerJob:
             session.query(Job).delete()
             dag = dagbag.get_dag("test_example_bash_operator")
             DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag=dag, bundle_name="testing")
+            SerializedDagModel.write_dag(
+                dag=dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+            )
             data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
             dag_run = create_dagrun(
                 dag,

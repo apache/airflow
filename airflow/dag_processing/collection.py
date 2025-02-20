@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 import traceback
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, Callable, NamedTuple, cast
 
 from sqlalchemy import and_, delete, exists, func, insert, select, tuple_
 from sqlalchemy.exc import OperationalError
@@ -176,7 +176,11 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
 
 
 def _serialize_dag_capturing_errors(
-    dag: MaybeSerializedDAG, bundle_name, session: Session, bundle_version: str | None
+    dag: MaybeSerializedDAG,
+    bundle_name: str,
+    code_reader: Callable[[str], str],
+    session: Session,
+    bundle_version: str | None,
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
@@ -194,6 +198,7 @@ def _serialize_dag_capturing_errors(
             dag,
             bundle_name=bundle_name,
             bundle_version=bundle_version,
+            code_reader=code_reader,
             min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
         )
@@ -201,7 +206,9 @@ def _serialize_dag_capturing_errors(
             _sync_dag_perms(dag, session=session)
         else:
             # Check and update DagCode
-            DagCode.update_source_code(dag.dag_id, dag.fileloc)
+            if TYPE_CHECKING:
+                assert dag.relative_fileloc
+            DagCode.update_source_code(dag.dag_id, dag.relative_fileloc, code_reader)
 
         return []
     except OperationalError:
@@ -298,6 +305,7 @@ def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
     dags: Collection[MaybeSerializedDAG],
+    code_reader: Callable[[str], str],
     import_errors: dict[str, str],
     warnings: set[DagWarning],
     session: Session,
@@ -321,7 +329,7 @@ def update_dag_parsing_results_in_db(
 
     ``import_errors`` will be updated in place with an new errors
     """
-    # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
+    # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.write_dag' in case
     # of any Operational Errors
     # In case of failures, provide_session handles rollback
     for attempt in run_with_db_retries(logger=log):
@@ -332,14 +340,18 @@ def update_dag_parsing_results_in_db(
                 attempt.retry_state.attempt_number,
                 MAX_DB_RETRIES,
             )
-            log.debug("Calling the DAG.bulk_sync_to_db method")
+            log.debug("Calling the DAG.bulk_write_to_db method")
             try:
                 DAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
                 # Write Serialized DAGs to DB, capturing errors
                 for dag in dags:
                     serialize_errors.extend(
                         _serialize_dag_capturing_errors(
-                            dag=dag, bundle_name=bundle_name, bundle_version=bundle_version, session=session
+                            dag=dag,
+                            bundle_name=bundle_name,
+                            bundle_version=bundle_version,
+                            code_reader=code_reader,
+                            session=session,
                         )
                     )
             except OperationalError:

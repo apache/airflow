@@ -50,7 +50,7 @@ def make_example_dags(module):
             testing = DagBundleModel(name="testing")
             session.add(testing)
 
-    dagbag = DagBag(module.__path__[0])
+    dagbag = DagBag(module.__path__[0], bundle_path=module.__path__[0])
     DAG.bulk_write_to_db("testing", None, dagbag.dags.values())
     return dagbag.dags
 
@@ -69,15 +69,23 @@ class TestDagCode:
     def _write_two_example_dags(self, session):
         example_dags = make_example_dags(example_dags_module)
         bash_dag = example_dags["example_bash_operator"]
-        SDM.write_dag(bash_dag, bundle_name="testing")
+        SDM.write_dag(
+            bash_dag,
+            bundle_name="testing",
+            code_reader=lambda _: DagCode.get_code_from_file(bash_dag.fileloc),
+        )
         dag_version = DagVersion.get_latest_version("example_bash_operator")
-        x = DagCode(dag_version, bash_dag.fileloc)
+        x = DagCode(dag_version, bash_dag.relative_fileloc)
         session.add(x)
         session.commit()
         xcom_dag = example_dags["example_xcom"]
-        SDM.write_dag(xcom_dag, bundle_name="testing")
+        SDM.write_dag(
+            xcom_dag,
+            bundle_name="testing",
+            code_reader=lambda _: DagCode.get_code_from_file(xcom_dag.fileloc),
+        )
         dag_version = DagVersion.get_latest_version("example_xcom")
-        x = DagCode(dag_version, xcom_dag.fileloc)
+        x = DagCode(dag_version, xcom_dag.relative_fileloc)
         session.add(x)
         session.commit()
         return [bash_dag, xcom_dag]
@@ -85,7 +93,9 @@ class TestDagCode:
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
-            SDM.write_dag(dag, bundle_name="testing")
+            SDM.write_dag(
+                dag, bundle_name="testing", code_reader=lambda _: DagCode.get_code_from_file(dag.fileloc)
+            )
         return example_dags
 
     def test_write_to_db(self, testing_dag_bundle):
@@ -114,7 +124,7 @@ class TestDagCode:
                     .one()
                 )
 
-                assert result.fileloc == dag.fileloc
+                assert result.fileloc == dag.relative_fileloc
                 with open_maybe_zipped(dag.fileloc, "r") as source:
                     source_code = source.read()
                 assert result.source_code == source_code
@@ -125,7 +135,11 @@ class TestDagCode:
         Source Code should at least exist in one of DB or File.
         """
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        SDM.write_dag(example_dag, bundle_name="testing")
+        SDM.write_dag(
+            example_dag,
+            bundle_name="testing",
+            code_reader=lambda _: DagCode.get_code_from_file(example_dag.fileloc),
+        )
 
         # Mock that there is no access to the Dag File
         with patch("airflow.models.dagcode.open_maybe_zipped") as mock_open:
@@ -138,11 +152,15 @@ class TestDagCode:
     def test_db_code_created_on_serdag_change(self, session, testing_dag_bundle):
         """Test new DagCode is created in DB when ser dag is changed"""
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        SDM.write_dag(example_dag, bundle_name="testing")
+        SDM.write_dag(
+            example_dag,
+            bundle_name="testing",
+            code_reader=lambda rel_fileloc: DagCode.get_code_from_file(rel_fileloc),
+        )
 
         result = (
             session.query(DagCode)
-            .filter(DagCode.fileloc == example_dag.fileloc)
+            .filter(DagCode.fileloc == example_dag.relative_fileloc)
             .order_by(DagCode.last_updated.desc())
             .limit(1)
             .one()
@@ -153,11 +171,15 @@ class TestDagCode:
         example_dag.doc_md = "new doc"
         with patch("airflow.models.dagcode.DagCode.get_code_from_file") as mock_code:
             mock_code.return_value = "# dummy code"
-            SDM.write_dag(example_dag, bundle_name="testing")
+            SDM.write_dag(
+                example_dag,
+                bundle_name="testing",
+                code_reader=lambda rel_fileloc: DagCode.get_code_from_file(rel_fileloc),
+            )
 
         new_result = (
             session.query(DagCode)
-            .filter(DagCode.fileloc == example_dag.fileloc)
+            .filter(DagCode.fileloc == example_dag.relative_fileloc)
             .order_by(DagCode.last_updated.desc())
             .limit(1)
             .one()
@@ -172,12 +194,12 @@ class TestDagCode:
         with dag_maker("test_has_dag") as dag:
             pass
         dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        SDM.write_dag(dag, bundle_name="dag_maker", code_reader=lambda _: "dag_maker-generated")
 
         with dag_maker() as dag2:
             pass
         dag2.sync_to_db()
-        SDM.write_dag(dag2, bundle_name="dag_maker")
+        SDM.write_dag(dag2, bundle_name="dag_maker", code_reader=lambda _: "dag_maker-generated")
 
         assert DagCode.has_dag(dag.dag_id)
 
@@ -192,13 +214,23 @@ class TestDagCode:
 
             mytask()
         dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        SDM.write_dag(dag, bundle_name="dag_maker", code_reader=lambda _: "dag_maker-generated")
         dag_code = DagCode.get_latest_dagcode(dag.dag_id)
         dag_code.source_code_hash = 2
         session.add(dag_code)
         session.commit()
         dagcode2 = DagCode.get_latest_dagcode(dag.dag_id)
         assert dagcode2.source_code_hash == 2
-        DagCode.update_source_code(dag.dag_id, dag.fileloc)
+
+        code_reader = (
+            lambda _: """
+            @task_decorator
+            def mytask():
+                print("task4")
+
+            mytask()
+        """
+        )
+        DagCode.update_source_code(dag.dag_id, dag.relative_fileloc, code_reader)
         dag_code3 = DagCode.get_latest_dagcode(dag.dag_id)
         assert dag_code3.source_code_hash != 2

@@ -682,7 +682,9 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+            SerializedDagModel.write_dag(
+                dag=example_bash_op_dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+            )
 
             dag_bag = DagBag(read_dags_from_db=True)
             ser_dag_1 = dag_bag.get_dag("example_bash_operator")
@@ -700,7 +702,9 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+            SerializedDagModel.write_dag(
+                dag=example_bash_op_dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+            )
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
@@ -724,7 +728,9 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+            SerializedDagModel.write_dag(
+                dag=example_bash_op_dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+            )
 
         # deserialize the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 10)), tick=False):
@@ -750,7 +756,9 @@ with airflow.DAG(
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
             example_bash_op_dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+            SerializedDagModel.write_dag(
+                dag=example_bash_op_dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+            )
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
         # fetches the Serialized DAG from DB
@@ -770,7 +778,9 @@ with airflow.DAG(
         example_dags = dagbag.dags
         for dag in example_dags.values():
             dag.sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
+            SerializedDagModel.write_dag(
+                dag, bundle_name="dag_maker", code_reader=lambda _: "dag source code"
+            )
 
         new_dagbag = DagBag(read_dags_from_db=True)
         assert len(new_dagbag.dags) == 0

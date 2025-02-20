@@ -204,6 +204,7 @@ class TestUpdateDagParsingResults:
         time_machine.move_to(tz.datetime(2020, 1, 5, 0, 0, 0), tick=False)
 
         dag = DAG(dag_id="test")
+        dag.relative_fileloc = "test_sync_perms_syncs_dag_specific_perms_on_update.py"
 
         sync_perms_spy = spy_agency.spy_on(
             airflow.dag_processing.collection._sync_dag_perms,
@@ -214,7 +215,15 @@ class TestUpdateDagParsingResults:
             sync_perms_spy.reset_calls()
             time_machine.shift(20)
 
-            update_dag_parsing_results_in_db("testing", None, [dag], dict(), set(), session)
+            update_dag_parsing_results_in_db(
+                bundle_name="testing",
+                bundle_version=None,
+                dags=[dag],
+                code_reader=lambda _: "source-code",
+                import_errors=dict(),
+                warnings=set(),
+                session=session,
+            )
 
         _sync_to_db()
         spy_agency.assert_spy_called_with(sync_perms_spy, dag, session=session)
@@ -250,8 +259,15 @@ class TestUpdateDagParsingResults:
         mock_bulk_write_to_db.side_effect = side_effect
 
         mock_session = mock.MagicMock()
+        code_reader = lambda _: "source-code"
         update_dag_parsing_results_in_db(
-            "testing", None, dags=dags, import_errors={}, warnings=set(), session=mock_session
+            "testing",
+            None,
+            dags=dags,
+            code_reader=code_reader,
+            import_errors={},
+            warnings=set(),
+            session=mock_session,
         )
 
         # Test that 3 attempts were made to run 'DAG.bulk_write_to_db' successfully
@@ -273,6 +289,7 @@ class TestUpdateDagParsingResults:
                     mock_dag,
                     bundle_name="testing",
                     bundle_version=None,
+                    code_reader=code_reader,
                     min_update_interval=mock.ANY,
                     session=mock_session,
                 ),
@@ -292,7 +309,15 @@ class TestUpdateDagParsingResults:
 
         dag = DAG(dag_id="test")
 
-        update_dag_parsing_results_in_db("testing", None, [dag], dict(), set(), session)
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[dag],
+            code_reader=lambda _: "source-code",
+            import_errors=dict(),
+            warnings=set(),
+            session=session,
+        )
 
         new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
         assert new_serialized_dags_count == 1
@@ -312,7 +337,15 @@ class TestUpdateDagParsingResults:
         dag.fileloc = "abc.py"
 
         import_errors = {}
-        update_dag_parsing_results_in_db("testing", None, [dag], import_errors, set(), session)
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[dag],
+            code_reader=lambda _: "source-code",
+            import_errors=import_errors,
+            warnings=set(),
+            session=session,
+        )
         assert "SerializationError" in caplog.text
 
         # Should have been edited in place
@@ -355,6 +388,7 @@ class TestUpdateDagParsingResults:
             bundle_name=bundle_name,
             bundle_version=None,
             dags=[],
+            code_reader=lambda _: "source-code",
             import_errors={"abc.py": "New error"},
             warnings=set(),
             session=session,
@@ -406,7 +440,15 @@ class TestUpdateDagParsingResults:
         dag.fileloc = filename
 
         import_errors = {}
-        update_dag_parsing_results_in_db(bundle_name, None, [dag], import_errors, set(), session)
+        update_dag_parsing_results_in_db(
+            bundle_name=bundle_name,
+            bundle_version=None,
+            dags=[dag],
+            code_reader=lambda _: "source-code",
+            import_errors=import_errors,
+            warnings=set(),
+            session=session,
+        )
 
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is False
@@ -518,7 +560,15 @@ class TestUpdateDagParsingResults:
             dr1 = DagRun(logical_date=dt, run_id="test_run_id_1", **dr_kwargs, start_date=dt)
             session.add(dr1)
             session.commit()
-        update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[self.dag_to_lazy_serdag(dag)],
+            code_reader=lambda _: "source-code",
+            import_errors={},
+            warnings=set(),
+            session=session,
+        )
 
         orm_dag = session.get(DagModel, ("dag",))
 
@@ -533,13 +583,29 @@ class TestUpdateDagParsingResults:
     def test_existing_dag_is_paused_upon_creation(self, testing_dag_bundle, session, dag_maker):
         with dag_maker("dag_paused", schedule=None) as dag:
             ...
-        update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[self.dag_to_lazy_serdag(dag)],
+            code_reader=lambda _: "source-code",
+            import_errors={},
+            warnings=set(),
+            session=session,
+        )
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
 
         with dag_maker("dag_paused", schedule=None, is_paused_upon_creation=True) as dag:
             ...
-        update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[self.dag_to_lazy_serdag(dag)],
+            code_reader=lambda _: "source-code",
+            import_errors={},
+            warnings=set(),
+            session=session,
+        )
         # Since the dag existed before, it should not follow the pause flag upon creation
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
@@ -547,7 +613,15 @@ class TestUpdateDagParsingResults:
     def test_bundle_name_and_version_are_stored(self, testing_dag_bundle, session, dag_maker):
         with dag_maker("mydag", schedule=None) as dag:
             ...
-        update_dag_parsing_results_in_db("testing", "1.0", [self.dag_to_lazy_serdag(dag)], {}, set(), session)
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version="1.0",
+            dags=[self.dag_to_lazy_serdag(dag)],
+            code_reader=lambda _: "source-code",
+            import_errors={},
+            warnings=set(),
+            session=session,
+        )
         orm_dag = session.get(DagModel, "mydag")
         assert orm_dag.bundle_name == "testing"
         assert orm_dag.bundle_version == "1.0"

@@ -82,7 +82,7 @@ class TestSerializedDagModel:
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
-            SDM.write_dag(dag, bundle_name="testing")
+            SDM.write_dag(dag, bundle_name="testing", code_reader=lambda _: "dag source code")
         return example_dags
 
     def test_write_dag(self, testing_dag_bundle):
@@ -105,10 +105,10 @@ class TestSerializedDagModel:
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=my_callable)
         dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        SDM.write_dag(dag, bundle_name="dag_maker", code_reader=lambda _: "dag_maker-generated")
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=lambda x: None)
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        SDM.write_dag(dag, bundle_name="dag_maker", code_reader=lambda _: "dag_maker-generated")
         assert len(session.query(DagVersion).all()) == 2
 
         with dag_maker("dag2") as dag:
@@ -119,7 +119,7 @@ class TestSerializedDagModel:
 
             my_callable()
         dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="dag_maker")
+        SDM.write_dag(dag, bundle_name="dag_maker", code_reader=lambda _: "dag_maker-generated")
         with dag_maker("dag2") as dag:
 
             @task_decorator
@@ -127,7 +127,7 @@ class TestSerializedDagModel:
                 pass
 
             my_callable2()
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(dag, bundle_name="testing", code_reader=lambda _: "dag source code")
 
         assert len(session.query(DagVersion).all()) == 4
 
@@ -135,14 +135,18 @@ class TestSerializedDagModel:
         """Test Serialized DAG is updated if DAG is changed"""
         example_dags = make_example_dags(example_dags_module)
         example_bash_op_dag = example_dags.get("example_bash_operator")
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+        dag_updated = SDM.write_dag(
+            dag=example_bash_op_dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+        )
         assert dag_updated is True
 
         s_dag = SDM.get(example_bash_op_dag.dag_id)
 
         # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
         # column is not updated
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+        dag_updated = SDM.write_dag(
+            dag=example_bash_op_dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+        )
         s_dag_1 = SDM.get(example_bash_op_dag.dag_id)
 
         assert s_dag_1.dag_hash == s_dag.dag_hash
@@ -153,7 +157,9 @@ class TestSerializedDagModel:
         example_bash_op_dag.tags.add("new_tag")
         assert example_bash_op_dag.tags == {"example", "example2", "new_tag"}
 
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
+        dag_updated = SDM.write_dag(
+            dag=example_bash_op_dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+        )
         s_dag_2 = SDM.get(example_bash_op_dag.dag_id)
 
         assert s_dag.created_at != s_dag_2.created_at
@@ -179,7 +185,7 @@ class TestSerializedDagModel:
 
         dag = example_dags.get("example_bash_operator")
         dag.doc_md = "new doc string"
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(dag, bundle_name="testing", code_reader=lambda _: "dag source code")
         serialized_dags2 = SDM.read_all_dags()
         sdags = session.query(SDM).all()
         # assert only the latest SDM is returned
@@ -195,7 +201,7 @@ class TestSerializedDagModel:
         # we also write to dag_version and dag_code tables
         # in dag_version.
         with assert_queries_count(24):
-            SDM.bulk_sync_to_db(dags, bundle_name="testing")
+            SDM.bulk_sync_to_db(dags, bundle_name="testing", code_reader=lambda _: "dag source code")
 
     def test_order_of_dag_params_is_stable(self):
         """
@@ -207,7 +213,9 @@ class TestSerializedDagModel:
         example_params_trigger_ui = example_dags.get("example_params_trigger_ui")
         before = list(example_params_trigger_ui.params.keys())
 
-        SDM.write_dag(example_params_trigger_ui, bundle_name="testing")
+        SDM.write_dag(
+            example_params_trigger_ui, bundle_name="testing", code_reader=lambda _: "dag source code"
+        )
         retrieved_dag = SDM.get_dag("example_params_trigger_ui")
         after = list(retrieved_dag.params.keys())
 
@@ -276,22 +284,22 @@ class TestSerializedDagModel:
         with dag_maker("dag1") as dag:
             EmptyOperator(task_id="task1")
         dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(dag, bundle_name="testing", code_reader=lambda _: "dag source code")
         with dag_maker("dag1") as dag:
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
         dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(dag, bundle_name="testing", code_reader=lambda _: "dag source code")
         # second dag
         with dag_maker("dag2") as dag:
             EmptyOperator(task_id="task1")
         dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(dag, bundle_name="testing", code_reader=lambda _: "dag source code")
         with dag_maker("dag2") as dag:
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
         dag.sync_to_db()
-        SDM.write_dag(dag, bundle_name="testing")
+        SDM.write_dag(dag, bundle_name="testing", code_reader=lambda _: "dag source code")
 
         # Total serdags should be 4
         assert session.scalar(select(func.count()).select_from(SDM)) == 4

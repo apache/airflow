@@ -1714,7 +1714,9 @@ class TestTaskInstance:
             dag_id="test_check_and_change_state_before_execution",
             external_executor_id=expected_external_executor_id,
         )
-        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
+        SerializedDagModel.write_dag(
+            ti.task.dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+        )
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1735,7 +1737,9 @@ class TestTaskInstance:
             external_executor_id="apple",
         )
         assert ti.external_executor_id == "apple"
-        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
+        SerializedDagModel.write_dag(
+            ti.task.dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+        )
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1753,7 +1757,9 @@ class TestTaskInstance:
         expected_external_executor_id = "minions"
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         assert ti.external_executor_id is None
-        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
+        SerializedDagModel.write_dag(
+            ti.task.dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+        )
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1773,7 +1779,9 @@ class TestTaskInstance:
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         task2 = EmptyOperator(task_id="task2", dag=ti.task.dag, start_date=DEFAULT_DATE)
         ti.task >> task2
-        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
+        SerializedDagModel.write_dag(
+            ti.task.dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+        )
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti2 = TI(task=serialized_dag.get_task(task2.task_id), run_id=ti.run_id)
@@ -1787,7 +1795,9 @@ class TestTaskInstance:
         with create_session() as _:
             ti.state = State.RUNNING
 
-        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
+        SerializedDagModel.write_dag(
+            ti.task.dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+        )
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1804,7 +1814,9 @@ class TestTaskInstance:
         with create_session() as _:
             ti.state = State.FAILED
 
-        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
+        SerializedDagModel.write_dag(
+            ti.task.dag, bundle_name="testing", code_reader=lambda _: "dag source code"
+        )
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
