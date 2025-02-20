@@ -259,6 +259,7 @@ class KubernetesExecutor(BaseExecutor):
             self.log.info("Add task %s with command %s", key, command)
 
         try:
+            # here its v1 pod obj
             kube_executor_config = PodGenerator.from_obj(executor_config)
         except Exception:
             self.log.error("Invalid executor_config for %s. Executor_config: %s", key, executor_config)
@@ -292,7 +293,7 @@ class KubernetesExecutor(BaseExecutor):
             queue = w.ti.queue  # type: ignore[union-attr]
 
             # TODO: will be handled by https://github.com/apache/airflow/issues/46892
-            executor_config = {}  # type: ignore[var-annotated]
+            executor_config = w.ti.executor_config
 
             del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
