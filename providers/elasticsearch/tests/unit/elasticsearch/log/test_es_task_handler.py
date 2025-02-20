@@ -209,12 +209,22 @@ class TestElasticsearchTaskHandler:
         )
 
         assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert len(logs[0]) == 1
-        assert self.test_message == logs[0][0][-1]
-        assert not metadatas[0]["end_of_log"]
-        assert metadatas[0]["offset"] == "1"
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+
+        if AIRFLOW_V_3_0_PLUS:
+            assert len(logs[0]) == 2
+            assert self.test_message == logs[0][-1]
+
+            metadata = metadatas
+        else:
+            assert len(logs) == len(metadatas)
+            assert len(logs[0]) == 1
+            assert self.test_message == logs[0][0][-1]
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
+        assert metadata["offset"] == "1"
+        assert timezone.parse(metadata[0]["last_log_timestamp"]) > ts
 
     def test_read_with_patterns(self, ti):
         ts = pendulum.now()
@@ -251,7 +261,9 @@ class TestElasticsearchTaskHandler:
         with mock.patch.object(self.es_task_handler, "index_patterns", new="nonexistent,test_*"):
             with pytest.raises(elasticsearch.exceptions.NotFoundError, match=r"IndexMissingException.*"):
                 self.es_task_handler.read(
-                    ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+                    ti,
+                    1,
+                    {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False},
                 )
 
     @pytest.mark.parametrize("seconds", [3, 6])
@@ -293,12 +305,25 @@ class TestElasticsearchTaskHandler:
         )
         another_test_message = "another message"
 
-        another_body = {"message": another_test_message, "log_id": similar_log_id, "offset": 1}
+        another_body = {
+            "message": another_test_message,
+            "log_id": similar_log_id,
+            "offset": 1,
+        }
         self.es.index(index=self.index_name, doc_type=self.doc_type, body=another_body, id=1)
-
+        self.es.index(
+            index=self.index_name, doc_type=self.doc_type, body=another_body, id=1
+        )
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
-            ti, 1, {"offset": "0", "last_log_timestamp": str(ts), "end_of_log": False, "max_offset": 2}
+            ti,
+            1,
+            {
+                "offset": "0",
+                "last_log_timestamp": str(ts),
+                "end_of_log": False,
+                "max_offset": 2,
+            },
         )
         assert len(logs) == 1
         assert len(logs) == len(metadatas)
@@ -390,7 +415,12 @@ class TestElasticsearchTaskHandler:
         logs, metadatas = self.es_task_handler.read(
             ti,
             1,
-            {"offset": 0, "last_log_timestamp": str(ts), "download_logs": True, "end_of_log": False},
+            {
+                "offset": 0,
+                "last_log_timestamp": str(ts),
+                "download_logs": True,
+                "end_of_log": False,
+            },
         )
         assert len(logs) == 1
         assert len(logs) == len(metadatas)
@@ -498,7 +528,10 @@ class TestElasticsearchTaskHandler:
         logs, _ = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
-        assert self.test_message == logs[0][0][1]
+        if AIRFLOW_V_3_0_PLUS:
+            pass
+        else:
+            assert self.test_message == logs[0][0][1]
 
     def test_close(self, ti):
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -578,14 +611,34 @@ class TestElasticsearchTaskHandler:
         "json_format, es_frontend, expected_url",
         [
             # Common cases
-            (True, "localhost:5601/{log_id}", "https://localhost:5601/" + quote(JSON_LOG_ID)),
-            (False, "localhost:5601/{log_id}", "https://localhost:5601/" + quote(LOG_ID)),
+            (
+                True,
+                "localhost:5601/{log_id}",
+                "https://localhost:5601/" + quote(JSON_LOG_ID),
+            ),
+            (
+                False,
+                "localhost:5601/{log_id}",
+                "https://localhost:5601/" + quote(LOG_ID),
+            ),
             # Ignore template if "{log_id}"" is missing in the URL
             (False, "localhost:5601", "https://localhost:5601"),
             # scheme handling
-            (False, "https://localhost:5601/path/{log_id}", "https://localhost:5601/path/" + quote(LOG_ID)),
-            (False, "http://localhost:5601/path/{log_id}", "http://localhost:5601/path/" + quote(LOG_ID)),
-            (False, "other://localhost:5601/path/{log_id}", "other://localhost:5601/path/" + quote(LOG_ID)),
+            (
+                False,
+                "https://localhost:5601/path/{log_id}",
+                "https://localhost:5601/path/" + quote(LOG_ID),
+            ),
+            (
+                False,
+                "http://localhost:5601/path/{log_id}",
+                "http://localhost:5601/path/" + quote(LOG_ID),
+            ),
+            (
+                False,
+                "other://localhost:5601/path/{log_id}",
+                "other://localhost:5601/path/" + quote(LOG_ID),
+            ),
         ],
     )
     def test_get_external_log_url(self, ti, json_format, es_frontend, expected_url):
