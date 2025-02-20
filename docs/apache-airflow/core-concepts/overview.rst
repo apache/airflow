@@ -126,6 +126,10 @@ The meaning of the different connection types in the diagrams below is as follow
 
 .. _overview-basic-airflow-architecture:
 
+..
+  TODO AIP-66 / AIP-72: These example architectures and diagrams need to be updated to reflect AF3 changes
+  like bundles, required DAG processor, execution api, etc.
+
 Basic Airflow deployment
 ........................
 
