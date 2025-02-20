@@ -23,7 +23,9 @@ import os
 import re
 from http import HTTPStatus
 from importlib import reload
+from itertools import chain
 from pathlib import Path
+from types import GeneratorType
 from unittest import mock
 from unittest.mock import patch
 
@@ -46,8 +48,8 @@ from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
     LogType,
     _fetch_logs_from_service,
+    _get_parsed_log_stream,
     _interleave_logs,
-    _parse_timestamps_in_log_file,
 )
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.net import get_hostname
@@ -56,6 +58,9 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
+from tests.test_utils.file_task_handler import (
+    log_str_to_parsed_log_stream,
+)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -65,6 +70,9 @@ FILE_TASK_HANDLER = "task"
 
 
 class TestFileTaskLogHandler:
+    def _assert_is_log_stream_type(self, log_stream):
+        assert isinstance(log_stream, chain) or isinstance(log_stream, GeneratorType)
+
     def clean_up(self):
         with create_session() as session:
             session.query(DagRun).delete()
@@ -135,21 +143,24 @@ class TestFileTaskLogHandler:
         assert hasattr(file_handler, "read")
         # Return value of read must be a tuple of list and list.
         # passing invalid `try_number` to read function
-        logs, metadatas = file_handler.read(ti, 0)
-        assert isinstance(logs, list)
-        assert isinstance(metadatas, list)
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert isinstance(metadatas[0], dict)
-        assert logs[0][0][0] == "default_host"
-        assert logs[0][0][1] == "Error fetching the logs. Try number 0 is invalid."
+        hosts, log_streams, metadata_array = file_handler.read(ti, 0)
+        assert isinstance(log_streams, list)
+        assert isinstance(metadata_array, list)
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadata_array)
+        self._assert_is_log_stream_type(log_streams[0])
+        assert isinstance(metadata_array[0], dict)
+        assert hosts[0] == "default_host"
+        assert "Error fetching the logs. Try number 0 is invalid." in "\n".join(
+            line for line in log_streams[0]
+        )
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
     def test_file_task_handler(self):
         def task_callable(ti):
-            ti.log.info("test")
+            ti.log.info("test_log_stdout_in_callable")
 
         dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
         dagrun = dag.create_dagrun(
@@ -186,19 +197,18 @@ class TestFileTaskLogHandler:
         file_handler.close()
 
         assert hasattr(file_handler, "read")
-        # Return value of read must be a tuple of list and list.
-        logs, metadatas = file_handler.read(ti)
-        assert isinstance(logs, list)
-        assert isinstance(metadatas, list)
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert isinstance(metadatas[0], dict)
-        target_re = r"\n\[[^\]]+\] {test_log_handlers.py:\d+} INFO - test\n"
-
+        # Return value of read must be a tuple of hosts, log_streams and metadata_array.
+        _, log_streams, metadata_array = file_handler.read(ti)
+        assert isinstance(log_streams, list)
+        assert isinstance(metadata_array, list)
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadata_array)
+        self._assert_is_log_stream_type(log_streams[0])
+        assert isinstance(metadata_array[0], dict)
         # We should expect our log line from the callable above to appear in
         # the logs we read back
-        assert re.search(target_re, logs[0][0][-1]), "Logs were " + str(logs)
-
+        log_str = "\n".join(line for line in log_streams[0])
+        assert "test_log_stdout_in_callable" in log_str
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
@@ -329,15 +339,15 @@ class TestFileTaskLogHandler:
 
         logger.info("Test")
 
-        # Return value of read must be a tuple of list and list.
-        logs, metadatas = file_handler.read(ti)
-        assert isinstance(logs, list)
-        # Logs for running tasks should show up too.
-        assert isinstance(logs, list)
-        assert isinstance(metadatas, list)
-        assert len(logs) == 2
-        assert len(logs) == len(metadatas)
-        assert isinstance(metadatas[0], dict)
+        # Return value of read must be a tuple of hosts, log_streams and metadata_array.
+        _, log_streams, metadata_array = file_handler.read(ti)
+        assert isinstance(log_streams, list)
+        assert isinstance(log_streams, list)
+        assert isinstance(metadata_array, list)
+        assert len(log_streams) == 2
+        assert len(log_streams) == len(metadata_array)
+        self._assert_is_log_stream_type(log_streams[0])
+        assert isinstance(metadata_array[0], dict)
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
@@ -351,7 +361,12 @@ class TestFileTaskLogHandler:
         path = Path(
             "dag_id=dag_for_testing_local_log_read/run_id=scheduled__2016-01-01T00:00:00+00:00/task_id=task_for_testing_local_log_read/attempt=1.log"
         )
-        mock_read_local.return_value = (["the messages"], ["the log"])
+        # messages, parsed_log_streams, log_size
+        mock_read_local.return_value = (
+            ["the messages"],
+            [log_str_to_parsed_log_stream("the log")],
+            len("the log"),
+        )
         local_log_file_read = create_task_instance(
             dag_id="dag_for_testing_local_log_read",
             task_id="task_for_testing_local_log_read",
@@ -359,28 +374,65 @@ class TestFileTaskLogHandler:
             execution_date=DEFAULT_DATE,
         )
         fth = FileTaskHandler("")
-        actual = fth._read(ti=local_log_file_read, try_number=1)
+        log_stream, metadata_array = fth._read(ti=local_log_file_read, try_number=1)
         mock_read_local.assert_called_with(path)
-        assert "*** the messages\n" in actual[0]
-        assert actual[0].endswith("the log")
-        assert actual[1] == {"end_of_log": True, "log_pos": 7}
+        log_stream_str = "".join(line for line in log_stream)
+        assert "*** the messages\n" in log_stream_str
+        assert log_stream_str.endswith("the log")
+        assert metadata_array == {"end_of_log": True, "log_pos": 7}
 
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
 
-        path1 = tmp_path / "hello1.log"
-        path2 = tmp_path / "hello1.log.suffix.log"
-        path1.write_text("file1 content")
-        path2.write_text("file2 content")
-        fth = FileTaskHandler("")
-        assert fth._read_from_local(path1) == (
-            [
-                "Found local files:",
-                f"  * {path1}",
-                f"  * {path2}",
-            ],
-            ["file1 content", "file2 content"],
+        path1: Path = tmp_path / "hello1.log"
+        path2: Path = tmp_path / "hello1.log.suffix.log"
+        path1.write_text(
+            """file1 content 1
+file1 content 2
+[2022-11-16T00:05:54.295-0800] file1 content 3"""
         )
+        path2.write_text(
+            """file2 content 1
+file2 content 2
+[2022-11-16T00:05:54.295-0800] file2 content 3"""
+        )
+        fth = FileTaskHandler("")
+        messages, parsed_log_streams, log_size = fth._read_from_local(path1)
+        assert messages == [
+            "Found local files:",
+            f"  * {path1}",
+            f"  * {path2}",
+        ]
+        # Optional[datetime], int, str = record
+        assert [[record for record in parsed_log_stream] for parsed_log_stream in parsed_log_streams] == [
+            [
+                (None, 0, "file1 content 1"),
+                (
+                    None,
+                    1,
+                    "file1 content 2",
+                ),
+                (
+                    pendulum.parse("2022-11-16T00:05:54.295-0800"),
+                    2,
+                    "[2022-11-16T00:05:54.295-0800] file1 content 3",
+                ),
+            ],
+            [
+                (None, 0, "file2 content 1"),
+                (
+                    None,
+                    1,
+                    "file2 content 2",
+                ),
+                (
+                    pendulum.parse("2022-11-16T00:05:54.295-0800"),
+                    2,
+                    "[2022-11-16T00:05:54.295-0800] file2 content 3",
+                ),
+            ],
+        ]
+        assert log_size == 156
 
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_task_log"
@@ -409,36 +461,15 @@ class TestFileTaskLogHandler:
         else:
             mock_k8s_get_task_log.assert_not_called()
 
-    def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
-        """Test for executors which do not have `get_task_log` method, it fallbacks to reading
-        log from worker"""
-        executor_name = "CeleryExecutor"
-
-        ti = create_task_instance(
-            dag_id="dag_for_testing_celery_executor_log_read",
-            task_id="task_for_testing_celery_executor_log_read",
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-        )
-        ti.state = TaskInstanceState.RUNNING
-        with conf_vars({("core", "executor"): executor_name}):
-            fth = FileTaskHandler("")
-
-            fth._read_from_logs_server = mock.Mock()
-            fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
-            actual_text, actual_meta = fth._read(ti=ti, try_number=1)
-            fth._read_from_logs_server.assert_called_once()
-        assert "*** this message" in actual_text
-        assert "this\nlog\ncontent" in actual_text
-        assert actual_meta == {"end_of_log": True, "log_pos": 16}
-
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
         [
-            (True, True, False),
-            (True, False, False),
-            (False, True, False),
-            (False, False, True),
+            ((True, True), True, False),
+            ((True, True), False, False),
+            ((True, False), True, False),
+            ((True, False), False, False),
+            ((False, None), True, False),
+            ((False, None), False, True),
         ],
     )
     def test__read_served_logs_checked_when_done_and_no_local_or_remote_logs(
@@ -463,24 +494,45 @@ class TestFileTaskLogHandler:
         with conf_vars({("core", "executor"): executor_name}):
             reload(executor_loader)
             fth = FileTaskHandler("")
-            if remote_logs:
+            has_remote_logs, stream_based_remote_logs = remote_logs
+            if has_remote_logs:
                 fth._read_remote_logs = mock.Mock()
-                fth._read_remote_logs.return_value = ["found remote logs"], ["remote\nlog\ncontent"]
+                if stream_based_remote_logs:
+                    # testing for providers already migrated to stream based logs
+                    # new implementation returns: messages, parsed_log_streams, log_size
+                    fth._read_remote_logs.return_value = (
+                        ["found remote logs"],
+                        [log_str_to_parsed_log_stream("remote\nlog\ncontent")],
+                        16,
+                    )
+                else:
+                    # old implementation returns: messages, log_lines
+                    fth._read_remote_logs.return_value = ["found remote logs"], ["remote\nlog\ncontent"]
             if local_logs:
                 fth._read_from_local = mock.Mock()
-                fth._read_from_local.return_value = ["found local logs"], ["local\nlog\ncontent"]
+                fth._read_from_local.return_value = (
+                    ["found local logs"],
+                    [log_str_to_parsed_log_stream("local\nlog\ncontent")],
+                    16,
+                )
             fth._read_from_logs_server = mock.Mock()
-            fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
-            actual = fth._read(ti=ti, try_number=1)
+            fth._read_from_logs_server.return_value = (
+                ["this message"],
+                [log_str_to_parsed_log_stream("this\nlog\ncontent")],
+                16,
+            )
+
+        log_stream, metadata_array = fth._read(ti=ti, try_number=1)
+        log_stream_str = "\n".join(line for line in log_stream)
         if served_logs_checked:
             fth._read_from_logs_server.assert_called_once()
-            assert "*** this message\n" in actual[0]
-            assert actual[0].endswith("this\nlog\ncontent")
-            assert actual[1] == {"end_of_log": True, "log_pos": 16}
+            assert "*** this message\n" in log_stream_str
+            assert log_stream_str.endswith("this\nlog\ncontent")
+            assert metadata_array == {"end_of_log": True, "log_pos": 16}
         else:
             fth._read_from_logs_server.assert_not_called()
-            assert actual[0]
-            assert actual[1]
+            assert log_stream_str
+            assert metadata_array
 
     @pytest.mark.parametrize(
         "pod_override, namespace_to_call",
@@ -680,11 +732,12 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 """
 
 
-def test_parse_timestamps():
-    actual = []
-    for timestamp, _, _ in _parse_timestamps_in_log_file(log_sample.splitlines()):
-        actual.append(timestamp)
-    assert actual == [
+def test_get_parsed_log_stream(tmp_path):
+    log_path: Path = tmp_path / "test_parsed_log_stream.log"
+    log_path.write_text(log_sample)
+    expected_line_num = 0
+    expected_lines = log_sample.splitlines()
+    expected_timestamps = [
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
@@ -706,6 +759,13 @@ def test_parse_timestamps():
         pendulum.parse("2022-11-16T00:05:54.592000-08:00"),
         pendulum.parse("2022-11-16T00:05:54.604000-08:00"),
     ]
+    for record in _get_parsed_log_stream(log_path):
+        assert record == (
+            expected_timestamps[expected_line_num],
+            expected_line_num,
+            expected_lines[expected_line_num],
+        )
+        expected_line_num += 1
 
 
 def test_interleave_interleaves():
@@ -753,7 +813,12 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
         ]
     )
-    assert "\n".join(_interleave_logs(log_sample2, log_sample1, log_sample3)) == expected
+    parse_log_streams = [
+        log_str_to_parsed_log_stream(log_sample1),
+        log_str_to_parsed_log_stream(log_sample2),
+        log_str_to_parsed_log_stream(log_sample3),
+    ]
+    assert "\n".join(_interleave_logs(*parse_log_streams)) == expected
 
 
 long_sample = """
@@ -830,7 +895,11 @@ def test_interleave_logs_correct_ordering():
     [2023-01-17T12:47:11.883-0800] {triggerer_job.py:540} INFO - Trigger <airflow.triggers.temporal.DateTimeTrigger moment=2023-01-17T20:47:11.254388+00:00> (ID 1) fired: TriggerEvent<DateTime(2023, 1, 17, 20, 47, 11, 254388, tzinfo=Timezone('UTC'))>
     """
 
-    assert sample_with_dupe == "\n".join(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
+    parsed_log_streams = [
+        log_str_to_parsed_log_stream(sample_with_dupe),
+        log_str_to_parsed_log_stream(sample_with_dupe),
+    ]
+    assert sample_with_dupe == "\n".join(_interleave_logs(*parsed_log_streams))
 
 
 def test_permissions_for_new_directories(tmp_path):
