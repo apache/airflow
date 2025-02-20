@@ -181,7 +181,7 @@ class XComModel(TaskInstanceDependencies):
         from airflow.models.dagrun import DagRun
 
         if not key:
-            raise ValueError(f"XCom key must be a non-empty string. Received: {key}")
+            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
 
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
