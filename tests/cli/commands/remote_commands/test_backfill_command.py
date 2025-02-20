@@ -101,3 +101,29 @@ class TestCliBackfill:
             dag_run_conf=None,
             reprocess_behavior=expected_repro,
         )
+
+    @mock.patch("airflow.cli.commands.remote_commands.backfill_command._do_dry_run")
+    def test_backfill_dry_run(self, mock_dry_run):
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+            "--dry-run",
+            "--reprocess-behavior",
+            "none",
+        ]
+        airflow.cli.commands.remote_commands.backfill_command.create_backfill(self.parser.parse_args(args))
+
+        mock_dry_run.assert_called_once_with(
+            dag_id="example_bash_operator",
+            from_date=DEFAULT_DATE.replace(tzinfo=timezone.utc),
+            to_date=DEFAULT_DATE.replace(tzinfo=timezone.utc),
+            reverse=False,
+            reprocess_behavior="none",
+            session=mock.ANY,
+        )

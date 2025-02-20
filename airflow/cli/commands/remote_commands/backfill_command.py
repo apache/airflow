@@ -59,7 +59,7 @@ def create_backfill(args) -> None:
                 dag_id=args.dag_id,
                 from_date=args.from_date,
                 to_date=args.to_date,
-                reverse=args.reverse,
+                reverse=args.run_backwards,
                 reprocess_behavior=args.reprocess_behavior,
                 session=session,
             )
