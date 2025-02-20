@@ -219,9 +219,4 @@ if k8s:
 
         four_task = task_with_resource_limits()
 
-        (
-            start_task()
-            >> [volume_task, sidecar_task]
-            >> third_task
-            >> [base_image_task, four_task]
-        )
+        (start_task() >> [volume_task, sidecar_task] >> third_task >> [base_image_task, four_task])
