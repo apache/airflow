@@ -1339,6 +1339,12 @@ DAGS_COMMANDS = (
             ARG_VERBOSE,
         ),
     ),
+    ActionCommand(
+        name="list-failed-runs",
+        help="Lists All failed DAG runs within the past 24 hours, grouped by dag_id",
+        func=lazy_load_command("airflow.cli.commands.dag_command.list_failed_runs"),
+        args=(),
+    ),
 )
 TASKS_COMMANDS = (
     ActionCommand(
