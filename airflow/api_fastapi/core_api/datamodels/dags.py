@@ -62,6 +62,8 @@ class DAGResponse(BaseModel):
     default_view: str | None
     fileloc: str
     description: str | None
+    bundle_name: str | None
+    latest_bundle_version: str | None
     timetable_summary: str | None
     timetable_description: str | None
     tags: list[DagTagResponse]

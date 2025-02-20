@@ -503,6 +503,8 @@ export type DAGDetailsResponse = {
   default_view: string | null;
   fileloc: string;
   description: string | null;
+  bundle_name: string | null;
+  latest_bundle_version: string | null;
   timetable_summary: string | null;
   timetable_description: string | null;
   tags: Array<DagTagResponse>;
@@ -562,6 +564,8 @@ export type DAGResponse = {
   default_view: string | null;
   fileloc: string;
   description: string | null;
+  bundle_name: string | null;
+  latest_bundle_version: string | null;
   timetable_summary: string | null;
   timetable_description: string | null;
   tags: Array<DagTagResponse>;
@@ -737,6 +741,8 @@ export type DAGWithLatestDagRunsResponse = {
   default_view: string | null;
   fileloc: string;
   description: string | null;
+  bundle_name: string | null;
+  latest_bundle_version: string | null;
   timetable_summary: string | null;
   timetable_description: string | null;
   tags: Array<DagTagResponse>;
