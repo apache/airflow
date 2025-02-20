@@ -154,6 +154,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         """
         from airflow.models.dagrun import DagRun
 
+        if not key:
+            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
+
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
@@ -338,6 +341,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param limit: Limiting returning XComs
         """
         from airflow.models.dagrun import DagRun
+
+        if not key:
+            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
 
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
