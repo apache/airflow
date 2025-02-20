@@ -26,6 +26,7 @@ import { DagsLayout } from "src/layouts/DagsLayout";
 import { AssetsList } from "src/pages/AssetsList";
 import { Dag } from "src/pages/Dag";
 import { Code } from "src/pages/Dag/Code";
+import { Details as DagDetails } from "src/pages/Dag/Details";
 import { Overview } from "src/pages/Dag/Overview";
 import { Tasks } from "src/pages/Dag/Tasks";
 import { DagRuns } from "src/pages/DagRuns";
@@ -111,6 +112,7 @@ export const routerConfig = [
           { element: <Tasks />, path: "tasks" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
+          { element: <DagDetails />, path: "details" },
         ],
         element: <Dag />,
         path: "dags/:dagId",

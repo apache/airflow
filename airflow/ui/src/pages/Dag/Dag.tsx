@@ -30,6 +30,7 @@ const tabs = [
   { label: "Tasks", value: "tasks" },
   { label: "Events", value: "events" },
   { label: "Code", value: "code" },
+  { label: "Details", value: "details" },
 ];
 
 export const Dag = () => {
