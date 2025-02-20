@@ -355,7 +355,7 @@ class ExecutorLoader:
         warnings.warn(
             f"\nThe use and support of the {executor_name} is deprecated and will be removed in Airflow 3.0.\n"
             "Please migrate to using Multiple Executor Configuration instead:\n"
-            "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently",
+            "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/#using-multiple-executors-concurrently",
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
