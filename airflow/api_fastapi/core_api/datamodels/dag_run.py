@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.models import DagRun
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
@@ -74,6 +75,7 @@ class DAGRunResponse(BaseModel):
     triggered_by: DagRunTriggeredByType
     conf: dict
     note: str | None
+    dag_versions: list[DagVersionResponse]
 
 
 class DAGRunCollectionResponse(BaseModel):
