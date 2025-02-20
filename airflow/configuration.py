@@ -1111,6 +1111,8 @@ class AirflowConfigParser(ConfigParser):
     def getlist(self, section: str, key: str, delimiter=",", **kwargs):
         val = self.get(section, key, **kwargs)
         if val is None:
+            if "fallback" in kwargs:
+                return val
             raise AirflowConfigException(
                 f"Failed to convert value None to list. "
                 f'Please check "{key}" key in "{section}" section is set.'
@@ -1720,7 +1722,7 @@ class AirflowConfigParser(ConfigParser):
         """
         # We need those globals before we run "get_all_expansion_variables" because this is where
         # the variables are expanded from in the configuration
-        global FERNET_KEY, AIRFLOW_HOME
+        global FERNET_KEY, AIRFLOW_HOME, JWT_SECRET_KEY
         from cryptography.fernet import Fernet
 
         unit_test_config_file = pathlib.Path(__file__).parent / "config_templates" / "unit_tests.cfg"
@@ -1730,6 +1732,7 @@ class AirflowConfigParser(ConfigParser):
             self.read_file(test_config_file)
         # set fernet key to a random value
         FERNET_KEY = Fernet.generate_key().decode()
+        JWT_SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
         self.expand_all_configuration_values()
         log.info("Unit test configuration loaded from 'config_unit_tests.cfg'")
 
@@ -1947,7 +1950,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             conf.configuration_description["core"]["options"]["fernet_key"]["default"] = FERNET_KEY
 
         JWT_SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
-        conf.configuration_description["api"]["options"]["auth_jwt_secret"]["default"] = JWT_SECRET_KEY
+        conf.configuration_description["api_auth"]["options"]["jwt_secret"]["default"] = JWT_SECRET_KEY
         pathlib.Path(airflow_config.__fspath__()).touch()
         make_group_other_inaccessible(airflow_config.__fspath__())
         with open(airflow_config, "w") as file:

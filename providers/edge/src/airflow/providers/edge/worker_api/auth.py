@@ -37,18 +37,17 @@ from airflow.providers.edge.worker_api.routes._v2_compat import (
     Request,
     status,
 )
-from airflow.utils.jwt_signer import JWTSigner
+from airflow.security.tokens import JWTValidator
 
 log = logging.getLogger(__name__)
 
 
 @cache
-def jwt_signer() -> JWTSigner:
+def jwt_validator() -> JWTValidator:
     clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
-    return JWTSigner(
+    return JWTValidator(
         secret_key=conf.get("core", "internal_api_secret_key"),
-        expiration_time_in_seconds=clock_grace,
-        leeway_in_seconds=clock_grace,
+        leeway=clock_grace,
         audience="api",
     )
 
@@ -66,7 +65,7 @@ def _forbidden_response(message: str):
 def jwt_token_authorization(method: str, authorization: str):
     """Check if the JWT token is correct."""
     try:
-        payload = jwt_signer().verify_token(authorization)
+        payload = jwt_validator().validated_claims(authorization)
         signed_method = payload.get("method")
         if not signed_method or signed_method != method:
             _forbidden_response(
