@@ -198,7 +198,7 @@ class FabAuthManager(BaseAuthManager[User]):
             description=(
                 "This is FAB auth manager API. This API is only available if the auth manager used in "
                 "the Airflow environment is FAB auth manager. "
-                "This API provides endpoints to manager users and permissions managed by the FAB auth "
+                "This API provides endpoints to manage users and permissions managed by the FAB auth "
                 "manager."
             ),
         )
@@ -213,8 +213,7 @@ class FabAuthManager(BaseAuthManager[User]):
         return FlaskApi(
             specification=specification,
             resolver=_LazyResolver(),
-            # TODO: change to "/fab/v1" when legacy UI is gone
-            base_path="/auth/fab/v1",
+            base_path="/fab/v1",
             options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
             strict_validation=True,
             validate_responses=True,

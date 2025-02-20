@@ -27,6 +27,7 @@ from flask import Flask, g
 from flask_appbuilder.menu import Menu
 
 from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 
 try:
@@ -61,7 +62,6 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
 )
-from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
@@ -94,7 +94,7 @@ def flask_app():
 
 @pytest.fixture
 def auth_manager_with_appbuilder(flask_app):
-    appbuilder = init_appbuilder(flask_app)
+    appbuilder = init_appbuilder(flask_app, enable_plugins=False)
     auth_manager = FabAuthManager()
     auth_manager.appbuilder = appbuilder
     return auth_manager
