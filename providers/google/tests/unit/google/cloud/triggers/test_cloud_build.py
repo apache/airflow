@@ -79,6 +79,7 @@ TEST_BUILD_INSTANCE = dict(
     timing={},
     service_account="",
     warnings=[],
+    dependencies=[],
 )
 
 
