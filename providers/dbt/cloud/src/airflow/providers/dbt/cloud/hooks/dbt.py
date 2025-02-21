@@ -835,6 +835,19 @@ class DbtCloudHook(HttpHook):
         """
         return self._run_and_get_response(method="POST", endpoint=f"{account_id}/jobs/{job_id}/rerun/")
 
+    @fallback_to_default_account
+    def get_job_run_logs(self, run_id: int, account_id: int | None = None) -> str:
+        """
+        Retrieve logs for a specific run of a dbt Cloud job.
+
+        :param run_id: The ID of a dbt Cloud job run.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :return: The logs as a string.
+        """
+        endpoint = f"{account_id}/runs/{run_id}/logs/"
+        response = self._run_and_get_response(method="GET", endpoint=endpoint)
+        return response.text
+
     def test_connection(self) -> tuple[bool, str]:
         """Test dbt Cloud connection."""
         try:

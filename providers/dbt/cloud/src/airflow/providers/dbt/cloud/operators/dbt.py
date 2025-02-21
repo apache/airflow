@@ -194,19 +194,17 @@ class DbtCloudRunJobOperator(BaseOperator):
 
         if self.wait_for_termination and isinstance(self.run_id, int):
             if self.deferrable is False:
-                self.log.info("Waiting for job run %s to terminate.", self.run_id)
-
-                if self.hook.wait_for_job_run_status(
-                    run_id=self.run_id,
-                    account_id=self.account_id,
-                    expected_statuses=DbtCloudJobRunStatus.SUCCESS.value,
-                    check_interval=self.check_interval,
-                    timeout=self.timeout,
-                ):
+                self.log.info("Starting to stream logs for job run %s", self.run_id)
+                job_status = self.hook.get_job_run_status(account_id=self.account_id, run_id=self.run_id)
+                while not DbtCloudJobRunStatus.is_terminal(job_status):
+                    logs = self.hook.get_job_run_logs(run_id=self.run_id)
+                    self.log.info("Streaming logs for job run %s: %s", self.run_id, logs)
+                    time.sleep(self.check_interval)
+                    job_status = self.hook.get_job_run_status(account_id=self.account_id, run_id=self.run_id)
+                if job_status == DbtCloudJobRunStatus.SUCCESS.value:
                     self.log.info("Job run %s has completed successfully.", self.run_id)
                 else:
-                    raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
-
+                    raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or been cancelled.")
                 return self.run_id
             else:
                 end_time = time.time() + self.timeout
@@ -235,7 +233,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         else:
             if self.deferrable is True:
                 warnings.warn(
-                    "Argument `wait_for_termination` is False and `deferrable` is True , hence "
+                    "Argument `wait_for_termination` is False and `deferrable` is True, hence "
                     "`deferrable` parameter doesn't have any effect",
                     UserWarning,
                     stacklevel=2,
@@ -243,6 +241,13 @@ class DbtCloudRunJobOperator(BaseOperator):
             return self.run_id
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
+        """
+        Execute when the trigger fires - returns immediately.
+
+        :param context: The task context during execution.
+        :param event: The event dictionary containing details about the job run status.
+        :return: The run ID of the dbt Cloud job.
+        """
         """Execute when the trigger fires - returns immediately."""
         self.run_id = event["run_id"]
         if event["status"] == "cancelled":
@@ -250,6 +255,8 @@ class DbtCloudRunJobOperator(BaseOperator):
         elif event["status"] == "error":
             raise DbtCloudJobRunException(f"Job run {self.run_id} has failed.")
         self.log.info(event["message"])
+        logs = self.hook.get_job_run_logs(run_id=self.run_id)
+        self.log.info("Final logs for job run %s: %s", self.run_id, logs)
         return int(event["run_id"])
 
     def on_kill(self) -> None:
