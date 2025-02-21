@@ -136,7 +136,11 @@ export const Details = () => {
           <Table.Row>
             <Table.Cell>Duration</Table.Cell>
             <Table.Cell>
-              {getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)}s
+              {
+                // eslint-disable-next-line unicorn/no-null
+                getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)
+              }
+              s
             </Table.Cell>
           </Table.Row>
           <Table.Row>
