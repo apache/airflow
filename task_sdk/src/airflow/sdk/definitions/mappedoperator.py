@@ -203,6 +203,7 @@ class OperatorPartial:
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
+        from airflow.models import SkipMixin
         from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.sensors.base import BaseSensorOperator
 
@@ -235,6 +236,7 @@ class OperatorPartial:
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_empty=issubclass(self.operator_class, EmptyOperator),
             is_sensor=issubclass(self.operator_class, BaseSensorOperator),
+            is_skip_mixin=issubclass(self.operator_class, SkipMixin),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             operator_name=operator_name,
@@ -382,11 +384,6 @@ class MappedOperator(AbstractOperator):
     def inherits_from_empty_operator(self) -> bool:
         """Implementing an empty Operator."""
         return self._is_empty
-
-    @property
-    def inherits_from_skip_mixin(self) -> bool:
-        """Implementing a Skip Mixin."""
-        return self._is_skip_mixin
 
     @property
     def roots(self) -> Sequence[AbstractOperator]:

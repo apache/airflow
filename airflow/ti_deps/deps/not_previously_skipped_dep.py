@@ -53,9 +53,8 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # This can happen if the parent task has not yet run.
                     continue
 
-                # TODO: Use XCom.deserialize_value instead (requires some additional adjustments)
-                import json
-                prev_result = json.loads(ti.xcom_pull(task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session) or "{}")
+                # TODO: fix double encoding https://github.com/apache/airflow/issues/45231
+                prev_result = ti.xcom_pull(task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session)
 
                 if prev_result is None:
                     # This can happen if the parent task has not yet run.

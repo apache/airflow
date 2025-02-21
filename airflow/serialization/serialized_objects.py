@@ -1526,6 +1526,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 ui_fgcolor=BaseOperator.ui_fgcolor,
                 is_empty=False,
                 is_sensor=encoded_op.get("_is_sensor", False),
+                is_skip_mixin=encoded_op.get("_is_skip_mixin", False),
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["task_type"],
                 operator_name=operator_name,
