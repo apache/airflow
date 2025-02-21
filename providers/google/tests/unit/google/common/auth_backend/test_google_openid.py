@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 from google.auth.exceptions import GoogleAuthError
 
-from airflow.www.app import create_app
+from airflow.providers.fab.www.app import create_app
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools
@@ -50,7 +50,7 @@ def google_openid_app():
                 ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
             }
         ):
-            _app = create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
+            _app = create_app(enable_plugins=False)
             _app.config["AUTH_ROLE_PUBLIC"] = None
             return _app
 
