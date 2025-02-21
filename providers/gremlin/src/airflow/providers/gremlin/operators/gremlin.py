@@ -16,8 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from airflow.models import BaseOperator
 from airflow.providers.gremlin.hooks.gremlin import GremlinHook
+
+if TYPE_CHECKING:
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class GremlinOperator(BaseOperator):
@@ -35,7 +44,7 @@ class GremlinOperator(BaseOperator):
         self.query = query
         self.gremlin_conn_id = gremlin_conn_id
 
-    def execute(self, context):
+    def execute(self, context: Context) -> Any:
         hook = GremlinHook(conn_id=self.gremlin_conn_id)
         # Note: the hook method is defined as run() in our hook implementation.
         # If you prefer, you can add an alias run_query = run in your hook.

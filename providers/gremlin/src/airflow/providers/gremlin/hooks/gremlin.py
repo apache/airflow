@@ -14,16 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module allows connecting to an Graph DB using the Gremlin Driver."""
+"""This module allows connecting to an Graph DB using the Gremlin API."""
 
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any
 
-import nest_asyncio
-from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
-from gremlin_python.process.anonymous_traversal import traversal
+# import nest_asyncio
+from gremlin_python.driver.client import Client
+from gremlin_python.driver.serializer import GraphSONSerializersV2d0
 
 from airflow.hooks.base import BaseHook
 
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from airflow.models import Connection
 
 # Apply nest_asyncio to allow nested event loops.
-nest_asyncio.apply()
+# nest_asyncio.apply()
 
 logger = logging.getLogger(__name__)
 
@@ -56,14 +56,10 @@ class GremlinHook(BaseHook):
         super().__init__(*args, **kwargs)
         self.gremlin_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
-        self.client: DriverRemoteConnection | None = None
+        self.client: Client | None = None
 
-    def get_conn(self) -> DriverRemoteConnection:
-        """
-        Establish a connection to Graph DB with the Gremlin API.
-
-        :return: An instance of the Gremlin Driver.
-        """
+    def get_conn(self) -> Client:
+        """Establish a connection to Graph DB with the Gremlin API."""
         if self.client is not None:
             return self.client
 
@@ -72,9 +68,9 @@ class GremlinHook(BaseHook):
         uri = self.get_uri(self.connection)
         self.log.info("Connecting to URI: %s", uri)
 
-        self.driver = self.get_driver(self.connection, self.traversal_source, uri)
+        self.client = self.get_client(self.connection, self.traversal_source, uri)
 
-        return self.driver
+        return self.client
 
     def get_uri(self, conn: Connection) -> str:
         """
@@ -84,14 +80,14 @@ class GremlinHook(BaseHook):
         :return: URI string.
         """
         # Check for extra parameter "development-graphdb". Adjust the scheme if needed.
-        use_development = conn.extra_dejson.get("schema", False)
+        use_development = conn.extra_dejson.get("development-graphdb", False)
         # For Graph DB using Gremlin, the secure WebSocket scheme is typically "wss"
         scheme = "wss" if use_development or not use_development else "ws"
         host = conn.host
         port = conn.port if conn.port is not None else self.default_port
-        return f"{scheme}://{host}:{port}"
+        return f"{scheme}://{host}:{port}/"
 
-    def get_driver(self, conn: Connection, traversal_source: str, uri: str) -> DriverRemoteConnection:
+    def get_client(self, conn: Connection, traversal_source: str, uri: str) -> Client:
         """
         Create and return a new Gremlin client.
 
@@ -101,24 +97,29 @@ class GremlinHook(BaseHook):
         :return: An instance of the Gremlin Client.
         """
         # Build the username. This example uses the connection's schema and login.
-        username = f"/dbs/{conn.login}/colls/{conn.schema}" if conn.schema and conn.login else ""
+        username = f"/dbs/{conn.login}/colls/{conn.schema}"
         password = conn.password
 
         # Remove the redundant addition of traversal_source to kwargs.
-        return DriverRemoteConnection(
-            url=uri, traversal_source=traversal_source, username=username, password=password
+        return Client(
+            url=uri,
+            traversal_source=traversal_source,
+            username=username,
+            password=password,
+            message_serializer=GraphSONSerializersV2d0(),
         )
 
-    def get_traversal(self) -> list[Any]:
+    def run(self, query: str) -> list[Any]:
         """
-        Get traversal results from the Gremlin server.
+        Execute a Gremlin query and return the results.
 
+        :param query: Gremlin query string.
         :return: List containing the query results.
         """
-        driver = self.get_conn()
+        client = self.get_conn()
 
         try:
-            results_list = traversal().with_remote(driver)
+            results_list = client.submit(query).all().result()
         except Exception as e:
             logger.error("An error occurred while running the query: %s", str(e))
             raise e
