@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-21T14:13:08.100063
+# This constraints file was automatically generated on 2025-02-21T20:10:32.972961
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -278,7 +278,7 @@ debugpy==1.8.12
 decorator==5.1.1
 deepdiff==8.2.0
 defusedxml==0.7.1
-deltalake==0.24.0
+deltalake==0.25.1
 diagrams==0.24.1
 dill==0.3.1.1
 distro==1.9.0
@@ -536,7 +536,7 @@ pdpyras==5.4.0
 pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.3.6
-pinecone-client==5.0.1
+pinecone-client==6.0.0
 pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
@@ -635,7 +635,7 @@ rich-argparse==1.7.0
 rich-click==1.8.6
 rich-toolkit==0.13.2
 rich==13.9.4
-rpds-py==0.23.0
+rpds-py==0.23.1
 rsa==4.9
 ruff==0.8.1
 s3fs==2025.2.0
