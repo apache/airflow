@@ -55,7 +55,7 @@ class TestMwaaDagRunSuccessSensor:
                 **SENSOR_KWARGS, success_states={"state1", "state2"}, failure_states={"state2", "state3"}
             )
 
-    @pytest.mark.parametrize("status", State.success_states)
+    @pytest.mark.parametrize("status", sorted(State.success_states))
     def test_poke_completed(self, mock_invoke_rest_api, status):
         mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": status}}
         assert MwaaDagRunSensor(**SENSOR_KWARGS).poke({})
@@ -65,7 +65,7 @@ class TestMwaaDagRunSuccessSensor:
         mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": status}}
         assert not MwaaDagRunSensor(**SENSOR_KWARGS).poke({})
 
-    @pytest.mark.parametrize("status", State.failed_states)
+    @pytest.mark.parametrize("status", sorted(State.failed_states))
     def test_poke_terminated(self, mock_invoke_rest_api, status):
         mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": status}}
         with pytest.raises(AirflowException):
