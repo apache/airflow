@@ -48,7 +48,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
         finished_task_ids = {t.task_id for t in finished_tis}
 
         for parent in upstream:
-            if parent.inherits_from_skip_mixin is True:
+            if parent.inherits_from_skip_mixin:
                 if parent.task_id not in finished_task_ids:
                     # This can happen if the parent task has not yet run.
                     continue
