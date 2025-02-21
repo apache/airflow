@@ -1096,7 +1096,6 @@ def python_api_client_tests(
         db_reset=db_reset,
         no_db_cleanup=no_db_cleanup,
         install_airflow_python_client=True,
-        start_webserver_with_examples=True,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     fix_ownership_using_docker()

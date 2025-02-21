@@ -229,7 +229,6 @@ class SelectiveCoreTestType(SelectiveTestType):
     SERIALIZATION = "Serialization"
     OTHER = "Other"
     OPERATORS = "Operators"
-    WWW = "WWW"
 
 
 class SelectiveProvidersTestType(SelectiveTestType):
