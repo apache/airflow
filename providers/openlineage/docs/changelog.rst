@@ -58,6 +58,7 @@ Misc
 * ``chore: Update docstring for DatabaseInfo in OpenLineage provider (#45638)``
 * ``Remove classes from 'typing_compat' that can be imported directly (#45589)``
 * ``udpated 404 hyperlink to gcstogcsoperator (#45311)``
+* ``pass error for on_task_instance_failed in task sdk (#46941)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -71,6 +72,7 @@ Misc
    * ``Fixing OPENLINEAGE system tests import failure after new structure changes (#46204)``
    * ``Move OPENLINEAGE provider to new structure provider (#46068)``
    * ``update outdated hyperlinks referencing provider package files (#45332)``
+   * ``Prepare docs for Feb 1st wave of providers (#46893)``
 
 2.0.0
 .....
