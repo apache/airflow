@@ -101,7 +101,7 @@ def get_provider_info():
         ],
         "dependencies": [
             "apache-airflow>=2.9.0",
-            "apache-airflow-providers-http",
+            "apache-airflow-providers-http>=5.1.0",
             "aiohttp>=3.9.2",
             "asgiref>=2.3.0",
         ],
