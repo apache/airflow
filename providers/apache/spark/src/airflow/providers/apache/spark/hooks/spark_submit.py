@@ -557,7 +557,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         # Check spark-submit return code. In Kubernetes mode, also check the value
         # of exit code in the log, as it may differ.
-        # The exit code of the client mode driver program can confirm the status of the spark program
+        # The returncode of the client mode driver program can confirm the status of the spark program
         if returncode or (
             self._is_kubernetes
             and self._connection["deploy_mode"] == "cluster"
