@@ -65,6 +65,8 @@ from airflow.utils.types import NOTSET
 from airflow.utils.warnings import capture_with_reraise
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from sqlalchemy.orm import Session
 
     from airflow.models.dag import DAG
@@ -645,11 +647,19 @@ class DagBag(LoggingMixin):
     def sync_to_db(self, bundle_name: str, bundle_version: str | None, session: Session = NEW_SESSION):
         """Save attributes about list of DAG to the DB."""
         from airflow.dag_processing.collection import update_dag_parsing_results_in_db
+        from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+
+        def _process_dags() -> Iterator[LazyDeserializedDAG]:
+            for dag in self.dags.values():
+                if isinstance(dag, LazyDeserializedDAG):
+                    yield dag
+                else:
+                    yield LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
 
         update_dag_parsing_results_in_db(
             bundle_name,
             bundle_version,
-            self.dags.values(),  # type: ignore[arg-type]  # We should create a proto for DAG|LazySerializedDAG
+            list(_process_dags()),
             self.import_errors,
             self.dag_warnings,
             session=session,

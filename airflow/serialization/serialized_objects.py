@@ -1893,7 +1893,6 @@ def _has_kubernetes() -> bool:
 
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
-MaybeSerializedDAG = Union[DAG, "LazyDeserializedDAG"]
 
 
 class LazyDeserializedDAG(pydantic.BaseModel):

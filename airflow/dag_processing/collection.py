@@ -66,14 +66,14 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
-    from airflow.serialization.serialized_objects import MaybeSerializedDAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
     from airflow.typing_compat import Self
 
 log = logging.getLogger(__name__)
 
 
 def _create_orm_dags(
-    bundle_name: str, dags: Iterable[MaybeSerializedDAG], *, session: Session
+    bundle_name: str, dags: Iterable[LazyDeserializedDAG], *, session: Session
 ) -> Iterator[DagModel]:
     for dag in dags:
         orm_dag = DagModel(dag_id=dag.dag_id)
@@ -130,7 +130,7 @@ class _RunInfo(NamedTuple):
     num_active_runs: dict[str, int]
 
     @classmethod
-    def calculate(cls, dags: dict[str, MaybeSerializedDAG], *, session: Session) -> Self:
+    def calculate(cls, dags: dict[str, LazyDeserializedDAG], *, session: Session) -> Self:
         """
         Query the the run counts from the db.
 
@@ -176,7 +176,7 @@ def _update_dag_owner_links(dag_owner_links: dict[str, str], dm: DagModel, *, se
 
 
 def _serialize_dag_capturing_errors(
-    dag: MaybeSerializedDAG, bundle_name, session: Session, bundle_version: str | None
+    dag: LazyDeserializedDAG, bundle_name, session: Session, bundle_version: str | None
 ):
     """
     Try to serialize the dag to the DB, but make a note of any errors.
@@ -213,7 +213,7 @@ def _serialize_dag_capturing_errors(
         return [(dag.fileloc, traceback.format_exc(limit=-dagbag_import_error_traceback_depth))]
 
 
-def _sync_dag_perms(dag: MaybeSerializedDAG, session: Session):
+def _sync_dag_perms(dag: LazyDeserializedDAG, session: Session):
     """Sync DAG specific permissions."""
     dag_id = dag.dag_id
 
@@ -297,7 +297,7 @@ def _update_import_errors(
 def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
-    dags: Collection[MaybeSerializedDAG],
+    dags: Collection[LazyDeserializedDAG],
     import_errors: dict[str, str],
     warnings: set[DagWarning],
     session: Session,
@@ -376,7 +376,7 @@ def update_dag_parsing_results_in_db(
 class DagModelOperation(NamedTuple):
     """Collect DAG objects and perform database operations for them."""
 
-    dags: dict[str, MaybeSerializedDAG]
+    dags: dict[str, LazyDeserializedDAG]
     bundle_name: str
     bundle_version: str | None
 
@@ -491,7 +491,7 @@ class DagModelOperation(NamedTuple):
                 dm.dag_owner_links = []
 
 
-def _find_all_assets(dags: Iterable[MaybeSerializedDAG]) -> Iterator[Asset]:
+def _find_all_assets(dags: Iterable[LazyDeserializedDAG]) -> Iterator[Asset]:
     for dag in dags:
         for _, asset in dag.timetable.asset_condition.iter_assets():
             yield asset
@@ -499,7 +499,7 @@ def _find_all_assets(dags: Iterable[MaybeSerializedDAG]) -> Iterator[Asset]:
             yield alias
 
 
-def _find_all_asset_aliases(dags: Iterable[MaybeSerializedDAG]) -> Iterator[AssetAlias]:
+def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[AssetAlias]:
     for dag in dags:
         for _, alias in dag.timetable.asset_condition.iter_asset_aliases():
             yield alias
@@ -553,7 +553,7 @@ class AssetModelOperation(NamedTuple):
     asset_aliases: dict[str, AssetAlias]
 
     @classmethod
-    def collect(cls, dags: dict[str, MaybeSerializedDAG]) -> Self:
+    def collect(cls, dags: dict[str, LazyDeserializedDAG]) -> Self:
         coll = cls(
             schedule_asset_references={
                 dag_id: [asset for _, asset in dag.timetable.asset_condition.iter_assets()]

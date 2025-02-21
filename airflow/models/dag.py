@@ -118,7 +118,7 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
-    from airflow.serialization.serialized_objects import MaybeSerializedDAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
     from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
@@ -1856,7 +1856,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         cls,
         bundle_name: str,
         bundle_version: str | None,
-        dags: Collection[MaybeSerializedDAG],
+        dags: Collection[DAG | LazyDeserializedDAG],
         session: Session = NEW_SESSION,
     ):
         """
@@ -1869,10 +1869,18 @@ class DAG(TaskSDKDag, LoggingMixin):
             return
 
         from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
+        from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 
         log.info("Sync %s DAGs", len(dags))
+        serdags = [
+            dag
+            if isinstance(dag, LazyDeserializedDAG)
+            else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+            for dag in dags
+        ]
+
         dag_op = DagModelOperation(
-            bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in dags}
+            bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in serdags}
         )  # type: ignore[misc]
 
         orm_dags = dag_op.add_dags(session=session)
