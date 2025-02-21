@@ -206,7 +206,6 @@ class TestFileTaskLogHandler:
         "executor_name",
         [
             (executor_constants.LOCAL_KUBERNETES_EXECUTOR),
-            (executor_constants.CELERY_KUBERNETES_EXECUTOR),
             (executor_constants.KUBERNETES_EXECUTOR),
             (None),
         ],
@@ -216,7 +215,6 @@ class TestFileTaskLogHandler:
             ("core", "EXECUTOR"): ",".join(
                 [
                     executor_constants.LOCAL_KUBERNETES_EXECUTOR,
-                    executor_constants.CELERY_KUBERNETES_EXECUTOR,
                     executor_constants.KUBERNETES_EXECUTOR,
                 ]
             ),
@@ -283,7 +281,6 @@ class TestFileTaskLogHandler:
             # them in Airflow 2.10.X
             if executor_name in [
                 executor_constants.LOCAL_KUBERNETES_EXECUTOR,
-                executor_constants.CELERY_KUBERNETES_EXECUTOR,
             ]:
                 with pytest.warns(RemovedInAirflow3Warning):
                     file_handler.read(ti)
