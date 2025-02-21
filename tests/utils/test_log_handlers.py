@@ -284,7 +284,6 @@ class TestFileTaskLogHandler:
             if executor_name in [
                 executor_constants.LOCAL_KUBERNETES_EXECUTOR,
                 executor_constants.CELERY_KUBERNETES_EXECUTOR,
-                None,
             ]:
                 with pytest.warns(RemovedInAirflow3Warning):
                     file_handler.read(ti)
