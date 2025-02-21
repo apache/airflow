@@ -279,7 +279,17 @@ class TestFileTaskLogHandler:
             file_handler.close()
 
             assert hasattr(file_handler, "read")
-            file_handler.read(ti)
+            # These executors are deprecated and will be removed in Airflow 3.0 but we still need to support
+            # them in Airflow 2.10.X
+            if executor_name in [
+                executor_constants.LOCAL_KUBERNETES_EXECUTOR,
+                executor_constants.CELERY_KUBERNETES_EXECUTOR,
+                None,
+            ]:
+                with pytest.warns(RemovedInAirflow3Warning):
+                    file_handler.read(ti)
+            else:
+                file_handler.read(ti)
             os.remove(log_filename)
             mock_get_task_log.assert_called_once()
 
