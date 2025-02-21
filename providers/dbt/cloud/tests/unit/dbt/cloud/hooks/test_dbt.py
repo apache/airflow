@@ -1067,3 +1067,26 @@ class TestDbtCloudHook:
 
         assert status is False
         assert msg == "403:Authentication credentials were not provided"
+
+
+def test_get_job_run_logs_aggregates_steps(monkeypatch):
+    from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
+
+    hook = DbtCloudHook("dummy_conn")
+
+    # Use MagicMock to simulate responses as in other tests.
+    def fake_run_and_get_response(*, method, endpoint, **kwargs):
+        if endpoint.endswith("/steps/"):
+            # Fake steps response
+            return mock_response_json({"data": [{"id": 101}, {"id": 102}]})
+        elif "/steps/101/" in endpoint:
+            return mock_response_json({"data": {"compiled_code": "log from step 101"}})
+        elif "/steps/102/" in endpoint:
+            return mock_response_json({"data": {"compiled_code": "log from step 102"}})
+        return None
+
+    # Use our helper defined in the file.
+    monkeypatch.setattr(hook, "_run_and_get_response", fake_run_and_get_response)
+    aggregated = hook.get_job_run_logs(run_id=1234, account_id=9999)
+    expected = "log from step 101\nlog from step 102"
+    assert aggregated == expected

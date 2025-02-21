@@ -668,6 +668,27 @@ class TestDbtCloudRunJobOperator:
             )
         )
 
+    def test_operator_execute_complete_logs_passes_account_id(monkeypatch):
+        # Prepare a fake operator and fake hook.
+        from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
+
+        operator = DbtCloudRunJobOperator(
+            task_id="test_task", job_id=123, account_id=2222, wait_for_termination=True
+        )
+        # fake trigger event and a simple fake hook response for logs
+        fake_event = {"run_id": 5555, "status": "success", "message": "Job finished"}
+
+        def fake_get_job_run_logs(run_id, account_id):
+            # Verify account_id is as passed
+            assert account_id == 2222
+            return "final aggregated logs"
+
+        monkeypatch.setattr(operator.hook, "get_job_run_logs", fake_get_job_run_logs)
+        ti = type("FakeTI", (), {"xcom_push": lambda self, key, value: None})()
+        context = {"ti": ti}
+        result = operator.execute_complete(context, fake_event)
+        assert result == 5555
+
 
 class TestDbtCloudGetJobRunArtifactOperator:
     def setup_method(self):

@@ -838,15 +838,20 @@ class DbtCloudHook(HttpHook):
     @fallback_to_default_account
     def get_job_run_logs(self, run_id: int, account_id: int | None = None) -> str:
         """
-        Retrieve logs for a specific run of a dbt Cloud job.
-
-        :param run_id: The ID of a dbt Cloud job run.
-        :param account_id: Optional. The ID of a dbt Cloud account.
-        :return: The logs as a string.
+        Retrieve logs for a specific run of a dbt Cloud job by fetching each step’s details.
         """
-        endpoint = f"{account_id}/runs/{run_id}/logs/"
-        response = self._run_and_get_response(method="GET", endpoint=endpoint)
-        return response.text
+        # Retrieve steps for the run
+        steps_resp = self._run_and_get_response(method="GET", endpoint=f"{account_id}/runs/{run_id}/steps/")
+        steps = steps_resp.json().get("data", [])
+        collected_logs = []
+        for step in steps:
+            step_id = step["id"]
+            detail_resp = self._run_and_get_response(
+                method="GET", endpoint=f"{account_id}/runs/{run_id}/steps/{step_id}/"
+            )
+            if step_log := detail_resp.json().get("data", {}).get("compiled_code", ""):
+                collected_logs.append(step_log)
+        return "\n".join(collected_logs)
 
     def test_connection(self) -> tuple[bool, str]:
         """Test dbt Cloud connection."""

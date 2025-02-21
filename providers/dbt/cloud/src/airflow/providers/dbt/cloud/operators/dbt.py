@@ -197,7 +197,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 self.log.info("Starting to stream logs for job run %s", self.run_id)
                 job_status = self.hook.get_job_run_status(account_id=self.account_id, run_id=self.run_id)
                 while not DbtCloudJobRunStatus.is_terminal(job_status):
-                    logs = self.hook.get_job_run_logs(run_id=self.run_id)
+                    logs = self.hook.get_job_run_logs(run_id=self.run_id, account_id=self.account_id)
                     self.log.info("Streaming logs for job run %s: %s", self.run_id, logs)
                     time.sleep(self.check_interval)
                     job_status = self.hook.get_job_run_status(account_id=self.account_id, run_id=self.run_id)
@@ -255,7 +255,8 @@ class DbtCloudRunJobOperator(BaseOperator):
         elif event["status"] == "error":
             raise DbtCloudJobRunException(f"Job run {self.run_id} has failed.")
         self.log.info(event["message"])
-        logs = self.hook.get_job_run_logs(run_id=self.run_id)
+        # Ensure account_id is passed
+        logs = self.hook.get_job_run_logs(run_id=self.run_id, account_id=self.account_id)
         self.log.info("Final logs for job run %s: %s", self.run_id, logs)
         return int(event["run_id"])
 
