@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 
 import pytest
@@ -59,7 +58,6 @@ class TestGremlinHook:
             login="mylogin",
             password="mypassword",
         )
-        conn.extra = json.dumps({"development-graphdb": True})
         hook.get_connection = lambda conn_id: conn
 
         hook.get_conn()
