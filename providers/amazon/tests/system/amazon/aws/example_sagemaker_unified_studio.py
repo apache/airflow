@@ -42,9 +42,7 @@ The setup tasks will set up the project and configure the test runnner to emulat
 Then, the SageMakerNotebookOperator will run a test notebook. This should spin up a SageMaker training job, run the notebook, and exit successfully.
 """
 
-pytestmark = pytest.mark.skipif(
-    not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+"
-)
+pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
 
 DAG_ID = "example_sagemaker_unified_studio"
 
@@ -81,12 +79,11 @@ def get_mwaa_environment_params(
     params[f"{AIRFLOW_PREFIX}DATAZONE_ENVIRONMENT_ID"] = environment_id
     params[f"{AIRFLOW_PREFIX}DATAZONE_SCOPE_NAME"] = "dev"
     params[f"{AIRFLOW_PREFIX}DATAZONE_STAGE"] = "prod"
-    params[f"{AIRFLOW_PREFIX}DATAZONE_ENDPOINT"] = (
-        f"https://datazone.{region_name}.api.aws"
-    )
+    params[f"{AIRFLOW_PREFIX}DATAZONE_ENDPOINT"] = f"https://datazone.{region_name}.api.aws"
     params[f"{AIRFLOW_PREFIX}PROJECT_S3_PATH"] = s3_path
     params[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = region_name
     return params
+
 
 @task
 def mock_mwaa_environment(params: dict):
@@ -98,6 +95,7 @@ def mock_mwaa_environment(params: dict):
 
     for key, value in params.items():
         os.environ[key] = value
+
 
 with DAG(
     DAG_ID,
