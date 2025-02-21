@@ -25,11 +25,11 @@ import pytest
 from airflow import settings
 from airflow.models import DagBag
 from airflow.providers.fab.www.app import create_app
+from unit.decorators import dont_initialize_flask_app_submodules
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import delete_user
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import parse_and_sync_to_db
-from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests_common.test_utils.www import client_with_login
 
 

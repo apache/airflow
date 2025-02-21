@@ -19,7 +19,7 @@ from __future__ import annotations
 import functools
 from unittest.mock import patch
 
-from airflow.www.app import purge_cached_app
+from airflow.providers.fab.www.app import purge_cached_app
 
 
 def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
@@ -32,13 +32,8 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
 
         methods = [
             "init_api_auth",
-            "init_flash_views",
-            "init_appbuilder_links",
-            "init_appbuilder_views",
             "init_plugins",
             "init_error_handlers",
-            "init_api_connexion",
-            "init_api_internal",
             "init_api_auth_provider",
             "init_api_error_handlers",
             "init_jinja_globals",
@@ -51,7 +46,7 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
         def func(*args, **kwargs):
             for method in methods:
                 if method not in skip_all_except:
-                    patcher = patch(f"airflow.www.app.{method}", no_op)
+                    patcher = patch(f"airflow.providers.fab.www.app.{method}", no_op)
                     patcher.start()
             purge_cached_app()
             result = f(*args, **kwargs)
