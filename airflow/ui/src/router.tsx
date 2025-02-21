@@ -25,6 +25,7 @@ import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { AssetsList } from "src/pages/AssetsList";
 import { Dag } from "src/pages/Dag";
+import { Backfills } from "src/pages/Dag/Backfills";
 import { Code } from "src/pages/Dag/Code";
 import { Overview } from "src/pages/Dag/Overview";
 import { Tasks } from "src/pages/Dag/Tasks";
@@ -47,7 +48,6 @@ import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
-import { Backfills } from "./pages/Dag/Backfills";
 import { queryClient } from "./queryClient";
 
 export const routerConfig = [

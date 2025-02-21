@@ -26,6 +26,8 @@ import type { BackfillResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import Time from "src/components/Time";
+import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { pluralize } from "src/utils";
 
 const columns: Array<ColumnDef<BackfillResponse>> = [
@@ -46,19 +48,27 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
   },
   {
     accessorKey: "reprocess_behavior",
+    cell: ({ row }) => (
+      <Text>
+        {
+          reprocessBehaviors.find((rb: { value: string }) => rb.value === row.original.reprocess_behavior)
+            ?.label
+        }
+      </Text>
+    ),
     enableSorting: false,
-    header: () => "Run Type",
+    header: () => "Reprocess Behavior",
   },
   {
     accessorKey: "max_active_runs",
     enableSorting: false,
-    header: () => "Run",
+    header: () => "Max Active Runs",
   },
   {
     accessorKey: "date_range",
     cell: ({ row }) => (
       <Text>
-        {new Date(row.original.from_date).toUTCString()} - {new Date(row.original.to_date).toUTCString()}
+        <Time datetime={row.original.from_date} /> - <Time datetime={row.original.to_date} />
       </Text>
     ),
     enableSorting: false,
@@ -86,7 +96,6 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
 
 export const Backfills = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
-  // const [searchParams, setSearchParams] = useSearchParams();
 
   const { pagination, sorting } = tableURLState;
 
@@ -106,15 +115,14 @@ export const Backfills = () => {
     <Box>
       <ErrorAlert error={error} />
       <Heading my={1} size="md">
-        {pluralize("Task", data ? data.total_entries : 0)}
+        {pluralize("Backfill", data ? data.total_entries : 0)}
       </Heading>
       <DataTable
         columns={columns}
         data={data ? data.backfills : []}
-        displayMode="card"
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="Task"
+        modelName="Backfill"
         onStateChange={setTableURLState}
         total={data ? data.total_entries : 0}
       />
