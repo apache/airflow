@@ -54,7 +54,7 @@ class LatestOnlyOperator(BaseBranchOperator):
         # If the DAG Run is externally triggered, then return without
         # skipping downstream tasks
         dag_run: DagRun = context["dag_run"]  # type: ignore[assignment]
-        if dag_run.run_type != DagRunType.SCHEDULED:
+        if dag_run.run_type == DagRunType.MANUAL:
             self.log.info("Manually triggered DAG_Run: allowing execution to proceed.")
             return list(context["task"].get_direct_relative_ids(upstream=False))
 

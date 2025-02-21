@@ -607,7 +607,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
             "data_interval_start": event_time.isoformat(),
             "data_interval_end": event_time.isoformat(),
             "run_id": run_id,
-            "run_type": DagRunType.MANUAL if AIRFLOW_V_3_0_PLUS else None,
+            "run_type": DagRunType.MANUAL,
             "start_date": event_time.isoformat(),
         },
     )
