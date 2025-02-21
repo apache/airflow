@@ -45,7 +45,6 @@ class GremlinHook(BaseHook):
     :param gremlin_conn_id: Reference to the connection ID configured in Airflow.
     """
 
-    conn_name_attr = "gremlin_conn_id"
     default_conn_name = "gremlin_default"
     conn_type = "gremlin"
     hook_name = "Gremlin"
@@ -97,8 +96,12 @@ class GremlinHook(BaseHook):
         :return: An instance of the Gremlin Client.
         """
         # Build the username. This example uses the connection's schema and login.
-        username = f"/dbs/{conn.login}/colls/{conn.schema}"
-        password = conn.password
+        username = (
+            f"/dbs/{conn.login}/colls/{conn.schema}"
+            if conn.schema is not None and conn.login is not None
+            else ""
+        )
+        password = conn.password if conn.password is not None else ""
 
         # Remove the redundant addition of traversal_source to kwargs.
         return Client(
