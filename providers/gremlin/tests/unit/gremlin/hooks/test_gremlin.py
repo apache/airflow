@@ -29,12 +29,12 @@ class TestGremlinHook:
     @pytest.mark.parametrize(
         "conn_extra, host, port, expected_uri",
         [
-            ({}, "host", None, "wss://host:443/"),
-            ({"development-graphdb": True}, "myhost", 1234, "wss://myhost:1234/"),
-            ({"development-graphdb": False}, "localhost", 8888, "wss://localhost:8888/"),
+            ("host", None, "wss://host:443/"),
+            ("myhost", 1234, "wss://myhost:1234/"),
+            ("localhost", 8888, "wss://localhost:8888/"),
         ],
     )
-    def test_get_uri(self, conn_extra, host, port, expected_uri):
+    def test_get_uri(self, host, port, expected_uri):
         """
         Test that get_uri builds the expected URI from the connection.
         """
