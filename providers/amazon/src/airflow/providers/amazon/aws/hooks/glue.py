@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import datetime, timedelta
 from functools import cached_property
 from typing import Any
 
@@ -245,6 +246,9 @@ class GlueJobHook(AwsBaseHook):
                 for response in paginator.paginate(
                     logGroupName=log_group,
                     logStreamNames=[run_id],
+                    startTime=int(
+                        (datetime.now() - timedelta(hours=24)).timestamp() * 1000
+                    ),  # 24 hours ago in milliseconds
                     PaginationConfig={"StartingToken": continuation_token},
                 ):
                     fetched_logs.extend([event["message"] for event in response["events"]])
