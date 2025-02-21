@@ -23,7 +23,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 
-import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import { ColorModeProvider } from "src/context/colorMode";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
@@ -58,9 +57,6 @@ axios.interceptors.request.use((config) => {
 
   return config;
 });
-
-// Dynamically set the base URL for XHR requests based on the meta tag.
-OpenAPI.BASE = document.querySelector("meta[name='backend-server-base-url']")?.getAttribute("content") ?? "";
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>
