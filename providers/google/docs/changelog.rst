@@ -115,6 +115,7 @@ Misc
 * ``Add lower bound for alloydb (#45180)``
 * ``Deprecate gcp AutoML module (#44875)``
 * ``Refactor deferrable mode for BeamRunPythonPipelineOperator and BeamRunJavaPipelineOperator (#46678)``
+* ``Bump cloud build to 3.31.0 (#46953)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
