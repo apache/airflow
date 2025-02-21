@@ -381,12 +381,32 @@ class TestCreateBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "reprocess_behavior, expected_dates",
         [
-            ("none", []),
-            pytest.param("failed", ["2024-01-03T00:00:00Z"], marks=pytest.mark.xfail(reason="bug")),
-            pytest.param(
+            (
+                "none",
+                [
+                    "2024-01-01T00:00:00+00:00",
+                    "2024-01-04T00:00:00+00:00",
+                    "2024-01-05T00:00:00+00:00",
+                ],
+            ),
+            (
+                "failed",
+                [
+                    "2024-01-01T00:00:00+00:00",
+                    "2024-01-03T00:00:00+00:00",
+                    "2024-01-04T00:00:00+00:00",
+                    "2024-01-05T00:00:00+00:00",
+                ],
+            ),
+            (
                 "completed",
-                ["2024-01-02T00:00:00Z", "2024-01-03T00:00:00Z"],
-                marks=pytest.mark.xfail(reason="bug"),
+                [
+                    "2024-01-01T00:00:00+00:00",
+                    "2024-01-02T00:00:00+00:00",
+                    "2024-01-03T00:00:00+00:00",
+                    "2024-01-04T00:00:00+00:00",
+                    "2024-01-05T00:00:00+00:00",
+                ],
             ),
         ],
     )
@@ -398,6 +418,12 @@ class TestCreateBackfill(TestBackfillEndpoint):
         reprocess_behavior,
         expected_dates,
     ):
+        """
+        Verify behavior when there's existing runs in the range
+
+        If the there is a run in the range, depending on the reprocess behavior,
+        it should clear the existing dag run and update it to be associated with the backfill.
+        """
         with dag_maker(
             session=session,
             dag_id="TEST_DAG_2",
@@ -450,22 +476,40 @@ class TestCreateBackfill(TestBackfillEndpoint):
         assert response_json["to_date"] == "2024-01-05T00:00:00Z"
         backfill_id = response_json["id"]
 
-        dag_runs = list(session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id)))
-        dag_runs = sorted((x.logical_date.isoformat(), x.backfill_id or -1) for x in dag_runs)
+        result = session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+        dag_runs = sorted(((x.logical_date.isoformat(), x.backfill_id) for x in result), key=lambda x: x[0])
 
-        def expected_id(date):
-            if date in expected_dates:
-                return backfill_id
-            else:
-                return -1
-
-        assert dag_runs == [
-            ("2024-01-01T00:00:00+00:00", backfill_id),
-            ("2024-01-02T00:00:00+00:00", expected_id("2024-01-02T00:00:00+00:00")),
-            ("2024-01-03T00:00:00+00:00", expected_id("2024-01-03T00:00:00+00:00")),
-            ("2024-01-04T00:00:00+00:00", backfill_id),
-            ("2024-01-05T00:00:00+00:00", backfill_id),
+        all_dates = [
+            "2024-01-01T00:00:00+00:00",
+            "2024-01-02T00:00:00+00:00",
+            "2024-01-03T00:00:00+00:00",
+            "2024-01-04T00:00:00+00:00",
+            "2024-01-05T00:00:00+00:00",
         ]
+
+        # verify which runs are associated with the backfill now
+        expected = []
+        for date in all_dates:
+            if date in expected_dates:
+                expected.append((date, backfill_id))
+            else:
+                expected.append((date, None))
+        assert dag_runs == expected
+
+        # verify which logical dates have a non-create exception
+        result = session.scalars(select(BackfillDagRun).where(BackfillDagRun.backfill_id == backfill_id))
+        actual = sorted((x.logical_date.isoformat(), x.exception_reason) for x in result)
+        expected = []
+        for date in all_dates:
+            if date in expected_dates:
+                expected.append((date, None))
+            else:
+                expected.append((date, "already exists"))
+        assert actual == expected
+
+        # verify all dag runs associated with the backfill have backfill run type
+        actual = list(session.scalars(select(DagRun.run_type).where(DagRun.backfill_id == backfill_id)))
+        assert actual == ["backfill"] * len(expected_dates)
 
 
 class TestCreateBackfillDryRun(TestBackfillEndpoint):
