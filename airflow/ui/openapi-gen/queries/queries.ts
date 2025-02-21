@@ -555,6 +555,8 @@ export const useDagsServiceRecentDagRuns = <
 /**
  * Get Dependencies
  * Dependencies graph.
+ * @param data The data for the request.
+ * @param data.nodeId
  * @returns BaseGraphResponse Successful Response
  * @throws ApiError
  */
@@ -563,12 +565,17 @@ export const useDependenciesServiceGetDependencies = <
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
+  {
+    nodeId,
+  }: {
+    nodeId?: string;
+  } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn(queryKey),
-    queryFn: () => DependenciesService.getDependencies() as TData,
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }, queryKey),
+    queryFn: () => DependenciesService.getDependencies({ nodeId }) as TData,
     ...options,
   });
 /**
