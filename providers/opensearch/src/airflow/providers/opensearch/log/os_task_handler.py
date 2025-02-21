@@ -44,6 +44,18 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
+
+if AIRFLOW_V_3_0_PLUS:
+    from typing import Union
+
+    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+    OsLogMsgType = Union[list[StructuredLogMessage], str]
+else:
+    OsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+
+
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 OsLogMsgType = list[tuple[str, str]]
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}

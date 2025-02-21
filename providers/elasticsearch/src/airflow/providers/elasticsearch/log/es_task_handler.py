@@ -40,7 +40,9 @@ from elasticsearch.exceptions import NotFoundError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
-from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
+from airflow.providers.elasticsearch.log.es_json_formatter import (
+    ElasticsearchJSONFormatter,
+)
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
@@ -54,10 +56,18 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
+if AIRFLOW_V_3_0_PLUS:
+    from typing import Union
+
+    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+    EsLogMsgType = Union[list[StructuredLogMessage], str]
+else:
+    EsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
-EsLogMsgType = list[tuple[str, str]]
 
 # Compatibility: Airflow 2.3.3 and up uses this method, which accesses the
 # LogTemplate model to record the log ID template used. If this function does
@@ -344,7 +354,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     "If your task started recently, please wait a moment and reload this page. "
                     "Otherwise, the logs for this task instance may have been removed."
                 )
-                return [("", missing_log_message)], metadata
+                if AIRFLOW_V_3_0_PLUS:
+                    return missing_log_message, metadata
+                else:
+                    return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,
                 cur_ts.diff(last_log_ts).in_minutes() >= 5
@@ -358,12 +371,31 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
-        def concat_logs(hits: list[Hit]):
+        def concat_logs(hits: list[Hit]) -> str:
             log_range = (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
             return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
 
         if logs_by_host:
-            message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                header = [
+                    StructuredLogMessage.model_construct(
+                        event="::group::Log message source details",
+                        sources=[host for host in logs_by_host.keys()],
+                    ),
+                    StructuredLogMessage.model_construct(event="::endgroup::"),
+                ]  # type: ignore[misc]
+
+                message = header + [
+                    StructuredLogMessage.model_construct(event=concat_logs(hits))
+                    for hits in logs_by_host.values()
+                ]  # type: ignore[misc]
+            else:
+                message = [
+                    (host, concat_logs(hits))  # type: ignore[misc]
+                    for host, hits in logs_by_host.items()
+                ]
         else:
             message = []
         return message, metadata

@@ -208,14 +208,15 @@ class TestElasticsearchTaskHandler:
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
 
-        assert len(logs) == 1
-
         if AIRFLOW_V_3_0_PLUS:
-            assert len(logs[0]) == 2
-            assert self.test_message == logs[0][-1]
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == ["default_host"]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == "some random stuff"
 
             metadata = metadatas
         else:
+            assert len(logs) == 1
             assert len(logs) == len(metadatas)
             assert len(logs[0]) == 1
             assert self.test_message == logs[0][0][-1]
@@ -224,7 +225,7 @@ class TestElasticsearchTaskHandler:
 
         assert not metadata["end_of_log"]
         assert metadata["offset"] == "1"
-        assert timezone.parse(metadata[0]["last_log_timestamp"]) > ts
+        assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
     def test_read_with_patterns(self, ti):
         ts = pendulum.now()
@@ -233,13 +234,24 @@ class TestElasticsearchTaskHandler:
                 ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
             )
 
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert len(logs[0]) == 1
-        assert self.test_message == logs[0][0][-1]
-        assert not metadatas[0]["end_of_log"]
-        assert metadatas[0]["offset"] == "1"
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == ["default_host"]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == "some random stuff"
+
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert len(logs[0]) == 1
+            assert self.test_message == logs[0][0][-1]
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
+        assert metadata["offset"] == "1"
+        assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
     def test_read_with_patterns_no_match(self, ti):
         ts = pendulum.now()
@@ -248,13 +260,21 @@ class TestElasticsearchTaskHandler:
                 ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
             )
 
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert logs == [[]]
-        assert not metadatas[0]["end_of_log"]
-        assert metadatas[0]["offset"] == "0"
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs == []
+
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert logs == [[]]
+
+            metadata = metadatas[0]
+
+        assert metadata["offset"] == "0"
+        assert not metadata["end_of_log"]
         # last_log_timestamp won't change if no log lines read.
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+        assert timezone.parse(metadata["last_log_timestamp"]) == ts
 
     def test_read_with_missing_index(self, ti):
         ts = pendulum.now()
@@ -280,23 +300,35 @@ class TestElasticsearchTaskHandler:
         )
         ts = pendulum.now().add(seconds=-seconds)
         logs, metadatas = self.es_task_handler.read(ti, 1, {"offset": 0, "last_log_timestamp": str(ts)})
-
-        assert len(logs) == 1
-        if seconds > 5:
-            # we expect a log not found message when checking began more than 5 seconds ago
-            assert len(logs[0]) == 1
-            actual_message = logs[0][0][1]
-            expected_pattern = r"^\*\*\* Log .* not found in Elasticsearch.*"
-            assert re.match(expected_pattern, actual_message) is not None
-            assert metadatas[0]["end_of_log"] is True
+        if AIRFLOW_V_3_0_PLUS:
+            if seconds > 5:
+                # we expect a log not found message when checking began more than 5 seconds ago
+                expected_pattern = r"^\*\*\* Log .* not found in Elasticsearch.*"
+                assert re.match(expected_pattern, logs) is not None
+                assert metadatas["end_of_log"] is True
+            else:
+                # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
+                assert logs == []
+                assert metadatas["end_of_log"] is False
+            assert metadatas["offset"] == "0"
+            assert timezone.parse(metadatas["last_log_timestamp"]) == ts
         else:
-            # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
-            assert len(logs[0]) == 0
-            assert logs == [[]]
-            assert metadatas[0]["end_of_log"] is False
-        assert len(logs) == len(metadatas)
-        assert metadatas[0]["offset"] == "0"
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+            assert len(logs) == 1
+            if seconds > 5:
+                # we expect a log not found message when checking began more than 5 seconds ago
+                assert len(logs[0]) == 1
+                actual_message = logs[0][0][1]
+                expected_pattern = r"^\*\*\* Log .* not found in Elasticsearch.*"
+                assert re.match(expected_pattern, actual_message) is not None
+                assert metadatas[0]["end_of_log"] is True
+            else:
+                # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
+                assert len(logs[0]) == 0
+                assert logs == [[]]
+                assert metadatas[0]["end_of_log"] is False
+            assert len(logs) == len(metadatas)
+            assert metadatas[0]["offset"] == "0"
+            assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
     def test_read_with_match_phrase_query(self, ti):
         similar_log_id = (
@@ -311,9 +343,7 @@ class TestElasticsearchTaskHandler:
             "offset": 1,
         }
         self.es.index(index=self.index_name, doc_type=self.doc_type, body=another_body, id=1)
-        self.es.index(
-            index=self.index_name, doc_type=self.doc_type, body=another_body, id=1
-        )
+
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(
             ti,
@@ -325,23 +355,45 @@ class TestElasticsearchTaskHandler:
                 "max_offset": 2,
             },
         )
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert self.test_message == logs[0][0][-1]
-        assert another_test_message != logs[0]
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == ["default_host"]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == "some random stuff"
 
-        assert not metadatas[0]["end_of_log"]
-        assert metadatas[0]["offset"] == "1"
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert len(logs[0]) == 1
+            assert self.test_message == logs[0][0][-1]
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
+        assert metadata["offset"] == "1"
+        assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
     def test_read_with_none_metadata(self, ti):
         logs, metadatas = self.es_task_handler.read(ti, 1)
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert self.test_message == logs[0][0][-1]
-        assert not metadatas[0]["end_of_log"]
-        assert metadatas[0]["offset"] == "1"
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) < pendulum.now()
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == ["default_host"]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == "some random stuff"
+
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert len(logs[0]) == 1
+            assert self.test_message == logs[0][0][-1]
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
+        assert metadata["offset"] == "1"
+        assert timezone.parse(metadata["last_log_timestamp"]) < pendulum.now()
 
     def test_read_nonexistent_log(self, ti):
         ts = pendulum.now()
@@ -352,39 +404,67 @@ class TestElasticsearchTaskHandler:
         logs, metadatas = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert logs == [[]]
-        assert not metadatas[0]["end_of_log"]
-        assert metadatas[0]["offset"] == "0"
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs == []
+
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert logs == [[]]
+
+            metadata = metadatas[0]
+
+        assert metadata["offset"] == "0"
+        assert not metadata["end_of_log"]
         # last_log_timestamp won't change if no log lines read.
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+        assert timezone.parse(metadata["last_log_timestamp"]) == ts
 
     def test_read_with_empty_metadata(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(ti, 1, {})
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert self.test_message == logs[0][0][-1]
-        assert not metadatas[0]["end_of_log"]
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == ["default_host"]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == "some random stuff"
+
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert len(logs[0]) == 1
+            assert self.test_message == logs[0][0][-1]
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
         # offset should be initialized to 0 if not provided.
-        assert metadatas[0]["offset"] == "1"
+        assert metadata["offset"] == "1"
         # last_log_timestamp will be initialized using log reading time
         # if not last_log_timestamp is provided.
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+        assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
         # case where offset is missing but metadata not empty.
         self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
         logs, metadatas = self.es_task_handler.read(ti, 1, {"end_of_log": False})
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert logs == [[]]
-        assert not metadatas[0]["end_of_log"]
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs == []
+
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert logs == [[]]
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
         # offset should be initialized to 0 if not provided.
-        assert metadatas[0]["offset"] == "0"
+        assert metadata["offset"] == "0"
         # last_log_timestamp will be initialized using log reading time
         # if not last_log_timestamp is provided.
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+        assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
     def test_read_timeout(self, ti):
         ts = pendulum.now().subtract(minutes=5)
@@ -403,12 +483,20 @@ class TestElasticsearchTaskHandler:
                 "end_of_log": False,
             },
         )
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert logs == [[]]
-        assert metadatas[0]["end_of_log"]
-        assert str(offset) == metadatas[0]["offset"]
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs == []
+
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert logs == [[]]
+
+            metadata = metadatas[0]
+
+        assert metadata["end_of_log"]
+        assert str(offset) == metadata["offset"]
+        assert timezone.parse(metadata["last_log_timestamp"]) == ts
 
     def test_read_as_download_logs(self, ti):
         ts = pendulum.now()
@@ -422,14 +510,24 @@ class TestElasticsearchTaskHandler:
                 "end_of_log": False,
             },
         )
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert len(logs[0]) == 1
-        assert self.test_message == logs[0][0][-1]
-        assert not metadatas[0]["end_of_log"]
-        assert metadatas[0]["download_logs"]
-        assert metadatas[0]["offset"] == "1"
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == ["default_host"]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == "some random stuff"
+
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert len(logs[0]) == 1
+            assert self.test_message == logs[0][0][-1]
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
+        assert metadata["offset"] == "1"
+        assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
     def test_read_raises(self, ti):
         with mock.patch.object(self.es_task_handler.log, "exception") as mock_exception:
@@ -439,11 +537,20 @@ class TestElasticsearchTaskHandler:
             assert mock_exception.call_count == 1
             args, kwargs = mock_exception.call_args
             assert "Could not read log with log_id:" in args[0]
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert logs == [[]]
-        assert not metadatas[0]["end_of_log"]
-        assert metadatas[0]["offset"] == "0"
+
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs == []
+
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert logs == [[]]
+
+            metadata = metadatas[0]
+
+        assert metadata["offset"] == "0"
+        assert not metadata["end_of_log"]
 
     def test_set_context(self, ti):
         self.es_task_handler.set_context(ti)
@@ -479,7 +586,11 @@ class TestElasticsearchTaskHandler:
         logs, _ = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
-        assert logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+        expected_message = "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[2].event == expected_message
+        else:
+            assert logs[0][0][1] == expected_message
 
     def test_read_with_json_format_with_custom_offset_and_host_fields(self, ti):
         ts = pendulum.now()
@@ -507,7 +618,11 @@ class TestElasticsearchTaskHandler:
         logs, _ = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
-        assert logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+        expected_message = "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[2].event == expected_message
+        else:
+            assert logs[0][0][1] == expected_message
 
     def test_read_with_custom_offset_and_host_fields(self, ti):
         ts = pendulum.now()
