@@ -40,17 +40,17 @@ def before_stopping(component):
 
 
 @hookimpl
-def on_task_instance_running(previous_state, task_instance, session):
+def on_task_instance_running(previous_state, task_instance):
     state.append(TaskInstanceState.RUNNING)
 
 
 @hookimpl
-def on_task_instance_success(previous_state, task_instance, session):
+def on_task_instance_success(previous_state, task_instance):
     state.append(TaskInstanceState.SUCCESS)
 
 
 @hookimpl
-def on_task_instance_failed(previous_state, task_instance, error: None | str | BaseException, session):
+def on_task_instance_failed(previous_state, task_instance, error: None | str | BaseException):
     state.append(TaskInstanceState.FAILED)
 
 

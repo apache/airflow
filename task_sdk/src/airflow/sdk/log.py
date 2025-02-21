@@ -250,6 +250,8 @@ def configure_logging(
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         timestamper,
+        structlog.contextvars.merge_contextvars,
+        redact_jwt,
     ]
 
     # Don't cache the loggers during tests, it make it hard to capture them

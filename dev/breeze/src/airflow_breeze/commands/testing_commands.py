@@ -81,6 +81,7 @@ from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
+    notify_on_unhealthy_backend_container,
     perform_environment_checks,
     remove_docker_networks,
 )
@@ -148,7 +149,7 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-TEST_PROGRESS_REGEXP = r"tests/.*|providers/.*/tests/.*|providers/tests/.*|task_sdk/tests/.*|.*=====.*"
+TEST_PROGRESS_REGEXP = r"tests/.*|providers/.*/tests/.*|task_sdk/tests/.*|.*=====.*"
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 
@@ -224,6 +225,10 @@ def _run_test(
             output_outside_the_group=output_outside_the_group,
             env=env,
         )
+        if result.returncode != 0:
+            notify_on_unhealthy_backend_container(
+                project_name=project_name, backend=shell_params.backend, output=output
+            )
         if os.environ.get("CI") == "true" and result.returncode != 0:
             ps_result = run_command(
                 ["docker", "ps", "--all", "--format", "{{.Names}}"],
@@ -1217,12 +1222,6 @@ def _run_test_command(
     perform_environment_checks()
     if skip_providers:
         ignored_path_list = [
-            # TODO(potiuk): remove the old ways once we migrate all providers to the new structure
-            *[
-                f"--ignore=providers/tests/{provider_id.replace('.','/')}"
-                for provider_id in skip_providers.split(" ")
-            ],
-            # New structure
             *[
                 f"--ignore=providers/{provider_id.replace('.','/')}/tests"
                 for provider_id in skip_providers.split(" ")

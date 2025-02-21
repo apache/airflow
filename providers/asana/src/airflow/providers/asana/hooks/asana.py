@@ -316,7 +316,6 @@ class AsanaHook(BaseHook):
             for a list of possible parameters
         :return: A dict containing the updated project's attributes
         """
-
         body = {"data": params}
         projects_api_instance = ProjectsApi(self.client)
         try:

@@ -18,10 +18,13 @@ from __future__ import annotations
 
 import datetime
 import os
+import re
 
 import ydb
+
 from airflow import DAG
 from airflow.decorators import task
+from airflow.operators.python import PythonOperator
 from airflow.providers.ydb.hooks.ydb import YDBHook
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 
@@ -52,6 +55,19 @@ def populate_pet_table_via_bulk_upsert():
         {"pet_id": 4, "name": "Quincy", "pet_type": "Parrot", "birth_date": "2013-08-11", "owner": "Anne"},
     ]
     hook.bulk_upsert("pet", rows=rows, column_types=column_types)
+
+
+def sanitize_date(value: str) -> str:
+    """Ensure the value is a valid date format"""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise ValueError(f"Invalid date format: {value}")
+    return value
+
+
+def transform_dates(**kwargs):
+    begin_date = sanitize_date(kwargs.get("begin_date"))
+    end_date = sanitize_date(kwargs.get("end_date"))
+    return {"begin_date": begin_date, "end_date": end_date}
 
 
 with DAG(
@@ -92,11 +108,18 @@ with DAG(
     # [START ydb_operator_howto_guide_get_all_pets]
     get_all_pets = YDBExecuteQueryOperator(task_id="get_all_pets", sql="SELECT * FROM pet;")
     # [END ydb_operator_howto_guide_get_all_pets]
+    transform_dates = PythonOperator(
+        task_id="transform_dates",
+        python_callable=transform_dates,
+        op_kwargs={"begin_date": "{{params.begin_date}}", "end_date": "{{params.end_date}}"},
+        params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
+    )
     # [START ydb_operator_howto_guide_get_birth_date]
     get_birth_date = YDBExecuteQueryOperator(
         task_id="get_birth_date",
-        sql="SELECT * FROM pet WHERE birth_date BETWEEN '{{params.begin_date}}' AND '{{params.end_date}}'",
-        params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
+        sql="""
+        SELECT * FROM pet WHERE birth_date BETWEEN '{{ ti.xcom_pull(task_ids="transform_dates")["begin_date"] }}' AND '{{ ti.xcom_pull(task_ids="transform_dates")["end_date"] }}'
+        """,
     )
     # [END ydb_operator_howto_guide_get_birth_date]
 
@@ -105,6 +128,7 @@ with DAG(
         >> populate_pet_table
         >> populate_pet_table_via_bulk_upsert()
         >> get_all_pets
+        >> transform_dates
         >> get_birth_date
     )
     # [END ydb_operator_howto_guide]

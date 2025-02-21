@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, cast
 
-import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -65,8 +64,6 @@ from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
-from airflow.timetables.base import DataInterval
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -269,6 +266,7 @@ def get_dag_runs(
     dag_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
+    run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))],
@@ -284,6 +282,7 @@ def get_dag_runs(
                     "dag_id",
                     "run_id",
                     "logical_date",
+                    "run_after",
                     "start_date",
                     "end_date",
                     "updated_at",
@@ -314,7 +313,7 @@ def get_dag_runs(
 
     dag_run_select, total_entries = paginated_select(
         statement=query,
-        filters=[logical_date, start_date_range, end_date_range, update_at_range, state],
+        filters=[run_after, logical_date, start_date_range, end_date_range, update_at_range, state],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -347,7 +346,6 @@ def trigger_dag_run(
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
-    now = pendulum.now("UTC")
     if not dm:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
 
@@ -357,26 +355,16 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    logical_date = timezone.coerce_datetime(body.logical_date)
-    coerced_logical_date = timezone.coerce_datetime(logical_date)
-
     try:
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-
-        if body.data_interval_start and body.data_interval_end:
-            data_interval = DataInterval(
-                start=pendulum.instance(body.data_interval_start),
-                end=pendulum.instance(body.data_interval_end),
-            )
-        else:
-            data_interval = dag.timetable.infer_manual_data_interval(run_after=coerced_logical_date or now)
+        params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(
-            run_id=cast(str, body.dag_run_id),
-            logical_date=coerced_logical_date,
-            data_interval=data_interval,
-            run_after=data_interval.end,
-            conf=body.conf,
+            run_id=params["run_id"],
+            logical_date=params["logical_date"],
+            data_interval=params["data_interval"],
+            run_after=params["run_after"],
+            conf=params["conf"],
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,
             external_trigger=True,
@@ -405,6 +393,10 @@ def get_list_dag_runs_batch(
         Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
         attribute=DagRun.logical_date,
     )
+    run_after = RangeFilter(
+        Range(lower_bound=body.run_after_gte, upper_bound=body.run_after_lte),
+        attribute=DagRun.run_after,
+    )
     start_date = RangeFilter(
         Range(lower_bound=body.start_date_gte, upper_bound=body.start_date_lte),
         attribute=DagRun.start_date,
@@ -423,6 +415,7 @@ def get_list_dag_runs_batch(
             "id",
             "state",
             "dag_id",
+            "run_after",
             "logical_date",
             "run_id",
             "start_date",
@@ -438,7 +431,7 @@ def get_list_dag_runs_batch(
     base_query = select(DagRun)
     dag_runs_select, total_entries = paginated_select(
         statement=base_query,
-        filters=[dag_ids, logical_date, start_date, end_date, state],
+        filters=[dag_ids, logical_date, run_after, start_date, end_date, state],
         order_by=order_by,
         offset=offset,
         limit=limit,

@@ -25,59 +25,44 @@ import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 
 type Props = {
-  readonly dataIntervalEnd?: string | null;
-  readonly dataIntervalStart?: string | null;
   readonly endDate?: string | null;
-  readonly nextDagrunCreateAfter?: string | null;
+  readonly logicalDate?: string | null;
+  readonly runAfter: string;
   readonly startDate?: string | null;
   readonly state?: DAGRunResponse["state"];
 };
 
-const DagRunInfo = ({
-  dataIntervalEnd,
-  dataIntervalStart,
-  endDate,
-  nextDagrunCreateAfter,
-  startDate,
-  state,
-}: Props) =>
-  Boolean(dataIntervalStart) && Boolean(dataIntervalEnd) ? (
-    <Tooltip
-      content={
-        <VStack align="left" gap={0}>
-          {state === undefined ? undefined : <Text>State: {state}</Text>}
-          {Boolean(nextDagrunCreateAfter) ? (
-            <Text>
-              Run After: <Time datetime={nextDagrunCreateAfter} />
-            </Text>
-          ) : undefined}
-          {Boolean(startDate) ? (
-            <Text>
-              Start Date: <Time datetime={startDate} />
-            </Text>
-          ) : undefined}
-          {Boolean(endDate) ? (
-            <Text>
-              End Date: <Time datetime={endDate} />
-            </Text>
-          ) : undefined}
-          {Boolean(startDate) ? (
-            <Text>Duration: {dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds()}s</Text>
-          ) : undefined}
+const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props) => (
+  <Tooltip
+    content={
+      <VStack align="left" gap={0}>
+        {state === undefined ? undefined : <Text>State: {state}</Text>}
+        {Boolean(logicalDate) ? (
           <Text>
-            Data Interval Start: <Time datetime={dataIntervalStart} />
+            Logical Date: <Time datetime={logicalDate} />
           </Text>
+        ) : undefined}
+        {Boolean(startDate) ? (
           <Text>
-            Data Interval End: <Time datetime={dataIntervalEnd} />
+            Start Date: <Time datetime={startDate} />
           </Text>
-        </VStack>
-      }
-    >
-      <Box>
-        <Time datetime={dataIntervalStart} mr={2} showTooltip={false} />
-        {state === undefined ? undefined : <StateBadge state={state} />}
-      </Box>
-    </Tooltip>
-  ) : undefined;
+        ) : undefined}
+        {Boolean(endDate) ? (
+          <Text>
+            End Date: <Time datetime={endDate} />
+          </Text>
+        ) : undefined}
+        {Boolean(startDate) ? (
+          <Text>Duration: {dayjs.duration(dayjs(endDate).diff(startDate)).asSeconds()}s</Text>
+        ) : undefined}
+      </VStack>
+    }
+  >
+    <Box>
+      <Time datetime={runAfter} mr={2} showTooltip={false} />
+      {state === undefined ? undefined : <StateBadge state={state} />}
+    </Box>
+  </Tooltip>
+);
 
 export default DagRunInfo;
