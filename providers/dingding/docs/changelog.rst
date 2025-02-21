@@ -28,6 +28,12 @@ Changelog
 ---------
 
 
+3.7.2
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
 3.7.1
 .....
 

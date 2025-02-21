@@ -28,6 +28,12 @@ Changelog
 ---------
 
 
+10.3.0
+......
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
 10.2.0
 ......
 

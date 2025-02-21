@@ -25,7 +25,7 @@ state: ready
 source-date-epoch: 1739959337
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 1.22.0
+  - 1.23.0
   - 1.21.0
   - 1.20.0
   - 1.19.0
