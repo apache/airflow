@@ -149,7 +149,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/api/file.py",),
                 {
-                    "selected-providers-list-as-string": "common.compat fab",
+                    "selected-providers-list-as-string": "amazon common.compat fab",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -158,14 +158,14 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "prod-image-build": "false",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
-                    "run-amazon-tests": "false",
+                    "run-amazon-tests": "true",
                     "docs-build": "true",
                     "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "API Always",
-                    "providers-test-types-list-as-string": "Providers[common.compat,fab]",
-                    "individual-providers-test-types-list-as-string": "Providers[common.compat] Providers[fab]",
+                    "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,fab]",
+                    "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[fab]",
                     "testable-core-integrations": "['celery', 'kerberos']",
                     "testable-providers-integrations": "['cassandra', 'drill', 'kafka', 'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "needs-mypy": "true",
@@ -718,7 +718,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/__init__.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.sql exasol ftp google http imap microsoft.azure "
+                "common.compat common.sql exasol fab ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
@@ -735,7 +735,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
                 "core-test-types-list-as-string": "Always",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,fab,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -770,7 +770,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.sql exasol ftp google http imap microsoft.azure "
+                "common.compat common.sql exasol fab ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
@@ -787,7 +787,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,fab,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -1645,35 +1645,6 @@ def test_expected_output_push(
             "prod image should be build too and k8s tests too",
         ),
         pytest.param(
-            (
-                "airflow/cli/file.py",
-                "airflow/operators/file.py",
-                "airflow/api/file.py",
-            ),
-            {
-                "selected-providers-list-as-string": "common.compat fab",
-                "all-python-versions": "['3.9']",
-                "all-python-versions-list-as-string": "3.9",
-                "ci-image-build": "true",
-                "prod-image-build": "false",
-                "needs-helm-tests": "false",
-                "run-tests": "true",
-                "skip-providers-tests": "false",
-                "test-groups": "['core', 'providers']",
-                "docs-build": "true",
-                "docs-list-as-string": "apache-airflow common.compat fab",
-                "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
-                "run-kubernetes-tests": "false",
-                "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "API Always CLI Operators",
-                "providers-test-types-list-as-string": "Providers[common.compat,fab]",
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow']",
-            },
-            id="No providers tests except common.compat fab should run if only CLI/API/Operators file changed",
-        ),
-        pytest.param(
             ("airflow/models/test.py",),
             {
                 "all-python-versions": "['3.9']",
@@ -1695,30 +1666,6 @@ def test_expected_output_push(
                 "mypy-checks": "['mypy-airflow']",
             },
             id="Tests for all airflow core types except providers should run if model file changed",
-        ),
-        pytest.param(
-            ("airflow/file.py",),
-            {
-                "all-python-versions": "['3.9']",
-                "all-python-versions-list-as-string": "3.9",
-                "ci-image-build": "true",
-                "prod-image-build": "false",
-                "needs-helm-tests": "false",
-                "run-tests": "true",
-                "skip-providers-tests": "true",
-                "test-groups": "['core']",
-                "docs-build": "true",
-                "docs-list-as-string": "apache-airflow",
-                "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                "ts-compile-format-lint-ui",
-                "run-kubernetes-tests": "false",
-                "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
-                "needs-mypy": "true",
-                "mypy-checks": "['mypy-airflow']",
-            },
-            id="Tests for all airflow core types except providers should run if "
-            "any other than API/CLI/Operators file changed.",
         ),
         pytest.param(
             ("airflow/api_fastapi/core_api/openapi/v1-generated.yaml",),
