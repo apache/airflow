@@ -139,7 +139,6 @@ class RuntimeTaskInstance(TaskInstance):
             # TODO: Ensure that ti.log_url and such are available to use in context
             #   especially after removal of `conf` from Context.
             "ti": self,
-            "start_date": self.start_date,
             "outlet_events": OutletEventAccessors(),
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
             "macros": MacrosAccessor(),
