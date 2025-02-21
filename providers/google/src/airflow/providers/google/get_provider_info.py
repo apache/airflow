@@ -1600,7 +1600,7 @@ def get_provider_info():
             "google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*",
             "google-cloud-bigquery-datatransfer>=3.13.0",
             "google-cloud-bigtable>=2.17.0",
-            "google-cloud-build>=3.22.0",
+            "google-cloud-build>=3.31.0",
             "google-cloud-compute>=1.10.0",
             "google-cloud-container>=2.17.4",
             "google-cloud-datacatalog>=3.23.0",
