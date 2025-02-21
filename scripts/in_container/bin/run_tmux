@@ -119,7 +119,7 @@ fi
 if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
     tmux select-pane -t 3
     tmux split-window -h
-    tmux set-option -p @airflow_component "DAG Pocessor"
+    tmux set-option -p @airflow_component "DAG Processor"
     tmux send-keys 'airflow dag-processor' C-m
 fi
 
