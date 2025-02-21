@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import json
 from unittest import mock
 
 from airflow.models import Connection
@@ -50,7 +49,6 @@ class TestGremlinOperator:
             login="mylogin",
             password="mypassword",
         )
-        dummy_conn.extra = json.dumps({"development-graphdb": True})
 
         # Override get_connection on the hook instance so that it returns the dummy connection.
         mock_hook.return_value.get_connection.return_value = dummy_conn
