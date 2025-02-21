@@ -24,6 +24,7 @@ from unittest import mock
 import pytest
 import time_machine
 from sqlalchemy import select
+from unit.fab.utils import _check_last_log
 
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.listeners.listener import get_listener_manager
