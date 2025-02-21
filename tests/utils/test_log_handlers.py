@@ -669,7 +669,8 @@ def test_interleave_interleaves():
         ]
     )
 
-    tz = pendulum.tz.FixedTimezone(-28800, name="-08:00")
+    # -08:00
+    tz = pendulum.tz.fixed_timezone(-28800)
     DateTime = pendulum.DateTime
     expected = [
         {
