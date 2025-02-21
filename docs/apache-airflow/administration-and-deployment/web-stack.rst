@@ -15,24 +15,20 @@
     specific language governing permissions and limitations
     under the License.
 
-Administration and Deployment
-=====================================
 
-This section contains information about deploying DAGs into production and the administration of airflow deployments.
 
-.. toctree::
-    :maxdepth: 2
+Web Stack
+=========
 
-    production-deployment
-    logging-monitoring/index
-    kubernetes
-    lineage
-    listeners
-    dag-serialization
-    modules_management
-    scheduler
-    dagfile-processing
-    pools
-    cluster-policies
-    priority-weight
-    web-stack
+Sometimes you will want to deploy the backend and the frontend behind a
+variable url path prefix. To do so you can configure the url :ref:`config:fastapi__base_url`
+for instance set it to ``http://localhost:29091/d12345``. Be sure to reload the
+fastapi server for the config update to take effect. All the APIs routes will
+now be available through that additional ``d12345`` prefix.
+
+Without rebuilding the frontend, XHR requests and static file queries should be
+directed to the prefixed url and served successfully.
+
+You will also need to update the execution api server url
+:ref:`config:executor__execution_api_server_url` for executors to be able to reach the api
+with the new prefix.
