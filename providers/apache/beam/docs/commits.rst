@@ -37,11 +37,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.0.1
 .....
 
-Latest change: 2025-02-16
+Latest change: 2025-02-20
 
-==================================================================================================  ===========  =======================================================================================
+==================================================================================================  ===========  =======================================================================================================
 Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  =======================================================================================
+==================================================================================================  ===========  =======================================================================================================
+`ee68ddf605 <https://github.com/apache/airflow/commit/ee68ddf605cdcc457af2cb56f8443571757fe32f>`__  2025-02-20   ``Refactor deferrable mode for BeamRunPythonPipelineOperator and BeamRunJavaPipelineOperator (#46678)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``
 `ee6bd7ee16 <https://github.com/apache/airflow/commit/ee6bd7ee162ff295b86d86fdd1b356c51b9bba78>`__  2025-02-03   ``Fix doc issues found with recent moves (#46372)``
@@ -52,7 +53,7 @@ Commit                                                                          
 `755555a200 <https://github.com/apache/airflow/commit/755555a200bfd73b781badf176d751f7a5d2c6f4>`__  2025-01-27   ``Moved apache beam provider to new folder structure (#46071)``
 `3dd5b0c7f7 <https://github.com/apache/airflow/commit/3dd5b0c7f72f43a7f317191881395f3de1be41f1>`__  2025-01-02   ``update outdated hyperlinks referencing provider package files (#45332)``
 `279f1fae1e <https://github.com/apache/airflow/commit/279f1fae1e8ef08eaff7a3505029fc2cc0508302>`__  2024-12-21   ``Fix DataflowJobLink for Beam operators in deferrable mode (#45023)``
-==================================================================================================  ===========  =======================================================================================
+==================================================================================================  ===========  =======================================================================================================
 
 6.0.0
 .....

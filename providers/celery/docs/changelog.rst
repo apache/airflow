@@ -41,6 +41,7 @@ Misc
 * ``Rework the TriggererJobRunner to run triggers in a process without DB access (#46677)``
 * ``AIP-66: Make DAG callbacks bundle aware (#45860)``
 * ``Swap CeleryExecutor over to use TaskSDK for execution. (#46265)``
+* ``Remove 2.8 version check from CeleryExecutor CLI (#46910)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

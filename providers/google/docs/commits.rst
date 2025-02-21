@@ -44,11 +44,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 13.0.0
 ......
 
-Latest change: 2025-02-18
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===================================================================================================================
+`a54d1d9a2e <https://github.com/apache/airflow/commit/a54d1d9a2eb2517f4ba6501a06972ac9a5fe4c38>`__  2025-02-21   ``Add dependencies section to gcp cloud build instance response (#46947)``
+`b99cb7ce10 <https://github.com/apache/airflow/commit/b99cb7ce108ea013f755f770928a00d9e8d0944d>`__  2025-02-20   ``Create operators for working with Topics for GCP Apache Kafka (#46865)``
+`ee68ddf605 <https://github.com/apache/airflow/commit/ee68ddf605cdcc457af2cb56f8443571757fe32f>`__  2025-02-20   ``Refactor deferrable mode for BeamRunPythonPipelineOperator and BeamRunJavaPipelineOperator (#46678)``
 `18396ed808 <https://github.com/apache/airflow/commit/18396ed8083f38eebe7db062110d8c569cb4fa3d>`__  2025-02-18   ``Rework the TriggererJobRunner to run triggers in a process without DB access (#46677)``
 `c4091ab02e <https://github.com/apache/airflow/commit/c4091ab02e4e95cc930fefde5af3120cfdaec7dc>`__  2025-02-17   ``Remove tests from example_dags folder (#46819)``
 `fece9c7dfc <https://github.com/apache/airflow/commit/fece9c7dfc5f496dd673ce394a8e742a4f6e3866>`__  2025-02-17   ``Create operators for working with Clusters for GCP Apache Kafka (#45795)``

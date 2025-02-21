@@ -37,18 +37,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 5.1.0
 .....
 
-Latest change: 2025-02-16
+Latest change: 2025-02-20
 
-==================================================================================================  ===========  ==================================================================================
+==================================================================================================  ===========  ===================================================================================
 Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ==================================================================================
+==================================================================================================  ===========  ===================================================================================
+`a29c840d93 <https://github.com/apache/airflow/commit/a29c840d938d56783909e0293896ceb2029821f4>`__  2025-02-20   ``Allow check_response to be defined in extra_options of HTTP connection (#45451)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``
 `ee6bd7ee16 <https://github.com/apache/airflow/commit/ee6bd7ee162ff295b86d86fdd1b356c51b9bba78>`__  2025-02-03   ``Fix doc issues found with recent moves (#46372)``
 `d35edbf661 <https://github.com/apache/airflow/commit/d35edbf66172c22712925606a55e57978b67ce42>`__  2025-01-27   ``Fix few issues with constraints generation broken by moving providers (#46139)``
 `f3666e7236 <https://github.com/apache/airflow/commit/f3666e7236f9e8ea31cd6752a4dc0f7a9a8001a7>`__  2025-01-17   ``Deferrable support for HttpOperator (#45228)``
 `f616c62209 <https://github.com/apache/airflow/commit/f616c62209d6b51d293ecf6f5c900f89a7fdc3a3>`__  2025-01-15   ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
-==================================================================================================  ===========  ==================================================================================
+==================================================================================================  ===========  ===================================================================================
 
 5.0.0
 .....

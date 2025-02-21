@@ -34,6 +34,7 @@ Features
 ~~~~~~~~
 
 * ``Deferrable support for HttpOperator (#45228)``
+* ``Allow check_response to be defined in extra_options of HTTP connection (#45451)``
 
 Misc
 ~~~~

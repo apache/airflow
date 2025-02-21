@@ -86,6 +86,8 @@ Features
 * ``Implement AlloyDB create/update/delete instance operators (#45241)``
 * ``Add BigQuery job link (#45020) (#45222)``
 * ``Introduce gcp translation(V3) glossaries providers (#45085)``
+* ``Add dependencies section to gcp cloud build instance response (#46947)``
+* ``Create operators for working with Topics for GCP Apache Kafka (#46865)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -112,6 +114,7 @@ Misc
 * ``Deprecation policy for apache-airflow-providers-google package (#44985)``
 * ``Add lower bound for alloydb (#45180)``
 * ``Deprecate gcp AutoML module (#44875)``
+* ``Refactor deferrable mode for BeamRunPythonPipelineOperator and BeamRunJavaPipelineOperator (#46678)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

@@ -39,6 +39,7 @@ Misc
 
 * ``Set minimum dependencies for apache-beam on Py 3.12+3.13 (#46321)``
 * ``Limit Apache Beam's numpy used (#46286)``
+* ``Refactor deferrable mode for BeamRunPythonPipelineOperator and BeamRunJavaPipelineOperator (#46678)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

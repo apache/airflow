@@ -37,11 +37,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.10.1
 ......
 
-Latest change: 2025-02-18
+Latest change: 2025-02-19
 
 ==================================================================================================  ===========  =========================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =========================================================================================
+`319cf3051b <https://github.com/apache/airflow/commit/319cf3051b76cf776975a376e7835c29052a86b9>`__  2025-02-19   ``Remove 2.8 version check from CeleryExecutor CLI (#46910)``
 `c33299d432 <https://github.com/apache/airflow/commit/c33299d432510347dac71d3eabfada2bd8fe2075>`__  2025-02-18   ``Fixing log typos in Local & Celery Executors (#46866)``
 `18396ed808 <https://github.com/apache/airflow/commit/18396ed8083f38eebe7db062110d8c569cb4fa3d>`__  2025-02-18   ``Rework the TriggererJobRunner to run triggers in a process without DB access (#46677)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``

@@ -37,11 +37,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.2.0
 ......
 
-Latest change: 2025-02-19
+Latest change: 2025-02-20
 
 ==================================================================================================  ===========  =====================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =====================================================================================================
+`56e083f145 <https://github.com/apache/airflow/commit/56e083f1455a83dcd8204e9746cfb2fad18f06da>`__  2025-02-20   ``AIP-72: Swap KubernetesExecutor to use taskSDK for execution (#46860)``
 `3e6c6a109e <https://github.com/apache/airflow/commit/3e6c6a109ea0b1567d68d85ff4bc6ebeed17facf>`__  2025-02-19   ``Fix wrong operator name in doc string of @task.kubernetes (#46873)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``

@@ -61,6 +61,7 @@ Misc
 * ``Move Pod*Exceptions to separate module (#45759)``
 * ``Add other instances of Context type hints (#45657)``
 * ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``AIP-72: Swap KubernetesExecutor to use taskSDK for execution (#46860)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
