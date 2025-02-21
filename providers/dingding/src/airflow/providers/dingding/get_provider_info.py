@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Dingding",
         "description": "`DingTalk <https://www.dingtalk.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734533545,
+        "source-date-epoch": 1739959438,
         "versions": [
+            "3.7.1",
             "3.7.0",
             "3.6.0",
             "3.5.1",
