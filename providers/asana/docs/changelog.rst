@@ -26,6 +26,12 @@
 Changelog
 ---------
 
+2.9.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
 2.8.0
 .....
 

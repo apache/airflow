@@ -34,14 +34,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-6.1.0
+6.2.0
 .....
 
-Latest change: 2025-02-16
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  ==========================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==========================================================================================================
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``
 `a057b950d7 <https://github.com/apache/airflow/commit/a057b950d7ecb366ff123bfb0d465823bb1066e5>`__  2025-02-05   ``Implemented cursor for ElasticsearchSQLHook so it can be used through SQLExecuteQueryOperator (#46439)``

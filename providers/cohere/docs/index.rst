@@ -71,7 +71,7 @@ apache-airflow-providers-cohere package
 `Cohere <https://docs.cohere.com/docs>`__
 
 
-Release: 1.4.1
+Release: 1.4.2
 
 Provider package
 ----------------

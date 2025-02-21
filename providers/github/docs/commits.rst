@@ -34,14 +34,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-2.8.1
+2.8.2
 .....
 
-Latest change: 2025-02-16
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  ==============================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==============================================================================
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``
 `ee6bd7ee16 <https://github.com/apache/airflow/commit/ee6bd7ee162ff295b86d86fdd1b356c51b9bba78>`__  2025-02-03   ``Fix doc issues found with recent moves (#46372)``

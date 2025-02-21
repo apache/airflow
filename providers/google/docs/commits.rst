@@ -41,7 +41,7 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-13.0.0
+14.0.0
 ......
 
 Latest change: 2025-02-21
@@ -49,6 +49,7 @@ Latest change: 2025-02-21
 ==================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===================================================================================================================
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `6557e7a474 <https://github.com/apache/airflow/commit/6557e7a47484deefdb847388bc791b1553092024>`__  2025-02-21   ``Bump cloud build to 3.31.0 (#46953)``
 `a54d1d9a2e <https://github.com/apache/airflow/commit/a54d1d9a2eb2517f4ba6501a06972ac9a5fe4c38>`__  2025-02-21   ``Add dependencies section to gcp cloud build instance response (#46947)``
 `b99cb7ce10 <https://github.com/apache/airflow/commit/b99cb7ce108ea013f755f770928a00d9e8d0944d>`__  2025-02-20   ``Create operators for working with Topics for GCP Apache Kafka (#46865)``
