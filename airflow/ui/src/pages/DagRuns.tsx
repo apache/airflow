@@ -32,6 +32,7 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
 import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
@@ -108,8 +109,6 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
   },
 ];
 
-const STATE_PARAM = "state";
-
 export const DagRuns = () => {
   const { dagId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -118,17 +117,26 @@ export const DagRuns = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-run_after";
+  const {
+    END_DATE: END_DATE_PARAM,
+    START_DATE: START_DATE_PARAM,
+    STATE: STATE_PARAM,
+  }: SearchParamsKeysType = SearchParamsKeys;
 
   const filteredState = searchParams.get(STATE_PARAM);
+  const startDate = searchParams.get(START_DATE_PARAM);
+  const endDate = searchParams.get(END_DATE_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
+      endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      startDateGte: startDate ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
     },
     undefined,
@@ -154,7 +162,7 @@ export const DagRuns = () => {
       });
       setSearchParams(searchParams);
     },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting, STATE_PARAM],
   );
 
   return (

@@ -25,10 +25,10 @@ import { StateBadge } from "src/components/StateBadge";
 import { MetricSection } from "./MetricSection";
 
 type TaskInstanceMetricsProps = {
+  readonly endDate: string;
+  readonly startDate: string;
   readonly taskInstanceStates: TaskInstanceStateCount;
   readonly total: number;
-  readonly startDate: string;
-  readonly endDate: string;
 };
 
 const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
@@ -47,10 +47,10 @@ const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
 ];
 
 export const TaskInstanceMetrics = ({
+  endDate,
+  startDate,
   taskInstanceStates,
   total,
-  startDate,
-  endDate,
 }: TaskInstanceMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} mt={2} p={2}>
     <HStack mb={4}>
@@ -65,13 +65,13 @@ export const TaskInstanceMetrics = ({
     ).map((state) =>
       taskInstanceStates[state] > 0 ? (
         <MetricSection
+          endDate={endDate}
           key={state}
+          kind="task_instances"
           runs={taskInstanceStates[state]}
+          startDate={startDate}
           state={state as TaskInstanceState}
           total={total}
-          startDate={startDate}
-          endDate={endDate}
-          kind={"task_instances"}
         />
       ) : undefined,
     )}
