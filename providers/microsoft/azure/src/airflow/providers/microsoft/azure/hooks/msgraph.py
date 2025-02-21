@@ -213,7 +213,7 @@ class KiotaRequestAdapterHook(BaseHook):
     @staticmethod
     def format_no_proxy_url(url: str) -> str:
         if "://" not in url:
-            url = f"all://{url}"
+            return f"all://{url}"
         return url
 
     @classmethod

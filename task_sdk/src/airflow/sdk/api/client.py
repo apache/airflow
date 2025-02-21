@@ -152,14 +152,14 @@ class TaskInstanceOperations:
 
     def defer(self, id: uuid.UUID, msg):
         """Tell the API server that this TI has been deferred."""
-        body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True))
+        body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
 
         # Create a deferred state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
         """Tell the API server that this TI has been reschduled."""
-        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True))
+        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
 
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
@@ -384,8 +384,8 @@ class Client(httpx.Client):
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
             # real client, but just don't make any HTTP requests
-            kwargs["transport"] = httpx.MockTransport(noop_handler)
-            kwargs["base_url"] = "dry-run://server"
+            kwargs.setdefault("transport", httpx.MockTransport(noop_handler))
+            kwargs.setdefault("base_url", "dry-run://server")
         else:
             kwargs["base_url"] = base_url
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
