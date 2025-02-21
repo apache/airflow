@@ -936,7 +936,7 @@ class TestHandleRequest:
                 "connections.get",
                 ("test_conn",),
                 {},
-                ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),
+                ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
                 id="get_connection_with_alias",
             ),
             pytest.param(
