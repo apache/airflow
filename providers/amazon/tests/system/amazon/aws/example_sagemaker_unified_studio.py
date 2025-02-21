@@ -20,6 +20,7 @@ from datetime import datetime
 
 import pytest
 
+from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import (
@@ -65,17 +66,13 @@ sys_test_context_task = (
 )
 
 
-def emulate_mwaa_environment(
+def get_mwaa_environment_params(
     domain_id: str,
     project_id: str,
     environment_id: str,
     s3_path: str,
     region_name: str,
 ):
-    """
-    Sets several environment variables in the container to emulate an MWAA environment provisioned
-    within SageMaker Unified Studio.
-    """
     AIRFLOW_PREFIX = "AIRFLOW__WORKFLOWS__"
 
     params = {}
@@ -91,6 +88,16 @@ def emulate_mwaa_environment(
     params[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = region_name
     return params
 
+@task
+def mock_mwaa_environment(params: dict):
+    """
+    Sets several environment variables in the container to emulate an MWAA environment provisioned
+    within SageMaker Unified Studio. When running in the ECSExecutor, this is a no-op.
+    """
+    import os
+
+    for key, value in params.items():
+        os.environ[key] = value
 
 with DAG(
     DAG_ID,
@@ -108,13 +115,15 @@ with DAG(
     s3_path = test_context[S3_PATH_KEY]
     region_name = test_context[REGION_NAME_KEY]
 
-    mock_mwaa_environment_params = emulate_mwaa_environment(
+    mock_mwaa_environment_params = get_mwaa_environment_params(
         domain_id,
         project_id,
         environment_id,
         s3_path,
         region_name,
     )
+
+    setup_mwaa_environment = mock_mwaa_environment(mock_mwaa_environment_params)
 
     # [START howto_operator_sagemaker_unified_studio_notebook]
     notebook_path = "test_notebook.ipynb"  # This should be the path to your .ipynb, .sqlnb, or .vetl file in your project.
@@ -133,8 +142,7 @@ with DAG(
         waiter_delay=5,  # optional
         deferrable=False,  # optional
         executor_config={  # optional
-            "ECSExecutor": mock_mwaa_environment_params,
-            "LocalExecutor": mock_mwaa_environment_params,
+            "overrides": {"containerOverrides": {"environment": mock_mwaa_environment_params}}
         },
     )
     # [END howto_operator_sagemaker_unified_studio_notebook]
@@ -142,6 +150,7 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
+        setup_mwaa_environment,
         # TEST BODY
         run_notebook,
     )
