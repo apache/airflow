@@ -47,3 +47,12 @@ def downgrade():
     """Unapply remove external_trigger field."""
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("external_trigger", sa.BOOLEAN(), autoincrement=False, nullable=True))
+    # restore external_trigger field based on run_type
+    dag_run_table = sa.table(
+        "dag_run", sa.column("external_trigger", sa.BOOLEAN()), sa.column("run_type", sa.String())
+    )
+    op.execute(
+        dag_run_table.update().values(
+            external_trigger=sa.case([(dag_run_table.c.run_type == "manual", True)], else_=False)
+        )
+    )
