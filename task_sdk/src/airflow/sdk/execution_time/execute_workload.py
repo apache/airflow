@@ -59,12 +59,7 @@ def execute_workload(input: str) -> None:
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        # fallback to internal cluster service for api server
-        server=conf.get(
-            "workers",
-            "execution_api_server_url",
-            fallback="http://airflow-api-server.airflow.svc.cluster.local:9091/execution/",
-        ),
+        server=conf.get("core", "execution_api_server_url"),
         log_path=workload.log_path,
     )
 
