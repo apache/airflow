@@ -212,7 +212,7 @@ class AbstractOperator(Templater, DAGNode):
     @property
     def inherits_from_skip_mixin(self):
         """Used to determine if an Operator is inherited from SkipMixin."""
-        return getattr(self, "_is_skip_mixin", False)
+        return getattr(self, "_is_skippable", False)
 
     def as_setup(self):
         self.is_setup = True

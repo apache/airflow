@@ -31,7 +31,7 @@ class _ShortCircuitDecoratedOperator(_PythonDecoratedOperator, ShortCircuitOpera
 
     template_fields = ShortCircuitOperator.template_fields
     custom_operator_name: str = "@task.short_circuit"
-    _is_skip_mixin = True
+    _is_skippable = True
 
 def short_circuit_task(
     python_callable: Callable | None = None,

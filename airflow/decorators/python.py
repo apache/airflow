@@ -41,7 +41,7 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
 
     template_fields: Sequence[str] = ("templates_dict", "op_args", "op_kwargs")
     template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
-    _is_skip_mixin = False
+    _is_skippable = False
     custom_operator_name: str = "@task"
 
     def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:

@@ -236,7 +236,7 @@ class OperatorPartial:
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_empty=issubclass(self.operator_class, EmptyOperator),
             is_sensor=issubclass(self.operator_class, BaseSensorOperator),
-            is_skip_mixin=issubclass(self.operator_class, SkipMixin),
+            is_skippable=issubclass(self.operator_class, SkipMixin),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             operator_name=operator_name,
@@ -292,7 +292,7 @@ class MappedOperator(AbstractOperator):
     ui_color: str
     ui_fgcolor: str
     _is_empty: bool = attrs.field(alias="is_empty")
-    _is_skip_mixin: bool = attrs.field(alias="is_skip_mixin")
+    _is_skippable: bool = attrs.field(alias="is_skippable")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     _task_module: str
     _task_type: str

@@ -1286,7 +1286,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
-        serialize_op["_is_skip_mixin"] = op.inherits_from_skip_mixin
+        serialize_op["_is_skippable"] = op.inherits_from_skip_mixin
 
         serialize_op["start_trigger_args"] = (
             encode_start_trigger_args(op.start_trigger_args) if op.start_trigger_args else None
@@ -1461,7 +1461,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
         # Used to determine if an Operator is inherited from SkipMixin
-        setattr(op, "_is_skip_mixin", bool(encoded_op.get("_is_skip_mixin", False)))
+        setattr(op, "_is_skippable", bool(encoded_op.get("_is_skippable", False)))
 
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
@@ -1526,7 +1526,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 ui_fgcolor=BaseOperator.ui_fgcolor,
                 is_empty=False,
                 is_sensor=encoded_op.get("_is_sensor", False),
-                is_skip_mixin=encoded_op.get("_is_skip_mixin", False),
+                is_skippable=encoded_op.get("_is_skippable", False),
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["task_type"],
                 operator_name=operator_name,
