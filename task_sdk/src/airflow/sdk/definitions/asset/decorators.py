@@ -24,6 +24,7 @@ import attrs
 
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.asset import Asset, AssetNameRef, AssetRef, BaseAsset
+from airflow.sdk.definitions.dag import DAG
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
 
     from airflow.io.path import ObjectStoragePath
     from airflow.sdk.definitions.asset import AssetAlias, AssetUniqueKey
-    from airflow.sdk.definitions.dag import DAG, DagStateChangeCallback, ScheduleArg
+    from airflow.sdk.definitions.dag import DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.triggers.base import BaseTrigger
@@ -165,8 +166,6 @@ class _DAGFactory:
     owner_links: dict[str, str] | None = None
 
     def create_dag(self, *, dag_id: str) -> DAG:
-        from airflow.models.dag import DAG  # TODO: Use the SDK DAG when it works.
-
         return DAG(
             dag_id=dag_id,
             schedule=self.schedule,
