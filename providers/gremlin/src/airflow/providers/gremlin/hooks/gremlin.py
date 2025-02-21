@@ -78,10 +78,8 @@ class GremlinHook(BaseHook):
         :param conn: Airflow Connection object.
         :return: URI string.
         """
-        # Check for extra parameter "development-graphdb". Adjust the scheme if needed.
-        use_development = conn.extra_dejson.get("development-graphdb", False)
         # For Graph DB using Gremlin, the secure WebSocket scheme is typically "wss"
-        scheme = "wss" if use_development or not use_development else "ws"
+        scheme = "wss"
         host = conn.host
         port = conn.port if conn.port is not None else self.default_port
         return f"{scheme}://{host}:{port}/"
