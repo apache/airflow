@@ -635,6 +635,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def execute(self, context: Context):
         """Based on the deferrable parameter runs the pod asynchronously or synchronously."""
+        self.log.info("Hello World")
         self.name = self._set_name(self.name)
         if not self.deferrable:
             return self.execute_sync(context)
