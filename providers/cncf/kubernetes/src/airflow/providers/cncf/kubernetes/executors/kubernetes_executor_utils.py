@@ -385,7 +385,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def run_next(self, next_job: KubernetesJobType) -> None:
         """Receives the next job to run, builds the pod, and creates it."""
-        # here is pod object
         key, command, kube_executor_config, pod_template_file = next_job
 
         dag_id, task_id, run_id, try_number, map_index = key
@@ -395,7 +394,6 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
             if isinstance(command[0], ExecuteTask):
                 workload = command[0]
-                print("The workload is", workload)
                 ser_input = workload.model_dump_json(exclude={"ti": {"executor_config"}})
                 command = [
                     "python",

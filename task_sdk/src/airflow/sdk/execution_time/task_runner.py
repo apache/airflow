@@ -377,7 +377,7 @@ def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int
     )
 
 
-def parse(what: StartupDetails, log) -> RuntimeTaskInstance:
+def parse(what: StartupDetails) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using DagBag here is about 98% wrong, but it'll do for now
 
@@ -390,10 +390,7 @@ def parse(what: StartupDetails, log) -> RuntimeTaskInstance:
     )
     bundle_instance.initialize()
 
-    log.info("The bundle instance is", bundle_instance=bundle_instance)
-
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    log.info("dag absolute path:", dag_absolute_path=dag_absolute_path, dag_id=what.ti.dag_id)
     bag = DagBag(
         dag_folder=dag_absolute_path,
         include_examples=False,
@@ -496,7 +493,7 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
 
         log = structlog.get_logger(logger_name="task")
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
-            ti = parse(msg, log)
+            ti = parse(msg)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
     else:
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
