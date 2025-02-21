@@ -17,12 +17,14 @@
 
 """This module contains the Amazon SageMaker Unified Studio Notebook hook."""
 
+from __future__ import annotations
+
 import time
 
 from sagemaker_studio import ClientConfig
 from sagemaker_studio.sagemaker_studio_api import SageMakerStudioAPI
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local_runner
 
@@ -39,9 +41,9 @@ class SageMakerNotebookHook(BaseHook):
         from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMakerNotebookHook
 
         notebook_hook = SageMakerNotebookHook(
-            input_config={'input_path': 'path/to/notebook.ipynb', 'input_params': {'param1': 'value1'}},
-            output_config={'output_uri': 'folder/output/location/prefix', 'output_formats': 'NOTEBOOK'},
-            execution_name='notebook_execution',
+            input_config={"input_path": "path/to/notebook.ipynb", "input_params": {"param1": "value1"}},
+            output_config={"output_uri": "folder/output/location/prefix", "output_formats": "NOTEBOOK"},
+            execution_name="notebook_execution",
             waiter_delay=10,
             waiter_max_attempts=1440,
         )

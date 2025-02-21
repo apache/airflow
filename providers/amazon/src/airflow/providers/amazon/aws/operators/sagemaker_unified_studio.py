@@ -17,21 +17,26 @@
 
 """This module contains the Amazon SageMaker Unified Studio Notebook operator."""
 
-from functools import cached_property
+from __future__ import annotations
 
-from airflow import AirflowException
+from functools import cached_property
+from typing import TYPE_CHECKING
+
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
     SageMakerNotebookHook,
 )
+from airflow.providers.amazon.aws.links.sagemaker_unified_studio import (
+    SageMakerUnifiedStudioLink,
+)
 from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
     SageMakerNotebookJobTrigger,
 )
-from airflow.utils.context import Context
-from providers.amazon.src.airflow.providers.amazon.aws.links.sagemaker_unified_studio import (
-    SageMakerUnifiedStudioLink,
-)
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SageMakerNotebookOperator(BaseOperator):
@@ -44,9 +49,9 @@ class SageMakerNotebookOperator(BaseOperator):
         from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import SageMakerNotebookOperator
 
         notebook_operator = SageMakerNotebookOperator(
-            task_id='notebook_task',
-            input_config={'input_path': 'path/to/notebook.ipynb', 'input_params': ''},
-            output_config={'output_format': 'ipynb'},
+            task_id="notebook_task",
+            input_config={"input_path": "path/to/notebook.ipynb", "input_params": ""},
+            output_config={"output_format": "ipynb"},
             wait_for_completion=True,
             waiter_delay=10,
             waiter_max_attempts=1440,
@@ -78,6 +83,7 @@ class SageMakerNotebookOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SageMakerNotebookOperator`
     """
+
     operator_extra_links = (SageMakerUnifiedStudioLink(),)
 
     def __init__(
@@ -91,9 +97,7 @@ class SageMakerNotebookOperator(BaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 10,
         waiter_max_attempts: int = 1440,
-        deferrable: bool = conf.getboolean(
-            "operators", "default_deferrable", fallback=False
-        ),
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(task_id=task_id, **kwargs)
@@ -143,9 +147,7 @@ class SageMakerNotebookOperator(BaseOperator):
                 method_name="execute_complete",
             )
         elif self.wait_for_completion:
-            response = self.notebook_execution_hook.wait_for_execution_completion(
-                execution_id, context
-            )
+            response = self.notebook_execution_hook.wait_for_execution_completion(execution_id, context)
             status = response["Status"]
             self.log.info(
                 f"Notebook Execution: {self.execution_name} Status: {status}. Run Id: {execution_id}"

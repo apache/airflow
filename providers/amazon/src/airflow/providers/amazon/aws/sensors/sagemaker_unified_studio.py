@@ -17,12 +17,18 @@
 
 """This module contains the Amazon SageMaker Unified Studio Notebook sensor."""
 
-from airflow import AirflowException
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
     SageMakerNotebookHook,
 )
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SageMakerNotebookSensor(BaseSensorOperator):
@@ -46,7 +52,7 @@ class SageMakerNotebookSensor(BaseSensorOperator):
         return SageMakerNotebookHook(execution_name=self.execution_name)
 
     # override from base sensor
-    def poke(self):
+    def poke(self, context=None):
         status = self.hook().get_execution_status(execution_id=self.execution_id)
 
         if status in self.success_state:

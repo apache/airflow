@@ -25,7 +25,8 @@ from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import (
     SageMakerNotebookOperator,
 )
-from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+
+from tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 """

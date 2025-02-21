@@ -17,6 +17,8 @@
 
 """This module contains utils for the Amazon SageMaker Unified Studio Notebook plugin."""
 
+from __future__ import annotations
+
 import os
 
 workflows_env_key = "WORKFLOWS_ENV"

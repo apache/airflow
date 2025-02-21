@@ -17,6 +17,8 @@
 
 """This module contains the Amazon SageMaker Unified Studio Notebook job trigger."""
 
+from __future__ import annotations
+
 from airflow.triggers.base import BaseTrigger
 
 
@@ -30,8 +32,8 @@ class SageMakerNotebookJobTrigger(BaseTrigger):
         from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import SageMakerNotebookJobTrigger
 
         notebook_trigger = SageMakerNotebookJobTrigger(
-            execution_id='notebook_job_1234',
-            execution_name='notebook_task',
+            execution_id="notebook_job_1234",
+            execution_name="notebook_task",
             waiter_delay=10,
             waiter_max_attempts=1440,
         )
@@ -42,9 +44,7 @@ class SageMakerNotebookJobTrigger(BaseTrigger):
     :param waiter_max_attempts: Number of attempts to wait before returning FAILED.
     """
 
-    def __init__(
-        self, execution_id, execution_name, waiter_delay, waiter_max_attempts, **kwargs
-    ):
+    def __init__(self, execution_id, execution_name, waiter_delay, waiter_max_attempts, **kwargs):
         super().__init__(**kwargs)
         self.execution_id = execution_id
         self.execution_name = execution_name
