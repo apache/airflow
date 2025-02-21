@@ -20,7 +20,8 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, Annotated
+from pydantic import StringConstraints
 
 from sqlalchemy import (
     JSON,
@@ -249,7 +250,7 @@ class XComModel(TaskInstanceDependencies):
         cls,
         *,
         run_id: str,
-        key: str | None = None,
+        key: Annotated[str, StringConstraints(min_length=1)] | None = None,
         task_ids: str | Iterable[str] | None = None,
         dag_ids: str | Iterable[str] | None = None,
         map_indexes: int | Iterable[int] | None = None,
@@ -280,9 +281,6 @@ class XComModel(TaskInstanceDependencies):
         :param limit: Limiting returning XComs
         """
         from airflow.models.dagrun import DagRun
-
-        if not key:
-            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
 
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
