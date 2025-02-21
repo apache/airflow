@@ -106,7 +106,7 @@ def test_get_launch_task_key():
 
 @pytest.fixture(scope="session")
 def app():
-    app = create_app(testing=True)
+    app = create_app(enable_plugins=True)
     app.config["SERVER_NAME"] = "localhost"
 
     with app.app_context():
