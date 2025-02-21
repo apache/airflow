@@ -49,13 +49,17 @@ class TestDagVersion:
         with dag_maker("test1") as dag:
             EmptyOperator(task_id="task1")
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
+        SerializedDagModel.write_dag(
+            dag, bundle_name="dag_maker", code_reader=lambda _: "dag_maker-generated"
+        )
         # Add extra task to change the dag
         with dag_maker("test1") as dag2:
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
         dag2.sync_to_db()
-        SerializedDagModel.write_dag(dag2, bundle_name="dag_maker")
+        SerializedDagModel.write_dag(
+            dag2, bundle_name="dag_maker", code_reader=lambda _: "dag_maker-generated"
+        )
 
         latest_version = DagVersion.get_latest_version(dag.dag_id)
         assert latest_version.version_number == 2

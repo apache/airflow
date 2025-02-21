@@ -85,7 +85,10 @@ def make_dag_with_multiple_versions(dag_maker, session):
                     EmptyOperator(task_id=f"task{task_number + 1}")
             dag.sync_to_db()
             SerializedDagModel.write_dag(
-                dag, bundle_name="dag_maker", bundle_version=f"some_commit_hash{version_number}"
+                dag,
+                bundle_name="dag_maker",
+                bundle_version=f"some_commit_hash{version_number}",
+                code_reader=lambda _: "dag source code",
             )
             dag_maker.create_dagrun(
                 run_id=f"run{version_number}",

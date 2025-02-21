@@ -381,7 +381,9 @@ class TestClearTasks:
             task1 = EmptyOperator(task_id="task1", retries=2)
 
         # Write DAG to the database so it can be found by clear_task_instances().
-        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        SerializedDagModel.write_dag(
+            dag, bundle_name="testing", code_reader=lambda _: "dag source code", session=session
+        )
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -440,7 +442,9 @@ class TestClearTasks:
             task1 = EmptyOperator(task_id="task1", retries=2)
 
         # Write secondary DAG to the database so it can be found by clear_task_instances().
-        SerializedDagModel.write_dag(dag1, bundle_name="testing", session=session)
+        SerializedDagModel.write_dag(
+            dag1, bundle_name="testing", code_reader=lambda _: "dag source code", session=session
+        )
 
         dr1 = dag_maker.create_dagrun(
             state=State.RUNNING,

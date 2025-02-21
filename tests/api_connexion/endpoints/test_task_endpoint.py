@@ -254,7 +254,7 @@ class TestGetTask(TestTaskEndpoint):
         # Get the dag out of the dagbag before we patch it to an empty one
         dag = self.app.dag_bag.get_dag(self.dag_id)
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
+        SerializedDagModel.write_dag(dag, bundle_name="test_bundle", code_reader=lambda _: "dag source code")
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         patcher = unittest.mock.patch.object(self.app, "dag_bag", dag_bag)

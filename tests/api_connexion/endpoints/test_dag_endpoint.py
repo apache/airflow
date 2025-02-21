@@ -496,7 +496,11 @@ class TestGetDagDetails(TestDagEndpoint):
         current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
         self._create_dag_model_for_details_endpoint(self.dag_id)
         # Get the dag out of the dagbag before we patch it to an empty one
-        SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id), bundle_name="testing")
+        SerializedDagModel.write_dag(
+            self.app.dag_bag.get_dag(self.dag_id),
+            bundle_name="testing",
+            code_reader=lambda _: "dag source code",
+        )
 
         # Create empty app with empty dagbag to check if DAG is read from db
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)

@@ -496,7 +496,9 @@ class TestDagRun:
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dag.relative_fileloc = relative_fileloc
-        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        SerializedDagModel.write_dag(
+            dag, bundle_name="testing", code_reader=lambda _: "dag source code", session=session
+        )
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
@@ -545,7 +547,9 @@ class TestDagRun:
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
         dag.relative_fileloc = relative_fileloc
-        SerializedDagModel.write_dag(dag, bundle_name="testing", session=session)
+        SerializedDagModel.write_dag(
+            dag, bundle_name="testing", code_reader=lambda _: "dag source code", session=session
+        )
         session.commit()
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
