@@ -628,7 +628,11 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                 # This is _mostly_ only used in tests
                 dr = DagRun(
                     dag_id=self.dag_id,
-                    run_id=DagRun.generate_run_id(DagRunType.MANUAL, info.logical_date),
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.MANUAL,
+                        logical_date=info.logical_date,
+                        run_after=info.run_after,
+                    ),
                     run_type=DagRunType.MANUAL,
                     logical_date=info.logical_date,
                     data_interval=info.data_interval,

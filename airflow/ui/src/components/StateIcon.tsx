@@ -17,17 +17,8 @@
  * under the License.
  */
 import type { IconBaseProps } from "react-icons";
-import {
-  FiActivity,
-  FiAlertOctagon,
-  FiCalendar,
-  FiCheckCircle,
-  FiRepeat,
-  FiSkipForward,
-  FiSlash,
-  FiWatch,
-} from "react-icons/fi";
-import { LuCalendarSync, LuCircleDashed, LuCircleFadingArrowUp, LuRedo2 } from "react-icons/lu";
+import { FiActivity, FiCalendar, FiRepeat, FiSkipForward, FiSlash, FiWatch, FiX } from "react-icons/fi";
+import { LuCalendarSync, LuCheck, LuCircleDashed, LuCircleFadingArrowUp, LuRedo2 } from "react-icons/lu";
 import { PiQueue } from "react-icons/pi";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
@@ -41,7 +32,7 @@ export const StateIcon = ({ state, ...rest }: Props) => {
     case "deferred":
       return <FiWatch {...rest} />;
     case "failed":
-      return <FiAlertOctagon {...rest} />;
+      return <FiX {...rest} />;
     case "queued":
       return <PiQueue {...rest} />;
     case "removed":
@@ -55,7 +46,7 @@ export const StateIcon = ({ state, ...rest }: Props) => {
     case "skipped":
       return <FiSkipForward {...rest} />;
     case "success":
-      return <FiCheckCircle {...rest} />;
+      return <LuCheck {...rest} />;
     case "up_for_reschedule":
       return <LuCalendarSync {...rest} />;
     case "up_for_retry":

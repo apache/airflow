@@ -192,6 +192,8 @@ class DockerOperator(BaseOperator):
         Incompatible with ``"host"`` in ``network_mode``.
     :param ulimits: List of ulimit options to set for the container. Each item should
         be a :py:class:`docker.types.Ulimit` instance.
+    :param labels: A dictionary of name-value labels (e.g. ``{"label1": "value1", "label2": "value2"}``)
+        or a list of names of labels to set with empty values (e.g. ``["label1", "label2"]``)
     """
 
     # !!! Changes in DockerOperator's arguments should be also reflected in !!!
@@ -255,6 +257,7 @@ class DockerOperator(BaseOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[Ulimit] | None = None,
+        labels: dict[str, str] | list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -301,6 +304,7 @@ class DockerOperator(BaseOperator):
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
         self.ulimits = ulimits or []
+        self.labels = labels
 
         self.container: dict = None  # type: ignore[assignment]
         self.retrieve_output = retrieve_output
@@ -407,6 +411,7 @@ class DockerOperator(BaseOperator):
             working_dir=self.working_dir,
             tty=self.tty,
             hostname=self.hostname,
+            labels=self.labels,
         )
         log_stream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:

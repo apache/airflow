@@ -32,6 +32,7 @@ const tabs = [
   { label: "XCom", value: "xcom" },
   { label: "Code", value: "code" },
   { label: "Details", value: "details" },
+  { label: "Rendered Templates", value: "rendered_templates" },
 ];
 
 export const TaskInstance = () => {

@@ -40,12 +40,8 @@ class ForbiddenWarningsPlugin:
             self.deprecations_ignore = deprecations_ignore
 
         excluded_cases = {
-            # Skip: Integration and System Tests
             "tests/integration/",
             "tests/system/",
-            "providers/tests/integration/",
-            "providers/tests/system/",
-            # Skip: DAGs for tests
             "tests/dags/",
             "tests/dags_corrupted/",
             "tests/dags_with_system_exit/",

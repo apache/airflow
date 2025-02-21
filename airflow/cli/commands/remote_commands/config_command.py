@@ -302,6 +302,9 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("scheduler", "dependency_detector"),
     ),
     ConfigChange(
+        config=ConfigParameter("scheduler", "allow_trigger_in_future"),
+    ),
+    ConfigChange(
         config=ConfigParameter("scheduler", "processor_poll_interval"),
         renamed_to=ConfigParameter("scheduler", "scheduler_idle_sleep_time"),
     ),
@@ -482,7 +485,9 @@ def lint_config(args) -> None:
         if configuration.config.section in ignore_sections or configuration.config.option in ignore_options:
             continue
 
-        if conf.has_option(configuration.config.section, configuration.config.option):
+        if conf.has_option(
+            configuration.config.section, configuration.config.option, lookup_from_deprecated_options=False
+        ):
             lint_issues.append(configuration.message)
 
     if lint_issues:

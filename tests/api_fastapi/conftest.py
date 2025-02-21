@@ -23,11 +23,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
+from airflow.models import Connection
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
-from tests_common.test_utils.db import parse_and_sync_to_db
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_connections, parse_and_sync_to_db
 
 
 @pytest.fixture
@@ -47,25 +49,52 @@ def client():
 
 
 @pytest.fixture
-def make_dag_with_multiple_versions(dag_maker):
+def make_dag_with_multiple_versions(dag_maker, session):
     """
     Create DAG with multiple versions
 
     Version 1 will have 1 task, version 2 will have 2 tasks, and version 3 will have 3 tasks.
-    """
-    dag_id = "dag_with_multiple_versions"
 
-    for version_number in range(1, 4):
-        with dag_maker(dag_id) as dag:
-            for task_number in range(version_number):
-                EmptyOperator(task_id=f"task{task_number + 1}")
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="dag_maker")
-        dag_maker.create_dagrun(
-            run_id=f"run{version_number}",
-            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
-            dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
-        )
+    Configure the associated dag_bundles.
+    """
+
+    # Git connection is required for the bundles to have a url.
+    connection = Connection(
+        conn_id="git_default",
+        conn_type="git",
+        description="default git connection",
+        host="fakeprotocol://test_host.github.com",
+        port=8081,
+        login="",
+    )
+    session.add(connection)
+
+    with conf_vars(
+        {
+            (
+                "dag_processor",
+                "dag_bundle_config_list",
+            ): '[{ "name": "dag_maker", "classpath": "airflow.dag_processing.bundles.git.GitDagBundle", "kwargs": {"subdir": "dags", "tracking_ref": "main", "refresh_interval": 0}}, { "name": "another_bundle_name", "classpath": "airflow.dag_processing.bundles.git.GitDagBundle", "kwargs": {"subdir": "dags", "tracking_ref": "main", "refresh_interval": 0}}]'
+        }
+    ):
+        dag_id = "dag_with_multiple_versions"
+
+        for version_number in range(1, 4):
+            with dag_maker(dag_id) as dag:
+                for task_number in range(version_number):
+                    EmptyOperator(task_id=f"task{task_number + 1}")
+            dag.sync_to_db()
+            SerializedDagModel.write_dag(
+                dag, bundle_name="dag_maker", bundle_version=f"some_commit_hash{version_number}"
+            )
+            dag_maker.create_dagrun(
+                run_id=f"run{version_number}",
+                logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+                dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
+            )
+        yield
+
+        clear_db_connections(False)
 
 
 @pytest.fixture(scope="module")

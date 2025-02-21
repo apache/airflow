@@ -58,7 +58,9 @@ def reset_db():
 @pytest.fixture
 def task_instance_factory(request, session: Session):
     def func(*, dag_id, task_id, logical_date):
-        run_id = DagRun.generate_run_id(DagRunType.SCHEDULED, logical_date)
+        run_id = DagRun.generate_run_id(
+            run_type=DagRunType.SCHEDULED, logical_date=logical_date, run_after=logical_date
+        )
         run = DagRun(
             dag_id=dag_id,
             run_type=DagRunType.SCHEDULED,

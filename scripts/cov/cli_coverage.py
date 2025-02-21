@@ -30,7 +30,6 @@ cli_files = ["tests/cli"]
 files_not_fully_covered = [
     "airflow/cli/cli_config.py",
     "airflow/cli/cli_parser.py",
-    "airflow/cli/commands/local_commands/celery_command.py",
     "airflow/cli/commands/remote_commands/config_command.py",
     "airflow/cli/commands/remote_commands/connection_command.py",
     "airflow/cli/commands/remote_commands/dag_command.py",

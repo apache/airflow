@@ -63,5 +63,5 @@ def get_provider_info():
         "connection-types": [
             {"hook-class-name": "airflow.providers.asana.hooks.asana.AsanaHook", "connection-type": "asana"}
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "asana>=0.10,<4.0.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "asana>=5.0.0"],
     }

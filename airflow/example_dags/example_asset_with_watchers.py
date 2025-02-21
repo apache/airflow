@@ -20,30 +20,17 @@ Example DAG for demonstrating the usage of event driven scheduling using assets 
 
 from __future__ import annotations
 
-import os
-
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.standard.triggers.file import FileTrigger
+from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import Asset, AssetWatcher
 
 file_path = "/tmp/test"
 
-with DAG(
-    dag_id="example_create_file",
-    catchup=False,
-):
+trigger = FileDeleteTrigger(filepath=file_path)
+asset = Asset("example_asset", watchers=[AssetWatcher(name="test_asset_watcher", trigger=trigger)])
 
-    @task
-    def create_file():
-        with open(file_path, "w") as file:
-            file.write("This is an example file.\n")
-
-    chain(create_file())
-
-trigger = FileTrigger(filepath=file_path, poke_interval=10)
-asset = Asset("example_asset", watchers=[AssetWatcher(name="test_file_watcher", trigger=trigger)])
 
 with DAG(
     dag_id="example_asset_with_watchers",
@@ -52,8 +39,7 @@ with DAG(
 ):
 
     @task
-    def delete_file():
-        if os.path.exists(file_path):
-            os.remove(file_path)  # Delete the file
+    def test_task():
+        print("Hello world")
 
-    chain(delete_file())
+    chain(test_task())

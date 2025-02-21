@@ -109,7 +109,9 @@ def create_app(config=None, testing=False):
     flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("webserver", "COOKIE_SECURE")
 
     # Note: Ensure "Lax" is the default if config not specified
-    flask_app.config["SESSION_COOKIE_SAMESITE"] = conf.get("webserver", "COOKIE_SAMESITE") or "Lax"
+    flask_app.config["SESSION_COOKIE_SAMESITE"] = (
+        conf.get("webserver", "COOKIE_SAMESITE", fallback=None) or "Lax"
+    )
 
     # Above Flask 2.0.x, default value of SEND_FILE_MAX_AGE_DEFAULT changed 12 hours to None.
     # for static file caching, it needs to set value explicitly.

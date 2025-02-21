@@ -155,20 +155,6 @@ class TestXComsSetEndpoint:
             task_map = session.query(TaskMap).filter_by(task_id=ti.task_id, dag_id=ti.dag_id).one_or_none()
             assert task_map.length == length
 
-    def test_xcom_set_invalid_json(self, client):
-        response = client.post(
-            "/execution/xcoms/dag/runid/task/xcom_1",
-            json="invalid_json",
-        )
-
-        assert response.status_code == 400
-        assert response.json() == {
-            "detail": {
-                "reason": "invalid_format",
-                "message": "XCom value is not a valid JSON-formatted string",
-            }
-        }
-
     def test_xcom_access_denied(self, client):
         with mock.patch("airflow.api_fastapi.execution_api.routes.xcoms.has_xcom_access", return_value=False):
             response = client.post(

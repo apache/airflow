@@ -32,10 +32,7 @@ console = Console(color_system="standard", width=200)
 
 
 allowed_warnings: dict[str, tuple[str, ...]] = {
-    "airflow": (
-        "airflow.exceptions.RemovedInAirflow3Warning",
-        "airflow.utils.context.AirflowContextDeprecationWarning",
-    ),
+    "airflow": ("airflow.exceptions.RemovedInAirflow3Warning",),
     "providers": ("airflow.exceptions.AirflowProviderDeprecationWarning",),
 }
 compatible_decorators: frozenset[tuple[str, ...]] = frozenset(

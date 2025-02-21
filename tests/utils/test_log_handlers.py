@@ -520,14 +520,16 @@ class TestFileTaskLogHandler:
         assert actual == os.fspath(tmp_path / expected)
 
 
+@pytest.mark.parametrize("logical_date", ((None), (DEFAULT_DATE)))
 class TestFilenameRendering:
-    def test_python_formatting(self, create_log_template, create_task_instance):
+    def test_python_formatting(self, create_log_template, create_task_instance, logical_date):
         create_log_template("{dag_id}/{task_id}/{logical_date}/{try_number}.log")
         filename_rendering_ti = create_task_instance(
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            logical_date=DEFAULT_DATE,
+            run_after=DEFAULT_DATE,
+            logical_date=logical_date,
         )
 
         expected_filename = (
@@ -538,13 +540,14 @@ class TestFilenameRendering:
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
 
-    def test_jinja_rendering(self, create_log_template, create_task_instance):
+    def test_jinja_rendering(self, create_log_template, create_task_instance, logical_date):
         create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
         filename_rendering_ti = create_task_instance(
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            logical_date=DEFAULT_DATE,
+            run_after=DEFAULT_DATE,
+            logical_date=logical_date,
         )
 
         expected_filename = (

@@ -65,9 +65,9 @@ export const DagCard = ({ dag }: Props) => {
             <Link asChild color="fg.info">
               <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
                 <DagRunInfo
-                  dataIntervalEnd={latestRun.data_interval_end}
-                  dataIntervalStart={latestRun.data_interval_start}
                   endDate={latestRun.end_date}
+                  logicalDate={latestRun.logical_date}
+                  runAfter={latestRun.run_after}
                   startDate={latestRun.start_date}
                   state={latestRun.state}
                 />
@@ -77,11 +77,10 @@ export const DagCard = ({ dag }: Props) => {
           ) : undefined}
         </Stat>
         <Stat label="Next Run">
-          {Boolean(dag.next_dagrun) ? (
+          {Boolean(dag.next_dagrun_run_after) ? (
             <DagRunInfo
-              dataIntervalEnd={dag.next_dagrun_data_interval_end}
-              dataIntervalStart={dag.next_dagrun_data_interval_start}
-              nextDagrunCreateAfter={dag.next_dagrun_create_after}
+              logicalDate={dag.next_dagrun_logical_date}
+              runAfter={dag.next_dagrun_run_after as string}
             />
           ) : undefined}
         </Stat>

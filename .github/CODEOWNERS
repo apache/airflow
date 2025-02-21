@@ -10,7 +10,6 @@
 /airflow/dag_processing @jedcunningham @ephraimbuddy
 
 # Kubernetes
-/airflow/kubernetes/ @dstandish @jedcunningham
 /providers/cncf/kubernetes/ @dstandish @jedcunningham
 
 # Helm Chart
@@ -52,13 +51,13 @@
 /docs/apache-airflow/concepts/dynamic-task-mapping.rst @uranusjr
 
 # Async Operators & Triggerer
-/airflow/cli/commands/triggerer_command.py @dstandish @hussein-awala
+/airflow/cli/commands/local_commands/triggerer_command.py @dstandish @hussein-awala
 /airflow/jobs/triggerer_job.py @dstandish @hussein-awala
-/airflow/models/trigger.py @dstandish @hussein-awala
-/docs/apache-airflow/concepts/deferring.rst @dstandish @hussein-awala
+/airflow/jobs/triggerer_job_runner.py @dstandish @hussein-awala
+/docs/apache-airflow/authoring-and-scheduling/deferring.rst @dstandish @hussein-awala
 
 # Secrets Backends
-/airflow/secrets  @dstandish @potiuk @ashb
+/airflow/secrets @dstandish @potiuk @ashb
 
 # Providers
 /providers/amazon/ @eladkal @o-nikolas
@@ -66,7 +65,7 @@
 /providers/cncf/kubernetes @jedcunningham @hussein-awala
 /providers/common/sql/ @eladkal
 /providers/dbt/cloud/ @josh-fell
-/providers/edge @jscheffl
+/providers/edge/ @jscheffl
 /providers/hashicorp/ @hussein-awala
 /providers/openlineage/ @mobuchowski
 /providers/slack/ @eladkal
@@ -83,8 +82,8 @@ Dockerfile @potiuk @ashb
 Dockerfile.ci @potiuk @ashb
 
 # Releasing Guides & Project Guidelines
-/dev/PROJECT_GUIDELINES.md  @kaxil
-/dev/PROVIDER_PACKAGE_DETAILS.md  @eladkal
+/dev/PROJECT_GUIDELINES.md @kaxil
+/dev/PROVIDER_PACKAGE_DETAILS.md @eladkal
 /dev/README.md  @kaxil
 /dev/README_RELEASE_*.md  @kaxil @pierrejeambrun
 /dev/README_RELEASE_PROVIDER_PACKAGES.md  @eladkal
@@ -103,4 +102,4 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 
 # Migrations
 /airflow/migrations/ @ephraimbuddy
-/providers/fab/migrations/ @ephraimbuddy
+/providers/fab/src/airflow/providers/fab/migrations/ @ephraimbuddy

@@ -29,6 +29,7 @@ __all__ = [
     "Label",
     "MappedOperator",
     "TaskGroup",
+    "Variable",
     "XComArg",
     "dag",
     "get_current_context",
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
 
 __lazy_imports: dict[str, str] = {

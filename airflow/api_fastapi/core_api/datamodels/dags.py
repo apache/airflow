@@ -35,9 +35,23 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.configuration import conf
 
+DAG_ALIAS_MAPPING: dict[str, str] = {
+    # The keys are the names in the response, the values are the original names in the model
+    # This is used to map the names in the response to the names in the model
+    # See: https://github.com/apache/airflow/issues/46732
+    "next_dagrun_logical_date": "next_dagrun",
+    "next_dagrun_run_after": "next_dagrun_create_after",
+}
+
 
 class DAGResponse(BaseModel):
     """DAG serializer for responses."""
+
+    model_config = ConfigDict(
+        alias_generator=AliasGenerator(
+            validation_alias=lambda field_name: DAG_ALIAS_MAPPING.get(field_name, field_name),
+        ),
+    )
 
     dag_id: str
     dag_display_name: str
@@ -56,10 +70,10 @@ class DAGResponse(BaseModel):
     max_consecutive_failed_dag_runs: int
     has_task_concurrency_limits: bool
     has_import_errors: bool
-    next_dagrun: datetime | None
+    next_dagrun_logical_date: datetime | None
     next_dagrun_data_interval_start: datetime | None
     next_dagrun_data_interval_end: datetime | None
-    next_dagrun_create_after: datetime | None
+    next_dagrun_run_after: datetime | None
     owners: list[str]
 
     @field_validator("owners", mode="before")
@@ -115,6 +129,7 @@ class DAGDetailsResponse(DAGResponse):
                 "dag_run_timeout": "dagrun_timeout",
                 "last_parsed": "last_loaded",
                 "template_search_path": "template_searchpath",
+                **DAG_ALIAS_MAPPING,
             }.get(field_name, field_name),
         ),
     )

@@ -21,7 +21,8 @@ import { create } from "zustand";
 import type { DagParamsSpec, ParamSpec } from "src/queries/useDagParams";
 
 export const paramPlaceholder: ParamSpec = {
-  description: undefined,
+  // eslint-disable-next-line unicorn/no-null
+  description: null,
   schema: {
     const: undefined,
     description_md: undefined,
@@ -70,7 +71,8 @@ export const useParamStore = create<FormStore>((set) => ({
           return [
             key,
             {
-              description: existingParam?.description,
+              // eslint-disable-next-line unicorn/no-null
+              description: existingParam?.description ?? null,
               schema: existingParam?.schema ?? paramPlaceholder.schema,
               value: value as unknown,
             },

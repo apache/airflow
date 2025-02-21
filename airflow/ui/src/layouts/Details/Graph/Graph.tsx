@@ -95,7 +95,7 @@ export const Graph = () => {
       dagId,
       limit: 25,
       offset: 0,
-      orderBy: "-start_date",
+      orderBy: "-run_after",
     },
     undefined,
     {

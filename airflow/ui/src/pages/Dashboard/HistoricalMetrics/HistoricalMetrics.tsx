@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack, SimpleGrid, GridItem } from "@chakra-ui/react";
+import { Box, VStack, SimpleGrid, GridItem, Flex, Heading } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
+import { PiBooks } from "react-icons/pi";
 
 import { useDashboardServiceHistoricalMetrics } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -52,6 +53,12 @@ export const HistoricalMetrics = () => {
 
   return (
     <Box width="100%">
+      <Flex color="fg.muted" my={2}>
+        <PiBooks />
+        <Heading ml={1} size="xs">
+          History
+        </Heading>
+      </Flex>
       <ErrorAlert error={error} />
       <VStack alignItems="left" gap={2}>
         <TimeRangeSelector

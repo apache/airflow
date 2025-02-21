@@ -17,11 +17,12 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from flask import Blueprint, redirect, url_for
+from flask import Blueprint, redirect, request, url_for
 from flask_appbuilder import BaseView, expose
 from sqlalchemy import select
 
@@ -74,6 +75,26 @@ def _get_api_endpoint() -> dict[str, Any]:
     }
 
 
+def modify_maintenance_comment_on_update(maintenance_comment: str | None, username: str) -> str:
+    if maintenance_comment:
+        if re.search(
+            r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:.*", maintenance_comment
+        ):
+            return re.sub(
+                r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:",
+                f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:',
+                maintenance_comment,
+            )
+        elif re.search(r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:.*", maintenance_comment):
+            return re.sub(
+                r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:",
+                f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:',
+                maintenance_comment,
+            )
+        return f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment: {maintenance_comment}'
+    return f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:'
+
+
 # registers airflow/providers/edge/plugins/templates as a Jinja template folder
 template_bp = Blueprint(
     "template_blueprint",
@@ -118,9 +139,13 @@ class EdgeWorkerHosts(BaseView):
     @expose("/status/maintenance/<string:worker_name>/on", methods=["POST"])
     @has_access_view(AccessView.JOBS)
     def worker_to_maintenance(self, worker_name: str):
+        from flask_login import current_user
+
         from airflow.providers.edge.models.edge_worker import request_maintenance
 
-        request_maintenance(worker_name)
+        maintenance_comment = request.form.get("maintenance_comment")
+        maintenance_comment = f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username} put node into maintenance mode\nComment: {maintenance_comment}'
+        request_maintenance(worker_name, maintenance_comment)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
     @expose("/status/maintenance/<string:worker_name>/off", methods=["POST"])
@@ -137,6 +162,18 @@ class EdgeWorkerHosts(BaseView):
         from airflow.providers.edge.models.edge_worker import remove_worker
 
         remove_worker(worker_name)
+        return redirect(url_for("EdgeWorkerHosts.status"))
+
+    @expose("/status/maintenance/<string:worker_name>/change_comment", methods=["POST"])
+    @has_access_view(AccessView.JOBS)
+    def change_maintenance_comment(self, worker_name: str):
+        from flask_login import current_user
+
+        from airflow.providers.edge.models.edge_worker import change_maintenance_comment
+
+        maintenance_comment = request.form.get("maintenance_comment")
+        maintenance_comment = modify_maintenance_comment_on_update(maintenance_comment, current_user.username)
+        change_maintenance_comment(worker_name, maintenance_comment)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
 

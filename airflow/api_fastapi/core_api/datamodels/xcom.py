@@ -29,7 +29,7 @@ class XComResponse(BaseModel):
 
     key: str
     timestamp: datetime
-    logical_date: datetime
+    logical_date: datetime | None
     map_index: int
     task_id: str
     dag_id: str

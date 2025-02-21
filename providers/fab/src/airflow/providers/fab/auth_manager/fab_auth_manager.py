@@ -185,20 +185,14 @@ class FabAuthManager(BaseAuthManager[User]):
         return commands
 
     def get_fastapi_app(self) -> FastAPI | None:
-        flask_blueprint = self.get_api_endpoints()
-
-        if not flask_blueprint:
-            return None
-
         flask_app = create_app(enable_plugins=False)
-        flask_app.register_blueprint(flask_blueprint)
 
         app = FastAPI(
             title="FAB auth manager API",
             description=(
                 "This is FAB auth manager API. This API is only available if the auth manager used in "
                 "the Airflow environment is FAB auth manager. "
-                "This API provides endpoints to manager users and permissions managed by the FAB auth "
+                "This API provides endpoints to manage users and permissions managed by the FAB auth "
                 "manager."
             ),
         )

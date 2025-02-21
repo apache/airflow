@@ -155,6 +155,7 @@ name ``base`` and a second container containing your desired sidecar.
 
 You can also create custom ``pod_template_file`` on a per-task basis so that you can recycle the same base values between multiple tasks.
 This will replace the default ``pod_template_file`` named in the airflow.cfg and then override that template using the ``pod_override``.
+That ``pod_template_file`` will also be used to generate the Pod K8s Spec visible in the Airflow UI.
 
 Here is an example of a task with both features:
 

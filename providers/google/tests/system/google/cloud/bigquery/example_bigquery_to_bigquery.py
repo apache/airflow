@@ -27,7 +27,7 @@ from datetime import datetime
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.transfers.bigquery_to_bigquery import BigQueryToBigQueryOperator
@@ -40,6 +40,10 @@ DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 ORIGIN = "origin"
 TARGET = "target"
 LOCATION = "US"
+SCHEMA = [
+    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+]
 
 
 with DAG(
@@ -55,24 +59,22 @@ with DAG(
         location=LOCATION,
     )
 
-    create_origin_table = BigQueryCreateEmptyTableOperator(
+    create_origin_table = BigQueryCreateTableOperator(
         task_id="create_origin_table",
         dataset_id=DATASET_NAME,
         table_id="origin",
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
-    create_target_table = BigQueryCreateEmptyTableOperator(
+    create_target_table = BigQueryCreateTableOperator(
         task_id="create_target_table",
         dataset_id=DATASET_NAME,
         table_id="target",
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     # [START howto_operator_bigquery_to_bigquery]

@@ -26,13 +26,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryDeleteTableOperator,
     BigQueryGetDatasetTablesOperator,
@@ -44,6 +41,8 @@ from airflow.providers.google.cloud.operators.bigquery import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "bigquery_tables"
@@ -77,38 +76,46 @@ with DAG(
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
     # [START howto_operator_bigquery_create_table]
-    create_table = BigQueryCreateEmptyTableOperator(
+    create_table = BigQueryCreateTableOperator(
         task_id="create_table",
         dataset_id=DATASET_NAME,
         table_id="test_table",
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {
+                "fields": [
+                    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+                ],
+            },
+        },
     )
     # [END howto_operator_bigquery_create_table]
 
     # [START howto_operator_bigquery_create_view]
-    create_view = BigQueryCreateEmptyTableOperator(
+    create_view = BigQueryCreateTableOperator(
         task_id="create_view",
         dataset_id=DATASET_NAME,
         table_id="test_view",
-        view={
-            "query": f"SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
-            "useLegacySql": False,
+        table_resource={
+            "view": {
+                "query": f"SELECT * FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
+                "useLegacySql": False,
+            },
         },
     )
     # [END howto_operator_bigquery_create_view]
 
     # [START howto_operator_bigquery_create_materialized_view]
-    create_materialized_view = BigQueryCreateEmptyTableOperator(
+    create_materialized_view = BigQueryCreateTableOperator(
         task_id="create_materialized_view",
         dataset_id=DATASET_NAME,
         table_id="test_materialized_view",
-        materialized_view={
-            "query": f"SELECT SUM(salary) AS sum_salary FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
-            "enableRefresh": True,
-            "refreshIntervalMs": 2000000,
+        table_resource={
+            "materializedView": {
+                "query": f"SELECT SUM(salary) AS sum_salary FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
+                "enableRefresh": True,
+                "refreshIntervalMs": 600000,
+            },
         },
     )
     # [END howto_operator_bigquery_create_materialized_view]
@@ -157,11 +164,18 @@ with DAG(
     # [END howto_operator_bigquery_update_table_schema]
 
     # [START howto_operator_bigquery_create_table_schema_json]
-    update_table_schema_json = BigQueryCreateEmptyTableOperator(
-        task_id="update_table_schema_json",
+    create_table_schema_json = BigQueryCreateTableOperator(
+        task_id="create_table_schema_json",
         dataset_id=DATASET_NAME,
         table_id="test_table",
         gcs_schema_object=GCS_PATH_TO_SCHEMA_JSON,
+        table_resource={
+            "tableReference": {
+                "projectId": PROJECT_ID,
+                "datasetId": DATASET_NAME,
+                "tableId": "test_table",
+            },
+        },
     )
     # [END howto_operator_bigquery_create_table_schema_json]
 
@@ -222,7 +236,7 @@ with DAG(
         >> update_table
         >> upsert_table
         >> update_table_schema
-        >> update_table_schema_json
+        >> create_table_schema_json
         >> delete_materialized_view
         >> delete_table
         # TEST TEARDOWN

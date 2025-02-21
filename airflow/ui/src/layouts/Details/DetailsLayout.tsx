@@ -18,10 +18,12 @@
  */
 import { Box, Button, HStack } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
-import { FiChevronsLeft } from "react-icons/fi";
+import { FaChartGantt } from "react-icons/fa6";
+import { FiChevronsLeft, FiGrid } from "react-icons/fi";
 import { Outlet, Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import type { DAGResponse } from "openapi/requests/types.gen";
+import { DagIcon } from "src/assets/DagIcon";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchDagsButton } from "src/components/SearchDags";
 import { ProgressBar } from "src/components/ui";
@@ -67,7 +69,32 @@ export const DetailsLayout = ({ children, dag, error, isLoading, tabs }: Props) 
         {isModalOpen ? undefined : children}
         <ErrorAlert error={error} />
         <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-        <NavTabs tabs={tabs} />
+        <NavTabs
+          keepSearch
+          rightButtons={
+            <>
+              <Button asChild colorPalette="blue" variant="ghost">
+                <RouterLink to={{ search: `${searchParams.toString()}&modal=gantt` }}>
+                  <FaChartGantt height={5} width={5} />
+                  Gantt
+                </RouterLink>
+              </Button>
+              <Button asChild colorPalette="blue" variant="ghost">
+                <RouterLink to={{ search: `${searchParams.toString()}&modal=grid` }}>
+                  <FiGrid height={5} width={5} />
+                  Grid
+                </RouterLink>
+              </Button>
+              <Button asChild colorPalette="blue" variant="ghost">
+                <RouterLink to={{ search: `${searchParams.toString()}&modal=graph` }}>
+                  <DagIcon height={5} width={5} />
+                  Graph
+                </RouterLink>
+              </Button>
+            </>
+          }
+          tabs={tabs}
+        />
         <DagVizModal
           dagDisplayName={dag?.dag_display_name}
           dagId={dag?.dag_id}

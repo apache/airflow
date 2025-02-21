@@ -22,8 +22,9 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import delete, inspect
+from sqlalchemy import delete, inspect, text
 from sqlalchemy.exc import NoSuchTableError
+from sqlalchemy.orm import Session
 
 from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
@@ -43,7 +44,6 @@ if TYPE_CHECKING:
     import argparse
 
     from sqlalchemy.engine.base import Engine
-    from sqlalchemy.orm import Session
 
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -77,6 +77,19 @@ class EdgeExecutor(BaseExecutor):
         # version 0.6.0rc1 added new column concurrency_slots
         if edge_job_columns and "concurrency_slots" not in edge_job_columns:
             EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
+
+        edge_worker_columns = None
+        try:
+            edge_worker_columns = [column["name"] for column in inspector.get_columns("edge_worker")]
+        except NoSuchTableError:
+            pass
+
+        # version 0.14.0pre0 added new column maintenance_comment
+        if edge_worker_columns and "maintenance_comment" not in edge_worker_columns:
+            with Session(engine) as session:
+                query = "ALTER TABLE edge_worker ADD maintenance_comment VARCHAR(1024);"
+                session.execute(text(query))
+                session.commit()
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):

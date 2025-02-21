@@ -55,7 +55,7 @@ Requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.9.0``
-``asana``           ``>=0.10,<4.0.0``
+``asana``           ``>=5.0.0``
 ==================  ==================
 
 The changelog for the provider package can be found in the

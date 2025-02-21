@@ -37,7 +37,6 @@ from airflow_breeze.utils.packages import get_excluded_provider_folders, get_sus
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_DIR,
     AIRFLOW_SOURCES_ROOT,
-    OLD_TESTS_PROVIDERS_ROOT,
 )
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.virtualenv_utils import create_temp_venv
@@ -138,18 +137,7 @@ def test_paths(test_type: str, backend: str) -> tuple[str, str, str]:
 def get_ignore_switches_for_provider(provider_folders: list[str]) -> list[str]:
     args = []
     for providers in provider_folders:
-        args.extend(
-            [
-                # TODO(potiuk): remove the old ways once we migrate all providers to the new structure
-                f"--ignore=providers/tests/{providers}",
-                f"--ignore=providers/tests/system/{providers}",
-                f"--ignore=providers/tests/integration/{providers}",
-                # New structure
-                f"--ignore=providers/{providers}/tests/",
-                f"--ignore=providers/{providers}/tests/system",
-                f"--ignore=providers/{providers}/tests/integration",
-            ]
-        )
+        args.append(f"--ignore=providers/{providers}/tests/")
     return args
 
 
@@ -187,8 +175,7 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "OpenAPI": ["clients/python"],
 }
 
-# TODO(potiuk) - rename when all providers are new-style
-ALL_NEW_PROVIDER_TEST_FOLDERS: list[str] = sorted(
+ALL_PROVIDER_TEST_FOLDERS: list[str] = sorted(
     [
         path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
         for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/tests/")
@@ -198,15 +185,25 @@ ALL_NEW_PROVIDER_TEST_FOLDERS: list[str] = sorted(
         for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/*/tests/")
     ]
 )
+ALL_PROVIDER_INTEGRATION_TEST_FOLDERS: list[str] = sorted(
+    [
+        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
+        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/tests/integration/")
+    ]
+    + [
+        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
+        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/*/tests/integration/")
+    ]
+)
+
 
 TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
     GroupOfTests.CORE: ["tests"],
-    # TODO(potiuk): remove me when we migrate all providers to new structure
-    GroupOfTests.PROVIDERS: [*ALL_NEW_PROVIDER_TEST_FOLDERS, "providers/tests"],
+    GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
     GroupOfTests.TASK_SDK: ["task_sdk/tests"],
     GroupOfTests.HELM: ["helm_tests"],
     GroupOfTests.INTEGRATION_CORE: ["tests/integration"],
-    GroupOfTests.INTEGRATION_PROVIDERS: ["providers/tests/integration"],
+    GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,
     GroupOfTests.PYTHON_API_CLIENT: ["clients/python"],
 }
 
@@ -293,41 +290,26 @@ def convert_test_type_to_pytest_args(
                         f"[info]Removing {provider_test_to_exclude} from {providers_with_exclusions}[/]"
                     )
                     providers_with_exclusions.remove(provider_test_to_exclude)
-                else:
-                    # TODO(potiuk): remove me when all providers are migrated
-                    get_console().print(f"[info]Adding {provider_test_to_exclude} to pytest ignores[/]")
-                    providers_with_exclusions.append(
-                        "--ignore=providers/tests/" + excluded_provider.replace(".", "/")
-                    )
             return providers_with_exclusions
         if test_type.startswith(PROVIDERS_LIST_PREFIX):
             provider_list = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
             providers_to_test = []
             for provider in provider_list:
-                # TODO(potiuk) - remove when all providers are new-style
-                provider_path = OLD_TESTS_PROVIDERS_ROOT.joinpath(provider.replace(".", "/")).relative_to(
-                    AIRFLOW_SOURCES_ROOT
+                provider_path = (
+                    AIRFLOW_PROVIDERS_DIR.joinpath(provider.replace(".", "/")).relative_to(
+                        AIRFLOW_SOURCES_ROOT
+                    )
+                    / "tests"
                 )
                 if provider_path.is_dir():
                     providers_to_test.append(provider_path.as_posix())
                 else:
-                    # TODO(potiuk) - remove when all providers are new-style
-                    old_provider_path = provider_path
-                    provider_path = (
-                        AIRFLOW_PROVIDERS_DIR.joinpath(provider.replace(".", "/")).relative_to(
-                            AIRFLOW_SOURCES_ROOT
-                        )
-                        / "tests"
+                    get_console().print(
+                        f"[error] {provider_path} does not exist for {provider} "
+                        "- which means that this provider has no tests. This is bad idea. "
+                        "Please add it (all providers should have at least a package in tests)."
                     )
-                    if provider_path.is_dir():
-                        providers_to_test.append(provider_path.as_posix())
-                    else:
-                        get_console().print(
-                            f"[error]Neither {old_provider_path} nor {provider_path} exist for {provider} "
-                            "- which means that provider has no tests. This is bad idea. "
-                            "Please add it (all providers should have a package in tests)"
-                        )
-                        sys.exit(1)
+                    sys.exit(1)
             return providers_to_test
         if not test_type.startswith(PROVIDERS_PREFIX):
             get_console().print(f"[error]Unknown test type for {GroupOfTests.PROVIDERS}: {test_type}[/]")
@@ -468,12 +450,4 @@ def convert_parallel_types_to_folders(test_group: GroupOfTests, parallel_test_ty
     for group_folders in TEST_GROUP_TO_TEST_FOLDERS.values():
         for group_folder in group_folders:
             all_test_prefixes.append(group_folder)
-    folders = [arg for arg in args if any(arg.startswith(prefix) for prefix in all_test_prefixes)]
-    # remove specific provider sub-folders if "providers/tests" is already in the list
-    # This workarounds pytest issues where it will only run tests from specific subfolders
-    # if both parent and child folders are in the list
-    # The issue in Pytest (changed behaviour in Pytest 8.2 is tracked here
-    # https://github.com/pytest-dev/pytest/issues/12605
-    if "providers/tests" in folders:
-        folders = [folder for folder in folders if not folder.startswith("providers/tests/")]
-    return folders
+    return [arg for arg in args if any(arg.startswith(prefix) for prefix in all_test_prefixes)]

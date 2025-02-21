@@ -734,9 +734,19 @@ class AsyncKubernetesHook(KubernetesHook):
         """Return Kubernetes API session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
+        kubeconfig_path = await self._get_field("kube_config_path")
         kubeconfig = await self._get_field("kube_config")
+        num_selected_configuration = sum(
+            1 for o in [in_cluster, kubeconfig, kubeconfig_path, self.config_dict] if o
+        )
 
-        num_selected_configuration = sum(1 for o in [in_cluster, kubeconfig, self.config_dict] if o)
+        async def api_client_from_kubeconfig_file(_kubeconfig_path: str | None):
+            await async_config.load_kube_config(
+                config_file=_kubeconfig_path,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
+            return async_client.ApiClient()
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -757,6 +767,11 @@ class AsyncKubernetesHook(KubernetesHook):
             await async_config.load_kube_config_from_dict(self.config_dict)
             return async_client.ApiClient()
 
+        if kubeconfig_path is not None:
+            self.log.debug("loading kube_config from: %s", kubeconfig_path)
+            self._is_in_cluster = False
+            return await api_client_from_kubeconfig_file(kubeconfig_path)
+
         if kubeconfig is not None:
             async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug(
@@ -766,12 +781,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 await temp_config.write(kubeconfig.encode())
                 await temp_config.flush()
                 self._is_in_cluster = False
-                await async_config.load_kube_config(
-                    config_file=temp_config.name,
-                    client_configuration=self.client_configuration,
-                    context=cluster_context,
-                )
-            return async_client.ApiClient()
+                return await api_client_from_kubeconfig_file(temp_config.name)
         self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
         await async_config.load_kube_config(
             client_configuration=self.client_configuration,

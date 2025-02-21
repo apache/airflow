@@ -59,9 +59,11 @@ class DockerSwarmOperator(DockerOperator):
         If image tag is omitted, "latest" will be used.
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
-    :param auto_remove: Auto-removal of the container on daemon side when the
-        container's process exits.
-        The default is False.
+    :param auto_remove: Enable removal of the service when the service has terminated. Possible values:
+
+        - ``never``: (default) do not remove service
+        - ``success``: remove on success
+        - ``force``: always remove service
     :param command: Command to be run in the container. (templated)
     :param args: Arguments to the command.
     :param docker_url: URL of the host running the docker daemon.
@@ -214,18 +216,16 @@ class DockerSwarmOperator(DockerOperator):
                 container_id = task["Status"]["ContainerStatus"]["ContainerID"]
                 container = self.cli.inspect_container(container_id)
                 self.containers.append(container)
-        else:
-            raise AirflowException(f"Service did not complete: {self.service!r}")
 
         if self.retrieve_output:
             return self._attempt_to_retrieve_results()
 
-        self.log.info("auto_removeauto_removeauto_removeauto_removeauto_remove : %s", str(self.auto_remove))
+        self.log.info("auto_remove: %s", str(self.auto_remove))
         if self.service and self._service_status() != "complete":
-            if self.auto_remove == "success":
+            if self.auto_remove == "force":
                 self.cli.remove_service(self.service["ID"])
             raise AirflowException(f"Service did not complete: {self.service!r}")
-        elif self.auto_remove == "success":
+        elif self.auto_remove in ["success", "force"]:
             if not self.service:
                 raise RuntimeError("The 'service' should be initialized before!")
             self.cli.remove_service(self.service["ID"])

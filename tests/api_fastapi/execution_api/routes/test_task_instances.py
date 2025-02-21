@@ -96,6 +96,7 @@ class TestTIRunState:
             "dag_run": {
                 "dag_id": "dag",
                 "run_id": "test",
+                "clear_number": 0,
                 "logical_date": instant_str,
                 "data_interval_start": instant.subtract(days=1).to_iso8601_string(),
                 "data_interval_end": instant_str,
@@ -106,6 +107,7 @@ class TestTIRunState:
                 "run_type": "manual",
                 "conf": {},
             },
+            "task_reschedule_count": 0,
             "max_tries": 0,
             "variables": [],
             "connections": [],
@@ -117,7 +119,6 @@ class TestTIRunState:
         assert ti.hostname == "random-hostname"
         assert ti.unixname == "random-unixname"
         assert ti.pid == 100
-        assert ti.start_date == instant
 
     @pytest.mark.parametrize("initial_ti_state", [s for s in TaskInstanceState if s != State.QUEUED])
     def test_ti_run_state_conflict_if_not_queued(

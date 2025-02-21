@@ -51,13 +51,13 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-==================  ==================
+==================  ===========================
 PIP package         Version required
-==================  ==================
+==================  ===========================
 ``apache-airflow``  ``>=2.9.0``
 ``dnspython``       ``>=1.13.0``
-``pymongo``         ``>=4.0.0,!=4.11``
-==================  ==================
+``pymongo``         ``>=4.0.0,!=4.11,!=4.11.1``
+==================  ===========================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-mongo/5.0.0/changelog.html>`_.

@@ -27,7 +27,13 @@ import { Tooltip } from "src/components/ui";
 
 export const AssetEvent = ({ event }: { readonly event: AssetEventResponse }) => {
   const hasDagRuns = event.created_dagruns.length > 0;
-  const source = event.extra?.from_rest_api === true ? "API" : "";
+  let source = "";
+
+  if (event.extra?.from_rest_api === true) {
+    source = "API";
+  } else if (event.extra?.from_trigger === true) {
+    source = "Trigger";
+  }
 
   return (
     <Box fontSize={13} mt={1} w="full">

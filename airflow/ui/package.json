@@ -31,6 +31,7 @@
     "axios": "^1.7.7",
     "chakra-react-select": "6.0.0-next.2",
     "chart.js": "^4.4.6",
+    "chartjs-plugin-annotation": "^3.1.0",
     "dayjs": "^1.11.13",
     "debounce-promise": "^3.1.2",
     "elkjs": "^0.9.3",

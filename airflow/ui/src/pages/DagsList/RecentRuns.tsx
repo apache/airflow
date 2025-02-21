@@ -56,8 +56,18 @@ export const RecentRuns = ({
             <Box>
               <Text>State: {run.state}</Text>
               <Text>
-                Start Date: <Time datetime={run.start_date} />
+                Run After: <Time datetime={run.run_after} />
               </Text>
+              {run.start_date === null ? undefined : (
+                <Text>
+                  Start Date: <Time datetime={run.start_date} />
+                </Text>
+              )}
+              {run.end_date === null ? undefined : (
+                <Text>
+                  End Date: <Time datetime={run.end_date} />
+                </Text>
+              )}
               <Text>Duration: {run.duration.toFixed(2)}s</Text>
             </Box>
           }

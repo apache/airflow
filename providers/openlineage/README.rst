@@ -60,6 +60,7 @@ PIP package                                 Version required
 ``attrs``                                   ``>=22.2``
 ``openlineage-integration-common``          ``>=1.24.2``
 ``openlineage-python``                      ``>=1.24.2``
+``uuid6``                                   ``>=2024.7.10``
 ==========================================  ==================
 
 Cross provider package dependencies

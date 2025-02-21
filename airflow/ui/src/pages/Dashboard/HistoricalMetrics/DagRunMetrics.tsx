@@ -18,6 +18,7 @@
  */
 import { Box, Heading, HStack } from "@chakra-ui/react";
 import type { DAGRunStates } from "openapi-gen/requests/types.gen";
+import { FiBarChart } from "react-icons/fi";
 
 import { StateBadge } from "src/components/StateBadge";
 
@@ -34,6 +35,7 @@ export const DagRunMetrics = ({ dagRunStates, total }: DagRunMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} p={2}>
     <HStack mb={4}>
       <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+        <FiBarChart />
         {total}
       </StateBadge>
       <Heading size="md">Dag Runs</Heading>

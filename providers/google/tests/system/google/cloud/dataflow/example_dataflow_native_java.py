@@ -80,8 +80,8 @@ with DAG(
     )
 
     # [START howto_operator_start_java_job_local_jar]
-    start_java_job_local = BeamRunJavaPipelineOperator(
-        task_id="start_java_job_local",
+    start_java_job_direct = BeamRunJavaPipelineOperator(
+        task_id="start_java_job_direct",
         jar=LOCAL_JAR,
         pipeline_options={
             "output": GCS_OUTPUT,
@@ -95,10 +95,25 @@ with DAG(
     )
     # [END howto_operator_start_java_job_local_jar]
 
+    start_java_job_direct_deferrable = BeamRunJavaPipelineOperator(
+        task_id="start_java_job_direct_deferrable",
+        jar=LOCAL_JAR,
+        pipeline_options={
+            "output": GCS_OUTPUT,
+        },
+        job_class="org.apache.beam.examples.WordCount",
+        dataflow_config={
+            "check_if_running": CheckJobRunning.WaitForRun,
+            "location": LOCATION,
+            "poll_sleep": 10,
+        },
+        deferrable=True,
+    )
+
     # [START howto_operator_start_java_job_jar_on_gcs]
-    start_java_job = BeamRunJavaPipelineOperator(
+    start_java_job_dataflow = BeamRunJavaPipelineOperator(
         runner=BeamRunnerType.DataflowRunner,
-        task_id="start_java_job",
+        task_id="start_java_job_dataflow",
         jar=GCS_JAR,
         pipeline_options={
             "output": GCS_OUTPUT,
@@ -115,9 +130,9 @@ with DAG(
     # [END howto_operator_start_java_job_jar_on_gcs]
 
     # [START howto_operator_start_java_job_jar_on_gcs_deferrable]
-    start_java_deferrable = BeamRunJavaPipelineOperator(
+    start_java_job_dataflow_deferrable = BeamRunJavaPipelineOperator(
         runner=BeamRunnerType.DataflowRunner,
-        task_id="start_java_job_deferrable",
+        task_id="start_java_job_dataflow_deferrable",
         jar=GCS_JAR,
         pipeline_options={
             "output": GCS_OUTPUT,
@@ -143,7 +158,12 @@ with DAG(
         create_bucket
         >> download_file
         # TEST BODY
-        >> [start_java_job_local, start_java_job, start_java_deferrable]
+        >> [
+            start_java_job_direct,
+            start_java_job_direct_deferrable,
+            start_java_job_dataflow,
+            start_java_job_dataflow_deferrable,
+        ]
         # TEST TEARDOWN
         >> delete_bucket
     )

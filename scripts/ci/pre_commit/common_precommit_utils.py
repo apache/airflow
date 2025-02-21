@@ -263,8 +263,7 @@ def get_provider_base_dir_from_path(file_path: Path) -> Path | None:
     return None
 
 
-# TODO(potiuk): rename this function when all providers are moved to new structure
-def get_all_new_provider_ids() -> list[str]:
+def get_all_provider_ids() -> list[str]:
     """
     Get all providers from the new provider structure
     """
@@ -278,8 +277,7 @@ def get_all_new_provider_ids() -> list[str]:
     return all_provider_ids
 
 
-# TODO(potiuk): rename this function when all providers are moved to new structure
-def get_all_new_provider_yaml_files() -> list[Path]:
+def get_all_provider_yaml_files() -> list[Path]:
     """
     Get all providers from the new provider structure
     """
@@ -291,13 +289,12 @@ def get_all_new_provider_yaml_files() -> list[Path]:
     return all_provider_yaml_files
 
 
-# TODO(potiuk): rename this function when all providers are moved to new structure
-def get_all_new_provider_info_dicts() -> dict[str, dict]:
+def get_all_provider_info_dicts() -> dict[str, dict]:
     """
     Get provider yaml info for all providers from the new provider structure
     """
     providers: dict[str, dict] = {}
-    for provider_file in get_all_new_provider_yaml_files():
+    for provider_file in get_all_provider_yaml_files():
         provider_id = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)).replace(os.sep, ".")
         import yaml
 

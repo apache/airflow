@@ -84,18 +84,12 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     # with "src" in the output paths of modules which we don't want
 
     package_id = PACKAGE_NAME[len("apache-airflow-providers-") :].replace("-", ".")
-    # TODO(potiuk) - remove the if when all providers are new-style
-    if CURRENT_PROVIDER["is_new_provider"]:
-        base_provider_dir = (ROOT_DIR / "providers").joinpath(*package_id.split("."))
-        PACKAGE_DIR = base_provider_dir / "src" / "airflow"
-        PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
-        SYSTEM_TESTS_DIR = base_provider_dir / "tests" / "system"
-        target_dir = ROOT_DIR / "docs" / PACKAGE_NAME
-        conf_py_path = f"/providers/{package_id.replace('.', '/')}/docs/"
-    else:
-        PACKAGE_DIR = ROOT_DIR / "providers" / "src" / "airflow"
-        PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
-        SYSTEM_TESTS_DIR = ROOT_DIR / "providers" / "tests" / "system"
+    base_provider_dir = (ROOT_DIR / "providers").joinpath(*package_id.split("."))
+    PACKAGE_DIR = base_provider_dir / "src" / "airflow"
+    PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
+    SYSTEM_TESTS_DIR = base_provider_dir / "tests" / "system"
+    target_dir = ROOT_DIR / "docs" / PACKAGE_NAME
+    conf_py_path = f"/providers/{package_id.replace('.', '/')}/docs/"
 elif PACKAGE_NAME == "apache-airflow-providers":
     from provider_yaml_utils import load_package_data
 
@@ -226,7 +220,11 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
             "sphinx_jinja",
         ]
     )
-    exclude_patterns = ["operators/_partials"]
+    empty_subpackages = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
+    exclude_patterns = [
+        "operators/_partials",
+        *[f"_api/tests/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
+    ]
 else:
     exclude_patterns = []
 
@@ -778,23 +776,6 @@ autoapi_ignore = [
     "*/tests/system/__init__.py",
     "*/tests/system/example_empty.py",
     "*/test_aws_auth_manager.py",
-    # These sub-folders aren't really providers, but we need __init__.py files else various tools (ruff, mypy)
-    # get confused by providers/tests/systems/cncf/kubernetes and think that folder is the top level
-    # kubernetes module!
-    # TODO (potiuk): remove these once we move all providers to the new structure
-    "*/providers/src/airflow/providers/__init__.py",
-    "*/providers/tests/__init__.py",
-    "*/providers/tests/cncf/__init__.py",
-    "*/providers/tests/common/__init__.py",
-    "*/providers/tests/apache/__init__.py",
-    "*/providers/tests/dbt/__init__.py",
-    "*/providers/tests/microsoft/__init__.py",
-    "*/providers/tests/system/__init__.py",
-    "*/providers/tests/system/apache/__init__.py",
-    "*/providers/tests/system/cncf/__init__.py",
-    "*/providers/tests/system/common/__init__.py",
-    "*/providers/tests/system/dbt/__init__.py",
-    "*/providers/tests/system/microsoft/__init__.py",
 ]
 
 ignore_re = re.compile(r"\[AutoAPI\] .* Ignoring \s (?P<path>/[\w/.]*)", re.VERBOSE)
@@ -823,8 +804,6 @@ if PACKAGE_NAME.startswith("apache-airflow-providers-"):
             "*/airflow/__init__.py",
             "*/airflow/providers/__init__.py",
             "*/example_dags/*",
-            "*/airflow/providers/cncf/kubernetes/backcompat/*",
-            "*/providers/src/apache/airflow/providers/cncf/kubernetes/backcompat/*",
             "*/providers/__init__.py",
         )
     )

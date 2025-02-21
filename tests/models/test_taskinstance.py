@@ -1921,8 +1921,8 @@ class TestTaskInstance:
             "/dags/my_dag/grid"
             "?dag_run_id=test"
             "&task_id=op"
-            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
             "&tab=logs"
+            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
         )
         assert ti.log_url == expected_url
 
@@ -3611,7 +3611,12 @@ class TestTaskInstance:
         assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_echo_env_variables"
         assert os.environ["AIRFLOW_CTX_TASK_ID"] == "hive_in_python_op"
         assert DEFAULT_DATE.isoformat() == os.environ["AIRFLOW_CTX_LOGICAL_DATE"]
-        assert DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE) == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
+        assert (
+            DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
+            )
+            == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
+        )
 
     def test_echo_env_variables(self, dag_maker):
         with dag_maker(
@@ -3820,7 +3825,7 @@ class TestTaskInstance:
 
     def test_refresh_from_db(self, create_task_instance):
         run_date = timezone.utcnow()
-        hybrid_props = ["task_display_name"]
+        hybrid_props = ["rendered_map_index", "task_display_name"]
         expected_values = {
             "task_id": "test_refresh_from_db_task",
             "dag_id": "test_refresh_from_db_dag",
@@ -3856,7 +3861,7 @@ class TestTaskInstance:
             "next_method": None,
             "updated_at": None,
             "task_display_name": "Test Refresh from DB Task",
-            "dag_version_id": None,
+            "dag_version_id": mock.ANY,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}

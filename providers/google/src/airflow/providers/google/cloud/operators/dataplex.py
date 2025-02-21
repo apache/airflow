@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
+from collections.abc import MutableSequence, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -43,6 +43,7 @@ from airflow.providers.google.cloud.links.dataplex import (
     DataplexCatalogAspectTypesLink,
     DataplexCatalogEntryGroupLink,
     DataplexCatalogEntryGroupsLink,
+    DataplexCatalogEntryLink,
     DataplexCatalogEntryTypeLink,
     DataplexCatalogEntryTypesLink,
     DataplexLakeLink,
@@ -58,12 +59,16 @@ from google.cloud.dataplex_v1.types import (
     Asset,
     DataScan,
     DataScanJob,
+    Entry,
     EntryGroup,
     EntryType,
+    EntryView,
     Lake,
     ListAspectTypesResponse,
+    ListEntriesResponse,
     ListEntryGroupsResponse,
     ListEntryTypesResponse,
+    SearchEntriesResponse,
     Task,
     Zone,
 )
@@ -3413,3 +3418,717 @@ class DataplexCatalogDeleteAspectTypeOperator(DataplexCatalogBaseOperator):
         except Exception as ex:
             raise AirflowException(ex)
         return None
+
+
+class DataplexCatalogCreateEntryOperator(DataplexCatalogBaseOperator):
+    """
+    Create an Entry resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogCreateEntryOperator`
+
+    :param entry_id: Required. Entry identifier. It has to be unique within an Entry Group.
+        Entries corresponding to Google Cloud resources use an Entry ID format based on `full resource
+        names <https://cloud.google.com/apis/design/resource_names#full_resource_name>`__.
+        The format is a full resource name of the resource without the prefix double slashes in the API
+        service name part of the full resource name. This allows retrieval of entries using their associated
+        resource name.
+        For example, if the full resource name of a resource is
+        ``//library.googleapis.com/shelves/shelf1/books/book2``, then the suggested entry_id is
+        ``library.googleapis.com/shelves/shelf1/books/book2``.
+        It is also suggested to follow the same convention for entries corresponding to resources from
+        providers or systems other than Google Cloud.
+        The maximum size of the field is 4000 characters.
+    :param entry_group_id: Required. EntryGroup resource name to which created Entry will belong to.
+    :param entry_configuration: Required. Entry configuration.
+        For more details please see API documentation:
+        https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.entryGroups.entries#Entry
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"entry_id", "entry_group_id", "entry_configuration"}
+        | set(DataplexCatalogBaseOperator.template_fields)
+    )
+    operator_extra_links = (DataplexCatalogEntryLink(),)
+
+    def __init__(
+        self,
+        entry_id: str,
+        entry_group_id: str,
+        entry_configuration: Entry | dict,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.entry_id = entry_id
+        self.entry_group_id = entry_group_id
+        self.entry_configuration = entry_configuration
+
+    def _validate_fields(self, entry_configuration):
+        required_fields = ["name", "entry_type"]
+
+        missing_fields = [field for field in required_fields if not entry_configuration.get(field)]
+
+        if missing_fields:
+            raise AirflowException(
+                f"Missing required fields in Entry configuration: {', '.join(missing_fields)}. "
+            )
+
+    def execute(self, context: Context):
+        DataplexCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+        )
+
+        self._validate_fields(self.entry_configuration)
+        try:
+            entry = self.hook.create_entry(
+                entry_id=self.entry_id,
+                entry_group_id=self.entry_group_id,
+                entry_configuration=self.entry_configuration,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except AlreadyExists:
+            entry = self.hook.get_entry(
+                entry_id=self.entry_id,
+                entry_group_id=self.entry_group_id,
+                location=self.location,
+                project_id=self.project_id,
+            )
+            self.log.info(
+                "Dataplex Catalog Entry %s already exists.",
+                self.entry_id,
+            )
+            result = Entry.to_dict(entry)
+            return result
+        except Exception as ex:
+            raise AirflowException(ex)
+        else:
+            result = Entry.to_dict(entry)
+
+        self.log.info("Dataplex Catalog Entry %s was successfully created.", self.entry_id)
+        return result
+
+
+class DataplexCatalogGetEntryOperator(DataplexCatalogBaseOperator):
+    """
+    Get an Entry resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogGetEntryOperator`
+
+    :param entry_id: Required. Entry identifier. It has to be unique within an Entry Group.
+        Entries corresponding to Google Cloud resources use an Entry ID format based on `full resource
+        names <https://cloud.google.com/apis/design/resource_names#full_resource_name>`__.
+        The format is a full resource name of the resource without the prefix double slashes in the API
+        service name part of the full resource name. This allows retrieval of entries using their associated
+        resource name.
+        For example, if the full resource name of a resource is
+        ``//library.googleapis.com/shelves/shelf1/books/book2``, then the suggested entry_id is
+        ``library.googleapis.com/shelves/shelf1/books/book2``.
+        It is also suggested to follow the same convention for entries corresponding to resources from
+        providers or systems other than Google Cloud.
+        The maximum size of the field is 4000 characters.
+    :param entry_group_id: Required. EntryGroup resource name to which created Entry will belong to.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param view: Optional. View to control which parts of an Entry the service should return.
+    :param aspect_types: Optional. Limits the aspects returned to the provided aspect types. It only works
+        for CUSTOM view.
+    :param paths: Optional. Limits the aspects returned to those associated with the provided paths within
+        the Entry. It only works for CUSTOM view.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"entry_id", "entry_group_id"} | set(DataplexCatalogBaseOperator.template_fields)
+    )
+    operator_extra_links = (DataplexCatalogEntryLink(),)
+
+    def __init__(
+        self,
+        entry_id: str,
+        entry_group_id: str,
+        view: EntryView | str | None = None,
+        aspect_types: MutableSequence[str] | None = None,
+        paths: MutableSequence[str] | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.entry_id = entry_id
+        self.entry_group_id = entry_group_id
+        self.view = view
+        self.aspect_types = aspect_types
+        self.paths = paths
+
+    def execute(self, context: Context):
+        DataplexCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+        )
+        self.log.info(
+            "Retrieving Dataplex Catalog Entry %s.",
+            self.entry_id,
+        )
+        try:
+            entry = self.hook.get_entry(
+                entry_id=self.entry_id,
+                entry_group_id=self.entry_group_id,
+                view=self.view,
+                aspect_types=self.aspect_types,
+                paths=self.paths,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except NotFound:
+            self.log.info(
+                "Dataplex Catalog Entry %s not found.",
+                self.entry_id,
+            )
+            raise AirflowException(NotFound)
+        except Exception as ex:
+            raise AirflowException(ex)
+
+        return Entry.to_dict(entry)
+
+
+class DataplexCatalogListEntriesOperator(DataplexCatalogBaseOperator):
+    r"""
+    List Entry resources.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogListEntriesOperator`
+
+    :param entry_group_id: Required. EntryGroup resource name to which created Entry belongs to.
+    :param filter_by: Optional. A filter on the entries to return. Filters are case-sensitive.
+        You can filter the request by the following fields:
+
+        -  entry_type
+        -  entry_source.display_name
+
+        The comparison operators are =, !=, <, >, <=, >=. The service compares strings according to
+        lexical order.
+        You can use the logical operators AND, OR, NOT in the filter. You can use Wildcard "*", but for
+        entry_type you need to provide the full project id or number.
+        Example filter expressions:
+
+        - "entry_source.display_name=AnExampleDisplayName"
+        - "entry_type=projects/example-project/locations/global/entryTypes/example-entry_type"
+        - "entry_type=projects/example-project/locations/us/entryTypes/a\*
+           OR entry_type=projects/another-project/locations/\*"
+        - "NOT entry_source.display_name=AnotherExampleDisplayName".
+
+    :param page_size: Optional. Number of items to return per page. If there are remaining results,
+        the service returns a next_page_token. If unspecified, the service returns at most 10 Entries.
+        The maximum value is 100; values above 100 will be coerced to 100.
+    :param page_token: Optional. Page token received from a previous ``ListEntries`` call. Provide
+        this to retrieve the subsequent page.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(DataplexCatalogBaseOperator.template_fields)
+    operator_extra_links = (DataplexCatalogEntryGroupLink(),)
+
+    def __init__(
+        self,
+        entry_group_id: str,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        filter_by: str | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.entry_group_id = entry_group_id
+        self.page_size = page_size
+        self.page_token = page_token
+        self.filter_by = filter_by
+
+    def execute(self, context: Context):
+        DataplexCatalogEntryGroupLink.persist(
+            context=context,
+            task_instance=self,
+        )
+        self.log.info(
+            "Listing Dataplex Catalog Entry from location %s.",
+            self.location,
+        )
+        try:
+            entries_on_page = self.hook.list_entries(
+                entry_group_id=self.entry_group_id,
+                location=self.location,
+                project_id=self.project_id,
+                page_size=self.page_size,
+                page_token=self.page_token,
+                filter_by=self.filter_by,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("Entries on page: %s", entries_on_page)
+            self.xcom_push(
+                context=context,
+                key="entry_page",
+                value=ListEntriesResponse.to_dict(entries_on_page._response),
+            )
+        except Exception as ex:
+            raise AirflowException(ex)
+
+        # Constructing list to return Entries in readable format
+        entries_list = [
+            MessageToDict(entry._pb, preserving_proto_field_name=True)
+            for entry in next(iter(entries_on_page.pages)).entries
+        ]
+        return entries_list
+
+
+class DataplexCatalogSearchEntriesOperator(DataplexCatalogBaseOperator):
+    """
+    Search for Entries matching the given query and scope.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogSearchEntriesOperator`
+
+    :param query: Required. The query against which entries in scope should be matched. The query
+        syntax is defined in `Search syntax for Dataplex Catalog
+        <https://cloud.google.com/dataplex/docs/search-syntax>`__.
+    :param order_by: Optional. Specifies the ordering of results. Supported values are:
+
+        - ``relevance`` (default)
+        - ``last_modified_timestamp``
+        - ``last_modified_timestamp asc``
+
+    :param scope: Optional. The scope under which the search should be operating. It must either be
+        ``organizations/<org_id>`` or ``projects/<project_ref>``. If it is unspecified, it
+        defaults to the organization where the project provided in ``name`` is located.
+    :param page_size: Optional. Number of items to return per page. If there are remaining results,
+        the service returns a next_page_token. If unspecified, the service returns at most 10 Entries.
+        The maximum value is 100; values above 100 will be coerced to 100.
+    :param page_token: Optional. Page token received from a previous ``ListEntries`` call. Provide
+        this to retrieve the subsequent page.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple({"query"} | set(DataplexCatalogBaseOperator.template_fields))
+
+    def __init__(
+        self,
+        query: str,
+        order_by: str | None = None,
+        scope: str | None = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.query = query
+        self.page_size = page_size
+        self.page_token = page_token
+        self.order_by = order_by
+        self.scope = scope
+
+    def execute(self, context: Context):
+        self.log.info(
+            "Listing Entries from location %s matching the given query %s and scope %s.",
+            self.location,
+            self.query,
+            self.scope,
+        )
+        try:
+            entries_on_page = self.hook.search_entries(
+                query=self.query,
+                location=self.location,
+                project_id=self.project_id,
+                page_size=self.page_size,
+                page_token=self.page_token,
+                order_by=self.order_by,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("Entries on page: %s", entries_on_page)
+            self.xcom_push(
+                context=context,
+                key="entry_page",
+                value=SearchEntriesResponse.to_dict(entries_on_page._response),
+            )
+        except Exception as ex:
+            raise AirflowException(ex)
+
+        # Constructing list to return Entries in readable format
+        entries_list = [
+            MessageToDict(entry._pb, preserving_proto_field_name=True)
+            for entry in next(iter(entries_on_page.pages)).results
+        ]
+        return entries_list
+
+
+class DataplexCatalogLookupEntryOperator(DataplexCatalogBaseOperator):
+    """
+    Look up a single Entry by name using the permission on the source system.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogLookupEntryOperator`
+
+    :param entry_id: Required. Entry identifier. It has to be unique within an Entry Group.
+        Entries corresponding to Google Cloud resources use an Entry ID format based on `full resource
+        names <https://cloud.google.com/apis/design/resource_names#full_resource_name>`__.
+        The format is a full resource name of the resource without the prefix double slashes in the API
+        service name part of the full resource name. This allows retrieval of entries using their associated
+        resource name.
+        For example, if the full resource name of a resource is
+        ``//library.googleapis.com/shelves/shelf1/books/book2``, then the suggested entry_id is
+        ``library.googleapis.com/shelves/shelf1/books/book2``.
+        It is also suggested to follow the same convention for entries corresponding to resources from
+        providers or systems other than Google Cloud.
+        The maximum size of the field is 4000 characters.
+    :param entry_group_id: Required. EntryGroup resource name to which created Entry will belong to.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param view: Optional. View to control which parts of an Entry the service should return.
+    :param aspect_types: Optional. Limits the aspects returned to the provided aspect types. It only works
+        for CUSTOM view.
+    :param paths: Optional. Limits the aspects returned to those associated with the provided paths within
+        the Entry. It only works for CUSTOM view.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"entry_id", "entry_group_id"} | set(DataplexCatalogBaseOperator.template_fields)
+    )
+    operator_extra_links = (DataplexCatalogEntryLink(),)
+
+    def __init__(
+        self,
+        entry_id: str,
+        entry_group_id: str,
+        view: EntryView | str | None = None,
+        aspect_types: MutableSequence[str] | None = None,
+        paths: MutableSequence[str] | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.entry_id = entry_id
+        self.entry_group_id = entry_group_id
+        self.view = view
+        self.aspect_types = aspect_types
+        self.paths = paths
+
+    def execute(self, context: Context):
+        DataplexCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+        )
+        self.log.info(
+            "Looking for Dataplex Catalog Entry %s.",
+            self.entry_id,
+        )
+        try:
+            entry = self.hook.lookup_entry(
+                entry_id=self.entry_id,
+                entry_group_id=self.entry_group_id,
+                view=self.view,
+                aspect_types=self.aspect_types,
+                paths=self.paths,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except NotFound:
+            self.log.info(
+                "Dataplex Catalog Entry %s not found.",
+                self.entry_id,
+            )
+            raise AirflowException(NotFound)
+        except Exception as ex:
+            raise AirflowException(ex)
+
+        return Entry.to_dict(entry)
+
+
+class DataplexCatalogUpdateEntryOperator(DataplexCatalogBaseOperator):
+    """
+    Update an Entry resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogUpdateEntryOperator`
+
+    :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
+    :param location: Required. The ID of the Google Cloud region that the task belongs to.
+    :param entry_id: Required. Entry identifier. It has to be unique within an Entry Group.
+        Entries corresponding to Google Cloud resources use an Entry ID format based on `full resource
+        names <https://cloud.google.com/apis/design/resource_names#full_resource_name>`__.
+        The format is a full resource name of the resource without the prefix double slashes in the API
+        service name part of the full resource name. This allows retrieval of entries using their
+        associated resource name.
+        For example, if the full resource name of a resource is
+        ``//library.googleapis.com/shelves/shelf1/books/book2``, then the suggested entry_id is
+        ``library.googleapis.com/shelves/shelf1/books/book2``.
+        It is also suggested to follow the same convention for entries corresponding to resources from
+        providers or systems other than Google Cloud.
+        The maximum size of the field is 4000 characters.
+    :param entry_group_id: Required. EntryGroup resource name to which created Entry belongs to.
+    :param entry_configuration: Required. The updated configuration body of the Entry.
+    :param allow_missing: Optional. If set to true and entry doesn't exist, the service will create it.
+    :param delete_missing_aspects: Optional. If set to true and the aspect_keys specify aspect
+        ranges, the service deletes any existing aspects from that range that weren't provided
+        in the request.
+    :param aspect_keys: Optional. The map keys of the Aspects which the service should modify.
+        It supports the following syntax:
+
+        - ``<aspect_type_reference>`` - matches an aspect of the given type and empty path.
+        - ``<aspect_type_reference>@path`` - matches an aspect of the given type and specified path.
+            For example, to attach an aspect to a field that is specified by the ``schema``
+            aspect, the path should have the format ``Schema.<field_name>``.
+        - ``<aspect_type_reference>@*`` - matches aspects of the given type for all paths.
+        - ``*@path`` - matches aspects of all types on the given path.
+
+        The service will not remove existing aspects matching the syntax unless ``delete_missing_aspects``
+        is set to true.
+        If this field is left empty, the service treats it as specifying exactly those Aspects present
+        in the request.
+    :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param gcp_conn_id: Optional. The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"entry_id", "entry_group_id", "entry_configuration"}
+        | set(DataplexCatalogBaseOperator.template_fields)
+    )
+    operator_extra_links = (DataplexCatalogEntryLink(),)
+
+    def __init__(
+        self,
+        entry_id: str,
+        entry_group_id: str,
+        entry_configuration: dict | Entry,
+        allow_missing: bool | None = False,
+        delete_missing_aspects: bool | None = False,
+        aspect_keys: MutableSequence[str] | None = None,
+        update_mask: list[str] | FieldMask | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.entry_id = entry_id
+        self.entry_group_id = entry_group_id
+        self.entry_configuration = entry_configuration
+        self.update_mask = update_mask
+        self.allow_missing = allow_missing
+        self.delete_missing_aspects = delete_missing_aspects
+        self.aspect_keys = aspect_keys
+
+    def execute(self, context: Context):
+        DataplexCatalogEntryLink.persist(
+            context=context,
+            task_instance=self,
+        )
+
+        try:
+            entry = self.hook.update_entry(
+                location=self.location,
+                project_id=self.project_id,
+                entry_id=self.entry_id,
+                entry_group_id=self.entry_group_id,
+                entry_configuration=self.entry_configuration,
+                update_mask=self.update_mask,
+                allow_missing=self.allow_missing,
+                delete_missing_aspects=self.delete_missing_aspects,
+                aspect_keys=self.aspect_keys,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+
+        except NotFound as ex:
+            self.log.info("Specified Entry was not found.")
+            raise AirflowException(ex)
+        except Exception as exc:
+            raise AirflowException(exc)
+        else:
+            result = Entry.to_dict(entry)
+        self.log.info("Entry %s was successfully updated.", self.entry_id)
+        return result
+
+
+class DataplexCatalogDeleteEntryOperator(DataplexCatalogBaseOperator):
+    """
+    Delete an Entry resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataplexCatalogDeleteEntryOperator`
+
+    :param entry_id: Required. Entry identifier. It has to be unique within an Entry Group.
+        Entries corresponding to Google Cloud resources use an Entry ID format based on `full resource
+        names <https://cloud.google.com/apis/design/resource_names#full_resource_name>`__.
+        The format is a full resource name of the resource without the prefix double slashes in the API
+        service name part of the full resource name. This allows retrieval of entries using their
+        associated resource name.
+        For example, if the full resource name of a resource is
+        ``//library.googleapis.com/shelves/shelf1/books/book2``, then the suggested entry_id is
+        ``library.googleapis.com/shelves/shelf1/books/book2``.
+        It is also suggested to follow the same convention for entries corresponding to resources from
+        providers or systems other than Google Cloud.
+        The maximum size of the field is 4000 characters.
+    :param entry_group_id: Required. EntryGroup resource name to which created Entry will belong to.
+    :param project_id: Required. The ID of the Google Cloud project where the service is used.
+    :param location: Required. The ID of the Google Cloud region where the service is used.
+    :param gcp_conn_id: Optional. The connection ID to use to connect to Google Cloud.
+    :param retry: Optional. A retry object used to retry requests. If `None` is specified, requests will not
+        be retried.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :param metadata: Optional. Additional metadata that is provided to the method.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"entry_id", "entry_group_id"} | set(DataplexCatalogBaseOperator.template_fields)
+    )
+
+    def __init__(
+        self,
+        entry_id: str,
+        entry_group_id: str,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.entry_id = entry_id
+        self.entry_group_id = entry_group_id
+
+    def execute(self, context: Context):
+        self.log.info(
+            "Deleting Dataplex Catalog Entry %s.",
+            self.entry_id,
+        )
+        try:
+            entry = self.hook.delete_entry(
+                entry_id=self.entry_id,
+                entry_group_id=self.entry_group_id,
+                location=self.location,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+
+        except NotFound:
+            self.log.info(
+                "Dataplex Catalog Entry %s not found.",
+                self.entry_id,
+            )
+            raise AirflowException(NotFound)
+        except Exception as ex:
+            raise AirflowException(ex)
+        return Entry.to_dict(entry)

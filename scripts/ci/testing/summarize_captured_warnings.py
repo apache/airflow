@@ -50,7 +50,6 @@ IMPORTANT_WARNING_SIGN = {
     "pytest.PytestWarning": "!!",
     "airflow.exceptions.RemovedInAirflow3Warning": "!",
     "airflow.exceptions.AirflowProviderDeprecationWarning": "!",
-    "airflow.utils.context.AirflowContextDeprecationWarning": "!",
 }
 # Always print messages for these warning categories
 ALWAYS_SHOW_WARNINGS = {

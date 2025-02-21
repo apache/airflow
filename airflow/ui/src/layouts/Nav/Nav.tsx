@@ -43,7 +43,7 @@ export const Nav = () => {
       py={3}
       top={0}
       width={20}
-      zIndex={1}
+      zIndex={2}
     >
       <Flex alignItems="center" flexDir="column" width="100%">
         <Box mb={3}>
@@ -51,7 +51,7 @@ export const Nav = () => {
         </Box>
         <NavButton icon={<FiHome size="1.75rem" />} title="Home" to="/" />
         <NavButton icon={<DagIcon height="1.75rem" width="1.75rem" />} title="Dags" to="dags" />
-        <NavButton disabled icon={<FiDatabase size="1.75rem" />} title="Assets" to="assets" />
+        <NavButton icon={<FiDatabase size="1.75rem" />} title="Assets" to="assets" />
         <BrowseButton />
         <AdminButton />
       </Flex>
@@ -59,7 +59,7 @@ export const Nav = () => {
         <NavButton
           icon={<FiCornerUpLeft size="1.75rem" />}
           title="Legacy UI"
-          to={import.meta.env.VITE_LEGACY_API_URL}
+          to={import.meta.env.VITE_LEGACY_API_URL || "http://localhost:28080/home"}
         />
         <DocsButton />
         <UserSettingsButton />

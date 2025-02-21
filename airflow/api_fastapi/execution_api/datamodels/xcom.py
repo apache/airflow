@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from pydantic import JsonValue
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
@@ -26,5 +26,5 @@ class XComResponse(BaseModel):
     """XCom schema for responses with fields that are needed for Runtime."""
 
     key: str
-    value: Any
+    value: JsonValue
     """The returned XCom value in a JSON-compatible format."""

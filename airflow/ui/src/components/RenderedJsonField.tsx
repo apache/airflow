@@ -28,7 +28,7 @@ type Props = {
 } & FlexProps;
 
 const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
-  const contentFormatted = JSON.stringify(content, null, 4);
+  const contentFormatted = JSON.stringify(content, undefined, 4);
   const { theme } = useTheme();
 
   return (

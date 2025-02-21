@@ -97,5 +97,5 @@ def get_provider_info():
             "apache-airflow-providers-common-sql>=1.20.0",
             "oracledb>=2.0.0",
         ],
-        "optional-dependencies": {"numpy": ["numpy"]},
+        "optional-dependencies": {"numpy": ["numpy>=1.26.0"]},
     }

@@ -65,7 +65,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     executor = auto_field()
     executor_config = auto_field()
     note = auto_field()
-    rendered_map_index = auto_field()
+    rendered_map_index = fields.String(attribute="rendered_map_index", dump_only=True)
     rendered_fields = JsonObjectField(dump_default={})
     trigger = fields.Nested(TriggerSchema)
     triggerer_job = fields.Nested(JobSchema)

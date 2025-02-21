@@ -82,7 +82,7 @@ PIP package                                 Version required
 ``google-cloud-bigquery``                   ``!=3.21.*,!=3.22.0,!=3.23.*,>=3.4.0``
 ``google-cloud-bigquery-datatransfer``      ``>=3.13.0``
 ``google-cloud-bigtable``                   ``>=2.17.0``
-``google-cloud-build``                      ``>=3.22.0``
+``google-cloud-build``                      ``>=3.31.0``
 ``google-cloud-compute``                    ``>=1.10.0``
 ``google-cloud-container``                  ``>=2.17.4``
 ``google-cloud-datacatalog``                ``>=3.23.0``
@@ -95,6 +95,7 @@ PIP package                                 Version required
 ``google-cloud-kms``                        ``>=2.15.0``
 ``google-cloud-language``                   ``>=2.9.0``
 ``google-cloud-logging``                    ``>=3.5.0``
+``google-cloud-managedkafka``               ``>=0.1.6``
 ``google-cloud-memcache``                   ``>=1.7.0``
 ``google-cloud-monitoring``                 ``>=2.18.0``
 ``google-cloud-orchestration-airflow``      ``>=1.10.0``

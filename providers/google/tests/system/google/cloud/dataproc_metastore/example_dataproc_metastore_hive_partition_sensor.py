@@ -26,8 +26,6 @@ from __future__ import annotations
 import datetime
 import os
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
@@ -44,6 +42,7 @@ from airflow.providers.google.cloud.operators.gcs import GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.dataproc_metastore import MetastoreHivePartitionSensor
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "hive_partition_sensor"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

@@ -26,7 +26,8 @@ import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { Header } from "./Header";
 
 const tabs = [
-  { label: "Task Instances", value: "" },
+  { label: "Overview", value: "" },
+  { label: "Task Instances", value: "task_instances" },
   { label: "Events", value: "events" },
 ];
 

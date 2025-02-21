@@ -48,6 +48,18 @@ export const Login = () => {
     }
 
     return (
+      <>
+        <Alert.Root status="warning">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Development-only auth manager configured</Alert.Title>
+            <Alert.Description>
+              The auth manager configured in your environment is the <strong>Simple Auth Manager</strong>, which is
+              intended for development use only. It is not suitable for production and <strong>should not be used in
+              a production environment</strong>.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert.Root>
         <Container mt={2} maxW="2xl" p="4" border="1px" borderColor="gray.500" borderWidth="1px" borderStyle="solid">
             <Heading mb={6} fontWeight="normal" size="lg" colorPalette="blue">
                 Sign in
@@ -59,5 +71,6 @@ export const Login = () => {
 
             <Text mb={4}>Enter your login and password below:</Text>
             <LoginForm onLogin={onLogin} isPending={isPending} />
-        </Container>);
+        </Container>
+      </>);
 };

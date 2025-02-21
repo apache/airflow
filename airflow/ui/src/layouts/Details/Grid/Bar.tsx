@@ -63,17 +63,19 @@ export const Bar = ({ index, limit, max, nodes, run }: Props) => {
         zIndex={1}
       >
         <GridButton
+          alignItems="center"
           dagId={dagId}
+          flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"
-          label={run.dag_run_id}
+          label={run.run_after}
           minHeight="14px"
           runId={run.dag_run_id}
           searchParams={search}
           state={run.state}
           zIndex={1}
         >
-          {run.run_type !== "scheduled" && <RunTypeIcon runType={run.run_type} size="8px" />}
+          {run.run_type !== "scheduled" && <RunTypeIcon runType={run.run_type} size="10px" />}
         </GridButton>
         {shouldShowTick ? (
           <VStack gap={0} left="8px" position="absolute" top={0} width={0} zIndex={-1}>
@@ -84,7 +86,7 @@ export const Bar = ({ index, limit, max, nodes, run }: Props) => {
               transform="rotate(-40deg) translateX(28px)"
               whiteSpace="nowrap"
             >
-              <Time datetime={run.data_interval_start} format="MMM DD, HH:mm" />
+              <Time datetime={run.run_after} format="MMM DD, HH:mm" />
             </Text>
             <Box borderLeftWidth={1} height="100px" opacity={0.7} zIndex={0} />
           </VStack>

@@ -29,7 +29,7 @@ export const Stats = () => (
     <Flex color="fg.muted" my={2}>
       <FiClipboard />
       <Heading ml={1} size="xs">
-        Stats
+        Links
       </Heading>
     </Flex>
     <HStack>

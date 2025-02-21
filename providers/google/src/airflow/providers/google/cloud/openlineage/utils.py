@@ -26,8 +26,6 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
-from attr import define, field
-
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
     DatasetFacet,
@@ -35,7 +33,6 @@ from airflow.providers.common.compat.openlineage.facet import (
     Fields,
     Identifier,
     InputField,
-    RunFacet,
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
     SymlinksDatasetFacet,
@@ -44,7 +41,6 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
     inject_transport_information_into_spark_properties,
 )
-from airflow.providers.google import __version__ as provider_version
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 from google.cloud.dataproc_v1 import Batch, RuntimeConfig
 
@@ -315,31 +311,6 @@ def get_identity_column_lineage_facet(
         }
     )
     return {"columnLineage": column_lineage_facet}
-
-
-@define
-class BigQueryJobRunFacet(RunFacet):
-    """
-    Facet that represents relevant statistics of bigquery run.
-
-    This facet is used to provide statistics about bigquery run.
-
-    :param cached: BigQuery caches query results. Rest of the statistics will not be provided for cached queries.
-    :param billedBytes: How many bytes BigQuery bills for.
-    :param properties: Full property tree of BigQUery run.
-    """
-
-    cached: bool
-    billedBytes: int | None = field(default=None)
-    properties: str | None = field(default=None)
-
-    @staticmethod
-    def _get_schema() -> str:
-        return (
-            "https://raw.githubusercontent.com/apache/airflow/"
-            f"providers-google/{provider_version}/airflow/providers/google/"
-            "openlineage/BigQueryJobRunFacet.json"
-        )
 
 
 def get_from_nullable_chain(source: Any, chain: list[str]) -> Any | None:

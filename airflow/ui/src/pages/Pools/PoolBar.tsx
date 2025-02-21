@@ -44,7 +44,7 @@ const PoolBar = ({ pool }: PoolBarProps) => (
     <Flex alignItems="center" bg="bg.muted" justifyContent="space-between" p={4}>
       <VStack align="start">
         <HStack>
-          <Text fontSize="lg" fontWeight="bold">
+          <Text fontSize="lg" fontWeight="bold" whiteSpace="normal" wordBreak="break-word">
             {pool.name} ({pool.slots} slots)
           </Text>
           {pool.include_deferred ? (

@@ -41,7 +41,7 @@ def test_dagrun_state_enum_escape():
         dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=DagRunType.SCHEDULED,
-                logical_date=DEFAULT_DATE,
+                run_after=DEFAULT_DATE,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             ),
             run_type=DagRunType.SCHEDULED,

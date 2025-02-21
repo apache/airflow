@@ -42,7 +42,7 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
       dagId,
       limit: 25,
       offset,
-      orderBy: "-start_date",
+      orderBy: "-run_after",
     },
     undefined,
   );

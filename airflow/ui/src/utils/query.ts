@@ -42,7 +42,7 @@ export const useAutoRefresh = ({ dagId, isPaused }: { dagId?: string; isPaused?:
 
   const paused = isPaused ?? dag?.is_paused;
 
-  const canRefresh = autoRefreshInterval !== undefined && (dagId === undefined ? true : !paused);
+  const canRefresh = autoRefreshInterval !== undefined && !paused;
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   return (canRefresh ? autoRefreshInterval * 1000 : false) as number | false;
