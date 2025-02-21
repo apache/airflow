@@ -1073,7 +1073,7 @@
   "pinecone": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "pinecone-client>=3.1.0"
+      "pinecone>=3.1.0"
     ],
     "devel-deps": [],
     "plugins": [],
