@@ -335,8 +335,8 @@ def _create_backfill_dag_run(
         except IntegrityError:
             log.info(
                 "Skipped creating backfill dag run for dag_id=%s backfill_id=%s, logical_date=%s (already exists)",
-                dr.dag_id,
-                dr.id,
+                dag.dag_id,
+                backfill_id,
                 info.logical_date,
             )
             log.info("Doing session rollback.")

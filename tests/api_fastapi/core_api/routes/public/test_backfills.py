@@ -377,6 +377,96 @@ class TestCreateBackfill(TestBackfillEndpoint):
         count = session.execute(backfill_dag_run_count).scalar()
         assert count == 0
 
+    # todo: AIP-83 amendment must fix
+    @pytest.mark.parametrize(
+        "reprocess_behavior, expected_dates",
+        [
+            ("none", []),
+            pytest.param("failed", ["2024-01-03T00:00:00Z"], marks=pytest.mark.xfail(reason="bug")),
+            pytest.param(
+                "completed",
+                ["2024-01-02T00:00:00Z", "2024-01-03T00:00:00Z"],
+                marks=pytest.mark.xfail(reason="bug"),
+            ),
+        ],
+    )
+    def test_create_backfill_with_existing_runs(
+        self,
+        session,
+        dag_maker,
+        test_client,
+        reprocess_behavior,
+        expected_dates,
+    ):
+        with dag_maker(
+            session=session,
+            dag_id="TEST_DAG_2",
+            schedule="0 0 * * *",
+            start_date=pendulum.parse("2024-01-01"),
+        ) as dag:
+            EmptyOperator(task_id="mytask")
+
+        session.commit()
+
+        existing_dagruns = [
+            {"logical_date": pendulum.parse("2024-01-02"), "state": DagRunState.SUCCESS},  # Completed dag run
+            {"logical_date": pendulum.parse("2024-01-03"), "state": DagRunState.FAILED},  # Failed dag run
+        ]
+        for dagrun in existing_dagruns:
+            session.add(
+                DagRun(
+                    dag_id=dag.dag_id,
+                    run_id=f"manual__{dagrun['logical_date'].isoformat()}",
+                    logical_date=dagrun["logical_date"],
+                    state=dagrun["state"],
+                    run_type="scheduled",
+                )
+            )
+        session.commit()
+
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-01-05")
+        to_date_iso = to_iso(to_date)
+
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": from_date_iso,
+            "to_date": to_date_iso,
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+            "reprocess_behavior": reprocess_behavior,
+        }
+
+        response = test_client.post(
+            url="/public/backfills",
+            json=data,
+        )
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["from_date"] == "2024-01-01T00:00:00Z"
+        assert response_json["to_date"] == "2024-01-05T00:00:00Z"
+        backfill_id = response_json["id"]
+
+        dag_runs = list(session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id)))
+        dag_runs = sorted((x.logical_date.isoformat(), x.backfill_id or -1) for x in dag_runs)
+
+        def expected_id(date):
+            if date in expected_dates:
+                return backfill_id
+            else:
+                return -1
+
+        assert dag_runs == [
+            ("2024-01-01T00:00:00+00:00", backfill_id),
+            ("2024-01-02T00:00:00+00:00", expected_id("2024-01-02T00:00:00+00:00")),
+            ("2024-01-03T00:00:00+00:00", expected_id("2024-01-03T00:00:00+00:00")),
+            ("2024-01-04T00:00:00+00:00", backfill_id),
+            ("2024-01-05T00:00:00+00:00", backfill_id),
+        ]
+
 
 class TestCreateBackfillDryRun(TestBackfillEndpoint):
     @pytest.mark.parametrize(
