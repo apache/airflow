@@ -16,23 +16,22 @@
 # under the License.
 
 #
-# Centralized handling of the connection mechanism for all Message Queues 
-# 
+# Centralized handling of the connection mechanism for all Message Queues
+#
+from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, NoReturn
+from typing import Any
 
-from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
-    AirflowOptionalProviderFeatureException,
 )
 from airflow.hooks.base import BaseHook
 
 
-class MsgQueueHook(BaseHook): 
+class MsgQueueHook(BaseHook):
     """
-    Abstract base class for all Message Queue Hooks. 
+    Abstract base class for all Message Queue Hooks.
     """
 
     # Typical parameters below
@@ -60,7 +59,6 @@ class MsgQueueHook(BaseHook):
     def get_conn_id(self) -> str:
         return getattr(self, self.conn_name_attr)
 
-
     def get_conn(self) -> Any:
         """Return a connection object."""
         queue = self.connection
@@ -71,7 +69,7 @@ class MsgQueueHook(BaseHook):
 
 class MsgQueueConsumerHook(MsgQueueHook):
     """
-    Abstract base class hook for creating a message queue consumer. 
+    Abstract base class hook for creating a message queue consumer.
 
     :param connection configuration information, default to BaseHook configuration
     :param topics: A list of topics to subscribe to on the message queue
@@ -80,5 +78,3 @@ class MsgQueueConsumerHook(MsgQueueHook):
     def __init__(self, topics: Sequence[str], config_id=MsgQueueHook.default_conn_name) -> None:
         super().__init__(config_id=config_id)
         self.topics = topics
-
-

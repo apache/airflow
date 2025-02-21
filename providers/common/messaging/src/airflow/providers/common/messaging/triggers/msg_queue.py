@@ -15,35 +15,65 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import re
-from collections.abc import Sequence, AsyncIterator
+from collections.abc import AsyncIterator
 from functools import cached_property
-from typing import Any, NoReturn
+from typing import Any
 
-from airflow.exceptions import AirflowException, AirflowFailException
-from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator
-from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.providers.common.msgq.hooks.msg_queue import MsgQueueHook
+from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
+from airflow.triggers.base import BaseEventTrigger, TriggerEvent
 
-class MessageQueueTrigger(BaseTrigger):
+
+def is_sqs_queue(queue: str) -> bool:
+    return bool(re.match(r"^https://sqs\.[^.]+\.amazonaws\.com/[0-9]+/.+", queue))
+
+
+# This list defines the supported providers. Each item in the list is a tuple containing:
+#   1. A function (Callable) that checks if a given queue (string) matches a specific provider's pattern.
+#   2. The corresponding trigger to use when the function returns True.
+#
+# The function that checks whether a queue matches a provider's pattern must be as specific as possible to
+# avoid collision. Functions in this list should NOT overlap with each other in their matching criteria.
+# To add support for a new provider in `MessageQueueTrigger`, add a new entry to this list.
+MESSAGE_QUEUE_PROVIDERS = [(is_sqs_queue, SqsSensorTrigger)]
+
+
+class MessageQueueTrigger(BaseEventTrigger):
     """
-    Defer until a message for a particular topic is published on the message queue
-    
-    When the message arrives, 
-    - get the data for the particular message and post it to XCom
-    - Alternatively, trigger a registered function, need more input here
+    ``MessageQueueTrigger`` serves as a unified trigger for monitoring message queues from different providers.
 
-    Resume waiting for the next message
+    It abstracts away provider-specific details, allowing users to monitor a queue with a single trigger,
+    regardless of the underlying provider.
+
+    This makes it easy to switch providers without modifying the trigger.
+
+    :param queue: The queue identifier
     """
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init(**kwargs)
+    def __init__(self, *, queue: str, **kwargs: Any) -> None:
+        self.queue = queue
+        self.kwargs = kwargs
+
+    @cached_property
+    def trigger(self) -> BaseEventTrigger:
+        triggers = [trigger[1] for trigger in MESSAGE_QUEUE_PROVIDERS if trigger[0](self.queue)]
+        if len(triggers) == 0:
+            raise ValueError(f"The queue '{self.queue}' is not recognized by ``MessageQueueTrigger``.")
+        if len(triggers) > 1:
+            self.log.error(
+                "The queue '%s' is recognized by more than one trigger. "
+                "At least two functions in ``MESSAGE_QUEUE_PROVIDERS`` are colliding with each "
+                "other.",
+                self.queue,
+            )
+            raise AirflowException(f"The queue '{self.queue}' is recognized by more than one trigger.")
+        return triggers[1](**self.kwargs)
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return self.trigger.serialize()
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """
-        Need to insert the processing here based on the decision above
-        """
-        
-    
+        return self.trigger.run()

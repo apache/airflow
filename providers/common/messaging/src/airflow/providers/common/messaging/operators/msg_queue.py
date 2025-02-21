@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import re
 from collections.abc import Sequence
 from functools import cached_property
-from typing import Any, NoReturn
+from typing import NoReturn
 
 from airflow.exceptions import AirflowException, AirflowFailException
-from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.common.msgq.hooks.msg_queue import MsgQueueHook
 
@@ -33,6 +33,7 @@ _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "apache.kafka": "2.1.0",
     "google": "8.2.0",
 }
+
 
 class BaseMsgQueueOperator(BaseOperator):
     """
@@ -64,7 +65,6 @@ class BaseMsgQueueOperator(BaseOperator):
         self.hook_params = hook_params or {}
         self.retry_on_failure = retry_on_failure
 
-
     @cached_property
     def _hook(self):
         """Get MsgQueue Hook based on connection type."""
@@ -88,22 +88,21 @@ class BaseMsgQueueOperator(BaseOperator):
 
         return hook
 
-   
-
     def _raise_exception(self, exception_string: str) -> NoReturn:
         if self.retry_on_failure:
             raise AirflowException(exception_string)
         raise AirflowFailException(exception_string)
 
+
 class MsqQueuePublishOperator(BaseMsgQueueOperator):
     """
-    Publish something onto a message queue. 
+    Publish something onto a message queue.
 
     :param topic
     :param message
     """
+
     def publish(self, message, topic) -> None:
         # Publish the specified message, with the topic on the message queue
 
         return
-
