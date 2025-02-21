@@ -154,10 +154,6 @@ const taskInstanceColumns = (
   },
 ];
 
-const STATE_PARAM = "state";
-const START_DATE_PARAM = "start_date";
-const END_DATE_PARAM = "end_date";
-
 export const TaskInstances = () => {
   const { dagId, runId, taskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -165,11 +161,17 @@ export const TaskInstances = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
+  const {
+    END_DATE: END_DATE_PARAM,
+    NAME_PATTERN: NAME_PATTERN_PARAM,
+    START_DATE: START_DATE_PARAM,
+    STATE: STATE_PARAM,
+  }: SearchParamsKeysType = SearchParamsKeys;
+
   const filteredState = searchParams.getAll(STATE_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
   const hasFilteredState = filteredState.length > 0;
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
 
   const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
@@ -191,7 +193,7 @@ export const TaskInstances = () => {
       });
       setSearchParams(searchParams);
     },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting, STATE_PARAM],
   );
 
   const handleSearchChange = (value: string) => {
@@ -214,14 +216,14 @@ export const TaskInstances = () => {
     {
       dagId: dagId ?? "~",
       dagRunId: runId ?? "~",
+      endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
       taskId: taskId ?? undefined,
-      startDateGte: startDate ?? undefined,
-      endDateLte: endDate ?? undefined,
     },
     undefined,
     {

@@ -26,15 +26,15 @@ const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
 
 type MetricSectionProps = {
+  readonly endDate: string;
+  readonly kind: string;
   readonly runs: number;
+  readonly startDate: string;
   readonly state: TaskInstanceState;
   readonly total: number;
-  readonly kind: number;
-  readonly startDate: string;
-  readonly endDate: string;
 };
 
-export const MetricSection = ({ runs, state, total, kind, startDate, endDate }: MetricSectionProps) => {
+export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: MetricSectionProps) => {
   // Calculate the given state as a percentage of total and draw a bar
   // in state's color with width as state's percentage and remaining width filed as gray
   const statePercent = total === 0 ? 0 : ((runs / total) * 100).toFixed(2);

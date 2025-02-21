@@ -75,15 +75,15 @@ export const HistoricalMetrics = () => {
               <Box>
                 <DagRunMetrics
                   dagRunStates={data.dag_run_states}
-                  total={dagRunTotal}
-                  startDate={startDate}
                   endDate={endDate}
+                  startDate={startDate}
+                  total={dagRunTotal}
                 />
                 <TaskInstanceMetrics
+                  endDate={endDate}
+                  startDate={startDate}
                   taskInstanceStates={data.task_instance_states}
                   total={taskRunTotal}
-                  startDate={startDate}
-                  endDate={endDate}
                 />
               </Box>
             )}

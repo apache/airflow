@@ -26,14 +26,14 @@ import { MetricSection } from "./MetricSection";
 
 type DagRunMetricsProps = {
   readonly dagRunStates: DAGRunStates;
-  readonly total: number;
-  readonly startDate: string;
   readonly endDate: string;
+  readonly startDate: string;
+  readonly total: number;
 };
 
 const DAGRUN_STATES: Array<keyof DAGRunStates> = ["queued", "running", "success", "failed"];
 
-export const DagRunMetrics = ({ dagRunStates, total, startDate, endDate }: DagRunMetricsProps) => (
+export const DagRunMetrics = ({ dagRunStates, endDate, startDate, total }: DagRunMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} p={2}>
     <HStack mb={4}>
       <StateBadge colorPalette="blue" fontSize="md" variant="solid">
@@ -44,13 +44,13 @@ export const DagRunMetrics = ({ dagRunStates, total, startDate, endDate }: DagRu
     </HStack>
     {DAGRUN_STATES.map((state) => (
       <MetricSection
+        endDate={endDate}
         key={state}
+        kind="dag_runs"
         runs={dagRunStates[state]}
+        startDate={startDate}
         state={state}
         total={total}
-        startDate={startDate}
-        endDate={endDate}
-        kind={"dag_runs"}
       />
     ))}
   </Box>
