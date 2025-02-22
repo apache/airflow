@@ -1429,6 +1429,13 @@ def get_test_dag():
             from airflow.models.errors import ParseImportError
             from airflow.utils import timezone
 
+            # Delete the previous import errors
+            session.query(ParseImportError).filter(
+                ParseImportError.bundle_name == "testing", ParseImportError.filename == str(dag_file)
+            ).delete()
+            session.commit()
+
+            # Add the new import errors
             for _filename, stacktrace in dagbag.import_errors.items():
                 session.add(
                     ParseImportError(
