@@ -243,7 +243,10 @@ class BaseDagBundle(ABC):
     """
 
     supports_versioning: bool = False
-    bundle_type: str = "local"
+
+    bundle_type: str
+    """This is used in generating some the paths used for local storage."""
+
     _locked: bool = False
 
     def __init__(
