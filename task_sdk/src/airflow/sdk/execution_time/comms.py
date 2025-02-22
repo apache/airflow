@@ -59,6 +59,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
+    TISkippedDownstreamTasksStatePayload,
     TIRunContext,
     TIRuntimeCheckPayload,
     TISuccessStatePayload,
@@ -236,6 +237,12 @@ class RescheduleTask(TIRescheduleStatePayload):
     type: Literal["RescheduleTask"] = "RescheduleTask"
 
 
+class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
+    """Update state of downstream tasks within a task instance to 'skipped',
+    while updating current task to success state."""
+    type: Literal["SkipDownstreamTasks"] = "SkipDownstreamTasks"
+
+
 class RuntimeCheckOnTask(TIRuntimeCheckPayload):
     type: Literal["RuntimeCheckOnTask"] = "RuntimeCheckOnTask"
 
@@ -346,6 +353,7 @@ ToSupervisor = Annotated[
         GetXComCount,
         PutVariable,
         RescheduleTask,
+        SkipDownstreamTasks,
         SetRenderedFields,
         SetXCom,
         TaskState,

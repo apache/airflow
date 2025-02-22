@@ -22,7 +22,7 @@ from types import GeneratorType
 from typing import TYPE_CHECKING
 
 from airflow import settings
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DownstreamTasksSkipped
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -49,6 +49,21 @@ def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
 
 class SkipMixin(LoggingMixin):
     """A Mixin to skip Tasks Instances."""
+
+    @staticmethod
+    def _set_state_to_skipped(
+        tasks: list[str] | list[tuple[str, int]], map_index: int,
+    ) -> None:
+        """
+        Set state of task instances to skipped from the same dag run.
+
+        Raises
+        ------
+        SkipDownstreamTaskInstances
+            If the task instances are not in the same dag run.
+        """
+        if tasks and map_index == -1:
+            raise DownstreamTasksSkipped(tasks=tasks)
 
     def skip(
         self,
@@ -78,6 +93,11 @@ class SkipMixin(LoggingMixin):
                 key=XCOM_SKIPMIXIN_KEY,
                 value={XCOM_SKIPMIXIN_SKIPPED: task_ids_list},
             )
+
+        #  The following could be applied only for non-mapped tasks,
+        #  as future mapped tasks have not been expanded yet. Such tasks
+        #  have to be handled by NotPreviouslySkippedDep.
+        self._set_state_to_skipped(task_ids_list, ti.map_index)
 
     def skip_all_except(
         self,
@@ -166,7 +186,10 @@ class SkipMixin(LoggingMixin):
 
             follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_id_set]
             log.info("Skipping tasks %s", skip_tasks)
-            SkipMixin._set_state_to_skipped(dag_run.dag_id, dag_run.run_id, skip_tasks, session=session)
             ti.xcom_push(
                 key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids}, session=session
             )
+            #  The following could be applied only for non-mapped tasks,
+            #  as future mapped tasks have not been expanded yet. Such tasks
+            #  have to be handled by NotPreviouslySkippedDep.
+            self._set_state_to_skipped(skip_tasks, ti.map_index)

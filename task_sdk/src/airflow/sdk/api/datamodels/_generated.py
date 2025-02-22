@@ -162,6 +162,17 @@ class TIRescheduleStatePayload(BaseModel):
     end_date: Annotated[datetime, Field(title="End Date")]
 
 
+class TISkippedDownstreamTasksStatePayload(BaseModel):
+    """
+    Schema for updating downstream tasks TaskInstance to a skipped state,
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    tasks: Annotated[list[str] | list[tuple[str, int]], Field(title="Tasks")]
+
+
 class TIRuntimeCheckPayload(BaseModel):
     """
     Payload for performing Runtime checks on the TaskInstance model as requested by the SDK.
