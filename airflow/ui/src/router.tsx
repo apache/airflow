@@ -168,4 +168,8 @@ export const routerConfig = [
   },
 ];
 
-export const router = createBrowserRouter(routerConfig, { basename: "/webapp" });
+const locationPath = globalThis.window.location.pathname;
+const indexOf = locationPath.indexOf("webapp/");
+const basename = locationPath.slice(0, indexOf + 7);
+
+export const router = createBrowserRouter(routerConfig, { basename });

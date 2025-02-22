@@ -771,12 +771,12 @@ export type DagProcessorInfoResponse = {
 export type DagRunAssetReference = {
   run_id: string;
   dag_id: string;
-  logical_date: string;
+  logical_date: string | null;
   start_date: string;
   end_date: string | null;
   state: string;
-  data_interval_start: string;
-  data_interval_end: string;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
 };
 
 /**
@@ -1738,6 +1738,10 @@ export type RecentDagRunsData = {
 };
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetDependenciesData = {
+  nodeId?: string | null;
+};
 
 export type GetDependenciesResponse = BaseGraphResponse;
 
@@ -2968,11 +2972,20 @@ export type $OpenApiTs = {
   };
   "/ui/dependencies": {
     get: {
+      req: GetDependenciesData;
       res: {
         /**
          * Successful Response
          */
         200: BaseGraphResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

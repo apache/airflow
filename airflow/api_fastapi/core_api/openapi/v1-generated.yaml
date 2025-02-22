@@ -181,6 +181,15 @@ paths:
       summary: Get Dependencies
       description: Dependencies graph.
       operationId: get_dependencies
+      parameters:
+      - name: node_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Node Id
       responses:
         '200':
           description: Successful Response
@@ -188,6 +197,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BaseGraphResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/dashboard/historical_metrics_data:
     get:
       tags:
@@ -8941,8 +8962,10 @@ components:
           type: string
           title: Dag Id
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         start_date:
           type: string
@@ -8958,12 +8981,16 @@ components:
           type: string
           title: State
         data_interval_start:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Data Interval Start
         data_interval_end:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Data Interval End
       additionalProperties: false
       type: object

@@ -26,3 +26,13 @@ updates:
       - /
     schedule:
       interval: daily
+
+  - package-ecosystem: pip
+    directories:
+      - /providers/*/
+    schedule:
+      interval: daily
+    groups:
+      provider-dependencies:
+        patterns:
+          - "*"

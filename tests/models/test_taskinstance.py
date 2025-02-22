@@ -3825,7 +3825,7 @@ class TestTaskInstance:
 
     def test_refresh_from_db(self, create_task_instance):
         run_date = timezone.utcnow()
-        hybrid_props = ["task_display_name"]
+        hybrid_props = ["rendered_map_index", "task_display_name"]
         expected_values = {
             "task_id": "test_refresh_from_db_task",
             "dag_id": "test_refresh_from_db_dag",
@@ -3861,7 +3861,7 @@ class TestTaskInstance:
             "next_method": None,
             "updated_at": None,
             "task_display_name": "Test Refresh from DB Task",
-            "dag_version_id": None,
+            "dag_version_id": mock.ANY,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}
