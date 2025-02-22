@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-21T20:19:48.408404
+# This constraints file was automatically generated on 2025-02-22T02:41:46.003693
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -63,7 +63,7 @@ SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
 SecretStorage==3.3.3
-Sphinx==8.2.0
+Sphinx==8.2.1
 WTForms==3.2.1
 Werkzeug==2.2.3
 a2wsgi==1.10.8
@@ -201,7 +201,7 @@ asyncssh==2.20.0
 atlasclient==1.0.0
 atlassian-python-api==3.41.19
 attrs==25.1.0
-aws-sam-translator==1.94.0
+aws-sam-translator==1.95.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
 azure-common==1.1.28
@@ -535,8 +535,8 @@ pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.3.6
 pinecone-client==6.0.0
-pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
+pinecone==6.0.1
 pinotdb==5.6.0
 pipdeptree==2.25.0
 platformdirs==4.3.6
