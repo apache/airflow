@@ -26,6 +26,37 @@
 Changelog
 ---------
 
+6.0.2
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+6.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DataflowJobLink for Beam operators in deferrable mode (#45023)``
+
+Misc
+~~~~
+
+* ``Set minimum dependencies for apache-beam on Py 3.12+3.13 (#46321)``
+* ``Limit Apache Beam's numpy used (#46286)``
+* ``Refactor deferrable mode for BeamRunPythonPipelineOperator and BeamRunJavaPipelineOperator (#46678)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Fix example import tests after move of providers to new structure (#46217)``
+   * ``Fixing apache beam system tests import failure after new structure changes (#46201)``
+   * ``Moved apache beam provider to new folder structure (#46071)``
+   * ``update outdated hyperlinks referencing provider package files (#45332)``
+
 6.0.0
 .....
 

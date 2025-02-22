@@ -63,7 +63,7 @@ apache-airflow-providers-imap package
 `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 
-Release: 3.8.0
+Release: 3.8.2
 
 Provider package
 ----------------

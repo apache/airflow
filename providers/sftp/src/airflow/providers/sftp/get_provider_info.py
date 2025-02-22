@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "SFTP",
         "description": "`SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536539,
+        "source-date-epoch": 1739964267,
         "versions": [
+            "5.1.0",
             "5.0.0",
             "4.11.1",
             "4.11.0",
