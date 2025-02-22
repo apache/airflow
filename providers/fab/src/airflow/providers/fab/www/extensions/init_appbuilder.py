@@ -210,6 +210,15 @@ class AirflowAppBuilder:
         self._add_admin_views()
         self._add_addon_views()
         self._init_extension(app)
+        self._swap_url_filter()
+
+    def _swap_url_filter(self):
+        """Use our url filtering util function so there is consistency between FAB and Airflow routes."""
+        from flask_appbuilder.security import views as fab_sec_views
+
+        from airflow.providers.fab.www.views import get_safe_url
+
+        fab_sec_views.get_safe_redirect = get_safe_url
 
     def _init_extension(self, app):
         app.appbuilder = self
@@ -517,6 +526,9 @@ class AirflowAppBuilder:
     @property
     def get_url_for_index(self):
         return url_for(f"{self.indexview.endpoint}.{self.indexview.default_view}")
+
+    def get_url_for_login_with(self, next_url: str | None = None) -> str:
+        return get_auth_manager().get_url_login(next_url=next_url)
 
     def get_url_for_locale(self, lang):
         return url_for(

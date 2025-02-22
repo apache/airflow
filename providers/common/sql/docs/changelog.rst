@@ -25,6 +25,43 @@
 Changelog
 ---------
 
+1.23.0
+......
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+1.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``Introduce notion of dialects in DbApiHook (#41327)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DbApiHook.insert_rows logging incorrect number of rows commited (#45789)``
+* ``Fix escaping of special characters or reserved words as column names in dialects of common sql provider (#45640)``
+
+Misc
+~~~~
+
+* ``Add run_after column to DagRun model (#45732)``
+* ``Adding type ignore to sql hook (#46163)``
+* ``Added ADR document describing why the notion of dialects is introduced (#45456)``
+* ``Bring back mypy checks for new-structure providers (#45815)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Moving EmptyOperator to standard provider (#46231)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+
 1.21.0
 ......
 

@@ -38,8 +38,8 @@ export const Overview = () => {
   const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
     dagId: dagId ?? "",
     dagRunId: "~",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
+    runAfterGte: startDate,
+    runAfterLte: endDate,
     state: ["failed"],
   });
 

@@ -1200,7 +1200,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def extra_links(self) -> list[str]:
         return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
-    def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
+    def get_extra_links(self, ti: TaskInstance, name: str) -> str | None:
         """
         For an operator, gets the URLs that the ``extra_links`` entry points to.
 
@@ -1212,11 +1212,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         :param link_name: The name of the link we're looking for the URL for. Should be
             one of the options specified in ``extra_links``.
         """
-        link = self.operator_extra_link_dict.get(link_name)
+        link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
         if not link:
-            link = self.global_operator_extra_link_dict.get(link_name)
-            if not link:
-                return None
+            return None
         return link.get_link(self.unmap(None), ti_key=ti.key)
 
     @property
@@ -1392,7 +1390,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             elif k == "downstream_task_ids":
                 v = set(v)
             elif k in {"retry_delay", "execution_timeout", "max_retry_delay"}:
-                v = cls._deserialize_timedelta(v)
+                # If operator's execution_timeout is None and core.default_task_execution_timeout is not None,
+                # v will be None so do not deserialize into timedelta
+                if v is not None:
+                    v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
                 pass
             elif k == "resources":

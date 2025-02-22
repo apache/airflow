@@ -33,6 +33,7 @@ import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
@@ -100,6 +101,10 @@ export const routerConfig = [
         path: "providers",
       },
       {
+        element: <Plugins />,
+        path: "plugins",
+      },
+      {
         children: [
           { element: <Overview />, index: true },
           { element: <DagRuns />, path: "runs" },
@@ -163,4 +168,8 @@ export const routerConfig = [
   },
 ];
 
-export const router = createBrowserRouter(routerConfig, { basename: "/webapp" });
+const locationPath = globalThis.window.location.pathname;
+const indexOf = locationPath.indexOf("webapp/");
+const basename = locationPath.slice(0, indexOf + 7);
+
+export const router = createBrowserRouter(routerConfig, { basename });

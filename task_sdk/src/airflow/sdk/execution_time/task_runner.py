@@ -318,12 +318,14 @@ class RuntimeTaskInstance(TaskInstance):
                 raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
             if msg.value is not None:
-                from airflow.models.xcom import XCom
+                from airflow.serialization.serde import deserialize
 
                 # TODO: Move XCom serialization & deserialization to Task SDK
                 #   https://github.com/apache/airflow/issues/45231
-                xcom = XCom.deserialize_value(msg)  # type: ignore[arg-type]
-                xcoms.append(xcom)
+
+                # The execution API server deals in json compliant types now.
+                # serde's deserialize can handle deserializing primitive, collections, and complex objects too
+                xcoms.append(deserialize(msg.value))  # type: ignore[type-var]
             else:
                 xcoms.append(default)
 
@@ -350,11 +352,15 @@ class RuntimeTaskInstance(TaskInstance):
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
-    from airflow.models.xcom import XCom
+    from airflow.serialization.serde import serialize
 
     # TODO: Move XCom serialization & deserialization to Task SDK
     #   https://github.com/apache/airflow/issues/45231
-    value = XCom.serialize_value(value)
+
+    # The execution API server now deals in json compliant objects.
+    # It is responsibility of the client to handle any non native object serialization.
+    # serialize does just that.
+    value = serialize(value)
 
     log = structlog.get_logger(logger_name="task")
     SUPERVISOR_COMMS.send_request(
@@ -566,7 +572,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
 
 def run(
     ti: RuntimeTaskInstance, log: Logger
-) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None]:
+) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
     from airflow.exceptions import (
         AirflowException,
@@ -585,6 +591,7 @@ def run(
 
     msg: ToSupervisor | None = None
     state: IntermediateTIState | TerminalTIState
+    error: BaseException | None = None
     try:
         context = ti.get_template_context()
         with set_current_context(context):
@@ -593,7 +600,7 @@ def run(
             if early_exit := _prepare(ti, log, context):
                 msg = early_exit
                 state = TerminalTIState.FAILED
-                return state, msg
+                return state, msg, error
 
             result = _execute_task(context, ti)
 
@@ -633,7 +640,7 @@ def run(
             reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=timezone.utc)
         )
         state = IntermediateTIState.UP_FOR_RESCHEDULE
-    except (AirflowFailException, AirflowSensorTimeout):
+    except (AirflowFailException, AirflowSensorTimeout) as e:
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
@@ -644,7 +651,8 @@ def run(
             end_date=datetime.now(tz=timezone.utc),
         )
         state = TerminalTIState.FAIL_WITHOUT_RETRY
-    except (AirflowTaskTimeout, AirflowException):
+        error = e
+    except (AirflowTaskTimeout, AirflowException) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
         msg = TaskState(
@@ -652,7 +660,8 @@ def run(
             end_date=datetime.now(tz=timezone.utc),
         )
         state = TerminalTIState.FAILED
-    except AirflowTaskTerminated:
+        error = e
+    except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
@@ -662,7 +671,8 @@ def run(
             end_date=datetime.now(tz=timezone.utc),
         )
         state = TerminalTIState.FAIL_WITHOUT_RETRY
-    except SystemExit:
+        error = e
+    except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
         log.exception("Task failed with exception")
         msg = TaskState(
@@ -670,15 +680,17 @@ def run(
             end_date=datetime.now(tz=timezone.utc),
         )
         state = TerminalTIState.FAILED
-    except BaseException:
+        error = e
+    except BaseException as e:
         log.exception("Task failed with exception")
         msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
         state = TerminalTIState.FAILED
+        error = e
     finally:
         if msg:
             SUPERVISOR_COMMS.send_request(msg=msg, log=log)
     # Return the message to make unit tests easier too
-    return state, msg
+    return state, msg, error
 
 
 def _execute_task(context: Context, ti: RuntimeTaskInstance):
@@ -753,7 +765,9 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     _xcom_push(ti, "return_value", result, mapped_length=mapped_length)
 
 
-def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
+def finalize(
+    ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger, error: BaseException | None = None
+):
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in ti.task.operator_extra_links:
         link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
@@ -768,7 +782,7 @@ def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
         # TODO: Run task success callbacks here
     if state in [TerminalTIState.FAILED, TerminalTIState.FAIL_WITHOUT_RETRY]:
         get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
         )
         # TODO: Run task failure callbacks here
 
@@ -777,13 +791,12 @@ def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
 
 def main():
     # TODO: add an exception here, it causes an oof of a stack trace!
-
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
     try:
         ti, log = startup()
-        state, msg = run(ti, log)
-        finalize(ti, state, log)
+        state, msg, error = run(ti, log)
+        finalize(ti, state, log, error)
     except KeyboardInterrupt:
         log = structlog.get_logger(logger_name="task")
         log.exception("Ctrl-c hit")

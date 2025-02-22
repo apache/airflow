@@ -60,9 +60,9 @@ with DAG(
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 
     # [START howto_operator_start_python_job]
-    start_python_job = BeamRunPythonPipelineOperator(
+    start_python_job_dataflow = BeamRunPythonPipelineOperator(
         runner=BeamRunnerType.DataflowRunner,
-        task_id="start_python_job",
+        task_id="start_python_job_dataflow",
         py_file=GCS_PYTHON_SCRIPT,
         py_options=[],
         pipeline_options={
@@ -75,8 +75,8 @@ with DAG(
     )
     # [END howto_operator_start_python_job]
 
-    start_python_job_local = BeamRunPythonPipelineOperator(
-        task_id="start_python_job_local",
+    start_python_job_direct = BeamRunPythonPipelineOperator(
+        task_id="start_python_job_direct",
         py_file="apache_beam.examples.wordcount",
         py_options=["-m"],
         pipeline_options={
@@ -87,9 +87,22 @@ with DAG(
         py_system_site_packages=False,
     )
 
-    start_python_deferrable = BeamRunPythonPipelineOperator(
+    start_python_job_direct_deferrable = BeamRunPythonPipelineOperator(
+        task_id="start_python_job_direct_deferrable",
+        py_file="apache_beam.examples.wordcount",
+        py_options=["-m"],
+        pipeline_options={
+            "output": GCS_OUTPUT,
+        },
+        py_requirements=["apache-beam[gcp]==2.59.0"],
+        py_interpreter="python3",
+        py_system_site_packages=False,
+        deferrable=True,
+    )
+
+    start_python_job_dataflow_deferrable = BeamRunPythonPipelineOperator(
         runner=BeamRunnerType.DataflowRunner,
-        task_id="start_python_job_deferrable",
+        task_id="start_python_job_dataflow_deferrable",
         py_file=GCS_PYTHON_SCRIPT,
         py_options=[],
         pipeline_options={
@@ -118,7 +131,12 @@ with DAG(
         # TEST SETUP
         create_bucket
         # TEST BODY
-        >> [start_python_job, start_python_job_local, start_python_deferrable]
+        >> [
+            start_python_job_dataflow,
+            start_python_job_direct,
+            start_python_job_direct_deferrable,
+            start_python_job_dataflow_deferrable,
+        ]
         >> stop_dataflow_job
         # TEST TEARDOWN
         >> delete_bucket

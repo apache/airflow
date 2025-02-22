@@ -48,7 +48,7 @@ with models.DAG(
 ) as dag:
     locate_file_cmd = """
         sleep 10
-        find {{params.source_location}} -type f  -printf "%f\n" | head -1
+        find $LOCATION -type f -printf "%f\\n" | head -1
     """
 
     t_view = BashOperator(
@@ -56,6 +56,7 @@ with models.DAG(
         bash_command=locate_file_cmd,
         do_xcom_push=True,
         params={"source_location": "/your/input_dir/path"},
+        env={"LOCATION": "{{ params.source_location }}"},
         dag=dag,
     )
 

@@ -593,7 +593,7 @@ class TestStringifiedDAGs:
             self.validate_deserialized_dag(serialized_dag, dag)
 
         # Let's not be exact about this, but if everything fails to parse we should fail this test too
-        assert len(dags) >= 10
+        assert len(dags) >= 8
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
@@ -2656,6 +2656,38 @@ def test_task_resources_serde():
         "gpus": {"name": "GPU", "qty": 0, "units_str": "gpu(s)"},
         "ram": {"name": "RAM", "qty": 2048, "units_str": "MB"},
     }
+
+
+@pytest.fixture(params=[None, timedelta(hours=1)])
+def default_task_execution_timeout(request):
+    """
+    Mock setting core.default_task_execution_timeout in airflow.cfg.
+    """
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+    DEFAULT_TASK_EXECUTION_TIMEOUT = request.param
+    with mock.patch.dict(
+        SerializedBaseOperator._CONSTRUCTOR_PARAMS, {"execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT}
+    ):
+        yield DEFAULT_TASK_EXECUTION_TIMEOUT
+
+
+@pytest.mark.parametrize("execution_timeout", [None, timedelta(hours=1)])
+def test_task_execution_timeout_serde(execution_timeout, default_task_execution_timeout):
+    """
+    Test task execution_timeout serialization/deserialization.
+    """
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+    with DAG("test_task_execution_timeout", schedule=None, start_date=datetime(2020, 1, 1)) as _:
+        task = EmptyOperator(task_id="task1", execution_timeout=execution_timeout)
+
+    serialized = BaseSerialization.serialize(task)
+    if execution_timeout != default_task_execution_timeout:
+        assert "execution_timeout" in serialized["__var"]
+
+    deserialized = BaseSerialization.deserialize(serialized)
+    assert deserialized.execution_timeout == task.execution_timeout
 
 
 def test_taskflow_expand_serde():

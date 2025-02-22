@@ -49,11 +49,6 @@ const taskInstanceColumns = (
     : [
         {
           accessorKey: "dag_id",
-          cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
-            </Link>
-          ),
           enableSorting: false,
           header: "Dag ID",
         },
@@ -62,16 +57,19 @@ const taskInstanceColumns = (
     ? []
     : [
         {
-          accessorKey: "run_id",
-          cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
-                {original.dag_run_id}
-              </RouterLink>
-            </Link>
-          ),
-          enableSorting: false,
-          header: "Run ID",
+          accessorKey: "run_after",
+          // If we don't show the taskId column, make the dag run a link to the task instance
+          cell: ({ row: { original } }: TaskInstanceRow) =>
+            Boolean(taskId) ? (
+              <Link asChild color="fg.info" fontWeight="bold">
+                <RouterLink to={getTaskInstanceLink(original)}>
+                  <Time datetime={original.run_after} />
+                </RouterLink>
+              </Link>
+            ) : (
+              <Time datetime={original.run_after} />
+            ),
+          header: "Dag Run",
         },
       ]),
   ...(Boolean(taskId)

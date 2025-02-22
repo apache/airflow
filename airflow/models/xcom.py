@@ -302,9 +302,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             return XCom.deserialize_value(result)
         return None
 
-    # The 'get_many` is not supported via database isolation mode. Attempting to use it in DB isolation
-    # mode will result in a crash - Resulting Query object cannot be **really** serialized
-    # TODO(potiuk) - document it in AIP-44 docs
     @staticmethod
     @provide_session
     def get_many(
