@@ -281,7 +281,6 @@ class DagFileProcessorManager(LoggingMixin):
         ).where(DagModel.is_active)
         # TODO: AIP-66 by bundle!
         dags_parsed = session.execute(query)
-        from pathlib import Path
 
         for dag in dags_parsed:
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
