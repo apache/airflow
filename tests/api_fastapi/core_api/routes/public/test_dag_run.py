@@ -157,8 +157,12 @@ def setup(request, dag_maker, session=None):
     session.commit()
 
 
-def get_dag_versions_dict(dag_version: DagVersion):
-    return DagVersionResponse.model_validate(dag_version, from_attributes=True).model_dump(mode="json")
+def get_dag_versions_dict(dag_versions: list[DagVersion]) -> list[dict]:
+    return [
+        # must set mode="json" or the created_at and id will be python datetime and UUID instead of string
+        DagVersionResponse.model_validate(dag_version, from_attributes=True).model_dump(mode="json")
+        for dag_version in dag_versions
+    ]
 
 
 def get_dag_run_dict(run: DagRun):
@@ -180,7 +184,7 @@ def get_dag_run_dict(run: DagRun):
         "triggered_by": run.triggered_by.value,
         "conf": run.conf,
         "note": run.note,
-        "dag_versions": [get_dag_versions_dict(dag_version) for dag_version in run.dag_versions],
+        "dag_versions": get_dag_versions_dict(run.dag_versions),
     }
 
 
@@ -1213,7 +1217,7 @@ class TestTriggerDagRun:
             "conf": {},
             "dag_id": DAG1_ID,
             "dag_run_id": expected_dag_run_id,
-            "dag_versions": [get_dag_versions_dict(dag_version) for dag_version in run.dag_versions],
+            "dag_versions": get_dag_versions_dict(run.dag_versions),
             "end_date": None,
             "logical_date": expected_logical_date,
             "run_after": fixed_now.replace("+00:00", "Z"),
