@@ -173,10 +173,8 @@ class TaskInstanceOperations:
     def skip_downstream_tasks(self, id: uuid.UUID, msg: SkipDownstreamTasks):
         """Tell the API server to skip the downstream tasks of this TI."""
         body = TISkippedDownstreamTasksStatePayload(tasks=msg.tasks)
-        try:
-            self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
-        except Exception as e:
-            raise Exception(e.__dict__)
+        self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
+
 
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
         """Set Rendered Task Instance Fields via the API server."""

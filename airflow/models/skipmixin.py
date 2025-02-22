@@ -24,12 +24,12 @@ from typing import TYPE_CHECKING
 from airflow import settings
 from airflow.exceptions import AirflowException, DownstreamTasksSkipped
 from airflow.models.taskinstance import TaskInstance
-from airflow.sdk.types import RuntimeTaskInstanceProtocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.sdk.definitions._internal.node import DAGNode
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
