@@ -310,7 +310,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         else:
             if to_skip:
                 self.skip(
-                    dag_run=context['dag_run'],
+                    dag_run=context["dag_run"],
                     tasks=to_skip,
                     execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
                     map_index=context["ti"].map_index,

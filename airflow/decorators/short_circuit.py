@@ -33,6 +33,7 @@ class _ShortCircuitDecoratedOperator(_PythonDecoratedOperator, ShortCircuitOpera
     custom_operator_name: str = "@task.short_circuit"
     _is_skippable = True
 
+
 def short_circuit_task(
     python_callable: Callable | None = None,
     multiple_outputs: bool | None = None,

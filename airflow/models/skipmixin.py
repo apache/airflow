@@ -21,12 +21,10 @@ from collections.abc import Iterable, Sequence
 from types import GeneratorType
 from typing import TYPE_CHECKING
 
-
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.logging_mixin import LoggingMixin
-
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator

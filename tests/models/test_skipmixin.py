@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -89,7 +89,7 @@ class TestSkipMixin:
             run_id="test_run",
             tasks=[MagicMock(spec=MappedOperator)],
             map_index=2,
-            session=session
+            session=session,
         )
         assert not session.query.called
         assert not session.commit.called
