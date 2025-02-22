@@ -151,18 +151,20 @@ class BundleUsageTrackingManager:
 
     @staticmethod
     def _remove_stale_bundle(bundle_type: str, bundle_name: str, info: TrackedBundleVersionInfo) -> None:
+        bundle_version_path = get_bundle_version_path(
+            bundle_type=bundle_type,
+            bundle_name=bundle_name,
+            version=info.version,
+        )
+        log_ = log.bind(
+            bundle_name=bundle_name,
+            bundle_version=info.version,
+            bundle_path=bundle_version_path,
+            lock_file=info.lock_file_path,
+        )
+
         try:
-            bundle_version_path = get_bundle_version_path(
-                bundle_type=bundle_type,
-                bundle_name=bundle_name,
-                version=info.version,
-            )
-            log.info(
-                "removing stale bundle",
-                bundle_name=bundle_name,
-                bundle_version=info.version,
-                bundle_path=bundle_version_path,
-            )
+            log_.info("removing stale bundle")
             with open(info.lock_file_path, "a") as f:
                 flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)  # exclusive lock, do not wait
                 # remove the actual bundle copy
@@ -170,13 +172,7 @@ class BundleUsageTrackingManager:
                 # remove the lock file
                 os.remove(info.lock_file_path)
         except BlockingIOError:
-            log.info(
-                "could not obtain lock. stale bundle will not be removed.",
-                lock_file=info.lock_file_path,
-                bundle_name=bundle_name,
-                bundle_version=info.version,
-                bundle_type=bundle_type,
-            )
+            log_.info("could not obtain lock. stale bundle will not be removed.")
             return
 
     def _find_candidates(self, found):
@@ -190,10 +186,11 @@ class BundleUsageTrackingManager:
     @staticmethod
     def _debug_candidates(candidates, found):
         recently_used = list(set(found).difference(candidates))
+        log_ = log.bind(candidates=candidates, recently_used=recently_used)
         if candidates:
-            log.debug("found removal candidates", candidates=candidates, recently_used=recently_used)
+            log_.debug("found removal candidates")
         else:
-            log.debug("no removal candidates found", candidates=candidates, recently_used=recently_used)
+            log_.debug("no removal candidates found")
 
     def _remove_stale_bundle_versions_for_bundle(self, bundle: BaseDagBundle):
         log.info("checking bundle for stale versions", bundle_name=bundle.name)
@@ -366,6 +363,11 @@ class BundleVersionLock:
             version=self.version,
         )
         self.lock_file = None
+        self._log = log.bind(
+            name=self.bundle_name,
+            version=self.version,
+            lock_file=self.lock_file_path,
+        )
 
     def _update_version_file(self):
         """Create a version file containing last-used timestamp."""
@@ -395,12 +397,7 @@ class BundleVersionLock:
         try:
             self.acquire()
         except Exception:
-            log.exception(
-                "error when attempting to acquire lock",
-                name=self.bundle_name,
-                version=self.version,
-                lock_file=self.lock_file_path,
-            )
+            self._log.exception("error when attempting to acquire lock")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -408,9 +405,4 @@ class BundleVersionLock:
         try:
             self.release()
         except Exception:
-            log.exception(
-                "error when attempting to release lock",
-                name=self.bundle_name,
-                version=self.version,
-                lock_file=self.lock_file_path,
-            )
+            self._log.exception("error when attempting to release lock")
