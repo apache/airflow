@@ -19,21 +19,26 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import tempfile
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 from git import Repo
 from git.exc import BadName, GitCommandError, NoSuchPathError
+from structlog import wrap_logger
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.base import (
+    BaseDagBundle,
+)
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-if TYPE_CHECKING:
-    from pathlib import Path
+_log = logging.getLogger(__name__)
+log = wrap_logger(_log)
 
 
 class GitHook(BaseHook):
@@ -130,6 +135,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     """
 
     supports_versioning = True
+    bundle_type = "git"
 
     def __init__(
         self,
@@ -143,15 +149,28 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         super().__init__(**kwargs)
         self.tracking_ref = tracking_ref
         self.subdir = subdir
-        self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
-        self.repo_path = (
-            self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
-        )
+        self.bare_repo_path = self.base_folder / "bare"
+        if self.version:
+            self.repo_path = self.versions_path / self.version
+        else:
+            self.repo_path = self.base_folder / "tracking_repo"
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
+        log_ = log.bind(
+            bundle_name=self.name,
+            bundle_type=self.bundle_type,
+            version=self.version,
+            bare_repo_path=self.bare_repo_path,
+            repo_path=self.repo_path,
+            versions_path=self.versions_path,
+            git_conn_id=self.git_conn_id,
+            repo_url=self.repo_url,
+        )
+        log_.debug("bundle configured")
         try:
             self.hook = GitHook(git_conn_id=self.git_conn_id, repo_url=self.repo_url)
             self.repo_url = self.hook.repo_url
+            log_.debug("repo_url updated from hook", repo_url=self.repo_url)
         except AirflowException as e:
             self.log.warning("Could not create GitHook for connection %s : %s", self.git_conn_id, e)
 
@@ -163,10 +182,11 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
 
             self._clone_repo_if_required()
             self.repo.git.checkout(self.tracking_ref)
+            log.debug("bundle initialize", version=self.version)
             if self.version:
                 if not self._has_version(self.repo, self.version):
                     self.repo.remotes.origin.fetch()
-                self.repo.head.set_reference(self.repo.commit(self.version))
+                self.repo.head.set_reference(str(self.repo.commit(self.version)))
                 self.repo.head.reset(index=True, working_tree=True)
             else:
                 self.refresh()
@@ -188,7 +208,8 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             except NoSuchPathError as e:
                 # Protection should the bare repo be removed manually
                 raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
-
+        else:
+            log.debug("repo exists", repo_path=self.repo_path)
         self.repo = Repo(self.repo_path)
 
     def _clone_bare_repo_if_required(self) -> None:
