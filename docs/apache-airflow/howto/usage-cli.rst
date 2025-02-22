@@ -217,6 +217,8 @@ You can use the ``--dry-run`` option to print the row counts in the primary tabl
 
 By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``.  If you don't want the data preserved in this way, you may supply argument ``--skip-archive``.
 
+When you encounter an error without using ``--skip-archive``,  ``_airflow_deleted__<table>__<timestamp>`` would still exist in the DB. You can use  ``db drop-archived`` command to manually drop these tables.
+
 Export the purged records from the archive tables
 -------------------------------------------------
 The ``db export-archived`` command exports the contents of the archived tables, created by the ``db clean`` command,
