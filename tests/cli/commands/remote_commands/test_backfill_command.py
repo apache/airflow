@@ -103,7 +103,11 @@ class TestCliBackfill:
         )
 
     @mock.patch("airflow.cli.commands.remote_commands.backfill_command._do_dry_run")
-    def test_backfill_dry_run(self, mock_dry_run):
+    @pytest.mark.parametrize(
+        "reverse",
+        [False, True],
+    )
+    def test_backfill_dry_run(self, mock_dry_run, reverse):
         args = [
             "backfill",
             "create",
@@ -117,13 +121,15 @@ class TestCliBackfill:
             "--reprocess-behavior",
             "none",
         ]
+        if reverse:
+            args.append("--run-backwards")
         airflow.cli.commands.remote_commands.backfill_command.create_backfill(self.parser.parse_args(args))
 
         mock_dry_run.assert_called_once_with(
             dag_id="example_bash_operator",
             from_date=DEFAULT_DATE.replace(tzinfo=timezone.utc),
             to_date=DEFAULT_DATE.replace(tzinfo=timezone.utc),
-            reverse=False,
+            reverse=reverse,
             reprocess_behavior="none",
             session=mock.ANY,
         )
