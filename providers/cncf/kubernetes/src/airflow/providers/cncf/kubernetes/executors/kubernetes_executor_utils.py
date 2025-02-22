@@ -388,8 +388,24 @@ class AirflowKubernetesScheduler(LoggingMixin):
         key, command, kube_executor_config, pod_template_file = next_job
 
         dag_id, task_id, run_id, try_number, map_index = key
+        ser_input = ""
+        if len(command) == 1:
+            from airflow.executors.workloads import ExecuteTask
 
-        if command[0:3] != ["airflow", "tasks", "run"]:
+            if isinstance(command[0], ExecuteTask):
+                workload = command[0]
+                ser_input = workload.model_dump_json()
+                command = [
+                    "python",
+                    "-m",
+                    "airflow.sdk.execution_time.execute_workload",
+                    "/tmp/execute/input.json",
+                ]
+            else:
+                raise ValueError(
+                    f"KubernetesExecutor doesn't know how to handle workload of type: {type(command[0])}"
+                )
+        elif command[0:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
 
         base_worker_pod = get_base_pod_from_template(pod_template_file, self.kube_config)
@@ -411,6 +427,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             date=None,
             run_id=run_id,
             args=list(command),
+            content_json_for_volume=ser_input,
             pod_override_object=kube_executor_config,
             base_worker_pod=base_worker_pod,
             with_mutation_hook=True,

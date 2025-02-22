@@ -201,6 +201,12 @@ class DagFileProcessorManager(LoggingMixin):
     base_log_dir: str = attrs.field(factory=_config_get_factory("scheduler", "CHILD_PROCESS_LOG_DIRECTORY"))
     _latest_log_symlink_date: datetime = attrs.field(factory=datetime.today, init=False)
 
+    bundle_refresh_check_interval: int = attrs.field(
+        factory=_config_int_factory("dag_processor", "bundle_refresh_check_interval")
+    )
+    _bundles_last_refreshed: float = attrs.field(default=0, init=False)
+    """Last time we checked if any bundles are ready to be refreshed"""
+
     def register_exit_signals(self):
         """Register signals that stop child processes."""
         signal.signal(signal.SIGINT, self._exit_gracefully)
@@ -446,6 +452,19 @@ class DagFileProcessorManager(LoggingMixin):
     def _refresh_dag_bundles(self, known_files: dict[str, set[DagFileInfo]]):
         """Refresh DAG bundles, if required."""
         now = timezone.utcnow()
+
+        # we don't need to check if it's time to refresh every loop - that is way too often
+        next_check = self._bundles_last_refreshed + self.bundle_refresh_check_interval
+        now_seconds = time.monotonic()
+        if now_seconds < next_check:
+            self.log.debug(
+                "Not time to check if DAG Bundles need refreshed yet - skipping. "
+                "Next check in %.2f seconds",
+                next_check - now_seconds,
+            )
+            return
+
+        self._bundles_last_refreshed = now_seconds
 
         for bundle in self._dag_bundles:
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.

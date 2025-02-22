@@ -24,7 +24,7 @@ import pytest
 
 from airflow import settings
 from airflow.models import DagBag
-from airflow.www.app import create_app
+from airflow.providers.fab.www.app import create_app
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import delete_user
 
 from tests_common.test_utils.config import conf_vars
@@ -63,7 +63,7 @@ def app(examples_dag_bag):
     )
     def factory():
         with conf_vars({("fab", "auth_rate_limited"): "False"}):
-            return create_app(testing=True)
+            return create_app(enable_plugins=False)
 
     app = factory()
     app.config["WTF_CSRF_ENABLED"] = False
