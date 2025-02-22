@@ -260,6 +260,9 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param expose_logging_url: Optional. If set to True, the GCP logging URL containing the container
+        logs will be included in the Airflow logs. This URL is a direct link to the GCP
+        Console Logging, default value is False.
     :param deferrable: Run the operator in deferrable mode.
     """
 
@@ -275,8 +278,8 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         expose_logging_url: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
