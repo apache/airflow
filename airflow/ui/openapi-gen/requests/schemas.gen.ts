@@ -5189,7 +5189,6 @@ export const $TaskInstanceResponse = {
     rendered_fields: {
       type: "object",
       title: "Rendered Fields",
-      default: {},
     },
     trigger: {
       anyOf: [
