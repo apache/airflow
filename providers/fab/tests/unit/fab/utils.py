@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import ast
-import json
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -25,8 +23,6 @@ from unittest import mock
 
 import flask
 import pytest
-
-from airflow.models import Log
 
 if TYPE_CHECKING:
     import jinja2
@@ -74,89 +70,6 @@ def check_content_not_in_response(text, resp, resp_code=200):
             assert line not in resp_html
     else:
         assert text not in resp_html
-
-
-def _check_last_log(session, dag_id, event, logical_date, expected_extra=None):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.logical_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.logical_date == logical_date,
-        )
-        .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    assert logs[0].extra
-    if expected_extra:
-        assert json.loads(logs[0].extra) == expected_extra
-    session.query(Log).delete()
-
-
-def _check_last_log_masked_connection(session, dag_id, event, logical_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.logical_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.logical_date == logical_date,
-        )
-        .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    extra = ast.literal_eval(logs[0].extra)
-    assert extra == {
-        "conn_id": "test_conn",
-        "conn_type": "http",
-        "description": "description",
-        "host": "localhost",
-        "port": "8080",
-        "username": "root",
-        "password": "***",
-        "extra": {"x_secret": "***", "y_secret": "***"},
-    }
-
-
-def _check_last_log_masked_variable(session, dag_id, event, logical_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.logical_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.logical_date == logical_date,
-        )
-        .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    extra_dict = ast.literal_eval(logs[0].extra)
-    assert extra_dict == {"key": "x_secret", "val": "***"}
 
 
 class _TemplateWithContext(NamedTuple):

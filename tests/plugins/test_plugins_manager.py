@@ -31,7 +31,6 @@ import pytest
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.module_loading import qualname
-from airflow.www import app as application
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
@@ -155,7 +154,9 @@ def test_flaskappbuilder_nomenu_views():
     appbuilder_class_name = str(v_nomenu_appbuilder_package["view"].__class__.__name__)
 
     with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
-        appbuilder = application.create_app(testing=True).appbuilder
+        from airflow.api_fastapi import app as application
+
+        appbuilder = application.create_app().appbuilder
 
         plugin_views = [view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name]
 
