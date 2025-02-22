@@ -175,7 +175,6 @@ class TaskInstanceOperations:
         body = TISkippedDownstreamTasksStatePayload(tasks=msg.tasks)
         self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
 
-
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
         """Set Rendered Task Instance Fields via the API server."""
         self.client.put(f"task-instances/{id}/rtif", json=body)
