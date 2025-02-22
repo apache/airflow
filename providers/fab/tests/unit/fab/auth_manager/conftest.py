@@ -24,10 +24,10 @@ from pathlib import Path
 import pytest
 
 from airflow.providers.fab.www import app
+from unit.decorators import dont_initialize_flask_app_submodules
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import parse_and_sync_to_db
-from unit.decorators import dont_initialize_flask_app_submodules
 
 
 @pytest.fixture(scope="session")
