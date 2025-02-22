@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-22T08:00:10.459142
+# This constraints file was automatically generated on 2025-02-22T14:03:38.876665
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -163,7 +163,7 @@ dataclasses-json==0.6.7
 datadog==0.51.0
 db-dtypes==1.4.1
 debugpy==1.8.12
-decorator==5.1.1
+decorator==5.2.0
 deepdiff==8.2.0
 defusedxml==0.7.1
 deltalake==0.25.1
@@ -521,7 +521,7 @@ rich-argparse==1.7.0
 rich-click==1.8.6
 rich-toolkit==0.13.2
 rich==13.9.4
-roman-numerals-py==3.0.0
+roman-numerals-py==3.1.0
 rpds-py==0.23.1
 rsa==4.9
 ruff==0.8.1
