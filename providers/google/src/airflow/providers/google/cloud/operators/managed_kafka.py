@@ -28,6 +28,7 @@ from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
 from airflow.providers.google.cloud.links.managed_kafka import (
     ApacheKafkaClusterLink,
     ApacheKafkaClusterListLink,
+    ApacheKafkaTopicLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -448,4 +449,340 @@ class ManagedKafkaDeleteClusterOperator(ManagedKafkaBaseOperator):
             self.log.info("Apache Kafka cluster was deleted.")
         except NotFound as not_found_err:
             self.log.info("The Apache Kafka cluster ID %s does not exist.", self.cluster_id)
+            raise AirflowException(not_found_err)
+
+
+class ManagedKafkaCreateTopicOperator(ManagedKafkaBaseOperator):
+    """
+    Create a new topic in a given project and location.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud region that the service belongs to.
+    :param cluster_id: Required. The ID of the cluster in which to create the topic.
+    :param topic_id: Required. The ID to use for the topic, which will become the final component of the
+        topic's name.
+    :param topic: Required. Configuration of the topic to create.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"cluster_id", "topic_id", "topic"} | set(ManagedKafkaBaseOperator.template_fields)
+    )
+    operator_extra_links = (ApacheKafkaTopicLink(),)
+
+    def __init__(
+        self,
+        cluster_id: str,
+        topic_id: str,
+        topic: types.Topic | dict,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cluster_id = cluster_id
+        self.topic_id = topic_id
+        self.topic = topic
+
+    def execute(self, context: Context):
+        self.log.info("Creating an Apache Kafka topic.")
+        ApacheKafkaTopicLink.persist(
+            context=context,
+            task_instance=self,
+            cluster_id=self.cluster_id,
+            topic_id=self.topic_id,
+        )
+        try:
+            topic_obj = self.hook.create_topic(
+                project_id=self.project_id,
+                location=self.location,
+                cluster_id=self.cluster_id,
+                topic_id=self.topic_id,
+                topic=self.topic,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("Apache Kafka topic for %s cluster was created.", self.cluster_id)
+            return types.Topic.to_dict(topic_obj)
+        except AlreadyExists:
+            self.log.info("Apache Kafka topic %s already exists.", self.topic_id)
+            topic_obj = self.hook.get_topic(
+                project_id=self.project_id,
+                location=self.location,
+                cluster_id=self.cluster_id,
+                topic_id=self.topic_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            return types.Topic.to_dict(topic_obj)
+
+
+class ManagedKafkaListTopicsOperator(ManagedKafkaBaseOperator):
+    """
+    List the topics in a given cluster.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud region that the service belongs to.
+    :param cluster_id: Required. The ID of the cluster whose topics are to be listed.
+    :param page_size: Optional. The maximum number of topics to return. The service may return fewer than
+        this value. If unset or zero, all topics for the parent is returned.
+    :param page_token: Optional. A page token, received from a previous ``ListTopics`` call. Provide this
+        to retrieve the subsequent page. When paginating, all other parameters provided to ``ListTopics``
+        must match the call that provided the page token.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple({"cluster_id"} | set(ManagedKafkaBaseOperator.template_fields))
+    operator_extra_links = (ApacheKafkaClusterLink(),)
+
+    def __init__(
+        self,
+        cluster_id: str,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cluster_id = cluster_id
+        self.page_size = page_size
+        self.page_token = page_token
+
+    def execute(self, context: Context):
+        ApacheKafkaClusterLink.persist(context=context, task_instance=self, cluster_id=self.cluster_id)
+        self.log.info("Listing Topics for cluster %s.", self.cluster_id)
+        try:
+            topic_list_pager = self.hook.list_topics(
+                project_id=self.project_id,
+                location=self.location,
+                cluster_id=self.cluster_id,
+                page_size=self.page_size,
+                page_token=self.page_token,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.xcom_push(
+                context=context,
+                key="topic_page",
+                value=types.ListTopicsResponse.to_dict(topic_list_pager._response),
+            )
+        except Exception as error:
+            raise AirflowException(error)
+        return [types.Topic.to_dict(topic) for topic in topic_list_pager]
+
+
+class ManagedKafkaGetTopicOperator(ManagedKafkaBaseOperator):
+    """
+    Return the properties of a single topic.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud region that the service belongs to.
+    :param cluster_id: Required. The ID of the cluster whose topic is to be returned.
+    :param topic_id: Required. The ID of the topic whose configuration to return.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"cluster_id", "topic_id"} | set(ManagedKafkaBaseOperator.template_fields)
+    )
+    operator_extra_links = (ApacheKafkaTopicLink(),)
+
+    def __init__(
+        self,
+        cluster_id: str,
+        topic_id: str,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cluster_id = cluster_id
+        self.topic_id = topic_id
+
+    def execute(self, context: Context):
+        ApacheKafkaTopicLink.persist(
+            context=context,
+            task_instance=self,
+            cluster_id=self.cluster_id,
+            topic_id=self.topic_id,
+        )
+        self.log.info("Getting Topic: %s", self.topic_id)
+        try:
+            topic = self.hook.get_topic(
+                project_id=self.project_id,
+                location=self.location,
+                cluster_id=self.cluster_id,
+                topic_id=self.topic_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("The topic %s from cluster %s was retrieved.", self.topic_id, self.cluster_id)
+            return types.Topic.to_dict(topic)
+        except NotFound as not_found_err:
+            self.log.info("The Topic %s does not exist.", self.topic_id)
+            raise AirflowException(not_found_err)
+
+
+class ManagedKafkaUpdateTopicOperator(ManagedKafkaBaseOperator):
+    """
+    Update the properties of a single topic.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud region that the service belongs to.
+    :param cluster_id: Required. The ID of the cluster whose topic is to be updated.
+    :param topic_id: Required. The ID of the topic whose configuration to update.
+    :param topic: Required. The topic to update. Its ``name`` field must be populated.
+    :param update_mask: Required. Field mask is used to specify the fields to be overwritten in the Topic
+        resource by the update. The fields specified in the update_mask are relative to the resource, not
+        the full request. A field will be overwritten if it is in the mask.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"cluster_id", "topic_id", "topic", "update_mask"} | set(ManagedKafkaBaseOperator.template_fields)
+    )
+    operator_extra_links = (ApacheKafkaTopicLink(),)
+
+    def __init__(
+        self,
+        cluster_id: str,
+        topic_id: str,
+        topic: types.Topic | dict,
+        update_mask: FieldMask | dict,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cluster_id = cluster_id
+        self.topic_id = topic_id
+        self.topic = topic
+        self.update_mask = update_mask
+
+    def execute(self, context: Context):
+        ApacheKafkaTopicLink.persist(
+            context=context,
+            task_instance=self,
+            cluster_id=self.cluster_id,
+            topic_id=self.topic_id,
+        )
+        self.log.info("Updating an Apache Kafka topic.")
+        try:
+            topic_obj = self.hook.update_topic(
+                project_id=self.project_id,
+                location=self.location,
+                cluster_id=self.cluster_id,
+                topic_id=self.topic_id,
+                topic=self.topic,
+                update_mask=self.update_mask,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("Apache Kafka topic %s was updated.", self.topic_id)
+            return types.Topic.to_dict(topic_obj)
+        except NotFound as not_found_err:
+            self.log.info("The Topic %s does not exist.", self.topic_id)
+            raise AirflowException(not_found_err)
+        except Exception as error:
+            raise AirflowException(error)
+
+
+class ManagedKafkaDeleteTopicOperator(ManagedKafkaBaseOperator):
+    """
+    Delete a single topic.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud region that the service belongs to.
+    :param cluster_id: Required. The ID of the cluster whose topic is to be deleted.
+    :param topic_id: Required. The ID of the topic to delete.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"cluster_id", "topic_id"} | set(ManagedKafkaBaseOperator.template_fields)
+    )
+
+    def __init__(
+        self,
+        cluster_id: str,
+        topic_id: str,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cluster_id = cluster_id
+        self.topic_id = topic_id
+
+    def execute(self, context: Context):
+        try:
+            self.log.info("Deleting Apache Kafka topic: %s", self.topic_id)
+            self.hook.delete_topic(
+                project_id=self.project_id,
+                location=self.location,
+                cluster_id=self.cluster_id,
+                topic_id=self.topic_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+            self.log.info("Apache Kafka topic was deleted.")
+        except NotFound as not_found_err:
+            self.log.info("The Apache Kafka topic ID %s does not exist.", self.topic_id)
             raise AirflowException(not_found_err)

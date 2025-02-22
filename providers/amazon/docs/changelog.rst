@@ -26,25 +26,77 @@
 Changelog
 ---------
 
+9.4.0
+.....
+
 .. note::
-  This release of provider is only available for Airflow 2.9+ as explained in the
-  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
 
 9.3.0
 .....
 
-Misc
-~~~~
+.. warning::
+  * ``The experimental AWS auth manager is no longer compatible with Airflow 2``
 
-* ``The experimental AWS auth manager is no longer compatible with Airflow 2``
+Features
+~~~~~~~~
+
+* ``Add MwaaTriggerDagRunOperator and MwaaHook to Amazon Provider Package (#46579)``
+* ``Adding extra links for EC2 (#46340)``
+* ``Allow to pass container_name parameter to EcsRunTaskOperator (#46152)``
+* ``Adding DataSync links (#46292)``
+* ``Added extra links for Comprehend operators (#46031)``
+* ``Add support for timeout to BatchOperator (#45660)``
+* ``Adding SageMaker Transform extra link (#45677)``
+* ``Add MessageDeduplicationId support to AWS SqsPublishOperator (#45051)``
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``The DMS waiter replication_terminal_status has been extended to proceed on 2 additional states: "created" and "deprovisioned"``
+* ``Rework the TriggererJobRunner to run triggers in a process without DB access (#46677)``
+* ``Fix schema path in AWS auth manager system test due to restructure (#46625)``
+* ``Increase retries in 'EmrContainerHook.create_emr_on_eks_cluster' (#46562)``
+* ``Update 'create_emr_on_eks_cluster' method to try when "cluster is not reachable as its connection is currently being updated" (#46497)``
+* ``Generate partition aware STS endpoints for EKS Hook (#45725)``
+* ``Sagemaker Operator Character limit fix  (#45551)``
+* ``Fix 'fetch_access_token_for_cluster' in EKS hook (#45469)``
+* ``The DMS waiter replication_terminal_status has been extended to proceed on 2 additional states: "created" and "deprovisioned" (#46684)``
+
+Misc
+~~~~
+
+* ``AIP-72: Improving Operator Links Interface to Prevent User Code Execution in Webserver (#46613)``
+* ``Update 'example_sqs' to not use 'logical_date' (#46696)``
+* ``Change improper AirflowProviderDeprecationWarning ignore to DeprecationWarning ignore for 3.12 tests (#46612)``
+* ``Update AWS auth manager to use Fastapi instead of Flask (#46381)``
+* ``AIP-72: Move Secrets Masker to task SDK (#46375)``
+* ``Swap CeleryExecutor over to use TaskSDK for execution. (#46265)``
+* ``Make parameter 'user' mandatory for all methods in the auth manager interface (#45986)``
+* ``Add 'run_job_kwargs' as templated field in 'GlueJobOperator' (#45973)``
+* ``Use Protocol for 'OutletEventAccessor' (#45762)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Remove classes from 'typing_compat' that can be imported directly (#45589)``
+* ``Move Literal alias into TYPE_CHECKING block (#45345)``
+* ``Remove marshmallow version restriction; update deprecated usages (#45499)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+* ``Add option in auth manager interface to define FastAPI api (#45009)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Migrate Amazon provider package (#46590)``
+   * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+   * ``Revert "Fix fetch_access_token_for_cluster in EKS hook" (#45526)``
+   * ``Fix the way to get STS endpoint in EKS hook (#45520)``
+   * ``update outdated hyperlinks referencing provider package files (#45332)``
 
 9.2.0
 .....
+
+.. note::
+  This release of provider is only available for Airflow 2.9+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~

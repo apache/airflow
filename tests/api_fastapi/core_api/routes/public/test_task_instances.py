@@ -518,7 +518,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
-                "rendered_map_index": None,
+                "rendered_map_index": str(map_index),
                 "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
@@ -740,7 +740,7 @@ class TestGetMappedTaskInstances:
             .first()
         )
 
-        ti.rendered_map_index = "a"
+        ti._rendered_map_index = "a"
 
         session.commit()
 
@@ -3346,7 +3346,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": self.RUN_ID,
                 "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
-                "rendered_map_index": None,
+                "rendered_map_index": str(map_index),
                 "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,

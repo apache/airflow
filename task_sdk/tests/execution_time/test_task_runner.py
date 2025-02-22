@@ -1147,7 +1147,7 @@ class TestRuntimeTaskInstance:
                 "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
             },
         )
-        _, msg = run(runtime_ti, log=mock.MagicMock())
+        _, msg, _ = run(runtime_ti, log=mock.MagicMock())
         assert isinstance(msg, SucceedTask)
 
     def test_task_run_with_operator_extra_links(self, create_runtime_ti, mock_supervisor_comms, time_machine):
@@ -1502,6 +1502,7 @@ class TestTaskRunnerCallsListeners:
         def __init__(self):
             self.state = []
             self.component = None
+            self.error = None
 
         @hookimpl
         def on_starting(self, component):
@@ -1516,8 +1517,9 @@ class TestTaskRunnerCallsListeners:
             self.state.append(TaskInstanceState.SUCCESS)
 
         @hookimpl
-        def on_task_instance_failed(self, previous_state, task_instance):
+        def on_task_instance_failed(self, previous_state, task_instance, error):
             self.state.append(TaskInstanceState.FAILED)
+            self.error = error
 
         @hookimpl
         def before_stopping(self, component):
@@ -1566,7 +1568,7 @@ class TestTaskRunnerCallsListeners:
         assert isinstance(listener.component, TaskRunnerMarker)
         del listener.component
 
-        state, _ = run(runtime_ti, log)
+        state, _, _ = run(runtime_ti, log)
         finalize(runtime_ti, state, log)
         assert isinstance(listener.component, TaskRunnerMarker)
 
@@ -1595,7 +1597,7 @@ class TestTaskRunnerCallsListeners:
         )
         log = mock.MagicMock()
 
-        state, _ = run(runtime_ti, log)
+        state, _, _ = run(runtime_ti, log)
         finalize(runtime_ti, state, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
@@ -1633,7 +1635,8 @@ class TestTaskRunnerCallsListeners:
         )
         log = mock.MagicMock()
 
-        state, _ = run(runtime_ti, log)
-        finalize(runtime_ti, state, log)
+        state, _, error = run(runtime_ti, log)
+        finalize(runtime_ti, state, log, error)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
+        assert listener.error == error
