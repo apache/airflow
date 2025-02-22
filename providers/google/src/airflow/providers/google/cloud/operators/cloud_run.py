@@ -304,7 +304,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             raise AirflowException("Operation is None")
 
         if self.expose_logging_url:
-            self.log.info("GCP Console Logging URL: %s", self.operation.metadata.get("log_uri"))
+            self.log.info("GCP Console Logging URL: %s ", self.operation.metadata.log_uri)
 
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
