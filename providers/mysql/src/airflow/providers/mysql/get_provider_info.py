@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "MySQL",
         "description": "`MySQL <https://www.mysql.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734535570,
+        "source-date-epoch": 1739963874,
         "versions": [
+            "6.1.0",
             "6.0.0",
             "5.7.4",
             "5.7.3",

@@ -24,7 +24,7 @@
 
 Package ``apache-airflow-providers-pinecone``
 
-Release: ``2.2.0``
+Release: ``2.2.1``
 
 
 `Pinecone <https://docs.pinecone.io/docs/overview>`__
@@ -37,7 +37,7 @@ This is a provider package for ``pinecone`` provider. All classes for this provi
 are in ``airflow.providers.pinecone`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-pinecone/2.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-pinecone/2.2.1/>`_.
 
 Installation
 ------------
@@ -51,12 +51,12 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-===================  ==================
-PIP package          Version required
-===================  ==================
-``apache-airflow``   ``>=2.9.0``
-``pinecone-client``  ``>=3.1.0``
-===================  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.9.0``
+``pinecone``        ``>=3.1.0``
+==================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-pinecone/2.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-pinecone/2.2.1/changelog.html>`_.

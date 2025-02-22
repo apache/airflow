@@ -27,6 +27,39 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage support for MsSqlHook and MSSQLToGCSOperator (#45637)``
+* ``Introduce notion of dialects in DbApiHook (#41327)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed generated SQL MSSQL dialect when all columns are also primary keys (#46380)``
+* ``Fix escaping of special characters or reserved words as column names in dialects of common sql provider (#45640)``
+
+Misc
+~~~~
+
+* ``Added ADR document describing why the notion of dialects is introduced (#45456)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid imports from "providers" (#46801)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Move Microsoft MSSQL / PSRP and WinRM providers to new provider structure (#46338)``
+
 4.0.0
 .....
 

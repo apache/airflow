@@ -53,7 +53,7 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 from celery import states as celery_states
@@ -158,10 +158,7 @@ ARG_WITHOUT_GOSSIP = Arg(
     action="store_true",
 )
 
-if AIRFLOW_V_2_8_PLUS:
-    CELERY_CLI_COMMAND_PATH = "airflow.providers.celery.cli.celery_command"
-else:
-    CELERY_CLI_COMMAND_PATH = "airflow.cli.commands.celery_command"
+CELERY_CLI_COMMAND_PATH = "airflow.providers.celery.cli.celery_command"
 
 CELERY_COMMANDS = (
     ActionCommand(

@@ -25,9 +25,10 @@ description: |
       - `Slack Incoming Webhook <https://api.slack.com/messaging/webhooks>`__
 
 state: ready
-source-date-epoch: 1734536602
+source-date-epoch: 1739964299
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 9.0.1
   - 9.0.0
   - 8.9.2
   - 8.9.1

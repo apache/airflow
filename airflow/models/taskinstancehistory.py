@@ -92,7 +92,7 @@ class TaskInstanceHistory(Base):
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
-    task_display_name = Column("task_display_name", String(2000), nullable=True)
+    task_display_name = Column(String(2000), nullable=True)
     dag_version_id = Column(UUIDType(binary=False))
 
     dag_version = relationship(
