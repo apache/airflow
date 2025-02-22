@@ -83,6 +83,8 @@ class BaseBranchOperator(BaseOperator, BranchMixIn):
     tasks directly downstream of this operator will be skipped.
     """
 
+    inherits_from_skippable_mixin = True
+
     def choose_branch(self, context: Context) -> str | Iterable[str]:
         """
         Abstract method to choose which branch to run.

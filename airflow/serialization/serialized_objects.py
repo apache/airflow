@@ -1286,7 +1286,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
-        serialize_op["_is_skippable"] = op.inherits_from_skip_mixin
+
+        # Used to determine if an Operator is inherited from SkipMixin or BranchMixin
+        serialize_op["_is_skippable"] = op.inherits_from_skippable_mixin
 
         serialize_op["start_trigger_args"] = (
             encode_start_trigger_args(op.start_trigger_args) if op.start_trigger_args else None

@@ -236,6 +236,8 @@ class BranchPythonOperator(PythonOperator, BranchMixIn):
     the DAG run's state to be inferred.
     """
 
+    inherits_from_skippable_mixin = True
+
     def execute(self, context: Context) -> Any:
         return self.do_branch(context, super().execute(context))
 
@@ -266,7 +268,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         skipped but the ``trigger_rule`` defined for all other downstream tasks will be respected.
     """
 
-    inherits_from_skip_mixin = True
+    inherits_from_skippable_mixin = True
 
     def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -868,6 +870,8 @@ class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BranchPythonVirtualenvOperator`
     """
+
+    inherits_from_skippable_mixin = True
 
     def execute(self, context: Context) -> Any:
         return self.do_branch(context, super().execute(context))
