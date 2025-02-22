@@ -380,9 +380,9 @@ def ti_skip_downstream(
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
     try:
         result = session.execute(query)
-        log.info("TI %s state updated to skipped: %s row(s) affected", ti_id_str, result.rowcount)
+        log.info("TI %s updated the state of %s task(s) to skipped", ti_id_str, result.rowcount)
     except SQLAlchemyError as e:
-        log.error("Error updating Task Instance state: %s", e)
+        log.error("Error in TI %s updating the state of tasks to skipped: %s", ti_id_str, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
