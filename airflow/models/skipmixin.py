@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from airflow import settings
 from airflow.exceptions import AirflowException, DownstreamTasksSkipped
 from airflow.models.taskinstance import TaskInstance
+from airflow.sdk.types import RuntimeTaskInstanceProtocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -52,7 +53,8 @@ class SkipMixin(LoggingMixin):
 
     @staticmethod
     def _set_state_to_skipped(
-        tasks: list[str] | list[tuple[str, int]], map_index: int,
+        tasks: list[str] | list[tuple[str, int]],
+        map_index: int | None,
     ) -> None:
         """
         Set state of task instances to skipped from the same dag run.
@@ -67,7 +69,7 @@ class SkipMixin(LoggingMixin):
 
     def skip(
         self,
-        ti: TaskInstance,
+        ti: RuntimeTaskInstanceProtocol,
         tasks: Iterable[DAGNode],
     ):
         """

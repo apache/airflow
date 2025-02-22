@@ -23,7 +23,7 @@ from uuid import UUID
 
 from fastapi import Body, HTTPException, status
 from pydantic import JsonValue
-from sqlalchemy import func, update, tuple_
+from sqlalchemy import func, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.sql import select
 
@@ -344,7 +344,9 @@ def ti_update_state(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
 
-@router.patch("/{task_instance_id}/skip-downstream",
+
+@router.patch(
+    "/{task_instance_id}/skip-downstream",
     status_code=status.HTTP_204_NO_CONTENT,
     # TODO: Add description to the operation
     # TODO: Add Operation ID to control the function name in the OpenAPI spec
@@ -355,21 +357,25 @@ def ti_update_state(
     },
 )
 def ti_skip_downstream(
-    task_instance_id: UUID,
-    ti_patch_payload: TISkippedDownstreamTasksStatePayload,
-    session: SessionDep
+    task_instance_id: UUID, ti_patch_payload: TISkippedDownstreamTasksStatePayload, session: SessionDep
 ):
     ti_id_str = str(task_instance_id)
     now = timezone.utcnow()
     tasks = ti_patch_payload.tasks
     if isinstance(tasks[0], tuple):
-        query = (update(TI).where(TI.id == ti_id_str, tuple_(TI.task_id, TI.map_index).in_(tasks))
-                 .values(state=State.SKIPPED,
-                         start_date=now, end_date=now).execution_options(synchronize_session=False))
+        query = (
+            update(TI)
+            .where(TI.id == ti_id_str, tuple_(TI.task_id, TI.map_index).in_(tasks))
+            .values(state=State.SKIPPED, start_date=now, end_date=now)
+            .execution_options(synchronize_session=False)
+        )
     else:
-        query = (update(TI).where(TI.id == ti_id_str, TI.task_id.in_(tasks))
-                 .values(state=State.SKIPPED,
-                         start_date=now, end_date=now).execution_options(synchronize_session=False))
+        query = (
+            update(TI)
+            .where(TI.id == ti_id_str, TI.task_id.in_(tasks))
+            .values(state=State.SKIPPED, start_date=now, end_date=now)
+            .execution_options(synchronize_session=False)
+        )
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
     try:
@@ -380,6 +386,7 @@ def ti_skip_downstream(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
+
 
 @router.put(
     "/{task_instance_id}/heartbeat",

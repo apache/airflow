@@ -702,6 +702,7 @@ def _handle_current_task_success(context, ti) -> tuple[SucceedTask, TerminalTISt
     )
     return msg, TerminalTIState.SUCCESS
 
+
 def _execute_task(context: Context, ti: RuntimeTaskInstance):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout

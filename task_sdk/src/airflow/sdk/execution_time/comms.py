@@ -59,9 +59,9 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
-    TISkippedDownstreamTasksStatePayload,
     TIRunContext,
     TIRuntimeCheckPayload,
+    TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     VariableResponse,
     XComResponse,
@@ -238,8 +238,11 @@ class RescheduleTask(TIRescheduleStatePayload):
 
 
 class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
-    """Update state of downstream tasks within a task instance to 'skipped',
-    while updating current task to success state."""
+    """
+    Update state of downstream tasks within a task instance to 'skipped',
+    while updating current task to success state.
+    """
+
     type: Literal["SkipDownstreamTasks"] = "SkipDownstreamTasks"
 
 

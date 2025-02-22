@@ -154,6 +154,7 @@ class AbstractOperator(Templater, DAGNode):
 
     _is_sensor: bool = False
     _is_mapped: bool = False
+    _is_skippable: bool = False
 
     @property
     def dag_id(self) -> str:

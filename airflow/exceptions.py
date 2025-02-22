@@ -402,6 +402,7 @@ class DownstreamTasksSkipped(BaseException):
     Special exception raised to signal that the operator it was raised from wishes to skip
     downstream tasks. This is used in the ShortCircuitOperator.
     """
+
     def __init__(self, *, tasks: list[str] | list[tuple[str, int]]):
         super().__init__()
         self.tasks = tasks

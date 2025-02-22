@@ -55,8 +55,12 @@ from airflow.sdk.api.datamodels._generated import (
     XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse, OKResponse, RuntimeCheckOnTask, \
-    SkipDownstreamTasks
+from airflow.sdk.execution_time.comms import (
+    ErrorResponse,
+    OKResponse,
+    RuntimeCheckOnTask,
+    SkipDownstreamTasks,
+)
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 

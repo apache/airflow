@@ -155,6 +155,7 @@ class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
     """
     Schema for updating downstream tasks TaskInstance to a skipped state,
     """
+
     tasks: Annotated[list[str] | list[tuple[str, int]], Field(default_factory=list)]
 
 
