@@ -171,9 +171,7 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
 def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker, session):
     """
     We have two modes whereby when there's an existing run(s) in the range
-    of the backfill, we will create a new run.
-    This test might need to be altered if we change the behavior re multiple
-    runs of same logical date.  But for now, it verifies the current behavior.
+    of the backfill, we will clear an existing run.
     """
     dag_id = "backfill-test-reprocess-behavior"
     with dag_maker(schedule="@daily", dag_id=dag_id) as dag:
