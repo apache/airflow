@@ -29,6 +29,7 @@ from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
@@ -717,6 +718,37 @@ class TestTIUpdateState:
             assert response.status_code == 400
 
         session.expire_all()
+
+class TestTISkipDownstream:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+
+    def test_ti_skip_downstream(
+        self, client, session, create_task_instance, dag_maker
+    ):
+        # from airflow import settings
+        # session = settings.Session()
+        with dag_maker("skip_downstream_dag", session=session):
+            t0 = EmptyOperator(task_id="t0")
+            t1 = EmptyOperator(task_id="t1")
+            t0 >> t1
+        dr = dag_maker.create_dagrun(run_id="run")
+        ti0 = dr.get_task_instance("t0", session=session)
+        ti1 = dr.get_task_instance("t1", session=session)
+        ti0.run()
+        response = client.patch(
+            f"/execution/task-instances/{ti0.id}/skip-downstream",
+            json={"tasks": ["t1"]},
+        )
+        # TODO: How to sync the session in Task SDK?
+        assert response.status_code == 204
+        assert ti0.state == State.SUCCESS
+        assert ti1.state == State.SKIPPED # <- This is failing
+
 
 
 class TestTIHealthEndpoint:
