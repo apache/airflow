@@ -224,6 +224,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param return_last: (optional) return the result of only last statement (default: True).
     :param show_return_value_in_logs: (optional) if true operator output will be printed to the task log.
         Use with caution. It's not recommended to dump large datasets to the log. (default: False).
+    :param requires_result_fetch: (optional) if True, ensures that query results are fetched before
+        completing execution. (default: False).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -254,6 +256,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         split_statements: bool | None = None,
         return_last: bool = True,
         show_return_value_in_logs: bool = False,
+        requires_result_fetch: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -265,6 +268,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.split_statements = split_statements
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
+        self.requires_result_fetch = requires_result_fetch
 
     def _process_output(
         self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
@@ -303,7 +307,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             sql=self.sql,
             autocommit=self.autocommit,
             parameters=self.parameters,
-            handler=self.handler if self._should_run_output_processing() else None,
+            handler=self.handler if self._should_run_output_processing() or self.requires_result_fetch else None,
             return_last=self.return_last,
             **extra_kwargs,
         )
