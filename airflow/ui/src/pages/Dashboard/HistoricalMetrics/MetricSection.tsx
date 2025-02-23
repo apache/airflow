@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, VStack, Text, Link } from "@chakra-ui/react";
+import { Box, Flex, HStack, VStack, Text } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
@@ -45,11 +46,11 @@ export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: 
     <VStack align="left" gap={1} mb={4} ml={0} pl={0}>
       <Flex justify="space-between">
         <HStack>
-          <Link href={`/webapp/${kind}?state=${state}&start_date=${startDate}&end_date=${endDate}`}>
+          <RouterLink to={`/${kind}?state=${state}&start_date=${startDate}&end_date=${endDate}`}>
             <StateBadge fontSize="md" state={state}>
               {runs}
             </StateBadge>
-          </Link>
+          </RouterLink>
           <Text>
             {state
               .split("_")
