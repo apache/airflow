@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-23T14:19:36.080323
+# This constraints file was automatically generated on 2025-02-23T20:17:32.646168
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -86,7 +86,7 @@ alibabacloud-adb20211201==2.1.0
 alibabacloud-tea==0.4.0
 alibabacloud_credentials==0.3.6
 alibabacloud_endpoint_util==0.0.3
-alibabacloud_gateway_spi==0.0.2
+alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
 alibabacloud_tea_openapi==0.3.12
 alibabacloud_tea_util==0.3.13
