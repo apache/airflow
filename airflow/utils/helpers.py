@@ -251,17 +251,15 @@ def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterabl
     return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
 
 
-def build_airflow_url_with_query(query: dict[str, Any]) -> str:
+def build_airflow_dagrun_url(dag_id: str, run_id: str) -> str:
     """
-    Build airflow url using base_url and default_view and provided query.
+    Build airflow dagrun url using base_url and provided dag_id and run_id.
 
     For example:
-    http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&logical_date=2020-10-27T10%3A59%3A25.615587
+    http://localhost:9091/webapp/dags/hi/runs/manual__2025-02-23T18:27:39.051358+00:00_RZa1at4Q
     """
-    import flask
-
-    view = conf.get_mandatory_value("webserver", "dag_default_view").lower()
-    return flask.url_for(f"Airflow.{view}", **query)
+    baseurl = conf.get("fastapi", "base_url")
+    return f"{baseurl}/webapp/dags/{dag_id}/runs/{run_id}"
 
 
 # The 'template' argument is typed as Any because the jinja2.Template is too
