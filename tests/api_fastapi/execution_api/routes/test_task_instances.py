@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import operator
 from datetime import datetime
 from unittest import mock
 
@@ -726,28 +727,38 @@ class TestTISkipDownstream:
     def teardown_method(self):
         clear_db_runs()
 
-
+    @pytest.mark.need_serialized_dag
     def test_ti_skip_downstream(
         self, client, session, create_task_instance, dag_maker
     ):
-        # from airflow import settings
-        # session = settings.Session()
-        with dag_maker("skip_downstream_dag", session=session):
+        with dag_maker("skip_downstream_dag", session=session, serialized=True):
             t0 = EmptyOperator(task_id="t0")
             t1 = EmptyOperator(task_id="t1")
             t0 >> t1
         dr = dag_maker.create_dagrun(run_id="run")
-        ti0 = dr.get_task_instance("t0", session=session)
-        ti1 = dr.get_task_instance("t1", session=session)
-        ti0.run()
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            # TODO: TaskSDK #45549
+            ti.task = dag_maker.dag.get_task(ti.task_id)
+            ti.run(session=session)
+
+        t0 = dr.get_task_instance("t0")
         response = client.patch(
-            f"/execution/task-instances/{ti0.id}/skip-downstream",
+            f"/execution/task-instances/{t0.id}/skip-downstream",
             json={"tasks": ["t1"]},
         )
-        # TODO: How to sync the session in Task SDK?
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            # TODO: TaskSDK #45549
+            ti.task = dag_maker.dag.get_task(ti.task_id)
+            ti.run(session=session)
+
+        t1 = dr.get_task_instance("t1")
+
         assert response.status_code == 204
-        assert ti0.state == State.SUCCESS
-        assert ti1.state == State.SKIPPED # <- This is failing
+        assert decision.schedulable_tis[0].state == State.SUCCESS
+        assert t1.state == State.SKIPPED # <- Still doesn't work
 
 
 

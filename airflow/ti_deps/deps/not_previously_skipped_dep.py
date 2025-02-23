@@ -53,7 +53,6 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # This can happen if the parent task has not yet run.
                     continue
 
-                # TODO: fix double encoding https://github.com/apache/airflow/issues/45231
                 prev_result = ti.xcom_pull(task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session)
 
                 if prev_result is None:

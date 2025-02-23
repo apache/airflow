@@ -395,7 +395,7 @@ class ConnectionNotUnique(AirflowException):
     """Raise when multiple values are found for the same connection ID."""
 
 
-class DownstreamTasksSkipped(BaseException):
+class DownstreamTasksSkipped(AirflowException):
     """
     Signal an operator to skip its downstream tasks.
 
