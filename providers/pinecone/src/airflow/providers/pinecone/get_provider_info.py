@@ -63,5 +63,5 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.pinecone.operators.pinecone"],
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "pinecone-client>=3.1.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "pinecone>=3.1.0"],
     }

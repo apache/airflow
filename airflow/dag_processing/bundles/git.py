@@ -243,11 +243,12 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             return False
 
     def _fetch_bare_repo(self):
+        refspecs = ["+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"]
         if self.hook.env:
             with self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=self.hook.env.get("GIT_SSH_COMMAND")):
-                self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
+                self.bare_repo.remotes.origin.fetch(refspecs)
         else:
-            self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
+            self.bare_repo.remotes.origin.fetch(refspecs)
 
     def refresh(self) -> None:
         if self.version:
@@ -256,7 +257,15 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         with self.lock():
             with self.hook.configure_hook_env():
                 self._fetch_bare_repo()
-                self.repo.remotes.origin.pull()
+                self.repo.remotes.origin.fetch(
+                    ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
+                )
+                remote_branch = f"origin/{self.tracking_ref}"
+                if remote_branch in [ref.name for ref in self.repo.remotes.origin.refs]:
+                    target = remote_branch
+                else:
+                    target = self.tracking_ref
+                self.repo.head.reset(target, index=True, working_tree=True)
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:

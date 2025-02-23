@@ -67,7 +67,7 @@ def init_views(app: FastAPI) -> None:
     templates = Jinja2Templates(directory=directory)
 
     app.mount(
-        "/static",
+        "/webapp/static",
         StaticFiles(
             directory=directory,
             html=True,
