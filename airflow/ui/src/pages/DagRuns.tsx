@@ -37,6 +37,11 @@ import { dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
 import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
+const {
+  END_DATE: END_DATE_PARAM,
+  START_DATE: START_DATE_PARAM,
+  STATE: STATE_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
   ...(Boolean(dagId)
@@ -117,11 +122,6 @@ export const DagRuns = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-run_after";
-  const {
-    END_DATE: END_DATE_PARAM,
-    START_DATE: START_DATE_PARAM,
-    STATE: STATE_PARAM,
-  }: SearchParamsKeysType = SearchParamsKeys;
 
   const filteredState = searchParams.get(STATE_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
@@ -162,7 +162,7 @@ export const DagRuns = () => {
       });
       setSearchParams(searchParams);
     },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting, STATE_PARAM],
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
   return (

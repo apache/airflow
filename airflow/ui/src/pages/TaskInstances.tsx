@@ -40,6 +40,12 @@ import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/uti
 import { getTaskInstanceLink } from "src/utils/links";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
+const {
+  END_DATE: END_DATE_PARAM,
+  NAME_PATTERN: NAME_PATTERN_PARAM,
+  START_DATE: START_DATE_PARAM,
+  STATE: STATE_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = (
   dagId?: string,
@@ -150,12 +156,6 @@ export const TaskInstances = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
-  const {
-    END_DATE: END_DATE_PARAM,
-    NAME_PATTERN: NAME_PATTERN_PARAM,
-    START_DATE: START_DATE_PARAM,
-    STATE: STATE_PARAM,
-  }: SearchParamsKeysType = SearchParamsKeys;
 
   const filteredState = searchParams.getAll(STATE_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
@@ -182,7 +182,7 @@ export const TaskInstances = () => {
       });
       setSearchParams(searchParams);
     },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting, STATE_PARAM],
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
   const handleSearchChange = (value: string) => {
