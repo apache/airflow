@@ -27,6 +27,7 @@ import { Tooltip } from "src/components/ui";
 import { capitalize } from "src/utils";
 
 import DeletePoolButton from "./DeletePoolButton";
+import EditPoolButton from "./EditPoolButton";
 
 const slots = {
   open_slots: { color: "success", icon: <StateIcon color="white" state="success" /> },
@@ -54,7 +55,10 @@ const PoolBar = ({ pool }: PoolBarProps) => (
               </Tooltip>
             ) : undefined}
           </Text>
-          {pool.name === "default_pool" ? undefined : <DeletePoolButton poolName={pool.name} />}
+          <HStack gap={0}>
+            <EditPoolButton pool={pool} />
+            {pool.name === "default_pool" ? undefined : <DeletePoolButton poolName={pool.name} />}
+          </HStack>
         </HStack>
         {pool.description ?? (
           <Text color="gray.fg" fontSize="sm">
