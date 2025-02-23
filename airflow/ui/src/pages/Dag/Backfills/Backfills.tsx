@@ -72,7 +72,9 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
     accessorKey: "duration",
     cell: ({ row }) => (
       <Text>
-        {row.original.completed_at ?? getDuration(row.original.created_at, row.original.completed_at)}
+        {row.original.completed_at === null
+          ? ""
+          : getDuration(row.original.created_at, row.original.completed_at)}
       </Text>
     ),
     enableSorting: false,
