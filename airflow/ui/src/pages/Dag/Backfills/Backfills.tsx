@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, HStack, Text } from "@chakra-ui/react";
+import { Box, Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MdOutlineContentCopy } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfills } from "openapi/queries";
@@ -28,24 +27,9 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
-import { pluralize } from "src/utils";
+import { getDuration, pluralize } from "src/utils";
 
 const columns: Array<ColumnDef<BackfillResponse>> = [
-  {
-    accessorKey: "id",
-    cell: ({ row }) => (
-      <HStack>
-        <Text>{row.original.id}</Text>
-        <MdOutlineContentCopy
-          onClick={() => {
-            void navigator.clipboard.writeText(row.original.id.toString());
-          }}
-        />
-      </HStack>
-    ),
-    enableSorting: true,
-    header: () => "ID",
-  },
   {
     accessorKey: "reprocess_behavior",
     cell: ({ row }) => (
@@ -57,40 +41,42 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
       </Text>
     ),
     enableSorting: false,
-    header: () => "Reprocess Behavior",
+    header: "Reprocess Behavior",
   },
   {
     accessorKey: "max_active_runs",
     enableSorting: false,
-    header: () => "Max Active Runs",
+    header: "Max Active Runs",
   },
   {
-    accessorKey: "date_range",
+    accessorKey: "date_from",
     cell: ({ row }) => (
       <Text>
-        <Time datetime={row.original.from_date} /> - <Time datetime={row.original.to_date} />
+        <Time datetime={row.original.from_date} />
       </Text>
     ),
     enableSorting: false,
-    header: () => "Backfill time range",
+    header: "From",
+  },
+  {
+    accessorKey: "date_to",
+    cell: ({ row }) => (
+      <Text>
+        <Time datetime={row.original.to_date} />
+      </Text>
+    ),
+    enableSorting: false,
+    header: "To",
   },
   {
     accessorKey: "duration",
     cell: ({ row }) => (
       <Text>
-        {row.original.completed_at === null
-          ? ""
-          : new Date(
-              Math.abs(
-                new Date(row.original.completed_at).getTime() - new Date(row.original.created_at).getTime(),
-              ),
-            )
-              .toISOString()
-              .slice(11, 19)}
+        {row.original.completed_at ?? getDuration(row.original.created_at, row.original.completed_at)}
       </Text>
     ),
     enableSorting: false,
-    header: () => "Duration",
+    header: "Duration",
   },
 ];
 
