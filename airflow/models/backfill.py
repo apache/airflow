@@ -357,7 +357,6 @@ def _create_backfill_dag_run(
                 backfill_id,
                 info.logical_date,
             )
-            log.info("rolling back")
             nested.rollback()
 
             session.add(
