@@ -154,10 +154,15 @@ def worker(args):
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
 
+    # backwards-compatible: https://github.com/apache/airflow/pull/21506#pullrequestreview-879893763
+    celery_log_level = conf.get("logging", "CELERY_LOGGING_LEVEL")
+    if not celery_log_level:
+        celery_log_level = conf.get("logging", "LOGGING_LEVEL")
+
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.log import configure_logging
 
-        configure_logging(output=sys.stdout.buffer)
+        configure_logging(output=sys.stdout.buffer, log_level=celery_log_level)
 
     # Disable connection pool so that celery worker does not hold an unnecessary db connection
     settings.reconfigure_orm(disable_connection_pool=True)
@@ -185,11 +190,6 @@ def worker(args):
             # "pg_type_typname_nsp_index" table. If this happens we can ignore
             # it, we raced to create the tables and lost.
             pass
-
-    # backwards-compatible: https://github.com/apache/airflow/pull/21506#pullrequestreview-879893763
-    celery_log_level = conf.get("logging", "CELERY_LOGGING_LEVEL")
-    if not celery_log_level:
-        celery_log_level = conf.get("logging", "LOGGING_LEVEL")
 
     # Setup Celery worker
     options = [

@@ -125,17 +125,9 @@ class StdBinaryStreamHandler(logging.StreamHandler):
             self.handleError(record)
 
 
-@cache
-def logging_processors(
-    enable_pretty_log: bool,
-):
-    if enable_pretty_log:
-        timestamper = structlog.processors.MaybeTimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f")
-    else:
-        timestamper = structlog.processors.MaybeTimeStamper(fmt="iso")
-
+def _common_processors(timestamp_fmt):
+    timestamper = structlog.processors.MaybeTimeStamper(fmt=timestamp_fmt)
     processors: list[structlog.typing.Processor] = [
-        timestamper,
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.stdlib.PositionalArgumentsFormatter(),
@@ -159,90 +151,110 @@ def logging_processors(
         httpcore,
         httpx,
     )
+    return timestamper, processors, suppress
 
-    if enable_pretty_log:
-        rich_exc_formatter = structlog.dev.RichTracebackFormatter(
-            # These values are picked somewhat arbitrarily to produce useful-but-compact tracebacks. If
-            # we ever need to change these then they should be configurable.
-            extra_lines=0,
-            max_frames=30,
-            indent_guides=False,
-            suppress=suppress,
-        )
-        my_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
-        my_styles["debug"] = structlog.dev.CYAN
 
-        console = structlog.dev.ConsoleRenderer(
-            exception_formatter=rich_exc_formatter, level_styles=my_styles
-        )
-        processors.append(console)
-        return processors, {
-            "timestamper": timestamper,
-            "console": console,
-        }
+@cache
+def logging_processors_pretty():
+    timestamper, processors, suppress = _common_processors(timestamp_fmt="%Y-%m-%d %H:%M:%S.%f")
+
+    rich_exc_formatter = structlog.dev.RichTracebackFormatter(
+        # These values are picked somewhat arbitrarily to produce useful-but-compact tracebacks. If
+        # we ever need to change these then they should be configurable.
+        extra_lines=0,
+        max_frames=30,
+        indent_guides=False,
+        suppress=suppress,
+    )
+    my_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
+    my_styles["debug"] = structlog.dev.CYAN
+
+    console_renderer = structlog.dev.ConsoleRenderer(
+        exception_formatter=rich_exc_formatter, level_styles=my_styles
+    )
+    processors.append(console_renderer)
+    return processors, timestamper, console_renderer
+
+
+@cache
+def logging_processors_ugly():
+    timestamper, processors, suppress = _common_processors(timestamp_fmt="iso")
+    dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
+        use_rich=False, show_locals=False, suppress=suppress
+    )
+
+    dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
+    if hasattr(__builtins__, "BaseExceptionGroup"):
+        exc_group_processor = exception_group_tracebacks(dict_exc_formatter)
+        processors.append(exc_group_processor)
     else:
-        dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
-            use_rich=False, show_locals=False, suppress=suppress
-        )
+        exc_group_processor = None
 
-        dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
-        if hasattr(__builtins__, "BaseExceptionGroup"):
-            exc_group_processor = exception_group_tracebacks(dict_exc_formatter)
-            processors.append(exc_group_processor)
-        else:
-            exc_group_processor = None
+    def json_dumps(msg, default):
+        # Note: this is likely an "expensive" step, but lets massage the dict order for nice
+        # viewing of the raw JSON logs.
+        # Maybe we don't need this once the UI renders the JSON instead of displaying the raw text
+        # msg = {
+        #     "timestamp": msg.pop("timestamp"),
+        #     "level": msg.pop("level"),
+        #     "event": msg.pop("event"),
+        #     **msg,
+        # }
+        return msgspec.json.encode(msg, enc_hook=default)
 
-        def json_dumps(msg, default):
-            # Note: this is likely an "expensive" step, but lets massage the dict order for nice
-            # viewing of the raw JSON logs.
-            # Maybe we don't need this once the UI renders the JSON instead of displaying the raw text
-            msg = {
-                "timestamp": msg.pop("timestamp"),
-                "level": msg.pop("level"),
-                "event": msg.pop("event"),
-                **msg,
-            }
-            return msgspec.json.encode(msg, enc_hook=default)
+    json = structlog.processors.JSONRenderer(serializer=json_dumps)
 
-        def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-            # Stdlib logging doesn't need the re-ordering, it's fine as it is
-            return msgspec.json.encode(event_dict).decode("utf-8")
+    processors.extend(
+        (
+            dict_tracebacks,
+            structlog.processors.UnicodeDecoder(),
+            json,
+        ),
+    )
 
-        json = structlog.processors.JSONRenderer(serializer=json_dumps)
+    return processors, timestamper, exc_group_processor, dict_tracebacks
 
-        processors.extend(
-            (
-                dict_tracebacks,
-                structlog.processors.UnicodeDecoder(),
-                json,
-            ),
-        )
 
-        return processors, {
-            "timestamper": timestamper,
-            "exc_group_processor": exc_group_processor,
-            "dict_tracebacks": dict_tracebacks,
-            "json": json_processor,
-        }
+def _json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
+    # Stdlib logging doesn't need the re-ordering, it's fine as it is
+    return msgspec.json.encode(event_dict).decode("utf-8")
 
 
 @cache
 def configure_logging(
     enable_pretty_log: bool = True,
-    log_level: str = "DEBUG",
+    log_level: str = "INFO",
     output: BinaryIO | TextIO | None = None,
     cache_logger_on_first_use: bool = True,
     sending_to_supervisor: bool = False,
 ):
     """Set up struct logging and stdlib logging config."""
-    lvl = structlog.stdlib.NAME_TO_LEVEL[log_level.lower()]
+    # Don't cache the loggers during tests, it make it hard to capture them
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        cache_logger_on_first_use = False
 
+    color_format_processors: list[structlog.typing.Processor] = [
+        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+        drop_positional_args,
+    ]
+    plain_format_processors: list[structlog.typing.Processor] = [
+        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+        drop_positional_args,
+    ]
+    enable_pretty_log = False
     if enable_pretty_log:
         formatter = "colored"
+        logger_factory, pre_chain_add, processors, timestamper, console_renderer = _configure_logging_pretty(
+            output=output,
+        )
+        color_format_processors.append(console_renderer)
     else:
         formatter = "plain"
-    processors, named = logging_processors(enable_pretty_log)
-    timestamper = named["timestamper"]
+        color_format_processors.append(_json_processor)
+        plain_format_processors.append(_json_processor)  # why do we conditionally add json processor here?
+        logger_factory, output, pre_chain_add, processors, timestamper = _configure_logging_ugly(
+            output=output,
+        )
 
     pre_chain: list[structlog.typing.Processor] = [
         # Add the log level and a timestamp to the event_dict if the log entry
@@ -252,60 +264,15 @@ def configure_logging(
         timestamper,
         structlog.contextvars.merge_contextvars,
         redact_jwt,
+        *pre_chain_add,
     ]
 
-    # Don't cache the loggers during tests, it make it hard to capture them
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        cache_logger_on_first_use = False
-
-    color_formatter: list[structlog.typing.Processor] = [
-        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-        drop_positional_args,
-    ]
-    std_lib_formatter: list[structlog.typing.Processor] = [
-        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-        drop_positional_args,
-    ]
-
-    wrapper_class = structlog.make_filtering_bound_logger(lvl)
-    if enable_pretty_log:
-        if output is not None and not isinstance(output, TextIO):
-            wrapper = io.TextIOWrapper(output, line_buffering=True)
-            logger_factory = structlog.WriteLoggerFactory(wrapper)
-        else:
-            logger_factory = structlog.WriteLoggerFactory(output)
-        structlog.configure(
-            processors=processors,
-            cache_logger_on_first_use=cache_logger_on_first_use,
-            wrapper_class=wrapper_class,
-            logger_factory=logger_factory,
-        )
-        color_formatter.append(named["console"])
-    else:
-        if output is not None and "b" not in output.mode:
-            if not hasattr(output, "buffer"):
-                raise ValueError(
-                    f"output needed to be a binary stream, but it didn't have a buffer attribute ({output=})"
-                )
-            else:
-                output = output.buffer
-        if TYPE_CHECKING:
-            # Not all binary streams are isinstance of BinaryIO, so we check via looking at `mode` at
-            # runtime. mypy doesn't grok that though
-            assert isinstance(output, BinaryIO)
-        structlog.configure(
-            processors=processors,
-            cache_logger_on_first_use=cache_logger_on_first_use,
-            wrapper_class=wrapper_class,
-            logger_factory=structlog.BytesLoggerFactory(output),
-        )
-
-        if processor := named["exc_group_processor"]:
-            pre_chain.append(processor)
-        pre_chain.append(named["dict_tracebacks"])
-        color_formatter.append(named["json"])
-        std_lib_formatter.append(named["json"])
-
+    structlog.configure(
+        processors=processors,
+        cache_logger_on_first_use=cache_logger_on_first_use,
+        wrapper_class=structlog.make_filtering_bound_logger(log_level.lower()),
+        logger_factory=logger_factory,
+    )
     global _warnings_showwarning
 
     if _warnings_showwarning is None:
@@ -320,13 +287,13 @@ def configure_logging(
             "formatters": {
                 "plain": {
                     "()": structlog.stdlib.ProcessorFormatter,
-                    "processors": std_lib_formatter,
+                    "processors": plain_format_processors,
                     "foreign_pre_chain": pre_chain,
                     "pass_foreign_args": True,
                 },
                 "colored": {
                     "()": structlog.stdlib.ProcessorFormatter,
-                    "processors": color_formatter,
+                    "processors": color_format_processors,
                     "foreign_pre_chain": pre_chain,
                     "pass_foreign_args": True,
                 },
@@ -358,6 +325,38 @@ def configure_logging(
             },
         }
     )
+
+
+def _configure_logging_ugly(*, output):
+    processors, timestamper, exc_group_processor, dict_tracebacks = logging_processors_ugly()
+    if output is not None and "b" not in output.mode:
+        if not hasattr(output, "buffer"):
+            raise ValueError(
+                f"output needed to be a binary stream, but it didn't have a buffer attribute ({output=})"
+            )
+        else:
+            output = output.buffer
+    if TYPE_CHECKING:
+        # Not all binary streams are isinstance of BinaryIO, so we check via looking at `mode` at
+        # runtime. mypy doesn't grok that though
+        assert isinstance(output, BinaryIO)
+    logger_factory = structlog.BytesLoggerFactory(output)
+    pre_chain_add = []
+    if exc_group_processor:
+        pre_chain_add.append(exc_group_processor)
+    pre_chain_add.append(dict_tracebacks)
+    return logger_factory, output, pre_chain_add, processors, timestamper
+
+
+def _configure_logging_pretty(*, output):
+    if output is not None and not isinstance(output, TextIO):
+        wrapper = io.TextIOWrapper(output, line_buffering=True)
+        logger_factory = structlog.WriteLoggerFactory(wrapper)
+    else:
+        logger_factory = structlog.WriteLoggerFactory(output)
+    processors, timestamper, console_renderer = logging_processors_pretty()
+    pre_chain_add = []
+    return logger_factory, pre_chain_add, processors, timestamper, console_renderer
 
 
 def reset_logging():
