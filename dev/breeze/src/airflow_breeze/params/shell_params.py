@@ -507,6 +507,7 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
+        _set_var(_env, "AIRFLOW__FASTAPI__BASE_URL", f"http://localhost:{FASTAPI_API_HOST_PORT}")
         if self.executor == EDGE_EXECUTOR:
             _set_var(
                 _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
