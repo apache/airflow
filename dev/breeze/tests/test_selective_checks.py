@@ -2630,16 +2630,21 @@ def test_is_log_mocked_in_the_tests_fail(
     """
     mock_run_command.return_value = mock_run_command_result
     with pytest.raises(SystemExit):
-        selective_checks = SelectiveChecks(
-            files=files,
-            commit_ref=NEUTRAL_COMMIT,
-            github_event=GithubEvents.PULL_REQUEST,
-            default_branch="main",
+        assert (
+            "[error]please ask maintainer to include as an exception using "
+            f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label."
+            in escape_ansi_colors(
+                str(
+                    SelectiveChecks(
+                        files=files,
+                        commit_ref=NEUTRAL_COMMIT,
+                        pr_labels=pr_labels,
+                        github_event=GithubEvents.PULL_REQUEST,
+                        default_branch="main",
+                    )
+                )
+            )
         )
-    assert (
-        "[error]please ask maintainer to include as an exception using "
-        f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label." in escape_ansi_colors(str(selective_checks))
-    )
 
 
 @pytest.mark.parametrize(
@@ -2685,16 +2690,21 @@ def test_is_log_mocked_in_the_tests_fail_formatted(
     """
     mock_run_command.return_value = mock_run_command_result
     with pytest.raises(SystemExit):
-        selective_checks = SelectiveChecks(
-            files=files,
-            commit_ref=NEUTRAL_COMMIT,
-            github_event=GithubEvents.PULL_REQUEST,
-            default_branch="main",
+        assert (
+            "[error]please ask maintainer to include as an exception using "
+            f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label."
+            in escape_ansi_colors(
+                str(
+                    SelectiveChecks(
+                        files=files,
+                        commit_ref=NEUTRAL_COMMIT,
+                        pr_labels=pr_labels,
+                        github_event=GithubEvents.PULL_REQUEST,
+                        default_branch="main",
+                    )
+                )
+            )
         )
-    assert (
-        "[error]please ask maintainer to include as an exception using "
-        f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label." in escape_ansi_colors(str(selective_checks))
-    )
 
 
 @pytest.mark.parametrize(
@@ -2738,6 +2748,7 @@ def test_is_log_mocked_in_the_tests_not_fail(
     selective_checks = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
+        pr_labels=pr_labels,
         github_event=GithubEvents.PULL_REQUEST,
         default_branch="main",
     )
@@ -2783,11 +2794,11 @@ def test_is_log_mocked_in_the_tests_not_fail_with_label(
         +   "test log" in caplog.text
     """
     mock_run_command.return_value = mock_run_command_result
-    with pytest.raises(SystemExit):
-        selective_checks = SelectiveChecks(
-            files=files,
-            commit_ref=NEUTRAL_COMMIT,
-            github_event=GithubEvents.PULL_REQUEST,
-            default_branch="main",
-        )
+    selective_checks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=pr_labels,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
     assert selective_checks.is_log_mocked_in_the_tests
