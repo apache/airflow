@@ -528,6 +528,13 @@ core:
       type: integer
       example: ~
       default: "4096"
+    execution_api_server_url:
+      description: |
+        The url of the execution api server.
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "http://localhost:9091/execution/"
 database:
   description: ~
   options:

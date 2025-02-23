@@ -1675,7 +1675,7 @@ class TaskInstance(Base, LoggingMixin):
     executor = Column(String(1000))
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    rendered_map_index = Column(String(250))
+    _rendered_map_index = Column("rendered_map_index", String(250))
 
     external_executor_id = Column(StringID())
 
@@ -1845,6 +1845,14 @@ class TaskInstance(Base, LoggingMixin):
     @hybrid_property
     def task_display_name(self) -> str:
         return self._task_display_property_value or self.task_id
+
+    @hybrid_property
+    def rendered_map_index(self) -> str | None:
+        if self._rendered_map_index is not None:
+            return self._rendered_map_index
+        if self.map_index >= 0:
+            return str(self.map_index)
+        return None
 
     @classmethod
     def from_runtime_ti(cls, runtime_ti: RuntimeTaskInstanceProtocol) -> TaskInstance:
@@ -2918,10 +2926,10 @@ class TaskInstance(Base, LoggingMixin):
                 except Exception:
                     # If the task failed, swallow rendering error so it doesn't mask the main error.
                     with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
-                        self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
+                        self._rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
                     raise
                 else:  # If the task succeeded, render normally to let rendering error bubble up.
-                    self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
+                    self._rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
 
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)

@@ -26,6 +26,40 @@
 Changelog
 ---------
 
+7.2.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+7.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Accept task_key as an argument in 'DatabricksNotebookOperator' (#44960)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``python_named_parameters should be python_named_params (#46299)``
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Revert "Add support for serverless job in Databricks operators (#45188)" (#46724)``
+   * ``Move databricks provider to new structure (#46207)``
+   * ``Revert "Revert "Added job_clusters as a templated parameter to CreateDatabric…" (#45066)``
+   * ``Add support for serverless job in Databricks operators (#45188)``
+
 7.0.0
 .....
 
