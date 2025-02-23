@@ -57,7 +57,7 @@ const DeletePoolButton = ({ poolName }: Props) => {
 
           <Dialog.Body width="full">
             <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
-              You are about to delete Pool <strong>{poolName}</strong>.
+              You are about to delete pool <strong>{poolName}</strong>.
               <br />
               This action is permanent and cannot be undone.{" "}
               <strong>Are you sure you want to proceed?</strong>
