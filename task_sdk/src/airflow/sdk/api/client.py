@@ -355,7 +355,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
 # Note: Given defaults make attempts after 1, 3, 7, 15, 31seconds, 1:03, 2:07, 3:37 and fails after 5:07min
 # So far there is no other config facility in SDK we use ENV for the moment
 # TODO: Consider these env variables while handling airflow confs in task sdk
-API_RETRIES = int(os.getenv("AIRFLOW__WORKERS__API_RETRIES", 3))
+API_RETRIES = int(os.getenv("AIRFLOW__WORKERS__API_RETRIES", 10))
 API_RETRY_WAIT_MIN = float(os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MIN", 1.0))
 API_RETRY_WAIT_MAX = float(os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MAX", 90.0))
 
