@@ -648,7 +648,7 @@
       "google-cloud-bigquery-datatransfer>=3.13.0",
       "google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*",
       "google-cloud-bigtable>=2.17.0",
-      "google-cloud-build>=3.22.0",
+      "google-cloud-build>=3.31.0",
       "google-cloud-compute>=1.10.0",
       "google-cloud-container>=2.17.4",
       "google-cloud-datacatalog>=3.23.0",
@@ -666,7 +666,7 @@
       "google-cloud-monitoring>=2.18.0",
       "google-cloud-orchestration-airflow>=1.10.0",
       "google-cloud-os-login>=2.9.1",
-      "google-cloud-pubsub>=2.19.0",
+      "google-cloud-pubsub>=2.21.3",
       "google-cloud-redis>=2.12.0",
       "google-cloud-run>=0.10.0",
       "google-cloud-secret-manager>=2.16.0",
@@ -1073,7 +1073,7 @@
   "pinecone": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "pinecone-client>=3.1.0"
+      "pinecone>=3.1.0"
     ],
     "devel-deps": [],
     "plugins": [],

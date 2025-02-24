@@ -598,7 +598,13 @@ class GCSHook(GoogleBaseHook):
             context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
         )
 
-    def exists(self, bucket_name: str, object_name: str, retry: Retry = DEFAULT_RETRY) -> bool:
+    def exists(
+        self,
+        bucket_name: str,
+        object_name: str,
+        retry: Retry = DEFAULT_RETRY,
+        user_project: str | None = None,
+    ) -> bool:
         """
         Check for the existence of a file in Google Cloud Storage.
 
@@ -606,9 +612,11 @@ class GCSHook(GoogleBaseHook):
         :param object_name: The name of the blob_name to check in the Google cloud
             storage bucket.
         :param retry: (Optional) How to retry the RPC
+        :param user_project: The identifier of the Google Cloud project to bill for the request.
+            Required for Requester Pays buckets.
         """
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
         blob = bucket.blob(blob_name=object_name)
         return blob.exists(retry=retry)
 
@@ -625,7 +633,7 @@ class GCSHook(GoogleBaseHook):
 
     def is_updated_after(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
         """
-        Check if an blob_name is updated in Google Cloud Storage.
+        Check if a blob_name is updated in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -645,7 +653,7 @@ class GCSHook(GoogleBaseHook):
         self, bucket_name: str, object_name: str, min_ts: datetime, max_ts: datetime
     ) -> bool:
         """
-        Check if an blob_name is updated in Google Cloud Storage.
+        Check if a blob_name is updated in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -666,7 +674,7 @@ class GCSHook(GoogleBaseHook):
 
     def is_updated_before(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
         """
-        Check if an blob_name is updated before given time in Google Cloud Storage.
+        Check if a blob_name is updated before given time in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud

@@ -58,6 +58,7 @@ class DagCode(Base):
     dag_id = Column(String(ID_LEN), nullable=False)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
+    created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
     last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
     source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
     source_code_hash = Column(String(32), nullable=False)
