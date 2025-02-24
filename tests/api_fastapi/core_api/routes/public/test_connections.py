@@ -342,7 +342,7 @@ class TestPatchConnection(TestConnectionEndpoint):
 
         response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 200
-        _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
+        check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
 
     @pytest.mark.parametrize(
         "body, updated_connection, update_mask",
