@@ -143,7 +143,7 @@ class TestPatchPool(TestPoolsEndpoint):
             (
                 Pool.DEFAULT_POOL_NAME,
                 {},
-                {"pool": Pool.DEFAULT_POOL_NAME},
+                {},
                 400,
                 {"detail": "Only slots and included_deferred can be modified on Default Pool"},
             ),
@@ -160,6 +160,14 @@ class TestPatchPool(TestPoolsEndpoint):
                 {"pool": "unknown_pool"},
                 404,
                 {"detail": "The Pool with name: `unknown_pool` was not found"},
+            ),
+            # Pool name can't be updated
+            (
+                POOL1_NAME,
+                {},
+                {"pool": "pool1_updated"},
+                400,
+                {"detail": "Invalid body, pool name from request body doesn't match uri parameter"},
             ),
             (
                 POOL1_NAME,
@@ -193,7 +201,7 @@ class TestPatchPool(TestPoolsEndpoint):
             (
                 Pool.DEFAULT_POOL_NAME,
                 {"update_mask": ["slots"]},
-                {"pool": Pool.DEFAULT_POOL_NAME, "slots": 150},
+                {"slots": 150},
                 200,
                 {
                     "deferred_slots": 0,
