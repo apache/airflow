@@ -34,7 +34,6 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.base import STALE_BUNDLE_CHECK_INTERVAL, BundleUsageTrackingManager
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
@@ -124,11 +123,16 @@ def _serve_logs(skip_serve_logs: bool = False):
 @contextmanager
 def _run_stale_bundle_cleanup():
     """Start stale bundle cleanup sub-process."""
+    if not AIRFLOW_V_3_0_PLUS:
+        yield
+        return
+    from airflow.dag_processing.bundles.base import STALE_BUNDLE_CHECK_INTERVAL, BundleUsageTrackingManager
+
     log.info("starting stale bundle cleanup process")
     sub_proc = None
-    mgr = BundleUsageTrackingManager()
 
     def bundle_cleanup_main():
+        mgr = BundleUsageTrackingManager()
         while True:
             time.sleep(STALE_BUNDLE_CHECK_INTERVAL)
             mgr.remove_stale_bundle_versions()
