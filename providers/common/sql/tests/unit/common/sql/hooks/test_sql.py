@@ -29,7 +29,12 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, resolve_dialects
+from airflow.providers.common.sql.hooks.sql import (
+    DbApiHook,
+    default_output_processor_with_column_names,
+    fetch_all_handler,
+    resolve_dialects,
+)
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.common_sql import mock_db_hook
@@ -218,6 +223,19 @@ def test_query(
     assert results == hook_results
 
     dbapi_hook.get_conn.return_value.cursor.return_value.close.assert_called()
+
+
+def test_default_output_processor_with_column_names():
+    results_input = [[(1, "Alice"), (2, "Bob")], [(101, 1), (102, 2)]]
+    descriptions_input = [
+        (("CustomerId", int, None, None, None, None, 0), ("Name", str, None, None, None, None, 0)),
+        (("OrderId", int, None, None, None, None, 0), ("CustomerId", int, None, None, None, None, 0)),
+    ]
+    expected_output = [
+        ([(1, "Alice"), (2, "Bob")], ["CustomerId", "Name"]),
+        ([(101, 1), (102, 2)], ["OrderId", "CustomerId"]),
+    ]
+    assert default_output_processor_with_column_names(results_input, descriptions_input) == expected_output
 
 
 class TestDbApiHook:
