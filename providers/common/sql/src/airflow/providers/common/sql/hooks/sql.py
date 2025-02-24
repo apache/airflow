@@ -127,7 +127,9 @@ def default_output_processor_with_column_names(
     results: list[Any], descriptions: list[Sequence[Sequence] | None]
 ) -> list[tuple[Any, list[str]]]:
     """
-    Returns both the data and column names when used as output_processor of the SQLExecuteQueryOperator.
+    Return both the data and column names of one or more queries executed with the SQLExecuteQueryOperator.
+
+    This method needs to be set as the value of the output_processor parameter.
 
     Args:
         results (list[Any]): The data outputs of the executed queries.
