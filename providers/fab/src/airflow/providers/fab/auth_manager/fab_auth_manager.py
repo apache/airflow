@@ -52,7 +52,6 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
-from airflow.providers.fab.auth_manager.api_fastapi.routes.login import login_router
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
     ROLES_COMMANDS,
@@ -186,6 +185,9 @@ class FabAuthManager(BaseAuthManager[User]):
         return commands
 
     def get_fastapi_app(self) -> FastAPI | None:
+        """Get the FastAPI app."""
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.login import login_router
+
         flask_app = create_app(enable_plugins=False)
 
         app = FastAPI(

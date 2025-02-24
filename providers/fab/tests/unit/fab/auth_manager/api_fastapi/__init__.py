@@ -14,26 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.api_fastapi.core_api.base import BaseModel
-
-
-class CLIAPITokenResponse(BaseModel):
-    """CLI API Token serializer for responses."""
-
-    jwt_cli_token: str
-
-
-class CLIAPIRefreshTokenResponse(BaseModel):
-    """CLI API Token serializer for responses."""
-
-    jwt_cli_token: str
-
-
-class CLIAPITokenPostBody(BaseModel):
-    """CLI API Token serializer for post bodies."""
-
-    user_id: str
-    jwt_cli_data: str
-    jwt_cli_header: str

@@ -543,7 +543,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         jwt_manager.init_app(self.appbuilder.app)
         jwt_manager.user_lookup_loader(self.load_user_jwt)
 
-    def refresh_jwt_token(self, user: User) -> str:
+    def refresh_jwt_token(self) -> str:
         """Refresh the JWT token."""
         return create_access_token(identity=get_jwt_identity())
 
@@ -598,7 +598,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "warning",
             )
 
-    # Check
     def load_user_jwt(self, _jwt_header, jwt_data):
         identity = jwt_data["sub"]
         user = self.load_user(identity)

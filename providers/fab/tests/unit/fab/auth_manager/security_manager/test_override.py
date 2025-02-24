@@ -52,3 +52,13 @@ class TestFabAirflowSecurityManagerOverride:
         sm.load_user.assert_called_once_with("test_identity")
         assert actual_user is mock_user
         assert mock_g.user is mock_user
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.get_jwt_identity")
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.create_access_token")
+    def test_refresh_token(self, mock_create_access_token, mock_get_jwt_identity):
+        dummy_token = "DUMMY_TOKEN"
+        sm = EmptySecurityManager()
+        mock_create_access_token.return_value = dummy_token
+        mock_get_jwt_identity.return_value = Mock()
+        token = sm.refresh_jwt_token()
+        assert token == dummy_token
