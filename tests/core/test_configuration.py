@@ -938,6 +938,12 @@ class TestDeprecatedConf:
             with pytest.warns(DeprecationWarning), conf_vars({("celery", "celeryd_concurrency"): "99"}):
                 assert conf.getint("celery", "worker_concurrency") == 99
 
+            # should get None when set lookup_from_deprecated_options keyword to False
+            assert (
+                conf.get("celery", "worker_concurrency", fallback=None, lookup_from_deprecated_options=False)
+                is None
+            )
+
     @conf_vars(
         {
             ("celery", "result_backend"): None,
