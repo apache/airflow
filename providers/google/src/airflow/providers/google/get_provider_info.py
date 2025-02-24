@@ -746,6 +746,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.operators.vertex_ai.pipeline_job",
                     "airflow.providers.google.cloud.operators.vertex_ai.generative_model",
                     "airflow.providers.google.cloud.operators.vertex_ai.feature_store",
+                    "airflow.providers.google.cloud.operators.vertex_ai.ray",
                 ],
             },
             {
@@ -1109,6 +1110,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.hooks.vertex_ai.generative_model",
                     "airflow.providers.google.cloud.hooks.vertex_ai.prediction_service",
                     "airflow.providers.google.cloud.hooks.vertex_ai.feature_store",
+                    "airflow.providers.google.cloud.hooks.vertex_ai.ray",
                 ],
             },
             {
@@ -1495,6 +1497,8 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink",
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobLink",
             "airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobListLink",
+            "airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterLink",
+            "airflow.providers.google.cloud.links.vertex_ai.VertexAIRayClusterListLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink",
             "airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink",
@@ -1596,7 +1600,7 @@ def get_provider_info():
             "google-api-python-client>=2.0.2",
             "google-auth>=2.29.0",
             "google-auth-httplib2>=0.0.1",
-            "google-cloud-aiplatform[evaluation]>=1.73.0",
+            "google-cloud-aiplatform[evaluation,ray]>=1.73.0",
             "google-cloud-alloydb>=0.4.0",
             "google-cloud-automl>=2.12.0",
             "google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*",
