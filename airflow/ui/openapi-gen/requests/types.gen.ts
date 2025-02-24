@@ -1461,7 +1461,7 @@ export type TriggerDAGRunPostBody = {
   data_interval_start?: string | null;
   data_interval_end?: string | null;
   logical_date: string | null;
-  run_after?: string;
+  run_after?: string | null;
   conf?: {
     [key: string]: unknown;
   };
@@ -1738,6 +1738,10 @@ export type RecentDagRunsData = {
 };
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetDependenciesData = {
+  nodeId?: string | null;
+};
 
 export type GetDependenciesResponse = BaseGraphResponse;
 
@@ -2968,11 +2972,20 @@ export type $OpenApiTs = {
   };
   "/ui/dependencies": {
     get: {
+      req: GetDependenciesData;
       res: {
         /**
          * Successful Response
          */
         200: BaseGraphResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

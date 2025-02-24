@@ -31,6 +31,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
 from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
 from airflow.www.extensions.init_dagbag import get_dag_bag
@@ -66,7 +67,7 @@ def init_views(app: FastAPI) -> None:
     templates = Jinja2Templates(directory=directory)
 
     app.mount(
-        "/static",
+        "/webapp/static",
         StaticFiles(
             directory=directory,
             html=True,
@@ -76,7 +77,11 @@ def init_views(app: FastAPI) -> None:
 
     @app.get("/webapp/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
     def webapp(request: Request, rest_of_path: str):
-        return templates.TemplateResponse("/index.html", {"request": request}, media_type="text/html")
+        return templates.TemplateResponse(
+            "/index.html",
+            {"request": request, "backend_server_base_url": conf.get("fastapi", "base_url")},
+            media_type="text/html",
+        )
 
 
 def init_plugins(app: FastAPI) -> None:

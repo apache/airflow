@@ -277,9 +277,7 @@ class _EdgeWorkerCli:
                     dag_rel_path=workload.dag_rel_path,
                     bundle_info=workload.bundle_info,
                     token=workload.token,
-                    server=conf.get(
-                        "workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"
-                    ),
+                    server=conf.get("core", "execution_api_server_url"),
                     log_path=workload.log_path,
                 )
                 return 0

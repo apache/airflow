@@ -99,13 +99,17 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
     accessorKey: "last_run_start_date",
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
-        <DagRunInfo
-          endDate={original.latest_dag_runs[0].end_date}
-          logicalDate={original.latest_dag_runs[0].logical_date}
-          runAfter={original.latest_dag_runs[0].run_after}
-          startDate={original.latest_dag_runs[0].start_date}
-          state={original.latest_dag_runs[0].state}
-        />
+        <Link asChild color="fg.info" fontWeight="bold">
+          <RouterLink to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].dag_run_id}`}>
+            <DagRunInfo
+              endDate={original.latest_dag_runs[0].end_date}
+              logicalDate={original.latest_dag_runs[0].logical_date}
+              runAfter={original.latest_dag_runs[0].run_after}
+              startDate={original.latest_dag_runs[0].start_date}
+              state={original.latest_dag_runs[0].state}
+            />
+          </RouterLink>
+        </Link>
       ) : undefined,
     header: "Last Dag Run",
   },

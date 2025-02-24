@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Snowflake",
         "description": "`Snowflake <https://www.snowflake.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536683,
+        "source-date-epoch": 1739964397,
         "versions": [
+            "6.1.0",
             "6.0.0",
             "5.8.1",
             "5.8.0",

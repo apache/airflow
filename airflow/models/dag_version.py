@@ -63,6 +63,7 @@ class DagVersion(Base):
     )
     task_instances = relationship("TaskInstance", back_populates="dag_version")
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
 
     __table_args__ = (
         UniqueConstraint("dag_id", "version_number", name="dag_id_v_name_v_number_unique_constraint"),

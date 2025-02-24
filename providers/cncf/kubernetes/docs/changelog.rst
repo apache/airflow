@@ -28,6 +28,53 @@ Changelog
 ---------
 
 
+10.3.0
+......
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+10.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``KubernetesPodOperator new callbacks and allow multiple callbacks (#44357)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``(fix): Render a pod spec using the pod_template_file override, if passed to the executor (#46374)``
+* ``fix: kpo async kube_config_path (#45571)``
+* ``Allow passing empty labels in the spark kubernetes driver config (#45864)``
+* ``fix: spark operator label (#45353)``
+* ``Allow internal retries when pending k8s pod is deleted (#45184)``
+* ``fix: correctly shutdown xcom after job is complete (#45455)``
+* ``Fix kubernetes executor watcher kube_client_request_args shadowing (#45528)``
+
+Misc
+~~~~
+
+* ``Fix wrong operator name in doc string of @task.kubernetes (#46873)``
+* ``AIP-83 amendment: Add logic for generating run_id when logical date is None. (#46616)``
+* ``Remove overlooked 'pod_generator_deprecated.py'  (#46587)``
+* ``More meaningful '@task.kubernetes' pod naming (#46535)``
+* ``chore(kubernetes): reduce redundant code (#46574)``
+* ``Add dynamic task mapping into TaskSDK runtime (#46032)``
+* ``Expand KPO template_fields, fix Spark k8s operator tests (#46268)``
+* ``Swap CeleryExecutor over to use TaskSDK for execution. (#46265)``
+* ``Move Pod*Exceptions to separate module (#45759)``
+* ``Add other instances of Context type hints (#45657)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``AIP-72: Swap KubernetesExecutor to use taskSDK for execution (#46860)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Move CNCF Kubernetes to new provider structure (#46436)``
+
 10.1.0
 ......
 

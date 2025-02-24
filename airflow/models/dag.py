@@ -2279,7 +2279,7 @@ class DagModel(Base):
         :meta private:
         """
         return case(
-            (self._dag_display_property_value.isnot(None), self._dag_display_property_value),
+            (self._dag_display_property_value.is_not(None), self._dag_display_property_value),
             else_=self.dag_id,
         )
 

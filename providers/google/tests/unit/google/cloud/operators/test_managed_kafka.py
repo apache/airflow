@@ -22,10 +22,15 @@ from google.api_core.retry import Retry
 
 from airflow.providers.google.cloud.operators.managed_kafka import (
     ManagedKafkaCreateClusterOperator,
+    ManagedKafkaCreateTopicOperator,
     ManagedKafkaDeleteClusterOperator,
+    ManagedKafkaDeleteTopicOperator,
     ManagedKafkaGetClusterOperator,
+    ManagedKafkaGetTopicOperator,
     ManagedKafkaListClustersOperator,
+    ManagedKafkaListTopicsOperator,
     ManagedKafkaUpdateClusterOperator,
+    ManagedKafkaUpdateTopicOperator,
 )
 
 MANAGED_KAFKA_PATH = "airflow.providers.google.cloud.operators.managed_kafka.{}"
@@ -62,6 +67,17 @@ TEST_UPDATED_CLUSTER: dict = {
             },
         },
     },
+}
+
+TEST_TOPIC_ID: str = "test-topic-id"
+TEST_TOPIC: dict = {
+    "partition_count": 1634,
+    "replication_factor": 1912,
+}
+TEST_TOPIC_UPDATE_MASK: dict = {"paths": ["partition_count"]}
+TEST_UPDATED_TOPIC: dict = {
+    "partition_count": 2000,
+    "replication_factor": 1912,
 }
 
 
@@ -217,6 +233,162 @@ class TestManagedKafkaDeleteClusterOperator:
             project_id=GCP_PROJECT,
             cluster_id=TEST_CLUSTER_ID,
             request_id=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestManagedKafkaCreateTopicOperator:
+    @mock.patch(MANAGED_KAFKA_PATH.format("types.Topic.to_dict"))
+    @mock.patch(MANAGED_KAFKA_PATH.format("ManagedKafkaHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = ManagedKafkaCreateTopicOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            topic_id=TEST_TOPIC_ID,
+            topic=TEST_TOPIC,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_topic.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            topic_id=TEST_TOPIC_ID,
+            topic=TEST_TOPIC,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestManagedKafkaListTopicsOperator:
+    @mock.patch(MANAGED_KAFKA_PATH.format("types.ListTopicsResponse.to_dict"))
+    @mock.patch(MANAGED_KAFKA_PATH.format("types.Topic.to_dict"))
+    @mock.patch(MANAGED_KAFKA_PATH.format("ManagedKafkaHook"))
+    def test_execute(self, mock_hook, to_cluster_dict_mock, to_clusters_dict_mock):
+        page_token = "page_token"
+        page_size = 42
+
+        op = ManagedKafkaListTopicsOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            page_size=page_size,
+            page_token=page_token,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.list_topics.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            page_size=page_size,
+            page_token=page_token,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestManagedKafkaGetTopicOperator:
+    @mock.patch(MANAGED_KAFKA_PATH.format("types.Topic.to_dict"))
+    @mock.patch(MANAGED_KAFKA_PATH.format("ManagedKafkaHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = ManagedKafkaGetTopicOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            topic_id=TEST_TOPIC_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.get_topic.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            topic_id=TEST_TOPIC_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestManagedKafkaUpdateTopicOperator:
+    @mock.patch(MANAGED_KAFKA_PATH.format("types.Topic.to_dict"))
+    @mock.patch(MANAGED_KAFKA_PATH.format("ManagedKafkaHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = ManagedKafkaUpdateTopicOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            topic_id=TEST_TOPIC_ID,
+            topic=TEST_UPDATED_TOPIC,
+            update_mask=TEST_TOPIC_UPDATE_MASK,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.update_topic.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            topic_id=TEST_TOPIC_ID,
+            topic=TEST_UPDATED_TOPIC,
+            update_mask=TEST_TOPIC_UPDATE_MASK,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestManagedKafkaDeleteTopicOperator:
+    @mock.patch(MANAGED_KAFKA_PATH.format("ManagedKafkaHook"))
+    def test_execute(self, mock_hook):
+        op = ManagedKafkaDeleteTopicOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            topic_id=TEST_TOPIC_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.delete_topic.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            topic_id=TEST_TOPIC_ID,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,

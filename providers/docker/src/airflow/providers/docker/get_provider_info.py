@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Docker",
         "description": "`Docker <https://www.docker.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734533653,
+        "source-date-epoch": 1739959510,
         "versions": [
+            "4.2.0",
             "4.0.0",
             "3.14.1",
             "3.14.0",

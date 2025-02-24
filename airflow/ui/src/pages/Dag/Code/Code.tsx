@@ -138,7 +138,9 @@ export const Code = () => {
               loadOptions={loadVersions}
               onChange={handleStateChange}
               placeholder="Dag Version"
-              value={selectedVersion === null ? null : { label: selectedVersion, value: selectedVersion }} // null is required https://github.com/JedWatson/react-select/issues/3066
+              // null is required https://github.com/JedWatson/react-select/issues/3066
+              // eslint-disable-next-line unicorn/no-null
+              value={selectedVersion === null ? null : { label: selectedVersion, value: selectedVersion }}
             />
           </Field.Root>
 

@@ -1748,3 +1748,33 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
             mock_mask_secret.assert_any_call("supersecret2")
 
             assert mock_mask_secret.call_count == 2
+
+
+@conf_vars({("core", "unit_test_mode"): "False"})
+def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
+    import airflow.configuration
+
+    cfgpath = tmp_path / "airflow-gneerated.cfg"
+    # Patch these globals so it gets reverted by monkeypath after this test is over.
+    monkeypatch.setattr(airflow.configuration, "FERNET_KEY", "")
+    monkeypatch.setattr(airflow.configuration, "JWT_SECRET_KEY", "")
+    monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
+
+    # Create a new global conf object so our changes don't persist
+    localconf: AirflowConfigParser = airflow.configuration.initialize_config()
+    monkeypatch.setattr(airflow.configuration, "conf", localconf)
+
+    airflow.configuration.write_default_airflow_configuration_if_needed()
+
+    assert cfgpath.is_file()
+
+    lines = cfgpath.read_text().splitlines()
+
+    assert airflow.configuration.FERNET_KEY
+    assert airflow.configuration.JWT_SECRET_KEY
+
+    fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
+    jwt_secret_line = next(line for line in lines if line.startswith("auth_jwt_secret = "))
+
+    assert fernet_line == f"fernet_key = {airflow.configuration.FERNET_KEY}"
+    assert jwt_secret_line == f"auth_jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"

@@ -23,8 +23,7 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
 from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.configuration import conf
-from airflow.utils.jwt_signer import JWTSigner
+from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
 
 class SimpleAuthManagerLogin:
@@ -66,7 +65,7 @@ class SimpleAuthManagerLogin:
         )
 
         signer = JWTSigner(
-            secret_key=conf.get("api", "auth_jwt_secret"),
+            secret_key=get_signing_key("api", "auth_jwt_secret"),
             expiration_time_in_seconds=expiration_time_in_sec,
             audience="front-apis",
         )

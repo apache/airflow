@@ -110,9 +110,9 @@ from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsC
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import (
+    AirflowDatabaseSessionInterface,
     AirflowDatabaseSessionInterface as FabAirflowDatabaseSessionInterface,
 )
-from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET

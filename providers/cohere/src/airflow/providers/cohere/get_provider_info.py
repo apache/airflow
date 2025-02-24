@@ -27,8 +27,19 @@ def get_provider_info():
         "name": "Cohere",
         "description": "`Cohere <https://docs.cohere.com/docs>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734529299,
-        "versions": ["1.4.0", "1.3.0", "1.2.1", "1.2.0", "1.1.3", "1.1.2", "1.1.1", "1.1.0", "1.0.0"],
+        "source-date-epoch": 1739959109,
+        "versions": [
+            "1.4.2",
+            "1.4.0",
+            "1.3.0",
+            "1.2.1",
+            "1.2.0",
+            "1.1.3",
+            "1.1.2",
+            "1.1.1",
+            "1.1.0",
+            "1.0.0",
+        ],
         "integrations": [
             {
                 "integration-name": "Cohere",

@@ -1944,7 +1944,7 @@ core_commands: list[CLICommand] = [
     ),
     ActionCommand(
         name="dag-processor",
-        help="Start a standalone Dag Processor instance",
+        help="Start a dag processor instance",
         func=lazy_load_command("airflow.cli.commands.local_commands.dag_processor_command.dag_processor"),
         args=(
             ARG_PID,

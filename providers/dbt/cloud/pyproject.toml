@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.10.1"]
+requires = ["flit_core==3.11.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-dbt-cloud"
-version = "4.0.0"
+version = "4.2.0"
 description = "Provider package apache-airflow-providers-dbt-cloud for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -70,8 +70,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.0.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.0.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.2.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.2.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

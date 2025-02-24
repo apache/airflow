@@ -409,7 +409,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
-                "rendered_map_index": None,
+                "rendered_map_index": str(map_index),
                 "trigger": None,
                 "triggerer_job": None,
             }
@@ -2379,7 +2379,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
-                "rendered_map_index": None,
+                "rendered_map_index": str(map_index),
                 "trigger": None,
                 "triggerer_job": None,
             }

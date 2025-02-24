@@ -30,7 +30,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
-from airflow.utils.jwt_signer import JWTSigner
+from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -464,7 +464,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         :meta private:
         """
         return JWTSigner(
-            secret_key=conf.get("api", "auth_jwt_secret"),
+            secret_key=get_signing_key("api", "auth_jwt_secret"),
             expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
             audience="front-apis",
         )

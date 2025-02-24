@@ -19,14 +19,19 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.models import DagRun
+from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models import DAG
 
 
 class DAGRunPatchStates(str, Enum):
@@ -86,7 +91,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     data_interval_start: AwareDatetime | None = None
     data_interval_end: AwareDatetime | None = None
     logical_date: AwareDatetime | None
-    run_after: datetime = Field(default_factory=timezone.utcnow)
+    run_after: datetime | None = Field(default_factory=timezone.utcnow)
 
     conf: dict = Field(default_factory=dict)
     note: str | None = None
@@ -98,6 +103,36 @@ class TriggerDAGRunPostBody(StrictBaseModel):
                 "Either both data_interval_start and data_interval_end must be provided or both must be None"
             )
         return values
+
+    def validate_context(self, dag: DAG) -> dict:
+        coerced_logical_date = timezone.coerce_datetime(self.logical_date)
+        run_after = self.run_after or timezone.utcnow()
+        data_interval = None
+        if coerced_logical_date:
+            if self.data_interval_start and self.data_interval_end:
+                data_interval = DataInterval(
+                    start=timezone.coerce_datetime(self.data_interval_start),
+                    end=timezone.coerce_datetime(self.data_interval_end),
+                )
+            else:
+                data_interval = dag.timetable.infer_manual_data_interval(
+                    run_after=coerced_logical_date or timezone.coerce_datetime(run_after)
+                )
+                run_after = data_interval.end
+
+        run_id = self.dag_run_id or DagRun.generate_run_id(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=coerced_logical_date,
+            run_after=run_after,
+        )
+        return {
+            "run_id": run_id,
+            "logical_date": coerced_logical_date,
+            "data_interval": data_interval,
+            "run_after": run_after,
+            "conf": self.conf,
+            "note": self.note,
+        }
 
     @model_validator(mode="after")
     def validate_dag_run_id(self):

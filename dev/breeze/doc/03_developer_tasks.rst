@@ -165,6 +165,35 @@ You can change the used host port numbers by setting appropriate environment var
 
 If you set these variables, next time when you enter the environment the new ports should be in effect.
 
+
+Remote Debugging in IDE
+-----------------------
+
+One of the possibilities (albeit only easy if you have a paid version of IntelliJ IDEs for example) with
+Breeze is an option to run remote debugging in your IDE graphical interface.
+
+When you run tests, airflow, example DAGs, even if you run them using unit tests, they are run in a separate
+container. This makes it a little harder to use with IDE built-in debuggers.
+Fortunately, IntelliJ/PyCharm provides an effective remote debugging feature (but only in paid versions).
+See additional details on
+`remote debugging <https://www.jetbrains.com/help/pycharm/remote-debugging-with-product.html>`_.
+
+You can set up your remote debugging session as follows:
+
+.. image:: images/setup_remote_debugging.png
+    :align: center
+    :alt: Setup remote debugging
+
+Note that on macOS, you have to use a real IP address of your host rather than the default
+localhost because on macOS the container runs in a virtual machine with a different IP address.
+
+Make sure to configure source code mapping in the remote debugging configuration to map
+your local sources to the ``/opt/airflow`` location of the sources within the container:
+
+.. image:: images/source_code_mapping_ide.png
+    :align: center
+    :alt: Source code mapping
+
 Building the documentation
 --------------------------
 

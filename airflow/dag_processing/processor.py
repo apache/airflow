@@ -277,7 +277,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result.model_dump_json(exclude_unset=True).encode()
+                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
             else:
                 resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):

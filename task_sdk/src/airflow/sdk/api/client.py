@@ -182,7 +182,7 @@ class TaskInstanceOperations:
         return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
 
     def runtime_checks(self, id: uuid.UUID, msg: RuntimeCheckOnTask) -> OKResponse:
-        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True))
+        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
         try:
             self.client.post(f"task-instances/{id}/runtime-checks", content=body.model_dump_json())
             return OKResponse(ok=True)

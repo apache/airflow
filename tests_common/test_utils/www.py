@@ -27,6 +27,7 @@ import flask
 import pytest
 
 from airflow.models import Log
+from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS as sensitive_fields
 
 if TYPE_CHECKING:
     import jinja2
@@ -76,7 +77,25 @@ def check_content_not_in_response(text, resp, resp_code=200):
         assert text not in resp_html
 
 
-def _check_last_log(session, dag_id, event, logical_date, expected_extra=None):
+def _masked_value_check(data, sensitive_fields):
+    """
+    Recursively check if sensitive fields are properly masked.
+
+    :param data: JSON object (dict, list, or value)
+    :param sensitive_fields: Set of sensitive field names
+    """
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key in sensitive_fields:
+                assert value == "***", f"Expected masked value for {key}, but got {value}"
+            else:
+                _masked_value_check(value, sensitive_fields)
+    elif isinstance(data, list):
+        for item in data:
+            _masked_value_check(item, sensitive_fields)
+
+
+def _check_last_log(session, dag_id, event, logical_date, expected_extra=None, check_masked=False):
     logs = (
         session.query(
             Log.dag_id,
@@ -99,6 +118,10 @@ def _check_last_log(session, dag_id, event, logical_date, expected_extra=None):
     assert logs[0].extra
     if expected_extra:
         assert json.loads(logs[0].extra) == expected_extra
+    if check_masked:
+        extra_json = json.loads(logs[0].extra)
+        _masked_value_check(extra_json, sensitive_fields)
+
     session.query(Log).delete()
 
 
@@ -135,7 +158,12 @@ def _check_last_log_masked_connection(session, dag_id, event, logical_date):
     }
 
 
-def _check_last_log_masked_variable(session, dag_id, event, logical_date):
+def _check_last_log_masked_variable(
+    session,
+    dag_id,
+    event,
+    logical_date,
+):
     logs = (
         session.query(
             Log.dag_id,

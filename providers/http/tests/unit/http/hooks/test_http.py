@@ -36,7 +36,7 @@ from requests.models import DEFAULT_REDIRECT_LIMIT
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
+from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, _process_extra_options_from_connection
 
 
 @pytest.fixture
@@ -88,10 +88,15 @@ class TestHttpHook:
             resp = self.get_hook.run("v1/test")
             assert resp.text == '{"status":{"status": 200}}'
 
-    @mock.patch("requests.Request")
-    @mock.patch("requests.Session")
-    def test_get_request_with_port(self, mock_session, mock_request):
+    def test_get_request_with_port(self, requests_mock):
         from requests.exceptions import MissingSchema
+
+        requests_mock.get(
+            "http://test.com:1234/some/endpoint",
+            status_code=200,
+            text='{"status":{"status": 200}}',
+            reason="OK",
+        )
 
         with mock.patch(
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
@@ -101,11 +106,11 @@ class TestHttpHook:
                 with contextlib.suppress(MissingSchema):
                     self.get_hook.run(endpoint)
 
-                mock_request.assert_called_once_with(
-                    mock.ANY, expected_url, headers=mock.ANY, params=mock.ANY
-                )
+                assert requests_mock.call_count == 1
+                assert requests_mock.last_request.url == expected_url
+                assert requests_mock.last_request.method == "GET"
 
-                mock_request.reset_mock()
+                requests_mock.reset()
 
     def test_get_request_do_not_raise_for_status_if_check_response_is_false(self, requests_mock):
         requests_mock.get(
@@ -117,6 +122,21 @@ class TestHttpHook:
 
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
             resp = self.get_hook.run("v1/test", extra_options={"check_response": False})
+            assert resp.text == '{"status":{"status": 404}}'
+
+    def test_get_request_do_not_raise_for_status_if_check_response_is_false_in_connection(
+        self, requests_mock
+    ):
+        airflow_connection = get_airflow_connection_with_extra(extra={"check_response": False})
+        requests_mock.get(
+            "http://test:8080/v1/test",
+            status_code=404,
+            text='{"status":{"status": 404}}',
+            reason="Bad request",
+        )
+
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            resp = self.get_hook.run("v1/test")
             assert resp.text == '{"status":{"status": 404}}'
 
     def test_hook_contains_header_from_extra_field(self):
@@ -174,7 +194,9 @@ class TestHttpHook:
             assert conn.trust_env is True
 
     def test_hook_ignore_cert_from_extra_field_as_header(self):
-        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "cert": "cert.crt"})
+        airflow_connection = get_airflow_connection_with_extra(
+            extra={"bearer": "test", "cert": "cert.crt", "stream": True}
+        )
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
             expected_conn = airflow_connection()
             conn = self.get_hook.get_conn()
@@ -182,7 +204,7 @@ class TestHttpHook:
             assert conn.headers.get("bearer") == "test"
             assert conn.headers.get("cert") is None
             assert conn.proxies == {}
-            assert conn.stream is False
+            assert conn.stream is True
             assert conn.verify is True
             assert conn.cert == "cert.crt"
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
@@ -203,9 +225,15 @@ class TestHttpHook:
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
             assert conn.trust_env is False
 
-    @mock.patch("requests.Request")
-    def test_hook_with_method_in_lowercase(self, mock_requests):
+    def test_hook_with_method_in_lowercase(self, requests_mock):
         from requests.exceptions import InvalidURL, MissingSchema
+
+        requests_mock.get(
+            "http://test.com:1234/v1/test?test%20params",
+            status_code=200,
+            text='{"status":{"status": 200}}',
+            reason="OK",
+        )
 
         with mock.patch(
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
@@ -213,7 +241,10 @@ class TestHttpHook:
             data = "test params"
             with contextlib.suppress(MissingSchema, InvalidURL):
                 self.get_lowercase_hook.run("v1/test", data=data)
-            mock_requests.assert_called_once_with(mock.ANY, mock.ANY, headers=mock.ANY, params=data)
+
+            assert requests_mock.call_count == 1
+            assert requests_mock.last_request.url == "http://test.com:1234/v1/test?test%20params"
+            assert requests_mock.last_request.method == "GET"
 
     @pytest.mark.db_test
     def test_hook_uses_provided_header(self):
@@ -263,9 +294,26 @@ class TestHttpHook:
             resp = self.post_hook.run("v1/test", extra_options={"check_response": False})
             assert resp.status_code == 418
 
+    def test_post_request_do_not_raise_for_status_if_check_response_is_false_within_extra(
+        self, requests_mock
+    ):
+        airflow_connection = get_airflow_connection_with_extra(
+            extra={"bearer": "test", "check_response": False}
+        )
+        requests_mock.post(
+            "http://test:8080/v1/test",
+            status_code=418,
+            text='{"status":{"status": 418}}',
+            reason="I'm a teapot",
+        )
+
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            resp = self.post_hook.run("v1/test")
+            assert resp.status_code == 418
+
     @pytest.mark.db_test
-    @mock.patch("airflow.providers.http.hooks.http.requests.Session")
-    def test_retry_on_conn_error(self, mocked_session):
+    @mock.patch("requests.Session.send")
+    def test_retry_on_conn_error(self, mock_session_send):
         retry_args = dict(
             wait=tenacity.wait_none(),
             stop=tenacity.stop_after_attempt(7),
@@ -275,11 +323,11 @@ class TestHttpHook:
         def send_and_raise(unused_request, **kwargs):
             raise requests.exceptions.ConnectionError
 
-        mocked_session().send.side_effect = send_and_raise
+        mock_session_send.side_effect = send_and_raise
         # The job failed for some reason
         with pytest.raises(tenacity.RetryError):
             self.get_hook.run_with_advanced_retry(endpoint="v1/test", _retry_args=retry_args)
-        assert self.get_hook._retry_obj.stop.max_attempt_number + 1 == mocked_session.call_count
+        assert self.get_hook._retry_obj.stop.max_attempt_number == mock_session_send.call_count
 
     def test_run_with_advanced_retry(self, requests_mock):
         requests_mock.get("http://test:8080/v1/test", status_code=200, reason="OK")
@@ -365,7 +413,7 @@ class TestHttpHook:
             # will raise NoMockAddress exception if obj1 != request.json()
             HttpHook(method=method).run("v1/test", json=obj1)
 
-    @mock.patch("airflow.providers.http.hooks.http.requests.Session.send")
+    @mock.patch("requests.Session.send")
     def test_verify_set_to_true_by_default(self, mock_session_send):
         with mock.patch(
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
@@ -381,7 +429,7 @@ class TestHttpHook:
                 verify=True,
             )
 
-    @mock.patch("airflow.providers.http.hooks.http.requests.Session.send")
+    @mock.patch("requests.Session.send")
     @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
     def test_requests_ca_bundle_env_var(self, mock_session_send):
         with mock.patch(
@@ -399,7 +447,7 @@ class TestHttpHook:
                 verify="/tmp/test.crt",
             )
 
-    @mock.patch("airflow.providers.http.hooks.http.requests.Session.send")
+    @mock.patch("requests.Session.send")
     @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
     def test_verify_respects_requests_ca_bundle_env_var(self, mock_session_send):
         with mock.patch(
@@ -417,7 +465,7 @@ class TestHttpHook:
                 verify="/tmp/test.crt",
             )
 
-    @mock.patch("airflow.providers.http.hooks.http.requests.Session.send")
+    @mock.patch("requests.Session.send")
     @mock.patch.dict(os.environ, {"REQUESTS_CA_BUNDLE": "/tmp/test.crt"})
     def test_verify_false_parameter_overwrites_set_requests_ca_bundle_env_var(self, mock_session_send):
         with mock.patch(
@@ -550,6 +598,37 @@ class TestHttpHook:
             assert isinstance(
                 session.adapters["https://"], type(custom_adapter)
             ), "Custom HTTPS adapter not correctly mounted"
+
+    def test_process_extra_options_from_connection(self):
+        extra_options = {}
+        proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
+        conn = get_airflow_connection_with_extra(
+            extra={
+                "bearer": "test",
+                "stream": True,
+                "cert": "cert.crt",
+                "proxies": proxy,
+                "timeout": 60,
+                "verify": False,
+                "allow_redirects": False,
+                "max_redirects": 3,
+                "trust_env": False,
+            }
+        )()
+
+        actual = _process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+
+        assert extra_options == {
+            "cert": "cert.crt",
+            "stream": True,
+            "proxy": proxy,
+            "timeout": 60,
+            "verify_ssl": False,
+            "allow_redirects": False,
+            "max_redirects": 3,
+            "trust_env": False,
+        }
+        assert actual == {"bearer": "test"}
 
 
 class TestHttpAsyncHook:
@@ -704,35 +783,6 @@ class TestHttpAsyncHook:
                         assert mocked_function.call_args.kwargs.get("allow_redirects") is False
                         assert mocked_function.call_args.kwargs.get("max_redirects") == 3
                         assert mocked_function.call_args.kwargs.get("trust_env") is False
-
-    def test_process_extra_options_from_connection(self):
-        extra_options = {}
-        proxy = {"http": "http://proxy:80", "https": "https://proxy:80"}
-        conn = get_airflow_connection_with_extra(
-            extra={
-                "bearer": "test",
-                "stream": True,
-                "cert": "cert.crt",
-                "proxies": proxy,
-                "timeout": 60,
-                "verify": False,
-                "allow_redirects": False,
-                "max_redirects": 3,
-                "trust_env": False,
-            }
-        )()
-
-        actual = HttpAsyncHook._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
-
-        assert extra_options == {
-            "proxy": proxy,
-            "timeout": 60,
-            "verify_ssl": False,
-            "allow_redirects": False,
-            "max_redirects": 3,
-            "trust_env": False,
-        }
-        assert actual == {"bearer": "test"}
 
     @pytest.mark.asyncio
     async def test_build_request_url_from_connection(self):

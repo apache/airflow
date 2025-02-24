@@ -139,7 +139,9 @@ class ConnectionResult(ConnectionResponse):
         # Exclude defaults to avoid sending unnecessary data
         # Pass the type as ConnectionResult explicitly so we can then call model_dump_json with exclude_unset=True
         # to avoid sending unset fields (which are defaults in our case).
-        return cls(**connection_response.model_dump(exclude_defaults=True), type="ConnectionResult")
+        return cls(
+            **connection_response.model_dump(exclude_defaults=True, by_alias=True), type="ConnectionResult"
+        )
 
 
 class VariableResult(VariableResponse):
