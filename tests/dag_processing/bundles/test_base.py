@@ -27,7 +27,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import structlog
 import time_machine
 
 from airflow.dag_processing.bundles.base import (
@@ -42,8 +41,7 @@ from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
-_log = logging.getLogger(__name__)
-log = structlog.wrap_logger(_log)
+log = logging.getLogger(__name__)
 
 
 @pytest.fixture(autouse=True)
@@ -147,7 +145,6 @@ class LockTestHelper:
         self.num = num
         self.stop = None
         self.did_lock = None
-        self._log = log.bind(num=num)
         self.locker: BundleVersionLock
 
     def lock_the_file(self):
@@ -161,8 +158,8 @@ class LockTestHelper:
             while not self.stop:
                 idx += 1
                 time.sleep(0.2)
-                self._log.info("sleeping", idx=idx)
-        self._log.info("exit")
+                log.info("sleeping: idx=%s num=%s", idx, self.num)
+        log.info("exit")
 
 
 class TestBundleVersionLock:
