@@ -95,7 +95,6 @@ class TrinoHook(DbApiHook):
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
-
         return {
             "hidden_fields": [],
             "relabeling": {},
