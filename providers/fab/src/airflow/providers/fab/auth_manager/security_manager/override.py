@@ -63,7 +63,12 @@ from flask_appbuilder.security.views import (
 )
 from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
-from flask_jwt_extended import JWTManager, current_user as current_user_jwt
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    current_user as current_user_jwt,
+    get_jwt_identity,
+)
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
@@ -538,6 +543,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         jwt_manager.init_app(self.appbuilder.app)
         jwt_manager.user_lookup_loader(self.load_user_jwt)
 
+    def refresh_jwt_token(self, user: User) -> str:
+        """Refresh the JWT token."""
+        return create_access_token(identity=get_jwt_identity())
+
     def reset_password(self, userid: int, password: str) -> bool:
         """
         Change/Reset a user's password for auth db.
@@ -589,6 +598,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "warning",
             )
 
+    # Check
     def load_user_jwt(self, _jwt_header, jwt_data):
         identity = jwt_data["sub"]
         user = self.load_user(identity)
