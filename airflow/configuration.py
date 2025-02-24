@@ -898,7 +898,7 @@ class AirflowConfigParser(ConfigParser):
         section: str,
         key: str,
         suppress_warnings: bool = False,
-        lookup_from_deprecated_options: bool = True,
+        lookup_from_deprecated: bool = True,
         _extra_stacklevel: int = 0,
         **kwargs,
     ) -> str | None:
@@ -908,7 +908,7 @@ class AirflowConfigParser(ConfigParser):
         deprecated_section: str | None = None
         deprecated_key: str | None = None
 
-        if lookup_from_deprecated_options:
+        if lookup_from_deprecated:
             option_description = (
                 self.configuration_description.get(section, {}).get("options", {}).get(key, {})
             )
@@ -1258,7 +1258,7 @@ class AirflowConfigParser(ConfigParser):
         """
         super().read_dict(dictionary=dictionary, source=source)
 
-    def has_option(self, section: str, option: str, lookup_from_deprecated_options: bool = True) -> bool:
+    def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True) -> bool:
         """
         Check if option is defined.
 
@@ -1276,7 +1276,7 @@ class AirflowConfigParser(ConfigParser):
                 fallback=None,
                 _extra_stacklevel=1,
                 suppress_warnings=True,
-                lookup_from_deprecated_options=lookup_from_deprecated_options,
+                lookup_from_deprecated=lookup_from_deprecated,
             )
             if value is None:
                 return False
