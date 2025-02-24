@@ -32,7 +32,7 @@ Setup and develop using GitHub Codespaces
             alt="Forking Apache Airflow project">
      </div>
 
-2. From you fork create a codespace by clicking this
+2. From your fork create a codespace by clicking this
    👉 |codespace|
 
    .. |codespace| image:: https://github.com/codespaces/badge.svg
@@ -42,7 +42,7 @@ Setup and develop using GitHub Codespaces
 3. Once the codespace starts your terminal should already be in the ``Breeze`` environment and you should
    be able to edit and run the tests in VS Code interface.
 
-4. You can use `Quick start quide for Visual Studio Code <contributors_quick_start_vscode.rst>`_ for details
+4. You can use `Quick start guide for Visual Studio Code <contributors_quick_start_vscode.rst>`_ for details
    as Codespaces use Visual Studio Code as interface.
 
 
