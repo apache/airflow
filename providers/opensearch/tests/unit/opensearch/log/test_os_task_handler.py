@@ -45,6 +45,10 @@ from unit.opensearch.conftest import MockClient
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.file_task_handler import (
+    mark_test_for_old_read_log_method,
+    mark_test_for_stream_based_read_log_method,
+)
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 opensearchpy = pytest.importorskip("opensearchpy")
@@ -189,6 +193,7 @@ class TestOpensearchTaskHandler:
         )
         assert handler.index_patterns == patterns
 
+    @mark_test_for_old_read_log_method
     def test_read(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.os_task_handler.read(
@@ -207,6 +212,27 @@ class TestOpensearchTaskHandler:
         assert not metadatas[0]["end_of_log"]
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read(self, ti):
+        ts = pendulum.now()
+        hosts, log_streams, metadata_array = self.os_task_handler.read(
+            ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+        )
+
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadata_array)
+        assert len(log_streams) == 1
+        log_str = "".join(line for line in log_streams[0])
+        assert (
+            log_str == "Dependencies all met for dep_context=non-requeueable"
+            " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
+            "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
+            "on 2023-07-09 07:47:32+00:00"
+        )
+        assert not metadata_array[0]["end_of_log"]
+        assert timezone.parse(metadata_array[0]["last_log_timestamp"]) > ts
+
+    @mark_test_for_old_read_log_method
     def test_read_with_patterns(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.os_task_handler, "index_patterns", new="test_*,other_*"):
@@ -226,6 +252,27 @@ class TestOpensearchTaskHandler:
         assert not metadatas[0]["end_of_log"]
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_patterns(self, ti):
+        ts = pendulum.now()
+        with mock.patch.object(self.os_task_handler, "index_patterns", new="test_*,other_*"):
+            _, log_streams, metadatas = self.os_task_handler.read(
+                ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+            )
+
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str.endswith(
+            "Dependencies all met for dep_context=non-requeueable"
+            " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
+            "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
+            "on 2023-07-09 07:47:32+00:00"
+        )
+        assert not metadatas[0]["end_of_log"]
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+
+    @mark_test_for_old_read_log_method
     def test_read_with_patterns_no_match(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.os_task_handler, "index_patterns", new="test_other_*,test_another_*"):
@@ -251,6 +298,33 @@ class TestOpensearchTaskHandler:
         # last_log_timestamp won't change if no log lines read.
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_patterns_no_match(self, ti):
+        ts = pendulum.now()
+        with mock.patch.object(self.os_task_handler, "index_patterns", new="test_other_*,test_another_*"):
+            with mock.patch.object(
+                self.os_task_handler.client,
+                "search",
+                return_value={
+                    "_shards": {"failed": 0, "skipped": 0, "successful": 7, "total": 7},
+                    "hits": {"hits": []},
+                    "timed_out": False,
+                    "took": 7,
+                },
+            ):
+                _, log_streams, metadatas = self.os_task_handler.read(
+                    ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+                )
+
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str == ""
+        assert not metadatas[0]["end_of_log"]
+        assert metadatas[0]["offset"] == "0"
+        # last_log_timestamp won't change if no log lines read.
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+
     def test_read_with_missing_index(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.os_task_handler, "index_patterns", new="nonexistent,test_*"):
@@ -262,6 +336,7 @@ class TestOpensearchTaskHandler:
                         ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
                     )
 
+    @mark_test_for_old_read_log_method
     @pytest.mark.parametrize("seconds", [3, 6])
     def test_read_missing_logs(self, seconds, create_task_instance):
         """
@@ -304,12 +379,71 @@ class TestOpensearchTaskHandler:
         assert metadatas[0]["offset"] == "0"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
+    @mark_test_for_stream_based_read_log_method
+    @pytest.mark.parametrize("seconds", [3, 6])
+    def test_stream_based_read_missing_logs(self, seconds, create_task_instance):
+        """
+        When the log actually isn't there to be found, we only want to wait for 5 seconds.
+        In this case we expect to receive a message of the form 'Log {log_id} not found in Opensearch ...'
+        """
+        ti = get_ti(
+            self.DAG_ID,
+            self.TASK_ID,
+            pendulum.instance(self.LOGICAL_DATE).add(days=1),  # so logs are not found
+            create_task_instance=create_task_instance,
+        )
+        ts = pendulum.now().add(seconds=-seconds)
+        with mock.patch.object(
+            self.os_task_handler.client,
+            "search",
+            return_value={
+                "_shards": {"failed": 0, "skipped": 0, "successful": 7, "total": 7},
+                "hits": {"hits": []},
+                "timed_out": False,
+                "took": 7,
+            },
+        ):
+            _, log_streams, metadatas = self.os_task_handler.read(
+                ti, 1, {"offset": 0, "last_log_timestamp": str(ts)}
+            )
+
+        assert len(log_streams) == 1
+        log_str = "".join(line for line in log_streams[0])
+        if seconds > 5:
+            # we expect a log not found message when checking began more than 5 seconds ago
+            expected_pattern = r"^\*\*\* Log .* not found in Opensearch.*"
+            assert re.match(expected_pattern, log_str) is not None
+            assert metadatas[0]["end_of_log"] is True
+        else:
+            # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
+            assert log_str == ""
+            assert metadatas[0]["end_of_log"] is False
+        assert len(log_streams) == len(metadatas)
+        assert metadatas[0]["offset"] == "0"
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+
+    @mark_test_for_old_read_log_method
     def test_read_with_none_metadata(self, ti):
         logs, metadatas = self.os_task_handler.read(ti, 1)
         assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert (
             logs[0][0][-1] == "Dependencies all met for dep_context=non-requeueable"
+            " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
+            "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
+            "on 2023-07-09 07:47:32+00:00"
+        )
+        assert not metadatas[0]["end_of_log"]
+        assert timezone.parse(metadatas[0]["last_log_timestamp"]) < pendulum.now()
+
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read_with_none_metadata(self, ti):
+        _, log_streams, metadatas = self.os_task_handler.read(ti, 1)
+        assert len(log_streams) == 1
+        assert len(log_streams) == len(metadatas)
+        log_str = "".join(line for line in log_streams[0])
+        assert log_str.endswith(
+            "Dependencies all met for dep_context=non-requeueable"
             " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
             "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
             "on 2023-07-09 07:47:32+00:00"
