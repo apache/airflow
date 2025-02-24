@@ -128,6 +128,7 @@ class StdBinaryStreamHandler(logging.StreamHandler):
 def _common_processors(timestamp_fmt):
     timestamper = structlog.processors.MaybeTimeStamper(fmt=timestamp_fmt)
     processors: list[structlog.typing.Processor] = [
+        timestamper,
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.stdlib.PositionalArgumentsFormatter(),
