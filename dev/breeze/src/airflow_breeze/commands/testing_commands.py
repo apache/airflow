@@ -21,6 +21,7 @@ import os
 import signal
 import sys
 from datetime import datetime
+from subprocess import CalledProcessError, CompletedProcess
 from time import sleep
 
 import click
@@ -99,6 +100,8 @@ from airflow_breeze.utils.run_tests import (
 )
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
+
+GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers to get killed
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 DEFAULT_TOTAL_TEST_TIMEOUT = 6500  # 6500 seconds = 1h 48 minutes
@@ -1100,18 +1103,49 @@ def python_api_client_tests(
 @contextlib.contextmanager
 def run_with_timeout(timeout: int):
     def timeout_handler(signum, frame):
-        get_console().print("[error]Timeout reached. Killing the container(s)[/]")
-        list_of_containers = run_command(
+        get_console().print("[warning]Timeout reached. Killing the container(s)[/]:")
+        _print_all_containers()
+        list_of_containers = _get_running_containers().stdout.splitlines()
+        get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")
+        get_console().print(list_of_containers)
+        _send_signal_to_containers(list_of_containers, "SIGTERM")
+        get_console().print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
+        sleep(GRACE_CONTAINER_STOP_TIMEOUT)
+        containers_left = _get_running_containers().stdout.splitlines()
+        if containers_left:
+            get_console().print("[warning]Some containers are still running. Killing them with SIGKILL:")
+            get_console().print(containers_left)
+            _send_signal_to_containers(list_of_containers, "SIGKILL")
+            get_console().print(
+                f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop"
+            )
+            sleep(GRACE_CONTAINER_STOP_TIMEOUT)
+            containers_left = _get_running_containers().stdout.splitlines()
+            if containers_left:
+                get_console().print("[error]Some containers are still running. Exiting anyway.")
+                get_console().print(containers_left)
+                sys.exit(1)
+
+    def _send_signal_to_containers(list_of_containers: list[str], signal: str):
+        run_command(
+            ["docker", "kill", "--signal", signal, *list_of_containers],
+            check=True,
+            capture_output=False,
+            text=True,
+        )
+
+    def _get_running_containers() -> CompletedProcess | CalledProcessError:
+        return run_command(
             ["docker", "ps", "-q"],
             check=True,
             capture_output=True,
             text=True,
         )
+
+    def _print_all_containers():
         run_command(
-            ["docker", "kill", "--signal", "SIGQUIT"] + list_of_containers.stdout.splitlines(),
+            ["docker", "ps"],
             check=True,
-            capture_output=False,
-            text=True,
         )
 
     signal.signal(signal.SIGALRM, timeout_handler)
