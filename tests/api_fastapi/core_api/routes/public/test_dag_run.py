@@ -37,6 +37,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_dags,
+    clear_db_logs,
     clear_db_runs,
     clear_db_serialized_dags,
 )
@@ -83,6 +84,7 @@ def setup(request, dag_maker, session=None):
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_logs()
 
     if "no_setup" in request.keywords:
         return

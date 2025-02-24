@@ -39,10 +39,10 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_assets, clear_db_runs
+from tests_common.test_utils.db import clear_db_assets, clear_db_logs, clear_db_runs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
-from tests_common.test_utils.www import _check_last_log
 
 DEFAULT_DATE = datetime(2020, 6, 11, 18, 0, 0, tzinfo=timezone.utc)
 
@@ -189,10 +189,7 @@ class TestAssets:
     def setup(self) -> None:
         clear_db_assets()
         clear_db_runs()
-
-    def teardown_method(self) -> None:
-        clear_db_assets()
-        clear_db_runs()
+        clear_db_logs()
 
     @provide_session
     def create_assets(self, session, num: int = 2) -> list[AssetModel]:

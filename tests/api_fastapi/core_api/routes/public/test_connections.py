@@ -25,8 +25,8 @@ from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import provide_session
 
-from tests_common.test_utils.db import clear_db_connections
-from tests_common.test_utils.www import _check_last_log
+from tests_common.test_utils.api_fastapi import _check_last_log
+from tests_common.test_utils.db import clear_db_connections, clear_db_logs
 
 pytestmark = pytest.mark.db_test
 
@@ -81,6 +81,7 @@ class TestConnectionEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
         clear_db_connections(False)
+        clear_db_logs()
 
     def teardown_method(self) -> None:
         clear_db_connections()

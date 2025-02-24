@@ -33,13 +33,14 @@ from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dags,
+    clear_db_logs,
     clear_db_runs,
     clear_db_serialized_dags,
 )
-from tests_common.test_utils.www import _check_last_log
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
@@ -55,12 +56,11 @@ def _clean_db():
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_logs()
 
 
 @pytest.fixture(autouse=True)
 def clean_db():
-    _clean_db()
-    yield
     _clean_db()
 
 
