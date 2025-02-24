@@ -119,34 +119,6 @@ def resolve_dialects() -> MutableMapping[str, MutableMapping]:
     }
 
 
-def default_output_processor(results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
-    return results
-
-
-def default_output_processor_with_column_names(
-    results: list[Any], descriptions: list[Sequence[Sequence] | None]
-) -> list[tuple[Any, list[str]]]:
-    """
-    Return both the data and column names of one or more queries executed with the SQLExecuteQueryOperator.
-
-    This method needs to be set as the value of the output_processor parameter.
-
-    Args:
-        results (list[Any]): The data outputs of the executed queries.
-        descriptions (list[Sequence[Sequence] | None]): The column descriptions of the executed queries (description attribute of the corresponding cursor).
-
-    Returns:
-        list[tuple[Any, list[str]]]: A list with an item for each SQL statement that was executed.
-        Each list item is a tuple of 1. the data and 2. the corresponding column names resulting from the SQL statement in question.
-    """
-    column_names = [
-        [single_col_desc[0] for single_col_desc in query_col_desc] if query_col_desc is not None else None
-        for query_col_desc in descriptions
-    ]
-    output = list(zip(results, column_names))
-    return output
-
-
 class ConnectorProtocol(Protocol):
     """Database connection protocol."""
 
