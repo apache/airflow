@@ -109,12 +109,13 @@ class TestBaseSQLOperator:
 
 
 class TestSQLExecuteQueryOperator:
-    def _construct_operator(self, sql, **kwargs):
+    def _construct_operator(self, sql, requires_result_fetch, **kwargs):
         dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
         return SQLExecuteQueryOperator(
             task_id="test_task",
             conn_id="default_conn",
             sql=sql,
+            requires_result_fetch=requires_result_fetch,
             **kwargs,
             dag=dag,
         )
@@ -148,6 +149,21 @@ class TestSQLExecuteQueryOperator:
             return_last=True,
         )
         mock_process_output.assert_not_called()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "_process_output")
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_requires_result_fetch(self, mock_get_db_hook, mock_process_output):
+        operator = self._construct_operator("SELECT 1;", requires_result_fetch=True)
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            handler=fetch_all_handler,
+            parameters=None,
+            return_last=True,
+        )
+        mock_process_output.assert_called()
 
     @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
     def test_output_processor(self, mock_get_db_hook):
