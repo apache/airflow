@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -54,7 +53,7 @@ from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 class ExternalDagLink(BaseOperatorLink):

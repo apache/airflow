@@ -88,6 +88,7 @@ __lazy_imports = {
     "ID_LEN": "airflow.models.base",
     "Base": "airflow.models.base",
     "BaseOperator": "airflow.models.baseoperator",
+    "BaseOperatorLink": "airflow.models.baseoperatorlink",
     "Connection": "airflow.models.connection",
     "DagBag": "airflow.models.dagbag",
     "DagModel": "airflow.models.dag",
@@ -135,5 +136,5 @@ if TYPE_CHECKING:
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
     from airflow.models.xcom import XCom
-    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions.param import Param

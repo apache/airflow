@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator, XCom
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
@@ -43,7 +42,7 @@ if TYPE_CHECKING:
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 class DbtCloudRunJobOperatorLink(BaseOperatorLink):

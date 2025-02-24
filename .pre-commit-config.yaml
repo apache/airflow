@@ -716,10 +716,11 @@ repos:
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperatorLink core imports
-        description: Make sure BaseOperatorLink is imported from airflow.sdk.definitions.baseoperatorlink in core
-        entry: "from airflow\\.sdk\\..* import.* BaseOperatorLink\\b"
+        description: Make sure BaseOperatorLink is imported from airflow.sdk in core
+        entry: "^\\s*from airflow\\.sdk\\..* import.* BaseOperatorLink\\b"
         files: \.py$
         pass_filenames: true
+        echo: True
         exclude: >
           (?x)
           ^airflow/decorators/.*$|

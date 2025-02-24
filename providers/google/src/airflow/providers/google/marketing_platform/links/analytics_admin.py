@@ -19,7 +19,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.models import BaseOperator, XCom
-from airflow.models.baseoperatorlink import BaseOperatorLink
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -30,7 +29,7 @@ from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 BASE_LINK = "https://analytics.google.com/analytics/web/"

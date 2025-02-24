@@ -26,7 +26,6 @@ from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder.api import expose
 
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -51,7 +50,7 @@ if TYPE_CHECKING:
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)
