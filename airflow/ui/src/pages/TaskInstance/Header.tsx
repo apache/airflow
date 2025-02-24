@@ -63,7 +63,7 @@ export const Header = ({
     <SimpleGrid columns={6} gap={4} my={2}>
       <Stat label="Operator">{taskInstance.operator}</Stat>
       {taskInstance.map_index > -1 ? (
-        <Stat label="Map Index">{taskInstance.rendered_map_index ?? taskInstance.map_index}</Stat>
+        <Stat label="Map Index">{taskInstance.rendered_map_index}</Stat>
       ) : undefined}
       {taskInstance.try_number > 1 ? <Stat label="Try Number">{taskInstance.try_number}</Stat> : undefined}
       <Stat label="Start">
