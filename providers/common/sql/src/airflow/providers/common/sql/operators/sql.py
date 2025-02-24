@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
-from airflow.providers.common.sql.hooks.sql import DbApiHook, default_output_processor
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -121,11 +121,13 @@ def default_output_processor(results: list[Any], descriptions: list[Sequence[Seq
     return results
 
 
-def output_processor_with_column_names(
+def default_output_processor_with_column_names(
     results: list[Any], descriptions: list[Sequence[Sequence] | None]
 ) -> list[tuple[Any, list[str]]]:
     """
-    Returns both the data and column names when used as output_processor of the SQLExecuteQueryOperator.
+    Return both the data and column names of one or more queries executed with the SQLExecuteQueryOperator.
+
+    This method needs to be set as the value of the output_processor parameter.
 
     Args:
         results (list[Any]): The data outputs of the executed queries.
