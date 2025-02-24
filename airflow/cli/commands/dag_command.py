@@ -381,6 +381,8 @@ def list_failed_runs():
             if dag_run.logical_date and dag_run.logical_date >= since:
                 if dag_run.dag_id not in failed_dags or dag_run.logical_date > failed_dags[dag_run.dag_id].logical_date:
                     failed_dags[dag_run.dag_id] = dag_run
+            else:
+            print(f"DAG run {dag_run.dag_id} has Returned value: None.")
 
         data = [
             {
