@@ -33,7 +33,6 @@ __all__ = [
     "Label",
     "Metadata",
     "Param",
-    "ParamsDict",
     "TaskGroup",
     "Variable",
     "XComArg",
@@ -55,7 +54,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.edges import EdgeModifier, Label
-    from airflow.sdk.definitions.param import Param, ParamsDict
+    from airflow.sdk.definitions.param import Param
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.variable import Variable
@@ -75,7 +74,6 @@ __lazy_imports: dict[str, str] = {
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
     "Param": ".definitions.param",
-    "ParamsDict": ".definitions.param",
     "TaskGroup": ".definitions.taskgroup",
     "Variable": ".definitions.variable",
     "XComArg": ".definitions.xcom_arg",
