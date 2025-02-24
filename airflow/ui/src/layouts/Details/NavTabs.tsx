@@ -29,6 +29,20 @@ type Props = {
 export const NavTabs = ({ keepSearch, rightButtons, tabs }: Props) => {
   const [searchParams] = useSearchParams();
 
+  const getUpdatedSearchParams = () => {
+    if (!keepSearch) {
+      return undefined;
+    }
+
+    const updatedParams = new URLSearchParams(searchParams.toString());
+
+    if (updatedParams.has("sort")) {
+      updatedParams.delete("sort"); // Remove the 'sort' parameter only if it exists
+    }
+
+    return updatedParams.toString();
+  };
+
   return (
     <Flex alignItems="center" borderBottomWidth={1} justifyContent="space-between" mb={2}>
       <Flex>
@@ -39,7 +53,7 @@ export const NavTabs = ({ keepSearch, rightButtons, tabs }: Props) => {
             to={{
               pathname: value,
               // Preserve search params when navigating
-              search: keepSearch ? searchParams.toString() : undefined,
+              search: getUpdatedSearchParams(),
             }}
           >
             {({ isActive }) => (
