@@ -45,4 +45,4 @@ Here are some examples that could cause such an event:
 
 - A DAG run timeout, specified by ``dagrun_timeout`` in the DAG's definition.
 - An Airflow worker running out of memory
-  - Usually, Airflow workers that run out of memory receive a SIGKILL and the scheduler will detect that the corresponding task instance does not have a heartbeat. However, in some scenarios, Airflow kills the task before that happens.
+  - Usually, Airflow workers that run out of memory receive a SIGKILL, and the scheduler will fail the corresponding task instance for not having a heartbeat. However, in some scenarios, Airflow kills the task before that happens.

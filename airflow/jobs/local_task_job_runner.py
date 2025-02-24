@@ -177,7 +177,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             # When run_as_user is specified, the process owner of the LocalTaskJob must be sudoable.
             # It is not secure to run callbacks with sudoable users.
 
-            # If _run_raw_task receives SIGKILL, scheduler will detect a task heartbeat timeout and invoke callbacks
+            # If _run_raw_task receives SIGKILL, the scheduler will fail the task instance due to heartbeat timeout and invoke callbacks
             # If LocalTaskJob receives SIGTERM, LocalTaskJob passes SIGTERM to _run_raw_task
             # If the state of task_instance is changed, LocalTaskJob sends SIGTERM to _run_raw_task
             while not self.terminating:
@@ -210,7 +210,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                         )
                     except Exception as e:
                         # Failing the heartbeat should never kill the localtaskjob
-                        # If it repeatedly can't heartbeat, the scheduler will detect a task instance heartbeat timeout anyhow
+                        # If it repeatedly can't heartbeat, the scheduler will fail the task instance due to heartbeat timeout
                         self.log.warning("Heartbeat failed with Exception: %s", e)
 
                     # If it's been too long since we've heartbeat, then it's possible that

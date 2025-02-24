@@ -743,7 +743,7 @@ class TestLocalTaskJob:
         on_failure_callback does not get executed by LocalTaskJob.
 
         Callbacks should not be executed by LocalTaskJob.  If the task is killed via sigkill,
-        the scheduler will detect a task instance heartbeat timeout, then the callback is executed
+        the scheduler will fail the task instance for not having a heartbeat, then the callback is executed
         """
         callback_file = tmp_path.joinpath("callback.txt")
         # callback_file will be created by the task: bash_sleep

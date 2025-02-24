@@ -677,7 +677,7 @@ class ActivitySubprocess(WatchedSubprocess):
             max_wait_time = max(
                 0,  # Make sure this value is never negative,
                 min(
-                    # Ensure we heartbeat _at most_ 75% through time the task instance heartbeat timeout threshold time
+                    # Ensure we heartbeat _at most_ 75% through the task instance heartbeat timeout threshold time
                     HEARTBEAT_THRESHOLD - last_heartbeat_ago * 0.75,
                     MIN_HEARTBEAT_INTERVAL,
                 ),

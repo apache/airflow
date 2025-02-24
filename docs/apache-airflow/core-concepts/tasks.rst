@@ -183,7 +183,7 @@ many reasons, including:
 
 
 Reproducing task instance heartbeat timeouts locally
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you'd like to reproduce task instance heartbeat timeouts for development/testing processes, follow the steps below:
 
