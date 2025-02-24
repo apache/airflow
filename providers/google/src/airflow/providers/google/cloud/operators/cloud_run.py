@@ -278,7 +278,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        expose_logging_url: bool = False,
+        expose_logging_url: bool | None = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -292,7 +292,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.timeout_seconds = timeout_seconds
         self.deferrable = deferrable
-        self.expose_logging_url = expose_logging_url
+        self.expose_logging_url = expose_logging_url if expose_logging_url else False
         self.operation: operation.Operation | None = None
 
     def execute(self, context: Context):
