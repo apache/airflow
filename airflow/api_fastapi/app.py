@@ -78,6 +78,12 @@ def create_app(apps: str = "all") -> FastAPI:
         root_path=root_path,
     )
 
+    if "execution" in apps_list or "all" in apps_list:
+        task_exec_api_app = create_task_execution_api_app()
+        init_error_handlers(task_exec_api_app)
+        app.mount("/execution", task_exec_api_app)
+
+    # Core needs to go last as it has a catch-all route
     if "core" in apps_list or "all" in apps_list:
         init_dag_bag(app)
         init_views(app)
@@ -86,11 +92,6 @@ def create_app(apps: str = "all") -> FastAPI:
         init_flask_plugins(app)
         init_error_handlers(app)
         init_middlewares(app)
-
-    if "execution" in apps_list or "all" in apps_list:
-        task_exec_api_app = create_task_execution_api_app()
-        init_error_handlers(task_exec_api_app)
-        app.mount("/execution", task_exec_api_app)
 
     init_config(app)
 
