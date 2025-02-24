@@ -43,7 +43,7 @@ from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_logs, clear_db_runs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
-from tests_common.test_utils.www import _check_last_log
+from tests_common.test_utils.logs import check_last_log
 
 DEFAULT_DATE = datetime(2020, 6, 11, 18, 0, 0, tzinfo=timezone.utc)
 
@@ -892,7 +892,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         adrqs = session.query(AssetDagRunQueue).all()
         assert len(adrqs) == 0
-        _check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_events", logical_date=None)
+        check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_events", logical_date=None)
 
     def test_should_respond_404_invalid_dag(self, test_client):
         dag_id = "not_exists"
@@ -940,7 +940,7 @@ class TestPostAssetEvents(TestAssets):
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
         }
-        _check_last_log(session, dag_id=None, event="create_asset_event", logical_date=None)
+        check_last_log(session, dag_id=None, event="create_asset_event", logical_date=None)
 
     def test_invalid_attr_not_allowed(self, test_client, session):
         self.create_assets(session)
@@ -1067,7 +1067,7 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         response = test_client.delete(f"/public/assets/{asset_id}/queuedEvents")
         assert response.status_code == 204
         assert session.get(AssetDagRunQueue, (asset_id, dag_id)) is None
-        _check_last_log(session, dag_id=None, event="delete_asset_queued_events", logical_date=None)
+        check_last_log(session, dag_id=None, event="delete_asset_queued_events", logical_date=None)
 
     def test_should_respond_404(self, test_client):
         response = test_client.delete("/public/assets/1/queuedEvents")
@@ -1093,7 +1093,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         assert response.status_code == 204
         adrq = session.query(AssetDagRunQueue).all()
         assert len(adrq) == 0
-        _check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_event", logical_date=None)
+        check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_event", logical_date=None)
 
     def test_should_respond_404(self, test_client):
         dag_id = "not_exists"
