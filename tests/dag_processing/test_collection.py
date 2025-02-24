@@ -35,7 +35,6 @@ from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
     _get_latest_runs_stmt,
-    _sync_dag_perms,
     update_dag_parsing_results_in_db,
 )
 from airflow.exceptions import SerializationError
@@ -465,37 +464,6 @@ class TestUpdateDagParsingResults:
         import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
 
         assert import_errors == {("def.py", bundle_name)}
-
-    def test_sync_perm_for_dag_with_dict_access_control(self, session, spy_agency: SpyAgency):
-        """
-        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        """
-        from airflow.www.security_appless import ApplessAirflowSecurityManager
-
-        spy = spy_agency.spy_on(
-            ApplessAirflowSecurityManager.sync_perm_for_dag, owner=ApplessAirflowSecurityManager
-        )
-
-        dag = DAG(dag_id="test")
-
-        def _sync_perms():
-            spy.reset_calls()
-            _sync_dag_perms(dag, session=session)
-
-        # perms dont exist
-        _sync_perms()
-        spy_agency.assert_spy_called_with(spy, dag.dag_id, access_control=None)
-
-        # perms now exist
-        _sync_perms()
-        spy_agency.assert_spy_called_with(spy, dag.dag_id, access_control=None)
-
-        # Always sync if we have access_control
-        dag.access_control = {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-        _sync_perms()
-        spy_agency.assert_spy_called_with(
-            spy, dag.dag_id, access_control={"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-        )
 
     @pytest.mark.parametrize(
         ("attrs", "expected"),
