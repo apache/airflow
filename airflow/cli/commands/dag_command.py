@@ -378,8 +378,8 @@ def list_failed_runs():
 
         failed_dags = {}
         for dag_run in dag_runs:
-            if dag_run.execution_date >= since:
-                if dag_run.dag_id not in failed_dags or dag_run.execution_date > failed_dags[dag_run.dag_id].execution_date:
+            if dag_run.logical_date and dag_run.logical_date >= since:
+                if dag_run.dag_id not in failed_dags or dag_run.logical_date > failed_dags[dag_run.dag_id].logical_date:
                     failed_dags[dag_run.dag_id] = dag_run
 
         data = [
