@@ -26,13 +26,14 @@ from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder.api import expose
 
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.airflow_flask_app import AirflowApp
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -46,6 +47,11 @@ if TYPE_CHECKING:
 
     from airflow.models import BaseOperator
     from airflow.providers.databricks.operators.databricks import DatabricksTaskBaseOperator
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink
 
 
 REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)

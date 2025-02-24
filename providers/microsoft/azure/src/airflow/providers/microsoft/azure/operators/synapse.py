@@ -24,6 +24,7 @@ from urllib.parse import urlencode
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, XCom
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapseHook,
     AzureSynapsePipelineHook,
@@ -31,12 +32,18 @@ from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineRunStatus,
     AzureSynapseSparkBatchRunStatus,
 )
-from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
     from azure.synapse.spark.models import SparkBatchJobOptions
+
+from airflow.providers.microsoft.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink
 
 
 class AzureSynapseRunSparkBatchOperator(BaseOperator):

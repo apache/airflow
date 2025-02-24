@@ -40,7 +40,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
-from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
@@ -61,6 +61,11 @@ if TYPE_CHECKING:
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 class TriggerDagRunLink(BaseOperatorLink):

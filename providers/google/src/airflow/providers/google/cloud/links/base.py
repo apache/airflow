@@ -20,12 +20,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.models import XCom
-from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink
 
 BASE_LINK = "https://console.cloud.google.com"
 

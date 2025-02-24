@@ -26,6 +26,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, XCom
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -33,12 +34,18 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     get_field,
 )
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
-from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
+
+from airflow.providers.microsoft.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink
 
 
 class AzureDataFactoryPipelineRunLink(LoggingMixin, BaseOperatorLink):

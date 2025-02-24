@@ -25,12 +25,12 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
-from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
@@ -48,6 +48,13 @@ if TYPE_CHECKING:
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
+
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink
 
 
 class ExternalDagLink(BaseOperatorLink):
