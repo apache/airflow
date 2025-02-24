@@ -23,7 +23,7 @@ from urllib.parse import urlencode
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models import BaseOperator, XCom
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapseHook,
     AzureSynapsePipelineHook,
@@ -31,6 +31,7 @@ from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineRunStatus,
     AzureSynapseSparkBatchRunStatus,
 )
+from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey

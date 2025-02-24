@@ -21,9 +21,10 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
+from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion

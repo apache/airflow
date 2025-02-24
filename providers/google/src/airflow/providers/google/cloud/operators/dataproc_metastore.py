@@ -24,11 +24,11 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import StorageLink
+from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
@@ -37,6 +37,7 @@ from google.cloud.metastore_v1.types import Backup, MetadataImport, Service
 from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
     from google.protobuf.field_mask_pb2 import FieldMask

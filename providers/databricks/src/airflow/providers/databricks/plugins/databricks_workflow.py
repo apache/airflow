@@ -26,13 +26,13 @@ from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder.api import expose
 
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
-from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DAG, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 from airflow.utils.airflow_flask_app import AirflowApp
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -44,6 +44,7 @@ from airflow.www.views import AirflowBaseView
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+    from airflow.models import BaseOperator
     from airflow.providers.databricks.operators.databricks import DatabricksTaskBaseOperator
 
 
