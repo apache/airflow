@@ -52,11 +52,10 @@ STALE_BUNDLE_TRACKING_FOLDER = Path(
     "_tracking",
 )
 
-# todo: AIP-66 increase or make_configurable
-STALE_BUNDLE_CHECK_INTERVAL: int = 30
-
-MIN_VERSIONS_TO_KEEP: int = 0
-STALE_VERSION_THRESHOLD: timedelta = timedelta(seconds=2 * 60)
+STALE_BUNDLE_CHECK_INTERVAL: int = conf.getint(
+    "dag_processor", "stale_bundle_cleanup_interval", fallback=10 * 60
+)
+"""How frequently (in seconds) a worker should check for stale bundles."""
 
 BUNDLE_STORAGE_PATH_ROOT: Path
 if configured_location := conf.get("dag_processor", "dag_bundle_storage_path", fallback=None):
@@ -115,13 +114,23 @@ class BundleUsageTrackingManager:
 
     @staticmethod
     def _remove_last_n(val: list[TrackedBundleVersionInfo]) -> list[TrackedBundleVersionInfo]:
-        return sorted(val, key=attrgetter("dt"), reverse=True)[MIN_VERSIONS_TO_KEEP:]
+        min_versions_to_keep = conf.getint(
+            section="dag_processor",
+            key="stale_bundle_cleanup_min_versions",
+            fallback=10,
+        )
+        return sorted(val, key=attrgetter("dt"), reverse=True)[min_versions_to_keep:]
 
     @staticmethod
     def _remove_recent(val: list[TrackedBundleVersionInfo]) -> list[TrackedBundleVersionInfo]:
+        age_threshold = conf.getint(
+            section="dag_processor",
+            key="stale_bundle_cleanup_age_threshold",
+            fallback=60 * 60 * 24,
+        )
         ret = []
         now = pendulum.now(tz=pendulum.UTC)
-        cutoff = now - STALE_VERSION_THRESHOLD
+        cutoff = now - timedelta(seconds=age_threshold)
         for item in val:
             if item.dt < cutoff:
                 ret.append(item)
@@ -192,14 +201,14 @@ class BundleUsageTrackingManager:
         else:
             log_.debug("no removal candidates found")
 
-    def _remove_stale_bundle_versions_for_bundle(self, bundle: BaseDagBundle):
-        log.info("checking bundle for stale versions", bundle_name=bundle.name)
-        found = self._find_all_tracking_files(bundle_name=bundle.name)
+    def _remove_stale_bundle_versions_for_bundle(self, bundle_name: str, bundle_type: str):
+        log.info("checking bundle for stale versions", bundle_name=bundle_name)
+        found = self._find_all_tracking_files(bundle_name=bundle_name)
         if not found:
             return
         candidates = self._find_candidates(found)
         for info in candidates:
-            self._remove_stale_bundle(bundle_type=bundle.bundle_type, bundle_name=bundle.name, info=info)
+            self._remove_stale_bundle(bundle_type=bundle_type, bundle_name=bundle_name, info=info)
 
     def remove_stale_bundle_versions(self):
         """
@@ -215,7 +224,9 @@ class BundleUsageTrackingManager:
         for bundle in bundles:
             if not bundle.supports_versioning:
                 continue
-            self._remove_stale_bundle_versions_for_bundle(bundle=bundle)
+            self._remove_stale_bundle_versions_for_bundle(
+                bundle_name=bundle.name, bundle_type=bundle.bundle_type
+            )
 
 
 class BaseDagBundle(ABC):
@@ -391,6 +402,7 @@ class BundleVersionLock:
     def release(self):
         if self.lock_file:
             self.lock_file.close()
+            self.lock_file = None
 
     def __enter__(self):
         # wrapping in try except here is just extra cautious since this is in task execution path
