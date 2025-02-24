@@ -330,6 +330,9 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 "providers/*/tests/*/__init__.py" = ["I002"]
 "providers/*/*/tests/*/*/__init__.py" = ["I002"]
+"providers/tests/__init__.py" = ["I002"]
+"providers/__init__.py" = ["I002"]
+"airflow/cli/api/datamodels/_generated.py" = ["UP007", "D101", "D200"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -637,6 +640,10 @@ module=[
 ]
 ignore_errors = true
 
+[[tool.mypy.overrides]]
+module="airflow.cli.api.datamodels.*"
+ignore_errors = true
+
 [dependency-groups]
 dev = [
   "apache-airflow",
@@ -734,6 +741,9 @@ dev = [
   "apache-airflow-providers-ydb",
   "apache-airflow-providers-zendesk",
   "apache-airflow-task-sdk",
+]
+codegen = [
+    "datamodel-code-generator[http]>=0.26.4",
 ]
 
 [tool.uv.sources]
@@ -933,3 +943,30 @@ members = [
     ".",
     "task_sdk",
 ]
+
+
+# To use:
+#
+# TODO: Automate this in CI to validate the unit tests with newly generated API endpoint datamodels for compatibility
+# The FastAPI should be running in the background to serve the OpenAPI schema
+# uv run --group codegen --project apache-airflow --directory airflow/  datamodel-codegen
+[tool.datamodel-codegen]
+capitalise-enum-members=true # `State.RUNNING` not `State.running`
+disable-timestamp=true
+enable-version-header=true
+enum-field-as-literal='one' # When a single enum member, make it output a `Literal["..."]`
+input-file-type='openapi'
+output-model-type='pydantic_v2.BaseModel'
+output-datetime-class='datetime'
+target-python-version='3.9'
+no-alias=false
+use-annotated=true
+use-default=true
+use-double-quotes=true
+use-schema-description=true  # Desc becomes class doc comment
+use-standard-collections=true # list[] not List[]
+use-subclass-enum=true # enum, not union of Literals
+use-union-operator=false # 3.9+annotations
+
+url = "http://0.0.0.0:9091/openapi.json"
+output = "cli/api/datamodels/_generated.py"
