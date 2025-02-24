@@ -41,6 +41,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
+from tests_common.test_utils.www import _check_last_log
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 

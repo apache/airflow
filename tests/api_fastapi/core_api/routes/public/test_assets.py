@@ -43,6 +43,7 @@ from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_logs, clear_db_runs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
+from tests_common.test_utils.www import _check_last_log
 
 DEFAULT_DATE = datetime(2020, 6, 11, 18, 0, 0, tzinfo=timezone.utc)
 
