@@ -29,7 +29,7 @@ def get_provider_info():
         "state": "ready",
         "source-date-epoch": 1739963590,
         "versions": [
-            "3.8.1",
+            "3.8.2",
             "3.8.0",
             "3.7.0",
             "3.6.1",

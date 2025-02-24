@@ -29,7 +29,7 @@ def get_provider_info():
         "state": "ready",
         "source-date-epoch": 1739963477,
         "versions": [
-            "13.0.0",
+            "14.0.0",
             "12.0.0",
             "11.0.0",
             "10.26.0",
@@ -1619,7 +1619,7 @@ def get_provider_info():
             "google-cloud-monitoring>=2.18.0",
             "google-cloud-orchestration-airflow>=1.10.0",
             "google-cloud-os-login>=2.9.1",
-            "google-cloud-pubsub>=2.19.0",
+            "google-cloud-pubsub>=2.21.3",
             "google-cloud-redis>=2.12.0",
             "google-cloud-secret-manager>=2.16.0",
             "google-cloud-spanner>=3.11.1,!=3.49.0",

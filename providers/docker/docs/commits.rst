@@ -34,14 +34,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-4.1.0
+4.2.0
 .....
 
-Latest change: 2025-02-16
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  ================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ================================================================================
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `14c8fb39ce <https://github.com/apache/airflow/commit/14c8fb39cec3df783be3d964fb155e7f463c8ea8>`__  2025-02-16   ``Fix f-string ruff static check (#46813)``
 `025c2236a5 <https://github.com/apache/airflow/commit/025c2236a57bb918e7e7bc4f307256fc81eb4ad3>`__  2025-02-16   ``Using env for file path in find command (#46809)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``

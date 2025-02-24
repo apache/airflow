@@ -34,14 +34,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-12.1.0
+12.2.0
 ......
 
-Latest change: 2025-02-19
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  ===================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===================================================================================================================================================
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `4833b53705 <https://github.com/apache/airflow/commit/4833b53705acfc4bd0a26bf3e4dd4fc7a22b0bfa>`__  2025-02-19   ``Refactor result_processor and event_handler signatures in MSGraphAsyncOperator (#46637)``
 `4e17ecd3f8 <https://github.com/apache/airflow/commit/4e17ecd3f892497e910f4e7df7ecb007a7f3d039>`__  2025-02-16   ``Avoid imports from "providers" (#46801)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``

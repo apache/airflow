@@ -26,6 +26,12 @@
 Changelog
 ---------
 
+7.2.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
 7.1.0
 .....
 

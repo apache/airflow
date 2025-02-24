@@ -34,14 +34,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-10.2.0
+10.3.0
 ......
 
-Latest change: 2025-02-20
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  =====================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =====================================================================================================
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `56e083f145 <https://github.com/apache/airflow/commit/56e083f1455a83dcd8204e9746cfb2fad18f06da>`__  2025-02-20   ``AIP-72: Swap KubernetesExecutor to use taskSDK for execution (#46860)``
 `3e6c6a109e <https://github.com/apache/airflow/commit/3e6c6a109ea0b1567d68d85ff4bc6ebeed17facf>`__  2025-02-19   ``Fix wrong operator name in doc string of @task.kubernetes (#46873)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``

@@ -88,7 +88,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 13.0.0
+Release: 14.0.0
 
 Provider package
 ----------------
@@ -150,7 +150,7 @@ PIP package                                 Version required
 ``google-cloud-monitoring``                 ``>=2.18.0``
 ``google-cloud-orchestration-airflow``      ``>=1.10.0``
 ``google-cloud-os-login``                   ``>=2.9.1``
-``google-cloud-pubsub``                     ``>=2.19.0``
+``google-cloud-pubsub``                     ``>=2.21.3``
 ``google-cloud-redis``                      ``>=2.12.0``
 ``google-cloud-secret-manager``             ``>=2.16.0``
 ``google-cloud-spanner``                    ``>=3.11.1,!=3.49.0``
@@ -223,5 +223,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 13.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-13.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-13.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-13.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 13.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-13.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-13.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-13.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 14.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-14.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-14.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-14.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 14.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-14.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-14.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-14.0.0-py3-none-any.whl.sha512>`__)

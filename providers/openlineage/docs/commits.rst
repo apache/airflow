@@ -37,11 +37,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.1.0
 .....
 
-Latest change: 2025-02-17
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  ============================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================================================================================================================
+`36ae4683d3 <https://github.com/apache/airflow/commit/36ae4683d38576d34246535388e474d9a2d8e453>`__  2025-02-21   ``pass error for on_task_instance_failed in task sdk (#46941)``
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `b4d27074f6 <https://github.com/apache/airflow/commit/b4d27074f601e938ec5e10d957aef1de7c659c2f>`__  2025-02-17   ``Remove remnants of old provider's structure (#46829)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``

@@ -25,6 +25,12 @@
 Changelog
 ---------
 
+1.23.0
+......
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
 1.22.0
 ......
 
