@@ -155,7 +155,7 @@ def _common_processors(timestamp_fmt):
 
 
 @cache
-def logging_processors_pretty():
+def _logging_processors_pretty():
     timestamper, processors, suppress = _common_processors(timestamp_fmt="%Y-%m-%d %H:%M:%S.%f")
 
     rich_exc_formatter = structlog.dev.RichTracebackFormatter(
@@ -177,7 +177,7 @@ def logging_processors_pretty():
 
 
 @cache
-def logging_processors_ugly():
+def _logging_processors_plain():
     timestamper, processors, suppress = _common_processors(timestamp_fmt="iso")
     dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
         use_rich=False, show_locals=False, suppress=suppress
@@ -252,7 +252,7 @@ def configure_logging(
         formatter = "plain"
         color_format_processors.append(_json_processor)
         plain_format_processors.append(_json_processor)  # why do we conditionally add json processor here?
-        logger_factory, output, pre_chain_add, processors, timestamper = _configure_logging_ugly(
+        logger_factory, output, pre_chain_add, processors, timestamper = _configure_logging_plain(
             output=output,
         )
 
@@ -327,8 +327,8 @@ def configure_logging(
     )
 
 
-def _configure_logging_ugly(*, output):
-    processors, timestamper, exc_group_processor, dict_tracebacks = logging_processors_ugly()
+def _configure_logging_plain(*, output):
+    processors, timestamper, exc_group_processor, dict_tracebacks = _logging_processors_plain()
     if output is not None and "b" not in output.mode:
         if not hasattr(output, "buffer"):
             raise ValueError(
@@ -354,7 +354,7 @@ def _configure_logging_pretty(*, output):
         logger_factory = structlog.WriteLoggerFactory(wrapper)
     else:
         logger_factory = structlog.WriteLoggerFactory(output)
-    processors, timestamper, console_renderer = logging_processors_pretty()
+    processors, timestamper, console_renderer = _logging_processors_pretty()
     pre_chain_add = []
     return logger_factory, pre_chain_add, processors, timestamper, console_renderer
 
