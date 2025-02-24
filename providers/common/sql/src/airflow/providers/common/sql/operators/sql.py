@@ -225,7 +225,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param show_return_value_in_logs: (optional) if true operator output will be printed to the task log.
         Use with caution. It's not recommended to dump large datasets to the log. (default: False).
     :param requires_result_fetch: (optional) if True, ensures that query results are fetched before
-        completing execution. (default: False).
+        completing execution. If `do_xcom_push` is True, results are fetched automatically,
+        making this parameter redundant.  (default: False).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
