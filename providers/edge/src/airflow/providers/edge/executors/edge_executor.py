@@ -292,7 +292,7 @@ class EdgeExecutor(BaseExecutor):
                     "state": str(job.state),
                 }
                 Stats.incr(
-                    f"edge_worker.ti.finish.{job.queue}.{job.state}.{job.task.dag_id}.{job.task.task_id}",
+                    f"edge_worker.ti.finish.{job.queue}.{job.state}.{job.dag_id}.{job.task_id}",
                     tags=tags,
                 )
                 Stats.incr("edge_worker.ti.finish", tags=tags)

@@ -88,7 +88,7 @@ def fetch(
     session.commit()
     # Edge worker does not backport emitted Airflow metrics, so export some metrics manually
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
-    Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.task.dag_id}.{job.task.task_id}", tags=tags)
+    Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
     Stats.incr("edge_worker.ti.start", tags=tags)
     return EdgeJobFetched(
         dag_id=job.dag_id,
