@@ -50,7 +50,12 @@ from airflow.utils.types import DagRunType
 
 from tests.models import TEST_DAGS_FOLDER
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_import_errors,
+    clear_db_runs,
+    parse_and_sync_to_db,
+)
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -76,8 +81,17 @@ class TestCliDags:
         clear_db_runs()
         clear_db_dags()
 
-    def setup_method(self):
+    def setup_method(self, method):
+        print("running setup methods")
         clear_db_runs()  # clean-up all dag run before start each test
+
+        if method.__name__ == "test_cli_list_dags_prints_import_errors":
+            clear_db_import_errors()
+
+    def teardown_method(self, method):
+        # Clean-up all import errors after the test
+        if method.__name__ == "test_cli_list_dags_prints_import_errors":
+            clear_db_import_errors()
 
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
