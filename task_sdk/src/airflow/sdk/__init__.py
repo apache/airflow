@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 
 __lazy_imports: dict[str, str] = {
     "BaseOperator": ".definitions.baseoperator",
+    "BaseOperatorLink": ".definitions.baseoperatorlink",
     "Connection": ".definitions.connection",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",

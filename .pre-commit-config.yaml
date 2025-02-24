@@ -717,7 +717,7 @@ repos:
         language: pygrep
         name: Check BaseOperatorLink core imports
         description: Make sure BaseOperatorLink is imported from airflow.sdk.definitions.baseoperatorlink in core
-        entry: "from airflow\\.sdk\\.definitions\\.baseoperatorlink import.* BaseOperatorLink\\b"
+        entry: "from airflow\\.sdk\\..* import.* BaseOperatorLink\\b"
         files: \.py$
         pass_filenames: true
         exclude: >

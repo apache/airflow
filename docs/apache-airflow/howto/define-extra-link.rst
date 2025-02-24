@@ -31,7 +31,7 @@ The following code shows how to add extra links to an operator via Plugins:
 .. code-block:: python
 
     from airflow.models.baseoperator import BaseOperator
-    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.plugins_manager import AirflowPlugin
 
