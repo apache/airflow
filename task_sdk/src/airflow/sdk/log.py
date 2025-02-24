@@ -241,7 +241,6 @@ def configure_logging(
         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
         drop_positional_args,
     ]
-    enable_pretty_log = False
     if enable_pretty_log:
         formatter = "colored"
         logger_factory, pre_chain_add, processors, timestamper, console_renderer = _configure_logging_pretty(
