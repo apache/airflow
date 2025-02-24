@@ -948,7 +948,7 @@ DAGS_COMMANDS = (
         name="report",
         help="Show DagBag loading report",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_report"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="list-runs",

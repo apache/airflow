@@ -506,7 +506,21 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 @providers_configuration_loaded
 def dag_report(args) -> None:
     """Display dagbag stats at the command line."""
-    dagbag = DagBag(process_subdir(args.subdir))
+    manager = DagBundlesManager()
+
+    all_bundles = list(manager.get_all_dag_bundles())
+    if args.bundle_name:
+        validate_dag_bundle_arg(args.bundle_name)
+        bundles_to_reserialize = set(args.bundle_name)
+    else:
+        bundles_to_reserialize = {b.name for b in all_bundles}
+
+    for bundle in all_bundles:
+        if bundle.name not in bundles_to_reserialize:
+            continue
+        bundle.initialize()
+        dagbag = DagBag(bundle.path, include_examples=False)
+
     AirflowConsole().print_as(
         data=dagbag.dagbag_stats,
         output=args.output,
