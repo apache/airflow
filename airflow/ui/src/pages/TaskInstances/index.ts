@@ -16,17 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export enum SearchParamsKeys {
-  END_DATE = "end_date",
-  LAST_DAG_RUN_STATE = "last_dag_run_state",
-  LIMIT = "limit",
-  NAME_PATTERN = "name_pattern",
-  OFFSET = "offset",
-  PAUSED = "paused",
-  SORT = "sort",
-  START_DATE = "start_date",
-  STATE = "state",
-  TAGS = "tags",
-}
-
-export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;
+export { TaskInstances } from "./TaskInstances";
