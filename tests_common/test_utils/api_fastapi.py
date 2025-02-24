@@ -56,10 +56,10 @@ def _check_last_log(session, dag_id, event, logical_date, expected_extra=None, c
             Log.logical_date == logical_date,
         )
         .order_by(Log.dttm.desc())
-        .limit(5)
+        .limit(1)
         .all()
     )
-    assert len(logs) >= 1
+    assert len(logs) == 1
     assert logs[0].extra
     if expected_extra:
         assert json.loads(logs[0].extra) == expected_extra
