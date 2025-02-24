@@ -37,6 +37,7 @@ from airflow.utils.strings import to_boolean
 from snowflake import connector
 from snowflake.connector import DictCursor, SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
+from airflow.utils import secrets 
 
 T = TypeVar("T")
 if TYPE_CHECKING:
@@ -91,63 +92,30 @@ class SnowflakeHook(DbApiHook):
     supports_autocommit = True
     _test_connection_sql = "select 1"
 
-    @classmethod
-    def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import (
-            BS3PasswordFieldWidget,
-            BS3TextFieldWidget,
-        )
-        from flask_babel import lazy_gettext
-        from wtforms import BooleanField, PasswordField, StringField
+   @classmethod
+def get_connection_form_widgets(cls) -> dict[str, Any]:
+    from wtforms import StringField
+    from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget
+    from flask_babel import lazy_gettext
 
-        return {
-            "account": StringField(lazy_gettext("Account"), widget=BS3TextFieldWidget()),
-            "warehouse": StringField(lazy_gettext("Warehouse"), widget=BS3TextFieldWidget()),
-            "database": StringField(lazy_gettext("Database"), widget=BS3TextFieldWidget()),
-            "region": StringField(lazy_gettext("Region"), widget=BS3TextFieldWidget()),
-            "role": StringField(lazy_gettext("Role"), widget=BS3TextFieldWidget()),
-            "private_key_file": StringField(lazy_gettext("Private key (Path)"), widget=BS3TextFieldWidget()),
-            "private_key_content": PasswordField(
-                lazy_gettext("Private key (Text)"), widget=BS3PasswordFieldWidget()
-            ),
-            "insecure_mode": BooleanField(
-                label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
-            ),
-        }
+    return {
+        "private_key_content": StringField(
+            lazy_gettext("Private key (Text)"), widget=BS3TextAreaFieldWidget()
+        ),
+        # ... other fields ...
+    }
 
-    @classmethod
-    def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Return custom field behaviour."""
-        import json
-
-        return {
-            "hidden_fields": ["port", "host"],
-            "relabeling": {},
-            "placeholders": {
-                "extra": json.dumps(
-                    {
-                        "authenticator": "snowflake oauth",
-                        "private_key_file": "private key",
-                        "session_parameters": "session parameters",
-                        "client_request_mfa_token": "client request mfa token",
-                        "client_store_temporary_credential": "client store temporary credential (externalbrowser mode)",
-                    },
-                    indent=1,
-                ),
-                "schema": "snowflake schema",
-                "login": "snowflake username",
-                "password": "snowflake password",
-                "account": "snowflake account name",
-                "warehouse": "snowflake warehouse name",
-                "database": "snowflake db name",
-                "region": "snowflake hosted region",
-                "role": "snowflake role",
-                "private_key_file": "Path of snowflake private key (PEM Format)",
-                "private_key_content": "Content to snowflake private key (PEM format)",
-                "insecure_mode": "insecure mode",
-            },
-        }
+@classmethod
+def get_ui_field_behaviour(cls) -> dict[str, Any]:
+    return {
+        "hidden_fields": ["extra"],
+        "relabeling": {},
+        "placeholders": {
+            "private_key_content": "Paste your private key here",
+            # ... other placeholders ...
+        },
+        "sensitive_fields": ["private_key_content"],  # Mark as sensitive
+    }
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
