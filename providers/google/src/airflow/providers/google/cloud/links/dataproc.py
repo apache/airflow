@@ -25,8 +25,9 @@ from typing import TYPE_CHECKING, Any
 import attr
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.models import BaseOperatorLink, XCom
+from airflow.models import XCom
 from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
+from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator

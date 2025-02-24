@@ -18,7 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperatorLink, XCom
+from airflow.models import XCom
+from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
