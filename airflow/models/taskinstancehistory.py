@@ -144,13 +144,7 @@ class TaskInstanceHistory(Base):
     def record_ti(ti: TaskInstance, session: NEW_SESSION = None) -> None:
         """Record a TaskInstance to TaskInstanceHistory."""
         exists_q = session.scalar(
-            select(func.count(TaskInstanceHistory.task_id)).where(
-                TaskInstanceHistory.dag_id == ti.dag_id,
-                TaskInstanceHistory.task_id == ti.task_id,
-                TaskInstanceHistory.run_id == ti.run_id,
-                TaskInstanceHistory.map_index == ti.map_index,
-                TaskInstanceHistory.try_number == ti.try_number,
-            )
+            select(func.count(TaskInstanceHistory.task_id)).where(TaskInstanceHistory.id == ti.id)
         )
         if exists_q:
             return
